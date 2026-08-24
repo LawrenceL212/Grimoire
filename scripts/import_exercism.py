@@ -601,7 +601,32 @@ FLOOR_NAMES = [
 ]
 
 
-def build_dungeon(track, fetcher, per_floor, report):
+def distribute(items, target_floors, per_floor):
+    """Split exercises into floors, keeping the syllabus order.
+
+    With a target count the remainder is spread over the last floors rather
+    than left as a stub floor at the end - a floor with two exercises cannot
+    reach the six-practice minimum.
+    """
+    n = len(items)
+    if not n:
+        return []
+    if not target_floors:
+        target_floors = max(1, (n + per_floor - 1) // per_floor)
+        # A trailing floor that is less than half full is folded backwards.
+        if target_floors > 1 and n - (target_floors - 1) * per_floor <= per_floor // 2:
+            target_floors -= 1
+    target_floors = min(target_floors, n)
+    base, extra = divmod(n, target_floors)
+    out, i = [], 0
+    for f in range(target_floors):
+        take = base + (1 if f >= target_floors - extra else 0)
+        out.append(items[i:i + take])
+        i += take
+    return out
+
+
+def build_dungeon(track, fetcher, per_floor, report, target_floors=None):
     conf_raw = fetcher.get("config.json")
     if conf_raw is None:
         raise SystemExit("Could not fetch config.json for track '%s'." % track)
@@ -615,16 +640,15 @@ def build_dungeon(track, fetcher, per_floor, report):
 
     ext = EXT.get(track, "txt")
     lang_id = track
-    floors, floor_no = [], 1
+    floors = []
 
-    for i in range(0, len(ordered), per_floor):
-        if floor_no > 10:
-            report["exercises_beyond_10_floors"] = len(ordered) - i
-            break
-        group = ordered[i:i + per_floor]
-        floor = build_floor(track, ext, lang_id, floor_no, group, fetcher, report)
-        floors.append(floor)
-        floor_no += 1
+    # Floor count follows the syllabus, never a fixed number. Either the
+    # caller names a target and the exercises are spread evenly across it,
+    # or the concept tree decides via the per-floor grouping.
+    groups = distribute(ordered, target_floors, per_floor)
+    report["floor_sizes"] = [len(g) for g in groups]
+    for i, group in enumerate(groups):
+        floors.append(build_floor(track, ext, lang_id, i + 1, group, fetcher, report))
 
     flav = FLAVOUR.get(track, {"name": humanise(track) + " Depths", "sigil": "◈"})
     return {
@@ -830,6 +854,10 @@ def first_definition(src, ext):
 
 
 # -------------------------------------------------------------- syllabus
+BEGIN = "<!-- GENERATED:BEGIN - import_exercism.py rewrites this block -->"
+END = "<!-- GENERATED:END -->"
+
+
 def write_syllabus(dungeon, conf_concepts, path):
     lines = ["# Syllabus - %s (%s)" % (dungeon["subject"], dungeon["name"]), ""]
     lines.append("Derived from `%s`. This is the contract: content must cover"
@@ -847,10 +875,18 @@ def write_syllabus(dungeon, conf_concepts, path):
     missing = [c for c in conf_concepts if c not in covered]
     lines += ["", "## Declared in the track but not yet on a floor", ""]
     lines += ["- `%s`" % c for c in missing] or ["- none"]
-    lines += ["", "## Floor 10 - boss", "",
-              "Boss project brief still to be written. Candidate sources:"
-              " codecrafters-io/build-your-own-x (CC0).", ""]
-    io.open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+    block = BEGIN + "\n" + "\n".join(lines) + "\n" + END + "\n"
+
+    # Authored floors live outside the generated block and must survive a
+    # re-import; only the imported table is regenerated.
+    if os.path.exists(path):
+        old_text = io.open(path, encoding="utf-8").read()
+        if BEGIN in old_text and END in old_text:
+            head = old_text.split(BEGIN)[0]
+            tail = old_text.split(END, 1)[1]
+            io.open(path, "w", encoding="utf-8").write(head + block + tail)
+            return
+    io.open(path, "w", encoding="utf-8").write(block)
 
 
 # ------------------------------------------------------------------ main
@@ -859,7 +895,9 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("track", help="Exercism track slug, e.g. python")
     ap.add_argument("--per-floor", type=int, default=3,
-                    help="concept exercises per floor (default 3)")
+                    help="concept exercises per floor when --floors is not given")
+    ap.add_argument("--floors", type=int, default=None,
+                    help="target floor count; exercises are spread evenly over it")
     ap.add_argument("--no-cache", action="store_true")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the summary without writing files")
@@ -872,7 +910,7 @@ def main():
 
     f = Fetcher(args.track, use_cache=not args.no_cache)
     print("importing exercism/%s ..." % args.track)
-    dungeon = build_dungeon(args.track, f, args.per_floor, report)
+    dungeon = build_dungeon(args.track, f, args.per_floor, report, args.floors)
 
     conf = json.loads(f.get("config.json"))
     all_concepts = [c["slug"] for c in conf.get("concepts", [])]
@@ -900,8 +938,9 @@ def main():
     print("  network: %d fetched, %d from cache%s" % (
         f.misses, f.hits, ", %d failed" % len(f.failures) if f.failures else ""))
     print("  concept exercises in syllabus : %d" % report["exercises_declared"])
-    print("  floors built                  : %d  (%d exercises per floor)"
-          % (len(dungeon["floors"]), args.per_floor))
+    print("  floors built                  : %d  (exercises per floor: %s)"
+          % (len(dungeon["floors"]),
+             ", ".join(str(x) for x in report.get("floor_sizes", []))))
     print("")
     print("  IMPORTED")
     print("    lesson sections             : %d" % n_sec)
@@ -928,9 +967,6 @@ def main():
         print("    no introduction.md          : %s" % ", ".join(report["missing_intro"]))
     if report["missing_tests"]:
         print("    no test file                : %s" % ", ".join(report["missing_tests"]))
-    if report["exercises_beyond_10_floors"]:
-        print("    exercises past floor 10     : %d (dungeon is capped at 10 floors)"
-              % report["exercises_beyond_10_floors"])
     if report["cycles"]:
         print("    prerequisite cycles         : %s" % "; ".join(report["cycles"]))
     if f.failures:

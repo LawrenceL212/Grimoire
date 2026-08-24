@@ -2812,12 +2812,14 @@
    "concepts": [
     "dict-methods",
     "dicts",
+    "sets",
     "unpacking-and-multiple-assignment"
    ],
    "exercises": [
     "inventory-management",
     "mecha-munch-management",
-    "locomotive-engineer"
+    "locomotive-engineer",
+    "cater-waiter"
    ],
    "lesson": {
     "sections": [
@@ -3609,28 +3611,18 @@
    "name": "The Iterating Spiral",
    "concepts": [
     "classes",
+    "enums",
     "generators",
-    "sets"
+    "none"
    ],
    "exercises": [
-    "cater-waiter",
     "ellens-alien-game",
-    "plane-tickets"
+    "plane-tickets",
+    "log-levels",
+    "restaurant-rozalynn"
    ],
    "lesson": {
     "sections": [
-     {
-      "title": "Set Literals",
-      "body": "A `set` can be directly entered as a _set literal_ with curly `{}` brackets and commas between elements.\nDuplicates are silently omitted:\n\nSet literals use the same curly braces as `dict` literals, which means you need to use `set()` to create an empty `set`.",
-      "code": "one_element = {'➕'}\nmultiple_elements = {'➕', '🔻', '🔹', '🔆'}\nmultiple_duplicates =  {'Hello!', 'Hello!', 'Hello!',",
-      "lang": "python"
-     },
-     {
-      "title": "The Set Constructor",
-      "body": "`set()` (_the constructor for the `set` class_) can be used with any `iterable` passed as an argument.\nElements of the `iterable` are cycled through and added to the `set` individually.\nElement order is not preserved and duplicates are silently omitted:\n\n### Gotchas when Creating Sets\n\nDue to its \"unpacking\" behavior, using `set()` with a string might be surprising:\n\nSets can hold different datatypes and _nested_ datatypes, but all `set` elements must be _hashable_:",
-      "code": "# To create an empty set, the constructor must be used.\n>>> no_elements = set()\nset()\n\n# The tuple is unpacked & each element is added.  \n# Duplicates are removed.\n>>> elements_from_tuple = set((\"Parrot\", \"Bird\", \n                               334782, \"Bird\", \"Parrot\"))\n{334782, 'Bird', 'Parrot'}\n\n# The list is unpacked & each element is added.\n# Duplicates are removed.\n>>> elements_from_list = set([2, 3, 2, 3, 3, 3, 5, \n                              7, 11, 7, 11, 13, 13])\n{2, 3, 5, 7, 11, 13}",
-      "lang": "python"
-     },
      {
       "title": "Classes",
       "body": "`Classes` are the definitions of new object types, and from which new `instances` of objects are created.\nThey often bundle data with code or functions that operate on that data.\nIn this sense, classes are _blueprints_ or sets of instructions from which many objects of a similar type can be built and used.\nA complex program can have many classes, each building many different flavors of objects.\nThe process of building an object from a class is known as `instantiation` (_or creating an instance of the class_).\n\nA class definition in Python is straightforward:\n\n### Class Attributes\n\nClass fields (_otherwise known as `properties`, `attributes`, `data members`, or `variables`_) can be added to the body of the class:\n\nAn instance (_object_) of `MyClass` can be created and bound to a name by _calling_ the class (_in the same way a function is called_):\n\n`Class attributes` are shared across all objects (_or instances_) created from a class, and can be accessed via `dot notation`  -  a `.` placed after the object name and before the attribute name:\n\nClass attributes are defined in the body of the class itself, before any other methods.\nThey are owned by the class - allowing them to be shared across instances of the class.\nBecause these attributes are shared, their value can be accessed and manipulated from the class _directly_.\nAltering the value of class attributes alters the value _**for all objects instantiated from the class**_:\n\nHaving a bunch of objects with synchronized data at all times is not particularly useful.\nFortunately, objects created from a class can be customized with their own `instance attributes` (_or instance properties, variables, or fields_).\nAs their name suggests, instance attributes are unique to each object, and can be modified independently.",
@@ -3641,6 +3633,18 @@
       "title": "Customizing Object Instantiation with `__init__()`",
       "body": "The special \"dunder method\" (_short for \"double underscore method\"_) `__init__()` is used to customize class instances, and can be used to initialize instance attributes or properties for objects.\nFor its role in initializing instance attributes, `__init__()` is also referred to as a `class constructor` or `initializer`.\n`__init__()` takes one required parameter called `self`, which refers to the newly initialized or created object.\nData for instance attributes or properties can then be passed as arguments of `__init__()`, following the `self` parameter.\n\nBelow, `MyClass` now has instance attributes called `location_x` and `location_y`.\nAs you can see, the two attributes have been assigned to the first and second indexes of the `location` (_a tuple_) argument that has been passed to `__init__()`.\nThe `location_x` and `location_y` attributes for a class instance will now be initialized when you instantiate the class, and an object is created:\n\nNote that you only need to pass one argument when initializing `MyClass` above -- Python takes care of passing `self` when the class is called.",
       "code": "class MyClass:\n    # These are class attributes, variables, or fields.\n    number = 5\n    string = \"Hello!\"\n\n    # This is the class \"constructor\", with a \"location\" parameter that is a tuple.\n    def __init__(self, location):\n\n        # This is an instance or object property, attribute, or variable.\n        # Note that we are unpacking the tuple argument into two separate instance variables.\n        self.location_x = location[0]\n        self.location_y = location[1]\n\n# Create a new object \"new_object_one\", with object property (1, 2).\n>>> new_object_one = MyClass((1, 2))\n\n# Create a second new object \"new_object_two\" with object property (-8, -9).\n>>> new_object_two = MyClass((-8, -9))\n\n# Note that new_object_one.location_x and new_object_two.location_x two different values.\n>>> new_object_one.location_x\n1\n\n>>> new_object_two.location_x\n-8",
+      "lang": "python"
+     },
+     {
+      "title": "Constructing a generator",
+      "body": "Generators are constructed much like other looping or recursive functions, but require a `yield` expression, which we will explore in depth a bit later.\n\nAn example is a function that returns the _squares_ from a given list of numbers.\nAs currently written, all input must be processed before any values can be returned:\n\nYou can convert that function into a generator like this:\n\nThe rationale behind this is that you use a generator when you do not need to produce all the values _at once_.\nThis saves memory and processing power, since only the value you are _currently working on_ is calculated.",
+      "code": "def squares(list_of_numbers):\n    squares = []\n    for number in list_of_numbers:\n        squares.append(number ** 2)\n    return squares",
+      "lang": "python"
+     },
+     {
+      "title": "Using a generator",
+      "body": "Generators may be used in place of most `iterables` in Python.\nThis includes _functions_ or _objects_ that require an `iterable`/`iterator` as an argument.\n\nTo use the `squares_generator()` generator:\n\nValues within a `generator` can also be produced/accessed via the `next()` function.\n`next()` calls the `__next__()` method of a generator-iterator object, \"advancing\" or evaluating the code up to its `yield` expression, which then \"yields\" or returns a value:\n\nWhen a `generator-iterator` is fully consumed and has no more values to return, it throws a `StopIteration` error.\n\n~~~~exercism/note\n\nGenerator-iterators are a special sub-set of iterators.\n`Iterators` are the mechanism/protocol that enables looping over _iterables_.\nGenerator-iterators and the iterators returned by common Python `iterables` act very similarly, but there are some important differences to note:\n\n- They are _lazily evaluated_; iteration is _one-way_ and there is no \"backing up\" to a previous value.\n- They are _consumed_ by iterating over the returned values; there is no resetting or saving in memory.\n- They are not sortable and cannot be reversed.\n- They are not sequence types, and _do not_ have `indexes`. \n  You cannot reference a previous or future value using addition or subtraction and you cannot use bracket (`[]`) notation or slicing.\n- They cannot be used with the `len()` function, as they have no length.\n- They can be _finite_ or _infinite_ - be careful when collecting all values from an _infinite_ `generator-iterator`!\n\n~~~~",
+      "code": "squared_numbers = squares_generator([1, 2, 3, 4])\nfor square in squared_numbers:\n    print(square)",
       "lang": "python"
      }
     ]
@@ -3887,56 +3891,9 @@
       "generators"
      ],
      "source": "exercism/python plane-tickets"
-    }
-   ],
-   "exam": [],
-   "_todo": [
-    "practice needs 1 more challenge(s)",
-    "exam: author 8-12 questions"
-   ]
-  },
-  {
-   "n": 7,
-   "name": "Sanctum of Structure",
-   "concepts": [
-    "enums",
-    "none"
-   ],
-   "exercises": [
-    "log-levels",
-    "restaurant-rozalynn"
-   ],
-   "lesson": {
-    "sections": [
-     {
-      "title": "In Python, an enum is a set of names that are bound to...",
-      "body": "In Python, an enum is a set of names that are bound to unique `literal`, or `constant` values. Enums are defined by inheriting an `Enum` class. Built-in enum types are available in the module `enum` and the class `Enum` can be imported using `from enum import Enum`.",
-      "code": "class Color(Enum):\n    RED = 1\n    GREEN = 2",
-      "lang": "python"
-     },
-     {
-      "title": "Note that the values of the enum members can be any data...",
-      "body": "Note that the values of the enum members can be any data types such as str, tuple, float, etc.",
-      "code": "class Color(Enum):\n    RED = 'red'\n    GREEN = 'green'",
-      "lang": "python"
-     },
-     {
-      "title": "In Python, None is frequently used to represent the...",
-      "body": "In Python, `None` is frequently used to represent the absence of a value -- a placeholder to define a `null` (empty) variable, object, or argument.\n\nIf you've heard about or used a `NULL` or `nil` type in another programming language, then this usage of `None` in Python will be familiar to you. `None` helps you to declare variables or function arguments that you don't yet have values for. These can then be re-assigned to specific values later as needed.",
-      "code": "a = None\nprint(a)\n#=> None\ntype(a)\n#=> <class 'NoneType'>\n\n# Adding a Default Argument with `None`\ndef add_to_todos(new_task, todo_list=None):\n  if todo_list is None:\n    todo_list = []\n    todo_list.append(new_task)\n  return todo_list",
-      "lang": "python"
-     },
-     {
-      "title": "None will evaluate to False when used in a conditional...",
-      "body": "`None` will evaluate to `False` when used in a conditional check, so it is useful for validating the \"presence of\" or \"absence of\" a value - _any_ value -- a pattern frequently used when a function or process might hand back an error object or message.",
-      "code": "a = None\nif a: #=> a will be evaluated to False when its used in a conditional check.\n    print(\"This will not be printed\")",
-      "lang": "python"
-     }
-    ]
-   },
-   "practice": [
+    },
     {
-     "id": "py-7-p-01",
+     "id": "py-6-p-06",
      "type": "code",
      "fn": "get_members",
      "prompt": "**All Member Names and Values**\n\nDefine the function `get_members()`.\n\nThis function should return a list of tuples `(name, value)` containing all the members of the enum `LogLevel`.\n\n```python\nget_members()\n#=> [('Trace', 'TRC'), ('Debug', 'DBG'), ('Info', 'INF'), ('Warning', 'WRN'),\n# ('Error', 'ERR'), ('Fatal', 'FTL'), ('Unknown', 'UKN')]\n```",
@@ -3986,7 +3943,7 @@
      "source": "exercism/python log-levels"
     },
     {
-     "id": "py-7-p-02",
+     "id": "py-6-p-07",
      "type": "code",
      "fn": "new_seating_chart",
      "prompt": "**Make Today's Seating Chart**\n\nDefine the `new_seating_chart(<size=22>)` function that takes a size argument representing the number of seats that will be set in the dining room today.\nIf no `size` is given, the function should return a seating chart with 22 seats.\nSeat values should have a placeholder of `None` to indicate they are available to assign to a guest.",
@@ -4011,7 +3968,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-03",
+     "id": "py-6-p-08",
      "type": "code",
      "fn": "new_seating_chart",
      "prompt": "**Make Today's Seating Chart**\n\nDefine the `new_seating_chart(<size=22>)` function that takes a size argument representing the number of seats that will be set in the dining room today.\nIf no `size` is given, the function should return a seating chart with 22 seats.\nSeat values should have a placeholder of `None` to indicate they are available to assign to a guest.",
@@ -4055,7 +4012,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-04",
+     "id": "py-6-p-09",
      "type": "code",
      "fn": "arrange_reservations",
      "prompt": "**Arrange Reservations**\n\nDefine the `arrange_reservations(<guest_names>)` function with 1 parameter for a list of guest names.\nThis represents the number of people who have places reserved in the dining room today.\n\nThis function should return a `dict` seating chart of default size (22 seats), with guests assigned to seats in the order they appear on the reservation list.\nAll unassigned seats should be set to `None`.\nIf there are no guests, an \"empty\" seating chart with all `None` placeholders should be returned.\n\n```python\n>>> arrange_reservations(guests=[\"Walter\", \"Frank\", \"Jenny\", \"Carol\", \"Alice\", \"George\"])\n...\n{1: 'Walter', 2: 'Frank', 3: 'Jenny', 4: 'Carol', 5: 'Alice', 6: 'George', 7: None, 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: None, 19: None, 20: None, 21: None, 22: None}\n```",
@@ -4099,7 +4056,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-05",
+     "id": "py-6-p-10",
      "type": "code",
      "fn": "arrange_reservations",
      "prompt": "**Arrange Reservations**\n\nDefine the `arrange_reservations(<guest_names>)` function with 1 parameter for a list of guest names.\nThis represents the number of people who have places reserved in the dining room today.\n\nThis function should return a `dict` seating chart of default size (22 seats), with guests assigned to seats in the order they appear on the reservation list.\nAll unassigned seats should be set to `None`.\nIf there are no guests, an \"empty\" seating chart with all `None` placeholders should be returned.\n\n```python\n>>> arrange_reservations(guests=[\"Walter\", \"Frank\", \"Jenny\", \"Carol\", \"Alice\", \"George\"])\n...\n{1: 'Walter', 2: 'Frank', 3: 'Jenny', 4: 'Carol', 5: 'Alice', 6: 'George', 7: None, 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: None, 19: None, 20: None, 21: None, 22: None}\n```",
@@ -4143,7 +4100,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-06",
+     "id": "py-6-p-11",
      "type": "code",
      "fn": "find_all_available_seats",
      "prompt": "**Find All the \"Empty\" Seats**\n\nDefine the `find_all_available_seats(<seats>)` function that takes 1 parameter (_a seating chart dictionary_) and returns a `list` of seat numbers that are available for guests that are currently waiting.\nIf a seat is empty, It will be of `None` value in the dictionary. Occupied seats will have the name of the guest.\n\n```python\n>>> seats = {1: None, 2: 'Frank', 3: 'Jenny', 4: None, 5: 'Alice', 6: 'George', 7: None, 8: 'Carol', 9: None, 10: None, 11: None, 12: 'Walter'}\n\n>>> find_all_available_seats(seats)\n[1,4,7,9,10,11]\n```",
@@ -4171,7 +4128,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-07",
+     "id": "py-6-p-12",
      "type": "code",
      "fn": "find_all_available_seats",
      "prompt": "**Find All the \"Empty\" Seats**\n\nDefine the `find_all_available_seats(<seats>)` function that takes 1 parameter (_a seating chart dictionary_) and returns a `list` of seat numbers that are available for guests that are currently waiting.\nIf a seat is empty, It will be of `None` value in the dictionary. Occupied seats will have the name of the guest.\n\n```python\n>>> seats = {1: None, 2: 'Frank', 3: 'Jenny', 4: None, 5: 'Alice', 6: 'George', 7: None, 8: 'Carol', 9: None, 10: None, 11: None, 12: 'Walter'}\n\n>>> find_all_available_seats(seats)\n[1,4,7,9,10,11]\n```",
@@ -4204,7 +4161,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-08",
+     "id": "py-6-p-13",
      "type": "code",
      "fn": "current_empty_seat_capacity",
      "prompt": "**Current Empty Seating Capacity**\n\nDefine the `current_empty_seat_capacity(<seats>)` function that takes 1 parameter - the `dict` of existing seat reservations.\nThe function should return the total number of seats that are empty.\n\n```python\n>>> curr_empty_seat_capacity({1: \"Occupied\", 2: None, 3: \"Occupied\"})\n1\n\n>>> curr_empty_seat_capacity({1: \"Occupied\", 2: None, 3: None})\n2\n```",
@@ -4225,7 +4182,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-09",
+     "id": "py-6-p-14",
      "type": "code",
      "fn": "current_empty_seat_capacity",
      "prompt": "**Current Empty Seating Capacity**\n\nDefine the `current_empty_seat_capacity(<seats>)` function that takes 1 parameter - the `dict` of existing seat reservations.\nThe function should return the total number of seats that are empty.\n\n```python\n>>> curr_empty_seat_capacity({1: \"Occupied\", 2: None, 3: \"Occupied\"})\n1\n\n>>> curr_empty_seat_capacity({1: \"Occupied\", 2: None, 3: None})\n2\n```",
@@ -4246,7 +4203,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-10",
+     "id": "py-6-p-15",
      "type": "code",
      "fn": "accommodate_waiting_guests",
      "prompt": "**Should we wait?**\n\nDefine the `accommodate_waiting_guests(<seats>, <guests>)` function that takes two parameters.\nThe first parameter will be a seating chart `dict`.\nThe second parameter will be a `list` of guests who have \"walked in\" unexpectedly.\nYou'll first need to find out how many seats are available and whether or not you can even give the unannounced guests seats at this time.\n\nIf you do not have enough seats, return the seating chart `dict` unaltered.\n\nIf seats _are_ available, assign the guests places on the seating chart, and return it updated.\n**Tip:** You can use previously defined functions to do the calculations for you.\n\n```python\n# Guests cannot be accommodated.\n>>> starting_reservations = {1: 'Carol', 2: 'Alice', 3: 'George', 4: None, 5: None, 6: None, 7: 'Frank', 8: 'Walter'}\n>>> accommodate_guests(starting_reservations, [\"Mort\", \"Suze\", \"Phillip\", \"Tony\"])\n...\n{1: 'Carol', 2: 'Alice', 3: 'George', 4: None, 5: None, 6: None, 7: 'Frank', 8: 'Walter'}\n\n# Guests can be accommodated.\n>>> starting_reservations = {1: None, 2: None, 3: None, 4: 'Carol', 5: 'Alice', 6: 'George', 7: None, 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: 'Frank', 19:  'Jenny', 20: None, 21: None, 22: 'Walter'}\n>>> accommodate_guests(starting_reservations, [\"Mort\", \"Suze\", \"Phillip\", \"Tony\"])\n...\n{1: 'Mort', 2: 'Suze', 3: 'Phillip', 4: 'Carol', 5: 'Alice', 6: 'George', 7: 'Tony', 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: 'Frank', 19: 'Jenny', 20: None, 21: None, 22: 'Walter'}\n```",
@@ -4276,7 +4233,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-11",
+     "id": "py-6-p-16",
      "type": "code",
      "fn": "accommodate_waiting_guests",
      "prompt": "**Should we wait?**\n\nDefine the `accommodate_waiting_guests(<seats>, <guests>)` function that takes two parameters.\nThe first parameter will be a seating chart `dict`.\nThe second parameter will be a `list` of guests who have \"walked in\" unexpectedly.\nYou'll first need to find out how many seats are available and whether or not you can even give the unannounced guests seats at this time.\n\nIf you do not have enough seats, return the seating chart `dict` unaltered.\n\nIf seats _are_ available, assign the guests places on the seating chart, and return it updated.\n**Tip:** You can use previously defined functions to do the calculations for you.\n\n```python\n# Guests cannot be accommodated.\n>>> starting_reservations = {1: 'Carol', 2: 'Alice', 3: 'George', 4: None, 5: None, 6: None, 7: 'Frank', 8: 'Walter'}\n>>> accommodate_guests(starting_reservations, [\"Mort\", \"Suze\", \"Phillip\", \"Tony\"])\n...\n{1: 'Carol', 2: 'Alice', 3: 'George', 4: None, 5: None, 6: None, 7: 'Frank', 8: 'Walter'}\n\n# Guests can be accommodated.\n>>> starting_reservations = {1: None, 2: None, 3: None, 4: 'Carol', 5: 'Alice', 6: 'George', 7: None, 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: 'Frank', 19:  'Jenny', 20: None, 21: None, 22: 'Walter'}\n>>> accommodate_guests(starting_reservations, [\"Mort\", \"Suze\", \"Phillip\", \"Tony\"])\n...\n{1: 'Mort', 2: 'Suze', 3: 'Phillip', 4: 'Carol', 5: 'Alice', 6: 'George', 7: 'Tony', 8: None, 9: None, 10: None, 11: None, 12: None, 13: None, 14: None, 15: None, 16: None, 17: None, 18: 'Frank', 19: 'Jenny', 20: None, 21: None, 22: 'Walter'}\n```",
@@ -4320,7 +4277,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-12",
+     "id": "py-6-p-17",
      "type": "code",
      "fn": "empty_seats",
      "prompt": "**Empty Seats**\n\nDefine the `empty_seats(<seats>, <seat_numbers>)` function that takes two parameters.\nThe first parameter will be a seating chart dictionary.\nThe second parameter is a list of seat numbers you need to \"free up\" or empty -- that is, you need to assign the seat number value to `None`.\n\nReturn the `dict` of seats after updating the \"to empty\" seat values.\n\n```python\n>>> empty_seats(seats={1: \"Alice\", 2: None, 3: \"Bob\", 4: \"George\", 5: \"Gloria\"}, seat_numbers=[5,3,1])\n{1: None, 2: None, 3: None, 4: \"George\", 5: None}\n```",
@@ -4347,7 +4304,7 @@
      "source": "exercism/python restaurant-rozalynn"
     },
     {
-     "id": "py-7-p-13",
+     "id": "py-6-p-18",
      "type": "code",
      "fn": "empty_seats",
      "prompt": "**Empty Seats**\n\nDefine the `empty_seats(<seats>, <seat_numbers>)` function that takes two parameters.\nThe first parameter will be a seating chart dictionary.\nThe second parameter is a list of seat numbers you need to \"free up\" or empty -- that is, you need to assign the seat number value to `None`.\n\nReturn the `dict` of seats after updating the \"to empty\" seat values.\n\n```python\n>>> empty_seats(seats={1: \"Alice\", 2: None, 3: \"Bob\", 4: \"George\", 5: \"Gloria\"}, seat_numbers=[5,3,1])\n{1: None, 2: None, 3: None, 4: \"George\", 5: None}\n```",

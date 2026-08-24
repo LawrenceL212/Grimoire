@@ -109,16 +109,16 @@ fail soft and log — they never throw into the UI, and progress is never lost.
 
 ## Build status
 
-- **Phase 0 — content pipeline: done.** Three scripts, Python track imported,
+- **Phase 0 — content pipeline: done.** Import scripts, Python track imported,
   attribution written.
-- Phase 1 — shell and auth
-- Phase 2 — floor runner: lesson phase
+- **Phase 1 — shell and auth: done.** Responsive shell, Firebase auth, the
+  three-Book dungeon map, user documents created on first sign-up.
+- Phase 2 — floor runner: interactive lesson phase with checkpoints
 - Phase 3 — floor runner: practice phase
 - Phase 4 — floor runner: exam phase
 - Phase 5 — progression systems
 - Phase 6 — Python floors 1–3 fully authored
 - Phase 7 — content expansion
 
-`index.html` and `content/_prior/` currently hold an earlier prototype built
-against a different schema; Phase 1 replaces the app shell, and the prior
-hand-authored Python floors 1–3 are kept as source material for Phase 6.
+`content/_prior/` holds hand-authored Python floors from an earlier prototype,
+kept as reference material for the authoring phase.
