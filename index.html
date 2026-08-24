@@ -1032,16 +1032,22 @@ self.onmessage = function (e) {
   }
   function push() { out.push(Array.prototype.map.call(arguments, fmt).join(" ")); }
   var box = { log: push, info: push, warn: push, error: push, debug: push };
+  function fail(err) {
+    self.postMessage({ id: id, ok: false, stdout: out.join("\n"),
+                       stderr: (err && err.name ? err.name + ": " : "") +
+                               ((err && err.message) ? err.message : String(err)) });
+  }
   try {
     var fn = new Function("console", "self", "window", "document", "fetch",
                           "XMLHttpRequest", "importScripts", "WebSocket",
                           '"use strict";' + e.data.code);
-    fn(box);
-    self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" });
+    // the harness returns a promise for async challenges; plain code returns
+    // undefined and resolves immediately
+    Promise.resolve(fn(box)).then(function () {
+      self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" });
+    }, fail);
   } catch (err) {
-    self.postMessage({ id: id, ok: false, stdout: out.join("\n"),
-                       stderr: (err && err.name ? err.name + ": " : "") +
-                               ((err && err.message) ? err.message : String(err)) });
+    fail(err);
   }
 };
 </script>
@@ -1465,8 +1471,11 @@ function jsHarness(userCode, callExpr, stdinLines) {
     "function readline(){ if (__ix >= __in.length) throw new Error('no more input'); return __in[__ix++]; }\n";
   let body = pre + "\n" + userCode + "\n";
   if (!callExpr) return body;
-  return body + "\n;(function(){ var __o;\n" +
-    "  try { var __v = (" + callExpr + ");\n" +
+  /* The IIFE is async and its promise is RETURNED, so the worker can wait
+     for it. Without the await an async challenge would serialise a pending
+     Promise as {} and could never be passed. */
+  return body + "\nreturn (async function(){ var __o;\n" +
+    "  try { var __v = await (" + callExpr + ");\n" +
     "    var __s; try { __s = JSON.stringify(__v); } catch(e){ __s = undefined; }\n" +
     "    if (__s === undefined) __s = JSON.stringify(String(__v));\n" +
     "    __o = { ok: true, v: __s };\n" +
