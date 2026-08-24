@@ -502,9 +502,7 @@ def render_body(blocks, budget=BODY_BUDGET):
             and "\n" not in out[-1]:
         out.pop()                                    # never end on a heading
         truncated = True
-    return "
-
-".join(out), truncated, kept
+    return "\n\n".join(out), truncated, kept
 
 
 def pick_code(blocks):

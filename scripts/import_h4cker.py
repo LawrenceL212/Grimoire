@@ -504,6 +504,19 @@ def linkout_section(path, why):
 
 
 # ---------------------------------------------------------------- building
+def concept_overlap(section, concepts):
+    """How many of a floor's concept words this section actually talks about."""
+    text = (section["title"] + " " + section["body"]).lower()
+    hits = 0
+    for concept in concepts:
+        # three letters is the floor, not four: tls, rsa, pki, gpg and x509 are
+        # the whole point of the floors they belong to.
+        words = [w for w in concept.split("-") if len(w) >= 3]
+        if words and all(w in text for w in words):
+            hits += 1
+    return hits
+
+
 def build_floor(n, name, concepts, paths, fetcher, tree, report):
     candidates, refused_files = [], []
     for path in paths:
@@ -642,6 +655,7 @@ def main():
 
     report = {"files_read": 0, "files_refused": 0, "sections_refused": 0,
               "sections_without_code": 0, "clipped": 0, "linkouts": 0,
+              "sections_blocked": 0,
               "missing_paths": [], "per_floor": [], "notes": [],
               "tree_entries": 0}
 
@@ -684,6 +698,8 @@ def main():
     print("    whole files refused         : %d of %d read"
           % (report["files_refused"], report["files_read"]))
     print("    sections refused            : %d" % report["sections_refused"])
+    print("    sections blocked by name    : %d  (reading lists, licence, TOC)"
+          % report["sections_blocked"])
     print("    gate: >= %d link-free chars and <= %d%% link lines"
           % (MIN_PROSE_CHARS, int(MAX_LINK_FRACTION * 100)))
     if report["missing_paths"]:

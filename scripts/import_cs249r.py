@@ -719,10 +719,13 @@ def concepts_for(chapters):
 
 
 def build_floor(n, chapters, report):
-    per = max(1, MAX_SECTIONS_PER_FLOOR // len(chapters))
+    pools = [candidates_for(ch) for ch in chapters]
+    caps = [sum(1 for c in pool if c["code"]) for pool in pools]
+    slots = allocate(caps, MAX_SECTIONS_PER_FLOOR)
+
     sections = []
-    for ch in chapters:
-        got = build_sections(ch, per, report)
+    for ch, pool, want in zip(chapters, pools, slots):
+        got = build_sections(ch, pool, want, report)
         if not got:
             report["chapters_link_only"].append(ch["title"])
             got = [link_only_section(ch)]
@@ -920,8 +923,9 @@ def main():
     print("")
     print("  PER FLOOR")
     for fl in dungeon["floors"]:
-        print("    %2d. %-24s %d sec  %5d chars  %s"
+        print("    %2d. %-24s %d sec  %d code  %5d chars  %s"
               % (fl["n"], fl["name"], len(fl["lesson"]["sections"]),
+                 sum(1 for s in fl["lesson"]["sections"] if s["code"]),
                  sum(len(s["body"]) for s in fl["lesson"]["sections"]),
                  ", ".join(c["title"] for c in fl["chapters"])[:40]))
     print("")

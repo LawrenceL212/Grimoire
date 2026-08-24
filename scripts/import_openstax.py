@@ -1045,8 +1045,9 @@ def resolve_book(spec, fetcher, catalogue, report):
         "archive": archive,
         "licence": short_licence(lic, licv),
         "licence_full": "%s %s" % (lic, licv),
-        "webview": detail.get("rex_callout_title") and detail.get("webview_rex_link") or
-                   ("https://openstax.org/books/%s/pages/1-introduction" % detail["meta"]["slug"]),
+        "webview": (detail.get("webview_rex_link") or
+                    "https://openstax.org/books/%s/pages/1-introduction"
+                    % detail["meta"]["slug"]),
         "toc": read_toc(book_json),
     }
 
