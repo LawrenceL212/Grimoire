@@ -1,0 +1,1030 @@
+{
+ "n": 8,
+ "name": "The Warded Gate",
+ "concepts": [
+  "raising-and-handling-errors",
+  "user-defined-errors",
+  "with-statement",
+  "class-inheritance"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "debugging",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Failure, Handled",
+  "sections": [
+   {
+    "title": "try, except, else, finally",
+    "body": "A `try` block runs code that might fail. If it raises, Python looks for an `except` clause naming that exception's class - or a parent of it - and runs the first one that matches.\n\nThe optional `else` block runs **only** when nothing was raised, which keeps the risky line and the follow-up work visibly separate. `finally` runs no matter what: exception, no exception, even when the `try` block already hit a `return`.\n\nCatch the **specific** class you know how to handle. A bare `except:` catches everything, including the typo you have not found yet.",
+    "code": "def read_setting(config, key):\n    try:\n        value = config[key]\n    except KeyError:\n        print(\"missing:\", key)\n        return None\n    else:\n        print(\"found:\", key)\n        return value\n    finally:\n        print(\"lookup finished:\", key)\n\nsettings = {\"volume\": 7}\nprint(read_setting(settings, \"volume\"))\nprint(read_setting(settings, \"brightness\"))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "KeyError, not Exception - this handler claims one failure and no others."
+     },
+     {
+      "line": 7,
+      "text": "else runs only on the no-exception path, so a failure in the follow-up work is never mistaken for a lookup failure."
+     },
+     {
+      "line": 10,
+      "text": "finally still runs even though both branches above it already returned."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def risky(n):\n    try:\n        print(10 // n)\n    except ZeroDivisionError:\n        print(\"no\")\n    finally:\n        print(\"done\")\n\nrisky(5)\nrisky(0)",
+     "lang": "python",
+     "answer": "2\ndone\nno\ndone",
+     "concepts": [
+      "raising-and-handling-errors"
+     ],
+     "explain": "Both calls reach the finally block: the first arrives after the try succeeded, the second after the handler ran. That is the whole point of finally - it is the one block whose execution does not depend on which path was taken."
+    }
+   },
+   {
+    "title": "Building One Class on Another",
+    "body": "`class RunicWard(Ward)` says a RunicWard **is a** Ward: it inherits every method Ward defines, for free.\n\nDefining a method the parent already has **overrides** it. `super()` reaches past your override to the parent's version, so you can extend behaviour instead of retyping it.\n\nA subclass that writes its own `__init__` must call `super().__init__(...)` itself - Python does not do it for you, and skipping it leaves every parent attribute unset.",
+    "code": "class Ward:\n    def __init__(self, name, strength):\n        self.name = name\n        self.strength = strength\n\n    def describe(self):\n        return f\"{self.name} ward, strength {self.strength}\"\n\n\nclass RunicWard(Ward):\n    def __init__(self, name, strength, rune):\n        super().__init__(name, strength)\n        self.rune = rune\n\n    def describe(self):\n        return super().describe() + f\", carved with {self.rune}\"\n\n\nprint(Ward(\"plain\", 3).describe())\nprint(RunicWard(\"sealed\", 9, \"algiz\").describe())\nprint(isinstance(RunicWard(\"sealed\", 9, \"algiz\"), Ward))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 12,
+      "text": "Without this call, self.name and self.strength would never exist."
+     },
+     {
+      "line": 16,
+      "text": "super().describe() runs Ward's version, then this method adds to its result."
+     },
+     {
+      "line": 21,
+      "text": "isinstance follows the inheritance chain, which is what makes `is a` literally true."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "`Loud` should behave exactly like `Note` except that `text()` returns the body uppercased. Override `text()` in `Loud`, building the uppercase result from the parent's version rather than from `self.body`.",
+     "fn": "loud_text",
+     "starterCode": "class Note:\n    def __init__(self, body):\n        self.body = body\n\n    def text(self):\n        return self.body\n\n\nclass Loud(Note):\n    pass\n\n\ndef loud_text(body):\n    return Loud(body).text()\n",
+     "solution": "class Note:\n    def __init__(self, body):\n        self.body = body\n\n    def text(self):\n        return self.body\n\n\nclass Loud(Note):\n    def text(self):\n        return super().text().upper()\n\n\ndef loud_text(body):\n    return Loud(body).text()\n",
+     "tests": [
+      {
+       "input": "'hi'",
+       "expected": "HI"
+      },
+      {
+       "input": "'MiXeD'",
+       "expected": "MIXED"
+      },
+      {
+       "input": "''",
+       "expected": ""
+      }
+     ],
+     "concepts": [
+      "class-inheritance"
+     ],
+     "explain": "Going through super().text() means the subclass keeps working when Note later changes how it stores or formats its body. Reaching for self.body instead quietly copies the parent's implementation into the child, and copies rot."
+    }
+   },
+   {
+    "title": "Raising, and Errors of Your Own",
+    "body": "`raise` throws an exception yourself. It is how a function refuses a bad argument instead of returning a nonsense value that the caller will misread three frames later.\n\nExceptions are ordinary classes, so you make your own by subclassing `Exception` - everything from the previous section applies. A small hierarchy pays off immediately: `except WardError` also catches `WardBreached`, because a WardBreached **is a** WardError.\n\nGive the subclass extra attributes when the handler needs data rather than prose, and pass the human-readable message up with `super().__init__(...)`.",
+    "code": "class WardError(Exception):\n    pass\n\n\nclass WardBreached(WardError):\n    def __init__(self, name, damage):\n        super().__init__(f\"{name} breached for {damage}\")\n        self.name = name\n        self.damage = damage\n\n\ndef strike(name, strength, damage):\n    if damage < 0:\n        raise ValueError(\"damage cannot be negative\")\n    if damage >= strength:\n        raise WardBreached(name, damage)\n    return strength - damage\n\n\nprint(strike(\"sealed\", 9, 4))\ntry:\n    strike(\"sealed\", 9, 12)\nexcept WardError as e:\n    print(type(e).__name__, \"->\", e)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "WardBreached inherits from WardError, so one except clause can cover a whole family."
+     },
+     {
+      "line": 7,
+      "text": "The message goes to Exception's own __init__; str(e) reads it back later."
+     },
+     {
+      "line": 14,
+      "text": "A built-in class is the right choice when the failure is a plain bad argument."
+     },
+     {
+      "line": 23,
+      "text": "The handler names the parent and still catches the child."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Make `descend(depth)` raise `TooDeep` with the message `too deep` when `depth` is greater than 3, and otherwise return `depth`. Then make `safe_descend(depth)` return whatever `descend` returned, or the error's message text if it raised.",
+     "fn": "safe_descend",
+     "starterCode": "class TooDeep(Exception):\n    pass\n\n\ndef descend(depth):\n    # raise TooDeep here when depth is greater than 3\n    return depth\n\n\ndef safe_descend(depth):\n    # call descend and turn a TooDeep into its message text\n    return descend(depth)\n",
+     "solution": "class TooDeep(Exception):\n    pass\n\n\ndef descend(depth):\n    if depth > 3:\n        raise TooDeep(\"too deep\")\n    return depth\n\n\ndef safe_descend(depth):\n    try:\n        return descend(depth)\n    except TooDeep as e:\n        return str(e)\n",
+     "tests": [
+      {
+       "input": "2",
+       "expected": 2
+      },
+      {
+       "input": "4",
+       "expected": "too deep"
+      },
+      {
+       "input": "0",
+       "expected": 0
+      }
+     ],
+     "concepts": [
+      "user-defined-errors",
+      "raising-and-handling-errors"
+     ],
+     "explain": "Raising and handling are two different jobs, and splitting them across two functions is what lets the same rule be enforced in one place and recovered from in many. str(e) recovers the message because Exception stored it when you passed it in."
+    }
+   },
+   {
+    "title": "with, __enter__ and __exit__",
+    "body": "Some objects need cleaning up: a lock released, a buffer flushed, a connection closed. Doing that by hand means every early `return` and every exception is another chance to forget.\n\nA `with` statement makes the cleanup structural. Python calls the object's `__enter__` on the way in, binds whatever it returns to the `as` name, and **guarantees** `__exit__` on the way out - normal exit or exception, it runs.\n\n`__exit__` receives the exception's type, value and traceback, all `None` when the block finished normally. Return a falsy value and the exception carries on outwards; return `True` and you have silently swallowed it.",
+    "code": "class Ledger:\n    def __init__(self):\n        self.lines = []\n\n    def __enter__(self):\n        self.lines.append(\"opened\")\n        return self\n\n    def write(self, text):\n        self.lines.append(text)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.lines.append(\"closed\")\n        return False\n\n\nledger = Ledger()\nwith ledger as log:\n    log.write(\"first\")\nprint(ledger.lines)\n\ntry:\n    with ledger as log:\n        log.write(\"second\")\n        raise RuntimeError(\"boom\")\nexcept RuntimeError as e:\n    print(\"caught:\", e)\nprint(ledger.lines)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Whatever __enter__ returns is what `as log` is bound to - usually self."
+     },
+     {
+      "line": 13,
+      "text": "return False lets any exception continue outwards; True would swallow it."
+     },
+     {
+      "line": 25,
+      "text": "The RuntimeError escapes the with block, but 'closed' was already appended on the way out."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "class Trace:\n    def __enter__(self):\n        print(\"enter\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        print(\"exit\", exc_type is None)\n        return False\n\n\nwith Trace():\n    print(\"body\")",
+     "lang": "python",
+     "answer": "enter\nbody\nexit True",
+     "concepts": [
+      "with-statement"
+     ],
+     "explain": "The three arguments to __exit__ are the exception's type, value and traceback, and they are all None on the clean path - which is exactly how a context manager tells success from failure without being told."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-8-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def safe_div(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        return None\n\nprint(safe_div(9, 3))\nprint(safe_div(9, 0))",
+   "lang": "python",
+   "answer": "3.0\nNone",
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "True division always produces a float, so 9 / 3 is 3.0 and not 3. The second call never reaches the return inside try - control jumps to the handler the moment the division raises.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this parses `raw`, falls back to 0 on bad text, reports the value only when parsing succeeded, and always prints `done`.",
+   "template": "raw = '12'\ntry:\n    value = int(raw)\n___ ValueError:\n    value = 0\n___:\n    print('parsed', value)\n___:\n    print('done')",
+   "blanks": [
+    "except",
+    "else",
+    "finally"
+   ],
+   "lang": "python",
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "Moving the success work into else instead of leaving it at the end of try means a ValueError raised by that work is no longer mistaken for a parsing failure. finally comes last because it belongs to every path rather than to one of them.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `to_int(text)` returning `int(text)`, or `0` when `text` cannot be parsed as an integer. Catch only the exception `int` actually raises for bad text.",
+   "fn": "to_int",
+   "starterCode": "def to_int(text):\n    pass\n",
+   "solution": "def to_int(text):\n    try:\n        return int(text)\n    except ValueError:\n        return 0\n",
+   "tests": [
+    {
+     "input": "'42'",
+     "expected": 42
+    },
+    {
+     "input": "'-7'",
+     "expected": -7
+    },
+    {
+     "input": "'abc'",
+     "expected": 0
+    },
+    {
+     "input": "''",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "int('') and int('abc') both raise ValueError, so one specific handler covers both without also catching the TypeError you would get from passing a list. Screening the text yourself with isdigit() instead would wrongly reject '-7'.",
+   "hint": "int() raises ValueError - not TypeError - when the text is not a number.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "`Spell.describe()` returns text like `Mend (2 mana)`. Finish `Ritual` so it takes `name, cost, minutes`, reuses `Spell.__init__` for the first two, and overrides `describe()` to append ` [5 min]` to the parent's text - so `ritual_line('Mend', 2, 5)` returns `Mend (2 mana) [5 min]`.",
+   "fn": "ritual_line",
+   "starterCode": "class Spell:\n    def __init__(self, name, cost):\n        self.name = name\n        self.cost = cost\n\n    def describe(self):\n        return f\"{self.name} ({self.cost} mana)\"\n\n\nclass Ritual(Spell):\n    pass\n\n\ndef ritual_line(name, cost, minutes):\n    return Ritual(name, cost, minutes).describe()\n",
+   "solution": "class Spell:\n    def __init__(self, name, cost):\n        self.name = name\n        self.cost = cost\n\n    def describe(self):\n        return f\"{self.name} ({self.cost} mana)\"\n\n\nclass Ritual(Spell):\n    def __init__(self, name, cost, minutes):\n        super().__init__(name, cost)\n        self.minutes = minutes\n\n    def describe(self):\n        return super().describe() + f\" [{self.minutes} min]\"\n\n\ndef ritual_line(name, cost, minutes):\n    return Ritual(name, cost, minutes).describe()\n",
+   "tests": [
+    {
+     "input": "'Mend', 2, 5",
+     "expected": "Mend (2 mana) [5 min]"
+    },
+    {
+     "input": "'Ward', 0, 1",
+     "expected": "Ward (0 mana) [1 min]"
+    },
+    {
+     "input": "'Bind', 10, 0",
+     "expected": "Bind (10 mana) [0 min]"
+    }
+   ],
+   "concepts": [
+    "class-inheritance"
+   ],
+   "tags": [
+    "class-inheritance"
+   ],
+   "explain": "Two calls to super() do two different jobs here: one hands the shared attributes to the parent's initialiser, the other borrows the parent's formatting. Neither line repeats anything Spell already knows, which is the test for whether inheritance is buying you anything.",
+   "hint": "Ritual needs its own __init__ that calls super().__init__(name, cost) first.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Make `cast(pool, cost)` raise `InsufficientMana` with the message `f\"need {cost}, have {pool}\"` when `cost` is greater than `pool`, and otherwise return the mana left over. Then make `cast_or_report(pool, cost)` return that remainder, or the error's message text when the cast is refused - so `cast_or_report(2, 5)` returns `need 5, have 2`.",
+   "fn": "cast_or_report",
+   "starterCode": "class InsufficientMana(Exception):\n    pass\n\n\ndef cast(pool, cost):\n    # raise InsufficientMana when cost is greater than pool\n    return pool - cost\n\n\ndef cast_or_report(pool, cost):\n    # call cast, and return the error's message text if it refuses\n    return cast(pool, cost)\n",
+   "solution": "class InsufficientMana(Exception):\n    pass\n\n\ndef cast(pool, cost):\n    if cost > pool:\n        raise InsufficientMana(f\"need {cost}, have {pool}\")\n    return pool - cost\n\n\ndef cast_or_report(pool, cost):\n    try:\n        return cast(pool, cost)\n    except InsufficientMana as e:\n        return str(e)\n",
+   "tests": [
+    {
+     "input": "10, 4",
+     "expected": 6
+    },
+    {
+     "input": "3, 3",
+     "expected": 0
+    },
+    {
+     "input": "2, 5",
+     "expected": "need 5, have 2"
+    },
+    {
+     "input": "0, 0",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "user-defined-errors",
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "user-defined-errors",
+    "raising-and-handling-errors"
+   ],
+   "explain": "A named class is worth more than a boolean return here: a caller that cannot recover simply lets InsufficientMana travel, while one that can names it in an except clause. Note that cost == pool is allowed, which is the boundary a `>=` test would get wrong.",
+   "hint": "Only `cost > pool` is a failure - spending your last point is legal.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-g-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "`run_tally` is already written and uses `Tally` in a `with` block. Give `Tally` the two methods that make that legal: `__enter__` returning the tally itself, and `__exit__` setting `self.closed` to `True` without suppressing anything.",
+   "fn": "run_tally",
+   "starterCode": "class Tally:\n    def __init__(self):\n        self.total = 0\n        self.closed = False\n\n    def count(self, n):\n        self.total += n\n\n\ndef run_tally(numbers):\n    t = Tally()\n    with t as tally:\n        for n in numbers:\n            tally.count(n)\n    return [t.total, t.closed]\n",
+   "solution": "class Tally:\n    def __init__(self):\n        self.total = 0\n        self.closed = False\n\n    def __enter__(self):\n        return self\n\n    def count(self, n):\n        self.total += n\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.closed = True\n        return False\n\n\ndef run_tally(numbers):\n    t = Tally()\n    with t as tally:\n        for n in numbers:\n            tally.count(n)\n    return [t.total, t.closed]\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      6,
+      true
+     ]
+    },
+    {
+     "input": "[-5]",
+     "expected": [
+      -5,
+      true
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      0,
+      true
+     ]
+    }
+   ],
+   "concepts": [
+    "with-statement"
+   ],
+   "tags": [
+    "with-statement"
+   ],
+   "explain": "An object is usable in a with statement purely because it has those two methods - there is no interface to register and nothing to inherit from. Returning self from __enter__ is a convention rather than a rule, but it is what makes `with Tally() as t` read the way people expect.",
+   "hint": "__exit__ takes exactly three arguments after self: exc_type, exc_value, traceback.",
+   "xp": 50
+  }
+ ],
+ "debugging": [
+  {
+   "id": "py-8-d-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`parse_ratio('6/0')` should return `infinite`, but it returns `bad input`. Both handlers are present and both are individually correct. Fix the function without changing either message.",
+   "fn": "parse_ratio",
+   "starterCode": "def parse_ratio(text):\n    try:\n        a, b = text.split(\"/\")\n        return int(a) / int(b)\n    except Exception:\n        return \"bad input\"\n    except ZeroDivisionError:\n        return \"infinite\"\n",
+   "solution": "def parse_ratio(text):\n    try:\n        a, b = text.split(\"/\")\n        return int(a) / int(b)\n    except ZeroDivisionError:\n        return \"infinite\"\n    except Exception:\n        return \"bad input\"\n",
+   "tests": [
+    {
+     "input": "'6/3'",
+     "expected": 2.0
+    },
+    {
+     "input": "'-8/4'",
+     "expected": -2.0
+    },
+    {
+     "input": "'6/0'",
+     "expected": "infinite"
+    },
+    {
+     "input": "'oops'",
+     "expected": "bad input"
+    }
+   ],
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "Python takes the first except clause whose class matches, and ZeroDivisionError is a subclass of Exception, so a broad clause placed above it can never be reached. Order except clauses most specific first - nothing warns you about the dead one.",
+   "hint": "Which clause does Python try first, and does ZeroDivisionError match it?",
+   "xp": 50
+  },
+  {
+   "id": "py-8-d-02",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`dragon_status('Vex', 40, 'fire')` should return `Vex: 40 hp (fire)` but crashes with `AttributeError: 'Dragon' object has no attribute 'name'`. Fix `Dragon` without touching `Creature`.",
+   "fn": "dragon_status",
+   "starterCode": "class Creature:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def status(self):\n        return f\"{self.name}: {self.hp} hp\"\n\n\nclass Dragon(Creature):\n    def __init__(self, name, hp, breath):\n        self.breath = breath\n\n    def status(self):\n        return super().status() + f\" ({self.breath})\"\n\n\ndef dragon_status(name, hp, breath):\n    return Dragon(name, hp, breath).status()\n",
+   "solution": "class Creature:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def status(self):\n        return f\"{self.name}: {self.hp} hp\"\n\n\nclass Dragon(Creature):\n    def __init__(self, name, hp, breath):\n        super().__init__(name, hp)\n        self.breath = breath\n\n    def status(self):\n        return super().status() + f\" ({self.breath})\"\n\n\ndef dragon_status(name, hp, breath):\n    return Dragon(name, hp, breath).status()\n",
+   "tests": [
+    {
+     "input": "'Vex', 40, 'fire'",
+     "expected": "Vex: 40 hp (fire)"
+    },
+    {
+     "input": "'Nyx', 0, 'frost'",
+     "expected": "Nyx: 0 hp (frost)"
+    },
+    {
+     "input": "'Ash', 1, ''",
+     "expected": "Ash: 1 hp ()"
+    }
+   ],
+   "concepts": [
+    "class-inheritance"
+   ],
+   "tags": [
+    "class-inheritance"
+   ],
+   "explain": "Writing __init__ in a subclass replaces the parent's initialiser outright; nothing calls it implicitly. The attributes it would have set simply never exist, and the failure surfaces far from its cause - inside status(), which is why the traceback names the wrong method.",
+   "hint": "Overriding __init__ is still overriding. What has to run before self.breath is set?",
+   "xp": 50
+  },
+  {
+   "id": "py-8-d-03",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`guard(True)` should return `['open', 'close', 'error escaped']` because the ValueError escapes the `with` block, but it returns `['open', 'close', 'no error']`. Fix `Gate` without changing `guard`.",
+   "fn": "guard",
+   "starterCode": "class Gate:\n    def __init__(self):\n        self.log = []\n\n    def __enter__(self):\n        self.log.append(\"open\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.log.append(\"close\")\n        return True\n\n\ndef guard(should_fail):\n    gate = Gate()\n    try:\n        with gate:\n            if should_fail:\n                raise ValueError(\"cracked\")\n        return gate.log + [\"no error\"]\n    except ValueError:\n        return gate.log + [\"error escaped\"]\n",
+   "solution": "class Gate:\n    def __init__(self):\n        self.log = []\n\n    def __enter__(self):\n        self.log.append(\"open\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.log.append(\"close\")\n        return False\n\n\ndef guard(should_fail):\n    gate = Gate()\n    try:\n        with gate:\n            if should_fail:\n                raise ValueError(\"cracked\")\n        return gate.log + [\"no error\"]\n    except ValueError:\n        return gate.log + [\"error escaped\"]\n",
+   "tests": [
+    {
+     "input": "False",
+     "expected": [
+      "open",
+      "close",
+      "no error"
+     ]
+    },
+    {
+     "input": "0",
+     "expected": [
+      "open",
+      "close",
+      "no error"
+     ]
+    },
+    {
+     "input": "True",
+     "expected": [
+      "open",
+      "close",
+      "error escaped"
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      "open",
+      "close",
+      "error escaped"
+     ]
+    }
+   ],
+   "concepts": [
+    "with-statement"
+   ],
+   "tags": [
+    "with-statement",
+    "raising-and-handling-errors"
+   ],
+   "explain": "A truthy return from __exit__ is Python's one way of saying `I have dealt with this exception, stop unwinding` - so returning True turns every failure inside the block into silence. Cleanup and suppression are separate decisions, and only a manager that genuinely handles the error should make the second one.",
+   "hint": "The cleanup itself runs correctly. Look at what __exit__ hands back afterwards.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-d-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`attempt('iron', 'gold')` should return `refused: 'iron' does not fit`, but the WrongKey escapes `attempt` uncaught. Fix it by changing one line, and do not widen the `except` clause.",
+   "fn": "attempt",
+   "starterCode": "class VaultError(Exception):\n    pass\n\n\nclass WrongKey(Exception):\n    pass\n\n\ndef open_vault(key, correct):\n    if key != correct:\n        raise WrongKey(f\"{key!r} does not fit\")\n    return \"open\"\n\n\ndef attempt(key, correct):\n    try:\n        return open_vault(key, correct)\n    except VaultError as e:\n        return f\"refused: {e}\"\n",
+   "solution": "class VaultError(Exception):\n    pass\n\n\nclass WrongKey(VaultError):\n    pass\n\n\ndef open_vault(key, correct):\n    if key != correct:\n        raise WrongKey(f\"{key!r} does not fit\")\n    return \"open\"\n\n\ndef attempt(key, correct):\n    try:\n        return open_vault(key, correct)\n    except VaultError as e:\n        return f\"refused: {e}\"\n",
+   "tests": [
+    {
+     "input": "'iron', 'iron'",
+     "expected": "open"
+    },
+    {
+     "input": "'iron', 'gold'",
+     "expected": "refused: 'iron' does not fit"
+    },
+    {
+     "input": "'', ''",
+     "expected": "open"
+    },
+    {
+     "input": "'', 'gold'",
+     "expected": "refused: '' does not fit"
+    }
+   ],
+   "concepts": [
+    "user-defined-errors",
+    "class-inheritance"
+   ],
+   "tags": [
+    "user-defined-errors",
+    "class-inheritance"
+   ],
+   "explain": "`except VaultError` matches that class and its descendants, and WrongKey was declared a sibling rather than a child - so the family it appears to belong to is not the family Python sees. Rooting your errors in one base class is what lets callers pick their own granularity later without you editing every raise site.",
+   "hint": "What does WrongKey inherit from now, and what would `except VaultError` need it to inherit from?",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "py-8-c-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "`run(0)` is called. Give the letters it prints, in order, one per step.",
+   "code": "def run(x):\n    print(\"A\")\n    try:\n        print(\"B\")\n        y = 10 // x\n        print(\"C\")\n    except ZeroDivisionError:\n        print(\"D\")\n    else:\n        print(\"E\")\n    finally:\n        print(\"F\")\n    print(\"G\")\n\nrun(0)",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "1st line printed",
+     "expected": "A"
+    },
+    {
+     "label": "2nd line printed",
+     "expected": "B"
+    },
+    {
+     "label": "3rd line printed",
+     "expected": "D"
+    },
+    {
+     "label": "4th line printed",
+     "expected": "F"
+    },
+    {
+     "label": "5th line printed",
+     "expected": "G"
+    }
+   ],
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "C is skipped because the raise abandons the rest of the try block immediately, and E is skipped because else belongs to the no-exception path only. F and G both still run: the handler dealt with the exception, so execution resumes normally after the statement.",
+   "xp": 40
+  },
+  {
+   "id": "py-8-c-02",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A teammate replaces `with Ledger() as log:` with three plain statements: `log = Ledger().__enter__()`, then the block's code, then `log.__exit__(None, None, None)`. It passes every test they wrote. Explain what goes wrong the first time a line inside that block raises, and what the `with` statement is doing that their rewrite is not.",
+   "rubric": {
+    "required": [
+     "exception",
+     "clean",
+     "guarantee"
+    ],
+    "optional": [
+     "finally",
+     "always",
+     "close",
+     "release",
+     "leak",
+     "propagat",
+     "skip",
+     "return"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "with-statement"
+   ],
+   "tags": [
+    "with-statement",
+    "raising-and-handling-errors"
+   ],
+   "explain": "The rewrite is only correct on the happy path: an exception - or an early return, or a break - jumps past the __exit__ call and the resource is never released. `with` compiles to an implicit try/finally, which is why its guarantee holds for every way of leaving the block rather than just the one the tests exercised.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-c-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Give `FieldError` an `__init__(self, field)` that passes the message `f\"missing {field}\"` up to `Exception` and stores `self.field = field`. Make `check(record)` raise it for the first of `'name'`, `'level'` missing from the dict and return `'ok'` when both are present. Then make `report(records)` return a list holding, for each record in order, either `'ok'` or the name of its first missing field.",
+   "fn": "report",
+   "starterCode": "class FieldError(Exception):\n    def __init__(self, field):\n        # set the message and keep the field name on the instance\n        pass\n\n\ndef check(record):\n    # raise FieldError for the first missing field\n    return \"ok\"\n\n\ndef report(records):\n    out = []\n    for record in records:\n        # append check(record), or the missing field name\n        pass\n    return out\n",
+   "solution": "class FieldError(Exception):\n    def __init__(self, field):\n        super().__init__(f\"missing {field}\")\n        self.field = field\n\n\ndef check(record):\n    for field in (\"name\", \"level\"):\n        if field not in record:\n            raise FieldError(field)\n    return \"ok\"\n\n\ndef report(records):\n    out = []\n    for record in records:\n        try:\n            out.append(check(record))\n        except FieldError as e:\n            out.append(e.field)\n    return out\n",
+   "tests": [
+    {
+     "input": "[{'name': 'a', 'level': 1}]",
+     "expected": [
+      "ok"
+     ]
+    },
+    {
+     "input": "[{'level': 1}, {'name': 'b'}]",
+     "expected": [
+      "name",
+      "level"
+     ]
+    },
+    {
+     "input": "[{}]",
+     "expected": [
+      "name"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "user-defined-errors",
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "user-defined-errors",
+    "raising-and-handling-errors"
+   ],
+   "explain": "Carrying `field` as an attribute rather than parsing it back out of the message text is the difference between an exception a program can act on and one only a human can read. Catching inside the loop, not around it, is what lets one bad record be reported without abandoning the rest.",
+   "hint": "e.field is available on the caught exception because __init__ put it there.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-c-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Nothing is given to you. Write a context manager class `Transaction` whose `__init__` sets `self.applied = []`, whose `__enter__` returns the transaction, whose `apply(item)` appends `item` to `self.applied`, and whose `__exit__` empties `self.applied` when the block is leaving because of an exception, leaves it untouched otherwise, and never suppresses the exception. Then write `run_transaction(items, fail_on)`: it applies each item in order inside a `with` block, raises `ValueError` immediately after applying an item equal to `fail_on`, catches that `ValueError` outside the `with`, and returns the transaction's `applied` list.",
+   "fn": "run_transaction",
+   "solution": "class Transaction:\n    def __init__(self):\n        self.applied = []\n\n    def __enter__(self):\n        return self\n\n    def apply(self, item):\n        self.applied.append(item)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        if exc_type is not None:\n            self.applied = []\n        return False\n\n\ndef run_transaction(items, fail_on):\n    tx = Transaction()\n    try:\n        with tx as t:\n            for item in items:\n                t.apply(item)\n                if item == fail_on:\n                    raise ValueError(item)\n    except ValueError:\n        pass\n    return tx.applied\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'c'], None",
+     "expected": [
+      "a",
+      "b",
+      "c"
+     ]
+    },
+    {
+     "input": "['a', 'b', 'c'], 'b'",
+     "expected": []
+    },
+    {
+     "input": "['x'], 'x'",
+     "expected": []
+    },
+    {
+     "input": "[], 'x'",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "with-statement",
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "with-statement",
+    "raising-and-handling-errors"
+   ],
+   "explain": "The three arguments to __exit__ are not decoration: `exc_type is not None` is the entire test for `did this block fail`, and it is what turns a context manager from a cleanup hook into a rollback. Returning a falsy value keeps the two responsibilities apart - undo the work, but let the caller still learn that it failed.",
+   "xp": 100
+  },
+  {
+   "id": "py-8-c-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Add `ManaError` and `TargetError` as subclasses of `SpellError`. Make `classify(kind)` raise `ManaError` for `'mana'`, `TargetError` for `'target'`, `SpellError` for `'other'`, and return `'fine'` for anything else. Then make `describe(kind)` return `'mana problem'`, `'target problem'`, `'spell problem'` or `'fine'` using a single `try` with three `except` clauses.",
+   "fn": "describe",
+   "starterCode": "class SpellError(Exception):\n    pass\n\n\n# ManaError and TargetError go here\n\n\ndef classify(kind):\n    # raise the matching error, or return \"fine\"\n    return \"fine\"\n\n\ndef describe(kind):\n    # one try, three except clauses, ordered so each one can fire\n    return classify(kind)\n",
+   "solution": "class SpellError(Exception):\n    pass\n\n\nclass ManaError(SpellError):\n    pass\n\n\nclass TargetError(SpellError):\n    pass\n\n\ndef classify(kind):\n    if kind == \"mana\":\n        raise ManaError(kind)\n    if kind == \"target\":\n        raise TargetError(kind)\n    if kind == \"other\":\n        raise SpellError(kind)\n    return \"fine\"\n\n\ndef describe(kind):\n    try:\n        return classify(kind)\n    except ManaError:\n        return \"mana problem\"\n    except TargetError:\n        return \"target problem\"\n    except SpellError:\n        return \"spell problem\"\n",
+   "tests": [
+    {
+     "input": "'mana'",
+     "expected": "mana problem"
+    },
+    {
+     "input": "'target'",
+     "expected": "target problem"
+    },
+    {
+     "input": "'other'",
+     "expected": "spell problem"
+    },
+    {
+     "input": "'none'",
+     "expected": "fine"
+    },
+    {
+     "input": "''",
+     "expected": "fine"
+    }
+   ],
+   "concepts": [
+    "user-defined-errors",
+    "class-inheritance",
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "user-defined-errors",
+    "class-inheritance",
+    "raising-and-handling-errors"
+   ],
+   "explain": "The hierarchy is what gives the caller a choice of granularity: one clause for everything spell-related, or a separate clause per cause. It only works if the clauses are ordered leaf-first, because `except SpellError` would otherwise absorb both children before their own handlers were consulted.",
+   "hint": "Put the two children above the parent in your except chain.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-8-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A function hits a `return` inside its `try` block, and that `try` also has a `finally`. When does the `finally` block run?",
+   "choices": [
+    "It is skipped, because return leaves the function immediately",
+    "After the return value is computed, but before the caller receives it",
+    "Only when an exception was raised",
+    "After the caller has already received the value"
+   ],
+   "answer": 1,
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "The return value is evaluated, then held while finally runs, then handed over. That ordering is exactly why a `return` inside finally overwrites it - the pending value is still in flight when the block executes.",
+   "xp": 10
+  },
+  {
+   "id": "py-8-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "An exception is raised inside a `with` block, and the context manager's `__exit__` returns `True`. What happens next?",
+   "choices": [
+    "The exception is re-raised as soon as __exit__ finishes",
+    "The exception is suppressed and execution continues after the with block",
+    "The with block runs again from the top",
+    "Python raises a TypeError because __exit__ must return None"
+   ],
+   "answer": 1,
+   "concepts": [
+    "with-statement"
+   ],
+   "tags": [
+    "with-statement"
+   ],
+   "explain": "A truthy return is the protocol's way of saying the manager handled the exception, so the interpreter stops unwinding. It is the one line that turns a cleanup helper into an error swallower, which is why almost every __exit__ you write should end in a falsy value.",
+   "xp": 10
+  },
+  {
+   "id": "py-8-e-03",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of `super().__init__(...)` written inside a subclass's own `__init__`?",
+   "choices": [
+    "It runs the parent's initialiser, so the parent's attributes get set",
+    "Python calls it for you even if you never write it",
+    "It lets the subclass set its own attributes after the parent's are in place",
+    "It is only legal when the parent inherits directly from object"
+   ],
+   "answer": [
+    0,
+    2
+   ],
+   "concepts": [
+    "class-inheritance"
+   ],
+   "tags": [
+    "class-inheritance"
+   ],
+   "explain": "Defining __init__ replaces the parent's version rather than adding to it, so the call is yours to make and yours to place. Where you place it matters: parent state first, then the subclass's own, so the parent never observes a half-built object.",
+   "xp": 10
+  },
+  {
+   "id": "py-8-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def load(values, i):\n    try:\n        v = values[i]\n    except IndexError:\n        return \"out of range\"\n    else:\n        return v * 2\n    finally:\n        print(\"checked\", i)\n\nprint(load([1, 2, 3], 1))\nprint(load([1, 2, 3], 9))",
+   "lang": "python",
+   "answer": "checked 1\n4\nchecked 9\nout of range",
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "Each finally line appears before its returned value because the print inside the function runs while the return is still pending, and the caller's print only happens once the call has come back. The else branch runs on the first call and is skipped on the second.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `Session` can be used as a context manager and the statement below actually uses it.",
+   "template": "class Session:\n    def ___(self):\n        print('open')\n        return self\n\n    def ___(self, exc_type, exc_value, traceback):\n        print('close')\n        return False\n\n___ Session() as s:\n    print('work')",
+   "blanks": [
+    "__enter__",
+    "__exit__",
+    "with"
+   ],
+   "lang": "python",
+   "concepts": [
+    "with-statement"
+   ],
+   "tags": [
+    "with-statement"
+   ],
+   "explain": "Those two dunder names are the entire contract - any object defining them works in a with statement, and no object without them does, whatever else it defines. The three extra parameters on the second one are not optional: Python always passes them.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-e-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a program that defines a custom exception and raises it when `n` exceeds 3.",
+   "fragments": [
+    "    return n",
+    "class RetryLimit(Exception):",
+    "        raise RetryLimit(n)",
+    "    pass",
+    "def attempt(n):",
+    "    if n > 3:"
+   ],
+   "answer": [
+    1,
+    3,
+    4,
+    5,
+    2,
+    0
+   ],
+   "lang": "python",
+   "concepts": [
+    "user-defined-errors"
+   ],
+   "tags": [
+    "user-defined-errors"
+   ],
+   "explain": "The class has to exist before any line raises it, because `raise RetryLimit(n)` is looked up when the line runs, not when the function is defined. The bare `return n` sits outside the if, so it is reached only when the guard above it did not fire.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A teammate wraps a 40-line function in `try: ... except Exception: return None`. It has not crashed since. Last week the team spent two days chasing a wrong total that turned out to be a misspelled dictionary key. Explain what the broad handler cost them, and what you would write instead.",
+   "rubric": {
+    "required": [
+     "specific",
+     "hid",
+     "exception"
+    ],
+    "optional": [
+     "KeyError",
+     "silent",
+     "narrow",
+     "bug",
+     "raise",
+     "log",
+     "None",
+     "crash"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "A handler that catches everything cannot distinguish a failure it anticipated from a bug it has never seen, so the KeyError from the typo became a plausible-looking None and travelled onwards disguised as data. Naming the classes you can actually recover from keeps the ones you cannot loud, and a loud crash is far cheaper than a quiet wrong answer.",
+   "xp": 20
+  },
+  {
+   "id": "py-8-e-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`total([1, 'x'])` should return `-1` because the text cannot be converted, but it returns `1`. Fix the function so the `except` clause's value is the one that reaches the caller.",
+   "fn": "total",
+   "starterCode": "def total(values):\n    result = 0\n    try:\n        for v in values:\n            result += int(v)\n    except (TypeError, ValueError):\n        return -1\n    finally:\n        return result\n",
+   "solution": "def total(values):\n    result = 0\n    try:\n        for v in values:\n            result += int(v)\n    except (TypeError, ValueError):\n        return -1\n    return result\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "['1', '2']",
+     "expected": 3
+    },
+    {
+     "input": "[1, 'x']",
+     "expected": -1
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "raising-and-handling-errors"
+   ],
+   "tags": [
+    "raising-and-handling-errors"
+   ],
+   "explain": "A `return` inside finally replaces any value already on its way out - and would equally discard an exception that was still propagating. finally is for cleanup that must happen; deciding what the function answers is not cleanup.",
+   "hint": "Which return actually wins when both the except clause and the finally block have one?",
+   "xp": 50
+  },
+  {
+   "id": "py-8-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Override `cost()` in both subclasses so each builds on the class above it: `Enchanted` doubles the parent's cost, `Cursed` subtracts 1 from the parent's cost. So `cursed_cost(10)` returns `19`.",
+   "fn": "cursed_cost",
+   "starterCode": "class Tool:\n    def __init__(self, base):\n        self.base = base\n\n    def cost(self):\n        return self.base\n\n\nclass Enchanted(Tool):\n    pass\n\n\nclass Cursed(Enchanted):\n    pass\n\n\ndef cursed_cost(base):\n    return Cursed(base).cost()\n",
+   "solution": "class Tool:\n    def __init__(self, base):\n        self.base = base\n\n    def cost(self):\n        return self.base\n\n\nclass Enchanted(Tool):\n    def cost(self):\n        return super().cost() * 2\n\n\nclass Cursed(Enchanted):\n    def cost(self):\n        return super().cost() - 1\n\n\ndef cursed_cost(base):\n    return Cursed(base).cost()\n",
+   "tests": [
+    {
+     "input": "10",
+     "expected": 19
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "0",
+     "expected": -1
+    },
+    {
+     "input": "-3",
+     "expected": -7
+    }
+   ],
+   "concepts": [
+    "class-inheritance"
+   ],
+   "tags": [
+    "class-inheritance"
+   ],
+   "explain": "Each super() call moves exactly one step up the chain, so the three implementations compose into base * 2 - 1 without any class knowing more than its immediate parent. Hard-coding `self.base * 2 - 1` in Cursed would pass these tests and break the moment Enchanted's rule changed.",
+   "hint": "Cursed's super() is Enchanted, not Tool.",
+   "xp": 50
+  },
+  {
+   "id": "py-8-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Build a small audit log. Add `Rejected` as a subclass of `AuditError`. Make `Audit` a context manager: `__enter__` returns the audit, `record(entry)` raises `Rejected(entry)` when `entry` is the empty string and otherwise appends it to `self.entries`, and `__exit__` appends the string `closed` to `self.entries` and suppresses nothing. Then make `audit(entries)` create one `Audit`, record every entry in order inside a `with` block, catch `AuditError` around that whole block, and return the audit's `entries`. So `audit(['a', '', 'c'])` returns `['a', 'closed']`.",
+   "fn": "audit",
+   "starterCode": "class AuditError(Exception):\n    pass\n\n\n# Rejected goes here\n\n\nclass Audit:\n    def __init__(self):\n        self.entries = []\n\n    def record(self, entry):\n        self.entries.append(entry)\n\n\ndef audit(entries):\n    log = Audit()\n    # use log as a context manager, record every entry, catch AuditError\n    return log.entries\n",
+   "solution": "class AuditError(Exception):\n    pass\n\n\nclass Rejected(AuditError):\n    pass\n\n\nclass Audit:\n    def __init__(self):\n        self.entries = []\n\n    def __enter__(self):\n        return self\n\n    def record(self, entry):\n        if entry == \"\":\n            raise Rejected(entry)\n        self.entries.append(entry)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.entries.append(\"closed\")\n        return False\n\n\ndef audit(entries):\n    log = Audit()\n    try:\n        with log as a:\n            for entry in entries:\n                a.record(entry)\n    except AuditError:\n        pass\n    return log.entries\n",
+   "tests": [
+    {
+     "input": "['a', 'b']",
+     "expected": [
+      "a",
+      "b",
+      "closed"
+     ]
+    },
+    {
+     "input": "['a', '', 'c']",
+     "expected": [
+      "a",
+      "closed"
+     ]
+    },
+    {
+     "input": "['']",
+     "expected": [
+      "closed"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      "closed"
+     ]
+    }
+   ],
+   "concepts": [
+    "raising-and-handling-errors",
+    "user-defined-errors",
+    "with-statement",
+    "class-inheritance"
+   ],
+   "tags": [
+    "raising-and-handling-errors",
+    "user-defined-errors",
+    "with-statement",
+    "class-inheritance"
+   ],
+   "explain": "Everything on this floor meets here: `closed` still appears after a rejection because __exit__ runs on the way out of a failing block, `'c'` never appears because the raise abandoned the loop, and `except AuditError` catches Rejected only because inheritance made them one family. The try has to sit outside the with, or the cleanup would land after the handler rather than before it.",
+   "hint": "The with block goes inside the try, so the exception leaves the block before you catch it.",
+   "xp": 50
+  }
+ ]
+}

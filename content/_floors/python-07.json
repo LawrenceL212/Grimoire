@@ -1,0 +1,1220 @@
+{
+ "n": 7,
+ "name": "The Recursive Sanctum",
+ "concepts": [
+  "default-arguments",
+  "keyword-arguments",
+  "args-kwargs",
+  "multiple-returns",
+  "higher-order-functions",
+  "lambda",
+  "recursion"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "debugging",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Anatomy of a Call",
+  "sections": [
+   {
+    "title": "Defaults and Named Arguments",
+    "body": "A **parameter** is the name written in the `def`; an **argument** is the value handed over at the call site. Giving a parameter a default makes it optional, and passing an argument **by name** lets you skip the ones in front of it instead of retyping their defaults.\n\nA default expression is evaluated **once**, when the `def` statement runs - not on every call. That is why `def f(x, seen=[])` shares one list between every call that omits `seen`, and why the standard fix is a default of `None` plus a fresh list built inside the body.",
+    "code": "def brew(base, strength=1, sugar=0):\n    return f\"{base} x{strength} +{sugar}\"\n\nprint(brew(\"tea\"))\nprint(brew(\"tea\", 3))\nprint(brew(\"tea\", sugar=2))\n\ndef log(line, seen=None):\n    if seen is None:\n        seen = []\n    seen.append(line)\n    return seen\n\nprint(log(\"a\"), log(\"b\"))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Nothing optional was given, so strength and sugar fall back to 1 and 0."
+     },
+     {
+      "line": 6,
+      "text": "Naming sugar skips strength without repeating its default."
+     },
+     {
+      "line": 9,
+      "text": "None as the default, then a fresh list inside: a default of [] would be built once at def time and shared by every call."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "def tag(text, prefix=\"[\", suffix=\"]\"):\n    return prefix + text + suffix\n\nprint(tag(\"ok\"))\nprint(tag(\"ok\", suffix=\"!\"))",
+     "lang": "python",
+     "answer": "[ok]\n[ok!",
+     "concepts": [
+      "default-arguments",
+      "keyword-arguments"
+     ],
+     "explain": "Naming suffix replaces only that one default; prefix is untouched and still contributes its bracket. Skipping a middle argument is exactly what keyword arguments buy you."
+    }
+   },
+   {
+    "title": "Collecting Arguments, Handing Back Several Values",
+    "body": "`*args` collects every leftover **positional** argument into a tuple, and `**kwargs` collects every leftover **keyword** argument into a dict. The star is what does the collecting - the names `args` and `kwargs` are convention, nothing more.\n\nA parameter written after `*args` can only be passed by name, which is how you build a function that takes any number of values plus a few named options. A `return` with commas builds a tuple, so one call can hand back several values and the caller unpacks them with multiple assignment.",
+    "code": "def report(label, *values, **options):\n    return label, sum(values), options\n\nname, total, opts = report(\"run\", 3, 4, 5, unit=\"m\", fast=True)\nprint(name, total, opts)\nprint(report(\"empty\"))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "values is a tuple, so sum() works on it directly; options is a dict."
+     },
+     {
+      "line": 4,
+      "text": "Three names on the left unpack the three-item tuple the return built."
+     },
+     {
+      "line": 6,
+      "text": "With nothing left over, args is the empty tuple and kwargs the empty dict - never an error."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `count_args(*args)` returning how many positional arguments it was given.",
+     "fn": "count_args",
+     "starterCode": "def count_args(*args):\n    pass\n",
+     "tests": [
+      {
+       "input": "1, 2, 3",
+       "expected": 3
+      },
+      {
+       "input": "",
+       "expected": 0
+      },
+      {
+       "input": "'a'",
+       "expected": 1
+      }
+     ],
+     "solution": "def count_args(*args):\n    return len(args)\n",
+     "concepts": [
+      "args-kwargs"
+     ],
+     "explain": "Because the star packs the arguments into a tuple before the body runs, counting them is just len() - and the zero-argument call gives an empty tuple rather than a TypeError."
+    }
+   },
+   {
+    "title": "Functions Are Values",
+    "body": "A `def` binds a function **object** to a name, and that object can be assigned, stored in a list, or passed to another function like any other value. Writing `f` refers to the function; writing `f()` calls it - dropping the parentheses is the difference between handing over a tool and handing over what it produced.\n\nA function that takes or returns another function is **higher-order**; `sorted(key=...)` and `max(key=...)` are the ones you meet first. A `lambda` is an expression whose value is a small unnamed function, useful exactly where inventing a name would be noise.",
+    "code": "def shout(text):\n    return text.upper() + \"!\"\n\ndef apply_to_all(func, items):\n    out = []\n    for item in items:\n        out.append(func(item))\n    return out\n\nprint(apply_to_all(shout, [\"a\", \"b\"]))\nprint(apply_to_all(lambda s: s * 2, [\"a\", \"b\"]))\n\nwords = [\"pear\", \"fig\", \"banana\"]\nprint(sorted(words, key=len))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "shout is passed without parentheses - the function itself, not a result."
+     },
+     {
+      "line": 11,
+      "text": "A lambda is the same kind of value, written inline instead of with def."
+     },
+     {
+      "line": 14,
+      "text": "sorted calls len on every word and orders by what comes back."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "def double(n):\n    return n * 2\n\nops = [double, len]\nprint(ops[0](5))\nprint(ops[1](\"hello\"))",
+     "lang": "python",
+     "answer": "10\n5",
+     "concepts": [
+      "higher-order-functions"
+     ],
+     "explain": "A list of functions is an ordinary list; indexing it gives back a function, and the parentheses that follow are what actually call it. Nothing about a function stops it being stored like a number or a string."
+    }
+   },
+   {
+    "title": "Calling Yourself",
+    "body": "A **recursive** function calls itself on a smaller version of the same problem. Two things are non-negotiable: a **base case** that returns without recursing, and a recursive case whose argument moves strictly toward that base case.\n\nIf the base case is missing, or the argument never shrinks, every call makes another call and none ever returns - the pile of unfinished calls grows until Python gives up with a `RecursionError`. Left to itself the function never terminates; that error is a safety net, not the design. Reading recursion is easiest if you assume the inner call already works for the smaller input and only check how the results are joined.",
+    "code": "def countdown(n):\n    if n <= 0:\n        return [\"liftoff\"]\n    return [n] + countdown(n - 1)\n\nprint(countdown(3))\nprint(countdown(0))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The base case: it returns without calling countdown again."
+     },
+     {
+      "line": 4,
+      "text": "n - 1 is strictly smaller, so every chain of calls reaches 0."
+     },
+     {
+      "line": 7,
+      "text": "The base case alone answers this call - no recursion happens at all."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `sum_to(n)` returning 1 + 2 + ... + n, with `sum_to(0)` returning 0. Solve it recursively.",
+     "fn": "sum_to",
+     "starterCode": "def sum_to(n):\n    pass\n",
+     "tests": [
+      {
+       "input": "5",
+       "expected": 15
+      },
+      {
+       "input": "1",
+       "expected": 1
+      },
+      {
+       "input": "0",
+       "expected": 0
+      }
+     ],
+     "solution": "def sum_to(n):\n    if n <= 0:\n        return 0\n    return n + sum_to(n - 1)\n",
+     "concepts": [
+      "recursion"
+     ],
+     "explain": "The base case has to answer the smallest input outright, and n - 1 guarantees you arrive there. Notice the zero case is not a special exception bolted on - it is the case that stops everything."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-7-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "def power(base, exp=2):\n    return base ** exp\n\nprint(power(3))\nprint(power(3, 3))",
+   "lang": "python",
+   "answer": "9\n27",
+   "concepts": [
+    "default-arguments"
+   ],
+   "tags": [
+    "default-arguments",
+    "functions"
+   ],
+   "explain": "The default only applies when the caller stays silent about that parameter. One definition therefore serves two calls, which is the whole reason defaults exist.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the last line prints <<ok>>, naming both defaults at the call site.",
+   "template": "def label(text, prefix=\"<\", suffix=\">\"):\n    return prefix + text + suffix\n\nprint(label(\"ok\", ___=\"<<\", ___=\">>\"))",
+   "blanks": [
+    "prefix",
+    "suffix"
+   ],
+   "lang": "python",
+   "concepts": [
+    "keyword-arguments"
+   ],
+   "tags": [
+    "keyword-arguments",
+    "functions"
+   ],
+   "explain": "A keyword argument is matched by the parameter's name, not by its position, so the order you write them in at the call site does not matter. That is what lets you override one default and leave the rest alone.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `join_words(words, sep=\" \")` returning the words joined by `sep`. With no separator given it joins with a single space, and an empty list returns the empty string.",
+   "fn": "join_words",
+   "starterCode": "def join_words(words, sep=\" \"):\n    pass\n",
+   "tests": [
+    {
+     "input": "['a', 'b']",
+     "expected": "a b"
+    },
+    {
+     "input": "['a', 'b'], '-'",
+     "expected": "a-b"
+    },
+    {
+     "input": "['solo']",
+     "expected": "solo"
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    }
+   ],
+   "solution": "def join_words(words, sep=\" \"):\n    return sep.join(words)\n",
+   "hint": "The fallback belongs in the def line, not in an if inside the body.",
+   "concepts": [
+    "default-arguments"
+   ],
+   "tags": [
+    "default-arguments",
+    "functions"
+   ],
+   "explain": "Putting the fallback in the signature documents it in the one place a reader looks, and keeps the body free of a branch that exists only to invent a value. The empty list needs no special case because joining nothing is already the empty string.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "def describe(*args, **kwargs):\n    return len(args), sorted(kwargs)\n\nprint(describe(1, 2, 3))\nprint(describe(x=1, y=2))\nprint(describe())",
+   "lang": "python",
+   "answer": "(3, [])\n(0, ['x', 'y'])\n(0, [])",
+   "concepts": [
+    "args-kwargs"
+   ],
+   "tags": [
+    "args-kwargs",
+    "functions"
+   ],
+   "explain": "Positional and keyword arguments land in two different containers, so a value counted by one is invisible to the other. Iterating a dict yields its keys, which is why sorted(kwargs) gives names rather than values.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `min_max(numbers)` returning two values - the smallest and the largest, in that order. The list is never empty.",
+   "fn": "min_max",
+   "starterCode": "def min_max(numbers):\n    pass\n",
+   "tests": [
+    {
+     "input": "[3, 1, 4]",
+     "expected": [
+      1,
+      4
+     ]
+    },
+    {
+     "input": "[7]",
+     "expected": [
+      7,
+      7
+     ]
+    },
+    {
+     "input": "[-2, -9]",
+     "expected": [
+      -9,
+      -2
+     ]
+    },
+    {
+     "input": "[5, 5]",
+     "expected": [
+      5,
+      5
+     ]
+    }
+   ],
+   "solution": "def min_max(numbers):\n    return min(numbers), max(numbers)\n",
+   "hint": "return a, b builds a tuple - no list brackets needed.",
+   "concepts": [
+    "multiple-returns"
+   ],
+   "tags": [
+    "multiple-returns",
+    "functions"
+   ],
+   "explain": "A comma in a return statement packs the values into one tuple, which the caller can unpack straight into two names. The single-element list is the case that proves the two answers are independent of each other rather than of the list's length.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-g-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that applies a function twice and prints 7.",
+   "fragments": [
+    "def apply_twice(func, value):",
+    "    once = func(value)",
+    "    return func(once)",
+    "print(apply_twice(lambda n: n + 1, 5))"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "explain": "The parameter `func` is filled with a function value at the call, so the body can invoke it without knowing its name. The lambda is created as an argument and never bound to a name at all.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-g-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `apply_all(func, items)` returning a list holding `func(item)` for every item, in order.",
+   "fn": "apply_all",
+   "starterCode": "def apply_all(func, items):\n    pass\n",
+   "tests": [
+    {
+     "input": "lambda n: n * 2, [1, 2, 3]",
+     "expected": [
+      2,
+      4,
+      6
+     ]
+    },
+    {
+     "input": "len, ['a', 'bb']",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "abs, []",
+     "expected": []
+    },
+    {
+     "input": "str.upper, ['x']",
+     "expected": [
+      "X"
+     ]
+    }
+   ],
+   "solution": "def apply_all(func, items):\n    out = []\n    for item in items:\n        out.append(func(item))\n    return out\n",
+   "hint": "func(item) - the parameter is called exactly like any other function.",
+   "concepts": [
+    "higher-order-functions"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "functions"
+   ],
+   "explain": "The function never learns what it is applying, which is precisely what makes one definition work for doubling, measuring and uppercasing alike. Behaviour arrives as an argument instead of being hard-coded in the body.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-g-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `factorial(n)` returning n! for n >= 0, where `factorial(0)` is 1. Solve it recursively.",
+   "fn": "factorial",
+   "starterCode": "def factorial(n):\n    pass\n",
+   "tests": [
+    {
+     "input": "5",
+     "expected": 120
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "0",
+     "expected": 1
+    },
+    {
+     "input": "7",
+     "expected": 5040
+    }
+   ],
+   "solution": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n",
+   "hint": "n! is n times (n-1)!, and 0! is 1.",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "Returning 1 at the bottom is what makes the whole product come out right - it is the multiplicative identity, not an arbitrary choice. Each frame waits on the one below it, so nothing is actually multiplied until the base case answers.",
+   "xp": 50
+  }
+ ],
+ "debugging": [
+  {
+   "id": "py-7-d-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`two_baskets('a', 'b')` should return `[['a'], ['b']]` - two separate baskets. It returns `[['a', 'b'], ['a', 'b']]` instead. Fix `add_item` without changing how it is called.",
+   "fn": "two_baskets",
+   "starterCode": "def add_item(item, basket=[]):\n    basket.append(item)\n    return basket\n\ndef two_baskets(first, second):\n    return [add_item(first), add_item(second)]\n",
+   "tests": [
+    {
+     "input": "'a', 'b'",
+     "expected": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ]
+    },
+    {
+     "input": "'x', 'x'",
+     "expected": [
+      [
+       "x"
+      ],
+      [
+       "x"
+      ]
+     ]
+    },
+    {
+     "input": "'', 'z'",
+     "expected": [
+      [
+       ""
+      ],
+      [
+       "z"
+      ]
+     ]
+    }
+   ],
+   "solution": "def add_item(item, basket=None):\n    if basket is None:\n        basket = []\n    basket.append(item)\n    return basket\n\ndef two_baskets(first, second):\n    return [add_item(first), add_item(second)]\n",
+   "hint": "How many times is the [] on the def line actually evaluated?",
+   "concepts": [
+    "default-arguments"
+   ],
+   "tags": [
+    "default-arguments",
+    "functions"
+   ],
+   "explain": "The empty list is built once, when the def executes, so every default-using call appends into that same object and hands back the same list. A default of None is a value nobody can mutate, and the body builds a fresh list each time it sees one.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-d-02",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`countdown(3)` should return `[3, 2, 1]` and `countdown(0)` should return `[]`. Instead every call runs until Python raises RecursionError. Fix it.",
+   "fn": "countdown",
+   "starterCode": "def countdown(n):\n    return [n] + countdown(n - 1)\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": [
+      3,
+      2,
+      1
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "0",
+     "expected": []
+    },
+    {
+     "input": "5",
+     "expected": [
+      5,
+      4,
+      3,
+      2,
+      1
+     ]
+    }
+   ],
+   "solution": "def countdown(n):\n    if n <= 0:\n        return []\n    return [n] + countdown(n - 1)\n",
+   "hint": "Nothing here ever returns without recursing first.",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "n does shrink, but nothing checks whether it has arrived - so the calls sail past zero into the negatives and never stop. A base case is a guard placed before the recursive call, and it has to answer the smallest input outright.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-d-03",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`sum_digits(123)` should return 6. This one has a base case, yet it still never terminates. Fix it.",
+   "fn": "sum_digits",
+   "starterCode": "def sum_digits(n):\n    if n == 0:\n        return 0\n    return n % 10 + sum_digits(n)\n",
+   "tests": [
+    {
+     "input": "123",
+     "expected": 6
+    },
+    {
+     "input": "9",
+     "expected": 9
+    },
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1000",
+     "expected": 1
+    }
+   ],
+   "solution": "def sum_digits(n):\n    if n == 0:\n        return 0\n    return n % 10 + sum_digits(n // 10)\n",
+   "hint": "The recursive call is handed exactly the problem it was already given.",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "Having a base case is not enough - the argument must move toward it, and passing n unchanged means every call faces an identical problem forever. Integer division by 10 drops the digit you just consumed, which is what makes the input strictly smaller.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-d-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`tally(1, 2, 3)` should return 6 and `tally(1, 2, start=10)` should return 13, but every call with more than one number raises a TypeError. Fix the signature.",
+   "fn": "tally",
+   "starterCode": "def tally(counts, start=0):\n    total = start\n    for c in counts:\n        total += c\n    return total\n",
+   "tests": [
+    {
+     "input": "1, 2, 3",
+     "expected": 6
+    },
+    {
+     "input": "5",
+     "expected": 5
+    },
+    {
+     "input": "",
+     "expected": 0
+    },
+    {
+     "input": "1, 2, start=10",
+     "expected": 13
+    }
+   ],
+   "solution": "def tally(*counts, start=0):\n    total = start\n    for c in counts:\n        total += c\n    return total\n",
+   "hint": "One star turns a single parameter into a collector.",
+   "concepts": [
+    "args-kwargs",
+    "keyword-arguments"
+   ],
+   "tags": [
+    "args-kwargs",
+    "keyword-arguments"
+   ],
+   "explain": "Without the star the function has room for exactly one positional value, so a second one has nowhere to go. Adding it also makes `start` keyword-only - anything after `*counts` can no longer be reached by position, which is exactly the protection an option wants.",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "py-7-c-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `profile(name, **details)` returning a dict with key `\"name\"` holding the name, plus one entry for every keyword argument given.",
+   "fn": "profile",
+   "starterCode": "def profile(name, **details):\n    pass\n",
+   "tests": [
+    {
+     "input": "'Ada', role='pilot'",
+     "expected": {
+      "name": "Ada",
+      "role": "pilot"
+     }
+    },
+    {
+     "input": "'Bo'",
+     "expected": {
+      "name": "Bo"
+     }
+    },
+    {
+     "input": "'Cy', a=1, b=2",
+     "expected": {
+      "name": "Cy",
+      "a": 1,
+      "b": 2
+     }
+    }
+   ],
+   "solution": "def profile(name, **details):\n    result = {\"name\": name}\n    for key in details:\n        result[key] = details[key]\n    return result\n",
+   "hint": "details is already a dict - you only have to add the name to it.",
+   "concepts": [
+    "args-kwargs"
+   ],
+   "tags": [
+    "args-kwargs",
+    "functions"
+   ],
+   "explain": "**details leaves the function open to fields nobody has thought of yet, without editing the signature every time one appears. The no-keyword call needs no branch because an empty dict contributes nothing.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-c-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `keep(items, test)` returning a list of the items for which `test(item)` is true, in their original order.",
+   "fn": "keep",
+   "starterCode": "def keep(items, test):\n    pass\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4], lambda n: n % 2 == 0",
+     "expected": [
+      2,
+      4
+     ]
+    },
+    {
+     "input": "['a', 'bb'], lambda s: len(s) > 1",
+     "expected": [
+      "bb"
+     ]
+    },
+    {
+     "input": "[], lambda n: True",
+     "expected": []
+    },
+    {
+     "input": "[1, 2], lambda n: False",
+     "expected": []
+    }
+   ],
+   "solution": "def keep(items, test):\n    out = []\n    for item in items:\n        if test(item):\n            out.append(item)\n    return out\n",
+   "hint": "Call test(item) inside the if - do not compare it to True.",
+   "concepts": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "explain": "The condition is supplied by the caller, so the traversal and the decision are cleanly separated - one is control flow you write once, the other is policy that changes per call. A lambda fits here because the test is too small to deserve a name.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-c-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `to_binary(n)` returning the binary digits of a non-negative integer as a string, with `to_binary(0)` returning `\"0\"`. Solve it recursively - do not use bin().",
+   "fn": "to_binary",
+   "starterCode": "def to_binary(n):\n    pass\n",
+   "tests": [
+    {
+     "input": "5",
+     "expected": "101"
+    },
+    {
+     "input": "0",
+     "expected": "0"
+    },
+    {
+     "input": "1",
+     "expected": "1"
+    },
+    {
+     "input": "10",
+     "expected": "1010"
+    },
+    {
+     "input": "8",
+     "expected": "1000"
+    }
+   ],
+   "solution": "def to_binary(n):\n    if n < 2:\n        return str(n)\n    return to_binary(n // 2) + str(n % 2)\n",
+   "hint": "n % 2 is the last digit; n // 2 is everything in front of it.",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "The digits fall out least-significant first, so the recursive call has to be placed to the left of the digit you just computed - the order of concatenation is the whole trick. Stopping below 2 handles 0 and 1 on the same line, because each is already its own binary form.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-c-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "This function has a base case, yet `shrink([1, 2])` never returns a value. Explain what is wrong and what happens inside Python while it runs.",
+   "code": "def shrink(items):\n    if items == []:\n        return 0\n    return 1 + shrink(items)",
+   "lang": "python",
+   "rubric": {
+    "required": [
+     "base",
+     "smaller"
+    ],
+    "optional": [
+     "stack",
+     "RecursionError",
+     "terminate",
+     "frame",
+     "progress"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "Termination needs two independent guarantees: a case that stops, and an argument that provably approaches it. Only the first is present here, so each call adds a frame that can never be discarded, and the growing stack - not the logic - is what finally halts the program.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-c-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `total(3)`. Give the value each call returns, innermost first.",
+   "code": "def total(n):\n    if n == 0:\n        return 0\n    return n + total(n - 1)",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "total(0) returns",
+     "expected": "0"
+    },
+    {
+     "label": "total(1) returns",
+     "expected": "1"
+    },
+    {
+     "label": "total(2) returns",
+     "expected": "3"
+    },
+    {
+     "label": "total(3) returns",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion",
+    "functions"
+   ],
+   "explain": "Nothing is added on the way down - every frame parks its n and waits. The additions all happen on the way back up, which is why the base case's value is the seed the whole sum is built on.",
+   "xp": 40
+  },
+  {
+   "id": "py-7-c-06",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `run_pipeline(value, *steps, repeat=1)`. It applies every function in `steps` to `value` in order, repeats that whole chain `repeat` times, and returns the final value. With no steps, or with repeat=0, it returns the value unchanged. No starter code.",
+   "fn": "run_pipeline",
+   "tests": [
+    {
+     "input": "5, lambda n: n + 1, lambda n: n * 2",
+     "expected": 12
+    },
+    {
+     "input": "5",
+     "expected": 5
+    },
+    {
+     "input": "1, lambda n: n + 1, repeat=3",
+     "expected": 4
+    },
+    {
+     "input": "9, lambda n: n * 2, repeat=0",
+     "expected": 9
+    },
+    {
+     "input": "'a', str.upper",
+     "expected": "A"
+    }
+   ],
+   "solution": "def run_pipeline(value, *steps, repeat=1):\n    count = 0\n    while count < repeat:\n        for step in steps:\n            value = step(value)\n        count += 1\n    return value\n",
+   "concepts": [
+    "args-kwargs",
+    "higher-order-functions",
+    "default-arguments"
+   ],
+   "tags": [
+    "args-kwargs",
+    "higher-order-functions",
+    "default-arguments"
+   ],
+   "explain": "Rebinding `value` on every step is what chains the functions together - the result of one call becomes the input of the next with no temporary names. `repeat` has to sit after *steps so that a function being passed in can never be mistaken for it.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-7-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Given `def collect(x, into=[]):` whose body appends x to into and returns into - one program calls `collect(1)`, then `collect(2)`. What does the second call return?",
+   "choices": [
+    "[2]",
+    "[1, 2]",
+    "[1]",
+    "a TypeError"
+   ],
+   "answer": 1,
+   "concepts": [
+    "default-arguments"
+   ],
+   "tags": [
+    "default-arguments"
+   ],
+   "explain": "The default list is created once at definition time, so both calls mutate the same object and the second sees what the first left behind. This is the classic function that looks correct in isolation and misbehaves the moment it is called twice.",
+   "xp": 10
+  },
+  {
+   "id": "py-7-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Given `def f(a, b=2, *rest, **opts): ...`, which of these calls are legal?",
+   "choices": [
+    "f(1)",
+    "f(1, 2, 3)",
+    "f(a=1, b=2)",
+    "f(b=2)",
+    "f(1, c=3)"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    4
+   ],
+   "concepts": [
+    "keyword-arguments",
+    "args-kwargs"
+   ],
+   "tags": [
+    "keyword-arguments",
+    "args-kwargs"
+   ],
+   "explain": "`a` has no default, so it must be supplied somehow - by position or by name - and the call that omits it fails before the body ever runs. Everything unclaimed falls into *rest or **opts, which is why an unexpected keyword is accepted here instead of raising.",
+   "xp": 10
+  },
+  {
+   "id": "py-7-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "def wrap(*args, **kwargs):\n    return args, kwargs\n\nprint(wrap(1, 2))\nprint(wrap(a=1))\nprint(wrap())",
+   "lang": "python",
+   "answer": "((1, 2), {})\n((), {'a': 1})\n((), {})",
+   "concepts": [
+    "args-kwargs",
+    "multiple-returns"
+   ],
+   "tags": [
+    "args-kwargs",
+    "multiple-returns"
+   ],
+   "explain": "The two containers are always present, empty or not, and the return packs them into a further tuple - which is why the printed shape is a tuple holding a tuple and a dict. Recognising `()` and `{}` as the empty forms saves you from writing a needless guard.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the words are sorted by length, using an unnamed function.",
+   "template": "words = [\"pear\", \"fig\", \"banana\"]\nprint(sorted(words, ___=___ w: len(w)))",
+   "blanks": [
+    "key",
+    "lambda"
+   ],
+   "lang": "python",
+   "concepts": [
+    "lambda",
+    "higher-order-functions"
+   ],
+   "tags": [
+    "lambda",
+    "higher-order-functions"
+   ],
+   "explain": "sorted stops comparing the words themselves once a key is given - it compares what the key function returns for each of them. The lambda is an ordinary argument here, created and passed in a single expression.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a recursive function that counts the items in a list.",
+   "fragments": [
+    "def size(items):",
+    "    if items == []:",
+    "        return 0",
+    "    return 1 + size(items[1:])"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion"
+   ],
+   "explain": "The base case is written first because it must be tested before any recursive call is made; place it afterwards and the call happens unconditionally. Slicing off the head is what makes the argument strictly smaller each time.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `to_binary(6)`. Give what each call returns, innermost first.",
+   "code": "def to_binary(n):\n    if n < 2:\n        return str(n)\n    return to_binary(n // 2) + str(n % 2)",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "to_binary(1) returns",
+     "expected": "1"
+    },
+    {
+     "label": "to_binary(3) returns",
+     "expected": "11"
+    },
+    {
+     "label": "to_binary(6) returns",
+     "expected": "110"
+    }
+   ],
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion"
+   ],
+   "explain": "Each frame contributes exactly one digit, appended to whatever the frame below it built - so the string grows left to right as the stack unwinds. Tracing the returns rather than the calls is how you check the assembly order of a recursive result.",
+   "xp": 40
+  },
+  {
+   "id": "py-7-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`sorted(words, key=len)` works, but `sorted(words, key=len())` fails immediately. Explain the difference the parentheses make and what sorted actually needs here.",
+   "rubric": {
+    "required": [
+     "call",
+     "function"
+    ],
+    "optional": [
+     "parentheses",
+     "value",
+     "object",
+     "result",
+     "argument"
+    ],
+    "forbidden": [],
+    "minWords": 20
+   },
+   "concepts": [
+    "higher-order-functions"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "functions"
+   ],
+   "explain": "A name without parentheses evaluates to the function object itself, which sorted can store and invoke once per item; with parentheses you run it immediately and hand over whatever came back. Every higher-order technique rests on that one distinction.",
+   "xp": 20
+  },
+  {
+   "id": "py-7-e-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`fib(6)` should return 8 for the sequence 0, 1, 1, 2, 3, 5, 8. It returns a far larger number. Fix it.",
+   "fn": "fib",
+   "starterCode": "def fib(n):\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 1)\n",
+   "tests": [
+    {
+     "input": "6",
+     "expected": 8
+    },
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "10",
+     "expected": 55
+    }
+   ],
+   "solution": "def fib(n):\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 2)\n",
+   "hint": "Which two earlier numbers make up a Fibonacci number?",
+   "concepts": [
+    "recursion"
+   ],
+   "tags": [
+    "recursion"
+   ],
+   "explain": "Both halves of the sum recursed on the same subproblem, so the function doubles at every level and computes a power of two instead of the sequence - a correct base case cannot rescue a wrong recursive case. The two branches have to describe two different smaller problems.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `config(**overrides)` returning the settings dict `{\"host\": \"localhost\", \"port\": 8080}` with every keyword argument applied on top of it.",
+   "fn": "config",
+   "starterCode": "def config(**overrides):\n    pass\n",
+   "tests": [
+    {
+     "input": "",
+     "expected": {
+      "host": "localhost",
+      "port": 8080
+     }
+    },
+    {
+     "input": "port=90",
+     "expected": {
+      "host": "localhost",
+      "port": 90
+     }
+    },
+    {
+     "input": "host='x', debug=True",
+     "expected": {
+      "host": "x",
+      "port": 8080,
+      "debug": true
+     }
+    }
+   ],
+   "solution": "def config(**overrides):\n    settings = {\"host\": \"localhost\", \"port\": 8080}\n    for key in overrides:\n        settings[key] = overrides[key]\n    return settings\n",
+   "hint": "Build the defaults inside the body, then write the overrides over them.",
+   "concepts": [
+    "keyword-arguments",
+    "args-kwargs"
+   ],
+   "tags": [
+    "keyword-arguments",
+    "args-kwargs"
+   ],
+   "explain": "Building the defaults inside the body rather than in the signature sidesteps the shared-mutable-default trap entirely, because a new dict is made per call. Applying overrides afterwards means the caller never has to restate the settings they were happy with.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `best(items, score)` returning the item with the highest `score(item)`. On a tie keep the earlier item, and return None for an empty list.",
+   "fn": "best",
+   "starterCode": "def best(items, score):\n    pass\n",
+   "tests": [
+    {
+     "input": "['a', 'bbb', 'cc'], len",
+     "expected": "bbb"
+    },
+    {
+     "input": "[], len",
+     "expected": null
+    },
+    {
+     "input": "[3, -5], abs",
+     "expected": -5
+    },
+    {
+     "input": "['aa', 'bb'], len",
+     "expected": "aa"
+    },
+    {
+     "input": "[1], lambda n: n",
+     "expected": 1
+    }
+   ],
+   "solution": "def best(items, score):\n    winner = None\n    top = None\n    for item in items:\n        current = score(item)\n        if top is None or current > top:\n            top = current\n            winner = item\n    return winner\n",
+   "hint": "Keep the best score seen so far alongside the item that earned it.",
+   "concepts": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "lambda"
+   ],
+   "explain": "Comparing with a strict > is what makes a tie keep the earlier item - switching to >= silently reverses that rule. Because the ranking arrives as an argument, one function finds the longest word and the number furthest from zero without knowing either idea.",
+   "xp": 50
+  },
+  {
+   "id": "py-7-e-11",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `apply_until(value, func, stop, limit=10)`. Apply `func` to `value` again and again until `stop(value)` is true, then return two values: the final value and how many times func was applied. Never apply func more than `limit` times, even if stop never becomes true. No starter code.",
+   "fn": "apply_until",
+   "tests": [
+    {
+     "input": "1, lambda n: n * 2, lambda n: n > 10",
+     "expected": [
+      16,
+      4
+     ]
+    },
+    {
+     "input": "5, lambda n: n + 1, lambda n: n > 3",
+     "expected": [
+      5,
+      0
+     ]
+    },
+    {
+     "input": "1, lambda n: n + 1, lambda n: False, 3",
+     "expected": [
+      4,
+      3
+     ]
+    },
+    {
+     "input": "'a', lambda s: s + 'a', lambda s: len(s) == 3",
+     "expected": [
+      "aaa",
+      2
+     ]
+    },
+    {
+     "input": "7, lambda n: n + 1, lambda n: False, 0",
+     "expected": [
+      7,
+      0
+     ]
+    }
+   ],
+   "solution": "def apply_until(value, func, stop, limit=10):\n    if limit <= 0 or stop(value):\n        return value, 0\n    later, steps = apply_until(func(value), func, stop, limit - 1)\n    return later, steps + 1\n",
+   "concepts": [
+    "higher-order-functions",
+    "default-arguments",
+    "multiple-returns",
+    "recursion",
+    "lambda"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "default-arguments",
+    "multiple-returns",
+    "recursion",
+    "lambda"
+   ],
+   "explain": "Two functions arrive as arguments - one that transforms and one that decides - and the count travels back up alongside the value as a tuple, so no shared state is needed. `limit` is a base case in disguise: it guarantees termination even when the caller's stop condition never becomes true.",
+   "xp": 100
+  }
+ ]
+}

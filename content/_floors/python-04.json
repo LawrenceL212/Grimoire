@@ -1,0 +1,975 @@
+{
+ "n": 4,
+ "name": "Vault of Collections",
+ "concepts": [
+  "lists",
+  "list-methods",
+  "loops"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Vault of Collections",
+  "sections": [
+   {
+    "title": "A Row of Boxes",
+    "body": "A **list** is an ordered row of values written in square brackets, and it can hold anything - numbers, strings, even other lists.\n\nEach slot has an **index** counting from `0`, while negative indices count backwards from the end, so `xs[-1]` is always the last item.\n\nA **slice** `xs[start:stop]` copies out a new list running from `start` up to but not including `stop`, and `len(xs)` reports how many items the list holds.\n\nThe `in` operator asks whether a value sits somewhere in the list and answers `True` or `False`.",
+    "code": "loot = [\"sword\", \"torch\", \"rope\", \"gem\"]\nprint(loot[0], loot[-1])\nprint(loot[1:3])\nprint(len(loot))\nprint(\"rope\" in loot)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Index 0 is the first slot and -1 is the last, so you never need len(loot) - 1 to reach the end."
+     },
+     {
+      "line": 3,
+      "text": "The slice stops before index 3, so you get items 1 and 2 only - two items, not three."
+     },
+     {
+      "line": 5,
+      "text": "`in` searches by value and gives back a bool, not a position."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "runes = [\"ehwaz\", \"sowilo\", \"tiwaz\", \"berkano\"]\nprint(runes[2])\nprint(runes[-2])\nprint(runes[:2])",
+     "lang": "python",
+     "answer": "tiwaz\ntiwaz\n['ehwaz', 'sowilo']",
+     "concepts": [
+      "lists"
+     ],
+     "explain": "In a four-item list, counting 2 forward and 2 backward lands on the same slot - that is why `xs[-1]` and `xs[len(xs) - 1]` are interchangeable. A single index hands back the bare value, but a slice always hands back a list, even a one-item one."
+    }
+   },
+   {
+    "title": "Reshaping the Row",
+    "body": "Lists are **mutable**, so the methods below change the list you already have instead of handing you a new one.\n\n`append(x)` adds to the end, `insert(i, x)` pushes an item in at index `i`, `pop()` removes **and returns** the last item (or the item at an index you pass it), and `remove(x)` deletes the first occurrence of a value.\n\n`sort()` and `reverse()` also rearrange in place and evaluate to `None`, which is why `xs = xs.sort()` destroys your data - `sorted(xs)` is the version that leaves the original alone and returns a new list.\n\nBecause `remove(x)` raises `ValueError` when the value is absent, check `x in xs` first.",
+    "code": "stack = [3, 1, 2]\nstack.append(4)\nstack.insert(0, 9)\nprint(stack)\n\ntaken = stack.pop()\nstack.remove(1)\nprint(taken, stack)\n\nprint(sorted(stack))\nstack.sort()\nstack.reverse()\nprint(stack)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "insert(0, 9) pushes 9 onto the front and shifts everything else right one slot."
+     },
+     {
+      "line": 6,
+      "text": "pop is the one mutating method that hands the removed item back to you."
+     },
+     {
+      "line": 10,
+      "text": "sorted() builds a new list; stack itself is still [9, 3, 2] on the next line."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "nums = [5, 2, 9]\nprint(nums.sort())\nprint(nums)",
+     "lang": "python",
+     "answer": "None\n[2, 5, 9]",
+     "concepts": [
+      "list-methods"
+     ],
+     "explain": "Methods that mutate in place return `None` by convention, precisely so you cannot mistake a return value for the result. The work still happened - it happened to the list itself, which is what the second line reveals."
+    }
+   },
+   {
+    "title": "For Each, and range",
+    "body": "A `for` loop walks an **iterable** and binds each element in turn to your loop variable - it hands you the items, not their positions.\n\nWhen you genuinely need numbers, `range(stop)` counts from `0`, and `range(start, stop, step)` lets you choose where to begin, where to stop and how far to jump; the `stop` value is never produced.\n\nAn **accumulator** is a variable created before the loop and updated inside it, which is how you build up a total or grow a list one element at a time.\n\nWriting `total += n` is shorthand for `total = total + n`.",
+    "code": "spells = [\"ward\", \"bolt\", \"mend\"]\nfor spell in spells:\n    print(spell)\n\ntotal = 0\nfor n in range(2, 11, 3):\n    total += n\n    print(n, total)\n\nnames = []\nfor i in range(len(spells)):\n    names.append(str(i) + \":\" + spells[i])\nprint(names)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "spell is bound to each string in turn - there is no counter to manage."
+     },
+     {
+      "line": 6,
+      "text": "range(2, 11, 3) yields 2, 5 and 8; 11 is the stop, so it never appears."
+     },
+     {
+      "line": 11,
+      "text": "range(len(xs)) is how you loop over positions when you need the index itself."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this prints 10 - the sum of 1 through 4.",
+     "template": "total = 0\nfor n in ___(1, 5):\n    total ___ n\nprint(total)",
+     "blanks": [
+      "range",
+      "+="
+     ],
+     "lang": "python",
+     "concepts": [
+      "loops"
+     ],
+     "explain": "The accumulator has to be initialised outside the loop or it would reset on every pass, and the upper bound is 5 because range stops one short of it."
+    }
+   },
+   {
+    "title": "While, Break, Continue, Nest",
+    "body": "A `while` loop repeats as long as its test is true, so **something in the body must move that test toward false** or the loop never ends.\n\nAn empty list is falsy and a non-empty one is truthy, which makes `while queue:` the idiomatic way to drain a list.\n\nInside any loop, `break` abandons the loop immediately and `continue` skips straight to the next iteration.\n\nLoops also nest: for every single step of the outer loop, the inner loop runs all the way through.",
+    "code": "queue = [\"ana\", \"bo\", \"cy\"]\nwhile queue:\n    print(queue.pop(0))\n\nfor n in range(1, 8):\n    if n % 2 == 0:\n        continue\n    if n > 5:\n        break\n    print(n)\n\nfor row in range(2):\n    for col in range(3):\n        print(row, col)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The list itself is the test; each pop(0) shortens it until it is empty and falsy."
+     },
+     {
+      "line": 7,
+      "text": "continue jumps straight to the next n without running the rest of the body."
+     },
+     {
+      "line": 9,
+      "text": "break leaves the loop entirely, so 7 is never printed."
+     },
+     {
+      "line": 13,
+      "text": "The inner loop restarts from scratch for each value of row: 2 x 3 = 6 lines."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "n = 0\nwhile n < 10:\n    n += 3\nprint(n)",
+     "lang": "python",
+     "answer": "12",
+     "concepts": [
+      "loops"
+     ],
+     "explain": "The test is only checked between iterations, never mid-body, so the loop stops at the first value that fails it rather than at exactly 10. Overshooting a bound is normal for a stepped counter, and it is why `while n != 10` here would run forever."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-4-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "gems = [\"ruby\", \"opal\", \"jade\"]\nprint(len(gems))\nprint(gems[1])",
+   "lang": "python",
+   "answer": "3\nopal",
+   "concepts": [
+    "lists"
+   ],
+   "tags": [
+    "lists"
+   ],
+   "explain": "len counts items while an index selects one, and the two use different numbers for the same list: three items, but the last index is 2. Mixing them up is the source of nearly every IndexError.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this adds \"torch\" to the end of the bag and then takes the last item back off. It prints: ['rope'] torch",
+   "template": "bag = [\"rope\"]\nbag.___(\"torch\")\nlast = bag.___()\nprint(bag, last)",
+   "blanks": [
+    "append",
+    "pop"
+   ],
+   "lang": "python",
+   "concepts": [
+    "list-methods"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "append and pop are a matched pair at the end of a list: one grows it and returns nothing, the other shrinks it and returns the item. That asymmetry is exactly why `last = bag.append(...)` would be wrong.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `total(xs)` returning the sum of every number in the list `xs`, using a loop. An empty list totals 0.",
+   "fn": "total",
+   "starterCode": "def total(xs):\n    running = 0\n    # loop over xs and add each value to running\n    return running\n",
+   "solution": "def total(xs):\n    running = 0\n    for x in xs:\n        running += x\n    return running\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[-5]",
+     "expected": -5
+    },
+    {
+     "input": "[10, -10, 4]",
+     "expected": 4
+    }
+   ],
+   "concepts": [
+    "loops"
+   ],
+   "tags": [
+    "loops"
+   ],
+   "hint": "Create the accumulator before the loop, not inside it.",
+   "explain": "Starting the accumulator at 0 outside the loop is what makes the empty list return 0 with no special case - the body simply never runs. Initialising it inside the loop would throw away everything added so far on every pass.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `middle(xs)` returning a new list containing everything except the first and last items. `middle([1, 2, 3, 4, 5])` is `[2, 3, 4]`. Lists of two items or fewer give back an empty list.",
+   "fn": "middle",
+   "starterCode": "def middle(xs):\n    # one slice is enough\n    pass\n",
+   "solution": "def middle(xs):\n    return xs[1:-1]\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": [
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[1, 2]",
+     "expected": []
+    },
+    {
+     "input": "[7]",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "lists"
+   ],
+   "tags": [
+    "lists"
+   ],
+   "hint": "A slice can start at 1 and stop at -1.",
+   "explain": "Slicing never raises for out-of-range bounds - it clamps to what actually exists, so the short lists fall out for free instead of needing a length check. That forgiveness is the practical difference between slicing and indexing.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "scores = [3, 1, 2]\nscores.append(4)\nscores.reverse()\nprint(scores)\nprint(scores.pop(0))\nprint(scores)",
+   "lang": "python",
+   "answer": "[4, 2, 1, 3]\n4\n[2, 1, 3]",
+   "concepts": [
+    "list-methods"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "reverse works on whatever the list holds at that moment, so the freshly appended 4 is carried to the front rather than staying at the end. pop then both yields a value and shortens the list, which is why the third line differs from the first.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-g-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`evens_up_to(n)` should return every even number from 0 up to **and including** n. It currently drops the last one. Fix it.",
+   "fn": "evens_up_to",
+   "starterCode": "def evens_up_to(n):\n    result = []\n    for x in range(0, n, 2):\n        result.append(x)\n    return result\n",
+   "solution": "def evens_up_to(n):\n    result = []\n    for x in range(0, n + 1, 2):\n        result.append(x)\n    return result\n",
+   "tests": [
+    {
+     "input": "10",
+     "expected": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      10
+     ]
+    },
+    {
+     "input": "0",
+     "expected": [
+      0
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      0
+     ]
+    },
+    {
+     "input": "7",
+     "expected": [
+      0,
+      2,
+      4,
+      6
+     ]
+    }
+   ],
+   "concepts": [
+    "loops"
+   ],
+   "tags": [
+    "loops"
+   ],
+   "hint": "range never produces its stop value.",
+   "explain": "range is half-open, so an inclusive upper bound has to be written as `stop + 1`. The fix stays safe for odd n: with 8 as the stop the sequence still ends at 6, because the step decides which values are ever reached.",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "py-4-c-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "This loop serves a queue one person at a time. Trace both lists.",
+   "code": "queue = [\"a\", \"b\", \"c\"]\nserved = []\nwhile queue:\n    served.append(queue.pop(0))",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "queue after iteration 1",
+     "expected": "['b', 'c']"
+    },
+    {
+     "label": "served after iteration 2",
+     "expected": "['a', 'b']"
+    },
+    {
+     "label": "queue when the loop stops",
+     "expected": "[]"
+    },
+    {
+     "label": "served when the loop stops",
+     "expected": "['a', 'b', 'c']"
+    }
+   ],
+   "concepts": [
+    "loops",
+    "list-methods"
+   ],
+   "tags": [
+    "loops",
+    "list-methods"
+   ],
+   "explain": "pop(0) takes from the front, so order is preserved as items move between the two lists. Nothing counts the iterations: the loop ends the moment queue becomes empty, because an empty list is falsy.",
+   "xp": 40
+  },
+  {
+   "id": "py-4-c-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `above_threshold(scores, threshold)` returning a list of every score greater than **or equal to** the threshold, in the order they appear.",
+   "fn": "above_threshold",
+   "starterCode": "def above_threshold(scores, threshold):\n    keep = []\n    # test each score, keep the ones that qualify\n    return keep\n",
+   "solution": "def above_threshold(scores, threshold):\n    keep = []\n    for score in scores:\n        if score >= threshold:\n            keep.append(score)\n    return keep\n",
+   "tests": [
+    {
+     "input": "[40, 39, 95, 80, 25, 31, 70, 55, 40, 90], 98",
+     "expected": []
+    },
+    {
+     "input": "[88, 29, 91, 64, 78, 43, 41, 77, 36, 50], 80",
+     "expected": [
+      88,
+      91
+     ]
+    },
+    {
+     "input": "[100, 89], 100",
+     "expected": [
+      100
+     ]
+    },
+    {
+     "input": "[], 80",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists"
+   ],
+   "tags": [
+    "loops",
+    "lists"
+   ],
+   "hint": "Filtering is an accumulator that collects instead of adding.",
+   "explain": "Appending inside the loop preserves the original order for free, which a sort or a set would destroy. The boundary is the real test here: `>=` keeps an exact match, so a score of 100 against a threshold of 100 must survive.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-c-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these fragments into a function that returns the largest value in a non-empty list.",
+   "fragments": [
+    "    for x in xs:",
+    "def largest(xs):",
+    "    return best",
+    "        if x > best:",
+    "    best = xs[0]",
+    "            best = x"
+   ],
+   "answer": [
+    1,
+    4,
+    0,
+    3,
+    5,
+    2
+   ],
+   "lang": "python",
+   "concepts": [
+    "loops"
+   ],
+   "tags": [
+    "loops"
+   ],
+   "explain": "The accumulator is seeded with a real element rather than 0, otherwise a list of negative numbers would wrongly report 0 as its largest value. The return sits outside the loop, since returning inside it would stop after the very first comparison.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-c-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `remove_all(xs, item)` deleting **every** occurrence of `item` from `xs` and returning the list. Removing something that is not there must not raise.",
+   "fn": "remove_all",
+   "starterCode": "def remove_all(xs, item):\n    # .remove() only deletes the first match\n    return xs\n",
+   "solution": "def remove_all(xs, item):\n    while item in xs:\n        xs.remove(item)\n    return xs\n",
+   "tests": [
+    {
+     "input": "[1, 2, 1, 3], 1",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[1, 1, 1], 1",
+     "expected": []
+    },
+    {
+     "input": "[2, 3], 9",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[], 1",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "list-methods",
+    "lists"
+   ],
+   "tags": [
+    "list-methods",
+    "lists"
+   ],
+   "hint": "`while item in xs` is both the guard against ValueError and the loop condition.",
+   "explain": "One membership test does double duty: it ends the loop and it guarantees remove never raises. A `for` loop over xs would be wrong for a subtler reason - deleting while iterating the same list shifts the remaining positions and silently skips elements.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-c-05",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`flatten(rows)` should return one flat list holding every item from every row, in order. Instead it hands back the rows unchanged. Fix it.",
+   "fn": "flatten",
+   "starterCode": "def flatten(rows):\n    result = []\n    for row in rows:\n        result.append(row)\n    return result\n",
+   "solution": "def flatten(rows):\n    result = []\n    for row in rows:\n        for item in row:\n            result.append(item)\n    return result\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [3]]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[[], [4]]",
+     "expected": [
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[5]]",
+     "expected": [
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists"
+   ],
+   "tags": [
+    "loops",
+    "lists"
+   ],
+   "hint": "Each row is itself a list, so it needs a loop of its own.",
+   "explain": "append adds exactly one item, and a whole list counts as one item - nesting a second loop is what turns rows of values into values. An empty inner row costs nothing, because its loop body simply never runs.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-c-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `podium(scores)` returning the three highest scores in descending order. Fewer than three scores means you return however many there are.",
+   "fn": "podium",
+   "starterCode": "def podium(scores):\n    # sort, flip, then take a slice\n    pass\n",
+   "solution": "def podium(scores):\n    scores.sort()\n    scores.reverse()\n    return scores[:3]\n",
+   "tests": [
+    {
+     "input": "[3, 9, 5, 1, 7]",
+     "expected": [
+      9,
+      7,
+      5
+     ]
+    },
+    {
+     "input": "[4, 4]",
+     "expected": [
+      4,
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      4,
+      3,
+      2
+     ]
+    },
+    {
+     "input": "[10]",
+     "expected": [
+      10
+     ]
+    }
+   ],
+   "concepts": [
+    "list-methods",
+    "lists"
+   ],
+   "tags": [
+    "list-methods",
+    "lists"
+   ],
+   "hint": "sort() then reverse() gives descending order, and a slice handles the short lists.",
+   "explain": "Slicing past the end of a list is not an error, so `[:3]` covers the one- and two-score cases without any length check. Keep in mind that sort and reverse rewrite the caller's list - when that matters, start from `sorted(scores)` instead.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-4-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `[10, 20, 30][-1]` evaluate to?",
+   "choices": [
+    "10",
+    "30",
+    "IndexError",
+    "None"
+   ],
+   "answer": 1,
+   "concepts": [
+    "lists"
+   ],
+   "tags": [
+    "lists"
+   ],
+   "explain": "Negative indices count backwards from the end, with -1 meaning the last slot. That is the reason you almost never see `xs[len(xs) - 1]` in Python.",
+   "xp": 10
+  },
+  {
+   "id": "py-4-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Given `xs = [5, 3, 8]`, which call deletes the **value** 3?",
+   "choices": [
+    "xs.pop(3)",
+    "xs.remove(3)",
+    "xs.delete(3)",
+    "xs.pop(-3)"
+   ],
+   "answer": 1,
+   "concepts": [
+    "list-methods"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "remove takes a value while pop takes an index, so `pop(3)` reaches for a fourth slot that does not exist and `pop(-3)` drops the 5. Lists have no delete method at all.",
+   "xp": 10
+  },
+  {
+   "id": "py-4-e-03",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these leave the original list `xs` unchanged?",
+   "choices": [
+    "xs.sort()",
+    "sorted(xs)",
+    "xs[1:]",
+    "xs.reverse()"
+   ],
+   "answer": [
+    1,
+    2
+   ],
+   "concepts": [
+    "list-methods",
+    "lists"
+   ],
+   "tags": [
+    "list-methods",
+    "lists"
+   ],
+   "explain": "The built-in function and the slice each build a new list, while the two methods rearrange in place. The shape of the call is the tell: a method called on the list usually edits that list.",
+   "xp": 10
+  },
+  {
+   "id": "py-4-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "found = []\nfor n in range(10, 0, -3):\n    if n == 4:\n        break\n    found.append(n)\nprint(found)",
+   "lang": "python",
+   "answer": "[10, 7]",
+   "concepts": [
+    "loops"
+   ],
+   "tags": [
+    "loops"
+   ],
+   "explain": "A negative step counts downwards and still refuses to produce the stop value, giving 10, 7, 4 and 1. break fires on 4 before the append runs, so that value never reaches the list.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints each name once, taken from the front of the queue, until the queue is empty.",
+   "template": "queue = [\"ana\", \"bo\"]\n___ queue:\n    print(queue.___(0))",
+   "blanks": [
+    "while",
+    "pop"
+   ],
+   "lang": "python",
+   "concepts": [
+    "loops",
+    "list-methods"
+   ],
+   "tags": [
+    "loops",
+    "list-methods"
+   ],
+   "explain": "The list is its own condition: non-empty is truthy, empty is falsy. pop(0) is what eventually makes that condition fail, so a version that only read the front item would loop forever.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the value of `total` after each element has been visited.",
+   "code": "total = 0\nfor n in [4, -1, 6, -3]:\n    if n < 0:\n        continue\n    total += n",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after 4",
+     "expected": "4"
+    },
+    {
+     "label": "after -1",
+     "expected": "4"
+    },
+    {
+     "label": "after 6",
+     "expected": "10"
+    },
+    {
+     "label": "after -3",
+     "expected": "10"
+    }
+   ],
+   "concepts": [
+    "loops"
+   ],
+   "tags": [
+    "loops"
+   ],
+   "explain": "continue skips the rest of the body but not the iteration itself, so the negative elements are still visited - they just leave the accumulator untouched. Naming the value at every step is how you catch a guard written on the wrong side of the update.",
+   "xp": 40
+  },
+  {
+   "id": "py-4-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague writes `scores = scores.sort()` and every line after it crashes with `AttributeError: 'NoneType' object has no attribute ...`. Explain what went wrong and how you would fix it.",
+   "rubric": {
+    "required": [
+     "none",
+     "place"
+    ],
+    "optional": [
+     "sorted",
+     "returns",
+     "mutates",
+     "original"
+    ],
+    "forbidden": [],
+    "minWords": 20
+   },
+   "concepts": [
+    "list-methods"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "sort did its job and then returned None, and the assignment threw the sorted list away by rebinding the name to that None. Either drop the assignment entirely, or call `sorted(scores)`, which is the version built for the value-returning case.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `running_totals(xs)` returning a list of the running sum after each element. `running_totals([1, 2, 3])` is `[1, 3, 6]`.",
+   "fn": "running_totals",
+   "starterCode": "def running_totals(xs):\n    out = []\n    total = 0\n    # after each element, record the total so far\n    return out\n",
+   "solution": "def running_totals(xs):\n    out = []\n    total = 0\n    for x in xs:\n        total += x\n        out.append(total)\n    return out\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      3,
+      6
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[2, -2, 4]",
+     "expected": [
+      2,
+      0,
+      4
+     ]
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists"
+   ],
+   "tags": [
+    "loops",
+    "lists"
+   ],
+   "hint": "Two accumulators: one number, one list.",
+   "explain": "The number accumulator carries state across iterations while the list accumulator records a snapshot of it, which is why the output always has exactly as many items as the input. Appending before the update would shift every entry by one element.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-e-09",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`every_other(xs)` should return the items at index 0, 2, 4 and so on. It returns the wrong half. Fix it.",
+   "fn": "every_other",
+   "starterCode": "def every_other(xs):\n    result = []\n    for i in range(1, len(xs), 2):\n        result.append(xs[i])\n    return result\n",
+   "solution": "def every_other(xs):\n    result = []\n    for i in range(0, len(xs), 2):\n        result.append(xs[i])\n    return result\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": [
+      1,
+      3,
+      5
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[9]",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "['a', 'b']",
+     "expected": [
+      "a"
+     ]
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists"
+   ],
+   "tags": [
+    "loops",
+    "lists"
+   ],
+   "hint": "The step is already right; the start is not.",
+   "explain": "The step controls the spacing and the start decides which half you land on, so only the start needed changing. Using `len(xs)` as the stop keeps every index legal for any length, including the empty list, where the loop simply never runs.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `leaderboard(names, scores)` where both lists are already in ranking order and line up by position. Return a list of strings shaped `\"1. Ana: 90\"` - the rank counting from 1, then the name, a colon, a space and the score.",
+   "fn": "leaderboard",
+   "starterCode": "def leaderboard(names, scores):\n    rows = []\n    # you need the position, not just the name\n    return rows\n",
+   "solution": "def leaderboard(names, scores):\n    rows = []\n    for i in range(len(names)):\n        rows.append(str(i + 1) + \". \" + names[i] + \": \" + str(scores[i]))\n    return rows\n",
+   "tests": [
+    {
+     "input": "['Ana', 'Bo'], [90, 80]",
+     "expected": [
+      "1. Ana: 90",
+      "2. Bo: 80"
+     ]
+    },
+    {
+     "input": "[], []",
+     "expected": []
+    },
+    {
+     "input": "['Zed'], [100]",
+     "expected": [
+      "1. Zed: 100"
+     ]
+    },
+    {
+     "input": "['A', 'B', 'C'], [5, 4, 3]",
+     "expected": [
+      "1. A: 5",
+      "2. B: 4",
+      "3. C: 3"
+     ]
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists"
+   ],
+   "tags": [
+    "loops",
+    "lists"
+   ],
+   "hint": "range(len(names)) gives you i, and that one i indexes both lists.",
+   "explain": "When two lists are read in parallel you loop over positions rather than items, because a single index has to reach into both. The rank is `i + 1` for exactly the reason indices start at 0 - the display counts from one, the machine counts from zero.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-e-11",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `merge_sorted(a, b)` taking two lists already sorted ascending and returning one sorted list holding every item from both. Do it by repeatedly taking the smaller front item - do not call sort().",
+   "fn": "merge_sorted",
+   "starterCode": "def merge_sorted(a, b):\n    out = []\n    # while both lists still have items, take the smaller front one\n    # then drain whatever is left\n    return out\n",
+   "solution": "def merge_sorted(a, b):\n    out = []\n    while a and b:\n        if a[0] <= b[0]:\n            out.append(a.pop(0))\n        else:\n            out.append(b.pop(0))\n    while a:\n        out.append(a.pop(0))\n    while b:\n        out.append(b.pop(0))\n    return out\n",
+   "tests": [
+    {
+     "input": "[1, 3], [2, 4]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[], [1]",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "[5], []",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[], []",
+     "expected": []
+    },
+    {
+     "input": "[1, 1], [1]",
+     "expected": [
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "input": "[1, 2, 3], [10]",
+     "expected": [
+      1,
+      2,
+      3,
+      10
+     ]
+    }
+   ],
+   "concepts": [
+    "loops",
+    "lists",
+    "list-methods"
+   ],
+   "tags": [
+    "loops",
+    "lists",
+    "list-methods"
+   ],
+   "hint": "Three while loops: one for the comparison phase, then one to drain each leftover list.",
+   "explain": "Only the two front items ever need comparing, because everything behind them is already larger - that single observation is what makes merging a walk rather than a re-sort. The drain loops matter because one list always empties first, and `<=` rather than `<` is what keeps equal values in their original relative order.",
+   "xp": 50
+  }
+ ]
+}

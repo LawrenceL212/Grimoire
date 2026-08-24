@@ -1,0 +1,779 @@
+{
+ "n": 9,
+ "name": "The Gilded Loom",
+ "concepts": [
+  "comprehensions",
+  "iterator-protocol",
+  "decorators",
+  "type-hints"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "unseen-challenge",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Weaving, Wrapping, Declaring",
+  "sections": [
+   {
+    "title": "Comprehensions",
+    "body": "A **comprehension** states what a collection contains instead of describing the loop that fills it. The shape is always the same: an expression, a `for` clause, and an optional `if` filter that decides which items survive.\n\nThe brackets choose the container - `[...]` builds a list, `{k: v for ...}` builds a dict, and `{...}` with a bare expression builds a set.\n\nThe loop variable lives only inside the comprehension, so it never leaks into the surrounding code the way a `for` loop's variable does.",
+    "code": "nums = [3, 8, 1, 12, 7]\nsquares = [n * n for n in nums if n % 2 == 1]\nby_value = {n: n * n for n in nums if n > 5}\nparities = {n % 2 for n in nums}\nprint(squares)\nprint(by_value)\nprint(sorted(parities))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Expression, then for, then filter: only odd values reach `n * n`."
+     },
+     {
+      "line": 3,
+      "text": "A dict comprehension needs `key: value` before the for clause."
+     },
+     {
+      "line": 4,
+      "text": "Braces with a single expression build a set, so the duplicate parities collapse."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "words = [\"ash\", \"ember\", \"kiln\", \"ore\"]\nprint([w.upper() for w in words if len(w) == 3])",
+     "lang": "python",
+     "answer": "['ASH', 'ORE']",
+     "concepts": [
+      "comprehensions"
+     ],
+     "explain": "The filter runs before the expression, so `.upper()` is only ever applied to the words that survived it. Order is preserved because a list comprehension walks the source in order."
+    }
+   },
+   {
+    "title": "The Iterator Protocol",
+    "body": "A `for` loop is not magic: it calls `iter()` on whatever you gave it, then calls `next()` on the result until `StopIteration` is raised.\n\nAny object can join in by defining two methods. `__iter__` returns the iterator - for a self-consuming object that is simply `self` - and `__next__` produces the next value or raises `StopIteration` to signal exhaustion.\n\nThe state that decides what comes next lives on the object, which is why a half-consumed iterator cannot be rewound.",
+    "code": "class Countdown:\n    def __init__(self, start):\n        self.current = start\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.current <= 0:\n            raise StopIteration\n        value = self.current\n        self.current -= 1\n        return value\n\n\nprint(list(Countdown(3)))\nit = Countdown(2)\nprint(next(it), next(it))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Returning self makes the object its own iterator."
+     },
+     {
+      "line": 9,
+      "text": "Exhaustion is signalled by raising, never by returning None."
+     },
+     {
+      "line": 16,
+      "text": "list() drives the protocol to completion for you."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `take_two(source)` that returns a list of the first two items produced by any iterable, using `iter()` and `next()` rather than slicing.",
+     "fn": "take_two",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[5, 6, 7]",
+       "expected": [
+        5,
+        6
+       ]
+      },
+      {
+       "input": "'ab'",
+       "expected": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "input": "[1, 2]",
+       "expected": [
+        1,
+        2
+       ]
+      }
+     ],
+     "concepts": [
+      "iterator-protocol"
+     ],
+     "explain": "`iter()` is what turns a list or a string into something `next()` can drive; calling `next()` twice on the same iterator advances it, which is exactly why the second call does not hand back the first item again.",
+     "solution": "def take_two(source):\n    it = iter(source)\n    return [next(it), next(it)]\n"
+    }
+   },
+   {
+    "title": "Decorators",
+    "body": "A **decorator** is a function that takes a function and returns a replacement. `@announce` above a `def` means `spark = announce(spark)` - nothing more.\n\nThe replacement usually accepts `*args, **kwargs` so it can stand in for any signature, and `functools.wraps` copies the original's name and docstring onto it so the disguise survives introspection.\n\nA decorator that takes arguments is one layer deeper: `repeat(2)` is called first and must return the actual decorator.\n\nStacked decorators apply bottom-up, so the one nearest the `def` wraps first.",
+    "code": "import functools\n\n\ndef announce(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        print(\"called\", fn.__name__)\n        return fn(*args, **kwargs)\n    return wrapper\n\n\ndef repeat(times):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            return [fn(*args, **kwargs) for _ in range(times)]\n        return wrapper\n    return decorate\n\n\n@announce\n@repeat(2)\ndef spark(x):\n    return x * 10\n\n\nprint(spark(3))\nprint(spark.__name__)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Without this line spark.__name__ would report 'wrapper'."
+     },
+     {
+      "line": 12,
+      "text": "Three levels: the factory takes the argument, decorate takes the function, wrapper takes the call."
+     },
+     {
+      "line": 22,
+      "text": "Applied first because it is closest to the def."
+     },
+     {
+      "line": 28,
+      "text": "wraps is why this prints spark and not wrapper."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "import functools\n\n\ndef shout(fn):\n    @functools.wraps(fn)\n    def wrapper(word):\n        return fn(word).upper()\n    return wrapper\n\n\n@shout\ndef greet(word):\n    return \"hello \" + word\n\n\nprint(greet(\"mira\"))\nprint(greet.__name__)",
+     "lang": "python",
+     "answer": "HELLO MIRA\ngreet",
+     "concepts": [
+      "decorators"
+     ],
+     "explain": "The name `greet` is now bound to `wrapper`, so the original function is only reachable through the closure. `functools.wraps` is what keeps the reported name honest even though the object underneath has changed."
+    }
+   },
+   {
+    "title": "Type Hints",
+    "body": "An **annotation** records what a value is meant to be. Since Python 3.9 the builtin containers are subscriptable directly - `list[str]`, `dict[str, int]` - with no import needed.\n\n`Optional[str]` from `typing` means a str or None, which is the honest signature for any function that can fail to find something.\n\nPython does not check these at runtime; it stores them in the function's `__annotations__` dict and moves on. They are for readers, editors and type checkers, not for enforcement.",
+    "code": "from typing import Optional\n\n\ndef tally(words: list[str]) -> dict[str, int]:\n    counts: dict[str, int] = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n\n\ndef first_long(words: list[str], limit: int) -> Optional[str]:\n    for w in words:\n        if len(w) > limit:\n            return w\n    return None\n\n\nprint(tally([\"ash\", \"ore\", \"ash\"]))\nprint(first_long([\"ash\", \"ember\"], 3))\nprint(first_long([\"ash\"], 3))\nprint(first_long.__annotations__[\"return\"])",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Parameter hints go after the colon, the return hint after the arrow."
+     },
+     {
+      "line": 5,
+      "text": "A local variable can be annotated too, even though nothing checks it."
+     },
+     {
+      "line": 11,
+      "text": "Optional[str] documents the None-returning branch below."
+     },
+     {
+      "line": 21,
+      "text": "The hints are just data hanging off the function object."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "def double(n: int) -> int:\n    return n * 2\n\n\nprint(double(\"ab\"))\nprint(double(4))",
+     "lang": "python",
+     "answer": "abab\n8",
+     "concepts": [
+      "type-hints"
+     ],
+     "explain": "The annotation is a promise to the reader, not a guard at the door - `*` on a string repeats it, and Python never consults the hint. This is why a type checker is a separate tool you have to run."
+    }
+   }
+  ]
+ },
+ "unseen-challenge": [
+  {
+   "id": "py-9-u-01",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `loud_words(words)` returning a new list containing the uppercase form of every word longer than three characters, in the original order. Build it with a single list comprehension. Nothing is given to you.",
+   "fn": "loud_words",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "['ash', 'ember', 'kiln', 'ore']",
+     "expected": [
+      "EMBER",
+      "KILN"
+     ]
+    },
+    {
+     "input": "['grimoire']",
+     "expected": [
+      "GRIMOIRE"
+     ]
+    },
+    {
+     "input": "['a', 'bb', 'ccc']",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "Filter first, transform second - putting `.upper()` in the expression slot and the length test in the `if` slot keeps each concern in one place. The empty list falls out for free because a comprehension over nothing produces nothing; no special case is needed.",
+   "xp": 100,
+   "solution": "def loud_words(words):\n    return [w.upper() for w in words if len(w) > 3]\n"
+  },
+  {
+   "id": "py-9-u-02",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `length_map(words)` returning a dict that maps each word to its length, skipping any empty string. Use a single dict comprehension.",
+   "fn": "length_map",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "['ash', 'ember']",
+     "expected": {
+      "ash": 3,
+      "ember": 5
+     }
+    },
+    {
+     "input": "['', 'ore', '']",
+     "expected": {
+      "ore": 3
+     }
+    },
+    {
+     "input": "['x', 'x']",
+     "expected": {
+      "x": 1
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    }
+   ],
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "A dict comprehension needs `key: value` before the `for`, and an empty string is falsy so `if w` is enough to drop it. Duplicate keys are not an error - the later pair simply overwrites the earlier one, which is why two copies of the same word collapse to one entry.",
+   "xp": 100,
+   "solution": "def length_map(words):\n    return {w: len(w) for w in words if w}\n"
+  },
+  {
+   "id": "py-9-u-03",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `unique_initials(names)` returning a sorted list of the distinct lowercase first letters of the names, ignoring any empty string. Collect the distinct letters with a set comprehension, then sort the result.",
+   "fn": "unique_initials",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "['Ash', 'ember', 'Ore', 'aria']",
+     "expected": [
+      "a",
+      "e",
+      "o"
+     ]
+    },
+    {
+     "input": "['bb', 'BB']",
+     "expected": [
+      "b"
+     ]
+    },
+    {
+     "input": "['', 'Zed']",
+     "expected": [
+      "z"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "A set comprehension collapses duplicates during the single pass instead of afterwards, but a set has no order you may rely on - `sorted()` is what turns it back into something a test can compare. The `if n` guard matters because indexing position 0 of an empty string raises IndexError.",
+   "xp": 100,
+   "solution": "def unique_initials(names):\n    return sorted({n[0].lower() for n in names if n})\n"
+  },
+  {
+   "id": "py-9-u-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write an iterator class `Countdown` whose constructor takes a start value. `__iter__` must return the object itself, and `__next__` must hand back `start`, then `start - 1`, and so on down to 1, then raise `StopIteration`. Also write `countdown_list(start)` returning `list(Countdown(start))`. The tests call `countdown_list`.",
+   "fn": "countdown_list",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "3",
+     "expected": [
+      3,
+      2,
+      1
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "0",
+     "expected": []
+    },
+    {
+     "input": "-2",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "iterator-protocol"
+   ],
+   "tags": [
+    "iterator-protocol"
+   ],
+   "explain": "`list()` only knows how to drain the object because `__iter__` handed it something with `__next__`; returning `self` is what makes the object serve as both. The stop test has to come before the value is produced, otherwise a start of 0 emits a bogus item before quitting - which is exactly what the zero and negative cases catch.",
+   "xp": 100,
+   "solution": "class Countdown:\n    def __init__(self, start):\n        self.current = start\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.current <= 0:\n            raise StopIteration\n        value = self.current\n        self.current -= 1\n        return value\n\n\ndef countdown_list(start):\n    return list(Countdown(start))\n"
+  },
+  {
+   "id": "py-9-u-05",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write a decorator `doubled` that doubles whatever the wrapped function returns, preserving the wrapped function's name with `functools.wraps`. Apply it to `add(a, b)`, which returns `a + b`. Then write `probe(a, b)` returning the two-element list `[add(a, b), add.__name__]`. The tests call `probe`, so a wrapper without `functools.wraps` will fail them.",
+   "fn": "probe",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "2, 3",
+     "expected": [
+      10,
+      "add"
+     ]
+    },
+    {
+     "input": "0, 5",
+     "expected": [
+      10,
+      "add"
+     ]
+    },
+    {
+     "input": "-4, 1",
+     "expected": [
+      -6,
+      "add"
+     ]
+    },
+    {
+     "input": "0, 0",
+     "expected": [
+      0,
+      "add"
+     ]
+    }
+   ],
+   "concepts": [
+    "decorators"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "After decoration the name `add` points at the wrapper, so every attribute you read from it belongs to the wrapper unless `functools.wraps` copied the original's across. That is the whole reason the second element of the list is a test and not decoration: it is the only observable difference between a wrapper that used `wraps` and one that did not.",
+   "xp": 100,
+   "solution": "import functools\n\n\ndef doubled(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        return fn(*args, **kwargs) * 2\n    return wrapper\n\n\n@doubled\ndef add(a, b):\n    return a + b\n\n\ndef probe(a, b):\n    return [add(a, b), add.__name__]\n"
+  },
+  {
+   "id": "py-9-u-06",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write a decorator factory `clamp_to(limit)`. A function it decorates returns its own result when that result is at most `limit`, and `limit` otherwise. Use `functools.wraps` on the wrapper. Apply `@clamp_to(100)` to `total(numbers: list[int]) -> int`, which returns the sum of the list, and annotate it exactly as written. The tests call `total`.",
+   "fn": "total",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "[50, 60]",
+     "expected": 100
+    },
+    {
+     "input": "[100]",
+     "expected": 100
+    },
+    {
+     "input": "[-5, -5]",
+     "expected": -10
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "decorators",
+    "type-hints"
+   ],
+   "tags": [
+    "decorators",
+    "type-hints"
+   ],
+   "explain": "A decorator that takes an argument needs three nested functions: the factory captures `limit`, the middle layer captures the function, and only the innermost one sees the call. The `[100]` case is the boundary that separates a correct `<=` from an off-by-one `<`, and the empty list proves `sum([])` is 0 rather than an error.",
+   "xp": 100,
+   "solution": "import functools\n\n\ndef clamp_to(limit):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            result = fn(*args, **kwargs)\n            return result if result <= limit else limit\n        return wrapper\n    return decorate\n\n\n@clamp_to(100)\ndef total(numbers: list[int]) -> int:\n    return sum(numbers)\n"
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-9-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A module runs `squares = [n * n for n in range(3)]` and nothing else. What happens if the next line evaluates `n`?",
+   "choices": [
+    "It is 2, the last value the comprehension used",
+    "It is 3, one past the last value",
+    "It raises NameError - the comprehension has its own scope",
+    "It is the list [0, 1, 4]"
+   ],
+   "answer": 2,
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "A comprehension runs in its own implicit function scope, so its loop variable is discarded when it finishes. An ordinary `for` loop does leak its variable, and that difference is why converting a loop to a comprehension can quietly break code that read the variable afterwards.",
+   "xp": 10
+  },
+  {
+   "id": "py-9-e-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "nums = [4, 7, 2, 9]\nprint([n for n in nums if n > 3])\nprint({n: n % 3 for n in nums if n % 2 == 1})",
+   "lang": "python",
+   "answer": "[4, 7, 9]\n{7: 1, 9: 0}",
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "Both comprehensions walk the same source in the same order, so the surviving items keep their original relative positions - a dict has kept insertion order since Python 3.7. The second filter tests the key while the stored value is a different expression entirely, which is the freedom a dict comprehension buys you.",
+   "xp": 20
+  },
+  {
+   "id": "py-9-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this returns the distinct lowercase initials, sorted, ignoring empty names.",
+   "template": "def initials(names):\n    return sorted({n[0].___() for n in names ___ n})",
+   "blanks": [
+    "lower",
+    "if"
+   ],
+   "lang": "python",
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "The filter clause sits after the `for`, not before it - reading a comprehension left to right gives you expression, source, condition. Normalising the case inside the comprehension is what makes the set treat 'B' and 'b' as one letter rather than two.",
+   "xp": 20
+  },
+  {
+   "id": "py-9-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a working iterator class that counts 1 up to `limit`.",
+   "fragments": [
+    "    def __next__(self):",
+    "class Ticker:",
+    "        self.i += 1\n        return self.i",
+    "    def __iter__(self):\n        return self",
+    "        if self.i >= self.limit:\n            raise StopIteration",
+    "    def __init__(self, limit):\n        self.i = 0\n        self.limit = limit"
+   ],
+   "answer": [
+    1,
+    5,
+    3,
+    0,
+    4,
+    2
+   ],
+   "lang": "python",
+   "concepts": [
+    "iterator-protocol"
+   ],
+   "tags": [
+    "iterator-protocol"
+   ],
+   "explain": "The exhaustion check has to run before the counter advances, otherwise the class emits one value too many. `__iter__` returning `self` is what lets the same object be both the thing you loop over and the thing that remembers where you are.",
+   "xp": 20
+  },
+  {
+   "id": "py-9-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Given `t = Ticker(3)` with the class below, state what each call to `next(t)` produces. For a call that does not return a value, write the name of the exception raised.",
+   "code": "class Ticker:\n    def __init__(self, limit):\n        self.i = 0\n        self.limit = limit\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.i >= self.limit:\n            raise StopIteration\n        self.i += 1\n        return self.i",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "first next(t)",
+     "expected": "1"
+    },
+    {
+     "label": "second next(t)",
+     "expected": "2"
+    },
+    {
+     "label": "third next(t)",
+     "expected": "3"
+    },
+    {
+     "label": "fourth next(t)",
+     "expected": "StopIteration"
+    }
+   ],
+   "concepts": [
+    "iterator-protocol"
+   ],
+   "tags": [
+    "iterator-protocol"
+   ],
+   "explain": "Each call mutates `self.i` before returning, so the iterator's position is state on the object rather than something the caller tracks. The fourth call is the important one: exhaustion is an exception, which is what a `for` loop silently catches on your behalf.",
+   "xp": 40
+  },
+  {
+   "id": "py-9-e-06",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about Python type annotations are true?",
+   "choices": [
+    "`def f(xs: list[int]) -> int:` is valid on Python 3.9+ with no import",
+    "Passing a str where the hint says int raises TypeError at runtime",
+    "`Optional[str]` describes a value that is either a str or None",
+    "A function's hints can be read at runtime from its `__annotations__`"
+   ],
+   "answer": [
+    0,
+    2,
+    3
+   ],
+   "concepts": [
+    "type-hints"
+   ],
+   "tags": [
+    "type-hints"
+   ],
+   "explain": "Hints are stored, not enforced - the interpreter records them and never looks again, which is why a mismatch is caught by a separate checker or not at all. Builtin containers became subscriptable in 3.9, so `typing.List` is now only needed for older versions.",
+   "xp": 10
+  },
+  {
+   "id": "py-9-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague ships a decorator that does not call `functools.wraps`. Their logging output and their generated API docs are now wrong. Explain what the decorator actually did to the function, and why the fix is more than cosmetic.",
+   "rubric": {
+    "required": [
+     "name",
+     "wrapper",
+     "replace"
+    ],
+    "optional": [
+     "docstring",
+     "introspection",
+     "wraps",
+     "closure",
+     "debug",
+     "metadata"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "decorators"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "Decoration rebinds the original name to a different object, so anything that reads attributes off that name is reading the wrapper's instead. Tooling that generates docs, logs a function name, or dispatches on identity reads exactly those attributes, which is why copying them across is a correctness fix rather than a tidiness one.",
+   "xp": 20
+  },
+  {
+   "id": "py-9-e-08",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "import functools\n\n\ndef tag(label):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(x):\n            return label + \":\" + fn(x)\n        return wrapper\n    return decorate\n\n\n@tag(\"outer\")\n@tag(\"inner\")\ndef raw(x):\n    return x\n\n\nprint(raw(\"core\"))\nprint(raw.__name__)",
+   "lang": "python",
+   "answer": "outer:inner:core\nraw",
+   "concepts": [
+    "decorators"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "Stacked decorators apply bottom-up but their wrappers then run top-down, so the label applied last ends up outermost in the string. The name survives two layers of wrapping because each layer used `functools.wraps`, copying the already-copied name onward.",
+   "xp": 20
+  },
+  {
+   "id": "py-9-e-09",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `char_frequency(text)` returning a dict that maps each distinct non-space character in `text` to the number of times it appears. Build the dict with a single dict comprehension over the distinct characters.",
+   "fn": "char_frequency",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "'abracadabra'",
+     "expected": {
+      "a": 5,
+      "b": 2,
+      "r": 2,
+      "c": 1,
+      "d": 1
+     }
+    },
+    {
+     "input": "'a a'",
+     "expected": {
+      "a": 2
+     }
+    },
+    {
+     "input": "'   '",
+     "expected": {}
+    },
+    {
+     "input": "''",
+     "expected": {}
+    }
+   ],
+   "concepts": [
+    "comprehensions"
+   ],
+   "tags": [
+    "comprehensions"
+   ],
+   "explain": "Iterating the distinct characters rather than the raw text is what stops the same key being recomputed once per occurrence, and a dict cannot hold a duplicate key anyway. Filtering the space inside the comprehension is cheaper and clearer than building the whole map and deleting from it afterwards.",
+   "xp": 100,
+   "solution": "def char_frequency(text):\n    return {c: text.count(c) for c in set(text) if c != \" \"}\n"
+  },
+  {
+   "id": "py-9-e-10",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write `first_over(values: list[int], limit: int) -> Optional[int]` returning the first value strictly greater than `limit`, or `None` when there is none - annotated exactly as written, with `Optional` imported from `typing`. Then write `probe(name, values, limit)` returning the two-element list `[first_over(values, limit), str(first_over.__annotations__[name])]`. The tests call `probe` and expect the annotation to stringify as `list[int]` for `values`, `<class 'int'>` for `limit`, and `typing.Optional[int]` for `return`.",
+   "fn": "probe",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "'return', [1, 5, 9], 4",
+     "expected": [
+      5,
+      "typing.Optional[int]"
+     ]
+    },
+    {
+     "input": "'values', [], 0",
+     "expected": [
+      null,
+      "list[int]"
+     ]
+    },
+    {
+     "input": "'limit', [2, 2], 5",
+     "expected": [
+      null,
+      "<class 'int'>"
+     ]
+    },
+    {
+     "input": "'return', [-9, -1], -5",
+     "expected": [
+      -1,
+      "typing.Optional[int]"
+     ]
+    }
+   ],
+   "concepts": [
+    "type-hints"
+   ],
+   "tags": [
+    "type-hints"
+   ],
+   "explain": "Annotations are ordinary runtime data living in a dict keyed by parameter name, with the return hint stored under the key `return` - and what is stored is the object you wrote, not a string. That is why `int` stringifies as `<class 'int'>` while `list[int]` and `Optional[int]` print prettily: the first is the bare class, the others are typing objects with a repr designed to be read. The two None cases are what justify `Optional` in the signature - an empty source and a source where nothing clears the bar are different situations with the same honest answer.",
+   "xp": 100,
+   "solution": "from typing import Optional\n\n\ndef first_over(values: list[int], limit: int) -> Optional[int]:\n    for value in values:\n        if value > limit:\n            return value\n    return None\n\n\ndef probe(name, values, limit):\n    return [first_over(values, limit), str(first_over.__annotations__[name])]\n"
+  },
+  {
+   "id": "py-9-e-11",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Build the whole pipeline. Write an iterator class `Chunks(values, size)` whose `__next__` returns consecutive slices of `size` items as lists and raises `StopIteration` as soon as fewer than `size` items remain. Write a decorator `sorted_result` that uses `functools.wraps` and sorts the list its wrapped function returns. Apply it to `chunk_sums(values: list[int], size: int) -> list[int]`, annotated exactly as written, which uses a comprehension over `Chunks(values, size)` to produce the sum of each full chunk. The tests call `chunk_sums`.",
+   "fn": "chunk_sums",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4], 2",
+     "expected": [
+      3,
+      7
+     ]
+    },
+    {
+     "input": "[5, 1, 2, 2], 2",
+     "expected": [
+      4,
+      6
+     ]
+    },
+    {
+     "input": "[1, 2, 3], 2",
+     "expected": [
+      3
+     ]
+    },
+    {
+     "input": "[9], 1",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[], 3",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "comprehensions",
+    "iterator-protocol",
+    "decorators",
+    "type-hints"
+   ],
+   "tags": [
+    "comprehensions",
+    "iterator-protocol",
+    "decorators",
+    "type-hints"
+   ],
+   "explain": "The comprehension can say `for chunk in Chunks(...)` only because the class implements the protocol - the four ideas on this floor compose rather than merely coexist. Dropping the trailing partial chunk is a decision the stop test encodes, and the decorator makes the output order deterministic without `chunk_sums` knowing anything about sorting.",
+   "xp": 100,
+   "solution": "import functools\n\n\nclass Chunks:\n    def __init__(self, values, size):\n        self.values = values\n        self.size = size\n        self.at = 0\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.at + self.size > len(self.values):\n            raise StopIteration\n        chunk = self.values[self.at:self.at + self.size]\n        self.at += self.size\n        return chunk\n\n\ndef sorted_result(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        return sorted(fn(*args, **kwargs))\n    return wrapper\n\n\n@sorted_result\ndef chunk_sums(values: list[int], size: int) -> list[int]:\n    return [sum(chunk) for chunk in Chunks(values, size)]\n"
+  }
+ ]
+}

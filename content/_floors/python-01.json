@@ -1,0 +1,721 @@
+{
+ "n": 1,
+ "name": "The Naming of Things",
+ "concepts": [
+  "variables",
+  "types",
+  "operators",
+  "printing",
+  "f-strings",
+  "type-conversion",
+  "input"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "First Contact",
+  "sections": [
+   {
+    "title": "Names, Values, and =",
+    "body": "A **variable** is a name that points at a value. You make one with `=`, which is not the equals of mathematics: it means store the value on the right under the name on the left.\n\nPython evaluates the right-hand side first and only then binds the name, which is why `score = score + 10` is sensible rather than circular - it reads the old value, adds, and stores the result back under the same name.\n\n`print()` shows values. Hand it several values separated by commas and it prints them on one line with a single space between them.",
+    "code": "score = 42\nprint(score)\n\nscore = score + 10\nprint(score)\n\nname = \"Mira\"\nprint(name, \"has\", score, \"points\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The name score now points at the integer 42. Nothing is printed yet - assignment is silent."
+     },
+     {
+      "line": 4,
+      "text": "The right side is computed with the old value (42 + 10), then 52 is stored back under score."
+     },
+     {
+      "line": 8,
+      "text": "Four values, one print, one line. Each comma inserts a single space - you do not add them yourself."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Store the number 100 in a variable called `score`, then add 25 to it, then print the result. The program must print exactly `125`.",
+     "starterCode": "# store 100 in score\n\n# add 25 to it\n\n# print it\n",
+     "tests": [
+      {
+       "input": "",
+       "expected": "125"
+      }
+     ],
+     "explain": "Assignment stores and print shows - two separate acts, which is why a program that only computes appears to do nothing at all. Reading `score` on the right of `score = score + 25` uses the value bound a moment earlier, then rebinds the same name.",
+     "hint1": "Start with score = 100.",
+     "hint2": "Then rebind it: score = score + 25.",
+     "hint3": "Finish with print(score).",
+     "concepts": [
+      "variables",
+      "printing"
+     ]
+    }
+   },
+   {
+    "title": "Four Kinds of Value",
+    "body": "Every value has a **type**, and the type decides what that value is allowed to do. Four of them carry this whole floor: `int` for whole numbers, `float` for numbers with a decimal point, `str` for text inside quotes, and `bool` for exactly `True` and `False`.\n\n`type(x)` reports which one you are holding, and it is the first thing worth checking when Python complains about a line that looks obviously fine.\n\nNote that `7` and `7.0` are equal in value but different in type, and `\"7\"` is not a number at all - it is text that merely looks like one.",
+    "code": "level = 7\nratio = 0.5\nname = \"Mira\"\nready = True\n\nprint(level, ratio, name, ready)\nprint(type(level), type(ratio))\nprint(type(name), type(ready))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "True and False are capitalised and take no quotes. \"True\" with quotes would be a str instead."
+     },
+     {
+      "line": 7,
+      "text": "type() hands back the type object itself, which prints as <class 'int'>."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print? Write all four lines.",
+     "code": "print(type(7))\nprint(type(7.0))\nprint(type(\"7\"))\nprint(type(True))",
+     "lang": "python",
+     "answer": "<class 'int'>\n<class 'float'>\n<class 'str'>\n<class 'bool'>",
+     "explain": "A single decimal point turns an int into a float, and a pair of quotes turns either one into text. Recognising these four names on sight is what makes Python's error messages readable later, since they name types rather than values.",
+     "concepts": [
+      "types"
+     ]
+    }
+   },
+   {
+    "title": "Operators Do Different Work",
+    "body": "An **operator** does different work depending on the types either side of it. On numbers, `+`, `-` and `*` behave as you expect, while `/` always produces a `float`, `//` divides and throws the remainder away, `%` keeps only that remainder, and `**` raises to a power.\n\nOn text, `+` joins two strings end to end and `*` repeats one a whole number of times.\n\nMixing the two is where every beginner gets stuck: `\"Level \" + 7` raises a `TypeError`, because Python refuses to guess whether you meant text or arithmetic.",
+    "code": "print(7 + 2, 7 - 2, 7 * 2)\nprint(7 / 2, 7 // 2, 7 % 2)\nprint(2 ** 10)\nprint(\"ha\" * 3, \"sun\" + \"flower\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "/ gives 3.5 even though 7 and 2 are both ints; // gives the whole part and % the leftover."
+     },
+     {
+      "line": 4,
+      "text": "The same two symbols applied to text: * repeats and + joins. Neither one adds anything."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print? Write all three lines.",
+     "code": "print(10 // 3)\nprint(10 % 3)\nprint(\"ok\" * 2)",
+     "lang": "python",
+     "answer": "3\n1\nokok",
+     "explain": "`//` and `%` are the two halves of one division: 10 is three lots of 3 with 1 left over, and together they lose nothing. Repetition on a string produces a longer string rather than a number, which is why the last line adds nothing up.",
+     "concepts": [
+      "operators"
+     ]
+    }
+   },
+   {
+    "title": "Showing and Reading",
+    "body": "An **f-string** is a string with an `f` before its opening quote: whatever you write inside `{}` is evaluated and pasted in as text, so `f\"Level {level}\"` needs no `+` and no conversion of its own.\n\n`input()` reads one line typed by the user and always hands back a `str`, even when what was typed looks like a number. `int()`, `float()` and `str()` convert between types: `int(\"7\") + 1` is `8`, while `\"7\" + 1` is a `TypeError`.\n\nConvert the moment you read, and the rest of the program never has to think about it again.",
+    "code": "raw = \"7\"\nprint(raw + raw)\nprint(int(raw) + int(raw))\n\nlevel = int(raw)\nprint(f\"Level {level} of 10, {level * 10}% done\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Pretend this line is raw = input() and the user typed 7. Either way, raw holds text."
+     },
+     {
+      "line": 2,
+      "text": "Two strings joined gives 77, not 14. This is the bug hiding inside almost every first program."
+     },
+     {
+      "line": 6,
+      "text": "Inside {} you may put any expression, so level * 10 is computed first and pasted in as text."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so that typing `4` prints `Level 4, next is 5`.",
+     "template": "raw = input()\nlevel = ___(raw)\nprint(f\"Level {level}, next is {level ___ 1}\")",
+     "blanks": [
+      "int",
+      "+"
+     ],
+     "lang": "python",
+     "explain": "The conversion has to happen before the arithmetic, because `\"4\" + 1` means nothing to Python. Once level is an int, the braces can hold a whole expression rather than only a bare name.",
+     "concepts": [
+      "type-conversion",
+      "input",
+      "f-strings"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-1-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "gold = 3\nprint(gold)\ngold = gold * 4\nprint(gold)\ngold = gold - 2\nprint(gold)",
+   "lang": "python",
+   "answer": "3\n12\n10",
+   "concepts": [
+    "variables",
+    "printing"
+   ],
+   "tags": [
+    "variables",
+    "printing"
+   ],
+   "explain": "Each line rebinds the same name using whatever it holds at that moment, so the program must be read top to bottom rather than as a set of equations. If these were equations, `gold = gold * 4` would have no solution at all.",
+   "hint": "Work out the right-hand side first, then write down the new value of gold.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "print(9 + 4, 9 - 4)\nprint(9 / 4)\nprint(9 // 4, 9 % 4)",
+   "lang": "python",
+   "answer": "13 5\n2.25\n2 1",
+   "concepts": [
+    "operators",
+    "printing"
+   ],
+   "tags": [
+    "operators",
+    "printing"
+   ],
+   "explain": "Commas inside one print produce one line with single spaces between the values, which is why the first line is not two lines. The middle line shows `/` reaching for a float even when both operands are ints, while `//` and `%` stay in whole numbers.",
+   "hint": "Two values in one print land on the same line.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `7` on the first line and `7.0` on the second.",
+   "template": "raw = \"7\"\nwhole = ___(raw)\nexact = ___(raw)\nprint(whole)\nprint(exact)",
+   "blanks": [
+    "int",
+    "float"
+   ],
+   "lang": "python",
+   "concepts": [
+    "type-conversion",
+    "types"
+   ],
+   "tags": [
+    "type-conversion",
+    "types"
+   ],
+   "explain": "Both conversions read the same text and neither one changes `raw` - each builds a brand new value of a different type. The trailing `.0` is Python reporting that the second value is a float, not that it is somehow more precise.",
+   "hint": "One converter gives whole numbers, the other keeps a decimal point.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value of `gold` after each of the last three lines runs.",
+   "code": "gold = 10\ngold = gold + 5\ngold = gold * 2\ngold = gold - 30",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after gold = gold + 5",
+     "expected": "15"
+    },
+    {
+     "label": "after gold = gold * 2",
+     "expected": "30"
+    },
+    {
+     "label": "after gold = gold - 30",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "variables",
+    "operators"
+   ],
+   "tags": [
+    "variables",
+    "operators"
+   ],
+   "explain": "Only one value exists at a time and each line replaces it, so the order of the lines is the whole meaning of the program. Writing the running value beside each line is the cheapest debugging technique there is, and it scales to programs far larger than this one.",
+   "hint": "Carry the number from the previous line into the next.",
+   "xp": 40
+  },
+  {
+   "id": "py-1-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that reads a number of coins, adds 5, and reports the new total.",
+   "fragments": [
+    "raw = input()",
+    "coins = int(raw)",
+    "total = coins + 5",
+    "print(f\"You now have {total} coins\")"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "input",
+    "type-conversion",
+    "printing"
+   ],
+   "tags": [
+    "input",
+    "type-conversion",
+    "printing"
+   ],
+   "explain": "Every line needs the name that the line above it created, so the data dependencies fix the order completely. Python runs top to bottom and has no way to use a name before the statement that binds it has run.",
+   "hint": "Nothing can be converted before it has been read.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-g-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a program that reads one line - a name - and prints exactly `Hello, <name>!` using an f-string. For the input `Mira` it must print `Hello, Mira!`.",
+   "starterCode": "name = input()\n# print the greeting with an f-string\n",
+   "tests": [
+    {
+     "input": "Mira",
+     "expected": "Hello, Mira!"
+    },
+    {
+     "input": "Ada Lovelace",
+     "expected": "Hello, Ada Lovelace!"
+    },
+    {
+     "input": "X",
+     "expected": "Hello, X!"
+    }
+   ],
+   "solution": "name = input()\nprint(f\"Hello, {name}!\")\n",
+   "concepts": [
+    "input",
+    "f-strings",
+    "printing"
+   ],
+   "tags": [
+    "input",
+    "f-strings",
+    "printing"
+   ],
+   "explain": "`input()` takes the entire line, spaces included, which is why a two-word name arrives intact instead of as two values. The f-string keeps the literal text and the variable in one readable piece rather than splitting the sentence across `+` joins.",
+   "hint1": "input() gives you the whole line as a string.",
+   "hint2": "An f-string starts with f before the quote: f\"...\".",
+   "hint3": "print(f\"Hello, {name}!\")",
+   "xp": 50
+  },
+  {
+   "id": "py-1-g-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program should read a number of years and print the number one year later, but it crashes with a `TypeError`. Fix it. For the input `10` it must print `11`.",
+   "starterCode": "years = input()\nprint(years + 1)\n",
+   "tests": [
+    {
+     "input": "10",
+     "expected": "11"
+    },
+    {
+     "input": "0",
+     "expected": "1"
+    },
+    {
+     "input": "-5",
+     "expected": "-4"
+    }
+   ],
+   "solution": "years = int(input())\nprint(years + 1)\n",
+   "concepts": [
+    "type-conversion",
+    "input",
+    "operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "input",
+    "operators"
+   ],
+   "explain": "The fault is not in the arithmetic but in what `input()` returned: text. Converting at the point of reading fixes every later line at once, whereas converting inside the print would leave the same trap waiting for the next line you add.",
+   "hint1": "What type does input() always return?",
+   "hint2": "You cannot add 1 to a piece of text.",
+   "hint3": "Wrap the read: years = int(input()).",
+   "xp": 50
+  },
+  {
+   "id": "py-1-g-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a program that reads two whole numbers, `a` then `b`, one per line, and prints three lines: `a + b`, then `a - b`, then `a * b`. For the input `6` then `3` it must print `9`, then `3`, then `18`.",
+   "starterCode": "a = int(input())\nb = int(input())\n# print the three results, one per line\n",
+   "tests": [
+    {
+     "input": "6\n3",
+     "expected": "9\n3\n18"
+    },
+    {
+     "input": "0\n5",
+     "expected": "5\n-5\n0"
+    },
+    {
+     "input": "-4\n-2",
+     "expected": "-6\n-2\n8"
+    }
+   ],
+   "solution": "a = int(input())\nb = int(input())\nprint(a + b)\nprint(a - b)\nprint(a * b)\n",
+   "concepts": [
+    "operators",
+    "input",
+    "type-conversion",
+    "printing"
+   ],
+   "tags": [
+    "operators",
+    "input",
+    "type-conversion",
+    "printing"
+   ],
+   "explain": "Two calls to `input()` consume two separate lines in the order they were typed, so the read for `b` must come after the read for `a`. Keeping each result in its own `print` is what puts them on three lines - commas would have collapsed all three onto one.",
+   "hint1": "Call input() twice, converting each time.",
+   "hint2": "Subtraction is not symmetric: the prompt asks for a - b.",
+   "hint3": "Three separate print calls give three separate lines.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-1-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A program runs `age = input()` and the user types `30`. What is now stored in `age`?",
+   "choices": [
+    "the integer 30",
+    "the string \"30\"",
+    "the float 30.0",
+    "nothing, until the value is converted"
+   ],
+   "answer": 1,
+   "concepts": [
+    "input",
+    "types"
+   ],
+   "tags": [
+    "input",
+    "types"
+   ],
+   "explain": "Reading never inspects what was typed - `input()` hands back the line as text and stops there. That single fact accounts for almost every TypeError a first program produces.",
+   "xp": 10
+  },
+  {
+   "id": "py-1-e-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "tag = \"ha\"\nprint(tag * 3)\nprint(tag + tag + \"!\")\nprint(\"-\" * 5)",
+   "lang": "python",
+   "answer": "hahaha\nhaha!\n-----",
+   "concepts": [
+    "operators",
+    "types"
+   ],
+   "tags": [
+    "operators",
+    "types"
+   ],
+   "explain": "`*` on a string means repeat and `+` means join, so neither one produces a number however numeric the operands look. Repeating a single character is the standard way to draw a rule across the screen without typing it out.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `Mira has 12 gold`.",
+   "template": "name = \"Mira\"\ngold = 12\nprint(___\"{name} has {___} gold\")",
+   "blanks": [
+    "f",
+    "gold"
+   ],
+   "lang": "python",
+   "concepts": [
+    "f-strings",
+    "printing"
+   ],
+   "tags": [
+    "f-strings",
+    "printing"
+   ],
+   "explain": "Without the prefix the braces are just characters and the line prints them literally - that one letter is what switches substitution on. Inside the braces you name the variable itself, never the text you are hoping to see.",
+   "hint": "One blank is a single letter in front of the quote.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-e-04",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these expressions produce a value of type `str`?",
+   "choices": [
+    "str(9)",
+    "\"9\" + \"9\"",
+    "9 + 9",
+    "f\"{9}\"",
+    "input()"
+   ],
+   "answer": [
+    0,
+    1,
+    3,
+    4
+   ],
+   "concepts": [
+    "types",
+    "type-conversion",
+    "input"
+   ],
+   "tags": [
+    "types",
+    "type-conversion",
+    "input"
+   ],
+   "explain": "Conversion, joining, f-string substitution and reading a line all end in text; only the bare arithmetic stays numeric. Noticing that `input()` belongs in this group is exactly what stops you adding 1 to a line the user typed.",
+   "xp": 10
+  },
+  {
+   "id": "py-1-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that reads a weight in grams and prints it in kilograms, for example `1.5 kg`.",
+   "fragments": [
+    "raw = input()",
+    "grams = int(raw)",
+    "kilos = grams / 1000",
+    "label = f\"{kilos} kg\"",
+    "print(label)"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "lang": "python",
+   "concepts": [
+    "variables",
+    "type-conversion",
+    "f-strings"
+   ],
+   "tags": [
+    "variables",
+    "type-conversion",
+    "f-strings"
+   ],
+   "explain": "Each name is created exactly one line before it is used, so only one order runs at all. Building the text into a variable before printing it is a habit worth keeping: it separates deciding what to say from saying it.",
+   "hint": "Find the only line that uses no earlier name - that one goes first.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A player types `7` into this program and expects to see `12`, but it prints `75`. Explain in your own words what is actually happening and what you would change.",
+   "code": "coins = input()\nbonus = \"5\"\nprint(coins + bonus)",
+   "lang": "python",
+   "rubric": {
+    "required": [
+     "string",
+     "int",
+     "convert"
+    ],
+    "optional": [
+     "join",
+     "concatenat",
+     "type",
+     "add",
+     "number"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "type-conversion",
+    "input",
+    "operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "input",
+    "operators"
+   ],
+   "explain": "Nothing here crashes, which is what makes it dangerous: both operands are strings, so `+` did exactly what it promises for text and joined them. A bug that produces a plausible-looking answer calls for the types to be checked, not the arithmetic.",
+   "hint": "Look at the type of the value on each side of the +.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-e-07",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `value` through this program. Write each state exactly as Python would show it: text in single quotes, numbers bare.",
+   "code": "value = \"6\"\nvalue = value + \"6\"\nvalue = int(value)\nvalue = value // 5",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after value = \"6\"",
+     "expected": "'6'"
+    },
+    {
+     "label": "after value = value + \"6\"",
+     "expected": "'66'"
+    },
+    {
+     "label": "after value = int(value)",
+     "expected": "66"
+    },
+    {
+     "label": "after value = value // 5",
+     "expected": "13"
+    }
+   ],
+   "concepts": [
+    "variables",
+    "types",
+    "type-conversion",
+    "operators"
+   ],
+   "tags": [
+    "variables",
+    "types",
+    "type-conversion",
+    "operators"
+   ],
+   "explain": "One name carries a different type at different moments, so `+` joins on the second line and `//` divides two lines later. Tracking the type alongside the value - not just the digits - is what tells you which meaning of an operator is about to apply.",
+   "hint1": "The first two lines are string work, not arithmetic.",
+   "hint2": "int(\"66\") is the moment the type changes.",
+   "hint3": "// keeps only the whole part of the division.",
+   "xp": 40
+  },
+  {
+   "id": "py-1-e-08",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "total = 7\npeople = 2\nprint(f\"{total} split {people} ways\")\nprint(f\"each gets {total / people}\")\nprint(f\"whole units: {total // people}\")",
+   "lang": "python",
+   "answer": "7 split 2 ways\neach gets 3.5\nwhole units: 3",
+   "concepts": [
+    "f-strings",
+    "operators",
+    "printing"
+   ],
+   "tags": [
+    "f-strings",
+    "operators",
+    "printing"
+   ],
+   "explain": "Braces hold expressions, not only names, so each division runs before anything is printed and its result is pasted in as text. The last two lines differ by one character and by an entire type: one produces 3.5, the other 3.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-e-09",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This should read a total number of items, then how many fit in one box, and print `Boxes filled: N` counting only completely filled boxes. It crashes instead. Fix it. For the input `7` then `2` it must print `Boxes filled: 3`.",
+   "starterCode": "total = int(input())\nper_box = int(input())\nprint(\"Boxes filled: \" + total / per_box)\n",
+   "tests": [
+    {
+     "input": "7\n2",
+     "expected": "Boxes filled: 3"
+    },
+    {
+     "input": "6\n3",
+     "expected": "Boxes filled: 2"
+    },
+    {
+     "input": "0\n4",
+     "expected": "Boxes filled: 0"
+    },
+    {
+     "input": "5\n10",
+     "expected": "Boxes filled: 0"
+    }
+   ],
+   "solution": "total = int(input())\nper_box = int(input())\nprint(f\"Boxes filled: {total // per_box}\")\n",
+   "concepts": [
+    "operators",
+    "f-strings",
+    "printing"
+   ],
+   "tags": [
+    "operators",
+    "f-strings",
+    "printing"
+   ],
+   "explain": "Two faults sit on one line: text cannot be joined to a number, and `/` would have reported half a box even once the join was repaired. The word 'completely' in a specification is almost always the signal to reach for `//` rather than `/`.",
+   "hint1": "A partly filled box does not count.",
+   "hint2": "// discards the remainder; / would give 3.5.",
+   "hint3": "An f-string removes the need to join text to a number at all.",
+   "xp": 50
+  },
+  {
+   "id": "py-1-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a shop receipt program. It reads three lines: an item name, the price of one item as a whole number of coins, then the quantity as a whole number. It prints exactly two lines - first `<quantity> x <name>`, then `Total: <price times quantity> coins`. For the input `potion`, `5`, `3` it prints `3 x potion` and then `Total: 15 coins`.",
+   "starterCode": "name = input()\nprice = int(input())\nquantity = int(input())\n# print the two lines\n",
+   "tests": [
+    {
+     "input": "potion\n5\n3",
+     "expected": "3 x potion\nTotal: 15 coins"
+    },
+    {
+     "input": "elixir\n12\n1",
+     "expected": "1 x elixir\nTotal: 12 coins"
+    },
+    {
+     "input": "rope\n7\n0",
+     "expected": "0 x rope\nTotal: 0 coins"
+    },
+    {
+     "input": "iron key\n0\n4",
+     "expected": "4 x iron key\nTotal: 0 coins"
+    }
+   ],
+   "solution": "name = input()\nprice = int(input())\nquantity = int(input())\nprint(f\"{quantity} x {name}\")\nprint(f\"Total: {price * quantity} coins\")\n",
+   "concepts": [
+    "input",
+    "type-conversion",
+    "operators",
+    "f-strings",
+    "printing",
+    "variables"
+   ],
+   "tags": [
+    "input",
+    "type-conversion",
+    "operators",
+    "f-strings",
+    "printing",
+    "variables"
+   ],
+   "explain": "Every idea on this floor meets here: three reads in a fixed order, two conversions, one multiplication, and two f-strings mixing stored values with literal text. The zero cases need no special handling - multiplying by zero and printing the result falls out of the same code, which is what a well-shaped program should do.",
+   "hint1": "Read all three lines first, in the order the prompt lists them.",
+   "hint2": "Only the last two reads need int().",
+   "hint3": "Two f-strings, two print calls, and the multiplication goes inside the braces.",
+   "xp": 50
+  }
+ ]
+}
