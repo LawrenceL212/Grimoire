@@ -1,161 +1,317 @@
 {
- "_readme": "Copy this file to content/{id}.json and delete the _readme keys. See _SCHEMA.md. Validate with: python tools/validate_content.py",
+ "_readme": "Copy to content/{id}.json, delete every _readme key, add an entry to content/index.json, then run: python scripts/validate_content.py {id}. See _SCHEMA.md.",
+
  "id": "example",
- "name": "Example Subject",
- "category": "Languages",
+ "name": "The Example Depths",
+ "subject": "Example Subject",
+ "category": "language",
+ "sigil": "◈",
+ "unlock": null,
+ "source": "authored for Grimoire",
  "lang": "python",
  "runtime": "pyodide",
- "blurb": "One sentence shown on the map card.",
- "totalFloors": 10,
+
  "floors": [
   {
    "n": 1,
-   "title": "Floor Title",
-   "goal": "One sentence: what the learner can do after finishing this floor.",
+   "name": "Threshold of Syntax",
+   "_readme_concepts": "Every concept here needs at least 2 practice challenges tagged to it, or validation fails.",
+   "concepts": ["basics", "variables"],
+
    "lesson": {
-    "title": "Lesson Title",
-    "intro": "Optional short paragraph setting up the floor. Delete if unused.",
+    "_readme": "2 to 4 sections. One idea each. Every section needs a code example AND a checkpoint - the checkpoint is the gate to the next section.",
     "sections": [
      {
-      "title": "First Idea",
-      "body": "Explain one idea. Supports **bold**, `inline code`, blank-line paragraphs, and\n\n- bullet lists\n- like this",
-      "code": "print(\"this runs in the browser\")\nprint(2 + 3)",
+      "title": "Variables and Assignment",
+      "body": "A **variable** is a name pointing at a value. You create one with `=`, which is not equality - it means store this value under this name.\n\nRead it right to left: evaluate the right side, then bind the name on the left.\n\nKeep this to 3-5 sentences. If it needs more, it is two sections.",
+      "code": "score = 42\nprint(score)\n\nscore = score + 1\nprint(score)",
       "lang": "python",
       "annotations": [
-       {"line": 1, "text": "What line 1 demonstrates."},
-       {"line": 2, "text": "Annotate only the lines that carry the idea."}
-      ]
+       {"line": 1, "text": "score now refers to the integer 42."},
+       {"line": 4, "text": "The right side is computed first, then stored back into score."}
+      ],
+      "checkpoint": {
+       "_readme": "One task, directly about what this section just showed. No id, no xp, no tags - a checkpoint is not a graded challenge.",
+       "prompt": "Assign the value 100 to a variable called `score` and print it.",
+       "starterCode": "# your code here\n",
+       "tests": [
+        {"input": "", "expected": "100"}
+       ],
+       "hint1": "Use the = operator to assign a value.",
+       "hint2": "The variable name goes on the left: score = ...",
+       "hint3": "print(score) will output the value."
+      }
      },
      {
       "title": "Second Idea",
-      "body": "2 to 4 sections per lesson. One idea each.",
-      "code": "x = 10\nprint(x * 2)",
+      "body": "The second concept for this floor. Note the `{{link:algorithms}}` syntax is available for inline concept links into another dungeon - the target id must exist in index.json.",
+      "code": "total = 0\nfor n in [1, 2, 3]:\n    total = total + n\nprint(total)",
       "lang": "python",
       "annotations": [
-       {"line": 1, "text": "Line numbers are 1-based against this code block."}
-      ]
+       {"line": 3, "text": "Each pass adds the next value to the running total."}
+      ],
+      "checkpoint": {
+       "prompt": "Store the sum of 5, 10 and 15 in a variable called `total`. Do not print anything.",
+       "starterCode": "total = \n",
+       "tests": [
+        {"input": "total", "expected": 30}
+       ],
+       "hint1": "You can add the three numbers directly.",
+       "hint2": "total = 5 + 10 + ...",
+       "hint3": "total = 5 + 10 + 15"
+      }
      }
     ]
    },
+
    "practice": [
     {
-     "_readme": "6 to 10 practice challenges. All must pass to unlock the exam.",
-     "id": "p1",
-     "kind": "code",
-     "prompt": "State the task precisely. If output is checked, show it verbatim: `Hello!`",
-     "lang": "python",
-     "starter": "# starter code sets the shape, never the answer\n",
+     "_readme": "6 to 10 challenges. Every one must pass before the exam opens. Escalate: the first is near-trivial, the last combines every idea on the floor.",
+     "id": "ex-1-p-01",
+     "type": "code",
+     "fn": "add",
+     "prompt": "Write a function `add(a, b)` that returns the sum of its two arguments.",
+     "starterCode": "def add(a, b):\n    pass\n",
      "tests": [
-      {"kind": "stdout", "expect": "Hello!", "label": "prints the greeting"}
+      {"input": "2, 3", "expected": 5},
+      {"input": "-4, 4", "expected": 0},
+      {"input": "0, 0", "expected": 0}
      ],
-     "hint": "Nudges toward the idea without giving the answer.",
-     "solution": "print(\"Hello!\")"
-    },
-    {
-     "id": "p2",
-     "kind": "code",
-     "prompt": "An `expr` test checks a value instead of output. It works on bare variables too, so it is usable before functions are taught.",
-     "lang": "python",
-     "starter": "total = \n",
-     "tests": [
-      {"kind": "expr", "call": "total", "expect": 42, "label": "total is 42"}
-     ],
-     "solution": "total = 42"
-    },
-    {
-     "id": "p3",
-     "kind": "code",
-     "prompt": "Write a function `add(a, b)` that returns the sum.",
-     "lang": "python",
-     "starter": "def add(a, b):\n    ",
-     "tests": [
-      {"kind": "expr", "call": "add(2, 3)", "expect": 5},
-      {"kind": "expr", "call": "add(-4, 4)", "expect": 0, "label": "handles negatives"},
-      {"kind": "expr", "call": "add(0, 0)", "expect": 0, "label": "edge: zeroes"}
-     ],
+     "explain": "Returning rather than printing lets the caller use the result in another expression. A function that only prints hands back None.",
      "hint": "return a + b",
-     "solution": "def add(a, b):\n    return a + b"
+     "xp": 15,
+     "tags": ["basics"]
     },
     {
-     "id": "p4",
-     "kind": "code",
-     "prompt": "`stdin` feeds lines to `input()`. One array element per line read.",
-     "lang": "python",
-     "starter": "",
+     "_readme": "input is the ARGUMENTS as source text; expected is a real JSON value. Comparison is structural, so 30 matches 30.0.",
+     "id": "ex-1-p-02",
+     "type": "code",
+     "fn": "largest",
+     "prompt": "Write `largest(a, b, c)` returning the biggest of its three arguments. Do not use the built-in `max`.",
+     "starterCode": "def largest(a, b, c):\n    pass\n",
      "tests": [
-      {"kind": "stdout", "stdin": ["Mira"], "expect": "Hello, Mira!", "label": "input \"Mira\""},
-      {"kind": "stdout", "stdin": ["Ash"], "expect": "Hello, Ash!", "label": "input \"Ash\""}
+      {"input": "1, 2, 3", "expected": 3},
+      {"input": "9, 2, 3", "expected": 9},
+      {"input": "-5, -2, -9", "expected": -2}
      ],
-     "solution": "name = input()\nprint(f\"Hello, {name}!\")"
+     "explain": "Tracking a best-so-far value scales to any number of inputs, where chained comparisons stop being readable after three.",
+     "xp": 15,
+     "tags": ["basics", "variables"]
     },
     {
-     "id": "p5",
-     "kind": "bugfix",
-     "prompt": "Ships broken starter code. Otherwise identical to `code`.",
-     "lang": "python",
-     "starter": "print(\"Hello\"",
+     "_readme": "A whole-program challenge has no fn; input is then stdin and expected is the printed output.",
+     "id": "ex-1-p-03",
+     "type": "code",
+     "prompt": "Read a name from input and print exactly `Well met, <name>.`",
+     "starterCode": "",
      "tests": [
-      {"kind": "stdout", "expect": "Hello"}
+      {"input": "Mira", "expected": "Well met, Mira."},
+      {"input": "Corvin", "expected": "Well met, Corvin."}
      ],
-     "hint": "Count the brackets.",
-     "solution": "print(\"Hello\")"
+     "explain": "input() always returns a string, so no conversion is needed here - but it would be if you did arithmetic on it.",
+     "xp": 15,
+     "tags": ["basics"]
     },
     {
-     "id": "p6",
-     "kind": "code",
-     "prompt": "The last practice challenge should combine every idea on the floor.",
-     "lang": "python",
-     "starter": "def summarise(numbers):\n    ",
+     "id": "ex-1-p-04",
+     "type": "debug",
+     "fn": "square",
+     "prompt": "This should let its result be used in arithmetic, but the call crashes. Fix it.",
+     "starterCode": "def square(n):\n    print(n * n)\n",
      "tests": [
-      {"kind": "expr", "call": "summarise([1, 2, 3])", "expect": 6},
-      {"kind": "expr", "call": "summarise([])", "expect": 0, "label": "edge: empty list"}
+      {"input": "4", "expected": 16},
+      {"input": "0", "expected": 0}
      ],
-     "solution": "def summarise(numbers):\n    total = 0\n    for n in numbers:\n        total = total + n\n    return total"
+     "explain": "print shows a value to a human; return hands one back to the caller. Only one of those can be added to something.",
+     "hint": "The function shows the answer but never gives it back.",
+     "xp": 18,
+     "tags": ["variables"]
+    },
+    {
+     "id": "ex-1-p-05",
+     "type": "code",
+     "fn": "double_all",
+     "prompt": "Write `double_all(numbers)` returning a new list with every number doubled.",
+     "starterCode": "def double_all(numbers):\n    pass\n",
+     "tests": [
+      {"input": "[1, 2, 3]", "expected": [2, 4, 6]},
+      {"input": "[]", "expected": []},
+      {"input": "[-1]", "expected": [-2]}
+     ],
+     "explain": "Building a new list leaves the caller's data untouched. Mutating the argument in place would surprise whoever passed it.",
+     "xp": 15,
+     "tags": ["basics", "variables"]
+    },
+    {
+     "id": "ex-1-p-06",
+     "type": "code",
+     "fn": "summarise",
+     "prompt": "Write `summarise(numbers)` returning the total of a list of numbers.",
+     "starterCode": "def summarise(numbers):\n    pass\n",
+     "tests": [
+      {"input": "[1, 2, 3]", "expected": 6},
+      {"input": "[]", "expected": 0},
+      {"input": "[-5, 5]", "expected": 0}
+     ],
+     "explain": "Starting the accumulator at 0 is what makes the empty case fall out correctly instead of needing a special branch.",
+     "xp": 15,
+     "tags": ["variables"]
     }
    ],
+
    "exam": [
     {
-     "_readme": "8 to 12 exam challenges. 80% or better unlocks the next floor.",
-     "id": "e1",
-     "kind": "mcq",
-     "prompt": "Use MCQ only where code cannot test the idea.",
-     "code": "optional snippet shown above the choices — delete this key if unused",
+     "_readme": "8 to 12 questions, 80% to pass. Mix the types, but keep at least half of them code-writing.",
+     "id": "ex-1-e-01",
+     "type": "mcq",
+     "prompt": "What is the type of the value `3.0`?",
+     "code": "print(type(3.0))",
      "lang": "python",
-     "choices": ["Wrong", "Right", "Wrong", "Wrong"],
+     "choices": ["int", "float", "str", "bool"],
      "answer": 1,
-     "explain": "Shown after answering, whether right or wrong."
+     "explain": "A decimal point makes it a float even when the fractional part is zero. int and float are distinct types with different behaviour on division.",
+     "xp": 8,
+     "tags": ["basics"]
     },
     {
-     "id": "e2",
-     "kind": "predict",
+     "id": "ex-1-e-02",
+     "type": "output",
      "prompt": "What does this program print?",
-     "code": "x = 2\nprint(x * 3)",
+     "code": "charges = 2\ncharges = charges * 3\nprint(charges)",
      "lang": "python",
-     "expect": "6",
-     "explain": "The engine really executes this and compares against the learner's answer."
+     "answer": "6",
+     "explain": "Each line rebinds the name using its current value, so the multiplication uses 2, not the original literal.",
+     "xp": 10,
+     "tags": ["variables"]
     },
     {
-     "id": "e3",
-     "kind": "bugfix",
-     "prompt": "This should print `7` but it crashes. Fix it.",
-     "lang": "python",
-     "starter": "n = 7\nprint(\"\" + n)",
+     "id": "ex-1-e-03",
+     "type": "debug",
+     "fn": "greet",
+     "prompt": "This crashes with a TypeError. Fix it without changing `level`.",
+     "starterCode": "def greet(level):\n    return \"Level \" + level\n",
      "tests": [
-      {"kind": "stdout", "expect": "7"}
+      {"input": "7", "expected": "Level 7"}
      ],
-     "solution": "n = 7\nprint(n)"
+     "explain": "You cannot join a str and an int with +. str(level) converts it; an f-string does the same thing more readably.",
+     "xp": 18,
+     "tags": ["basics"]
     },
     {
-     "id": "e4",
-     "kind": "code",
-     "prompt": "Exams mix all four kinds. Keep at least half of them code-writing.",
-     "lang": "python",
-     "starter": "def double(n):\n    ",
+     "id": "ex-1-e-04",
+     "type": "code",
+     "fn": "clamp",
+     "prompt": "Write `clamp(x, low, high)` returning `low` if `x` is below it, `high` if above, otherwise `x`.",
+     "starterCode": "def clamp(x, low, high):\n    pass\n",
      "tests": [
-      {"kind": "expr", "call": "double(4)", "expect": 8},
-      {"kind": "expr", "call": "double(0)", "expect": 0}
+      {"input": "5, 1, 10", "expected": 5},
+      {"input": "-3, 1, 10", "expected": 1},
+      {"input": "99, 1, 10", "expected": 10},
+      {"input": "1, 1, 10", "expected": 1}
      ],
-     "solution": "def double(n):\n    return n * 2"
+     "explain": "Returning early on each bound reads better than one nested conditional, and makes the inclusive boundary case obvious.",
+     "xp": 15,
+     "tags": ["basics", "variables"]
+    },
+    {
+     "id": "ex-1-e-05",
+     "type": "code",
+     "fn": "count_words",
+     "prompt": "Write `count_words(sentence)` returning how many words it contains. An empty string has 0 words.",
+     "starterCode": "def count_words(sentence):\n    pass\n",
+     "tests": [
+      {"input": "'the tower is tall'", "expected": 4},
+      {"input": "'one'", "expected": 1},
+      {"input": "''", "expected": 0}
+     ],
+     "explain": "split() with no argument collapses runs of whitespace and drops empty results, which is why the empty string gives 0 rather than 1.",
+     "xp": 15,
+     "tags": ["variables"]
+    },
+    {
+     "id": "ex-1-e-06",
+     "type": "output",
+     "prompt": "What does this program print?",
+     "code": "for i in range(1, 4):\n    print(i * 2)",
+     "lang": "python",
+     "answer": "2\n4\n6",
+     "explain": "range(1, 4) yields 1, 2 and 3 - the stop value is never produced.",
+     "xp": 10,
+     "tags": ["basics"]
+    },
+    {
+     "id": "ex-1-e-07",
+     "type": "mcq",
+     "prompt": "A function body runs to the end without hitting a `return`. What does the call evaluate to?",
+     "choices": ["0", "None", "an empty string", "it raises an error"],
+     "answer": 1,
+     "explain": "Python returns None implicitly. That is why calling a print-only function and using its result gives None rather than the printed text.",
+     "xp": 8,
+     "tags": ["basics"]
+    },
+    {
+     "id": "ex-1-e-08",
+     "type": "code",
+     "fn": "initials",
+     "prompt": "Write `initials(first, last)` returning the two first letters uppercased and joined by a dot: `initials(\"mira\", \"vale\")` gives `\"M.V\"`.",
+     "starterCode": "def initials(first, last):\n    pass\n",
+     "tests": [
+      {"input": "'mira', 'vale'", "expected": "M.V"},
+      {"input": "'Corvin', 'Ash'", "expected": "C.A"}
+     ],
+     "explain": "Indexing with [0] takes the first character; .upper() normalises input you do not control, so the output is consistent either way.",
+     "xp": 15,
+     "tags": ["variables"]
+    }
+   ]
+  },
+
+  {
+   "_readme": "The LAST floor of a dungeon is the boss floor and must contain a project challenge. Floor count follows the syllabus - never pad to reach 10.",
+   "n": 2,
+   "name": "The Archmage's Trial",
+   "concepts": ["basics", "variables"],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Briefing",
+      "body": "The boss floor teaches by building. Anything new it needs is taught here, in service of the project - never as a standalone lecture.",
+      "code": "print('read the spec, then build it')",
+      "lang": "python",
+      "checkpoint": {
+       "prompt": "Print the word `ready`.",
+       "starterCode": "",
+       "tests": [{"input": "", "expected": "ready"}],
+       "hint1": "print takes a string in quotes."
+      }
+     },
+     {
+      "title": "Acceptance Tests",
+      "body": "The project is graded by the same runner as every other challenge. If the acceptance tests pass, it is done.",
+      "code": "print('tests are the spec')",
+      "lang": "python",
+      "checkpoint": {
+       "prompt": "Print the word `done`.",
+       "starterCode": "",
+       "tests": [{"input": "", "expected": "done"}],
+       "hint1": "Same shape as the last one."
+      }
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [
+    {
+     "id": "ex-2-e-01",
+     "type": "project",
+     "prompt": "Full project brief goes here: what to build, the interface it must expose, and the acceptance criteria.",
+     "starterCode": "",
+     "tests": [
+      {"input": "", "expected": "acceptance test output"}
+     ],
+     "explain": "What the project was really teaching, and where this design would break at a larger scale.",
+     "xp": 120,
+     "tags": ["basics", "variables"]
     }
    ]
   }
