@@ -73,7 +73,8 @@ def audit(path):
                 r["placeholder"] += 1
 
             # an escaped \$ is prose, not a delimiter
-            live = re.sub(r"\\\\\$", "", body)
+            live = re.sub(r"`[^`]*`", "", body)
+            live = re.sub(r"\\\\\$", "", live)
             n_dollar = live.count("$") - 2 * live.count("$$")
             r["math_spans"] += live.count("$$") // 2 + max(0, n_dollar) // 2
             if live.count("$") % 2:
