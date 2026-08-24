@@ -80,6 +80,9 @@
 
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+/* `clip` prevents horizontal overflow WITHOUT making html a scroll container,
+   which is what breaks wheel scrolling. `hidden` above is the fallback. */
+@supports (overflow-x: clip){ html,body{overflow-x:clip} }
 html{-webkit-text-size-adjust:100%}
 body{
   background:var(--bg);
@@ -87,7 +90,7 @@ body{
   font-family:var(--sans);
   font-size:16px;
   line-height:1.75;
-  overscroll-behavior-y:none;
+  overscroll-behavior-y:contain;
   -webkit-font-smoothing:antialiased;
   background-image:radial-gradient(ellipse 120% 80% at 50% -10%, rgba(196,154,60,0.05), transparent 60%);
   background-attachment:fixed;
@@ -152,10 +155,10 @@ code,kbd{
   background:linear-gradient(180deg,#241D13,#191309);
   border-right:1px solid var(--trim2);
   transform:translateX(-100%);transition:transform .26s ease;
-  display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;
+  display:flex;flex-direction:column;overflow:hidden;
   padding-bottom:env(safe-area-inset-bottom);
 }
-#sidebar.open{transform:translateX(0)}
+#sidebar.open{transform:translateX(0);overscroll-behavior:contain}
 #scrim{
   position:fixed;inset:0;z-index:110;background:rgba(0,0,0,.7);
   -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
@@ -163,7 +166,7 @@ code,kbd{
 }
 #scrim.on{opacity:1;pointer-events:auto}
 
-.brand{display:flex;align-items:center;gap:var(--s3);padding:var(--s6) var(--s4) var(--s4)}
+.brand{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s4) var(--s3)}
 .brand .sig{font-family:var(--serif);font-size:var(--text-lg);color:var(--gold)}
 .brand .nm{font-family:var(--serif);font-size:var(--text-lg);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
 
@@ -178,7 +181,10 @@ code,kbd{
 .side-nav button[aria-current="page"]{background:rgba(196,154,60,.14);color:var(--gold)}
 .side-nav .ico{width:24px;text-align:center;font-size:var(--text-base);flex:none}
 
-.side-sect{padding:var(--s6) var(--s4) var(--s2)}
+.side-sect{padding:var(--s4) var(--s4) var(--s2)}
+/* the only scrollable region in the sidebar; everything else stays put so a
+   wheel over the panel chains to the page instead of being swallowed */
+.side-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .stat-rows{display:flex;flex-direction:column;gap:var(--s2);padding:0 var(--s4) var(--s4)}
 .stat-row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3)}
 .stat-row .k{display:flex;align-items:center;gap:var(--s2);color:var(--dim);font-size:var(--text-sm)}
@@ -186,7 +192,7 @@ code,kbd{
 .meter{height:6px;background:rgba(0,0,0,.4);border:1px solid var(--trim);border-radius:3px;overflow:hidden}
 .meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--gold));border-radius:3px;transition:width .5s}
 
-.side-foot{margin-top:auto;padding:var(--s4)}
+.side-foot{flex:none;padding:var(--s3) var(--s4) var(--s4)}
 
 #main{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 #topbar{
@@ -238,7 +244,8 @@ code,kbd{
   #tabbar{display:none}
 }
 @media (min-width:1200px){
-  #sidebar{transform:none;transition:none}
+  /* permanent, not an overlay: never contain the wheel here */
+  #sidebar{transform:none;transition:none;overscroll-behavior:auto}
   #scrim{display:none}
   #main{margin-left:var(--sidebar-w)}
   #topbar{display:none}
@@ -414,6 +421,24 @@ code,kbd{
 <body>
 
 <div id="splash"><div class="mark" aria-hidden="true">&#10022;</div><span class="sr-only">Loading Grimoire</span></div>
+<script>
+/* Runs even if the ES module below fails to load. The splash is a fixed,
+   full-viewport overlay: if it is ever left up, nothing on the page can be
+   scrolled or clicked. It must never be able to outlive boot. */
+(function () {
+  function clearSplash() {
+    var s = document.getElementById("splash");
+    if (!s) return;
+    s.style.opacity = "0";
+    setTimeout(function () { if (s.parentNode) s.remove(); }, 400);
+  }
+  window.__clearSplash = clearSplash;
+  setTimeout(clearSplash, 8000);
+  window.addEventListener("error", function (e) {
+    if (e.target && e.target.tagName === "SCRIPT") clearSplash();
+  }, true);
+})();
+</script>
 <a class="skip-link" href="#content">Skip to main content</a>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -450,6 +475,7 @@ code,kbd{
       </p>
     </div>
     <p class="foot-note" id="auth-note"></p>
+    <noscript><p class="foot-note">Grimoire needs JavaScript enabled.</p></noscript>
   </div>
 </section>
 
@@ -488,11 +514,13 @@ code,kbd{
       </div>
     </div>
 
+    <div class="side-scroll">
     <h2 class="label side-sect" id="bm-head">Bookmarks</h2>
     <div class="stat-rows">
       <p id="bm-empty" style="color:var(--faint);font-size:var(--text-sm);line-height:1.6;margin:0">
         No trail left yet. Follow a concept link inside a lesson to leave one.
       </p>
+    </div>
     </div>
 
     <div class="side-foot">
@@ -1064,12 +1092,9 @@ $("sign-out").addEventListener("click", async () => {
 });
 
 /* ----------------------------------------------------------------- boot */
-function hideSplash() {
-  const s = $("splash");
-  if (!s) return;
-  s.style.opacity = "0";
-  setTimeout(() => s.remove(), 400);
-}
+/* The inline guard above owns splash removal so it works even when this
+   module fails to load; this just calls into it. */
+function hideSplash() { window.__clearSplash?.(); }
 
 async function enterApp(user) {
   State.user = { uid: user.uid, email: user.email };
