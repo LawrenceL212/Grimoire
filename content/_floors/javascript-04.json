@@ -1,0 +1,910 @@
+{
+ "n": 4,
+ "name": "The Ordered Vault",
+ "concepts": [
+  "arrays",
+  "array-mutation",
+  "array-slicing",
+  "array-search",
+  "array-transformations",
+  "spread"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Ordered Vault",
+  "sections": [
+   {
+    "title": "A Row of Slots",
+    "body": "An **array** is an ordered row of values written in square brackets, and one array can hold numbers, strings, or even other arrays.\n\nEvery slot has an **index** counting from `0`, so the first item is `xs[0]` and the last is `xs[xs.length - 1]`.\n\n`length` is a property rather than a method - you read it as `xs.length`, with no parentheses.\n\nReaching for an index that does not exist is not an error in JavaScript: you quietly get `undefined` back, so a bad index shows up much later than the line that caused it.\n\nAssigning to a slot replaces just that value, and it works even on a `const` array, because `const` freezes the **name**, not the contents.",
+    "code": "const runes = [\"ansuz\", \"raido\", \"kenaz\"];\nconsole.log(runes.length);\nconsole.log(runes[0], runes[runes.length - 1]);\nconsole.log(runes[9]);\nrunes[1] = \"isaz\";\nconsole.log(runes);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "length counts the items; the highest legal index is always one below it."
+     },
+     {
+      "line": 4,
+      "text": "Index 9 does not exist, and JavaScript answers undefined instead of throwing."
+     },
+     {
+      "line": 5,
+      "text": "The array was declared const and this still works - const binds the name, not the row of values."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const gems = [\"ruby\", \"opal\", \"jade\", \"onyx\"];\nconsole.log(gems[2]);\nconsole.log(gems.length - 1);\nconsole.log(gems[gems.length]);",
+     "lang": "javascript",
+     "answer": "jade\n3\nundefined",
+     "concepts": [
+      "arrays"
+     ],
+     "explain": "The last valid index is one below `length`, so `gems[gems.length]` falls off the end. JavaScript never bounds-checks an index for you, which is why that mistake surfaces as an undefined travelling through your program rather than as an error at the point of the bug."
+    }
+   },
+   {
+    "title": "Growing and Shrinking",
+    "body": "Four methods change an array **in place** at its two ends: `push` and `pop` work at the back, `unshift` and `shift` work at the front.\n\nWhat each hands back is the part people forget - `push` and `unshift` return the array's **new length**, while `pop` and `shift` return the **item they removed**.\n\n`splice(start, count)` cuts `count` items out from index `start` and returns those items as a new array; any further arguments are inserted where the cut was made.\n\nAll five mutate the array they are called on, so there is nothing to assign - the variable you already have sees the change.",
+    "code": "const deck = [\"a\", \"b\", \"c\"];\nconsole.log(deck.push(\"d\"));\nconsole.log(deck.pop());\nconsole.log(deck.shift());\ndeck.unshift(\"z\");\nconsole.log(deck);\n\nconst removed = deck.splice(1, 1, \"x\", \"y\");\nconsole.log(removed);\nconsole.log(deck);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "push answers with the new length, 4 - not with the item you added."
+     },
+     {
+      "line": 4,
+      "text": "shift takes from the front and returns the item, so the array shortens from the left."
+     },
+     {
+      "line": 8,
+      "text": "splice removes one item at index 1 and inserts two in its place; the return value is what came out."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const q = [1, 2, 3];\nconst first = q.shift();\nq.push(9);\nconsole.log(first, q);",
+     "lang": "javascript",
+     "answer": "1 [2,3,9]",
+     "concepts": [
+      "array-mutation"
+     ],
+     "explain": "shift and push at opposite ends are what make an array behave as a queue: one end lets items out, the other lets them in. Notice `q` was never reassigned - both calls edited the array the name already pointed at."
+    }
+   },
+   {
+    "title": "Copies, Searches and Spread",
+    "body": "`slice(start, end)` is the **pure** twin of `splice`: it copies out a new array from `start` up to but not including `end`, and leaves the original untouched.\n\nNegative arguments count back from the end, so `xs.slice(-2)` is the last two items and `xs.slice(1, -1)` is everything except the two ends.\n\nTo search, `indexOf(value)` gives the **first** position of a value or `-1` when it is absent, `lastIndexOf(value)` gives the last, and `includes(value)` answers the same question with `true` or `false`.\n\nThe **spread** syntax `...` unpacks one array into another, so `[...xs]` is a fresh copy and `[...a, ...b]` is the two joined - neither original is changed.\n\nCopying is worth the keystrokes because `const b = a` gives two names for **one** array: push through either name and both names see it.",
+    "code": "const xs = [10, 20, 30, 20];\nconsole.log(xs.slice(1, 3));\nconsole.log(xs.slice(-2));\nconsole.log(xs);\n\nconsole.log(xs.indexOf(20), xs.lastIndexOf(20));\nconsole.log(xs.indexOf(99), xs.includes(99));\n\nconst copy = [...xs];\ncopy.push(50);\nconsole.log(xs.length, copy.length);\nconsole.log([...[1, 2], ...[3]]);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The end index is excluded, so 1 to 3 yields two items, not three."
+     },
+     {
+      "line": 4,
+      "text": "xs is unchanged - slice copied, it did not cut."
+     },
+     {
+      "line": 6,
+      "text": "Two 20s in the row, so the first and last positions differ: 1 and 3."
+     },
+     {
+      "line": 11,
+      "text": "Pushing onto the copy left xs at four items; a plain `const copy = xs` would have shown five."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the first line prints 1 - the position of \"rope\" - and the second prints true.",
+     "template": "const stock = [\"axe\", \"rope\", \"torch\"];\nconsole.log(stock.___(\"rope\"));\nconsole.log(stock.___(\"axe\"));",
+     "blanks": [
+      "indexOf",
+      "includes"
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "array-search"
+     ],
+     "explain": "indexOf answers where and includes answers whether, and the distinction bites because the position of a first item is `0`, which is falsy. That is exactly why `if (stock.indexOf(x))` is a bug and `if (stock.includes(x))` is not."
+    }
+   },
+   {
+    "title": "map, filter and reduce",
+    "body": "These three take a **callback** - a function handed to another function - written here as an arrow function such as `(n) => n * 2`.\n\n`map` builds a new array by transforming every element, so its result is **always the same length** as the input, while `filter` keeps only the elements whose callback returned true, so its result is the same length or shorter.\n\n`reduce(callback, initial)` folds the whole array down to one value: the callback receives the accumulator so far and the current element, and whatever it returns becomes the accumulator for the next element.\n\nThat second argument is the starting accumulator, and **omitting it is a trap** - without it JavaScript uses the first element as the accumulator and starts at the second, which silently skews any fold that is not a plain sum and throws a TypeError on an empty array.\n\nAll three are pure: the array they are called on is never modified.",
+    "code": "const nums = [1, 2, 3, 4];\nconsole.log(nums.map((n) => n * 2));\nconsole.log(nums.filter((n) => n % 2 === 0));\nconsole.log(nums.reduce((acc, n) => acc + n, 0));\n\nconsole.log(nums.reduce((acc, n) => acc + n * 10, 0));\nconsole.log(nums.reduce((acc, n) => acc + n * 10));\nconsole.log(nums);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "One output item per input item - map can never change the length."
+     },
+     {
+      "line": 3,
+      "text": "filter keeps elements as they are; the callback only decides yes or no."
+     },
+     {
+      "line": 7,
+      "text": "No initial value, so the accumulator starts as the raw 1 and the multiplication never touches it: 91, not 100."
+     },
+     {
+      "line": 8,
+      "text": "nums still holds its original four values - all three methods returned new arrays."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const trees = [\"ash\", \"willow\", \"oak\", \"cedar\"];\nconsole.log(trees.filter((w) => w.length > 3));\nconsole.log(trees.map((w) => w.length));",
+     "lang": "javascript",
+     "answer": "[\"willow\",\"cedar\"]\n[3,6,3,5]",
+     "concepts": [
+      "array-transformations"
+     ],
+     "explain": "filter hands back the elements themselves while map hands back whatever the callback returned - the same array read two different ways. That is why the filtered array can be shorter than the input and the mapped one never is."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-4-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const runes = [\"ansuz\", \"raido\", \"kenaz\"];\nconsole.log(runes.length);\nconsole.log(runes[0], runes[2]);\nconsole.log(runes[3]);",
+   "lang": "javascript",
+   "answer": "3\nansuz kenaz\nundefined",
+   "concepts": [
+    "arrays"
+   ],
+   "tags": [
+    "arrays"
+   ],
+   "explain": "A three-item array has indices 0, 1 and 2, so the count and the last index are never the same number. Index 3 is one past the end, and JavaScript hands back undefined rather than complaining - the count is the only thing telling you where the row stops.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so \"torch\" is added to the end of the bag and then taken straight back off. It prints: [\"rope\"] torch",
+   "template": "const bag = [\"rope\"];\nbag.___(\"torch\");\nconst last = bag.___();\nconsole.log(bag, last);",
+   "blanks": [
+    "push",
+    "pop"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "array-mutation"
+   ],
+   "tags": [
+    "array-mutation"
+   ],
+   "explain": "push and pop are a matched pair at the back of an array: one grows it and returns the new length, the other shrinks it and returns the item. That asymmetry is why `const last = bag.push(\"torch\")` would hand you a number instead of a string.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `lastOf(xs)` returning the final item of the array `xs`, or the string \"empty\" when `xs` has no items.",
+   "fn": "lastOf",
+   "starterCode": "function lastOf(xs) {\n  // xs.length tells you how many slots there are\n  // the last one sits one below that\n}\n",
+   "solution": "function lastOf(xs) {\n  if (xs.length === 0) {\n    return \"empty\";\n  }\n  return xs[xs.length - 1];\n}\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\", \"c\"]",
+     "expected": "c"
+    },
+    {
+     "input": "[7]",
+     "expected": 7
+    },
+    {
+     "input": "[]",
+     "expected": "empty"
+    },
+    {
+     "input": "[1, 2]",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "arrays"
+   ],
+   "tags": [
+    "arrays"
+   ],
+   "hint": "The last index is xs.length - 1, and an empty array makes that -1.",
+   "explain": "The empty case needs its own branch because `xs.length - 1` becomes -1 there, and `xs[-1]` in JavaScript is not the last item - it is a property that does not exist, so you would return undefined without ever seeing an error.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const q = [2, 4];\nconsole.log(q.push(6));\nconsole.log(q.shift());\nconsole.log(q);",
+   "lang": "javascript",
+   "answer": "3\n2\n[4,6]",
+   "concepts": [
+    "array-mutation"
+   ],
+   "tags": [
+    "array-mutation"
+   ],
+   "explain": "The two calls return different kinds of thing: push reports the array's new size, shift reports the value it took away. Both edited `q` itself, which is why the final line shows the leftovers of two operations rather than the array you wrote down.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `withoutEnds(xs)` returning a **new** array holding everything except the first and last items. `withoutEnds([1, 2, 3, 4, 5])` is `[2, 3, 4]`, and an array of two items or fewer gives back an empty array.",
+   "fn": "withoutEnds",
+   "starterCode": "function withoutEnds(xs) {\n  // one slice is enough - remember the end index is excluded\n}\n",
+   "solution": "function withoutEnds(xs) {\n  return xs.slice(1, -1);\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": [
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[1, 2]",
+     "expected": []
+    },
+    {
+     "input": "[7]",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "array-slicing"
+   ],
+   "tags": [
+    "array-slicing"
+   ],
+   "hint": "A negative end index counts back from the end of the array.",
+   "explain": "slice clamps bounds that overshoot instead of throwing, so the short arrays fall out for free with no length check. It also copies, which means the caller's array survives - the same job written with splice would have destroyed it.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-g-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`hasRune(runes, rune)` should return `true` when `rune` is somewhere in `runes` and `false` otherwise. It gets the first item wrong. Fix it.",
+   "fn": "hasRune",
+   "starterCode": "function hasRune(runes, rune) {\n  return runes.indexOf(rune) > 0;\n}\n",
+   "solution": "function hasRune(runes, rune) {\n  return runes.includes(rune);\n}\n",
+   "tests": [
+    {
+     "input": "[\"ansuz\", \"raido\"], \"ansuz\"",
+     "expected": true
+    },
+    {
+     "input": "[\"ansuz\", \"raido\"], \"raido\"",
+     "expected": true
+    },
+    {
+     "input": "[\"ansuz\"], \"kenaz\"",
+     "expected": false
+    },
+    {
+     "input": "[], \"ansuz\"",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "array-search"
+   ],
+   "tags": [
+    "array-search"
+   ],
+   "hint": "indexOf reports -1 for absent, and 0 is a perfectly good position.",
+   "explain": "The absent marker is -1, not 0, so the only safe comparisons are `>= 0` or `!== -1` - `> 0` throws away the first slot. includes sidesteps the arithmetic entirely by answering with a boolean, which is what the caller wanted in the first place.",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "js-4-c-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const deck = [\"a\", \"b\", \"c\", \"d\"];\nconst gone = deck.splice(1, 2);\nconsole.log(gone);\nconsole.log(deck);\ndeck.splice(1, 0, \"x\");\nconsole.log(deck);",
+   "lang": "javascript",
+   "answer": "[\"b\",\"c\"]\n[\"a\",\"d\"]\n[\"a\",\"x\",\"d\"]",
+   "concepts": [
+    "array-mutation"
+   ],
+   "tags": [
+    "array-mutation"
+   ],
+   "explain": "splice returns what it removed and edits the array in place, so the value you get and the array you kept are two different halves of one operation. A count of 0 removes nothing, which turns the same call into a pure insertion.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-c-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two calls that look alike do very different things. Trace each value as it is created.",
+   "code": "const xs = [1, 2, 3, 4, 5];\nconst a = xs.slice(1, 3);\nconst b = xs.splice(1, 3);",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "a",
+     "expected": "[2,3]"
+    },
+    {
+     "label": "xs, immediately after the slice",
+     "expected": "[1,2,3,4,5]"
+    },
+    {
+     "label": "b",
+     "expected": "[2,3,4]"
+    },
+    {
+     "label": "xs, after the splice",
+     "expected": "[1,5]"
+    }
+   ],
+   "concepts": [
+    "array-slicing",
+    "array-mutation"
+   ],
+   "tags": [
+    "array-slicing",
+    "array-mutation"
+   ],
+   "explain": "slice reads two indices - a start and an excluded end - while splice reads a start and a count, which is why the same numbers produce two items and then three. Only the second call leaves a mark: the array itself is shorter afterwards.",
+   "xp": 40
+  },
+  {
+   "id": "js-4-c-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `evenSquares(xs)` returning a new array holding the square of each **even** number in `xs`, in the original order. `evenSquares([1, 2, 3, 4])` is `[4, 16]`.",
+   "fn": "evenSquares",
+   "starterCode": "function evenSquares(xs) {\n  // keep the evens first, then transform what survived\n}\n",
+   "solution": "function evenSquares(xs) {\n  return xs.filter((n) => n % 2 === 0).map((n) => n * n);\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      4,
+      16
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[1, 3, 5]",
+     "expected": []
+    },
+    {
+     "input": "[-2, 7]",
+     "expected": [
+      4
+     ]
+    },
+    {
+     "input": "[0]",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "hint": "filter returns an array, so you can call .map straight onto it.",
+   "explain": "Filtering before mapping keeps the transform simple, because map is then left with nothing to decide - each stage does one job and hands an array to the next. Doing it the other way round would square the odd numbers too and leave you testing squares for evenness.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-c-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `longestWord(words)` returning the longest string in `words`. When two are equally long keep the earlier one, and an empty array returns the empty string \"\".",
+   "fn": "longestWord",
+   "starterCode": "function longestWord(words) {\n  // reduce carries the best answer so far as the accumulator\n  // what should that accumulator start as?\n}\n",
+   "solution": "function longestWord(words) {\n  return words.reduce((best, w) => {\n    if (w.length > best.length) {\n      return w;\n    }\n    return best;\n  }, \"\");\n}\n",
+   "tests": [
+    {
+     "input": "[\"ash\", \"willow\", \"oak\"]",
+     "expected": "willow"
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "[\"elm\"]",
+     "expected": "elm"
+    },
+    {
+     "input": "[\"aa\", \"bb\"]",
+     "expected": "aa"
+    }
+   ],
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "hint": "Start the accumulator at \"\" - every real word beats it.",
+   "explain": "The initial value doubles as the answer for the empty array, so the required behaviour costs no extra branch. Comparing with `>` rather than `>=` is what keeps the earlier of two equal-length words, because a tie leaves the accumulator alone.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-c-05",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`sumOfDoubles(xs)` should double every number and add the results together, so `sumOfDoubles([3, 4])` is 14. It returns 11 instead, and throws on an empty array. Fix it.",
+   "fn": "sumOfDoubles",
+   "starterCode": "function sumOfDoubles(xs) {\n  return xs.reduce((acc, n) => acc + n * 2);\n}\n",
+   "solution": "function sumOfDoubles(xs) {\n  return xs.reduce((acc, n) => acc + n * 2, 0);\n}\n",
+   "tests": [
+    {
+     "input": "[3, 4]",
+     "expected": 14
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[5]",
+     "expected": 10
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": 12
+    }
+   ],
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "hint": "reduce takes a second argument after the callback.",
+   "explain": "With no initial value the first element becomes the accumulator untouched, so 3 is added raw and only 4 is ever doubled - the fold silently skips its own first step. Supplying 0 also gives the empty array an answer, which is why it stops throwing.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-c-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `addSpare(xs, item)` returning a two-element array: first a **new** array holding everything in `xs` followed by `item`, then `xs.length` read afterwards. Because `xs` must be left untouched, that second number is its original length. `addSpare([1, 2], 3)` is `[[1, 2, 3], 2]`.",
+   "fn": "addSpare",
+   "starterCode": "function addSpare(xs, item) {\n  const grown = null; // build this without touching xs\n  return [grown, xs.length];\n}\n",
+   "solution": "function addSpare(xs, item) {\n  const grown = [...xs, item];\n  return [grown, xs.length];\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2], 3",
+     "expected": [
+      [
+       1,
+       2,
+       3
+      ],
+      2
+     ]
+    },
+    {
+     "input": "[], 9",
+     "expected": [
+      [
+       9
+      ],
+      0
+     ]
+    },
+    {
+     "input": "[\"a\"], \"b\"",
+     "expected": [
+      [
+       "a",
+       "b"
+      ],
+      1
+     ]
+    },
+    {
+     "input": "[5, 5], 5",
+     "expected": [
+      [
+       5,
+       5,
+       5
+      ],
+      2
+     ]
+    }
+   ],
+   "concepts": [
+    "spread",
+    "arrays"
+   ],
+   "tags": [
+    "spread",
+    "arrays"
+   ],
+   "hint": "[...xs, item] builds a new row without disturbing the old one.",
+   "explain": "Spreading copies the values into a brand-new array, so the caller's array keeps its length - that reported length is exactly the test a push-based answer fails. Reaching for push here would edit an array you were only lent, which is the quiet way one function breaks another.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-c-07",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const a = [1, 2];\nconst b = a;\nconst c = [...a];\nb.push(3);\nconsole.log(a);\nconsole.log(c);\nconsole.log(a.length, c.length);",
+   "lang": "javascript",
+   "answer": "[1,2,3]\n[1,2]\n3 2",
+   "concepts": [
+    "spread",
+    "arrays"
+   ],
+   "tags": [
+    "spread",
+    "arrays"
+   ],
+   "explain": "`const b = a` copies a reference, not a row of values, so `a` and `b` are two names for one array and a push through either is visible through both. The spread in `c` is what actually duplicates the contents, which is why it stayed at two items.",
+   "xp": 20
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-4-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Given `const xs = [10, 20, 30];`, what does `xs[3]` evaluate to?",
+   "choices": [
+    "30",
+    "undefined",
+    "null",
+    "a RangeError is thrown"
+   ],
+   "answer": 1,
+   "concepts": [
+    "arrays"
+   ],
+   "tags": [
+    "arrays"
+   ],
+   "explain": "Indices run from 0 to length - 1, and reading past the end is legal in JavaScript: a missing slot is just a missing property, which reads as undefined. Nothing is raised, so nothing marks the spot where the mistake was made.",
+   "xp": 10
+  },
+  {
+   "id": "js-4-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which call removes the **first** item of `xs` and returns that item?",
+   "choices": [
+    "xs.pop()",
+    "xs.shift()",
+    "xs.unshift()",
+    "xs.slice(0, 1)"
+   ],
+   "answer": 1,
+   "concepts": [
+    "array-mutation"
+   ],
+   "tags": [
+    "array-mutation"
+   ],
+   "explain": "shift is the front-end counterpart of pop. unshift travels the other way - it inserts at the front and returns a length - and slice removes nothing at all, because it copies rather than cuts.",
+   "xp": 10
+  },
+  {
+   "id": "js-4-e-03",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these leave the original array `xs` unchanged?",
+   "choices": [
+    "xs.slice(1)",
+    "xs.splice(1)",
+    "[...xs, 4]",
+    "xs.push(4)"
+   ],
+   "answer": [
+    0,
+    2
+   ],
+   "concepts": [
+    "array-slicing",
+    "spread",
+    "array-mutation"
+   ],
+   "tags": [
+    "array-slicing",
+    "spread",
+    "array-mutation"
+   ],
+   "explain": "slice and spread each build a new array and hand it back, while splice and push edit in place and return something else entirely - removed items and a new length. Whether a call yields an array is not the tell; whether it names a new one is.",
+   "xp": 10
+  },
+  {
+   "id": "js-4-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const xs = [5, 7, 5, 9];\nconsole.log(xs.indexOf(5), xs.lastIndexOf(5));\nconsole.log(xs.indexOf(4));\nconsole.log(xs.includes(4));",
+   "lang": "javascript",
+   "answer": "0 2\n-1\nfalse",
+   "concepts": [
+    "array-search"
+   ],
+   "tags": [
+    "array-search"
+   ],
+   "explain": "Both searches report positions, and with a repeated value they disagree on purpose - first match against last. The absent value gives -1 from indexOf and false from includes, two ways of saying the same thing, and only one of them is safe to drop straight into a condition.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints 9 - the sum of the three numbers.",
+   "template": "const total = [2, 3, 4].___((acc, n) => acc ___ n, 0);\nconsole.log(total);",
+   "blanks": [
+    "reduce",
+    "+"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "explain": "reduce is the fold that turns many values into one, and the `0` after the callback is the accumulator it starts from. The callback's only job is to say how the next element joins what has been gathered so far.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-e-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const xs = [10, 20, 30];\nconsole.log(xs.reduce((acc, n) => acc + n));\nconsole.log(xs.reduce((acc, n) => acc + n, 100));\nconsole.log([].reduce((acc, n) => acc + n, 0));",
+   "lang": "javascript",
+   "answer": "60\n160\n0",
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "explain": "For a plain sum the missing initial value happens to be harmless, because the first element is exactly what you would have started from anyway. It is not decoration though - it fixes the starting point, and it is the only thing that gives an empty array an answer instead of a TypeError.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague writes `sum(xs)` as `xs.reduce((acc, n) => acc + n)`. It works on `[10, 20]`, but throws `TypeError: Reduce of empty array with no initial value` on `[]`, and their character counter `words.reduce((acc, s) => acc + s.length)` returns the string \"a1\" for `[\"a\", \"b\"]`. Explain what the missing second argument does and why supplying it fixes both.",
+   "rubric": {
+    "required": [
+     "initial",
+     "empty",
+     "first"
+    ],
+    "optional": [
+     "accumulator",
+     "second",
+     "zero",
+     "type"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "explain": "Without an initial value reduce borrows the first element as the accumulator and starts folding at the second, so the accumulator inherits that element's type - a string, in the counter - and the first element never passes through the callback at all. An empty array has no first element to borrow, which is the TypeError. Passing 0 fixes both at once: the accumulator is a number from the start, every element is folded, and the empty case returns the identity value.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-e-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these fragments into a function that keeps the positive numbers, doubles them, and returns their total.",
+   "fragments": [
+    "function score(xs) {",
+    "  const kept = xs.filter((n) => n > 0);",
+    "  const doubled = kept.map((n) => n * 2);",
+    "  return doubled.reduce((acc, n) => acc + n, 0);",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "explain": "Each stage consumes the array the stage before it produced, so the order is forced by the data rather than by taste: you cannot double what has not been selected, and reduce needs the doubled values to add up. Only the last stage stops returning an array, which is why it is the one that can return a total.",
+   "xp": 20
+  },
+  {
+   "id": "js-4-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `flatten(rows)` where `rows` is an array of arrays, returning one array holding every inner item in order. `flatten([[1, 2], [3]])` is `[1, 2, 3]`.",
+   "fn": "flatten",
+   "starterCode": "function flatten(rows) {\n  // fold the rows into one array - spread unpacks a row into the result\n}\n",
+   "solution": "function flatten(rows) {\n  return rows.reduce((acc, row) => [...acc, ...row], []);\n}\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [3]]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[], [4]]",
+     "expected": [
+      4
+     ]
+    },
+    {
+     "input": "[[5]]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[[1], [2], [3]]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    }
+   ],
+   "concepts": [
+    "spread",
+    "array-transformations"
+   ],
+   "tags": [
+    "spread",
+    "array-transformations"
+   ],
+   "hint": "The accumulator starts as [] and each step spreads one row into it.",
+   "explain": "The accumulator here is an array rather than a number, which is what makes the initial `[]` essential - without it the first row would become the accumulator and an empty `rows` would throw. Spreading `row` is what stops the result being an array of arrays: pushing the row itself would add one item, not its contents.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-e-10",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`onlyLong(words, n)` should return the words with **more than** `n` characters. Instead it returns an array of `true` and `false`. Fix it.",
+   "fn": "onlyLong",
+   "starterCode": "function onlyLong(words, n) {\n  return words.map((w) => w.length > n);\n}\n",
+   "solution": "function onlyLong(words, n) {\n  return words.filter((w) => w.length > n);\n}\n",
+   "tests": [
+    {
+     "input": "[\"hi\", \"there\", \"you\"], 2",
+     "expected": [
+      "there",
+      "you"
+     ]
+    },
+    {
+     "input": "[], 3",
+     "expected": []
+    },
+    {
+     "input": "[\"abc\"], 3",
+     "expected": []
+    },
+    {
+     "input": "[\"abcd\"], 3",
+     "expected": [
+      "abcd"
+     ]
+    }
+   ],
+   "concepts": [
+    "array-transformations"
+   ],
+   "tags": [
+    "array-transformations"
+   ],
+   "hint": "The callback is already right - the method around it is not.",
+   "explain": "map replaces each element with whatever the callback returned, so a boolean test used with map gives you the answers instead of the items. filter runs the identical callback but treats its result as a verdict and keeps the element - same test, a different question asked of it.",
+   "xp": 50
+  },
+  {
+   "id": "js-4-e-11",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `nextInLine(queue)` that moves the front item of `queue` to the back **in place** and returns that same array. `nextInLine([1, 2, 3])` is `[2, 3, 1]`, and an empty queue comes back empty.",
+   "fn": "nextInLine",
+   "starterCode": "function nextInLine(queue) {\n  // one call takes from the front, another puts it on the back\n  return queue;\n}\n",
+   "solution": "function nextInLine(queue) {\n  if (queue.length === 0) {\n    return queue;\n  }\n  queue.push(queue.shift());\n  return queue;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[9]",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[\"a\", \"b\"]",
+     "expected": [
+      "b",
+      "a"
+     ]
+    }
+   ],
+   "concepts": [
+    "array-mutation"
+   ],
+   "tags": [
+    "array-mutation"
+   ],
+   "hint": "shift hands you the item it removed, so it can be passed straight to push.",
+   "explain": "shift returns the removed item, which is precisely what push needs, so the rotation is a single expression. The empty case has to be guarded because shift on an empty array returns undefined and push would then dutifully store it, leaving a one-item array where you expected none.",
+   "xp": 50
+  }
+ ]
+}

@@ -1,0 +1,1043 @@
+{
+ "n": 6,
+ "name": "The Hall of Inherited Forms",
+ "concepts": [
+  "class-syntax",
+  "constructors",
+  "methods",
+  "getters",
+  "static-methods",
+  "inheritance",
+  "prototype-chain",
+  "this-binding"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Objects With a Blueprint",
+  "sections": [
+   {
+    "title": "A Class Builds Objects",
+    "body": "A **class** describes a kind of object, and `new Lantern(10)` runs its **`constructor`** to build one **instance**. Inside the constructor, **`this`** is the object being built, so every property assigned to `this` becomes that instance's own data.\n\nA **method** is a function written in the class body without the `function` keyword, and inside it `this` is the object the method was called on - whatever sits to the left of the dot.\n\nTwo instances share the class but never the data: each carries its own `this`, so burning one lantern cannot drain another.",
+    "code": "class Lantern {\n  constructor(fuel) {\n    this.fuel = fuel;\n    this.lit = false;\n  }\n\n  light() {\n    this.lit = true;\n    return this.lit;\n  }\n\n  burn(hours) {\n    this.fuel = this.fuel - hours;\n    return this.fuel;\n  }\n}\n\nconst hall = new Lantern(10);\nconst cellar = new Lantern(2);\nconsole.log(hall.fuel, cellar.fuel);\nconsole.log(hall.light());\nconsole.log(hall.burn(4));\nconsole.log(hall.fuel, cellar.fuel);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Runs on `new`. It furnishes an object that already exists; it never returns one."
+     },
+     {
+      "line": 3,
+      "text": "Copies the argument onto this instance, so it outlives the call."
+     },
+     {
+      "line": 7,
+      "text": "No `function` keyword and no comma between methods - class body syntax, not an object literal."
+     },
+     {
+      "line": 19,
+      "text": "A second, wholly separate instance with its own fuel."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write a class `Counter` whose constructor takes a starting number and stores it as `this.value`, plus a method `bump()` that adds 1 to `this.value` and returns the new value. Then write `countUp(start, times)`, which builds a `Counter`, calls `bump()` that many times, and returns the final value.",
+     "fn": "countUp",
+     "starterCode": "class Counter {\n  constructor(start) {\n    // store the starting number on this instance\n  }\n\n  bump() {\n    // add 1, then return the new value\n  }\n}\n\nfunction countUp(start, times) {\n  // build a Counter, bump it `times` times, return its value\n}",
+     "tests": [
+      {
+       "input": "3, 2",
+       "expected": 5
+      },
+      {
+       "input": "0, 0",
+       "expected": 0
+      },
+      {
+       "input": "-2, 3",
+       "expected": 1
+      }
+     ],
+     "solution": "class Counter {\n  constructor(start) {\n    this.value = start;\n  }\n\n  bump() {\n    this.value += 1;\n    return this.value;\n  }\n}\n\nfunction countUp(start, times) {\n  const counter = new Counter(start);\n  for (let i = 0; i < times; i++) {\n    counter.bump();\n  }\n  return counter.value;\n}",
+     "explain": "The constructor does not create the object - `new` does that, then hands the fresh object to the constructor as `this` to be furnished. Because the running total lives on the instance, `countUp` can call `bump()` in a loop without threading a counter through every call.",
+     "hint": "`new Counter(start)` gives you the object; the loop only has to call bump().",
+     "concepts": [
+      "class-syntax",
+      "constructors",
+      "methods"
+     ]
+    }
+   },
+   {
+    "title": "Getters and Static Methods",
+    "body": "A **getter** is a method written with `get` in front of its name, and callers read it like a plain property - `purse.total`, never `purse.total()`. Its body runs on every read, which is how a class exposes a derived value that can never go stale.\n\nA **static** method belongs to the class itself rather than to any instance: `Purse.empty()` works, while `somePurse.empty` is `undefined`.\n\nStatics are the natural home for factory functions that build instances and for helpers that need no instance state at all.",
+    "code": "class Purse {\n  constructor(coins) {\n    this.coins = coins;\n  }\n\n  get total() {\n    return this.coins.length * 5;\n  }\n\n  static empty() {\n    return new Purse([]);\n  }\n}\n\nconst found = new Purse([\"silver\", \"gold\", \"copper\"]);\nconsole.log(found.total);\nconsole.log(typeof found.total);\nfound.coins.push(\"iron\");\nconsole.log(found.total);\nconst spare = Purse.empty();\nconsole.log(spare.total);\nconsole.log(typeof Purse.empty, typeof spare.empty);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "`get` turns this method into a property read. Callers write `found.total`, with no parentheses."
+     },
+     {
+      "line": 10,
+      "text": "Attached to the class, not to instances - a factory that hands back a new Purse."
+     },
+     {
+      "line": 18,
+      "text": "The getter recomputes on the next read, so the total cannot drift out of date."
+     },
+     {
+      "line": 22,
+      "text": "`function` then `undefined`: a static is not reachable through an instance."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write a class `Shelf` whose constructor takes an array and stores it as `this.books`, with a getter `count` returning how many books it holds and a static method `blank()` returning a new empty `Shelf`. Then write `shelfSizes(books)` returning the array `[shelf.count, Shelf.blank().count]` for a `Shelf` built from `books`.",
+     "fn": "shelfSizes",
+     "starterCode": "class Shelf {\n  constructor(books) {\n    // store the array\n  }\n\n  // a getter named count\n\n  // a static method named blank\n}\n\nfunction shelfSizes(books) {\n  // return [thisShelfCount, blankShelfCount]\n}",
+     "tests": [
+      {
+       "input": "[\"atlas\", \"bestiary\"]",
+       "expected": [
+        2,
+        0
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": [
+        0,
+        0
+       ]
+      },
+      {
+       "input": "[\"grimoire\"]",
+       "expected": [
+        1,
+        0
+       ]
+      }
+     ],
+     "solution": "class Shelf {\n  constructor(books) {\n    this.books = books;\n  }\n\n  get count() {\n    return this.books.length;\n  }\n\n  static blank() {\n    return new Shelf([]);\n  }\n}\n\nfunction shelfSizes(books) {\n  const shelf = new Shelf(books);\n  return [shelf.count, Shelf.blank().count];\n}",
+     "explain": "`shelf.count` has no parentheses because a getter is read, not called - add them and you try to call the number the getter returned. `blank` sits on the class because building an empty Shelf needs no existing Shelf to start from.",
+     "hint": "`get count() { ... }` inside the body; `static blank() { return new Shelf([]); }` beside it.",
+     "concepts": [
+      "getters",
+      "static-methods"
+     ]
+    }
+   },
+   {
+    "title": "extends and super",
+    "body": "`class Wand extends Tool` declares that every Wand **is a** Tool and inherits its methods without copying them. A subclass constructor must call **`super(...)`** before it touches `this`: that call runs the parent constructor on the same object, and reading `this` first throws a `ReferenceError`.\n\nInside a method, **`super.describe()`** reaches the parent's version of a method the subclass has overridden, which lets a subclass extend behaviour instead of replacing it.\n\n`instanceof` answers `true` for every class in the line of descent, because the link between them is a real one and not a copy.",
+    "code": "class Tool {\n  constructor(name) {\n    this.name = name;\n  }\n\n  describe() {\n    return \"a \" + this.name;\n  }\n}\n\nclass Wand extends Tool {\n  constructor(name, charges) {\n    super(name);\n    this.charges = charges;\n  }\n\n  describe() {\n    return super.describe() + \" with \" + this.charges + \" charges\";\n  }\n}\n\nconst hammer = new Tool(\"hammer\");\nconst oak = new Wand(\"oak wand\", 3);\nconsole.log(hammer.describe());\nconsole.log(oak.describe());\nconsole.log(oak.name, oak.charges);\nconsole.log(oak instanceof Wand, oak instanceof Tool, hammer instanceof Wand);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Every Wand is also a Tool, and gets Tool's methods for free."
+     },
+     {
+      "line": 13,
+      "text": "Must come before any use of `this`, and it runs Tool's constructor on this same object."
+     },
+     {
+      "line": 18,
+      "text": "Calls the parent's version of the method this class just overrode."
+     },
+     {
+      "line": 27,
+      "text": "true, true, false - descent runs one way only."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "The `Coin` class is given. Write `class Gem extends Coin` whose constructor takes `(value, purity)`, passes `value` to `super`, stores `this.purity`, and overrides `worth()` to return `super.worth() * this.purity`. Then write `gemWorth(value, purity)` returning `new Gem(value, purity).worth()`.",
+     "fn": "gemWorth",
+     "starterCode": "class Coin {\n  constructor(value) {\n    this.value = value;\n  }\n\n  worth() {\n    return this.value;\n  }\n}\n\nclass Gem extends Coin {\n  // constructor(value, purity) and an overriding worth()\n}\n\nfunction gemWorth(value, purity) {\n  return new Gem(value, purity).worth();\n}",
+     "tests": [
+      {
+       "input": "10, 2",
+       "expected": 20
+      },
+      {
+       "input": "0, 5",
+       "expected": 0
+      },
+      {
+       "input": "7, 1",
+       "expected": 7
+      }
+     ],
+     "solution": "class Coin {\n  constructor(value) {\n    this.value = value;\n  }\n\n  worth() {\n    return this.value;\n  }\n}\n\nclass Gem extends Coin {\n  constructor(value, purity) {\n    super(value);\n    this.purity = purity;\n  }\n\n  worth() {\n    return super.worth() * this.purity;\n  }\n}\n\nfunction gemWorth(value, purity) {\n  return new Gem(value, purity).worth();\n}",
+     "explain": "`super.worth()` runs the parent's method with `this` still pointing at the Gem, so the override wraps inherited behaviour instead of duplicating it. Rewrite the parent's formula by hand and the two copies drift apart the first time one of them changes.",
+     "hint": "super(value) first, then this.purity; inside worth(), start from super.worth().",
+     "concepts": [
+      "inheritance"
+     ]
+    }
+   },
+   {
+    "title": "The Prototype Chain, and What `this` Binds To",
+    "body": "A class is sugar over prototypes: a method written in the class body is not copied onto each instance, it lives on `Bell.prototype`, and every instance holds a hidden link to that object. Reading `bell.ring` looks on the instance first, then follows the link to `Bell.prototype`, then to `Object.prototype` - that walk is the **prototype chain**.\n\nThe chain explains `this` too. A method has no owner of its own: `this` is whatever object sits to the left of the dot **at the moment of the call**, so `bell.ring()` binds `this` to `bell` while `const loose = bell.ring; loose()` binds nothing and `this` is `undefined`.\n\nAn **arrow function** has no `this` of its own at all - it borrows the `this` of the scope it was written in, which is why an arrow assigned to a field in the constructor stays attached to that instance however it is later called.",
+    "code": "class Bell {\n  constructor(tone) {\n    this.tone = tone;\n    this.ringArrow = () => this.tone;\n  }\n\n  ring() {\n    return this.tone;\n  }\n}\n\nconst bell = new Bell(\"low\");\nconsole.log(bell.hasOwnProperty(\"ring\"), Bell.prototype.hasOwnProperty(\"ring\"));\nconsole.log(Object.getPrototypeOf(bell) === Bell.prototype);\nconsole.log(bell.ring());\n\nconst loose = bell.ring;\ntry {\n  loose();\n} catch (err) {\n  console.log(\"detached call threw\", err.constructor.name);\n}\n\nconst looseArrow = bell.ringArrow;\nconsole.log(\"arrow still works:\", looseArrow());",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "An own property of the instance, holding an arrow that captured this constructor's `this`."
+     },
+     {
+      "line": 13,
+      "text": "false then true: the method is on the prototype, not on the instance."
+     },
+     {
+      "line": 19,
+      "text": "No object to the left of a dot, so `this` is undefined and reading `this.tone` throws a TypeError."
+     },
+     {
+      "line": 25,
+      "text": "The arrow ignores how it was called and uses the `this` it closed over."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write a class `Tally` whose constructor stores `this.total = start` and also assigns an **arrow function** to `this.add`, taking a number, adding it to `this.total`, and returning the new total. Then write `sumWith(start, numbers)` that builds a `Tally`, pulls the function off with `const add = tally.add;`, calls `add(n)` for each number, and returns `tally.total`.",
+     "fn": "sumWith",
+     "starterCode": "class Tally {\n  constructor(start) {\n    this.total = start;\n    // this.add = (n) => { ... }\n  }\n}\n\nfunction sumWith(start, numbers) {\n  const tally = new Tally(start);\n  const add = tally.add;\n  // call add for each number, then return the total\n}",
+     "tests": [
+      {
+       "input": "0, [1, 2, 3]",
+       "expected": 6
+      },
+      {
+       "input": "5, []",
+       "expected": 5
+      },
+      {
+       "input": "0, [-4]",
+       "expected": -4
+      }
+     ],
+     "solution": "class Tally {\n  constructor(start) {\n    this.total = start;\n    this.add = (n) => {\n      this.total += n;\n      return this.total;\n    };\n  }\n}\n\nfunction sumWith(start, numbers) {\n  const tally = new Tally(start);\n  const add = tally.add;\n  for (const n of numbers) {\n    add(n);\n  }\n  return tally.total;\n}",
+     "explain": "Write `add` as an ordinary method and this same code throws, because the detached call has no object to its left. The arrow was created inside the constructor, where `this` was the new instance, and it keeps that binding forever - the cost is one function object per instance instead of one shared on the prototype.",
+     "hint": "The arrow must be created inside the constructor, where `this` is the instance.",
+     "concepts": [
+      "this-binding",
+      "prototype-chain"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-6-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "class Vial {\n  constructor(drops) {\n    this.drops = drops;\n  }\n\n  pour() {\n    this.drops -= 1;\n    return this.drops;\n  }\n}\n\nconst red = new Vial(3);\nconst blue = new Vial(1);\nconsole.log(red.drops, blue.drops);\nconsole.log(red.pour());\nconsole.log(red.drops, blue.drops);\nconsole.log(red instanceof Vial);",
+   "lang": "javascript",
+   "answer": "3 1\n2\n2 1\ntrue",
+   "explain": "Each `new Vial(...)` builds a separate object with its own `drops` hanging off its own `this`, so pouring the red vial cannot reach the blue one. `pour` both mutates and returns, which is why the second line shows the value after the decrement, not before.",
+   "concepts": [
+    "class-syntax",
+    "constructors"
+   ],
+   "tags": [
+    "class-syntax",
+    "constructors"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `new Rune(\"ansuz\").show()` returns `\"ansuz\"`.",
+   "template": "___ Rune {\n  ___(sign) {\n    ___.sign = sign;\n  }\n\n  show() {\n    return this.sign;\n  }\n}",
+   "blanks": [
+    "class",
+    "constructor",
+    "this"
+   ],
+   "lang": "javascript",
+   "explain": "The constructor is found by its reserved name, never by being listed first, and the object it furnishes arrives as `this` rather than as a parameter you declare. Drop the `this.` and you assign to a local that vanishes the moment the constructor returns.",
+   "concepts": [
+    "class-syntax",
+    "constructors"
+   ],
+   "tags": [
+    "class-syntax",
+    "constructors"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Vault` with a constructor taking `gold` and storing it as `this.gold`, a method `deposit(amount)` that adds `amount` to `this.gold`, and a method `balance()` returning the current gold. Then write `runVault(start, deposits)`, which builds a `Vault`, deposits every amount in the array in order, and returns `balance()`.",
+   "fn": "runVault",
+   "starterCode": "class Vault {\n  constructor(gold) {\n    // store the opening balance\n  }\n\n  deposit(amount) {\n    // change the balance on this instance\n  }\n\n  balance() {\n    // report it\n  }\n}\n\nfunction runVault(start, deposits) {\n  // build the vault, apply every deposit, return the balance\n}",
+   "tests": [
+    {
+     "input": "0, [10, 5]",
+     "expected": 15
+    },
+    {
+     "input": "100, []",
+     "expected": 100
+    },
+    {
+     "input": "5, [-5]",
+     "expected": 0
+    }
+   ],
+   "solution": "class Vault {\n  constructor(gold) {\n    this.gold = gold;\n  }\n\n  deposit(amount) {\n    this.gold += amount;\n  }\n\n  balance() {\n    return this.gold;\n  }\n}\n\nfunction runVault(start, deposits) {\n  const vault = new Vault(start);\n  for (const amount of deposits) {\n    vault.deposit(amount);\n  }\n  return vault.balance();\n}",
+   "explain": "The running total lives on the object, so the loop never has to carry it - that is the trade a class makes, moving state out of the caller and into the thing the state describes. `deposit` mutates while `balance` only reads, a split that keeps the object's rules in one place.",
+   "hint": "deposit changes this.gold; balance only returns it.",
+   "concepts": [
+    "class-syntax",
+    "constructors",
+    "methods"
+   ],
+   "tags": [
+    "class-syntax",
+    "constructors",
+    "methods"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "class Scroll {\n  constructor(text) {\n    this.text = text;\n  }\n\n  get length() {\n    return this.text.length;\n  }\n\n  get shout() {\n    return this.text.toUpperCase();\n  }\n}\n\nconst note = new Scroll(\"rune\");\nconsole.log(note.length);\nconsole.log(note.shout);\nconsole.log(typeof note.length, typeof note.shout);\nnote.text = \"sigil\";\nconsole.log(note.length);",
+   "lang": "javascript",
+   "answer": "4\nRUNE\nnumber string\n5",
+   "explain": "A getter is read without parentheses and its body runs on every read, which is why the last line reports 5 rather than the 4 computed earlier. `typeof note.length` is `number`, not `function`, because you never touch the function - you touch what it returns.",
+   "concepts": [
+    "getters"
+   ],
+   "tags": [
+    "getters"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Basket` whose constructor takes an array of prices and stores it as `this.prices`, with a getter `total` returning their sum and a getter `size` returning how many prices there are. Then write `basketReport(prices)` returning the array `[basket.total, basket.size]` - read both as properties, never call them.",
+   "fn": "basketReport",
+   "starterCode": "class Basket {\n  constructor(prices) {\n    // store the array\n  }\n\n  // get total() { ... }\n\n  // get size() { ... }\n}\n\nfunction basketReport(prices) {\n  // return [total, size], both read as properties\n}",
+   "tests": [
+    {
+     "input": "[2, 3, 5]",
+     "expected": [
+      10,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[-4]",
+     "expected": [
+      -4,
+      1
+     ]
+    }
+   ],
+   "solution": "class Basket {\n  constructor(prices) {\n    this.prices = prices;\n  }\n\n  get total() {\n    let sum = 0;\n    for (const price of this.prices) {\n      sum += price;\n    }\n    return sum;\n  }\n\n  get size() {\n    return this.prices.length;\n  }\n}\n\nfunction basketReport(prices) {\n  const basket = new Basket(prices);\n  return [basket.total, basket.size];\n}",
+   "explain": "Storing a `total` field in the constructor would freeze a number that goes wrong the moment `prices` changes; a getter derives it on demand, so there is nothing left to keep in sync. The empty basket is the case worth checking - the sum has to start at 0, not at the first element.",
+   "hint": "`get total()` and `get size()` in the class body; the caller reads basket.total with no parentheses.",
+   "concepts": [
+    "getters",
+    "methods"
+   ],
+   "tags": [
+    "getters",
+    "methods"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-g-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "class Ledger {\n  constructor(entries) {\n    this.entries = entries;\n  }\n\n  static blank() {\n    return new Ledger([]);\n  }\n\n  static merge(a, b) {\n    return new Ledger(a.entries.concat(b.entries));\n  }\n\n  count() {\n    return this.entries.length;\n  }\n}\n\nconst one = new Ledger([\"rope\"]);\nconst two = new Ledger([\"torch\", \"flint\"]);\nconsole.log(Ledger.blank().count());\nconsole.log(Ledger.merge(one, two).count());\nconsole.log(one.count(), two.count());\nconsole.log(typeof Ledger.merge, typeof one.merge);",
+   "lang": "javascript",
+   "answer": "0\n3\n1 2\nfunction undefined",
+   "explain": "`merge` is reached through the class, never through an instance, which is exactly what the last line reports: `Ledger.merge` is a function while `one.merge` does not exist. A static that builds and returns a new instance is the standard factory shape, and it leaves both inputs untouched.",
+   "concepts": [
+    "static-methods"
+   ],
+   "tags": [
+    "static-methods"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-g-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Temp` whose constructor takes degrees Celsius and stores `this.c`, a static method `fromF(f)` returning a new `Temp` built from `(f - 32) * 5 / 9`, and a method `celsius()` returning `this.c` rounded with `Math.round`. Then write `readF(f)` returning `Temp.fromF(f).celsius()`.",
+   "fn": "readF",
+   "starterCode": "class Temp {\n  constructor(c) {\n    // store the Celsius value\n  }\n\n  // static fromF(f) { ... returns a new Temp ... }\n\n  celsius() {\n    // return this.c rounded\n  }\n}\n\nfunction readF(f) {\n  // build via the static factory, then read it\n}",
+   "tests": [
+    {
+     "input": "212",
+     "expected": 100
+    },
+    {
+     "input": "32",
+     "expected": 0
+    },
+    {
+     "input": "-40",
+     "expected": -40
+    }
+   ],
+   "solution": "class Temp {\n  constructor(c) {\n    this.c = c;\n  }\n\n  static fromF(f) {\n    return new Temp((f - 32) * 5 / 9);\n  }\n\n  celsius() {\n    return Math.round(this.c);\n  }\n}\n\nfunction readF(f) {\n  return Temp.fromF(f).celsius();\n}",
+   "explain": "A class gets exactly one constructor signature, so a second way of building the same object belongs on a static factory whose name says which units it expects. Note `-40`, the point where the two scales cross - a good edge case precisely because it is the one input a swapped formula still gets right.",
+   "hint": "static fromF(f) { return new Temp(...); } - it returns an instance, it does not set anything on `this`.",
+   "concepts": [
+    "static-methods",
+    "class-syntax"
+   ],
+   "tags": [
+    "static-methods",
+    "class-syntax"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-g-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a `Wand` subclass whose constructor stores both fields without throwing.",
+   "fragments": [
+    "class Wand extends Tool {",
+    "  constructor(name, charges) {",
+    "    super(name);",
+    "    this.charges = charges;",
+    "  }",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "lang": "javascript",
+   "explain": "`super(name)` has to run before `this.charges = charges`, because in a derived class `this` does not exist until the parent constructor has produced it. Swap those two lines and the engine throws a ReferenceError rather than quietly assigning to nothing.",
+   "concepts": [
+    "inheritance",
+    "class-syntax"
+   ],
+   "tags": [
+    "inheritance",
+    "class-syntax"
+   ],
+   "xp": 20
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "js-6-c-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`run(0, [1, 2, 3])` should return `6` but returns `NaN`. Fix the class without changing `run`.",
+   "fn": "run",
+   "starterCode": "class Tally {\n  constructor(count) {\n    count = count;\n  }\n\n  add(n) {\n    this.count += n;\n    return this.count;\n  }\n}\n\nfunction run(start, steps) {\n  const tally = new Tally(start);\n  for (const step of steps) {\n    tally.add(step);\n  }\n  return tally.count;\n}",
+   "tests": [
+    {
+     "input": "0, [1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "10, []",
+     "expected": 10
+    },
+    {
+     "input": "0, [-4]",
+     "expected": -4
+    }
+   ],
+   "solution": "class Tally {\n  constructor(count) {\n    this.count = count;\n  }\n\n  add(n) {\n    this.count += n;\n    return this.count;\n  }\n}\n\nfunction run(start, steps) {\n  const tally = new Tally(start);\n  for (const step of steps) {\n    tally.add(step);\n  }\n  return tally.count;\n}",
+   "explain": "`count = count` reassigns the parameter to itself and never touches the object, so `this.count` stays `undefined` and the first `undefined + 1` poisons everything downstream as NaN. JavaScript will not warn you: a missing property reads as `undefined` instead of raising, which is why the symptom surfaces far from the mistake.",
+   "hint": "Which of the two names refers to the object being built?",
+   "concepts": [
+    "constructors",
+    "this-binding"
+   ],
+   "tags": [
+    "constructors",
+    "this-binding"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-c-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "The `Creature` class is given. Write `class Dragon extends Creature` whose constructor takes `(name, hoard)`, passes `name` to `super`, and stores `this.hoard`; override `describe()` to return the parent's description followed by `\" guarding \"`, the hoard, and `\" gold\"`. Then `dragonLine(\"Fafnir\", 900)` must return `\"Fafnir stirs guarding 900 gold\"`.",
+   "fn": "dragonLine",
+   "starterCode": "class Creature {\n  constructor(name) {\n    this.name = name;\n  }\n\n  describe() {\n    return this.name + \" stirs\";\n  }\n}\n\nclass Dragon extends Creature {\n  // constructor(name, hoard), then an overriding describe()\n}\n\nfunction dragonLine(name, hoard) {\n  return new Dragon(name, hoard).describe();\n}",
+   "tests": [
+    {
+     "input": "\"Fafnir\", 900",
+     "expected": "Fafnir stirs guarding 900 gold"
+    },
+    {
+     "input": "\"Wyrm\", 0",
+     "expected": "Wyrm stirs guarding 0 gold"
+    },
+    {
+     "input": "\"\", 5",
+     "expected": " stirs guarding 5 gold"
+    }
+   ],
+   "solution": "class Creature {\n  constructor(name) {\n    this.name = name;\n  }\n\n  describe() {\n    return this.name + \" stirs\";\n  }\n}\n\nclass Dragon extends Creature {\n  constructor(name, hoard) {\n    super(name);\n    this.hoard = hoard;\n  }\n\n  describe() {\n    return super.describe() + \" guarding \" + this.hoard + \" gold\";\n  }\n}\n\nfunction dragonLine(name, hoard) {\n  return new Dragon(name, hoard).describe();\n}",
+   "explain": "The override starts from `super.describe()` rather than rebuilding the sentence, so a later change to how a Creature announces itself flows through every Dragon for free. The empty-name case shows the parent's rule surviving untouched: Dragon never inspects `name`, it only extends whatever the parent produced.",
+   "hint": "super(name) inside the constructor; super.describe() inside the method.",
+   "concepts": [
+    "inheritance",
+    "methods"
+   ],
+   "tags": [
+    "inheritance",
+    "methods"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-c-03",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`heir(\"Mara\", 3)` throws `ReferenceError: Must call super constructor in derived class before accessing 'this'`. Fix `Heir` without changing `Noble` or `heir`; `heir(\"Mara\", 3)` must return `\"Lord Mara the 3\"`.",
+   "fn": "heir",
+   "starterCode": "class Noble {\n  constructor(name) {\n    this.name = name;\n  }\n\n  title() {\n    return \"Lord \" + this.name;\n  }\n}\n\nclass Heir extends Noble {\n  constructor(name, rank) {\n    this.rank = rank;\n    super(name);\n  }\n\n  title() {\n    return super.title() + \" the \" + this.rank;\n  }\n}\n\nfunction heir(name, rank) {\n  return new Heir(name, rank).title();\n}",
+   "tests": [
+    {
+     "input": "\"Mara\", 3",
+     "expected": "Lord Mara the 3"
+    },
+    {
+     "input": "\"Elu\", 1",
+     "expected": "Lord Elu the 1"
+    },
+    {
+     "input": "\"Ada\", 0",
+     "expected": "Lord Ada the 0"
+    }
+   ],
+   "solution": "class Noble {\n  constructor(name) {\n    this.name = name;\n  }\n\n  title() {\n    return \"Lord \" + this.name;\n  }\n}\n\nclass Heir extends Noble {\n  constructor(name, rank) {\n    super(name);\n    this.rank = rank;\n  }\n\n  title() {\n    return super.title() + \" the \" + this.rank;\n  }\n}\n\nfunction heir(name, rank) {\n  return new Heir(name, rank).title();\n}",
+   "explain": "In a derived class the object is not produced by `new` at all - the parent constructor produces it, and `super(...)` is what runs it, so before that call there is literally no `this` to assign to. The language makes this a hard error instead of a silent lost write, which is why moving one line fixes it completely.",
+   "hint": "Only one line has to move, and it is the one that mentions the parent.",
+   "concepts": [
+    "inheritance",
+    "constructors"
+   ],
+   "tags": [
+    "inheritance",
+    "constructors"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-c-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The setup below has just run. Give the value of each expression - `true`, `false`, or the bare word a `typeof` produces.",
+   "code": "class Tool {\n  use() {\n    return \"used\";\n  }\n}\n\nclass Wand extends Tool {\n  wave() {\n    return \"waved\";\n  }\n}\n\nconst oak = new Wand();\noak.tag = \"oak\";",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "oak.hasOwnProperty(\"wave\")",
+     "expected": "false"
+    },
+    {
+     "label": "Wand.prototype.hasOwnProperty(\"wave\")",
+     "expected": "true"
+    },
+    {
+     "label": "Object.getPrototypeOf(Wand.prototype) === Tool.prototype",
+     "expected": "true"
+    },
+    {
+     "label": "typeof oak.use",
+     "expected": "function"
+    },
+    {
+     "label": "oak.hasOwnProperty(\"tag\")",
+     "expected": "true"
+    }
+   ],
+   "explain": "Methods are never copied onto instances: `oak` owns only what was assigned to it directly, and everything else is found by walking oak -> Wand.prototype -> Tool.prototype -> Object.prototype. `extends` is precisely the act of linking those two prototype objects, which is why `oak.use` resolves even though nothing named `use` exists on `oak` or on `Wand.prototype`.",
+   "concepts": [
+    "prototype-chain",
+    "inheritance"
+   ],
+   "tags": [
+    "prototype-chain",
+    "inheritance"
+   ],
+   "xp": 40
+  },
+  {
+   "id": "js-6-c-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A team pulls a class method into a variable to use as a callback - `const tick = clock.tick;` then `[1, 2, 3].forEach(tick);` - and every call throws `TypeError: Cannot read properties of undefined`. Explain what `this` is bound to in `clock.tick()` versus in `tick()`, and why assigning an arrow function to `this.tick` inside the constructor fixes it.",
+   "rubric": {
+    "required": [
+     "this",
+     "undefined",
+     "arrow"
+    ],
+    "optional": [
+     "strict",
+     "call",
+     "dot",
+     "lexical",
+     "scope",
+     "bind",
+     "constructor",
+     "instance"
+    ],
+    "forbidden": [],
+    "minWords": 35
+   },
+   "explain": "Both facts follow from one rule: a method is not owned by the object it was found on, so `this` is decided by the call, not by the definition. `clock.tick()` has `clock` to the left of the dot and binds it; `tick()` has nothing, and class bodies are always strict mode, so `this` is `undefined` rather than the global object. An arrow has no `this` slot of its own, so it keeps whatever `this` was in scope when it was created - the instance, if it was created in the constructor.",
+   "concepts": [
+    "this-binding"
+   ],
+   "tags": [
+    "this-binding"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-c-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Scaler` whose constructor takes a number `factor` and stores it as `this.factor`, plus a method `scaleAll(numbers)` returning a new array with every number multiplied by `this.factor`. `scaleAll` must build the result with `numbers.map(...)`, and the callback it passes to `map` must still see the right `this`. Then write `scaleWith(factor, numbers)` returning `new Scaler(factor).scaleAll(numbers)`.",
+   "fn": "scaleWith",
+   "starterCode": "class Scaler {\n  constructor(factor) {\n    // store the factor\n  }\n\n  scaleAll(numbers) {\n    // return numbers.map(...) - mind what `this` is inside the callback\n  }\n}\n\nfunction scaleWith(factor, numbers) {\n  // build a Scaler and scale the array\n}",
+   "tests": [
+    {
+     "input": "3, [1, 2]",
+     "expected": [
+      3,
+      6
+     ]
+    },
+    {
+     "input": "2, []",
+     "expected": []
+    },
+    {
+     "input": "-1, [5]",
+     "expected": [
+      -5
+     ]
+    }
+   ],
+   "solution": "class Scaler {\n  constructor(factor) {\n    this.factor = factor;\n  }\n\n  scaleAll(numbers) {\n    return numbers.map((n) => n * this.factor);\n  }\n}\n\nfunction scaleWith(factor, numbers) {\n  return new Scaler(factor).scaleAll(numbers);\n}",
+   "explain": "`map` calls your callback with no receiver, so an ordinary `function (n) { return n * this.factor; }` would see `this` as `undefined` and throw. An arrow has no `this` of its own and reads the one belonging to `scaleAll`, which is the instance - this is the everyday reason arrows are the default shape for callbacks written inside methods.",
+   "hint": "An arrow callback inherits `this` from scaleAll; a `function` expression does not.",
+   "concepts": [
+    "this-binding",
+    "methods"
+   ],
+   "tags": [
+    "this-binding",
+    "methods"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-c-07",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `Blade` inherits from `Weapon` and extends the parent's description instead of replacing it.",
+   "template": "class Blade ___ Weapon {\n  constructor(name, edge) {\n    ___(name);\n    this.edge = edge;\n  }\n\n  describe() {\n    return ___.describe() + \" (\" + this.edge + \")\";\n  }\n}",
+   "blanks": [
+    "extends",
+    "super",
+    "super"
+   ],
+   "lang": "javascript",
+   "explain": "`super` wears two hats: called as a function it runs the parent constructor, and used as an object it reaches the parent's methods. Both exist only because `extends` linked the two prototypes in the first place - without it there is no parent to reach.",
+   "concepts": [
+    "inheritance"
+   ],
+   "tags": [
+    "inheritance"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-c-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "The `Pack` class is given, with a getter `weight` returning `this.items.length * 2`. Write `class HeavyPack extends Pack` whose constructor takes `(items, padding)`, stores `this.padding`, and overrides the getter `weight` to return `super.weight + this.padding`. Give `HeavyPack` a static method `bare(padding)` returning `new HeavyPack([], padding)`. Then write `packWeights(items, padding)` returning `[new HeavyPack(items, padding).weight, HeavyPack.bare(padding).weight]`.",
+   "fn": "packWeights",
+   "starterCode": "class Pack {\n  constructor(items) {\n    this.items = items;\n  }\n\n  get weight() {\n    return this.items.length * 2;\n  }\n}\n\nclass HeavyPack extends Pack {\n  // constructor(items, padding), an overriding `get weight()`, and static bare(padding)\n}\n\nfunction packWeights(items, padding) {\n  // return the two weights, in that order\n}",
+   "tests": [
+    {
+     "input": "[\"rope\", \"flint\"], 5",
+     "expected": [
+      9,
+      5
+     ]
+    },
+    {
+     "input": "[], 0",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[\"rope\"], 3",
+     "expected": [
+      5,
+      3
+     ]
+    }
+   ],
+   "solution": "class Pack {\n  constructor(items) {\n    this.items = items;\n  }\n\n  get weight() {\n    return this.items.length * 2;\n  }\n}\n\nclass HeavyPack extends Pack {\n  constructor(items, padding) {\n    super(items);\n    this.padding = padding;\n  }\n\n  get weight() {\n    return super.weight + this.padding;\n  }\n\n  static bare(padding) {\n    return new HeavyPack([], padding);\n  }\n}\n\nfunction packWeights(items, padding) {\n  return [new HeavyPack(items, padding).weight, HeavyPack.bare(padding).weight];\n}",
+   "explain": "`super.weight` reads the parent's getter with `this` still pointing at the HeavyPack, so the parent counts the subclass's own items - overriding a getter works exactly like overriding a method, minus the parentheses. Statics are inherited by subclasses too, but `bare` belongs on HeavyPack because only HeavyPack knows about the extra argument.",
+   "hint": "`get weight() { return super.weight + this.padding; }` - no parentheses after super.weight.",
+   "concepts": [
+    "inheritance",
+    "getters",
+    "static-methods"
+   ],
+   "tags": [
+    "inheritance",
+    "getters",
+    "static-methods"
+   ],
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-6-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Given `class Bell { ring() { return 1; } }` and `const b = new Bell();`, where does the function `ring` actually live?",
+   "choices": [
+    "On `b` itself, copied in by the constructor when the instance was built",
+    "On `Bell.prototype`, shared by every instance and found by walking the prototype chain",
+    "On `Bell` itself, which is what `static` means",
+    "Nowhere until the first call, when the engine creates it on demand"
+   ],
+   "answer": 1,
+   "explain": "Class syntax is sugar: method definitions are installed once on the constructor's `prototype` object, and instances reach them through a hidden link. That is why `b.hasOwnProperty(\"ring\")` is `false`, and why one shared function serves a million instances.",
+   "concepts": [
+    "prototype-chain",
+    "methods"
+   ],
+   "tags": [
+    "prototype-chain",
+    "methods"
+   ],
+   "xp": 10
+  },
+  {
+   "id": "js-6-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`const b = new Bell(\"low\"); const f = b.ring; f();` - what is `this` inside `ring` during the call `f()`?",
+   "choices": [
+    "The instance `b`, because that is the object the method came from",
+    "The class `Bell`, because the method is defined there",
+    "`undefined`, because nothing sat to the left of a dot and class bodies are always strict mode",
+    "The global object, because an unbound call always falls back to it"
+   ],
+   "answer": 2,
+   "explain": "`this` is fixed by the call site, not by where the function was written, and pulling a method into a variable throws the receiver away. Class bodies are strict mode whether you ask for it or not, so the old sloppy-mode fallback to the global object never happens - you get `undefined` and a TypeError on the first property read.",
+   "concepts": [
+    "this-binding"
+   ],
+   "tags": [
+    "this-binding"
+   ],
+   "xp": 10
+  },
+  {
+   "id": "js-6-e-03",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements are true?",
+   "choices": [
+    "A getter is read as `obj.size`, with no parentheses",
+    "A getter's body runs again on every read",
+    "A static method is called on the class, as in `Coin.blank()`",
+    "A static method is also available on every instance, as in `myCoin.blank()`",
+    "A getter's value is computed once during construction and cached on the instance"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "explain": "A getter is a function dressed as a property: no parentheses, and no caching unless you write the caching yourself. A static lives on the class object and is deliberately absent from instances, which is what makes it the right home for a factory that has no instance to work from yet.",
+   "concepts": [
+    "getters",
+    "static-methods"
+   ],
+   "tags": [
+    "getters",
+    "static-methods"
+   ],
+   "xp": 10
+  },
+  {
+   "id": "js-6-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "class Deck {\n  constructor(cards) {\n    this.cards = cards;\n  }\n\n  get size() {\n    return this.cards.length;\n  }\n\n  static from(cards) {\n    return new Deck(cards);\n  }\n}\n\nconst hand = Deck.from([\"ace\", \"two\", \"three\"]);\nconsole.log(hand.size);\nhand.cards.push(\"four\");\nconsole.log(hand.size);\nconsole.log(typeof Deck.from, typeof hand.from);",
+   "lang": "javascript",
+   "answer": "3\n4\nfunction undefined",
+   "explain": "The getter re-reads `this.cards` each time, so pushing onto the array changes the answer with nobody recomputing a stored field. The last line separates the two worlds: the factory belongs to the class, and the instance it built carries no trace of it.",
+   "concepts": [
+    "getters",
+    "static-methods"
+   ],
+   "tags": [
+    "getters",
+    "static-methods"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `new Coin(4).doubled` is `8` and `Coin.blank().value` is `0`.",
+   "template": "class Coin {\n  constructor(value) {\n    this.value = value;\n  }\n\n  ___ doubled() {\n    return this.value * 2;\n  }\n\n  ___ blank() {\n    return new Coin(0);\n  }\n}",
+   "blanks": [
+    "get",
+    "static"
+   ],
+   "lang": "javascript",
+   "explain": "One keyword decides how a member is reached: `get` moves it from a call to a read, and `static` moves it from the instance to the class. The prompt tells you which is which - `.doubled` has no parentheses, and `blank` is reached through `Coin`, not through a coin.",
+   "concepts": [
+    "getters",
+    "static-methods"
+   ],
+   "tags": [
+    "getters",
+    "static-methods"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-e-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "class Beast {\n  constructor(name) {\n    this.name = name;\n  }\n\n  cry() {\n    return this.name + \" roars\";\n  }\n}\n\nclass Cub extends Beast {\n  cry() {\n    return super.cry() + \" softly\";\n  }\n}\n\nconst bear = new Beast(\"bear\");\nconst kit = new Cub(\"cub\");\nconsole.log(bear.cry());\nconsole.log(kit.cry());\nconsole.log(kit instanceof Beast, bear instanceof Cub);",
+   "lang": "javascript",
+   "answer": "bear roars\ncub roars softly\ntrue false",
+   "explain": "`Cub` declares no constructor, so it inherits the parent's and `new Cub(\"cub\")` still sets `name`. Its `cry` overrides the parent's while calling into it through `super`, and `instanceof` walks the chain upward only, which is why a Cub is a Beast but a Beast is not a Cub.",
+   "concepts": [
+    "inheritance"
+   ],
+   "tags": [
+    "inheritance"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "js-6-e-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`report([\"a\", \"bb\"])` throws `TypeError: Cannot read properties of undefined (reading 'prefix')`. Fix `Labeller` without changing `report`; `report([\"a\", \"bb\"])` must return `[\"* a\", \"* bb\"]`.",
+   "fn": "report",
+   "starterCode": "class Labeller {\n  constructor(prefix) {\n    this.prefix = prefix;\n  }\n\n  label(word) {\n    return this.prefix + word;\n  }\n\n  labelAll(words) {\n    return words.map(this.label);\n  }\n}\n\nfunction report(words) {\n  return new Labeller(\"* \").labelAll(words);\n}",
+   "tests": [
+    {
+     "input": "[\"a\", \"bb\"]",
+     "expected": [
+      "* a",
+      "* bb"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[\"x\"]",
+     "expected": [
+      "* x"
+     ]
+    }
+   ],
+   "solution": "class Labeller {\n  constructor(prefix) {\n    this.prefix = prefix;\n  }\n\n  label(word) {\n    return this.prefix + word;\n  }\n\n  labelAll(words) {\n    return words.map((word) => this.label(word));\n  }\n}\n\nfunction report(words) {\n  return new Labeller(\"* \").labelAll(words);\n}",
+   "explain": "`words.map(this.label)` hands `map` the bare function, and `map` calls it with no receiver, so `this` is `undefined` inside `label`. Wrapping it in an arrow keeps the call as `this.label(word)` - a real method call with the instance to the left of the dot - and the empty-array test still passes because `map` simply never calls it.",
+   "hint": "Passing this.label loses the receiver. Call it, do not hand it over.",
+   "concepts": [
+    "this-binding",
+    "methods"
+   ],
+   "tags": [
+    "this-binding",
+    "methods"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "The `Shape` class is given: it stores a `name`, has `area()` returning `0`, and has `describe()` returning `this.name + \" has area \" + this.area()`. Write `class Square extends Shape` whose constructor takes `(side)`, passes `\"square\"` to `super`, stores `this.side`, and overrides `area()` to return the side squared. Then `squareLine(3)` must return `\"square has area 9\"`.",
+   "fn": "squareLine",
+   "starterCode": "class Shape {\n  constructor(name) {\n    this.name = name;\n  }\n\n  area() {\n    return 0;\n  }\n\n  describe() {\n    return this.name + \" has area \" + this.area();\n  }\n}\n\nclass Square extends Shape {\n  // constructor(side) and an overriding area()\n}\n\nfunction squareLine(side) {\n  return new Square(side).describe();\n}",
+   "tests": [
+    {
+     "input": "3",
+     "expected": "square has area 9"
+    },
+    {
+     "input": "0",
+     "expected": "square has area 0"
+    },
+    {
+     "input": "1.5",
+     "expected": "square has area 2.25"
+    }
+   ],
+   "solution": "class Shape {\n  constructor(name) {\n    this.name = name;\n  }\n\n  area() {\n    return 0;\n  }\n\n  describe() {\n    return this.name + \" has area \" + this.area();\n  }\n}\n\nclass Square extends Shape {\n  constructor(side) {\n    super(\"square\");\n    this.side = side;\n  }\n\n  area() {\n    return this.side * this.side;\n  }\n}\n\nfunction squareLine(side) {\n  return new Square(side).describe();\n}",
+   "explain": "`describe` was written on `Shape` and never edited, yet it reports the square's real area - because `this.area()` is resolved on the instance at call time and finds the override first. That single fact is what makes inheritance worth having: a parent can call forward into behaviour that did not exist when it was written.",
+   "hint": "super(\"square\") sets the name for you; only area() needs overriding.",
+   "concepts": [
+    "inheritance",
+    "class-syntax",
+    "prototype-chain"
+   ],
+   "tags": [
+    "inheritance",
+    "class-syntax",
+    "prototype-chain"
+   ],
+   "xp": 50
+  },
+  {
+   "id": "js-6-e-09",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The setup below has just run. Give the value of each expression, or the name of the exception it throws.",
+   "code": "class Clock {\n  constructor(tone) {\n    this.tone = tone;\n    this.chimeArrow = () => this.tone;\n  }\n\n  chime() {\n    return this.tone;\n  }\n}\n\nconst clock = new Clock(\"ding\");\nconst loose = clock.chime;\nconst looseArrow = clock.chimeArrow;",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "clock.chime()",
+     "expected": "ding"
+    },
+    {
+     "label": "loose()",
+     "expected": "TypeError"
+    },
+    {
+     "label": "looseArrow()",
+     "expected": "ding"
+    },
+    {
+     "label": "clock.hasOwnProperty(\"chime\")",
+     "expected": "false"
+    },
+    {
+     "label": "clock.hasOwnProperty(\"chimeArrow\")",
+     "expected": "true"
+    }
+   ],
+   "explain": "The two functions differ in where they live and in where their `this` comes from: `chime` sits on the prototype and takes `this` from the call site, so detaching it strands it; `chimeArrow` is an own property of the instance holding an arrow that captured `this` when the constructor ran. That is the whole trade - memory per instance in exchange for a binding nothing can knock loose.",
+   "concepts": [
+    "this-binding",
+    "prototype-chain"
+   ],
+   "tags": [
+    "this-binding",
+    "prototype-chain"
+   ],
+   "xp": 40
+  },
+  {
+   "id": "js-6-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Inventory`: the constructor takes an array of `{ name, qty }` objects and stores it as `this.items`; a getter `total` returns the sum of every `qty`; a method `add(name, qty)` appends `{ name, qty }` to `this.items` and returns the new `total`; and a static method `empty()` returns a new `Inventory` holding no items. Then write `stockReport(items, name, qty)`, which builds an `Inventory` from `items`, calls `add(name, qty)`, and returns `[inventory.total, Inventory.empty().total]`.",
+   "fn": "stockReport",
+   "starterCode": "class Inventory {\n  constructor(items) {\n    // store the array of { name, qty } objects\n  }\n\n  // get total() { ... }\n\n  add(name, qty) {\n    // push, then return the new total\n  }\n\n  // static empty() { ... }\n}\n\nfunction stockReport(items, name, qty) {\n  // build, add, then return the two totals\n}",
+   "tests": [
+    {
+     "input": "[{ name: \"rope\", qty: 2 }], \"torch\", 3",
+     "expected": [
+      5,
+      0
+     ]
+    },
+    {
+     "input": "[], \"torch\", 0",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[{ name: \"vial\", qty: -1 }], \"flint\", 1",
+     "expected": [
+      0,
+      0
+     ]
+    }
+   ],
+   "solution": "class Inventory {\n  constructor(items) {\n    this.items = items;\n  }\n\n  get total() {\n    let sum = 0;\n    for (const item of this.items) {\n      sum += item.qty;\n    }\n    return sum;\n  }\n\n  add(name, qty) {\n    this.items.push({ name: name, qty: qty });\n    return this.total;\n  }\n\n  static empty() {\n    return new Inventory([]);\n  }\n}\n\nfunction stockReport(items, name, qty) {\n  const inventory = new Inventory(items);\n  inventory.add(name, qty);\n  return [inventory.total, Inventory.empty().total];\n}",
+   "explain": "All four members pull in the same direction: the constructor takes the raw data, the method is the only sanctioned way to change it, the getter derives a number nobody has to keep in step, and the static builds an instance when there is none to start from. `add` can end with `return this.total` because reading a getter inside a method is an ordinary property read on `this`.",
+   "hint": "add pushes then returns this.total; empty() is static and takes no arguments.",
+   "concepts": [
+    "getters",
+    "static-methods",
+    "methods",
+    "class-syntax"
+   ],
+   "tags": [
+    "getters",
+    "static-methods",
+    "methods",
+    "class-syntax"
+   ],
+   "xp": 50
+  }
+ ]
+}

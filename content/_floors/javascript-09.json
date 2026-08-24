@@ -1,0 +1,717 @@
+{
+ "n": 9,
+ "name": "The Drafting Room",
+ "concepts": [
+  "contracts",
+  "validation",
+  "narrowing",
+  "generic-utilities"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "unseen-challenge",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Designing Before Writing",
+  "sections": [
+   {
+    "title": "A Signature Is a Promise",
+    "body": "Before the body exists, the **signature** already commits you: what goes in, what comes out, and what happens when the input is wrong.\n\nTypeScript is the usual way to write that down, but it is a compiler, and this floor runs plain JavaScript in a sandbox with no build step. So the contract is written as a JSDoc comment and enforced at runtime instead - the thinking is identical, only the enforcement differs.\n\nDecide the contract first. A function whose failure behaviour you cannot state in one sentence is not designed yet.",
+    "code": "/**\n * @param {number[]} xs - values to average\n * @returns {number} the mean, or 0 for an empty array\n */\nfunction mean(xs) {\n  if (xs.length === 0) return 0;\n  return xs.reduce((a, b) => a + b, 0) / xs.length;\n}\n\nconsole.log(mean([2, 4, 6]));\nconsole.log(mean([]));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The empty case is part of the contract, not an afterthought discovered by a crash."
+     },
+     {
+      "line": 6,
+      "text": "Because the contract named it, the guard is one line at the top."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "lastOr",
+     "prompt": "Design `lastOr(xs, fallback)`: it returns the last element of the array, or the fallback when the array is empty. Decide the contract, then write it. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[1, 2, 3], 0",
+       "expected": 3
+      },
+      {
+       "input": "[], 99",
+       "expected": 99
+      },
+      {
+       "input": "[0], 99",
+       "expected": 0
+      }
+     ],
+     "solution": "function lastOr(xs, fallback) {\n  if (xs.length === 0) return fallback;\n  return xs[xs.length - 1];\n}",
+     "concepts": [
+      "contracts"
+     ],
+     "explain": "The third test is the design question in miniature: a last element of 0 is a real answer, so the empty check must be about length rather than about the value being truthy."
+    }
+   },
+   {
+    "title": "Validate at the Boundary, Trust Inside",
+    "body": "If every function defends against every possible input, the defending is the program. The discipline is to **validate once, at the edge**, and let everything inside assume a clean value.\n\nA boundary check either throws with a message that names the problem, or returns a normalised value. What it must never do is silently continue with something malformed.\n\nThe test for a good boundary: after it, can you write the rest without any `if` about shape?",
+    "code": "function parseAge(raw) {\n  const n = Number(raw);\n  if (!Number.isInteger(n) || n < 0) {\n    throw new Error(\"age must be a non-negative integer, got: \" + raw);\n  }\n  return n;\n}\n\nconsole.log(parseAge(\"42\"));\ntry {\n  parseAge(\"abc\");\n} catch (e) {\n  console.log(e.message);\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The message names the rule and shows the offending value - that is what makes it debuggable."
+     },
+     {
+      "line": 6,
+      "text": "Everything downstream now has a real integer and needs no further checking."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "parsePositive",
+     "prompt": "Design `parsePositive(raw)`: convert the input to a number and return it if it is greater than zero. Otherwise throw an `Error` whose message contains the word `invalid`. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "'5'",
+       "expected": 5
+      },
+      {
+       "input": "12",
+       "expected": 12
+      },
+      {
+       "input": "'0'",
+       "throws": "invalid"
+      },
+      {
+       "input": "'abc'",
+       "throws": "invalid"
+      }
+     ],
+     "solution": "function parsePositive(raw) {\n  const n = Number(raw);\n  if (!(n > 0)) {\n    throw new Error(\"invalid: \" + raw);\n  }\n  return n;\n}",
+     "concepts": [
+      "validation"
+     ],
+     "explain": "Writing the guard as `!(n > 0)` rather than `n <= 0` also rejects NaN, since every comparison with NaN is false. That single detail is the difference between a boundary that holds and one that lets `Number('abc')` straight through."
+    }
+   },
+   {
+    "title": "Narrowing Instead of Assuming",
+    "body": "When a value may be one of several shapes, **narrowing** is how you find out which, before doing anything that depends on it.\n\n`typeof` distinguishes primitives, `Array.isArray` distinguishes arrays from other objects, and `value === null` has to be checked explicitly because `typeof null` is `\"object\"`.\n\nHandle each shape in its own branch and the function stays readable. Guess the shape and it fails on the input you did not picture.",
+    "code": "function describe(v) {\n  if (v === null) return \"null\";\n  if (Array.isArray(v)) return \"array of \" + v.length;\n  if (typeof v === \"string\") return \"text\";\n  if (typeof v === \"number\") return \"number\";\n  return typeof v;\n}\n\nconsole.log(describe(null));\nconsole.log(describe([1, 2]));\nconsole.log(describe(\"hi\"));\nconsole.log(describe({}));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "null must be first: typeof null is 'object', so a later object branch would claim it."
+     },
+     {
+      "line": 3,
+      "text": "Arrays are objects too, so isArray has to come before any object handling."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "sizeOf",
+     "prompt": "Design `sizeOf(v)`: return the length for a string or an array, the number of keys for a plain object, and `0` for `null` or `undefined`. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "'abc'",
+       "expected": 3
+      },
+      {
+       "input": "[1, 2]",
+       "expected": 2
+      },
+      {
+       "input": "null",
+       "expected": 0
+      }
+     ],
+     "solution": "function sizeOf(v) {\n  if (v === null || v === undefined) return 0;\n  if (typeof v === \"string\" || Array.isArray(v)) return v.length;\n  if (typeof v === \"object\") return Object.keys(v).length;\n  return 0;\n}",
+     "concepts": [
+      "narrowing"
+     ],
+     "explain": "The order of the branches is the design. Checking nullish first means the object branch never has to wonder about null, and testing arrays before objects keeps `Object.keys` away from a value that has a perfectly good length."
+    }
+   },
+   {
+    "title": "One Function, Many Element Types",
+    "body": "A utility that works over any array should not care what the elements are. In TypeScript that is a generic; here it is simply a function that never inspects the element itself.\n\nThe discipline is to take behaviour as a parameter - a key function, a comparator, a predicate - rather than hard-coding an assumption about the data.\n\nIf your utility mentions a property name, it is no longer general.",
+    "code": "function groupBy(xs, keyFn) {\n  const out = {};\n  for (const x of xs) {\n    const k = keyFn(x);\n    (out[k] = out[k] || []).push(x);\n  }\n  return out;\n}\n\nconsole.log(groupBy([1, 2, 3, 4], n => (n % 2 === 0 ? \"even\" : \"odd\")));\nconsole.log(groupBy([\"aa\", \"b\"], s => s.length));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The caller decides what the key is, so groupBy never mentions a property name."
+     },
+     {
+      "line": 10,
+      "text": "The same function groups numbers and strings because it never inspects the element."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "uniqueBy",
+     "prompt": "Design `uniqueBy(xs, keyFn)`: return the elements whose key is seen for the first time, preserving order. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[1, 2, 1, 3], n => n",
+       "expected": [
+        1,
+        2,
+        3
+       ]
+      },
+      {
+       "input": "[], n => n",
+       "expected": []
+      },
+      {
+       "input": "[{id:1},{id:1},{id:2}], o => o.id",
+       "expected": [
+        {
+         "id": 1
+        },
+        {
+         "id": 2
+        }
+       ]
+      }
+     ],
+     "solution": "function uniqueBy(xs, keyFn) {\n  const seen = new Set();\n  const out = [];\n  for (const x of xs) {\n    const k = keyFn(x);\n    if (!seen.has(k)) {\n      seen.add(k);\n      out.push(x);\n    }\n  }\n  return out;\n}",
+     "concepts": [
+      "generic-utilities"
+     ],
+     "explain": "Deduplicating on the key while returning the original element is what makes this useful for objects, where the elements are never equal but the keys are. A bare `new Set(xs)` would return nothing useful for the third test."
+    }
+   }
+  ]
+ },
+ "unseen-challenge": [
+  {
+   "id": "js-9-u-01",
+   "type": "design",
+   "layer": "application",
+   "fn": "clampToRange",
+   "prompt": "Design `clampToRange(value, min, max)`. It returns the value constrained to the range. If `min` is greater than `max`, throw an `Error` whose message contains `range`. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "5, 1, 10",
+     "expected": 5
+    },
+    {
+     "input": "-3, 0, 10",
+     "expected": 0
+    },
+    {
+     "input": "99, 0, 10",
+     "expected": 10
+    },
+    {
+     "input": "5, 5, 5",
+     "expected": 5
+    }
+   ],
+   "solution": "function clampToRange(value, min, max) {\n  if (min > max) {\n    throw new Error(\"invalid range: min above max\");\n  }\n  if (value < min) return min;\n  if (value > max) return max;\n  return value;\n}",
+   "concepts": [
+    "contracts",
+    "validation"
+   ],
+   "tags": [
+    "contracts",
+    "validation"
+   ],
+   "explain": "The impossible-range check belongs first, before any clamping, because afterwards there is no sensible answer to return. The degenerate min equals max case is the one people forget, and it must return that single value rather than throw.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-u-02",
+   "type": "design",
+   "layer": "application",
+   "fn": "toNumberList",
+   "prompt": "Design `toNumberList(values)`. It takes an array whose elements may be numbers or numeric strings and returns an array of numbers, skipping anything that does not convert to a finite number. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1, '2', 'x', 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['abc', null, undefined]",
+     "expected": []
+    },
+    {
+     "input": "['0', 0]",
+     "expected": [
+      0,
+      0
+     ]
+    }
+   ],
+   "solution": "function toNumberList(values) {\n  const out = [];\n  for (const v of values) {\n    if (v === null || v === undefined || v === \"\") continue;\n    const n = Number(v);\n    if (Number.isFinite(n)) out.push(n);\n  }\n  return out;\n}",
+   "concepts": [
+    "validation",
+    "narrowing"
+   ],
+   "tags": [
+    "validation",
+    "narrowing"
+   ],
+   "explain": "`Number(null)` is 0 and `Number('')` is 0, so converting first and filtering afterwards silently invents zeroes. Rejecting those inputs before conversion is what makes the fourth test - where genuine zeroes must survive - come out right.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-u-03",
+   "type": "design",
+   "layer": "application",
+   "fn": "partition",
+   "prompt": "Design `partition(xs, predicate)`. Return an array of exactly two arrays: the elements for which the predicate is true, then the rest. Order is preserved in both. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4], n => n % 2 === 0",
+     "expected": [
+      [
+       2,
+       4
+      ],
+      [
+       1,
+       3
+      ]
+     ]
+    },
+    {
+     "input": "[], n => true",
+     "expected": [
+      [],
+      []
+     ]
+    },
+    {
+     "input": "[1, 2], n => false",
+     "expected": [
+      [],
+      [
+       1,
+       2
+      ]
+     ]
+    }
+   ],
+   "solution": "function partition(xs, predicate) {\n  const yes = [];\n  const no = [];\n  for (const x of xs) {\n    if (predicate(x)) yes.push(x);\n    else no.push(x);\n  }\n  return [yes, no];\n}",
+   "concepts": [
+    "generic-utilities"
+   ],
+   "tags": [
+    "generic-utilities"
+   ],
+   "explain": "One pass with two accumulators beats calling filter twice, and more importantly it guarantees the two halves partition the input exactly - two independent filters can drift apart if the predicate is not pure.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-u-04",
+   "type": "design",
+   "layer": "application",
+   "fn": "safeGet",
+   "prompt": "Design `safeGet(obj, path, fallback)`. `path` is an array of keys. Walk them in order and return the value found, or the fallback if any step is missing. It must never throw. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "{a:{b:{c:7}}}, ['a','b','c'], 0",
+     "expected": 7
+    },
+    {
+     "input": "{a:{}}, ['a','b'], 'none'",
+     "expected": "none"
+    },
+    {
+     "input": "{}, [], 'empty'",
+     "expected": {}
+    },
+    {
+     "input": "{a:{b:0}}, ['a','b'], 99",
+     "expected": 0
+    }
+   ],
+   "solution": "function safeGet(obj, path, fallback) {\n  let cur = obj;\n  for (const key of path) {\n    if (cur === null || cur === undefined || !(key in Object(cur))) {\n      return fallback;\n    }\n    cur = cur[key];\n  }\n  return cur;\n}",
+   "concepts": [
+    "narrowing",
+    "generic-utilities"
+   ],
+   "tags": [
+    "narrowing",
+    "generic-utilities"
+   ],
+   "explain": "An empty path means no steps were requested, so the object itself is the answer - falling back there would be wrong. The fourth test forces presence checking rather than truthiness, since a stored 0 must be returned rather than replaced by the fallback.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-9-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "console.log(typeof null);\nconsole.log(Array.isArray([]));\nconsole.log(typeof []);",
+   "lang": "javascript",
+   "answer": "object\ntrue\nobject",
+   "concepts": [
+    "narrowing"
+   ],
+   "tags": [
+    "narrowing"
+   ],
+   "explain": "Both null and arrays report as 'object', which is exactly why narrowing needs an explicit null check and Array.isArray rather than typeof alone.",
+   "xp": 20
+  },
+  {
+   "id": "js-9-e-02",
+   "type": "design",
+   "layer": "application",
+   "fn": "countBy",
+   "prompt": "Design `countBy(xs, keyFn)` returning an object mapping each key to how many elements produced it. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1,2,3,4], n => (n % 2 === 0 ? 'even' : 'odd')",
+     "expected": {
+      "odd": 2,
+      "even": 2
+     }
+    },
+    {
+     "input": "[], n => n",
+     "expected": {}
+    },
+    {
+     "input": "['a'], s => s",
+     "expected": {
+      "a": 1
+     }
+    }
+   ],
+   "solution": "function countBy(xs, keyFn) {\n  const out = {};\n  for (const x of xs) {\n    const k = keyFn(x);\n    out[k] = (out[k] || 0) + 1;\n  }\n  return out;\n}",
+   "concepts": [
+    "generic-utilities"
+   ],
+   "tags": [
+    "generic-utilities"
+   ],
+   "explain": "Taking the key function as a parameter is what keeps this usable for any element type. `(out[k] || 0) + 1` is safe here because counts are never legitimately falsy once stored.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-e-03",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Why does `!(n > 0)` reject `NaN` where `n <= 0` does not?",
+   "choices": [
+    "NaN is coerced to 0 by the comparison",
+    "Every comparison involving NaN is false, so the negation is true",
+    "NaN is less than every number",
+    "They behave identically"
+   ],
+   "answer": 1,
+   "concepts": [
+    "validation"
+   ],
+   "tags": [
+    "validation"
+   ],
+   "explain": "NaN compares false against everything, including itself. So `NaN > 0` is false and its negation is true, while `NaN <= 0` is also false and lets the value straight through the guard.",
+   "xp": 10
+  },
+  {
+   "id": "js-9-e-04",
+   "type": "design",
+   "layer": "application",
+   "fn": "zip",
+   "prompt": "Design `zip(a, b)` returning an array of pairs, stopping at the shorter input. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1,2,3], ['a','b','c']",
+     "expected": [
+      [
+       1,
+       "a"
+      ],
+      [
+       2,
+       "b"
+      ],
+      [
+       3,
+       "c"
+      ]
+     ]
+    },
+    {
+     "input": "[1,2], ['a']",
+     "expected": [
+      [
+       1,
+       "a"
+      ]
+     ]
+    },
+    {
+     "input": "[], []",
+     "expected": []
+    }
+   ],
+   "solution": "function zip(a, b) {\n  const n = Math.min(a.length, b.length);\n  const out = [];\n  for (let i = 0; i < n; i++) {\n    out.push([a[i], b[i]]);\n  }\n  return out;\n}",
+   "concepts": [
+    "generic-utilities",
+    "contracts"
+   ],
+   "tags": [
+    "generic-utilities",
+    "contracts"
+   ],
+   "explain": "Deciding up front to stop at the shorter input is the contract; taking Math.min once expresses it in a single place. Looping to the longer length would silently pair real values with undefined.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-e-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A utility function takes an options object and quietly ignores any key it does not recognise. Argue for and against that choice, then say which you would ship and why.",
+   "rubric": {
+    "required": [
+     "typo",
+     "silent"
+    ],
+    "optional": [
+     "strict",
+     "forwards",
+     "compatible",
+     "throw",
+     "warn",
+     "debug"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "contracts",
+    "validation"
+   ],
+   "tags": [
+    "contracts",
+    "validation"
+   ],
+   "explain": "Ignoring unknown keys keeps callers working across versions, but it turns a misspelt option into behaviour that silently never applies. Rejecting unknown keys catches typos immediately at the cost of brittleness - which is why libraries often warn rather than choosing either extreme.",
+   "xp": 50
+  },
+  {
+   "id": "js-9-e-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the guard rejects both a negative number and NaN.",
+   "template": "if (___(n ___ 0)) {\n  throw new Error('invalid');\n}",
+   "blanks": [
+    "!",
+    ">="
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "validation"
+   ],
+   "tags": [
+    "validation"
+   ],
+   "explain": "Negating a positive assertion is what catches NaN, because NaN makes the inner comparison false and the negation therefore true. Writing the negative condition directly would let NaN pass.",
+   "xp": 20
+  },
+  {
+   "id": "js-9-e-07",
+   "type": "design",
+   "layer": "application",
+   "fn": "normaliseInput",
+   "prompt": "Design `normaliseInput(v)`. Return an array: an array is returned as-is, `null` and `undefined` become `[]`, and any other value becomes a single-element array. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1,2]",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "null",
+     "expected": []
+    },
+    {
+     "input": "'x'",
+     "expected": [
+      "x"
+     ]
+    },
+    {
+     "input": "0",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "solution": "function normaliseInput(v) {\n  if (v === null || v === undefined) return [];\n  if (Array.isArray(v)) return v;\n  return [v];\n}",
+   "concepts": [
+    "narrowing",
+    "contracts"
+   ],
+   "tags": [
+    "narrowing",
+    "contracts"
+   ],
+   "explain": "This is the boundary pattern in one function: after it, every caller can assume an array and stop branching. The fourth test matters because a falsy 0 is a real value that must be wrapped, not discarded.",
+   "xp": 100
+  },
+  {
+   "id": "js-9-e-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these so narrowing happens in an order that cannot misclassify a value.",
+   "fragments": [
+    "if (v === null) return 'null';",
+    "if (Array.isArray(v)) return 'array';",
+    "if (typeof v === 'object') return 'object';",
+    "return typeof v;"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "narrowing"
+   ],
+   "tags": [
+    "narrowing"
+   ],
+   "explain": "Both null and arrays would be captured by the object branch, so each needs its own test first. Ordering narrowing checks from most specific to most general is the general rule this illustrates.",
+   "xp": 20
+  },
+  {
+   "id": "js-9-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are designing a function before writing its body. What questions do you answer first, and why does answering them first change the code you end up with?",
+   "rubric": {
+    "required": [
+     "input",
+     "return"
+    ],
+    "optional": [
+     "edge",
+     "empty",
+     "error",
+     "throw",
+     "contract",
+     "invalid"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "contracts"
+   ],
+   "tags": [
+    "contracts"
+   ],
+   "explain": "Naming what goes in, what comes out and what happens on invalid input forces the edge cases into the design rather than leaving them to be discovered by a failing test. Functions designed this way tend to have their guards at the top and no defensive checks scattered through the body.",
+   "xp": 50
+  },
+  {
+   "id": "js-9-e-10",
+   "type": "design",
+   "layer": "application",
+   "fn": "chunk",
+   "prompt": "Design `chunk(xs, size)` splitting the array into consecutive groups of at most `size`. Throw an `Error` containing `size` if `size` is not a positive integer. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1,2,3,4,5], 2",
+     "expected": [
+      [
+       1,
+       2
+      ],
+      [
+       3,
+       4
+      ],
+      [
+       5
+      ]
+     ]
+    },
+    {
+     "input": "[], 3",
+     "expected": []
+    },
+    {
+     "input": "[1,2], 5",
+     "expected": [
+      [
+       1,
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[1,2,3], 1",
+     "expected": [
+      [
+       1
+      ],
+      [
+       2
+      ],
+      [
+       3
+      ]
+     ]
+    }
+   ],
+   "solution": "function chunk(xs, size) {\n  if (!Number.isInteger(size) || size <= 0) {\n    throw new Error(\"size must be a positive integer\");\n  }\n  const out = [];\n  for (let i = 0; i < xs.length; i += size) {\n    out.push(xs.slice(i, i + size));\n  }\n  return out;\n}",
+   "concepts": [
+    "contracts",
+    "validation",
+    "generic-utilities"
+   ],
+   "tags": [
+    "contracts",
+    "validation",
+    "generic-utilities"
+   ],
+   "explain": "Validating size first is what stops a size of 0 turning the loop into an infinite one - the guard is protecting the algorithm, not just the caller. `slice` clamps past the end on its own, so the ragged final group needs no special case.",
+   "xp": 100
+  }
+ ]
+}

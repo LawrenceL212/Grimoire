@@ -1502,8 +1502,11 @@ function splitSentinel(stdout) {
    challenges in the same source exercise. */
 async function runOneTest(dungeon, ch, userCode, test, carry) {
   const rt = runtimeFor(dungeon);
+  const wants = test.throws
+    ? (typeof test.throws === "string" ? `throws ${test.throws}` : "throws")
+    : jlit(test.expected);
   const label = test.label || (ch.fn
-    ? `${ch.constant ? ch.fn : `${ch.fn}(${test.input ?? ""})`} -> ${jlit(test.expected)}`
+    ? `${ch.constant ? ch.fn : `${ch.fn}(${test.input ?? ""})`} -> ${wants}`
     : "program output");
   const full = (carry ? carry + "\n\n" : "") + userCode;
   const stdinLines = ch.fn ? [] : String(test.input ?? "").split("\n").filter((x) => x.length);
@@ -1534,6 +1537,19 @@ async function runOneTest(dungeon, ch, userCode, test, carry) {
   if (ch.fn && (rt === "pyodide" || rt === "worker")) {
     if (!split.payload) {
       return { ok: false, label, error: r.stderr || "Your code did not finish running." };
+    }
+    // a test may assert that the call throws; the message can be constrained
+    if (test.throws) {
+      const threw = !split.payload.ok;
+      const msg = String(split.payload.v ?? "");
+      const matches = typeof test.throws === "string"
+        ? msg.toLowerCase().includes(test.throws.toLowerCase())
+        : true;
+      return {
+        ok: threw && matches, label,
+        expected: typeof test.throws === "string" ? `error containing "${test.throws}"` : "an error",
+        actual: threw ? msg : `returned ${split.payload.v} without throwing`,
+      };
     }
     if (!split.payload.ok) return { ok: false, label, error: split.payload.v };
     let parsed, ok;

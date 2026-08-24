@@ -1,0 +1,955 @@
+{
+ "n": 5,
+ "name": "The Cartographer's Table",
+ "concepts": [
+  "objects",
+  "destructuring",
+  "optional-chaining",
+  "nullish-coalescing"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "level-project",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Shaping Data",
+  "sections": [
+   {
+    "title": "Objects Are Named Slots",
+    "body": "An **object** stores values under names instead of positions. You read a property with dot notation when you know the name, and with brackets when the name is itself a value.\n\n`Object.keys`, `Object.values` and `Object.entries` turn an object back into arrays, which is how you get from a record to something you can `map` over.\n\nA missing property is `undefined` rather than an error - which is convenient until it hides a typo.",
+    "code": "const book = { title: \"Dune\", year: 1965 };\nconsole.log(book.title);\nconsole.log(book[\"year\"]);\nconsole.log(book.author);\nconsole.log(Object.keys(book));\nconsole.log(Object.entries(book));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "No such property, so undefined - not a crash. A misspelt key looks exactly like this."
+     },
+     {
+      "line": 6,
+      "text": "entries gives [key, value] pairs, ready to map or filter."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "titleOf",
+     "prompt": "Write `titleOf(book)` returning the book's `title` property.",
+     "starterCode": "function titleOf(book) {\n  \n}\n",
+     "tests": [
+      {
+       "input": "{ title: 'Dune' }",
+       "expected": "Dune"
+      },
+      {
+       "input": "{ title: '', year: 1965 }",
+       "expected": ""
+      }
+     ],
+     "solution": "function titleOf(book) {\n  return book.title;\n}",
+     "concepts": [
+      "objects"
+     ],
+     "explain": "Dot access reads the slot by name. The empty-string case matters because `''` is falsy - anything that tests the value rather than returning it would quietly get this wrong.",
+     "hint1": "Use dot notation."
+    }
+   },
+   {
+    "title": "Destructuring Pulls Values Out",
+    "body": "**Destructuring** unpacks properties into variables in one step, so you name what you need once instead of repeating the object.\n\nYou can rename with `:`, supply a default with `=` for when a property is missing, and collect whatever is left with `...rest`.\n\nA default fires only for `undefined` - a property that is present and `null` keeps its `null`.",
+    "code": "const cfg = { host: \"localhost\", port: 8080, tls: null };\nconst { host, port = 3000, tls = true, mode = \"dev\", ...rest } = cfg;\nconsole.log(host, port, mode);\nconsole.log(tls);\nconsole.log(rest);\n\nconst [first, second = 0] = [10];\nconsole.log(first, second);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "port is present so 8080 wins; mode is absent so the default applies."
+     },
+     {
+      "line": 4,
+      "text": "tls is null, not undefined, so the default does NOT fire."
+     },
+     {
+      "line": 7,
+      "text": "Arrays destructure by position, and defaults work the same way."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const { a = 1, b = 2 } = { a: undefined, b: null };\nconsole.log(a);\nconsole.log(b);",
+     "lang": "javascript",
+     "answer": "1\nnull",
+     "concepts": [
+      "destructuring"
+     ],
+     "explain": "Defaults are triggered by `undefined` alone. `null` is a value someone chose, so destructuring leaves it in place - which is the whole reason `??` exists."
+    }
+   },
+   {
+    "title": "Reaching Into Nested Data Safely",
+    "body": "Real data is nested and often incomplete. `a.b.c` throws the moment `a.b` is undefined, which turns one missing field into a crash.\n\n**Optional chaining** `?.` stops and yields `undefined` instead of throwing. It works on properties, array indexes with `?.[i]` and calls with `?.()`.\n\nIt short-circuits: once the left side is nullish, nothing further is evaluated.",
+    "code": "const user = { name: \"Mira\", address: { city: \"Ankh\" } };\nconsole.log(user.address?.city);\nconsole.log(user.contact?.email);\nconsole.log(user.tags?.[0]);\nconsole.log(user.greet?.());",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "contact is missing, so the whole expression is undefined rather than a TypeError."
+     },
+     {
+      "line": 5,
+      "text": "?.() calls the function only if it exists."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "cityOf",
+     "prompt": "Write `cityOf(user)` returning `user.address.city`, or the string `\"unknown\"` if either the address or the city is missing. It must not throw.",
+     "starterCode": "function cityOf(user) {\n  \n}\n",
+     "tests": [
+      {
+       "input": "{ address: { city: 'Ankh' } }",
+       "expected": "Ankh"
+      },
+      {
+       "input": "{}",
+       "expected": "unknown"
+      },
+      {
+       "input": "{ address: {} }",
+       "expected": "unknown"
+      }
+     ],
+     "solution": "function cityOf(user) {\n  return user.address?.city ?? \"unknown\";\n}",
+     "concepts": [
+      "optional-chaining"
+     ],
+     "explain": "One `?.` guards the whole chain because it short-circuits, and `??` turns the resulting undefined into a value the caller can actually use. Returning undefined would push the missing-data problem downstream.",
+     "hint1": "Put ?. after address."
+    }
+   },
+   {
+    "title": "Defaults That Respect Zero",
+    "body": "`||` falls back whenever the left side is **falsy**, which includes `0`, `\"\"` and `false` - all legitimate values someone may have chosen.\n\n`??` falls back only when the left side is `null` or `undefined`. That distinction is the difference between a setting of zero being honoured and being silently overwritten.\n\nReach for `??` for defaults and keep `||` for genuine truthiness tests.",
+    "code": "const settings = { volume: 0, label: \"\", retries: null };\nconsole.log(settings.volume || 10);\nconsole.log(settings.volume ?? 10);\nconsole.log(settings.label || \"none\");\nconsole.log(settings.label ?? \"none\");\nconsole.log(settings.retries ?? 3);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "0 is falsy, so || throws away a deliberate setting of zero."
+     },
+     {
+      "line": 3,
+      "text": "?? keeps the 0 because it is neither null nor undefined."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const n = 0;\nconsole.log(n || 5);\nconsole.log(n ?? 5);",
+     "lang": "javascript",
+     "answer": "5\n0",
+     "concepts": [
+      "nullish-coalescing"
+     ],
+     "explain": "This one line is why `??` was added to the language: `||` cannot tell a deliberate zero from an absent value, and volume, counts and coordinates are all legitimately zero."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-5-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const p = { x: 1, y: 2 };\nconsole.log(Object.keys(p).length);",
+   "lang": "javascript",
+   "answer": "2",
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "Object.keys returns an array, so length counts the properties. This is the usual way to ask how many keys an object has, since objects have no length of their own.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-g-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "countKeys",
+   "prompt": "Write `countKeys(obj)` returning how many own properties the object has.",
+   "starterCode": "function countKeys(obj) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ a: 1, b: 2 }",
+     "expected": 2
+    },
+    {
+     "input": "{}",
+     "expected": 0
+    },
+    {
+     "input": "{ only: null }",
+     "expected": 1
+    }
+   ],
+   "solution": "function countKeys(obj) {\n  return Object.keys(obj).length;\n}",
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "A property holding null still exists, so it counts. Object.keys asks about presence, not about whether the value is useful - which is exactly what a count should mean.",
+   "hint": "Object.keys gives you an array.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this pulls `title` and `year` out of the book in one statement.",
+   "template": "const ___ title, year ___ = book;",
+   "blanks": [
+    "{",
+    "}"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "destructuring"
+   ],
+   "tags": [
+    "destructuring"
+   ],
+   "explain": "Object destructuring mirrors the literal syntax: braces on the left take apart what braces on the right put together.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-g-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "fullName",
+   "prompt": "Write `fullName(person)` that destructures `first` and `last` and returns them joined by a space. If `last` is missing, use `\"Unknown\"`.",
+   "starterCode": "function fullName(person) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ first: 'Mira', last: 'Vale' }",
+     "expected": "Mira Vale"
+    },
+    {
+     "input": "{ first: 'Corvin' }",
+     "expected": "Corvin Unknown"
+    },
+    {
+     "input": "{ first: '', last: '' }",
+     "expected": " "
+    }
+   ],
+   "solution": "function fullName(person) {\n  const { first, last = \"Unknown\" } = person;\n  return first + \" \" + last;\n}",
+   "concepts": [
+    "destructuring"
+   ],
+   "tags": [
+    "destructuring"
+   ],
+   "explain": "The default fires for the absent last name but not for the empty string, because only undefined triggers it. That third test is what separates a default from a truthiness check.",
+   "hint": "Give last a default inside the braces.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const o = { a: { b: null } };\nconsole.log(o.a?.b?.c);\nconsole.log(o.z?.y);",
+   "lang": "javascript",
+   "answer": "undefined\nundefined",
+   "concepts": [
+    "optional-chaining"
+   ],
+   "tags": [
+    "optional-chaining"
+   ],
+   "explain": "Both chains stop at a nullish link and yield undefined. Without the `?.` the first line would throw, because you cannot read a property of null.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-g-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "portOf",
+   "prompt": "This should return the configured port, keeping a port of 0 if that is what was set. It does not. Fix it.",
+   "starterCode": "function portOf(config) {\n  return config.port || 8080;\n}\n",
+   "tests": [
+    {
+     "input": "{ port: 3000 }",
+     "expected": 3000
+    },
+    {
+     "input": "{ port: 0 }",
+     "expected": 0
+    },
+    {
+     "input": "{}",
+     "expected": 8080
+    }
+   ],
+   "solution": "function portOf(config) {\n  return config.port ?? 8080;\n}",
+   "concepts": [
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "nullish-coalescing"
+   ],
+   "explain": "`||` treats a port of 0 as absent and replaces it. `??` only replaces null and undefined, so a deliberate zero survives - the exact bug that makes configuration systems ignore what you asked for.",
+   "hint": "Which operator distinguishes absent from falsy?",
+   "xp": 50
+  },
+  {
+   "id": "js-5-g-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "restOf",
+   "prompt": "Write `restOf(obj)` that removes the `id` property and returns everything else as a new object, without mutating the original.",
+   "starterCode": "function restOf(obj) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ id: 1, name: 'a', ok: true }",
+     "expected": {
+      "name": "a",
+      "ok": true
+     }
+    },
+    {
+     "input": "{ id: 9 }",
+     "expected": {}
+    },
+    {
+     "input": "{ name: 'no id here' }",
+     "expected": {
+      "name": "no id here"
+     }
+    }
+   ],
+   "solution": "function restOf(obj) {\n  const { id, ...rest } = obj;\n  return rest;\n}",
+   "concepts": [
+    "destructuring",
+    "objects"
+   ],
+   "tags": [
+    "destructuring",
+    "objects"
+   ],
+   "explain": "Rest in destructuring builds a fresh object from what is left, so the caller's data is untouched. Deleting the key with `delete` would work but would mutate an object you do not own.",
+   "hint": "Destructure id out and collect ...rest.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-g-08",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the value of `out` as this loop runs over the entries.",
+   "code": "let out = 0;\nfor (const [k, v] of Object.entries({ a: 1, b: 2, c: 3 })) {\n  out += v;\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "after the a entry",
+     "expected": "1"
+    },
+    {
+     "label": "after the b entry",
+     "expected": "3"
+    },
+    {
+     "label": "after the c entry",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "Object.entries turns the record into pairs, and destructuring in the loop header names them. Naming the running total at each step is how you catch an accumulator declared inside the loop instead of outside it.",
+   "xp": 40
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "js-5-c-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "pluck",
+   "prompt": "Write `pluck(records, key)` returning an array of that property from every record. Records missing the key contribute `null`.",
+   "starterCode": "function pluck(records, key) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "[{ a: 1 }, { a: 2 }], 'a'",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[{ a: 1 }, { b: 9 }], 'a'",
+     "expected": [
+      1,
+      null
+     ]
+    },
+    {
+     "input": "[], 'a'",
+     "expected": []
+    }
+   ],
+   "solution": "function pluck(records, key) {\n  return records.map(r => r[key] ?? null);\n}",
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "Bracket access is required because the key is a value, not a literal name. Mapping missing values to null keeps the output the same length as the input, which anything downstream will assume.",
+   "hint": "Bracket notation, then ?? null.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-c-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "withDefaults",
+   "prompt": "Write `withDefaults(config)` returning a new object where a missing or nullish `host` becomes `\"localhost\"` and a missing or nullish `port` becomes `8080`. Values already present - including `0` - are kept.",
+   "starterCode": "function withDefaults(config) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ host: 'example.com', port: 443 }",
+     "expected": {
+      "host": "example.com",
+      "port": 443
+     }
+    },
+    {
+     "input": "{ port: 0 }",
+     "expected": {
+      "host": "localhost",
+      "port": 0
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {
+      "host": "localhost",
+      "port": 8080
+     }
+    }
+   ],
+   "solution": "function withDefaults(config) {\n  return {\n    host: config.host ?? \"localhost\",\n    port: config.port ?? 8080\n  };\n}",
+   "concepts": [
+    "nullish-coalescing",
+    "objects"
+   ],
+   "tags": [
+    "nullish-coalescing",
+    "objects"
+   ],
+   "explain": "Building a new object rather than assigning into the caller's keeps the function pure. Using `??` per field is what lets port 0 survive while a genuinely absent port still gets a default.",
+   "hint": "Return an object literal built from ?? expressions.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-c-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "deepGet",
+   "prompt": "Write `deepGet(obj)` returning `obj.data.items[0].name`, or the string `\"missing\"` if any link in that chain is absent. It must not throw.",
+   "starterCode": "function deepGet(obj) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ data: { items: [{ name: 'first' }] } }",
+     "expected": "first"
+    },
+    {
+     "input": "{ data: { items: [] } }",
+     "expected": "missing"
+    },
+    {
+     "input": "{}",
+     "expected": "missing"
+    }
+   ],
+   "solution": "function deepGet(obj) {\n  return obj.data?.items?.[0]?.name ?? \"missing\";\n}",
+   "concepts": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "Optional chaining handles every missing link, and `??` supplies the fallback once. Writing this with nested ifs takes six lines and one of them is usually forgotten - the empty-array case.",
+   "hint": "?. on each link, ?? at the end.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-c-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague replaces every `||` default in a settings module with `??` and a test breaks: an empty search string used to fall back to `\"*\"` and now does not. Explain what changed and how you would decide which operator each default should use.",
+   "rubric": {
+    "required": [
+     "falsy",
+     "nullish"
+    ],
+    "optional": [
+     "empty",
+     "zero",
+     "undefined",
+     "deliberate",
+     "absent"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "nullish-coalescing"
+   ],
+   "explain": "Neither operator is correct everywhere. The question to ask per field is whether an empty or zero value is a legitimate choice the user made - if it is, use `??`; if the field is only ever meaningful when non-empty, `||` is the honest one.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-c-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "invert",
+   "prompt": "Write `invert(obj)` returning a new object with keys and values swapped. Values are always strings.",
+   "starterCode": "function invert(obj) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ a: 'x', b: 'y' }",
+     "expected": {
+      "x": "a",
+      "y": "b"
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {}
+    },
+    {
+     "input": "{ same: 'same' }",
+     "expected": {
+      "same": "same"
+     }
+    }
+   ],
+   "solution": "function invert(obj) {\n  const out = {};\n  for (const [k, v] of Object.entries(obj)) {\n    out[v] = k;\n  }\n  return out;\n}",
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "Entries plus bracket assignment is the general shape of any record-to-record transformation. Note that inverting is lossy if two keys share a value - the last one silently wins.",
+   "hint": "Loop over Object.entries and assign out[v] = k.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-c-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "labelFor",
+   "prompt": "This should return the display label, falling back to the id, and never throw on an incomplete record. Fix it.",
+   "starterCode": "function labelFor(item) {\n  return item.meta.label || item.id;\n}\n",
+   "tests": [
+    {
+     "input": "{ meta: { label: 'Sword' }, id: 'w1' }",
+     "expected": "Sword"
+    },
+    {
+     "input": "{ id: 'w2' }",
+     "expected": "w2"
+    },
+    {
+     "input": "{ meta: {}, id: 'w3' }",
+     "expected": "w3"
+    }
+   ],
+   "solution": "function labelFor(item) {\n  return item.meta?.label ?? item.id;\n}",
+   "concepts": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "The crash and the fallback are two separate bugs: `?.` stops the throw when meta is absent, and `??` supplies the id. Fixing only one of them still fails a third of the tests.",
+   "hint": "Two operators are missing, not one.",
+   "xp": 50
+  }
+ ],
+ "level-project": [
+  {
+   "id": "js-5-p-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "summarise",
+   "prompt": "Build a small data transformation pipeline.\n\n`summarise(orders)` takes an array of order records and returns a summary object:\n\n- `count` - how many orders there are\n- `total` - the sum of every order's `amount`, treating a missing or nullish amount as 0\n- `customers` - an array of unique `customer.name` values, in first-seen order, skipping orders with no customer\n\nAn empty input must return `{ count: 0, total: 0, customers: [] }` rather than throwing.",
+   "starterCode": "function summarise(orders) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "[{ amount: 10, customer: { name: 'Mira' } }, { amount: 5, customer: { name: 'Corvin' } }]",
+     "expected": {
+      "count": 2,
+      "total": 15,
+      "customers": [
+       "Mira",
+       "Corvin"
+      ]
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {
+      "count": 0,
+      "total": 0,
+      "customers": []
+     }
+    },
+    {
+     "input": "[{ amount: 0, customer: { name: 'Mira' } }, { customer: { name: 'Mira' } }]",
+     "expected": {
+      "count": 2,
+      "total": 0,
+      "customers": [
+       "Mira"
+      ]
+     }
+    },
+    {
+     "input": "[{ amount: 7 }, { amount: 3, customer: {} }]",
+     "expected": {
+      "count": 2,
+      "total": 10,
+      "customers": []
+     }
+    }
+   ],
+   "solution": "function summarise(orders) {\n  const customers = [];\n  let total = 0;\n  for (const o of orders) {\n    total += o.amount ?? 0;\n    const name = o.customer?.name;\n    if (name !== undefined && !customers.includes(name)) {\n      customers.push(name);\n    }\n  }\n  return { count: orders.length, total, customers };\n}",
+   "concepts": [
+    "objects",
+    "optional-chaining",
+    "nullish-coalescing",
+    "destructuring"
+   ],
+   "tags": [
+    "objects",
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "Every idea on this floor earns its place here: `??` keeps a genuine amount of 0 out of the fallback, `?.` survives orders with no customer at all, and first-seen ordering rules out sorting or a bare Set. The empty-input case falls out for free because the accumulators start at their identity values.",
+   "hint": "One pass, three accumulators. Watch the amount-of-zero case.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-5-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const { a = 5 } = { a: 0 };\nconsole.log(a);",
+   "lang": "javascript",
+   "answer": "0",
+   "concepts": [
+    "destructuring"
+   ],
+   "tags": [
+    "destructuring"
+   ],
+   "explain": "0 is present, and defaults only replace undefined, so the default never fires. Reading this as a truthiness test is the most common way to get it wrong.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which expression returns `0` when `x` is `0`?",
+   "choices": [
+    "x || 1",
+    "x ?? 1",
+    "x ? x : 1",
+    "!x ? 1 : x"
+   ],
+   "answer": 1,
+   "concepts": [
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "nullish-coalescing"
+   ],
+   "explain": "Only `??` distinguishes absent from falsy. The other three all test truthiness in different clothing, and 0 is falsy in every one of them.",
+   "xp": 10
+  },
+  {
+   "id": "js-5-e-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "pick",
+   "prompt": "Write `pick(obj, keys)` returning a new object containing only those keys that exist on `obj`.",
+   "starterCode": "function pick(obj, keys) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ a: 1, b: 2, c: 3 }, ['a', 'c']",
+     "expected": {
+      "a": 1,
+      "c": 3
+     }
+    },
+    {
+     "input": "{ a: 1 }, ['z']",
+     "expected": {}
+    },
+    {
+     "input": "{ a: 0 }, ['a']",
+     "expected": {
+      "a": 0
+     }
+    }
+   ],
+   "solution": "function pick(obj, keys) {\n  const out = {};\n  for (const k of keys) {\n    if (k in obj) {\n      out[k] = obj[k];\n    }\n  }\n  return out;\n}",
+   "concepts": [
+    "objects"
+   ],
+   "tags": [
+    "objects"
+   ],
+   "explain": "`in` asks about presence, which is what the prompt requires - a truthiness check would drop the key holding 0. That third test exists precisely to catch that shortcut.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const u = { profile: null };\nconsole.log(u.profile?.name);\nconsole.log(u.profile?.name ?? 'anon');",
+   "lang": "javascript",
+   "answer": "undefined\nanon",
+   "concepts": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "`?.` turns a null link into undefined instead of a throw, and `??` then turns that undefined into the fallback. The two operators are designed to be used together like this.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-e-05",
+   "type": "debug",
+   "layer": "application",
+   "fn": "initials",
+   "prompt": "This should return the initials of first and last name, and cope with a missing name object. Fix it.",
+   "starterCode": "function initials(person) {\n  return person.name.first[0] + person.name.last[0];\n}\n",
+   "tests": [
+    {
+     "input": "{ name: { first: 'Mira', last: 'Vale' } }",
+     "expected": "MV"
+    },
+    {
+     "input": "{}",
+     "expected": ""
+    },
+    {
+     "input": "{ name: { first: 'Solo' } }",
+     "expected": "S"
+    }
+   ],
+   "solution": "function initials(person) {\n  const f = person.name?.first?.[0] ?? \"\";\n  const l = person.name?.last?.[0] ?? \"\";\n  return f + l;\n}",
+   "concepts": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "Each part must degrade independently, which is why one guard around the whole expression is not enough - the third test has a first name but no last, and only per-part fallbacks handle it.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-e-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `rest` holds every property except `id`.",
+   "template": "const { id, ___rest } = record;\nreturn ___;",
+   "blanks": [
+    "...",
+    "rest"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "destructuring"
+   ],
+   "tags": [
+    "destructuring"
+   ],
+   "explain": "The rest element collects what the named bindings did not take. It builds a new object, so the original record is never modified.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-e-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "groupCount",
+   "prompt": "Write `groupCount(items)` returning an object mapping each item's `type` to how many times it appears. Items with no `type` are ignored.",
+   "starterCode": "function groupCount(items) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "[{ type: 'a' }, { type: 'b' }, { type: 'a' }]",
+     "expected": {
+      "a": 2,
+      "b": 1
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[{ type: 'a' }, {}]",
+     "expected": {
+      "a": 1
+     }
+    }
+   ],
+   "solution": "function groupCount(items) {\n  const out = {};\n  for (const it of items) {\n    const t = it.type;\n    if (t === undefined) continue;\n    out[t] = (out[t] ?? 0) + 1;\n  }\n  return out;\n}",
+   "concepts": [
+    "objects",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "objects",
+    "nullish-coalescing"
+   ],
+   "explain": "`(out[t] ?? 0) + 1` handles the first sighting and every later one with the same expression, which is why counting rarely needs an if. Skipping untyped items keeps the tally honest rather than inventing an undefined bucket.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-e-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are handed API data where any field may be absent. Explain why reaching for `?.` everywhere is not automatically the right answer, and when you would rather let the access throw.",
+   "rubric": {
+    "required": [
+     "throw",
+     "silent"
+    ],
+    "optional": [
+     "boundary",
+     "validate",
+     "undefined",
+     "hide",
+     "contract",
+     "early"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "optional-chaining"
+   ],
+   "tags": [
+    "optional-chaining"
+   ],
+   "explain": "Optional chaining converts a loud failure into a quiet undefined that travels onwards and fails somewhere less obvious. Where a field is genuinely required, validating once at the boundary and throwing there gives a far better error than a `?.` chain that yields undefined three functions later.",
+   "xp": 50
+  },
+  {
+   "id": "js-5-e-09",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these so the function returns a copy of the record with its id removed.",
+   "fragments": [
+    "function withoutId(record) {",
+    "  const { id, ...rest } = record;",
+    "  return rest;",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "destructuring"
+   ],
+   "tags": [
+    "destructuring"
+   ],
+   "explain": "The destructuring statement has to run before rest can be returned. Returning first is the kind of ordering slip that reads fine until you notice rest is not yet defined.",
+   "xp": 20
+  },
+  {
+   "id": "js-5-e-10",
+   "type": "code",
+   "layer": "application",
+   "fn": "normalise",
+   "prompt": "Write `normalise(record)` returning a new object with `name` (defaulting to `\"unknown\"` when nullish), `score` (defaulting to `0` when nullish), and `city` taken from `record.address.city` or `\"n/a\"` if unavailable. It must not throw on an empty record.",
+   "starterCode": "function normalise(record) {\n  \n}\n",
+   "tests": [
+    {
+     "input": "{ name: 'Mira', score: 12, address: { city: 'Ankh' } }",
+     "expected": {
+      "name": "Mira",
+      "score": 12,
+      "city": "Ankh"
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {
+      "name": "unknown",
+      "score": 0,
+      "city": "n/a"
+     }
+    },
+    {
+     "input": "{ name: '', score: 0, address: {} }",
+     "expected": {
+      "name": "",
+      "score": 0,
+      "city": "n/a"
+     }
+    }
+   ],
+   "solution": "function normalise(record) {\n  return {\n    name: record.name ?? \"unknown\",\n    score: record.score ?? 0,\n    city: record.address?.city ?? \"n/a\"\n  };\n}",
+   "concepts": [
+    "objects",
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "tags": [
+    "objects",
+    "optional-chaining",
+    "nullish-coalescing"
+   ],
+   "explain": "The third test is the whole point: an empty name and a score of zero are real values and must survive, while a missing city still needs its fallback. `??` and `?.` together express that in three lines with no branching.",
+   "xp": 50
+  }
+ ]
+}

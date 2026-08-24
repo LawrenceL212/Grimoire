@@ -306,6 +306,17 @@ challenge. `expected` is a real JSON value. Comparison is **structural** — the
 serialised forms are parsed back and compared as values, so `30` matches `30.0`
 and Python's `[1, 9]` matches JavaScript's `[1,9]`.
 
+A test may instead assert that the call **throws**, which is how error-handling
+and validation challenges are graded:
+
+```json
+{ "input": "-1", "throws": true }
+{ "input": "0",  "throws": "positive" }
+```
+
+`true` accepts any error; a string additionally requires the message to contain
+it, case-insensitively. A test carries either `expected` or `throws`, never both.
+
 ### Keyword rubric — `explain` `problem` `proof` `scenario` `diagnose`
 
 ```json

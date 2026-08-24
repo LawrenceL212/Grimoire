@@ -135,8 +135,10 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
                 res.err(where, "%d test(s); every code challenge needs >= %d "
                                "including an edge case" % (len(tests), MIN_TESTS))
             for i, t in enumerate(tests):
-                if not isinstance(t, dict) or "expected" not in t:
-                    res.err("%s.tests[%d]" % (where, i), "each test needs `expected`")
+                # a test asserts either a value or that the call throws
+                if not isinstance(t, dict) or not ("expected" in t or "throws" in t):
+                    res.err("%s.tests[%d]" % (where, i),
+                            "each test needs `expected`, or `throws` to assert an error")
         if ctype in ("code", "debug") and not ch.get("starterCode", "").strip():
             if level not in ("design", "boss"):
                 res.warn(where, "no starterCode outside a design/boss floor")

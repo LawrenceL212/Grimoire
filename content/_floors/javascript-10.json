@@ -1,0 +1,411 @@
+{
+ "n": 10,
+ "name": "The Archmage's Trial",
+ "concepts": [
+  "request-building",
+  "response-parsing",
+  "retry-policy",
+  "exponential-backoff",
+  "dependency-injection"
+ ],
+ "cognitiveLevel": "boss",
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "title": "Everything the Trial Needs",
+  "sections": [
+   {
+    "title": "A Request Is Data Before It Is Traffic",
+    "body": "A request is **a value** long before it is traffic: a method, a URL, a set of headers and a body, all of them ordinary JavaScript data. Building that value in one small function puts the interesting decisions - which header carries the token, what the default method is, how a base URL and a path join without doubling the slash - somewhere you can call a thousand times without a server.\n\nAuthentication is one of those decisions. A bearer token travels in the `Authorization` header as the literal text `Bearer ` followed by the token, and a client with no token must leave the header out entirely rather than send `Bearer undefined` and collect a 401 it cannot explain.\n\n- A header that does not apply is an **absent key**, never an empty one.\n- Headers are a plain object, so adding one is an assignment.",
+    "code": "function buildHeaders(token, hasBody) {\n  const headers = { Accept: \"application/json\" };\n  if (typeof token === \"string\" && token !== \"\") {\n    headers.Authorization = \"Bearer \" + token;\n  }\n  if (hasBody) headers[\"Content-Type\"] = \"application/json\";\n  return headers;\n}\n\nfunction joinUrl(baseUrl, path) {\n  const base = baseUrl.replace(/\\/+$/, \"\");\n  return base + (path.startsWith(\"/\") ? path : \"/\" + path);\n}\n\nconsole.log(JSON.stringify(buildHeaders(\"k-42\", false)));\nconsole.log(JSON.stringify(buildHeaders(null, true)));\nconsole.log(joinUrl(\"https://api.test/\", \"users/7\"));\nconsole.log(joinUrl(\"https://api.test\", \"/users/7\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Accept is unconditional - it is what the client always wants back, regardless of who is asking."
+     },
+     {
+      "line": 3,
+      "text": "An empty-string token is the case that catches people: it is falsy, but it is still a string, and `Bearer ` with nothing after it is worse than no header at all."
+     },
+     {
+      "line": 6,
+      "text": "Content-Type describes the body you are sending. No body, no header - a GET that announces a JSON body is lying."
+     },
+     {
+      "line": 11,
+      "text": "Strip every trailing slash from the base, then guarantee exactly one at the front of the path."
+     },
+     {
+      "line": 17,
+      "text": "Both sides bring a slash here and neither brings one on the next line; both must produce the same URL."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `authHeaders(token)` returning the request headers object. It always carries `Accept: \"application/json\"`, and it carries `Authorization: \"Bearer \" + token` **only** when `token` is a non-empty string.",
+     "fn": "authHeaders",
+     "starterCode": "function authHeaders(token) {\n  const headers = { Accept: \"application/json\" };\n  // add Authorization only when there is really a token\n  return headers;\n}\n",
+     "tests": [
+      {
+       "input": "\"k-42\"",
+       "expected": {
+        "Accept": "application/json",
+        "Authorization": "Bearer k-42"
+       }
+      },
+      {
+       "input": "null",
+       "expected": {
+        "Accept": "application/json"
+       }
+      },
+      {
+       "input": "\"\"",
+       "expected": {
+        "Accept": "application/json"
+       }
+      }
+     ],
+     "solution": "function authHeaders(token) {\n  const headers = { Accept: \"application/json\" };\n  if (typeof token === \"string\" && token !== \"\") {\n    headers.Authorization = \"Bearer \" + token;\n  }\n  return headers;\n}",
+     "explain": "An absent header and an empty one are different requests on the wire. `Authorization: Bearer ` with nothing after it is a credential the server must reject, while no header at all is an anonymous request it can answer or refuse cleanly - so the guard has to rule out the empty string, not just `null`.",
+     "concepts": [
+      "request-building"
+     ],
+     "xp": 50
+    }
+   },
+   {
+    "title": "Reading What Came Back",
+    "body": "What comes back is a number and some text, and neither is trustworthy alone. **The status code decides the shape**: 2xx means the body is your data, 4xx means you asked wrongly, 5xx means the server broke at something that was not your fault.\n\n`JSON.parse` throws on anything that is not JSON, and a failing proxy answers with an HTML error page, which is exactly that - so the parse belongs inside a `try`. A 204 carries no body at all, so parsing must be skipped rather than attempted on an empty string.\n\nNormalising both outcomes into one of two shapes - `{ ok, status, data }` or `{ ok, status, error }` - means every caller writes a single `if` instead of a switch over status codes it will get wrong.",
+    "code": "function readResponse(raw) {\n  let data = null;\n  if (raw.body !== \"\") {\n    try {\n      data = JSON.parse(raw.body);\n    } catch (err) {\n      return { ok: false, status: raw.status, error: \"Malformed response body\" };\n    }\n  }\n  if (raw.status >= 200 && raw.status < 300) {\n    return { ok: true, status: raw.status, data: data };\n  }\n  const message = data && data.message ? data.message : \"HTTP \" + raw.status;\n  return { ok: false, status: raw.status, error: message };\n}\n\nconsole.log(JSON.stringify(readResponse({ status: 200, body: '{\"id\":7}' })));\nconsole.log(JSON.stringify(readResponse({ status: 204, body: \"\" })));\nconsole.log(JSON.stringify(readResponse({ status: 404, body: '{\"message\":\"No such user\"}' })));\nconsole.log(JSON.stringify(readResponse({ status: 502, body: \"<html>Bad Gateway</html>\" })));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A 204 has no body. Guarding here is cheaper than discovering that JSON.parse(\"\") throws."
+     },
+     {
+      "line": 5,
+      "text": "The parse is the only line that can throw, so it is the only line inside the try."
+     },
+     {
+      "line": 13,
+      "text": "A well-behaved API explains itself in the body; when it does not, the status code is the only message there is."
+     },
+     {
+      "line": 20,
+      "text": "A gateway failure is where this pays off - HTML in, a described error out, and no SyntaxError escaping into the caller."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "console.log(typeof JSON.parse('{\"id\":7}'));\nconsole.log(JSON.parse(\"7\") + 1);\ntry {\n  JSON.parse(\"\");\n} catch (err) {\n  console.log(err.name);\n}\nconsole.log(JSON.stringify({ ok: true, error: undefined }));",
+     "lang": "javascript",
+     "answer": "object\n8\nSyntaxError\n{\"ok\":true}",
+     "explain": "`JSON.parse` is a parser, not a converter: it happily returns a bare number, and it throws on the empty string rather than handing back `null`. The last line is the one that shapes your API - `JSON.stringify` drops keys whose value is `undefined`, so a result that sets `error: undefined` on success does not carry an empty error field, it carries no such field at all.",
+     "concepts": [
+      "response-parsing"
+     ],
+     "xp": 20
+    }
+   },
+   {
+    "title": "Retry Only What Might Succeed, and Not Forever",
+    "body": "A retry is worth making only when the failure might not repeat. A 500 or a 503 is the server admitting it fell over, and a 429 is it asking you to slow down - both deserve another try. A 404 or a 401 will fail identically forever, so retrying them only multiplies the user's wait.\n\nTwo things stop a retry loop from becoming an attack on your own server: a **cap** on the number of attempts, and a **growing wait** between them. Doubling that wait - 100ms, then 200ms, then 400ms - is called **exponential backoff**, and capping it stops the curve from turning a retry into a nap.",
+    "code": "function retryable(status) {\n  return status === 429 || status >= 500;\n}\n\nfunction backoff(attempt) {\n  return Math.min(100 * Math.pow(2, attempt - 1), 800);\n}\n\nconsole.log(JSON.stringify([200, 401, 404, 429, 500, 503].map(retryable)));\nconsole.log(JSON.stringify([1, 2, 3, 4, 9].map(backoff)));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "429 is the odd one out: a 4xx that is your fault and still worth retrying, because the server told you to wait rather than to stop."
+     },
+     {
+      "line": 6,
+      "text": "Math.min is the cap. Without it the eighth retry waits 12.8 seconds and the user has already left."
+     },
+     {
+      "line": 10,
+      "text": "Attempt numbers are 1-based, so the first wait is the base delay itself."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `attemptDelays(attempts)` returning the array of waits **between** that many tries, in milliseconds: 100 doubling each time, capped at 800. `attemptDelays(3)` is `[100, 200]` and `attemptDelays(1)` is `[]`.",
+     "fn": "attemptDelays",
+     "starterCode": "function attemptDelays(attempts) {\n  const delays = [];\n  // one wait sits between each pair of tries\n  return delays;\n}\n",
+     "tests": [
+      {
+       "input": "3",
+       "expected": [
+        100,
+        200
+       ]
+      },
+      {
+       "input": "5",
+       "expected": [
+        100,
+        200,
+        400,
+        800
+       ]
+      },
+      {
+       "input": "1",
+       "expected": []
+      },
+      {
+       "input": "0",
+       "expected": []
+      }
+     ],
+     "solution": "function attemptDelays(attempts) {\n  const delays = [];\n  for (let attempt = 1; attempt < attempts; attempt++) {\n    delays.push(Math.min(100 * Math.pow(2, attempt - 1), 800));\n  }\n  return delays;\n}",
+     "explain": "The waits sit between the tries, not after them, so n attempts need n-1 delays and a single attempt needs none - that off-by-one is the difference between a client that returns and one that sleeps on its way out. The cap is what turns an exponential curve into a schedule you could defend to a user watching a spinner.",
+     "concepts": [
+      "retry-policy",
+      "exponential-backoff"
+     ],
+     "xp": 50
+    }
+   },
+   {
+    "title": "The Transport Is a Parameter",
+    "body": "A client's one unavoidable side effect is the network call, so make it **a parameter**. `runRequest(transport, config)` never mentions `fetch`; it calls whatever function it was handed. Production hands it one built on `fetch`, and a test hands it one that returns `{ status: 503 }` on demand.\n\nThat is not a workaround for this sandbox, though the sandbox makes it unmissable - there is no network here at all. It is how a retry policy gets tested: no real server will produce two 503s and then a 200 for you, in a millisecond, identically every time. The real runner writes `await transport(request)`, and because `await` hands a plain value straight back, that one line drives a transport that answers at once and one that answers with a promise.\n\nThe same discipline applies to waiting. A runner that truly slept 700ms would make its own suite slow and its schedule invisible, so this one **returns the delays it would have waited** and lets the caller decide what to do with them.",
+    "code": "function runOnce(transport, request) {\n  const raw = transport(request);\n  return { status: raw.status, url: request.url };\n}\n\nconst alwaysOk = () => ({ status: 200, body: '{\"id\":7}' });\nconst alwaysDown = () => ({ status: 503, body: \"\" });\n\nconst request = { method: \"GET\", url: \"https://api.test/users/7\" };\nconsole.log(JSON.stringify(runOnce(alwaysOk, request)));\nconsole.log(JSON.stringify(runOnce(alwaysDown, request)));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The runner does not know what a transport is. It knows only that calling it gives back a response."
+     },
+     {
+      "line": 6,
+      "text": "A fake transport is two lines. A real server that answers 200 on cue is a machine, a deploy and a bad afternoon."
+     },
+     {
+      "line": 7,
+      "text": "And this is the one you could never arrange on purpose - a server that is reliably, repeatably down."
+     },
+     {
+      "line": 11,
+      "text": "Same runner, same request, opposite outcome. Nothing inside the runner changed between the two calls."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `async function tryTwice(transport)`. Call `transport()` and `await` the result. If its `status` is 500 or above, call the transport once more and return that second `status`; otherwise return the first. The transport may answer with a plain object or with a promise.",
+     "fn": "tryTwice",
+     "starterCode": "async function tryTwice(transport) {\n  // await the transport - it may answer at once, or with a promise\n}\n",
+     "tests": [
+      {
+       "input": "() => ({ status: 200 })",
+       "expected": 200
+      },
+      {
+       "input": "(function () { let i = 0; const seq = [{ status: 500 }, { status: 200 }]; return () => seq[i++]; })()",
+       "expected": 200
+      },
+      {
+       "input": "async () => ({ status: 404 })",
+       "expected": 404
+      },
+      {
+       "input": "(function () { let i = 0; const seq = [{ status: 503 }, { status: 503 }]; return async () => seq[i++]; })()",
+       "expected": 503
+      }
+     ],
+     "solution": "async function tryTwice(transport) {\n  const first = await transport();\n  if (first.status < 500) return first.status;\n  const second = await transport();\n  return second.status;\n}",
+     "explain": "`await` on a plain value hands it straight back on the next tick, so one runner drives both an instant transport and a promise-returning one without a single type check. That is precisely what lets a test swap the network for a two-line arrow function while the code under test notices nothing at all.",
+     "concepts": [
+      "dependency-injection"
+     ],
+     "xp": 50
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "js-10-t-01",
+   "type": "project",
+   "layer": "application",
+   "harness": "function",
+   "prompt": "**The Trial.** Build the pure core of a REST API client as five functions. There is no network in this sandbox and none in the tests - the transport is handed to your runner as an argument. The acceptance tests below are the whole specification: nothing else is graded and nothing is hidden from you.\n\n`buildRequest(config)` turns a config object into a request object with exactly four keys.\n\n- `method` - `config.method` uppercased, or `\"GET\"` when it is absent.\n- `url` - `config.baseUrl` and `config.path` joined by exactly one `/`, however many slashes each side brings.\n- `headers` - always `Accept: \"application/json\"`; plus `Authorization: \"Bearer <token>\"` when `config.token` is a non-empty string; plus `Content-Type: \"application/json\"` when there is a body. A header that does not apply is an absent key, never an empty one.\n- `body` - `JSON.stringify(config.body)` when `config.body` is given, otherwise `null`.\n\n`parseResponse(raw)` takes `{ status, body }`, where `body` is text, and returns one of two shapes.\n\n- `{ ok: true, status, data }` for a status from 200 to 299, where `data` is the parsed body, or `null` when the body is empty.\n- `{ ok: false, status, error }` for anything else, where `error` is the parsed body's `message` when it has one and `\"HTTP \" + status` when it does not.\n- A body that is not valid JSON gives `{ ok: false, status, error: \"Malformed response body\" }` whatever the status was.\n\n`shouldRetry(response, attempt)` takes a **parsed** response and the 1-based number of the attempt just made, and returns a boolean. Retry a status of 429 or 500 and above; never retry anything else, never retry a successful response, and never retry once `attempt` has reached 3.\n\n`backoffDelay(attempt)` returns the milliseconds to wait after attempt number `attempt`: 100, doubling each time - 100, 200, 400, 800 - capped at 800, and 0 for an attempt below 1.\n\n`runRequest(transport, config)` is what the tests call. It builds the request once, calls `transport(request)`, parses what comes back, and then either returns or retries. **`await` the transport**: a test may hand you one that answers immediately and one that answers with a promise. It never sleeps - it records what `backoffDelay` said and hands that list back. The result is the parsed response plus two keys.\n\n- `attempts` - how many times the transport was called.\n- `delays` - the waits between those calls, so three attempts carry two delays.\n\nA success is therefore `{ ok: true, status, data, attempts, delays }` and a failure is `{ ok: false, status, error, attempts, delays }`. Nothing else is added and nothing is left out.",
+   "fn": "runRequest",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "(req) => ({ status: 200, body: JSON.stringify(req) }), { baseUrl: \"https://api.test/\", path: \"users/7\", method: \"post\", token: \"k-42\", body: { name: \"Mira\" } }",
+     "expected": {
+      "ok": true,
+      "status": 200,
+      "data": {
+       "method": "POST",
+       "url": "https://api.test/users/7",
+       "headers": {
+        "Accept": "application/json",
+        "Authorization": "Bearer k-42",
+        "Content-Type": "application/json"
+       },
+       "body": "{\"name\":\"Mira\"}"
+      },
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "(req) => ({ status: 200, body: JSON.stringify(req) }), { baseUrl: \"https://api.test\", path: \"/ping\" }",
+     "expected": {
+      "ok": true,
+      "status": 200,
+      "data": {
+       "method": "GET",
+       "url": "https://api.test/ping",
+       "headers": {
+        "Accept": "application/json"
+       },
+       "body": null
+      },
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "(function () { let i = 0; const seq = [{ status: 500, body: \"\" }, { status: 500, body: \"\" }, { status: 200, body: '{\"id\":7}' }]; return () => seq[i++]; })(), { baseUrl: \"https://api.test\", path: \"/users/7\" }",
+     "expected": {
+      "ok": true,
+      "status": 200,
+      "data": {
+       "id": 7
+      },
+      "attempts": 3,
+      "delays": [
+       100,
+       200
+      ]
+     }
+    },
+    {
+     "input": "() => ({ status: 503, body: '{\"message\":\"Service unavailable\"}' }), { baseUrl: \"https://api.test\", path: \"/users/7\" }",
+     "expected": {
+      "ok": false,
+      "status": 503,
+      "error": "Service unavailable",
+      "attempts": 3,
+      "delays": [
+       100,
+       200
+      ]
+     }
+    },
+    {
+     "input": "() => ({ status: 404, body: '{\"message\":\"No such user\"}' }), { baseUrl: \"https://api.test\", path: \"/users/99\" }",
+     "expected": {
+      "ok": false,
+      "status": 404,
+      "error": "No such user",
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "(function () { let i = 0; const seq = [{ status: 429, body: '{\"message\":\"Slow down\"}' }, { status: 200, body: '{\"id\":7}' }]; return () => seq[i++]; })(), { baseUrl: \"https://api.test\", path: \"/users/7\" }",
+     "expected": {
+      "ok": true,
+      "status": 200,
+      "data": {
+       "id": 7
+      },
+      "attempts": 2,
+      "delays": [
+       100
+      ]
+     }
+    },
+    {
+     "input": "async (req) => ({ status: 201, body: JSON.stringify({ created: true, sent: req.body }) }), { baseUrl: \"https://api.test\", path: \"/users\", method: \"POST\", body: { name: \"Kel\" } }",
+     "expected": {
+      "ok": true,
+      "status": 201,
+      "data": {
+       "created": true,
+       "sent": "{\"name\":\"Kel\"}"
+      },
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "() => ({ status: 204, body: \"\" }), { baseUrl: \"https://api.test\", path: \"/users/7\" }",
+     "expected": {
+      "ok": true,
+      "status": 204,
+      "data": null,
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "() => ({ status: 200, body: \"<html>gateway timeout</html>\" }), { baseUrl: \"https://api.test\", path: \"/users/7\" }",
+     "expected": {
+      "ok": false,
+      "status": 200,
+      "error": "Malformed response body",
+      "attempts": 1,
+      "delays": []
+     }
+    },
+    {
+     "input": "() => ({ status: 200, body: JSON.stringify({ delays: [backoffDelay(0), backoffDelay(1), backoffDelay(2), backoffDelay(3), backoffDelay(9)], retry: [shouldRetry({ ok: false, status: 500 }, 1), shouldRetry({ ok: false, status: 500 }, 3), shouldRetry({ ok: false, status: 429 }, 2), shouldRetry({ ok: false, status: 404 }, 1), shouldRetry({ ok: true, status: 200 }, 1)] }) }), { baseUrl: \"https://api.test\", path: \"/probe\" }",
+     "expected": {
+      "ok": true,
+      "status": 200,
+      "data": {
+       "delays": [
+        0,
+        100,
+        200,
+        400,
+        800
+       ],
+       "retry": [
+        true,
+        false,
+        true,
+        false,
+        false
+       ]
+      },
+      "attempts": 1,
+      "delays": []
+     }
+    }
+   ],
+   "solution": "function buildRequest(config) {\n  const cfg = config || {};\n  const base = String(cfg.baseUrl || \"\").replace(/\\/+$/, \"\");\n  const path = String(cfg.path || \"\");\n  const tail = path === \"\" || path.startsWith(\"/\") ? path : \"/\" + path;\n  const headers = { Accept: \"application/json\" };\n  if (typeof cfg.token === \"string\" && cfg.token !== \"\") {\n    headers.Authorization = \"Bearer \" + cfg.token;\n  }\n  let body = null;\n  if (cfg.body !== undefined && cfg.body !== null) {\n    headers[\"Content-Type\"] = \"application/json\";\n    body = JSON.stringify(cfg.body);\n  }\n  return { method: String(cfg.method || \"GET\").toUpperCase(), url: base + tail,\n           headers: headers, body: body };\n}\n\nfunction parseResponse(raw) {\n  const res = raw || {};\n  const status = res.status;\n  let data = null;\n  if (typeof res.body === \"string\" && res.body.trim() !== \"\") {\n    try {\n      data = JSON.parse(res.body);\n    } catch (err) {\n      return { ok: false, status: status, error: \"Malformed response body\" };\n    }\n  }\n  if (status >= 200 && status < 300) return { ok: true, status: status, data: data };\n  const message = data && typeof data.message === \"string\" ? data.message : \"HTTP \" + status;\n  return { ok: false, status: status, error: message };\n}\n\nfunction shouldRetry(response, attempt) {\n  if (attempt >= 3) return false;\n  if (!response || response.ok) return false;\n  return response.status === 429 || response.status >= 500;\n}\n\nfunction backoffDelay(attempt) {\n  if (attempt < 1) return 0;\n  return Math.min(100 * Math.pow(2, attempt - 1), 800);\n}\n\nasync function runRequest(transport, config) {\n  const request = buildRequest(config);\n  const delays = [];\n  let attempt = 1;\n  for (;;) {\n    const response = parseResponse(await transport(request));\n    if (!shouldRetry(response, attempt)) {\n      return Object.assign({}, response, { attempts: attempt, delays: delays });\n    }\n    delays.push(backoffDelay(attempt));\n    attempt += 1;\n  }\n}",
+   "concepts": [
+    "request-building",
+    "response-parsing",
+    "retry-policy",
+    "exponential-backoff",
+    "dependency-injection"
+   ],
+   "tags": [
+    "request-building",
+    "response-parsing",
+    "retry-policy",
+    "exponential-backoff",
+    "dependency-injection"
+   ],
+   "explain": "The shape is the lesson: every rule lives in exactly one function, and the only impure thing in the design - the network - arrives as an argument. That is what makes a retry policy testable at all. No real server will hand you two 503s and then a 200 on demand, in a millisecond, identically every time, so a client that calls `fetch` inline can only ever have its happy path tested and its interesting half hoped about.\n\nThree details decide whether this survives a real API. Parsing inside a `try` matters because a failing gateway answers with HTML rather than JSON, and a bare `JSON.parse` turns a 502 into a `SyntaxError` thrown from somewhere that has nothing to do with the cause. Retrying only 429 and 5xx matters because a 404 fails identically forever, so retrying it merely triples the user's wait before showing the same message. And returning the delays instead of sleeping them keeps the runner honest - the wait schedule becomes a value a test can assert on rather than time nobody can observe.\n\nThe cap is the quiet one. Without it a client meeting a permanently broken server retries until something else gives up, and a fleet of such clients turns one server's bad minute into an outage - which is also why the wait doubles instead of staying flat.",
+   "xp": 100
+  }
+ ]
+}

@@ -1,0 +1,1185 @@
+{
+ "n": 8,
+ "name": "The Hall of Kept Bindings",
+ "concepts": [
+  "closures",
+  "loop-variable-capture",
+  "function-factories",
+  "partial-application",
+  "function-composition",
+  "memoisation",
+  "immutable-transforms"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "debugging",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Functions That Remember",
+  "sections": [
+   {
+    "title": "A Function Plus the Scope It Was Born In",
+    "body": "A **closure** is a function together with the scope it was created in. When `makeCounter` returns, its local `count` does not vanish - the returned function still holds that **binding**, so the value survives from one call to the next and nothing outside can reach it.\n\nEvery call to the factory builds a **fresh** scope, so two counters never share a total, and `typeof count` out in the open answers `undefined` because no such name exists there.\n\nThis is the module pattern: private state behind a public function. Real JavaScript files also get privacy from `import`/`export` modules, but this dungeon's worker has no module system at all, so every example on this floor builds its privacy out of closures alone.",
+    "code": "function makeCounter(start) {\n  let count = start;\n  return function () {\n    count += 1;\n    return count;\n  };\n}\n\nconst a = makeCounter(0);\nconst b = makeCounter(10);\nconsole.log(a(), a(), a());\nconsole.log(b());\nconsole.log(typeof count);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "count lives in makeCounter's scope. The returned function never copies it - it keeps the binding."
+     },
+     {
+      "line": 10,
+      "text": "A second call to the factory makes a second scope, so b's count starts at 10 and a's is untouched."
+     },
+     {
+      "line": 13,
+      "text": "typeof on a name that was never declared answers 'undefined' instead of throwing - proof that count is unreachable from out here."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "function makeBag() {\n  let items = 0;\n  return {\n    add: () => {\n      items += 1;\n      return items;\n    },\n    count: () => items,\n  };\n}\n\nconst bag = makeBag();\nbag.add();\nbag.add();\nconsole.log(bag.count());\nconsole.log(makeBag().count());",
+     "lang": "javascript",
+     "answer": "2\n0",
+     "concepts": [
+      "closures"
+     ],
+     "explain": "Both methods in the returned object close over the same `items`, which is how two functions share private state that no caller can name. The second line is 0 because calling the factory again builds a new scope rather than handing back another view of the old one."
+    }
+   },
+   {
+    "title": "The Loop That Only Ever Had One Variable",
+    "body": "`var` is function-scoped: the loop has **one** `i` binding and every function created in the body captures that same one. By the time those functions run the loop is over and the single `i` holds its final value, which is why all three answer `3`.\n\n`let` creates a **new binding on each iteration** and carries the previous value into it, so each closure ends up holding its own `j`. The bug was never that closures read the variable too late - it is that `var` only ever gave them one variable to read.\n\nBefore `let` existed the fix was to wrap the loop body in an immediately-called function so each pass got a scope of its own; `let` now does that for you.",
+    "code": "const withVar = [];\nfor (var i = 0; i < 3; i++) {\n  withVar.push(() => i);\n}\n\nconst withLet = [];\nfor (let j = 0; j < 3; j++) {\n  withLet.push(() => j);\n}\n\nconst call = (f) => f();\nconsole.log(withVar.map(call));\nconsole.log(withLet.map(call));\nconsole.log(i);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "One binding for the whole loop. All three arrow functions capture it, not its value at the time."
+     },
+     {
+      "line": 7,
+      "text": "let re-binds j on every iteration, so the three closures capture three separate variables."
+     },
+     {
+      "line": 14,
+      "text": "i is still readable after the loop - a var belongs to the enclosing function, not to the loop."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? The outer loop uses `var` and the inner one uses `let`.",
+     "code": "const fns = [];\nfor (var i = 1; i <= 2; i++) {\n  for (let j = 1; j <= 2; j++) {\n    fns.push(() => i * 10 + j);\n  }\n}\nconsole.log(fns.map((f) => f()));",
+     "lang": "javascript",
+     "answer": "[31,32,31,32]",
+     "concepts": [
+      "loop-variable-capture",
+      "closures"
+     ],
+     "explain": "Every closure reads the one shared `i`, which stopped at 3 when the outer loop ended, but each keeps its own `j` from the iteration that created it. Mixing the two keywords in one nest puts the difference in a single line of output: the tens digit is frozen at the end state, the units digit is not."
+    }
+   },
+   {
+    "title": "Factories, Partial Application, Currying",
+    "body": "A **function factory** is a function whose product is another function: the arguments you hand the factory become the fixed part of the job, and the arguments you hand the result become the part that varies.\n\n**Partial application** is that idea generalised - supply some arguments now, get back a function waiting for the rest. **Currying** takes it to the limit: a chain of one-argument functions, so `scaleBy(2)` is a reusable doubler and `scaleBy(2)(7)` is the whole job in one line.\n\nFixing arguments early is what lets you pass a ready-made one-argument function straight to `map` or `filter` instead of writing a fresh wrapper at every call site.",
+    "code": "const scaleBy = (factor) => (n) => n * factor;\nconst double = scaleBy(2);\nconsole.log(double(7), scaleBy(10)(7));\n\nfunction partial(fn, ...fixed) {\n  return (...rest) => fn(...fixed, ...rest);\n}\n\nconst between = (lo, hi, n) => n >= lo && n <= hi;\nconst isDigit = partial(between, 0, 9);\nconsole.log(isDigit(5), isDigit(11));\nconsole.log([1, 2, 3].map(scaleBy(3)));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Two arrows means two calls: scaleBy(2) returns a function that has closed over factor."
+     },
+     {
+      "line": 6,
+      "text": "fixed came from the factory call and rest from the eventual call - the closure is what keeps fixed alive in between."
+     },
+     {
+      "line": 12,
+      "text": "scaleBy(3) is evaluated once, before the mapping starts, and map reuses that one specialised function."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Finish `makeGreeter(greeting)` so it returns a function taking a name and returning `greeting + \", \" + name`. `greetAll` is written for you and hands your factory's product straight to `map`, so `greetAll(\"hi\", [\"ash\"])` gives `[\"hi, ash\"]`.",
+     "fn": "greetAll",
+     "starterCode": "function makeGreeter(greeting) {\n  // return a function of one argument\n}\n\nfunction greetAll(greeting, names) {\n  return names.map(makeGreeter(greeting));\n}\n",
+     "solution": "function makeGreeter(greeting) {\n  return (name) => greeting + \", \" + name;\n}\n\nfunction greetAll(greeting, names) {\n  return names.map(makeGreeter(greeting));\n}\n",
+     "tests": [
+      {
+       "input": "\"hi\", [\"ash\", \"briar\"]",
+       "expected": [
+        "hi, ash",
+        "hi, briar"
+       ]
+      },
+      {
+       "input": "\"yo\", []",
+       "expected": []
+      },
+      {
+       "input": "\"\", [\"x\"]",
+       "expected": [
+        ", x"
+       ]
+      }
+     ],
+     "concepts": [
+      "function-factories",
+      "partial-application"
+     ],
+     "explain": "The greeting is fixed once, outside the loop, and the name varies per call - that split is the entire point of a factory. It also keeps the function handed to `map` unary, so the index `map` passes as a second argument cannot quietly become part of the greeting."
+    }
+   },
+   {
+    "title": "Pipelines, Caches, and Not Mutating Anything",
+    "body": "**Composition** builds one big transform out of small ones: `compose(f, g)` returns `x => f(g(x))`, so the right-hand function runs first and the chain reads right to left. Each stage takes a value and returns a new one, which is what lets you reorder, reuse or drop a stage without reading inside any of them.\n\n`map` and `filter` fit that shape because they return **new** arrays, while `push`, `sort` and `splice` edit the array you gave them - and a stage that edits its input silently changes what every other holder of that array sees.\n\nA **memoised** function closes over a cache, so a repeated argument is answered from memory instead of recomputed. That is only safe while the function is pure: if the same input can produce a different answer, or the input is mutated behind the cache's back, the cache is now confidently wrong.",
+    "code": "const compose = (f, g) => (x) => f(g(x));\nconst active = (rows) => rows.filter((r) => r.on);\nconst names = (rows) => rows.map((r) => r.name);\nconst activeNames = compose(names, active);\n\nconst rows = [{ name: \"ash\", on: true }, { name: \"briar\", on: false }];\nconsole.log(activeNames(rows));\nconsole.log(rows.length);\n\nfunction memoise(fn) {\n  const cache = {};\n  return (n) => {\n    if (n in cache) return cache[n];\n    console.log(\"computing\", n);\n    cache[n] = fn(n);\n    return cache[n];\n  };\n}\n\nconst square = memoise((n) => n * n);\nconsole.log(square(4), square(4), square(5));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Right to left: g runs first, then f. compose(names, active) therefore filters, then maps."
+     },
+     {
+      "line": 8,
+      "text": "Still 2 - filter and map read rows and build new arrays rather than editing this one."
+     },
+     {
+      "line": 11,
+      "text": "The cache is created once, in memoise's scope, and shared by every call to the returned function."
+     },
+     {
+      "line": 14,
+      "text": "This line runs only on a miss, which is how you can watch the cache work: 4 is computed once and answered twice."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Finish `triple` inside `countedTriple(inputs)`. It answers a repeated number from `cache`, and otherwise computes `n * 3`, stores it, and adds one to `misses`. `countedTriple([2, 2, 5])` returns `[[6, 6, 15], 2]`.",
+     "fn": "countedTriple",
+     "starterCode": "function countedTriple(inputs) {\n  let misses = 0;\n  const cache = {};\n  const triple = (n) => {\n    // answer from the cache when possible; otherwise compute n * 3,\n    // remember it, and count one miss\n  };\n  const results = inputs.map((n) => triple(n));\n  return [results, misses];\n}\n",
+     "solution": "function countedTriple(inputs) {\n  let misses = 0;\n  const cache = {};\n  const triple = (n) => {\n    if (n in cache) return cache[n];\n    misses += 1;\n    cache[n] = n * 3;\n    return cache[n];\n  };\n  const results = inputs.map((n) => triple(n));\n  return [results, misses];\n}\n",
+     "tests": [
+      {
+       "input": "[2, 2, 5]",
+       "expected": [
+        [
+         6,
+         6,
+         15
+        ],
+        2
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": [
+        [],
+        0
+       ]
+      },
+      {
+       "input": "[4, 4, 4]",
+       "expected": [
+        [
+         12,
+         12,
+         12
+        ],
+        1
+       ]
+      }
+     ],
+     "concepts": [
+      "memoisation",
+      "closures"
+     ],
+     "explain": "`misses` and `cache` both live outside the arrow function and both outlive every individual call to it - a memoised function is just a closure with a lookup table inside. Counting misses rather than results is the only way to see a cache at all, because a correct cache changes the work done and never the answer given."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-8-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "What does this program print?",
+   "code": "function makeTally() {\n  let total = 0;\n  return (n) => {\n    total += n;\n    return total;\n  };\n}\n\nconst first = makeTally();\nconst second = makeTally();\nconsole.log(first(5));\nconsole.log(first(3));\nconsole.log(second(100));\nconsole.log(first(0));",
+   "lang": "javascript",
+   "answer": "5\n8\n100\n8",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "function-factories"
+   ],
+   "explain": "`first` and `second` were made by two separate calls, so they hold two separate `total` bindings and neither can disturb the other. The last line is 8 rather than 0 because adding zero still reads the total that survived from the earlier calls - the variable was never reset, only the scope was never shared."
+  },
+  {
+   "id": "js-8-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Fill the blanks so the first line prints `0 2` and the second prints `14`.",
+   "template": "const fns = [];\nfor (___ i = 0; i < 3; i++) {\n  fns.push(() => i);\n}\nconsole.log(fns[0](), fns[2]());\n\nfunction makeAdder(step) {\n  return (n) => n + ___;\n}\nconsole.log(makeAdder(4)(10));",
+   "blanks": [
+    "let",
+    "step"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "loop-variable-capture",
+    "function-factories"
+   ],
+   "tags": [
+    "loop-variable-capture",
+    "function-factories"
+   ],
+   "explain": "The first blank has to be `let` because only a per-iteration binding lets `fns[0]` and `fns[2]` disagree; with `var` both would answer 3. The second blank is the factory's own parameter, and it stays alive after `makeAdder` returns precisely because the inner function still refers to it."
+  },
+  {
+   "id": "js-8-g-03",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `makeAccumulator(start)` so it returns a function that adds its argument to a running total and returns the new total. `runAccumulator` is written for you: it builds one accumulator and feeds it every number in turn, so `runAccumulator(0, [1, 2, 3])` returns `6`.",
+   "fn": "runAccumulator",
+   "starterCode": "function makeAccumulator(start) {\n  // return a function that adds its argument to a running total\n  // and returns the new total\n}\n\nfunction runAccumulator(start, numbers) {\n  const add = makeAccumulator(start);\n  let last = start;\n  for (const n of numbers) last = add(n);\n  return last;\n}\n",
+   "solution": "function makeAccumulator(start) {\n  let total = start;\n  return (n) => {\n    total += n;\n    return total;\n  };\n}\n\nfunction runAccumulator(start, numbers) {\n  const add = makeAccumulator(start);\n  let last = start;\n  for (const n of numbers) last = add(n);\n  return last;\n}\n",
+   "tests": [
+    {
+     "input": "0, [1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "10, [5]",
+     "expected": 15
+    },
+    {
+     "input": "7, []",
+     "expected": 7
+    },
+    {
+     "input": "0, [-4, 4]",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "closures",
+    "function-factories"
+   ],
+   "tags": [
+    "closures",
+    "function-factories"
+   ],
+   "hint": "Declare the total in makeAccumulator's body, not inside the function you return.",
+   "explain": "The total has to be declared in the factory's body: put it inside the returned function and it is rebuilt from `start` on every call, so nothing accumulates. One factory call means one scope, and that scope is the accumulator's memory - there is no object and no field involved."
+  },
+  {
+   "id": "js-8-g-04",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Make `scaleBy(factor)` return a function that multiplies its single argument by `factor`, so `scaleAll(2, [1, 2, 3])` returns `[2, 4, 6]`. Do not change `scaleAll`.",
+   "fn": "scaleAll",
+   "starterCode": "const scaleBy = (factor) => {\n  // return a function of one number\n};\n\nfunction scaleAll(factor, numbers) {\n  return numbers.map(scaleBy(factor));\n}\n",
+   "solution": "const scaleBy = (factor) => (n) => n * factor;\n\nfunction scaleAll(factor, numbers) {\n  return numbers.map(scaleBy(factor));\n}\n",
+   "tests": [
+    {
+     "input": "2, [1, 2, 3]",
+     "expected": [
+      2,
+      4,
+      6
+     ]
+    },
+    {
+     "input": "0, [5, 7]",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "-1, [2, -2]",
+     "expected": [
+      -2,
+      2
+     ]
+    },
+    {
+     "input": "3, []",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "partial-application",
+    "function-factories"
+   ],
+   "tags": [
+    "partial-application",
+    "function-factories",
+    "closures"
+   ],
+   "hint": "`(factor) => (n) => ...` - the outer call fixes the factor, the inner one does the work.",
+   "explain": "`scaleBy(factor)` is evaluated once and the resulting one-argument function is what `map` calls, so the factor is fixed before the traversal starts rather than looked up on every element. Passing a multi-argument function to `map` directly is the classic way to get bitten, because `map` also supplies the index and the whole array."
+  },
+  {
+   "id": "js-8-g-05",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `compose(f, g)` so it returns a function running `g` first and passing that result to `f`. `loudly` uses `compose(exclaim, shout)`, so `loudly(\"hi\")` returns `\"HI!\"` and not `\"HI!\"` uppercased after the fact.",
+   "fn": "loudly",
+   "starterCode": "function compose(f, g) {\n  // return a function that runs g first and feeds its result to f\n}\n\nconst shout = (s) => s.toUpperCase();\nconst exclaim = (s) => s + \"!\";\n\nfunction loudly(text) {\n  return compose(exclaim, shout)(text);\n}\n",
+   "solution": "function compose(f, g) {\n  return (x) => f(g(x));\n}\n\nconst shout = (s) => s.toUpperCase();\nconst exclaim = (s) => s + \"!\";\n\nfunction loudly(text) {\n  return compose(exclaim, shout)(text);\n}\n",
+   "tests": [
+    {
+     "input": "\"hi\"",
+     "expected": "HI!"
+    },
+    {
+     "input": "\"\"",
+     "expected": "!"
+    },
+    {
+     "input": "\"MiXeD\"",
+     "expected": "MIXED!"
+    },
+    {
+     "input": "\"a b\"",
+     "expected": "A B!"
+    }
+   ],
+   "concepts": [
+    "function-composition"
+   ],
+   "tags": [
+    "function-composition",
+    "closures"
+   ],
+   "hint": "Return an arrow taking one value: the inner call is g, the outer call is f.",
+   "explain": "`compose` reads right to left because that is the order the parentheses would sit in if you wrote `f(g(x))` by hand. Getting it backwards is invisible on symmetric examples and obvious the moment the stages disagree - here the empty-string case still returns `\"!\"`, which is what a shout of nothing should be."
+  },
+  {
+   "id": "js-8-g-06",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Finish `boost(scores, bonus)` so `boosted` is a NEW array holding every score plus the bonus, and the caller's `scores` array is left exactly as it was. `boost([1, 2], 10)` returns `[[11, 12], [1, 2]]`.",
+   "fn": "boost",
+   "starterCode": "function boost(scores, bonus) {\n  // build a NEW array with bonus added to every score\n  const boosted = null;\n  return [boosted, scores];\n}\n",
+   "solution": "function boost(scores, bonus) {\n  const boosted = scores.map((s) => s + bonus);\n  return [boosted, scores];\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2], 10",
+     "expected": [
+      [
+       11,
+       12
+      ],
+      [
+       1,
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[], 5",
+     "expected": [
+      [],
+      []
+     ]
+    },
+    {
+     "input": "[-3], 1",
+     "expected": [
+      [
+       -2
+      ],
+      [
+       -3
+      ]
+     ]
+    },
+    {
+     "input": "[0, 0], 0",
+     "expected": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "immutable-transforms"
+   ],
+   "tags": [
+    "immutable-transforms"
+   ],
+   "hint": "`map` hands back a new array; a `for` loop writing into `scores[i]` does not.",
+   "explain": "A loop that writes back into `scores[i]` would pass a test that only checked the boosted values, and this one catches it by returning the original alongside. The caller kept a reference to that array, so editing it in place changes a value in code you have never read - which is why transformations return new arrays instead."
+  }
+ ],
+ "debugging": [
+  {
+   "id": "js-8-d-01",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`labelAt([\"a\", \"b\", \"c\"], 0)` should return `\"a\"`, but every reader returns `undefined`. Fix it by changing one keyword.",
+   "fn": "labelAt",
+   "starterCode": "function makeLabelReaders(labels) {\n  const readers = [];\n  for (var i = 0; i < labels.length; i++) {\n    readers.push(() => labels[i]);\n  }\n  return readers;\n}\n\nfunction labelAt(labels, index) {\n  return makeLabelReaders(labels)[index]();\n}\n",
+   "solution": "function makeLabelReaders(labels) {\n  const readers = [];\n  for (let i = 0; i < labels.length; i++) {\n    readers.push(() => labels[i]);\n  }\n  return readers;\n}\n\nfunction labelAt(labels, index) {\n  return makeLabelReaders(labels)[index]();\n}\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\", \"c\"], 0",
+     "expected": "a"
+    },
+    {
+     "input": "[\"a\", \"b\", \"c\"], 2",
+     "expected": "c"
+    },
+    {
+     "input": "[\"solo\"], 0",
+     "expected": "solo"
+    },
+    {
+     "input": "[\"x\", \"y\"], 1",
+     "expected": "y"
+    }
+   ],
+   "concepts": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "tags": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "hint": "How many `i` variables does this loop actually create, and what is the value of the last one?",
+   "explain": "With `var` the loop has a single `i`, and by the time any reader runs it equals `labels.length` - so every reader indexes one past the end and finds `undefined`. `let` gives each iteration its own binding, which is why the fix is one keyword rather than a rewrite: the closures were always correct, the variable they shared was not."
+  },
+  {
+   "id": "js-8-d-02",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`squareRun([2, 2, 3])` should return `[[4, 4, 9], 2]` - the underlying function runs once per distinct input - but it returns `[[4, 4, 9], 3]`. The answers are right and the cache never helps. Fix `memoise`.",
+   "fn": "squareRun",
+   "starterCode": "function memoise(fn) {\n  return (n) => {\n    const cache = {};\n    if (n in cache) return cache[n];\n    cache[n] = fn(n);\n    return cache[n];\n  };\n}\n\nfunction squareRun(inputs) {\n  let calls = 0;\n  const square = memoise((n) => {\n    calls += 1;\n    return n * n;\n  });\n  const results = inputs.map((n) => square(n));\n  return [results, calls];\n}\n",
+   "solution": "function memoise(fn) {\n  const cache = {};\n  return (n) => {\n    if (n in cache) return cache[n];\n    cache[n] = fn(n);\n    return cache[n];\n  };\n}\n\nfunction squareRun(inputs) {\n  let calls = 0;\n  const square = memoise((n) => {\n    calls += 1;\n    return n * n;\n  });\n  const results = inputs.map((n) => square(n));\n  return [results, calls];\n}\n",
+   "tests": [
+    {
+     "input": "[2, 2, 3]",
+     "expected": [
+      [
+       4,
+       4,
+       9
+      ],
+      2
+     ]
+    },
+    {
+     "input": "[5, 5, 5, 5]",
+     "expected": [
+      [
+       25,
+       25,
+       25,
+       25
+      ],
+      1
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      [],
+      0
+     ]
+    },
+    {
+     "input": "[3]",
+     "expected": [
+      [
+       9
+      ],
+      1
+     ]
+    }
+   ],
+   "concepts": [
+    "memoisation",
+    "closures"
+   ],
+   "tags": [
+    "memoisation",
+    "closures",
+    "function-factories"
+   ],
+   "hint": "Which scope does the cache need to live in to outlive a single call?",
+   "explain": "A cache declared inside the returned function is rebuilt empty on every call, so the lookup always misses and the memoisation is pure overhead. Moving it into `memoise`'s body makes it part of the closure the returned function keeps, which is the only reason the table survives between calls - and note that a wrong cache position never changes an answer, only the work, so no assertion on results alone would have caught this."
+  },
+  {
+   "id": "js-8-d-03",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`tagAll([\"a\", \"b\"], \"!\")` should return `[[\"a!\", \"b!\"], [\"a\", \"b\"]]` - the second entry is the caller's array, untouched - but both entries come back tagged. Fix it.",
+   "fn": "tagAll",
+   "starterCode": "function tagAll(names, tag) {\n  const tagged = names;\n  for (let i = 0; i < tagged.length; i++) {\n    tagged[i] = tagged[i] + tag;\n  }\n  return [tagged, names];\n}\n",
+   "solution": "function tagAll(names, tag) {\n  const tagged = names.map((name) => name + tag);\n  return [tagged, names];\n}\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\"], \"!\"",
+     "expected": [
+      [
+       "a!",
+       "b!"
+      ],
+      [
+       "a",
+       "b"
+      ]
+     ]
+    },
+    {
+     "input": "[], \"!\"",
+     "expected": [
+      [],
+      []
+     ]
+    },
+    {
+     "input": "[\"solo\"], \"?\"",
+     "expected": [
+      [
+       "solo?"
+      ],
+      [
+       "solo"
+      ]
+     ]
+    },
+    {
+     "input": "[\"a\"], \"\"",
+     "expected": [
+      [
+       "a"
+      ],
+      [
+       "a"
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "immutable-transforms"
+   ],
+   "tags": [
+    "immutable-transforms"
+   ],
+   "hint": "`const tagged = names` gives a second name for one array, not a second array.",
+   "explain": "Assigning an array to another variable copies the reference, so `tagged` and `names` are the same object and `const` only stops you rebinding the name, never editing the contents. `map` is the fix because it allocates a new array and leaves the source alone, which is what makes a transform safe to drop into a pipeline shared with other code."
+  },
+  {
+   "id": "js-8-d-04",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`settle` is meant to add one and then halve, so `run(4)` should be `2.5`. It returns `3` instead. Fix `compose` without touching `halve`, `addOne` or the call that builds `settle`.",
+   "fn": "run",
+   "starterCode": "function compose(f, g) {\n  return (x) => g(f(x));\n}\n\nconst halve = (n) => n / 2;\nconst addOne = (n) => n + 1;\nconst settle = compose(halve, addOne);\n\nfunction run(n) {\n  return settle(n);\n}\n",
+   "solution": "function compose(f, g) {\n  return (x) => f(g(x));\n}\n\nconst halve = (n) => n / 2;\nconst addOne = (n) => n + 1;\nconst settle = compose(halve, addOne);\n\nfunction run(n) {\n  return settle(n);\n}\n",
+   "tests": [
+    {
+     "input": "4",
+     "expected": 2.5
+    },
+    {
+     "input": "0",
+     "expected": 0.5
+    },
+    {
+     "input": "-2",
+     "expected": -0.5
+    },
+    {
+     "input": "9",
+     "expected": 5
+    }
+   ],
+   "concepts": [
+    "function-composition"
+   ],
+   "tags": [
+    "function-composition"
+   ],
+   "hint": "Write out `f(g(x))` by hand and see which of the two runs first.",
+   "explain": "`compose(f, g)` has to mean `f(g(x))`, so the second argument runs first - the broken version reads left to right and quietly builds the opposite pipeline. Halving and adding do not commute, which is why this shows up as a wrong number rather than a crash; with two symmetric stages the same defect would have shipped unnoticed."
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "js-8-c-01",
+   "type": "trace",
+   "layer": "application",
+   "xp": 40,
+   "prompt": "The two gates below are built, then the calls in the table are made in order, top to bottom. Give the value each one returns.",
+   "code": "function makeGate() {\n  let open = false;\n  return {\n    toggle: () => {\n      open = !open;\n      return open;\n    },\n    peek: () => open,\n  };\n}\n\nconst gate = makeGate();\nconst other = makeGate();",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "gate.toggle()",
+     "expected": "true"
+    },
+    {
+     "label": "gate.peek()",
+     "expected": "true"
+    },
+    {
+     "label": "other.peek()",
+     "expected": "false"
+    },
+    {
+     "label": "gate.toggle()",
+     "expected": "false"
+    },
+    {
+     "label": "gate.peek()",
+     "expected": "false"
+    }
+   ],
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "function-factories"
+   ],
+   "explain": "`toggle` and `peek` were created in the same call, so they close over one `open` and `peek` sees whatever `toggle` last did - the object is only a delivery mechanism, the scope is the state. `other` came from a separate call and therefore has a separate `open`, which is why it is still false after two toggles next door."
+  },
+  {
+   "id": "js-8-c-02",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "A teammate says a closure \"takes a snapshot of the variables it uses at the moment it is created\". Use `for (var i = 0; i < 3; i++) fns.push(() => i);` to disprove it: say what the three functions actually hold, why every one of them answers 3, and what changes when `var` becomes `let`.",
+   "rubric": {
+    "required": [
+     "shar",
+     "binding",
+     "let"
+    ],
+    "optional": [
+     "scope",
+     "reference",
+     "iteration",
+     "snapshot",
+     "copy",
+     "var",
+     "function-scoped",
+     "final"
+    ],
+    "forbidden": [],
+    "minWords": 35
+   },
+   "concepts": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "tags": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "explain": "If closures copied values, three functions created in three iterations would answer 0, 1 and 2 - they answer 3 because `var` gave the whole loop one binding and all three kept a reference to it. `let` does not change what closures do; it changes how many variables exist, creating one per iteration so each closure has its own to hold."
+  },
+  {
+   "id": "js-8-c-03",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `memoise(fn)`: it returns a function that answers a repeated argument from a cache held in its closure, calling `fn` only once per distinct argument. `report` is written for you and returns `[results, timesFnRan]`, so `report([2, 2, 3])` gives `[[4, 4, 9], 2]`.",
+   "fn": "report",
+   "starterCode": "function memoise(fn) {\n  // one cache, created here, shared by every call to the function you return\n}\n\nfunction report(inputs) {\n  let calls = 0;\n  const square = memoise((n) => {\n    calls += 1;\n    return n * n;\n  });\n  return [inputs.map((n) => square(n)), calls];\n}\n",
+   "solution": "function memoise(fn) {\n  const cache = {};\n  return (n) => {\n    if (n in cache) return cache[n];\n    cache[n] = fn(n);\n    return cache[n];\n  };\n}\n\nfunction report(inputs) {\n  let calls = 0;\n  const square = memoise((n) => {\n    calls += 1;\n    return n * n;\n  });\n  return [inputs.map((n) => square(n)), calls];\n}\n",
+   "tests": [
+    {
+     "input": "[2, 2, 3]",
+     "expected": [
+      [
+       4,
+       4,
+       9
+      ],
+      2
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      [],
+      0
+     ]
+    },
+    {
+     "input": "[0, 0]",
+     "expected": [
+      [
+       0,
+       0
+      ],
+      1
+     ]
+    },
+    {
+     "input": "[-2, 2]",
+     "expected": [
+      [
+       4,
+       4
+      ],
+      2
+     ]
+    }
+   ],
+   "concepts": [
+    "memoisation",
+    "closures",
+    "function-factories"
+   ],
+   "tags": [
+    "memoisation",
+    "closures",
+    "function-factories"
+   ],
+   "hint": "Check membership before computing - `if (n in cache)` - and note that a stored 0 is falsy, so `if (cache[n])` would be a bug.",
+   "explain": "The `-2, 2` case is the interesting one: two distinct inputs with the same answer must still cost two calls, so the cache has to be keyed on the input rather than on the result. Two traps live here - testing `if (cache[n])` treats a cached `0` as a miss, and a plain object turns every key into a string, so a function taking both `1` and `\"1\"` needs a `Map` instead."
+  },
+  {
+   "id": "js-8-c-04",
+   "type": "design",
+   "layer": "application",
+   "xp": 100,
+   "prompt": "Nothing is given to you. Write `makeLedger(start)`, a factory returning an object with four methods and no reachable state: `deposit(n)` adds `n` and returns the new balance; `withdraw(n)` returns the balance unchanged when `n` is greater than the balance, otherwise subtracts and returns the new balance; `balance()` returns the current balance; `history()` returns a NEW array of the accepted amounts in order, positive for deposits and negative for withdrawals. Then write `runLedger(start, moves)`: build one ledger, apply each move in order (a number `>= 0` is a deposit of that amount, a negative number is a withdrawal of its magnitude), then push `999` onto the array `history()` handed you and return `[ledger.balance(), ledger.history()]`. A correct ledger is unaffected by that push.",
+   "fn": "runLedger",
+   "solution": "function makeLedger(start) {\n  let balance = start;\n  const log = [];\n  return {\n    deposit: (n) => {\n      balance += n;\n      log.push(n);\n      return balance;\n    },\n    withdraw: (n) => {\n      if (n > balance) return balance;\n      balance -= n;\n      log.push(-n);\n      return balance;\n    },\n    balance: () => balance,\n    history: () => log.slice(),\n  };\n}\n\nfunction runLedger(start, moves) {\n  const ledger = makeLedger(start);\n  for (const move of moves) {\n    if (move >= 0) ledger.deposit(move);\n    else ledger.withdraw(-move);\n  }\n  const taken = ledger.history();\n  taken.push(999);\n  return [ledger.balance(), ledger.history()];\n}\n",
+   "tests": [
+    {
+     "input": "10, [5, -3]",
+     "expected": [
+      12,
+      [
+       5,
+       -3
+      ]
+     ]
+    },
+    {
+     "input": "10, [-50]",
+     "expected": [
+      10,
+      []
+     ]
+    },
+    {
+     "input": "0, []",
+     "expected": [
+      0,
+      []
+     ]
+    },
+    {
+     "input": "5, [-5, 2]",
+     "expected": [
+      2,
+      [
+       -5,
+       2
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "closures",
+    "function-factories",
+    "immutable-transforms"
+   ],
+   "tags": [
+    "closures",
+    "function-factories",
+    "immutable-transforms"
+   ],
+   "explain": "Handing back the internal log directly would let any caller rewrite the ledger's history without going through `withdraw`, so `history()` must copy - privacy is not just about hiding a name, it is about not leaking references to the things that name points at. The refused withdrawal records nothing, and `withdraw` of exactly the balance is allowed, which is the boundary a `>=` test would get wrong."
+  },
+  {
+   "id": "js-8-c-05",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `pipe(...fns)`: it returns a function that feeds its argument through every function, left to right, so `pipe(a, b)(x)` is `b(a(x))`. `summary` uses it to keep rows scoring at least 50, uppercase their names and join them with `\", \"`, so a row list of ash/70 and briar/20 gives `\"ASH\"`.",
+   "fn": "summary",
+   "starterCode": "function pipe(...fns) {\n  // return a function feeding its argument through fns, left to right\n}\n\nconst strongOnly = (rows) => rows.filter((r) => r.score >= 50);\nconst toNames = (rows) => rows.map((r) => r.name.toUpperCase());\nconst joinUp = (names) => names.join(\", \");\n\nfunction summary(rows) {\n  return pipe(strongOnly, toNames, joinUp)(rows);\n}\n",
+   "solution": "function pipe(...fns) {\n  return (x) => {\n    let value = x;\n    for (const fn of fns) value = fn(value);\n    return value;\n  };\n}\n\nconst strongOnly = (rows) => rows.filter((r) => r.score >= 50);\nconst toNames = (rows) => rows.map((r) => r.name.toUpperCase());\nconst joinUp = (names) => names.join(\", \");\n\nfunction summary(rows) {\n  return pipe(strongOnly, toNames, joinUp)(rows);\n}\n",
+   "tests": [
+    {
+     "input": "[{ name: \"ash\", score: 70 }, { name: \"briar\", score: 20 }, { name: \"cinder\", score: 50 }]",
+     "expected": "ASH, CINDER"
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "[{ name: \"ash\", score: 49 }]",
+     "expected": ""
+    },
+    {
+     "input": "[{ name: \"ash\", score: 50 }]",
+     "expected": "ASH"
+    }
+   ],
+   "concepts": [
+    "function-composition",
+    "immutable-transforms"
+   ],
+   "tags": [
+    "function-composition",
+    "immutable-transforms",
+    "partial-application"
+   ],
+   "hint": "Loop over `fns`, carrying the value forward - or fold it with `reduce`, which is the same loop written as one expression.",
+   "explain": "`pipe` is `compose` read the other way round, and teams pick one direction and stick to it because a mixed codebase makes every chain a guessing game. It only works because each stage returns a new value: `filter`, `map` and `join` all hand back fresh data, so no stage can corrupt the input another stage is still holding."
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-8-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "`makeCounter` declares `let count` and returns a function that increments and returns it. What does the returned function hold on to after `makeCounter` has finished?",
+   "choices": [
+    "A copy of count, taken at the moment the inner function was created",
+    "The count binding itself, so every later change is visible through it",
+    "Nothing - count is discarded as soon as makeCounter returns",
+    "A copy of every variable that existed anywhere in the program at that moment"
+   ],
+   "answer": 1,
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures"
+   ],
+   "explain": "The scope outlives the call because something still refers to it, and the engine keeps exactly the bindings that are still reachable - not a snapshot of their values. That is why two closures made in the same call can see each other's writes, and why a counter can count at all."
+  },
+  {
+   "id": "js-8-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "After `const fns = []; for (var i = 0; i < 3; i++) fns.push(() => i);`, what is `fns.map((f) => f())`?",
+   "choices": [
+    "[0, 1, 2]",
+    "[3, 3, 3]",
+    "[1, 2, 3]",
+    "[undefined, undefined, undefined]"
+   ],
+   "answer": 1,
+   "concepts": [
+    "loop-variable-capture"
+   ],
+   "tags": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "explain": "One `var` binding serves the entire loop, and it holds 3 once the condition has failed - the three closures are reading the same finished variable. Swap in `let` and the answer becomes [0, 1, 2] with no other change, because the loop now creates three bindings instead of one."
+  },
+  {
+   "id": "js-8-e-03",
+   "type": "multi",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "Which of these are true of `const add = (a) => (b) => a + b;`?",
+   "choices": [
+    "add(2) returns a function that has closed over a",
+    "add(2)(3) evaluates to 5",
+    "add(2, 3) evaluates to 5",
+    "Calling add(2) twice makes two functions that share one a"
+   ],
+   "answer": [
+    0,
+    1
+   ],
+   "concepts": [
+    "partial-application",
+    "function-factories"
+   ],
+   "tags": [
+    "partial-application",
+    "function-factories",
+    "closures"
+   ],
+   "explain": "A curried function takes its arguments one call at a time, so the extra argument in `add(2, 3)` is simply ignored and the result is a function, not 5. Each call to `add` also opens a new scope, which is what makes `add(2)` and `add(10)` independent adders rather than two views of one variable."
+  },
+  {
+   "id": "js-8-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "What does this program print? Note which loop uses `var` and which uses `let`.",
+   "code": "function makeSteps() {\n  const out = [];\n  for (var i = 0; i < 2; i++) {\n    for (let j = 0; j < 2; j++) {\n      out.push(() => i + \":\" + j);\n    }\n  }\n  return out;\n}\n\nconst steps = makeSteps();\nconsole.log(steps.length);\nconsole.log(steps.map((f) => f()));",
+   "lang": "javascript",
+   "answer": "4\n[\"2:0\",\"2:1\",\"2:0\",\"2:1\"]",
+   "concepts": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "tags": [
+    "loop-variable-capture",
+    "closures"
+   ],
+   "explain": "The outer `i` is one binding shared by all four closures and it ends at 2, while each inner `j` belongs to its own iteration and keeps 0 or 1. The repetition in the output is the tell: identical pairs mean the outer variable was shared, distinct second halves mean the inner one was not."
+  },
+  {
+   "id": "js-8-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Fill the blanks so the cache is created once per memoised function and survives between calls. The program prints `36 36` and calls `slow` exactly once.",
+   "template": "function memoise(fn) {\n  const ___ = {};\n  return (n) => {\n    if (n in cache) return cache[n];\n    cache[n] = ___(n);\n    return cache[n];\n  };\n}\n\nconst slow = (n) => n * n;\nconst fast = memoise(slow);\nconsole.log(fast(6), fast(6));",
+   "blanks": [
+    "cache",
+    "fn"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "memoisation"
+   ],
+   "tags": [
+    "memoisation",
+    "closures"
+   ],
+   "explain": "The cache is named in `memoise`'s scope and referenced from the returned arrow, which is precisely what keeps it alive after `memoise` has returned. The second blank must be the parameter `fn` rather than `slow`: a wrapper that names the wrapped function directly can only ever memoise that one function."
+  },
+  {
+   "id": "js-8-e-06",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Order these fragments into a working function factory that prints `15`.",
+   "fragments": [
+    "    return n * factor;",
+    "function makeMultiplier(factor) {",
+    "}",
+    "  return function (n) {",
+    "console.log(makeMultiplier(3)(5));",
+    "  };"
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    5,
+    2,
+    4
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "function-factories"
+   ],
+   "tags": [
+    "function-factories",
+    "closures"
+   ],
+   "explain": "The inner `return` has to sit inside the function being returned, and the factory's own `return` in front of it - two returns at two depths is what a factory looks like. `makeMultiplier(3)(5)` then reads as two calls: the first fixes `factor`, the second supplies `n`."
+  },
+  {
+   "id": "js-8-e-07",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "A colleague memoises `totalOf(order)`, which sums the numbers in `order.items`. Totals start coming back stale after items are added to an order that was already totalled once. Explain why the cache is now wrong, and state what has to be true of a function - and of the values handed to it - before memoising it is safe.",
+   "rubric": {
+    "required": [
+     "pure",
+     "mutat",
+     "cache"
+    ],
+    "optional": [
+     "same input",
+     "key",
+     "stale",
+     "identity",
+     "copy",
+     "deterministic",
+     "side effect",
+     "new"
+    ],
+    "forbidden": [],
+    "minWords": 35
+   },
+   "concepts": [
+    "memoisation",
+    "immutable-transforms"
+   ],
+   "tags": [
+    "memoisation",
+    "immutable-transforms"
+   ],
+   "explain": "A cache is a promise that the same input always yields the same answer, and mutating the order breaks that promise while leaving the key looking identical. Memoisation is safe for pure functions over values that nobody edits in place, which is the practical reason functional pipelines return new arrays instead of rewriting the ones they were given."
+  },
+  {
+   "id": "js-8-e-08",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`isDigit` fixes `lo` and `hi` and waits for `n`, so `check(5)` should be `true` and `check(10)` `false`. Every call returns `false`. Fix `partial` without changing `between` or the line that builds `isDigit`.",
+   "fn": "check",
+   "starterCode": "function partial(fn, ...fixed) {\n  return (...rest) => fn(...rest, ...fixed);\n}\n\nconst between = (lo, hi, n) => n >= lo && n <= hi;\nconst isDigit = partial(between, 0, 9);\n\nfunction check(n) {\n  return isDigit(n);\n}\n",
+   "solution": "function partial(fn, ...fixed) {\n  return (...rest) => fn(...fixed, ...rest);\n}\n\nconst between = (lo, hi, n) => n >= lo && n <= hi;\nconst isDigit = partial(between, 0, 9);\n\nfunction check(n) {\n  return isDigit(n);\n}\n",
+   "tests": [
+    {
+     "input": "5",
+     "expected": true
+    },
+    {
+     "input": "0",
+     "expected": true
+    },
+    {
+     "input": "9",
+     "expected": true
+    },
+    {
+     "input": "10",
+     "expected": false
+    },
+    {
+     "input": "-1",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "partial-application"
+   ],
+   "tags": [
+    "partial-application",
+    "closures"
+   ],
+   "hint": "Spread the arguments in the order the target function declares them: the fixed ones came first.",
+   "explain": "Partial application means the fixed arguments occupy the leading parameters, so spreading `rest` first shifts everything and `between(5, 0, 9)` asks whether 9 lies between 5 and 0. Nothing throws, because JavaScript will happily bind three arguments in any order - the only symptom is an answer that is quietly always false."
+  },
+  {
+   "id": "js-8-e-09",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `curry3(fn)` so a three-argument function can be called one argument at a time: `curry3(clamp)(0)(10)(42)` is `10`. `clampedRun` is written for you - it fixes `lo` and `hi`, then maps the remaining one-argument function over the numbers.",
+   "fn": "clampedRun",
+   "starterCode": "function curry3(fn) {\n  // turn fn(a, b, c) into a chain: fn(a)(b)(c)\n}\n\nconst clamp = (lo, hi, n) => Math.min(Math.max(n, lo), hi);\n\nfunction clampedRun(lo, hi, numbers) {\n  const limit = curry3(clamp)(lo)(hi);\n  return numbers.map((n) => limit(n));\n}\n",
+   "solution": "function curry3(fn) {\n  return (a) => (b) => (c) => fn(a, b, c);\n}\n\nconst clamp = (lo, hi, n) => Math.min(Math.max(n, lo), hi);\n\nfunction clampedRun(lo, hi, numbers) {\n  const limit = curry3(clamp)(lo)(hi);\n  return numbers.map((n) => limit(n));\n}\n",
+   "tests": [
+    {
+     "input": "0, 10, [5, -3, 42]",
+     "expected": [
+      5,
+      0,
+      10
+     ]
+    },
+    {
+     "input": "1, 1, [0, 5]",
+     "expected": [
+      1,
+      1
+     ]
+    },
+    {
+     "input": "0, 10, []",
+     "expected": []
+    },
+    {
+     "input": "-5, 5, [-9, 9, 0]",
+     "expected": [
+      -5,
+      5,
+      0
+     ]
+    }
+   ],
+   "concepts": [
+    "partial-application",
+    "function-factories"
+   ],
+   "tags": [
+    "partial-application",
+    "function-factories",
+    "closures"
+   ],
+   "hint": "Three arrows, one per argument, and the innermost body is the only place fn is actually called.",
+   "explain": "Each arrow closes over the argument given to the one outside it, so by the time the third call happens all three values are still in scope and `fn` can finally run. The payoff is the line in `clampedRun`: bounds are fixed once, and what `map` receives is a plain unary function rather than a wrapper written to capture them."
+  },
+  {
+   "id": "js-8-e-10",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `composeAll(fns)`: it takes an array of functions and returns a function applying them right to left, so `composeAll([f, g, h])(x)` is `f(g(h(x)))`, and an empty array returns its input unchanged. `describe(numbers, true)` runs evens, then doubled, then total - so `describe([1, 2, 3, 4], true)` is `12` - and `describe(numbers, false)` composes nothing.",
+   "fn": "describe",
+   "starterCode": "function composeAll(fns) {\n  // apply the functions right to left; an empty array means \"no change\"\n}\n\nconst evens = (ns) => ns.filter((n) => n % 2 === 0);\nconst doubled = (ns) => ns.map((n) => n * 2);\nconst total = (ns) => {\n  let sum = 0;\n  for (const n of ns) sum += n;\n  return sum;\n};\n\nfunction describe(numbers, useStages) {\n  const stages = useStages ? [total, doubled, evens] : [];\n  return composeAll(stages)(numbers);\n}\n",
+   "solution": "function composeAll(fns) {\n  return (x) => {\n    let value = x;\n    for (let i = fns.length - 1; i >= 0; i--) value = fns[i](value);\n    return value;\n  };\n}\n\nconst evens = (ns) => ns.filter((n) => n % 2 === 0);\nconst doubled = (ns) => ns.map((n) => n * 2);\nconst total = (ns) => {\n  let sum = 0;\n  for (const n of ns) sum += n;\n  return sum;\n};\n\nfunction describe(numbers, useStages) {\n  const stages = useStages ? [total, doubled, evens] : [];\n  return composeAll(stages)(numbers);\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4], true",
+     "expected": 12
+    },
+    {
+     "input": "[1, 3, 5], true",
+     "expected": 0
+    },
+    {
+     "input": "[], true",
+     "expected": 0
+    },
+    {
+     "input": "[7], false",
+     "expected": [
+      7
+     ]
+    }
+   ],
+   "concepts": [
+    "function-composition",
+    "immutable-transforms"
+   ],
+   "tags": [
+    "function-composition",
+    "immutable-transforms",
+    "closures"
+   ],
+   "hint": "Walk the array backwards, carrying the value: the last function in the list is the first to run.",
+   "explain": "Walking the array backwards is what makes `[total, doubled, evens]` read in the same order as `total(doubled(evens(x)))`, and the empty case has to be the identity function or composition stops being something you can build up from nothing. The stages compose only because each returns a new value - `evens` and `doubled` hand back fresh arrays, so the original list is still intact for any other caller."
+  }
+ ]
+}

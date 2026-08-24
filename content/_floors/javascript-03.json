@@ -1,0 +1,1012 @@
+{
+ "n": 3,
+ "name": "The Bound Sigil",
+ "concepts": [
+  "functions",
+  "arrow-functions",
+  "default-parameters",
+  "scope",
+  "closures"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Naming the Work, and the Scopes That Hold It",
+  "sections": [
+   {
+    "title": "Two Ways to Make a Function",
+    "body": "A **function declaration** starts with the `function` keyword followed by a name, as in `function double(n) { ... }`. A **function expression** is the same machinery used as a value: you write it on the right of an `=` and store it in a `const`, usually with no name of its own.\n\nThe difference that bites is **hoisting**. A declaration is lifted to the top of its scope before any line runs, so you may call it above where it is written; a function expression only comes into existence when its own line is reached.\n\n`return` hands a value back to the caller and ends the call there. A body that finishes without one hands back `undefined` - not an error, just a value that will fail somewhere else, later, far from the function that produced it.",
+    "code": "console.log(double(4));\n\nfunction double(n) {\n  return n * 2;\n}\n\nconst triple = function (n) {\n  return n * 3;\n};\n\nconsole.log(triple(4));\n\nfunction shout(word) {\n  console.log(word.toUpperCase());\n}\n\nconsole.log(shout(\"hi\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Legal: the declaration below is hoisted, name and body together, before anything runs."
+     },
+     {
+      "line": 7,
+      "text": "A function expression. Moving this call above line 7 would throw - const bindings are not hoisted usably."
+     },
+     {
+      "line": 11,
+      "text": "Calling is the same either way: the name, then parentheses holding the arguments."
+     },
+     {
+      "line": 17,
+      "text": "shout prints HI and then falls off the end, so the outer log receives undefined."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "function add(a, b) {\n  return a + b;\n}\n\nfunction logSum(a, b) {\n  console.log(a + b);\n}\n\nconsole.log(add(2, 3));\nconst captured = logSum(2, 3);\nconsole.log(captured);",
+     "lang": "javascript",
+     "answer": "5\n5\nundefined",
+     "concepts": [
+      "functions"
+     ],
+     "explain": "Both functions compute the same 5, but only one gives it back. logSum displays it and returns nothing, so `captured` holds undefined - the value that makes a program fail three functions away from the mistake."
+    }
+   },
+   {
+    "title": "Arrows and the Implicit Return",
+    "body": "An **arrow function** is a shorter way to write a function expression: the parameter list, then `=>`, then the body. With exactly one parameter the parentheses around it are optional, and with no parameters at all you write an empty pair `()`.\n\nWhen the body is a single expression there is an **implicit return** - the value of that expression is handed to the caller with no `return` keyword anywhere in sight.\n\nThe moment you wrap the body in braces you are writing statements again, and a statement body returns `undefined` unless you write `return` yourself. That single rule accounts for most arrow-function bugs.",
+    "code": "const square = (n) => n * n;\nconst half = n => n / 2;\nconst greet = (name) => \"Hello, \" + name;\nconst area = (w, h) => {\n  const a = w * h;\n  return a;\n};\nconst nothing = (n) => { n * 2; };\n\nconsole.log(square(5));\nconsole.log(half(9));\nconsole.log(greet(\"Mira\"));\nconsole.log(area(3, 4));\nconsole.log(nothing(3));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Concise body: the expression n * n is the return value, no keyword needed."
+     },
+     {
+      "line": 2,
+      "text": "One parameter, so the parentheses may be dropped. Zero or two or more parameters always need them."
+     },
+     {
+      "line": 4,
+      "text": "Braces open a statement body, so this one has to say return explicitly."
+     },
+     {
+      "line": 8,
+      "text": "Braces with no return: the multiplication happens and the result is thrown away."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this prints `4 2`.",
+     "template": "const half = (n) ___ n / 2;\nconst quarter = (n) ___ { ___ n / 4; };\nconsole.log(half(8), quarter(8));",
+     "blanks": [
+      "=>",
+      "=>",
+      "return"
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "arrow-functions"
+     ],
+     "explain": "The arrow always sits between the parameter list and the body, but what the body owes you changes with its shape: a bare expression is returned for you, a braced block is not."
+    }
+   },
+   {
+    "title": "Parameters, Arguments and Defaults",
+    "body": "**Parameters** are the names in the definition; **arguments** are the values at the call. JavaScript never checks that the two lists are the same length - a parameter with no matching argument is simply `undefined`, and an extra argument is quietly ignored.\n\nA **default parameter** is written with `=` in the parameter list, as in `function greet(name, greeting = \"Hello\")`. It fires on exactly one condition: the argument is `undefined`. Passing `0`, `\"\"` or `null` is passing a real value, so the default stays out of the way.\n\nDefaults are evaluated left to right when the call happens, which is why a later default is allowed to mention an earlier parameter.",
+    "code": "function describe(name, level) {\n  return name + \" is level \" + level;\n}\n\nfunction greet(name, greeting = \"Hello\") {\n  return greeting + \", \" + name + \"!\";\n}\n\nfunction box(w, h = w) {\n  return w * h;\n}\n\nconsole.log(describe(\"Mira\"));\nconsole.log(greet(\"Mira\"));\nconsole.log(greet(\"Mira\", \"Welcome\"));\nconsole.log(greet(\"Mira\", undefined));\nconsole.log(box(3));\nconsole.log(box(3, 2));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Two parameters, but nothing forces a caller to supply both."
+     },
+     {
+      "line": 5,
+      "text": "greeting takes the value \"Hello\" only when the caller leaves it out."
+     },
+     {
+      "line": 9,
+      "text": "A default may refer to a parameter to its left, because defaults resolve left to right."
+     },
+     {
+      "line": 16,
+      "text": "Passing undefined explicitly is indistinguishable from passing nothing - the default still fires."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `preparationTime(layers, avgTime)` returning `layers.length * avgTime`, the minutes needed to prepare a lasagna. When `avgTime` is not supplied, assume `2`. So `preparationTime(['sauce', 'noodles'])` returns `4`.",
+     "fn": "preparationTime",
+     "lang": "javascript",
+     "starterCode": "function preparationTime(layers, avgTime) {\n\n}\n",
+     "tests": [
+      {
+       "input": "['sauce', 'noodles', 'sauce'], 3",
+       "expected": 9
+      },
+      {
+       "input": "['sauce', 'noodles']",
+       "expected": 4
+      },
+      {
+       "input": "[]",
+       "expected": 0
+      }
+     ],
+     "solution": "function preparationTime(layers, avgTime = 2) {\n  return layers.length * avgTime;\n}\n",
+     "concepts": [
+      "default-parameters",
+      "functions"
+     ],
+     "explain": "The default belongs in the parameter list, not in the body: writing it there means the fallback is part of the function's signature and is visible to anyone reading the first line."
+    }
+   },
+   {
+    "title": "Scope, and the Function That Remembers",
+    "body": "A pair of braces makes a **block**, and a name declared with `let` or `const` lives only inside the block that declared it. The older `var` ignores blocks entirely: it is scoped to the whole enclosing **function**, so a `var` written inside an `if` is still there after the `if` has finished.\n\nAn inner function can read the names of the function that encloses it, and that link survives even after the outer function has returned. A function that keeps an outer variable alive this way is a **closure**.\n\nEvery call to a factory like `makeCounter` builds a fresh set of local names, so two counters made by the same factory never share a number.",
+    "code": "function scopes() {\n  if (true) {\n    let blockOnly = \"let\";\n    var functionWide = \"var\";\n    console.log(blockOnly);\n  }\n  console.log(functionWide);\n}\n\nscopes();\n\nfunction makeCounter() {\n  let count = 0;\n  return function () {\n    count = count + 1;\n    return count;\n  };\n}\n\nconst next = makeCounter();\nconsole.log(next());\nconsole.log(next());\nconsole.log(makeCounter()());",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "blockOnly exists between these braces and nowhere else."
+     },
+     {
+      "line": 7,
+      "text": "functionWide survives the block, because var is scoped to the function, not the braces."
+     },
+     {
+      "line": 14,
+      "text": "This inner function is returned; it keeps count alive after makeCounter has finished."
+     },
+     {
+      "line": 23,
+      "text": "A second factory call builds a second count, so this prints 1 rather than 3."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "function makeTicket() {\n  let n = 0;\n  return function () {\n    n = n + 1;\n    return n;\n  };\n}\n\nconst a = makeTicket();\nconst b = makeTicket();\nconsole.log(a());\nconsole.log(a());\nconsole.log(b());",
+     "lang": "javascript",
+     "answer": "1\n2\n1",
+     "concepts": [
+      "closures",
+      "scope"
+     ],
+     "explain": "`a` and `b` are two different functions built from the same body, and each closed over the `n` created by its own call to makeTicket. Closures capture a binding, not a value shared across the program."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-3-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function tag(word) {\n  return \"<\" + word + \">\";\n}\n\nfunction showTag(word) {\n  console.log(\"<\" + word + \">\");\n}\n\nconsole.log(tag(\"fire\"));\nconsole.log(showTag(\"fire\"));",
+   "lang": "javascript",
+   "answer": "<fire>\n<fire>\nundefined",
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "Both functions build the same string; only one hands it back. The third line appears because showTag reaches the end of its body without a return, and a JavaScript function that does so evaluates to undefined.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-g-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a function declaration `totalTime(layerCount, minutesInOven)` returning the total cooking time in minutes: two minutes of preparation per layer, plus the minutes already spent in the oven. `totalTime(3, 20)` returns `26`.",
+   "fn": "totalTime",
+   "lang": "javascript",
+   "starterCode": "function totalTime(layerCount, minutesInOven) {\n\n}\n",
+   "tests": [
+    {
+     "input": "3, 20",
+     "expected": 26
+    },
+    {
+     "input": "1, 0",
+     "expected": 2
+    },
+    {
+     "input": "0, 0",
+     "expected": 0
+    }
+   ],
+   "solution": "function totalTime(layerCount, minutesInOven) {\n  return layerCount * 2 + minutesInOven;\n}\n",
+   "hint": "Two minutes per layer is a multiplication, and the oven time is added on top.",
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "A declaration binds the name for the whole enclosing scope, so the order of definitions in the file stops mattering. Without the `return` the arithmetic still runs and is then discarded, which is why a forgotten return shows up as undefined rather than as an error.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so both arrow functions work and the program prints `42 -5`.",
+   "template": "const double = (n) ___ n * 2;\nconst negate = (n) ___ { ___ -n; };\nconsole.log(double(21), negate(5));",
+   "blanks": [
+    "=>",
+    "=>",
+    "return"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "arrow-functions"
+   ],
+   "tags": [
+    "arrow-functions"
+   ],
+   "explain": "The fat arrow separates the parameter list from the body in every arrow function. What differs is the body: a bare expression is returned automatically, while braces make it a statement list that returns nothing until you say so.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Define `perimeter` as an **arrow function** stored in a `const`, using a concise body with an implicit return. `perimeter(width, height)` returns `2 * (width + height)`, so `perimeter(3, 4)` returns `14`.",
+   "fn": "perimeter",
+   "lang": "javascript",
+   "starterCode": "const perimeter = (width, height) => 0;\n",
+   "tests": [
+    {
+     "input": "3, 4",
+     "expected": 14
+    },
+    {
+     "input": "5, 5",
+     "expected": 20
+    },
+    {
+     "input": "0, 0",
+     "expected": 0
+    }
+   ],
+   "solution": "const perimeter = (width, height) => 2 * (width + height);\n",
+   "hint": "One expression after the arrow, no braces and no return keyword.",
+   "concepts": [
+    "arrow-functions"
+   ],
+   "tags": [
+    "arrow-functions"
+   ],
+   "explain": "Two parameters means the parentheses are compulsory, but the braces are not - and leaving them off is what buys you the implicit return. The parentheses around `width + height` are ordinary arithmetic grouping and have nothing to do with the arrow.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function greet(name, greeting = \"Hello\") {\n  return greeting + \", \" + name;\n}\n\nconsole.log(greet(\"Mira\"));\nconsole.log(greet(\"Mira\", \"Welcome\"));\nconsole.log(greet(\"Mira\", undefined));\nconsole.log(greet(\"Mira\", null));",
+   "lang": "javascript",
+   "answer": "Hello, Mira\nWelcome, Mira\nHello, Mira\nnull, Mira",
+   "concepts": [
+    "default-parameters"
+   ],
+   "tags": [
+    "default-parameters"
+   ],
+   "explain": "A default fires on exactly one condition: the argument is `undefined`. `null` is something you deliberately passed, so it is used as-is and concatenates as the text `null` - which is why a null arriving from real data looks like a broken default but is not one.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-g-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `ovenTime(layerCount, minutesPerLayer)` returning `layerCount * minutesPerLayer`. When `minutesPerLayer` is not supplied, assume `5`. `ovenTime(3)` returns `15`, and a `minutesPerLayer` of `0` must genuinely return `0`.",
+   "fn": "ovenTime",
+   "lang": "javascript",
+   "starterCode": "function ovenTime(layerCount, minutesPerLayer) {\n\n}\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": 15
+    },
+    {
+     "input": "3, 10",
+     "expected": 30
+    },
+    {
+     "input": "4, 0",
+     "expected": 0
+    },
+    {
+     "input": "0",
+     "expected": 0
+    }
+   ],
+   "solution": "function ovenTime(layerCount, minutesPerLayer = 5) {\n  return layerCount * minutesPerLayer;\n}\n",
+   "hint": "The fallback belongs in the parameter list, written with a single `=`.",
+   "concepts": [
+    "default-parameters",
+    "functions"
+   ],
+   "tags": [
+    "default-parameters",
+    "functions"
+   ],
+   "explain": "A default parameter is not an assignment that runs every call - it runs only when the argument is `undefined`. That is exactly why `0` survives here, unlike the older `minutesPerLayer = minutesPerLayer || 5` trick, which would silently turn a deliberate zero back into five.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-g-07",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "let power = 1;\n\nfunction boost() {\n  let power = 10;\n  return power;\n}\n\nif (true) {\n  let power = 100;\n  console.log(power);\n}\n\nconsole.log(boost());\nconsole.log(power);",
+   "lang": "javascript",
+   "answer": "100\n10\n1",
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope"
+   ],
+   "explain": "Each `let` creates a brand new binding inside its own pair of braces, so three names spelled identically never touch one another. The inner ones shadow the outer for the length of their block and then vanish, leaving the outermost `power` exactly as it started.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-g-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a counter factory: `makeCounter()` must hand back a function that returns 1, then 2, then 3 on successive calls.",
+   "fragments": [
+    "    return count;",
+    "function makeCounter() {",
+    "  };",
+    "  let count = 0;",
+    "    count = count + 1;",
+    "}",
+    "  return function () {"
+   ],
+   "answer": [
+    1,
+    3,
+    6,
+    4,
+    0,
+    2,
+    5
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "functions"
+   ],
+   "explain": "The counter's memory has to be created before the inner function is returned, and it has to sit outside that inner function. Slide `let count = 0` one level in and every call would rebuild it, so the counter would answer 1 forever.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-g-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `runCounter(times)`. Inside it, build a counter with a closure - a function that starts at 0 and returns one more each time it is called - then call that counter `times` times and return the array of values it produced. `runCounter(3)` returns `[1, 2, 3]` and `runCounter(0)` returns `[]`.",
+   "fn": "runCounter",
+   "lang": "javascript",
+   "starterCode": "function runCounter(times) {\n  function makeCounter() {\n\n  }\n\n  const next = makeCounter();\n  const results = [];\n\n  return results;\n}\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "0",
+     "expected": []
+    },
+    {
+     "input": "5",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    }
+   ],
+   "solution": "function runCounter(times) {\n  function makeCounter() {\n    let count = 0;\n    return function () {\n      count = count + 1;\n      return count;\n    };\n  }\n\n  const next = makeCounter();\n  const results = [];\n  for (let i = 0; i < times; i = i + 1) {\n    results.push(next());\n  }\n  return results;\n}\n",
+   "hint": "Declare `count` inside makeCounter but outside the function makeCounter returns.",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "functions"
+   ],
+   "explain": "makeCounter returns before the inner function has ever run, yet `count` is still there - the returned function keeps the scope it was born in alive. If `count` were declared inside the returned function instead, it would be rebuilt on every call and the answers would all be 1.",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "js-3-c-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`applyDiscount(price, percent)` should return the price with that percentage taken off, so `applyDiscount(100, 10)` gives `90`. Every test reports `undefined` instead. Fix it.",
+   "fn": "applyDiscount",
+   "lang": "javascript",
+   "starterCode": "const applyDiscount = (price, percent) => {\n  price - price * percent / 100;\n};\n",
+   "tests": [
+    {
+     "input": "100, 10",
+     "expected": 90
+    },
+    {
+     "input": "50, 0",
+     "expected": 50
+    },
+    {
+     "input": "0, 25",
+     "expected": 0
+    },
+    {
+     "input": "80, 100",
+     "expected": 0
+    }
+   ],
+   "solution": "const applyDiscount = (price, percent) => price - price * percent / 100;\n",
+   "hint": "Look at what the braces after the arrow turned the body into.",
+   "concepts": [
+    "arrow-functions"
+   ],
+   "tags": [
+    "arrow-functions",
+    "functions"
+   ],
+   "explain": "Braces after `=>` open a statement body, and statements produce nothing for the caller: the subtraction really happened and was then dropped on the floor. Either add `return` inside the braces or delete the braces so the body is once again a single expression.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-c-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Define `scale` as an arrow function stored in a `const`. `scale(values, factor)` returns a **new** array holding every number in `values` multiplied by `factor`, leaving `values` untouched. `factor` defaults to `2`, so `scale([1, 2, 3])` returns `[2, 4, 6]`.",
+   "fn": "scale",
+   "lang": "javascript",
+   "starterCode": "const scale = (values, factor) => {\n  const out = [];\n\n  return out;\n};\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      2,
+      4,
+      6
+     ]
+    },
+    {
+     "input": "[1, 2, 3], 10",
+     "expected": [
+      10,
+      20,
+      30
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5], 0",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "solution": "const scale = (values, factor = 2) => {\n  const out = [];\n  for (let i = 0; i < values.length; i = i + 1) {\n    out.push(values[i] * factor);\n  }\n  return out;\n};\n",
+   "hint": "This arrow has a braced body, so it needs an explicit return - and the default goes in the parameter list.",
+   "concepts": [
+    "arrow-functions",
+    "default-parameters"
+   ],
+   "tags": [
+    "arrow-functions",
+    "default-parameters"
+   ],
+   "explain": "Two rules from this floor meet here: a braced arrow body must return for itself, and a default only fires on `undefined`, which is why `[5], 0` genuinely scales to zero instead of doubling. Filling a fresh array rather than writing back into `values` is what keeps the caller's data intact.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-c-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value at each point. Write numbers plainly, with no quotes.",
+   "code": "let level = 1;\n\nfunction raise(level) {\n  level = level + 10;\n  return level;\n}\n\nconst first = raise(level);\nconst second = raise(first);",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "the parameter `level` inside raise, during the first call, before the addition",
+     "expected": "1"
+    },
+    {
+     "label": "first",
+     "expected": "11"
+    },
+    {
+     "label": "the parameter `level` inside raise, during the second call, before the addition",
+     "expected": "11"
+    },
+    {
+     "label": "second",
+     "expected": "21"
+    },
+    {
+     "label": "the outer `level`, after both calls have finished",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope",
+    "functions"
+   ],
+   "explain": "A parameter is just another local binding that happens to be initialised by the caller, and it shadows the outer name for the whole body. Assigning to it rewrites the local copy, so the outer `level` is never touched even though the code reads as if it were being incremented in place.",
+   "xp": 40
+  },
+  {
+   "id": "js-3-c-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`total(values)` should add up the numbers in `values` and return the sum, giving `0` for an empty array. It fails with `sum is not defined`. Move one line to fix it.",
+   "fn": "total",
+   "lang": "javascript",
+   "starterCode": "function total(values) {\n  for (let i = 0; i < values.length; i = i + 1) {\n    let sum = 0;\n    sum = sum + values[i];\n  }\n  return sum;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "[5]",
+     "expected": 5
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[-4, 4, -1]",
+     "expected": -1
+    }
+   ],
+   "solution": "function total(values) {\n  let sum = 0;\n  for (let i = 0; i < values.length; i = i + 1) {\n    sum = sum + values[i];\n  }\n  return sum;\n}\n",
+   "hint": "Which block does `sum` belong to, and how long does that block last?",
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope"
+   ],
+   "explain": "A loop body is a fresh block on every pass, so `let sum = 0` created, used and destroyed a new binding each iteration, leaving nothing for the `return` outside the loop to find. An accumulator must be declared in a scope that outlives the loop it accumulates in.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-c-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `runningTotals(values)`. Inside it, build an adder with a closure - a function that keeps a private total starting at 0, adds the number it is given, and returns the new total - then feed it each value in order and return the array of totals. `runningTotals([2, 3, 5])` returns `[2, 5, 10]`.",
+   "fn": "runningTotals",
+   "lang": "javascript",
+   "starterCode": "function runningTotals(values) {\n  function makeAdder() {\n\n  }\n\n  const add = makeAdder();\n  const totals = [];\n\n  return totals;\n}\n",
+   "tests": [
+    {
+     "input": "[2, 3, 5]",
+     "expected": [
+      2,
+      5,
+      10
+     ]
+    },
+    {
+     "input": "[4]",
+     "expected": [
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[-1, 1, -3]",
+     "expected": [
+      -1,
+      0,
+      -3
+     ]
+    }
+   ],
+   "solution": "function runningTotals(values) {\n  function makeAdder() {\n    let total = 0;\n    return function (n) {\n      total = total + n;\n      return total;\n    };\n  }\n\n  const add = makeAdder();\n  const totals = [];\n  for (let i = 0; i < values.length; i = i + 1) {\n    totals.push(add(values[i]));\n  }\n  return totals;\n}\n",
+   "hint": "The returned function takes one number; the total it adds to lives one scope out.",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "functions"
+   ],
+   "explain": "The running total lives in makeAdder's scope, where nothing outside the returned function can read or corrupt it - that privacy is the practical reason closures exist. Each call both updates the captured binding and reports it, which is why the result is a history rather than the same number four times.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-c-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`makeCounter` has already returned, so its local `count` should be gone - yet the function it handed back keeps counting up. Explain what keeps `count` alive, and why two counters built by the same factory never share a number.",
+   "code": "function makeCounter() {\n  let count = 0;\n  return function () {\n    count = count + 1;\n    return count;\n  };\n}\n\nconst a = makeCounter();\nconst b = makeCounter();",
+   "lang": "javascript",
+   "rubric": {
+    "required": [
+     "closure",
+     "scope",
+     "variable"
+    ],
+    "optional": [
+     "capture",
+     "private",
+     "binding",
+     "separate",
+     "fresh",
+     "reference",
+     "call"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "closures",
+    "scope"
+   ],
+   "tags": [
+    "closures",
+    "scope"
+   ],
+   "explain": "The inner function holds a reference to the binding itself, not a snapshot of the number, so the scope it came from cannot be discarded while that function is still reachable. Because a fresh scope is created on every call to the factory, `a` and `b` each closed over their own `count` and neither can see the other's.",
+   "xp": 20
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-3-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Exactly one of these programs runs without throwing. Which?",
+   "choices": [
+    "console.log(sum(1, 2));\nfunction sum(a, b) { return a + b; }",
+    "console.log(sum(1, 2));\nconst sum = function (a, b) { return a + b; };",
+    "console.log(sum(1, 2));\nconst sum = (a, b) => a + b;",
+    "None of them - a function must always be written above the line that calls it."
+   ],
+   "answer": 0,
+   "concepts": [
+    "functions",
+    "scope"
+   ],
+   "tags": [
+    "functions",
+    "scope"
+   ],
+   "explain": "A function declaration is hoisted whole - name and body are both usable from the top of the scope. A function expression only binds its name when its own line runs, so the other two are still in the temporal dead zone and throw `Cannot access 'sum' before initialization`.",
+   "xp": 10
+  },
+  {
+   "id": "js-3-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these define a function that returns `n * 2` when called with `n`?",
+   "choices": [
+    "const f = (n) => n * 2;",
+    "const f = n => n * 2;",
+    "const f = (n) => { n * 2; };",
+    "const f = (n) => { return n * 2; };"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "arrow-functions"
+   ],
+   "tags": [
+    "arrow-functions"
+   ],
+   "explain": "Parentheses around a single parameter are optional, so the first two are the same function written twice. Braces are not decoration: they switch the body from an expression to a statement list, so the third computes `n * 2` and then returns undefined.",
+   "xp": 10
+  },
+  {
+   "id": "js-3-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function power(base, exponent = 2) {\n  let result = 1;\n  for (let i = 0; i < exponent; i = i + 1) {\n    result = result * base;\n  }\n  return result;\n}\n\nconsole.log(power(3));\nconsole.log(power(3, 3));\nconsole.log(power(3, 0));\nconsole.log(power(3, undefined));",
+   "lang": "javascript",
+   "answer": "9\n27\n1\n9",
+   "concepts": [
+    "default-parameters"
+   ],
+   "tags": [
+    "default-parameters",
+    "functions"
+   ],
+   "explain": "The default is consulted only for `undefined`, so a deliberate `0` means zero and the loop never runs, leaving the starting `result` of 1. Passing `undefined` by hand is indistinguishable from passing nothing at all, which is the whole rule in one line.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `Hi, Mira`.",
+   "template": "const greet = (name, greeting ___ \"Hi\") ___ greeting + \", \" + name;\nconsole.log(greet(\"Mira\"));",
+   "blanks": [
+    "=",
+    "=>"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "default-parameters",
+    "arrow-functions"
+   ],
+   "tags": [
+    "default-parameters",
+    "arrow-functions"
+   ],
+   "explain": "A default is a single `=` inside the parameter list and belongs to the parameter, not to the body. The arrow still does its one job of separating the whole parameter list from the expression that gets returned.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a factory `makeStep(size)` whose returned function adds `size` to a private total and returns the new total on each call.",
+   "fragments": [
+    "  };",
+    "    total = total + size;",
+    "function makeStep(size) {",
+    "}",
+    "  let total = 0;",
+    "    return total;",
+    "  return function () {"
+   ],
+   "answer": [
+    2,
+    4,
+    6,
+    1,
+    5,
+    0,
+    3
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "scope"
+   ],
+   "explain": "The inner function closes over two things at once - the local `total` and the parameter `size` - because a parameter is captured exactly like any other binding in that scope. That is how one factory produces steppers of different sizes without ever being told `size` again.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-e-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `cookingStatus(timerMinutes)`. It returns `'Lasagna is done.'` when the timer shows `0`, `'Not done, please wait.'` for any other number, and `'You forgot to set the timer.'` when it is called with no argument at all.",
+   "fn": "cookingStatus",
+   "lang": "javascript",
+   "starterCode": "function cookingStatus(timerMinutes) {\n\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": "Lasagna is done."
+    },
+    {
+     "input": "12",
+     "expected": "Not done, please wait."
+    },
+    {
+     "input": "",
+     "expected": "You forgot to set the timer."
+    },
+    {
+     "input": "undefined",
+     "expected": "You forgot to set the timer."
+    }
+   ],
+   "solution": "function cookingStatus(timerMinutes) {\n  if (timerMinutes === undefined) {\n    return \"You forgot to set the timer.\";\n  }\n  if (timerMinutes === 0) {\n    return \"Lasagna is done.\";\n  }\n  return \"Not done, please wait.\";\n}\n",
+   "hint": "A parameter nobody supplied holds a value you can test for by name.",
+   "concepts": [
+    "functions",
+    "default-parameters"
+   ],
+   "tags": [
+    "functions",
+    "default-parameters"
+   ],
+   "explain": "A parameter that was never supplied holds `undefined`, and you must compare against it with `===`: a truthiness test would class the perfectly valid `0` as missing and report the lasagna as forgotten rather than done. Returning from the first matching branch removes the need for any `else` at all.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-e-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`countdown(from)` should return an array counting down from `from` to `1`, and `[]` when `from` is `0`. It throws `steps is not defined`. Fix the scoping.",
+   "fn": "countdown",
+   "lang": "javascript",
+   "starterCode": "function countdown(from) {\n  if (from > 0) {\n    const steps = [];\n    for (let i = from; i > 0; i = i - 1) {\n      steps.push(i);\n    }\n  }\n  return steps;\n}\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": [
+      3,
+      2,
+      1
+     ]
+    },
+    {
+     "input": "1",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "0",
+     "expected": []
+    },
+    {
+     "input": "5",
+     "expected": [
+      5,
+      4,
+      3,
+      2,
+      1
+     ]
+    }
+   ],
+   "solution": "function countdown(from) {\n  const steps = [];\n  for (let i = from; i > 0; i = i - 1) {\n    steps.push(i);\n  }\n  return steps;\n}\n",
+   "hint": "The array has to outlive the block it is filled in.",
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope",
+    "functions"
+   ],
+   "explain": "The array was born inside the `if` block and died with it, so the `return` two lines below named something that no longer existed anywhere. Declaring it in the function's own scope also makes the guard pointless - a loop whose condition is false from the start already yields the empty array.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `stepValues(size, times)`. Inside it, build a factory whose returned function closes over `size`, adds it to a private total and returns the new total. Call that function `times` times and return the array of totals. `stepValues(5, 3)` returns `[5, 10, 15]` and `stepValues(5, 0)` returns `[]`.",
+   "fn": "stepValues",
+   "lang": "javascript",
+   "starterCode": "function stepValues(size, times) {\n  function makeStep() {\n\n  }\n\n  const step = makeStep();\n  const totals = [];\n\n  return totals;\n}\n",
+   "tests": [
+    {
+     "input": "5, 3",
+     "expected": [
+      5,
+      10,
+      15
+     ]
+    },
+    {
+     "input": "1, 1",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "5, 0",
+     "expected": []
+    },
+    {
+     "input": "-2, 3",
+     "expected": [
+      -2,
+      -4,
+      -6
+     ]
+    }
+   ],
+   "solution": "function stepValues(size, times) {\n  function makeStep() {\n    let total = 0;\n    return function () {\n      total = total + size;\n      return total;\n    };\n  }\n\n  const step = makeStep();\n  const totals = [];\n  for (let i = 0; i < times; i = i + 1) {\n    totals.push(step());\n  }\n  return totals;\n}\n",
+   "hint": "makeStep needs no parameter of its own - `size` is already visible from the scope around it.",
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures",
+    "scope"
+   ],
+   "explain": "The innermost function captures two bindings from two different scopes at once, and neither has to be passed in again. Reading an enclosing parameter is the same lookup a closure performs on any outer name - closures are not a special feature bolted on, just ordinary scope that outlives the call that created it.",
+   "xp": 50
+  },
+  {
+   "id": "js-3-e-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const spell = \"fire\";\n\nfunction cast() {\n  const spell = \"ice\";\n  return spell;\n}\n\nfunction echo() {\n  return spell;\n}\n\nconsole.log(cast());\nconsole.log(echo());\nconsole.log(spell);",
+   "lang": "javascript",
+   "answer": "ice\nfire\nfire",
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope",
+    "functions"
+   ],
+   "explain": "`cast` declares its own `spell`, so the lookup stops there and never reaches outward. `echo` declares nothing, so the lookup walks out to the enclosing scope - and that outward walk is precisely what a closure freezes in place when a function is returned rather than called on the spot.",
+   "xp": 20
+  },
+  {
+   "id": "js-3-e-10",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "In two or three sentences, say what a function hands back when its body ends without a `return`, and what changes when an arrow function's body is wrapped in braces instead of written as a single expression.",
+   "rubric": {
+    "required": [
+     "undefined",
+     "return",
+     "expression"
+    ],
+    "optional": [
+     "implicit",
+     "statement",
+     "value",
+     "caller",
+     "brace",
+     "body"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "functions",
+    "arrow-functions"
+   ],
+   "tags": [
+    "functions",
+    "arrow-functions"
+   ],
+   "explain": "Falling off the end of a body is not an error in JavaScript - it quietly produces `undefined`, which then travels into the caller and breaks something far away. A concise arrow body is an expression whose value is returned for you; braces turn it into a statement list where nothing comes back unless you ask.",
+   "xp": 20
+  }
+ ]
+}

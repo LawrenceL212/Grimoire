@@ -1,0 +1,510 @@
+{
+ "n": 7,
+ "name": "The Deferred Hall",
+ "concepts": ["promises", "async-await", "async-errors", "concurrency"],
+ "cognitiveLevel": "transfer",
+ "sequence": ["lesson", "guided-practice", "debugging", "challenge-set", "exam"],
+
+ "lesson": {
+  "title": "Work That Has Not Finished Yet",
+  "sections": [
+   {
+    "title": "A Promise Is a Value That Arrives Later",
+    "body": "A **promise** stands for a value that is not ready yet. It is in one of three states: pending, fulfilled with a value, or rejected with a reason.\n\n`Promise.resolve(v)` gives you one that is already fulfilled, which is all you need to reason about ordering without waiting for anything real.\n\nYou read the value with `.then`, and crucially the promise itself is **not** the value - printing it shows a Promise, not what is inside.",
+    "code": "const p = Promise.resolve(42);\nconsole.log(typeof p.then);\np.then(v => console.log(\"inside:\", v));\nconsole.log(\"after\");",
+    "lang": "javascript",
+    "annotations": [
+     {"line": 2, "text": "A promise is just an object with a then method."},
+     {"line": 4, "text": "This prints BEFORE the value: .then always runs later, even when the promise is already resolved."}
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "Promise.resolve(1).then(v => console.log(v));\nconsole.log(2);",
+     "lang": "javascript",
+     "answer": "2\n1",
+     "concepts": ["promises"],
+     "explain": "A `.then` callback is queued as a microtask and cannot run until the synchronous code finishes. Already-resolved makes no difference - the ordering is a rule about the queue, not about waiting."
+    }
+   },
+   {
+    "title": "async and await Read Like Ordinary Code",
+    "body": "An `async` function always returns a promise, whatever you write inside it. Returning `5` produces a promise fulfilled with `5`.\n\n`await` pauses that function until the promise settles and gives you the plain value, so asynchronous code reads top to bottom.\n\nAwaiting a non-promise is legal and simply yields the value - which is why a function can await something that is sometimes a promise and sometimes not.",
+    "code": "async function total(xs) {\n  const first = await Promise.resolve(xs[0]);\n  const second = await xs[1];\n  return first + second;\n}\n\ntotal([2, 3]).then(v => console.log(\"total:\", v));\nconsole.log(\"queued\");",
+    "lang": "javascript",
+    "annotations": [
+     {"line": 3, "text": "await on a plain number works fine and just hands the number back."},
+     {"line": 4, "text": "The returned 5 becomes a promise fulfilled with 5, not a bare 5."}
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "doubled",
+     "prompt": "Write an `async` function `doubled(n)` that returns `n * 2`.",
+     "starterCode": "async function doubled(n) {\n  \n}\n",
+     "tests": [
+      {"input": "5", "expected": 10},
+      {"input": "0", "expected": 0}
+     ],
+     "solution": "async function doubled(n) {\n  return n * 2;\n}",
+     "concepts": ["async-await"],
+     "explain": "The `async` keyword wraps the returned value in a promise automatically, so no explicit Promise construction is needed. The tests await the result, which is why a plain return is enough.",
+     "hint1": "Just return the product - async does the wrapping."
+    }
+   },
+   {
+    "title": "Failure Travels Through the Chain",
+    "body": "A rejected promise behaves like a thrown error that has not landed yet. Inside an `async` function, `await` on a rejected promise **throws**, so `try`/`catch` works exactly as it does for synchronous code.\n\nThrowing inside an `async` function rejects its promise rather than crashing the caller.\n\nAn error that nobody catches becomes an unhandled rejection - silent in many runtimes, which is what makes swallowing them dangerous.",
+    "code": "async function risky(fail) {\n  if (fail) throw new Error(\"boom\");\n  return \"fine\";\n}\n\nasync function main() {\n  try {\n    console.log(await risky(false));\n    console.log(await risky(true));\n  } catch (e) {\n    console.log(\"caught:\", e.message);\n  }\n}\nmain();",
+    "lang": "javascript",
+    "annotations": [
+     {"line": 2, "text": "A throw inside async rejects the returned promise; it does not crash here."},
+     {"line": 9, "text": "await re-throws that rejection, so the catch below sees it."}
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "safeParse",
+     "prompt": "Write an `async` function `safeParse(fn)` that awaits `fn()` and returns its value, or returns the string `\"failed\"` if it rejects or throws.",
+     "starterCode": "async function safeParse(fn) {\n  \n}\n",
+     "tests": [
+      {"input": "() => Promise.resolve('ok')", "expected": "ok"},
+      {"input": "() => Promise.reject(new Error('x'))", "expected": "failed"},
+      {"input": "() => { throw new Error('sync'); }", "expected": "failed"}
+     ],
+     "solution": "async function safeParse(fn) {\n  try {\n    return await fn();\n  } catch (e) {\n    return \"failed\";\n  }\n}",
+     "concepts": ["async-errors"],
+     "explain": "`try`/`catch` around an `await` catches both a rejected promise and a synchronous throw, because await converts the rejection into a throw at that point. Note `return await` rather than `return` - without the await the try block exits before the promise settles and the catch never fires.",
+     "hint1": "try/catch around an awaited call.",
+     "hint2": "Make sure you await INSIDE the try."
+    }
+   },
+   {
+    "title": "Waiting on Several Things at Once",
+    "body": "Awaiting in a loop runs the work one after another. `Promise.all` takes an array of promises and gives you one promise for an array of results, letting them settle together.\n\n`Promise.all` rejects as soon as any single input rejects, discarding the rest. `Promise.allSettled` never rejects: it reports every outcome as `{ status, value }` or `{ status, reason }`.\n\nChoose `all` when any failure ruins the batch, and `allSettled` when you want to know what did work.",
+    "code": "async function demo() {\n  const vals = await Promise.all([Promise.resolve(1), 2, Promise.resolve(3)]);\n  console.log(vals);\n\n  const mixed = await Promise.allSettled([\n    Promise.resolve(\"a\"),\n    Promise.reject(new Error(\"b\"))\n  ]);\n  console.log(mixed.map(r => r.status));\n}\ndemo();",
+    "lang": "javascript",
+    "annotations": [
+     {"line": 2, "text": "Plain values are allowed alongside promises and come through unchanged."},
+     {"line": 9, "text": "allSettled reports both outcomes instead of rejecting on the first failure."}
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "sumAll",
+     "prompt": "Write an `async` function `sumAll(promises)` that awaits every promise in the array and returns the sum of their values. An empty array returns 0.",
+     "starterCode": "async function sumAll(promises) {\n  \n}\n",
+     "tests": [
+      {"input": "[Promise.resolve(1), Promise.resolve(2)]", "expected": 3},
+      {"input": "[]", "expected": 0}
+     ],
+     "solution": "async function sumAll(promises) {\n  const values = await Promise.all(promises);\n  return values.reduce((a, b) => a + b, 0);\n}",
+     "concepts": ["concurrency"],
+     "explain": "`Promise.all` on an empty array resolves immediately to `[]`, so the empty case needs no special branch. The initial value of 0 in reduce is what makes that fall out correctly.",
+     "hint1": "Promise.all, then reduce."
+    }
+   }
+  ]
+ },
+
+ "guided-practice": [
+  {
+   "id": "js-7-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "console.log('a');\nPromise.resolve().then(() => console.log('b'));\nconsole.log('c');",
+   "lang": "javascript",
+   "answer": "a\nc\nb",
+   "concepts": ["promises"],
+   "tags": ["promises"],
+   "explain": "Synchronous statements run to completion first; the microtask queue is drained afterwards. This ordering holds no matter how quickly the promise resolves.",
+   "xp": 20
+  },
+  {
+   "id": "js-7-g-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "identity",
+   "prompt": "Write an `async` function `identity(v)` that returns the value it is given.",
+   "starterCode": "async function identity(v) {\n  \n}\n",
+   "tests": [
+    {"input": "7", "expected": 7},
+    {"input": "'text'", "expected": "text"},
+    {"input": "null", "expected": null}
+   ],
+   "solution": "async function identity(v) {\n  return v;\n}",
+   "concepts": ["async-await"],
+   "tags": ["async-await"],
+   "explain": "Even this trivial function returns a promise rather than the value - which is exactly why callers must await it. The null case confirms that async wraps any value, not just truthy ones.",
+   "hint": "async does the wrapping for you.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-g-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "firstValue",
+   "prompt": "Write an `async` function `firstValue(promises)` that returns the value of the first promise in the array, or `null` if the array is empty.",
+   "starterCode": "async function firstValue(promises) {\n  \n}\n",
+   "tests": [
+    {"input": "[Promise.resolve('a'), Promise.resolve('b')]", "expected": "a"},
+    {"input": "[]", "expected": null},
+    {"input": "[Promise.resolve(0)]", "expected": 0}
+   ],
+   "solution": "async function firstValue(promises) {\n  if (promises.length === 0) return null;\n  return await promises[0];\n}",
+   "concepts": ["async-await"],
+   "tags": ["async-await"],
+   "explain": "The empty case must be handled before indexing, since awaiting `undefined` would yield undefined rather than null. The third test guards against writing a truthiness check that would turn a resolved 0 into null.",
+   "hint": "Guard the empty array first.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this waits for both promises together and returns their sum.",
+   "template": "async function pairSum(a, b) {\n  const [x, y] = ___ Promise.___([a, b]);\n  return x + y;\n}",
+   "blanks": ["await", "all"],
+   "lang": "javascript",
+   "concepts": ["concurrency"],
+   "tags": ["concurrency"],
+   "explain": "`Promise.all` returns a single promise for an array of results, so one await covers both. Awaiting each in turn would also work but would run them one after another instead of together.",
+   "xp": 20
+  },
+  {
+   "id": "js-7-g-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "withFallback",
+   "prompt": "Write an `async` function `withFallback(p, fallback)` returning the resolved value of `p`, or `fallback` if `p` rejects.",
+   "starterCode": "async function withFallback(p, fallback) {\n  \n}\n",
+   "tests": [
+    {"input": "Promise.resolve('ok'), 'alt'", "expected": "ok"},
+    {"input": "Promise.reject(new Error('no')), 'alt'", "expected": "alt"},
+    {"input": "Promise.resolve(0), 99", "expected": 0}
+   ],
+   "solution": "async function withFallback(p, fallback) {\n  try {\n    return await p;\n  } catch (e) {\n    return fallback;\n  }\n}",
+   "concepts": ["async-errors"],
+   "tags": ["async-errors"],
+   "explain": "Only a rejection should trigger the fallback, which is why this is try/catch and not `??`. The third test proves the point: a resolved 0 is a real value and must not be replaced.",
+   "hint": "try/catch, and await inside the try.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-g-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the printed lines in order as this runs.",
+   "code": "async function go() {\n  console.log('one');\n  await null;\n  console.log('three');\n}\ngo();\nconsole.log('two');",
+   "lang": "javascript",
+   "steps": [
+    {"label": "first line printed", "expected": "one"},
+    {"label": "second line printed", "expected": "two"},
+    {"label": "third line printed", "expected": "three"}
+   ],
+   "concepts": ["async-await"],
+   "tags": ["async-await"],
+   "explain": "Everything before the first `await` runs synchronously, which is why 'one' beats 'two'. The await then yields control even though there is nothing real to wait for, so the rest is queued behind the remaining synchronous code.",
+   "xp": 40
+  }
+ ],
+
+ "debugging": [
+  {
+   "id": "js-7-d-01",
+   "type": "debug",
+   "layer": "application",
+   "fn": "loadTotal",
+   "prompt": "This should return the sum of the resolved values, but it returns something odd. Fix it.",
+   "starterCode": "async function loadTotal(promises) {\n  const values = promises;\n  return values.reduce((a, b) => a + b, 0);\n}\n",
+   "tests": [
+    {"input": "[Promise.resolve(1), Promise.resolve(2)]", "expected": 3},
+    {"input": "[Promise.resolve(5)]", "expected": 5},
+    {"input": "[]", "expected": 0}
+   ],
+   "solution": "async function loadTotal(promises) {\n  const values = await Promise.all(promises);\n  return values.reduce((a, b) => a + b, 0);\n}",
+   "concepts": ["concurrency", "async-await"],
+   "tags": ["concurrency", "async-await"],
+   "explain": "Adding promise objects rather than their values produces string concatenation of `[object Promise]`, not a number. The missing `await Promise.all` is the whole bug, and the empty case passes even while broken - which is why one green test proves nothing.",
+   "hint": "The values are still wrapped.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-d-02",
+   "type": "debug",
+   "layer": "application",
+   "fn": "attempt",
+   "prompt": "This is meant to return `\"recovered\"` when the operation rejects, but the rejection escapes instead. Fix it.",
+   "starterCode": "async function attempt(fn) {\n  try {\n    return fn();\n  } catch (e) {\n    return \"recovered\";\n  }\n}\n",
+   "tests": [
+    {"input": "() => Promise.resolve('good')", "expected": "good"},
+    {"input": "() => Promise.reject(new Error('bad'))", "expected": "recovered"},
+    {"input": "() => { throw new Error('sync'); }", "expected": "recovered"}
+   ],
+   "solution": "async function attempt(fn) {\n  try {\n    return await fn();\n  } catch (e) {\n    return \"recovered\";\n  }\n}",
+   "concepts": ["async-errors"],
+   "tags": ["async-errors"],
+   "explain": "`return fn()` hands the promise back and leaves the try block immediately, so when it later rejects there is no longer a catch in scope. Adding `await` keeps the function inside the try until the promise settles. The synchronous-throw test passes either way, which is what makes this bug easy to miss.",
+   "hint": "The try block finishes before the promise does.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-d-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "collect",
+   "prompt": "This should report every outcome, resolving to an array of status strings, but it rejects as soon as one input fails. Fix it.",
+   "starterCode": "async function collect(promises) {\n  const rs = await Promise.all(promises);\n  return rs.map(r => r.status);\n}\n",
+   "tests": [
+    {"input": "[Promise.resolve(1), Promise.reject(new Error('x'))]", "expected": ["fulfilled", "rejected"]},
+    {"input": "[Promise.resolve(1)]", "expected": ["fulfilled"]},
+    {"input": "[]", "expected": []}
+   ],
+   "solution": "async function collect(promises) {\n  const rs = await Promise.allSettled(promises);\n  return rs.map(r => r.status);\n}",
+   "concepts": ["concurrency", "async-errors"],
+   "tags": ["concurrency", "async-errors"],
+   "explain": "`Promise.all` is all-or-nothing by design, so the first rejection discards every other result. `allSettled` is the tool when partial success is still useful information.",
+   "hint": "One of these combinators never rejects.",
+   "xp": 50
+  }
+ ],
+
+ "challenge-set": [
+  {
+   "id": "js-7-c-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "mapAsync",
+   "prompt": "Write an `async` function `mapAsync(values, fn)` that applies `fn` to every value, awaits all the results together, and returns them as an array. `fn` may be async or plain.",
+   "starterCode": "async function mapAsync(values, fn) {\n  \n}\n",
+   "tests": [
+    {"input": "[1, 2, 3], async n => n * 2", "expected": [2, 4, 6]},
+    {"input": "[1, 2], n => n + 1", "expected": [2, 3]},
+    {"input": "[], async n => n", "expected": []}
+   ],
+   "solution": "async function mapAsync(values, fn) {\n  return await Promise.all(values.map(v => fn(v)));\n}",
+   "concepts": ["concurrency", "async-await"],
+   "tags": ["concurrency", "async-await"],
+   "explain": "`Promise.all` accepts plain values as well as promises, which is why the same code works whether `fn` is async or not. Mapping first and awaiting once runs the work together, where awaiting inside the map callback would serialise it.",
+   "hint": "map to promises, then Promise.all.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-c-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "settleCounts",
+   "prompt": "Write an `async` function `settleCounts(promises)` returning `{ fulfilled, rejected }` counting how many settled each way. It must never reject.",
+   "starterCode": "async function settleCounts(promises) {\n  \n}\n",
+   "tests": [
+    {"input": "[Promise.resolve(1), Promise.reject(new Error('e')), Promise.resolve(2)]",
+     "expected": {"fulfilled": 2, "rejected": 1}},
+    {"input": "[]", "expected": {"fulfilled": 0, "rejected": 0}},
+    {"input": "[Promise.reject(new Error('e'))]", "expected": {"fulfilled": 0, "rejected": 1}}
+   ],
+   "solution": "async function settleCounts(promises) {\n  const rs = await Promise.allSettled(promises);\n  let fulfilled = 0;\n  let rejected = 0;\n  for (const r of rs) {\n    if (r.status === \"fulfilled\") fulfilled++;\n    else rejected++;\n  }\n  return { fulfilled, rejected };\n}",
+   "concepts": ["concurrency", "async-errors"],
+   "tags": ["concurrency", "async-errors"],
+   "explain": "The promise `settleCounts` returns must resolve even when every input rejected, so `allSettled` is the only combinator that fits the contract. Counting from its status field avoids any try/catch entirely.",
+   "hint": "allSettled gives you a status per entry.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-c-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "retry",
+   "prompt": "Write an `async` function `retry(fn, attempts)` that calls `fn()` up to `attempts` times, returning the first resolved value. If every attempt rejects, return the string `\"gave up\"`. `fn` receives the attempt number, starting at 1.",
+   "starterCode": "async function retry(fn, attempts) {\n  \n}\n",
+   "tests": [
+    {"input": "async n => n, 3", "expected": 1},
+    {"input": "async n => { if (n < 3) throw new Error('no'); return n; }, 3", "expected": 3},
+    {"input": "async () => { throw new Error('always'); }, 2", "expected": "gave up"}
+   ],
+   "solution": "async function retry(fn, attempts) {\n  for (let i = 1; i <= attempts; i++) {\n    try {\n      return await fn(i);\n    } catch (e) {\n      // try again\n    }\n  }\n  return \"gave up\";\n}",
+   "concepts": ["async-errors", "async-await"],
+   "tags": ["async-errors", "async-await"],
+   "explain": "The loop must await inside the try so a rejection is caught rather than escaping, and the success path returns immediately rather than continuing to retry. The second test confirms the attempt number is passed through, which is what makes conditional retry logic testable at all.",
+   "hint": "Loop, try/catch, return on the first success.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-c-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A function awaits ten independent requests inside a `for` loop and is slow. Explain why, and what you would change - including when the loop is actually the correct choice.",
+   "rubric": {
+    "required": ["sequential", "parallel"],
+    "optional": ["Promise.all", "together", "depend", "order", "rate"],
+    "minWords": 30
+   },
+   "concepts": ["concurrency"],
+   "tags": ["concurrency"],
+   "explain": "Awaiting inside a loop makes each call wait for the previous one, so total time is the sum rather than the maximum. `Promise.all` fixes it when the calls are independent - but a loop is right when each call depends on the previous result, or when you are deliberately rate-limiting.",
+   "xp": 50
+  }
+ ],
+
+ "exam": [
+  {
+   "id": "js-7-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "async function f() { return 1; }\nconsole.log(typeof f());\nf().then(v => console.log(v));",
+   "lang": "javascript",
+   "answer": "object\n1",
+   "concepts": ["async-await"],
+   "tags": ["async-await"],
+   "explain": "An async function returns a promise, and `typeof` a promise is 'object'. The value only appears once the microtask queue runs, which is why it prints second.",
+   "xp": 20
+  },
+  {
+   "id": "js-7-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which combinator resolves with every outcome even when some inputs reject?",
+   "choices": ["Promise.all", "Promise.allSettled", "Promise.race", "Promise.resolve"],
+   "answer": 1,
+   "concepts": ["concurrency"],
+   "tags": ["concurrency"],
+   "explain": "`all` rejects on the first failure and `race` settles with whichever finishes first. Only `allSettled` promises to report on every input regardless of outcome.",
+   "xp": 10
+  },
+  {
+   "id": "js-7-e-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "chain",
+   "prompt": "Write an `async` function `chain(value, fns)` that passes the value through each async function in turn, awaiting each before the next, and returns the final result.",
+   "starterCode": "async function chain(value, fns) {\n  \n}\n",
+   "tests": [
+    {"input": "2, [async n => n + 1, async n => n * 10]", "expected": 30},
+    {"input": "5, []", "expected": 5},
+    {"input": "0, [async n => n + 1]", "expected": 1}
+   ],
+   "solution": "async function chain(value, fns) {\n  let out = value;\n  for (const fn of fns) {\n    out = await fn(out);\n  }\n  return out;\n}",
+   "concepts": ["async-await"],
+   "tags": ["async-await"],
+   "explain": "This is the case where a loop with an await is correct rather than wasteful: each step needs the previous result, so they genuinely cannot run together. The empty-array case returns the input untouched, which falls out of the accumulator naturally.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "async function f() { throw new Error('x'); }\nf().catch(e => console.log('caught', e.message));\nconsole.log('sync');",
+   "lang": "javascript",
+   "answer": "sync\ncaught x",
+   "concepts": ["async-errors"],
+   "tags": ["async-errors"],
+   "explain": "A throw inside an async function rejects its promise instead of propagating synchronously, so the surrounding code keeps running and the handler fires later from the microtask queue.",
+   "xp": 20
+  },
+  {
+   "id": "js-7-e-05",
+   "type": "debug",
+   "layer": "application",
+   "fn": "readAll",
+   "prompt": "This should return an array of resolved values but returns an array of promises. Fix it.",
+   "starterCode": "async function readAll(promises) {\n  return promises.map(p => p);\n}\n",
+   "tests": [
+    {"input": "[Promise.resolve('a'), Promise.resolve('b')]", "expected": ["a", "b"]},
+    {"input": "[]", "expected": []},
+    {"input": "[Promise.resolve(0)]", "expected": [0]}
+   ],
+   "solution": "async function readAll(promises) {\n  return await Promise.all(promises);\n}",
+   "concepts": ["concurrency"],
+   "tags": ["concurrency"],
+   "explain": "Mapping over promises produces promises - the array is the wrong shape, not the wrong length. `Promise.all` is what converts an array of promises into a promise of an array.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-e-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so a rejection is caught and reported.",
+   "template": "async function run(p) {\n  ___ {\n    return await p;\n  } ___ (e) {\n    return 'error';\n  }\n}",
+   "blanks": ["try", "catch"],
+   "lang": "javascript",
+   "concepts": ["async-errors"],
+   "tags": ["async-errors"],
+   "explain": "Because `await` turns a rejection into a throw at that line, ordinary try/catch is the right tool - there is no separate asynchronous error syntax to learn.",
+   "xp": 20
+  },
+  {
+   "id": "js-7-e-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "firstSuccess",
+   "prompt": "Write an `async` function `firstSuccess(fns)` that calls each function in order and returns the first value that resolves, or `null` if all of them reject.",
+   "starterCode": "async function firstSuccess(fns) {\n  \n}\n",
+   "tests": [
+    {"input": "[async () => { throw new Error('a'); }, async () => 'second']", "expected": "second"},
+    {"input": "[async () => 'first', async () => 'second']", "expected": "first"},
+    {"input": "[async () => { throw new Error('a'); }]", "expected": null}
+   ],
+   "solution": "async function firstSuccess(fns) {\n  for (const fn of fns) {\n    try {\n      return await fn();\n    } catch (e) {\n      // keep trying\n    }\n  }\n  return null;\n}",
+   "concepts": ["async-errors", "async-await"],
+   "tags": ["async-errors", "async-await"],
+   "explain": "Returning inside the try exits on the first success, and the catch deliberately does nothing so the loop continues. Falling off the end means every attempt failed, which is the only path that reaches the null.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-e-08",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the order of the printed lines.",
+   "code": "console.log('1');\nPromise.resolve().then(() => console.log('3'));\n(async () => { console.log('2'); await null; console.log('4'); })();\nconsole.log('5');",
+   "lang": "javascript",
+   "steps": [
+    {"label": "first", "expected": "1"},
+    {"label": "second", "expected": "2"},
+    {"label": "third", "expected": "5"},
+    {"label": "fourth", "expected": "3"},
+    {"label": "fifth", "expected": "4"}
+   ],
+   "concepts": ["promises", "async-await"],
+   "tags": ["promises", "async-await"],
+   "explain": "All synchronous work drains first (1, 2, 5), then microtasks run in the order they were queued - the `.then` was registered before the async function hit its await, so 3 precedes 4.",
+   "xp": 40
+  },
+  {
+   "id": "js-7-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Why is an unhandled promise rejection more dangerous than an uncaught synchronous exception?",
+   "rubric": {
+    "required": ["silent", "crash"],
+    "optional": ["stack", "continue", "unnoticed", "logged", "later"],
+    "minWords": 25
+   },
+   "concepts": ["async-errors"],
+   "tags": ["async-errors"],
+   "explain": "A synchronous throw stops the code immediately and is impossible to ignore. A rejected promise nobody handles often produces only a warning while the program carries on with missing data, so the real failure surfaces far from its cause.",
+   "xp": 50
+  },
+  {
+   "id": "js-7-e-10",
+   "type": "code",
+   "layer": "application",
+   "fn": "batchTotal",
+   "prompt": "Write an `async` function `batchTotal(promises)` that sums the values of the promises that resolve, ignoring any that reject. An empty array returns 0.",
+   "starterCode": "async function batchTotal(promises) {\n  \n}\n",
+   "tests": [
+    {"input": "[Promise.resolve(1), Promise.reject(new Error('x')), Promise.resolve(2)]", "expected": 3},
+    {"input": "[]", "expected": 0},
+    {"input": "[Promise.reject(new Error('x'))]", "expected": 0},
+    {"input": "[Promise.resolve(0), Promise.resolve(5)]", "expected": 5}
+   ],
+   "solution": "async function batchTotal(promises) {\n  const rs = await Promise.allSettled(promises);\n  let total = 0;\n  for (const r of rs) {\n    if (r.status === \"fulfilled\") total += r.value;\n  }\n  return total;\n}",
+   "concepts": ["concurrency", "async-errors"],
+   "tags": ["concurrency", "async-errors"],
+   "explain": "This combines the whole floor: partial failure must not abort the batch, so `allSettled` is required, and reading `value` only from fulfilled entries avoids adding `undefined` into the total. `Promise.all` would reject on the first failure and return nothing at all.",
+   "xp": 50
+  }
+ ]
+}

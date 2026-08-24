@@ -1,0 +1,777 @@
+{
+ "n": 1,
+ "name": "The First Binding",
+ "concepts": [
+  "variables",
+  "let-const-var",
+  "primitive-types",
+  "typeof",
+  "arithmetic-operators",
+  "string-concatenation",
+  "template-literals",
+  "type-conversion"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "First Contact",
+  "sections": [
+   {
+    "title": "Binding a Name to a Value",
+    "body": "A **variable** is a name bound to a value, and `=` is the binding operator rather than the equals sign of mathematics: it means store the value on the right under the name on the left.\n\nDeclare with `const` when the name will never point at anything else, and with `let` when it genuinely must be reassigned. JavaScript evaluates the right-hand side first and only then rebinds, which is why `score = score + 10` reads sensibly instead of circularly.\n\n`console.log()` prints its arguments on one line with a single space between them. Reassigning a `const` does not fail quietly - it throws a `TypeError` the moment that line runs.",
+    "code": "const name = \"Mira\";\nlet score = 42;\n\nconsole.log(name, score);\n\nscore = score + 10;\nconsole.log(score);\n\nconst maxScore = 100;\ntry {\n  maxScore = 120;\n} catch (err) {\n  console.log(err.name);\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "score is let because line 6 rebinds it. Had this said const, line 6 would throw."
+     },
+     {
+      "line": 6,
+      "text": "The right side is computed from the old value (42 + 10), then 52 is bound back to the same name."
+     },
+     {
+      "line": 11,
+      "text": "Rebinding a const throws TypeError. The try/catch is here only so the example can print the error's name instead of stopping."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `withBonus(score)` which returns `score` plus a bonus of 10. `withBonus(42)` must return `52`.",
+     "fn": "withBonus",
+     "starterCode": "function withBonus(score) {\n  const BONUS = 10;\n  // return the total\n}\n",
+     "tests": [
+      {
+       "input": "42",
+       "expected": 52
+      },
+      {
+       "input": "0",
+       "expected": 10
+      },
+      {
+       "input": "-10",
+       "expected": 0
+      }
+     ],
+     "solution": "function withBonus(score) {\n  const BONUS = 10;\n  return score + BONUS;\n}\n",
+     "explain": "BONUS is a const because nothing in the function ever rebinds it, and naming it at all turns a bare 10 into something a later reader can understand. Returning the total rather than logging it is what lets a caller use the number, which is the difference between a function and a printout.",
+     "hint1": "The bonus is already declared for you.",
+     "hint2": "You need the `return` keyword, not console.log.",
+     "concepts": [
+      "variables",
+      "let-const-var"
+     ]
+    }
+   },
+   {
+    "title": "Why const Is the Default and var Is Not",
+    "body": "`const` is the default because a name that can never be rebound is one less thing to hold in your head while reading the rest of the file. Reach for `let` only at the moment you know a name must change, and treat that keyword as a signal to the next reader.\n\n`var` is the older keyword and it is **function-scoped**: a `var` written inside a block is the very same variable as the one outside it, so its value leaks out. It is also **hoisted**, meaning the name already exists holding `undefined` on lines above its own declaration.\n\n`let` and `const` are block-scoped and stay inside the nearest pair of braces, which is why modern JavaScript does not reach for `var` at all.",
+    "code": "var total = 1;\nlet count = 1;\n\nif (true) {\n  var total = 99;\n  let count = 99;\n  console.log(\"inside:\", total, count);\n}\n\nconsole.log(\"outside:\", total, count);\n\nconsole.log(typeof early);\nvar early = 5;",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "This is not a new variable. It is the same total from line 1, so the 99 escapes the if-block."
+     },
+     {
+      "line": 6,
+      "text": "This IS a new variable, alive only between the braces. The outer count still holds 1."
+     },
+     {
+      "line": 12,
+      "text": "early is hoisted, so the name already exists here holding undefined. Written with let, this line would throw a ReferenceError instead."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the two keywords so this prints `70`, choosing the most restrictive keyword that still works for each name.",
+     "template": "___ MAX_HP = 100;\n___ hp = MAX_HP;\nhp = hp - 30;\nconsole.log(hp);",
+     "blanks": [
+      "const",
+      "let"
+     ],
+     "lang": "javascript",
+     "explain": "MAX_HP is never rebound, so const both documents that fact and enforces it. hp is rebound on the third line, so it has to be let - and the moment you are forced to write let, you have told the reader exactly which of the two names they need to keep watching.",
+     "hint": "Only one of the two names is ever assigned a second time.",
+     "concepts": [
+      "let-const-var",
+      "variables"
+     ]
+    }
+   },
+   {
+    "title": "The Primitive Types and typeof",
+    "body": "Every value has a **type**. JavaScript has seven primitive types - `string`, `number`, `boolean`, `undefined`, `null`, `bigint` and `symbol` - and the first five carry everything on this floor.\n\nThere is only one number type, so `7` and `7.0` are the same value and `7 / 2` is `3.5` rather than `3`. `undefined` is what a declared-but-unassigned name holds, while `null` is a value you assign on purpose to mean **nothing here**.\n\n`typeof x` reports the type as a lowercase string, and it carries one famous wart: `typeof null` is `\"object\"`, a bug from 1995 that can no longer be fixed without breaking the web.",
+    "code": "const level = 7;\nconst ratio = 0.5;\nconst label = \"Mira\";\nconst ready = level > 5;\nlet unset;\nconst empty = null;\n\nconsole.log(level, ratio, label, ready);\nconsole.log(typeof level, typeof ratio, typeof label);\nconsole.log(typeof ready, typeof unset, typeof empty);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "A comparison evaluates to a boolean, so ready holds true - you rarely write true by hand."
+     },
+     {
+      "line": 5,
+      "text": "Declared with no value. unset holds undefined, which is a real value, not an error."
+     },
+     {
+      "line": 10,
+      "text": "typeof null is \"object\", which is wrong and always has been. Learn it as a fact about the language, not a rule you can reason out."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print? Write all four lines.",
+     "code": "console.log(typeof 7);\nconsole.log(typeof \"7\");\nconsole.log(typeof (7 > 3));\nconsole.log(typeof null);",
+     "lang": "javascript",
+     "answer": "number\nstring\nboolean\nobject",
+     "explain": "A pair of quotes is the entire difference between the first two lines, and it changes what every later operator will do with the value. The last line is the language's oldest wart: null is a primitive, yet typeof reports \"object\" for it.",
+     "concepts": [
+      "typeof",
+      "primitive-types"
+     ]
+    }
+   },
+   {
+    "title": "Joining Text, Templates, and Conversion",
+    "body": "`+` does two different jobs. Given two numbers it adds; given a string on either side it **concatenates**, converting the other operand to text first - which is why `\"5\" + 1` is `\"51\"` while `\"5\" - 1` is `4`, since only `+` has a string meaning and every other arithmetic operator coerces to number instead.\n\nA **template literal** is written between backticks and evaluates whatever expression you place inside `${ }`, so the fixed text and the computed values stay in one readable piece rather than being sewn together with `+`.\n\n`Number(x)` and `String(x)` convert deliberately. Convert at the boundary where text arrives, and no later line has to wonder what it is holding.",
+    "code": "const name = \"Mira\";\nconst level = 7;\n\nconsole.log(\"Level \" + level + \", \" + name);\nconsole.log(`Level ${level}, ${name}`);\nconsole.log(`Next level: ${level + 1}`);\n\nconst raw = \"25\";\nconsole.log(raw + 5);\nconsole.log(Number(raw) + 5);\nconsole.log(String(level) + 5);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Same output as line 4 with none of the quote-and-plus bookkeeping. Backticks, not quotes."
+     },
+     {
+      "line": 9,
+      "text": "raw is text, so + joins and prints 255. Nothing is raised - this is the bug that looks like an answer."
+     },
+     {
+      "line": 10,
+      "text": "Converting first makes + mean addition again, giving 30."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this prints exactly `total: 10`.",
+     "template": "const raw = \"8\";\nconst n = ___(raw);\nconsole.log(`total: ${n ___ 2}`);",
+     "blanks": [
+      "Number",
+      "+"
+     ],
+     "lang": "javascript",
+     "explain": "Without the conversion the expression would be \"8\" + 2, and + would join rather than add, printing total: 82. Inside a template literal you may place any expression, so the arithmetic happens before the surrounding text is assembled.",
+     "hint": "One blank converts text to a number, the other is the operator that then adds.",
+     "concepts": [
+      "type-conversion",
+      "template-literals",
+      "arithmetic-operators"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-1-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "let gold = 3;\nconsole.log(gold);\ngold = gold * 4;\nconsole.log(gold);\ngold = gold - 2;\nconsole.log(gold);",
+   "lang": "javascript",
+   "answer": "3\n12\n10",
+   "concepts": [
+    "variables"
+   ],
+   "tags": [
+    "variables"
+   ],
+   "explain": "Each line rebinds the same name using whatever it holds at that instant, so the program has to be read top to bottom rather than solved as a set of equations. If these were equations, `gold = gold * 4` would have no solution at all.",
+   "hint": "Work out the right-hand side first, then write down gold's new value.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all four lines.",
+   "code": "console.log(7 / 2);\nconsole.log(typeof 7, typeof 7.0);\nconsole.log(10 % 3);\nconsole.log(2 ** 10);",
+   "lang": "javascript",
+   "answer": "3.5\nnumber number\n1\n1024",
+   "concepts": [
+    "arithmetic-operators",
+    "primitive-types",
+    "typeof"
+   ],
+   "tags": [
+    "arithmetic-operators",
+    "primitive-types",
+    "typeof"
+   ],
+   "explain": "JavaScript has one number type, so there is no separate integer division to fall back on and `7 / 2` keeps the half. `%` is what is left after that division and `**` raises to a power - both stay inside the same single number type, which is why line 2 reports it twice.",
+   "hint": "Two values in one console.log land on one line, separated by a space.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-g-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write both lines.",
+   "code": "var a = 1;\nlet b = 1;\n{\n  var a = 5;\n  let b = 5;\n}\nconsole.log(a);\nconsole.log(b);",
+   "lang": "javascript",
+   "answer": "5\n1",
+   "concepts": [
+    "let-const-var",
+    "variables"
+   ],
+   "tags": [
+    "let-const-var",
+    "variables"
+   ],
+   "explain": "The two inner lines look identical and behave completely differently: `var a` reuses the outer binding, so 5 escapes the braces, while `let b` creates a second binding that dies at the closing brace. That leak is the whole reason `var` was replaced rather than merely discouraged.",
+   "hint": "Only one of the two keywords respects the braces.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all four lines.",
+   "code": "console.log(2 + 3);\nconsole.log(\"2\" + 3);\nconsole.log(2 + \"3\" + 4);\nconsole.log(\"10\" - 3);",
+   "lang": "javascript",
+   "answer": "5\n23\n234\n7",
+   "concepts": [
+    "string-concatenation",
+    "arithmetic-operators",
+    "type-conversion"
+   ],
+   "tags": [
+    "string-concatenation",
+    "arithmetic-operators",
+    "type-conversion"
+   ],
+   "explain": "As soon as one side of `+` is a string the whole operation becomes concatenation, and the result stays a string as evaluation runs left to right - which is how `2 + \"3\" + 4` reaches \"234\" rather than 9. `-` has no string meaning at all, so it converts \"10\" to a number and subtracts.",
+   "hint": "Evaluate + strictly left to right, asking at each step whether either side is text.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that turns a wage typed as text into a day's pay and reports it.",
+   "fragments": [
+    "const raw = \"12\";",
+    "const hours = Number(raw);",
+    "const pay = hours * 8;",
+    "console.log(`Pay is ${pay}`);"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "type-conversion",
+    "variables",
+    "template-literals"
+   ],
+   "tags": [
+    "type-conversion",
+    "variables",
+    "template-literals"
+   ],
+   "explain": "Every line consumes the name the line above it created, so the data dependencies fix the order completely - no other arrangement even runs. Converting immediately after reading means the two lines below never have to think about text again.",
+   "hint": "Find the only line that uses no earlier name; that one goes first.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-g-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value of `total` after each of the last three lines runs.",
+   "code": "let total = 10;\ntotal = total + 5;\ntotal = total * 2;\ntotal = total % 7;",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "after total = total + 5",
+     "expected": "15"
+    },
+    {
+     "label": "after total = total * 2",
+     "expected": "30"
+    },
+    {
+     "label": "after total = total % 7",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "variables",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "variables",
+    "arithmetic-operators"
+   ],
+   "explain": "Only one value exists at a time and each line replaces it, so the order of the lines is the entire meaning of the program. `%` gives what is left after dividing: 30 is four sevens with 2 to spare.",
+   "hint": "Carry the number from one line into the next; 30 divided by 7 leaves a remainder.",
+   "xp": 40
+  },
+  {
+   "id": "js-1-g-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `greet(name)` which returns a greeting built with a **template literal**. `greet(\"Mira\")` must return the string `Hello, Mira!`.",
+   "fn": "greet",
+   "starterCode": "function greet(name) {\n  // build the greeting with a template literal\n}\n",
+   "tests": [
+    {
+     "input": "\"Mira\"",
+     "expected": "Hello, Mira!"
+    },
+    {
+     "input": "\"Ada Lovelace\"",
+     "expected": "Hello, Ada Lovelace!"
+    },
+    {
+     "input": "\"\"",
+     "expected": "Hello, !"
+    }
+   ],
+   "solution": "function greet(name) {\n  return `Hello, ${name}!`;\n}\n",
+   "concepts": [
+    "template-literals",
+    "variables",
+    "string-concatenation"
+   ],
+   "tags": [
+    "template-literals",
+    "variables",
+    "string-concatenation"
+   ],
+   "explain": "A template literal keeps the sentence intact and readable, whereas the `+` version splits one human phrase across three fragments and two operators. The empty-name case still returns a well-formed string because substitution never inspects what it is pasting in.",
+   "hint1": "Template literals use backticks, not quotes.",
+   "hint2": "The placeholder is written ${name}.",
+   "hint3": "return `Hello, ${name}!`;",
+   "xp": 50
+  },
+  {
+   "id": "js-1-g-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This should return the next level up, but it throws `TypeError: Assignment to constant variable`. Fix it. `nextLevel(1)` must return `2`.",
+   "fn": "nextLevel",
+   "starterCode": "function nextLevel(level) {\n  const next = level;\n  next = next + 1;\n  return next;\n}\n",
+   "tests": [
+    {
+     "input": "1",
+     "expected": 2
+    },
+    {
+     "input": "0",
+     "expected": 1
+    },
+    {
+     "input": "-3",
+     "expected": -2
+    }
+   ],
+   "solution": "function nextLevel(level) {\n  let next = level;\n  next = next + 1;\n  return next;\n}\n",
+   "concepts": [
+    "let-const-var",
+    "variables"
+   ],
+   "tags": [
+    "let-const-var",
+    "variables"
+   ],
+   "explain": "The error is not about the arithmetic but about the promise the declaration made: `const` says this name is bound once, and the next line breaks that promise. The honest fix is `let` where the name really does change - or dropping the intermediate name and returning `level + 1`, which needs no rebinding at all.",
+   "hint1": "Read the error literally: something is being assigned to a constant.",
+   "hint2": "Which line rebinds a name that was declared const?",
+   "hint3": "Change const to let - or return level + 1 and delete the extra name.",
+   "xp": 50
+  },
+  {
+   "id": "js-1-g-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `describe(value)` which returns the value's type and the value itself, separated by a colon and a space. `describe(42)` must return `number: 42`, and `describe(null)` must return `object: null`.",
+   "fn": "describe",
+   "starterCode": "function describe(value) {\n  // return the type, then \": \", then the value\n}\n",
+   "tests": [
+    {
+     "input": "42",
+     "expected": "number: 42"
+    },
+    {
+     "input": "\"hi\"",
+     "expected": "string: hi"
+    },
+    {
+     "input": "true",
+     "expected": "boolean: true"
+    },
+    {
+     "input": "null",
+     "expected": "object: null"
+    }
+   ],
+   "solution": "function describe(value) {\n  return `${typeof value}: ${value}`;\n}\n",
+   "concepts": [
+    "typeof",
+    "primitive-types",
+    "template-literals"
+   ],
+   "tags": [
+    "typeof",
+    "primitive-types",
+    "template-literals"
+   ],
+   "explain": "`typeof` already hands back a string, so it drops straight into a placeholder with no conversion of its own, and the second placeholder converts the value to text for you. The null case is the one to remember: the value prints as null while its reported type is \"object\".",
+   "hint1": "typeof value is an expression, so it can go inside ${ }.",
+   "hint2": "Two placeholders in one template literal, with \": \" between them.",
+   "hint3": "return `${typeof value}: ${value}`;",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-1-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A program runs `let x;` and then `console.log(typeof x);`. What is printed?",
+   "choices": [
+    "undefined",
+    "null",
+    "object",
+    "the program throws a ReferenceError"
+   ],
+   "answer": 0,
+   "concepts": [
+    "typeof",
+    "primitive-types",
+    "variables"
+   ],
+   "tags": [
+    "typeof",
+    "primitive-types",
+    "variables"
+   ],
+   "explain": "A `let` declaration with no initialiser still binds the name; it simply binds it to the value `undefined`, and `typeof` reports that as the string \"undefined\". A ReferenceError would mean the name does not exist at all, which is a different failure with a different fix.",
+   "xp": 10
+  },
+  {
+   "id": "js-1-e-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all four lines.",
+   "code": "const name = \"Mira\";\nconst level = 7;\nconsole.log(\"Level \" + level + \" \" + name);\nconsole.log(`Level ${level} ${name}`);\nconsole.log(`Next: ${level + 1}`);\nconsole.log(\"Next: \" + level + 1);",
+   "lang": "javascript",
+   "answer": "Level 7 Mira\nLevel 7 Mira\nNext: 8\nNext: 71",
+   "concepts": [
+    "template-literals",
+    "string-concatenation",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "template-literals",
+    "string-concatenation",
+    "arithmetic-operators"
+   ],
+   "explain": "The first two lines agree, so the template literal is purely a readability win - until the last line, where `+` has already turned the expression into concatenation before the 1 arrives. A placeholder evaluates its whole expression first, which is exactly what protects `${level + 1}`.",
+   "hint": "On the last line, ask what type the left-hand side has by the time the 1 is reached.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the first console.log prints `30` and the second prints `255`.",
+   "template": "const raw = \"25\";\nconst n = ___(raw);\nconsole.log(n + 5);\nconsole.log(___(n) + \"5\");",
+   "blanks": [
+    "Number",
+    "String"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "type-conversion",
+    "primitive-types"
+   ],
+   "tags": [
+    "type-conversion",
+    "primitive-types"
+   ],
+   "explain": "The same `+` produces 30 on one line and 255 on the next, and nothing but the types decided which. Converting explicitly states your intent in the code, so a reader never has to work out which meaning of `+` is in play.",
+   "hint": "Both blanks are conversion functions, and they pull in opposite directions.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-e-04",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these expressions produce a value whose `typeof` is `\"string\"`?",
+   "choices": [
+    "String(9)",
+    "\"9\" + 9",
+    "9 + 9",
+    "`${9}`",
+    "Number(\"9\")"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "type-conversion",
+    "string-concatenation",
+    "typeof",
+    "primitive-types"
+   ],
+   "tags": [
+    "type-conversion",
+    "string-concatenation",
+    "typeof",
+    "primitive-types"
+   ],
+   "explain": "Explicit conversion, concatenation and template substitution all end in text, while plain arithmetic and `Number()` stay numeric. Every one of these expressions looks numeric on the page, which is precisely why the type has to be reasoned about rather than eyeballed.",
+   "xp": 10
+  },
+  {
+   "id": "js-1-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a working function `tagOf(value)` that returns, for example, `42 is a number`.",
+   "fragments": [
+    "function tagOf(value) {",
+    "  const kind = typeof value;",
+    "  return `${value} is a ${kind}`;",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "typeof",
+    "template-literals",
+    "variables"
+   ],
+   "tags": [
+    "typeof",
+    "template-literals",
+    "variables"
+   ],
+   "explain": "`kind` must be bound before the line that reads it, and nothing can sit after the closing brace and still belong to the function. Naming the type before using it costs one line and makes the returned sentence readable at a glance.",
+   "hint": "A name has to exist before the line that uses it, and the brace closes the body.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`\"5\" + 1` evaluates to `\"51\"`, but `\"5\" - 1` evaluates to `4`. Explain why the same left-hand value behaves so differently, and say what you would write instead to make the first expression produce `6`.",
+   "rubric": {
+    "required": [
+     "string",
+     "number",
+     "convert"
+    ],
+    "optional": [
+     "concatenat",
+     "join",
+     "coerce",
+     "type",
+     "template"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "string-concatenation",
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "string-concatenation",
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "explain": "`+` is the only arithmetic operator with a second, string meaning, so it joins the moment either side is text, while `-` has no such meaning and therefore converts to a number first. Nothing throws, which is what makes this dangerous - the fix is to convert at the boundary with `Number(\"5\") + 1` rather than to distrust the arithmetic.",
+   "hint": "Ask which of the two operators has a meaning for text at all.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-e-07",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `value` through this program. Write text values in double quotes and numbers bare, exactly as you would type the literal.",
+   "code": "let value = \"6\";\nvalue = value + 6;\nvalue = Number(value);\nvalue = value % 10;",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "after value = \"6\"",
+     "expected": "\"6\""
+    },
+    {
+     "label": "after value = value + 6",
+     "expected": "\"66\""
+    },
+    {
+     "label": "after value = Number(value)",
+     "expected": "66"
+    },
+    {
+     "label": "after value = value % 10",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "type-conversion",
+    "string-concatenation",
+    "arithmetic-operators",
+    "primitive-types"
+   ],
+   "tags": [
+    "type-conversion",
+    "string-concatenation",
+    "arithmetic-operators",
+    "primitive-types"
+   ],
+   "explain": "One name carries a different type at different moments, so `+` joins on the second line while `%` does arithmetic two lines later. Tracking the type beside the value - not just the digits - is what tells you which meaning of an operator is about to apply.",
+   "hint1": "Line 2 is string work, not addition.",
+   "hint2": "Number(\"66\") is the moment the type changes.",
+   "hint3": "66 % 10 is the remainder after dividing by ten.",
+   "xp": 40
+  },
+  {
+   "id": "js-1-e-08",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "let items = 2;\nif (items > 0) {\n  var message = \"has items\";\n  let hidden = \"block only\";\n  console.log(hidden);\n}\nconsole.log(message);\nconsole.log(typeof hidden);",
+   "lang": "javascript",
+   "answer": "block only\nhas items\nundefined",
+   "concepts": [
+    "let-const-var",
+    "typeof",
+    "variables"
+   ],
+   "tags": [
+    "let-const-var",
+    "typeof",
+    "variables"
+   ],
+   "explain": "`message` survives the block because `var` is scoped to the function rather than the braces, so a name you meant to keep private is visible to everything below. `hidden` genuinely no longer exists after the closing brace, and `typeof` is the one operator that can ask about a missing name without throwing a ReferenceError.",
+   "hint": "One of the two inner names outlives the closing brace.",
+   "xp": 20
+  },
+  {
+   "id": "js-1-e-09",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`rawScore` arrives as text from a form. `addBonus(\"40\")` should return the number `50`, but it returns the string `\"4010\"`. Fix it.",
+   "fn": "addBonus",
+   "starterCode": "function addBonus(rawScore) {\n  return rawScore + 10;\n}\n",
+   "tests": [
+    {
+     "input": "\"40\"",
+     "expected": 50
+    },
+    {
+     "input": "\"0\"",
+     "expected": 10
+    },
+    {
+     "input": "\"-5\"",
+     "expected": 5
+    },
+    {
+     "input": "\"7.5\"",
+     "expected": 17.5
+    }
+   ],
+   "solution": "function addBonus(rawScore) {\n  return Number(rawScore) + 10;\n}\n",
+   "concepts": [
+    "type-conversion",
+    "string-concatenation",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "string-concatenation",
+    "arithmetic-operators"
+   ],
+   "explain": "Nothing threw, which is why this class of bug reaches production: `+` saw a string and did exactly what it promises for strings. Converting at the point the text enters the function repairs every line below it at once, whereas patching the result afterwards leaves the same trap for the next line you add.",
+   "hint1": "The arithmetic is fine; look at the type of what came in.",
+   "hint2": "What does + do when one side is a string?",
+   "hint3": "Wrap the parameter: Number(rawScore) + 10.",
+   "xp": 50
+  },
+  {
+   "id": "js-1-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `receipt(item, rawPrice, quantity, rawPostage)` for a shop. `rawPrice` and `rawPostage` arrive as text; `quantity` is already a number. The total is the price times the quantity, plus the postage. Return a single string of the form `3 x potion = 17 coins`, so `receipt(\"potion\", \"5\", 3, \"2\")` returns exactly `3 x potion = 17 coins`.",
+   "fn": "receipt",
+   "starterCode": "function receipt(item, rawPrice, quantity, rawPostage) {\n  // convert the two text values\n  // work out the total\n  // return the line as a template literal\n}\n",
+   "tests": [
+    {
+     "input": "\"potion\", \"5\", 3, \"2\"",
+     "expected": "3 x potion = 17 coins"
+    },
+    {
+     "input": "\"elixir\", \"12\", 1, \"0\"",
+     "expected": "1 x elixir = 12 coins"
+    },
+    {
+     "input": "\"rope\", \"7\", 0, \"3\"",
+     "expected": "0 x rope = 3 coins"
+    },
+    {
+     "input": "\"iron key\", \"0\", 4, \"0\"",
+     "expected": "4 x iron key = 0 coins"
+    },
+    {
+     "input": "\"scroll\", \"2.5\", 2, \"1\"",
+     "expected": "2 x scroll = 6 coins"
+    }
+   ],
+   "solution": "function receipt(item, rawPrice, quantity, rawPostage) {\n  const price = Number(rawPrice);\n  const postage = Number(rawPostage);\n  const total = price * quantity + postage;\n  return `${quantity} x ${item} = ${total} coins`;\n}\n",
+   "concepts": [
+    "variables",
+    "let-const-var",
+    "type-conversion",
+    "arithmetic-operators",
+    "template-literals",
+    "string-concatenation"
+   ],
+   "tags": [
+    "variables",
+    "let-const-var",
+    "type-conversion",
+    "arithmetic-operators",
+    "template-literals",
+    "string-concatenation"
+   ],
+   "explain": "Skip the conversion on the postage and `15 + \"2\"` quietly becomes \"152\" - the multiplication would have coerced for you, but `+` never does, so the operator that looks safest is the one that bites. Every name here is const because nothing is ever rebound, and the zero cases need no special handling: multiplying by zero and pasting the result into the template falls out of the same code.",
+   "hint1": "Convert both text values before doing any arithmetic with them.",
+   "hint2": "The order matters: price times quantity first, then add the postage.",
+   "hint3": "return `${quantity} x ${item} = ${total} coins`;",
+   "xp": 50
+  }
+ ]
+}

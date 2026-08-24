@@ -1,0 +1,861 @@
+{
+ "n": 2,
+ "name": "The Gate of Two Truths",
+ "concepts": [
+  "conditionals",
+  "equality-operators",
+  "type-coercion",
+  "truthiness",
+  "ternary",
+  "switch"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Choosing a Path",
+  "sections": [
+   {
+    "title": "The Fork in the Path",
+    "body": "An `if` statement runs the block in its curly braces only when the condition in the round brackets is true. Adding `else if` offers alternatives, and a closing `else` catches everything left over.\n\nJavaScript tests the conditions **top to bottom and stops at the first true one**, so every branch below the winner is skipped however true it might be. That makes the order of the branches part of the logic rather than a matter of taste.\n\nBecause a block is ordinary code, an `if` can sit inside another one. The braces alone decide what belongs to what - indentation is for human eyes only, and JavaScript ignores it completely.",
+    "code": "const temperature = 31;\n\nif (temperature > 30) {\n  console.log(\"heatwave\");\n} else if (temperature > 20) {\n  console.log(\"warm\");\n} else {\n  console.log(\"cool\");\n}\n\nif (temperature > 30) {\n  if (temperature > 40) {\n    console.log(\"stay inside\");\n  } else {\n    console.log(\"drink water\");\n  }\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "31 > 30 is true, so this branch runs and the two below it are never even tested."
+     },
+     {
+      "line": 5,
+      "text": "Skipped. It would also have been true, but the chain already found its answer."
+     },
+     {
+      "line": 14,
+      "text": "This else belongs to the inner if, so it means over 30 but not over 40."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "const score = 7;\n\nif (score > 10) {\n  console.log(\"big\");\n} else if (score > 5) {\n  console.log(\"medium\");\n} else if (score > 0) {\n  console.log(\"small\");\n} else {\n  console.log(\"none\");\n}",
+     "lang": "javascript",
+     "answer": "medium",
+     "concepts": [
+      "conditionals"
+     ],
+     "explain": "Exactly one branch of a chain can ever run. The third condition is also true for 7, but JavaScript stopped looking the moment the second one matched, so the order of the branches decided the answer."
+    }
+   },
+   {
+    "title": "Two Kinds of Equal",
+    "body": "JavaScript ships two equality operators and they are not interchangeable. `===` is **strict**: it answers true only when the two operands have the same type **and** the same value. `==` is **loose**: when the types differ it quietly converts one side before comparing, which is why `1 == \"1\"` is true while `1 === \"1\"` is false.\n\n`!==` and `!=` are their negations and inherit exactly the same behaviour. Reach for `===` and `!==` by default, because a comparison that changes your data before answering is a comparison you cannot predict at a glance.",
+    "code": "console.log(1 === 1);\nconsole.log(1 === \"1\");\nconsole.log(1 == \"1\");\nconsole.log(0 == false);\nconsole.log(\"\" == 0);\nconsole.log(null == undefined);\nconsole.log(null === undefined);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Same digit, different types - strict equality refuses it."
+     },
+     {
+      "line": 3,
+      "text": "Loose equality turns the string into the number 1 first, so this one is true."
+     },
+     {
+      "line": 5,
+      "text": "The empty string is converted to 0 before the comparison, and 0 == 0 is true."
+     },
+     {
+      "line": 7,
+      "text": "null and undefined are loosely equal to each other, but strictly equal to nothing at all."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "const votes = \"3\";\n\nconsole.log(votes === 3);\nconsole.log(votes == 3);\nconsole.log(votes !== 3);\nconsole.log(votes != 3);",
+     "lang": "javascript",
+     "answer": "false\ntrue\ntrue\nfalse",
+     "concepts": [
+      "equality-operators",
+      "type-coercion"
+     ],
+     "explain": "A string of digits read from a form or an input field is still a string. The strict pair reports the type mismatch honestly; the loose pair converts it away, which is how a value that is not a number ends up counting as one."
+    }
+   },
+   {
+    "title": "Truthy, Falsy and the Ternary",
+    "body": "Any value at all can be used as a condition, not only a boolean. JavaScript has exactly **eight falsy** values - `false`, `0`, `-0`, `0n`, `\"\"`, `null`, `undefined` and `NaN` - and treats absolutely everything else as **truthy**, including `\"0\"`, `\"false\"` and `-1`.\n\nThe **ternary** operator is an if/else squeezed into an expression: `condition ? valueWhenTrue : valueWhenFalse`. It produces a value instead of running statements, so it fits where an `if` cannot - in the middle of an assignment, or as the thing a function hands back.",
+    "code": "console.log(Boolean(0), Boolean(\"\"), Boolean(null), Boolean(undefined));\nconsole.log(Boolean(\"0\"), Boolean(\"false\"), Boolean(-1), Boolean(0.1));\n\nconst name = \"\";\nconst label = name ? name : \"anonymous\";\nconsole.log(label);\n\nconst stock = 0;\nconsole.log(stock ? \"in stock\" : \"sold out\");",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Zero, empty and absent: the four falsy values you will meet every day."
+     },
+     {
+      "line": 2,
+      "text": "Both of these strings hold characters, so both are truthy however false they read."
+     },
+     {
+      "line": 5,
+      "text": "The ternary hands back one of two values, which is why it can sit to the right of an =."
+     },
+     {
+      "line": 9,
+      "text": "0 is falsy, so an empty shelf reports itself without a single comparison being written."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so `stockLabel` returns \"in stock\" when `count` holds a non-zero number and \"sold out\" when it is 0.",
+     "template": "function stockLabel(count) {\n  return count ___ \"in stock\" ___ \"sold out\";\n}",
+     "blanks": [
+      "?",
+      ":"
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "ternary",
+      "truthiness"
+     ],
+     "explain": "The question mark opens the choice and the colon separates the two results, so the whole line is one expression that `return` can carry. Handing `count` straight to the ternary leans on falsiness, which is why no comparison with 0 is needed."
+    }
+   },
+   {
+    "title": "The Switch and Its Fall-Through",
+    "body": "A `switch` compares one value against a list of cases using `===`, the same strict rule as before - so `switch (\"2\")` never matches `case 2`. Execution jumps to the first matching case and then **keeps running downwards until it meets a `break` or a `return`**. That is called fall-through.\n\nFall-through is a default, not an accident, and it is the pitfall of the statement: forget a `break` and the cases beneath yours run too. Stacking labels with nothing between them uses it deliberately, letting several values share one body, and `default` catches whatever matched nothing.",
+    "code": "function fee(kind) {\n  switch (kind) {\n    case \"child\":\n    case \"student\":\n      return 0;\n    case \"adult\":\n      return 12;\n    default:\n      return 8;\n  }\n}\n\nconsole.log(fee(\"child\"), fee(\"student\"), fee(\"adult\"), fee(\"pensioner\"));\n\nlet steps = \"\";\nswitch (2) {\n  case 1:\n    steps += \"[one]\";\n  case 2:\n    steps += \"[two]\";\n  case 3:\n    steps += \"[three]\";\n    break;\n  case 4:\n    steps += \"[four]\";\n}\nconsole.log(steps);\n\nswitch (\"2\") {\n  case 2:\n    console.log(\"matched\");\n    break;\n  default:\n    console.log(\"no match: switch compares with ===\");\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A case with no body falls into the next one, so child and student share a single result."
+     },
+     {
+      "line": 19,
+      "text": "Execution starts here, then falls into case 3 because no break stopped it."
+     },
+     {
+      "line": 23,
+      "text": "This break is why [four] never joins the string."
+     },
+     {
+      "line": 30,
+      "text": "The string \"2\" is not strictly equal to the number 2, so default runs."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `sound(animal)` returning `\"meow\"` for `\"cat\"`, `\"woof\"` for `\"dog\"` and `\"???\"` for anything else. Use a `switch`.",
+     "fn": "sound",
+     "starterCode": "function sound(animal) {\n  switch (animal) {\n    // one case per animal, and a default for the rest\n  }\n}\n",
+     "tests": [
+      {
+       "input": "\"cat\"",
+       "expected": "meow"
+      },
+      {
+       "input": "\"dog\"",
+       "expected": "woof"
+      },
+      {
+       "input": "\"fox\"",
+       "expected": "???"
+      }
+     ],
+     "solution": "function sound(animal) {\n  switch (animal) {\n    case \"cat\":\n      return \"meow\";\n    case \"dog\":\n      return \"woof\";\n    default:\n      return \"???\";\n  }\n}\n",
+     "concepts": [
+      "switch"
+     ],
+     "explain": "Returning from inside a case leaves the whole function, so it ends the switch as firmly as `break` does and no fall-through is possible. `default` is what turns an unknown animal into a defined answer instead of `undefined`."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "js-2-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "const stock = 0;\n\nif (stock > 10) {\n  console.log(\"plenty\");\n} else if (stock > 0) {\n  console.log(\"low\");\n} else {\n  console.log(\"out\");\n}",
+   "lang": "javascript",
+   "answer": "out",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "Zero is not greater than zero, so both tests fail and the chain lands on `else`. A boundary like this is where a stray `>=` would quietly change the meaning of the whole function.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "console.log(2 === 2);\nconsole.log(\"2\" === 2);\nconsole.log(\"2\" == 2);\nconsole.log(\"2\" !== 2);\nconsole.log(\"2\" != 2);",
+   "lang": "javascript",
+   "answer": "true\nfalse\ntrue\ntrue\nfalse",
+   "concepts": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "tags": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "explain": "The last four lines compare the same two values and disagree twice, purely because of which operator was chosen. `!==` and `!=` are not different questions - they are the exact negations of `===` and `==`, and they inherit the conversion or the refusal along with it.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `speedLabel(kph)` returns exactly one label: \"too fast\" above 120, \"cruising\" above 50, and \"slow\" otherwise.",
+   "template": "function speedLabel(kph) {\n  if (kph > 120) {\n    return \"too fast\";\n  } ___ (kph > 50) {\n    return \"cruising\";\n  } ___ {\n    return \"slow\";\n  }\n}",
+   "blanks": [
+    "else if",
+    "else"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "Chaining with `else if` is what makes the branches mutually exclusive. Three separate `if` statements would each be tested on their own, and 130 would match the first two rather than only the one you meant.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "You are pricing a used vehicle. Write `resellPrice(originalPrice, age)` returning 80% of the original price when the vehicle is less than 3 years old, 50% when it is more than 10 years old, and 70% for everything in between. Return the number itself.",
+   "fn": "resellPrice",
+   "starterCode": "function resellPrice(originalPrice, age) {\n  // pick the percentage first, then apply it\n}\n",
+   "tests": [
+    {
+     "input": "1000, 1",
+     "expected": 800
+    },
+    {
+     "input": "1000, 5",
+     "expected": 700
+    },
+    {
+     "input": "1000, 15",
+     "expected": 500
+    },
+    {
+     "input": "1000, 3",
+     "expected": 700
+    },
+    {
+     "input": "2500, 10",
+     "expected": 1750
+    },
+    {
+     "input": "1000, 0",
+     "expected": 800
+    }
+   ],
+   "solution": "function resellPrice(originalPrice, age) {\n  if (age < 3) {\n    return originalPrice * 0.8;\n  } else if (age > 10) {\n    return originalPrice * 0.5;\n  }\n  return originalPrice * 0.7;\n}\n",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "The two boundary ages are the whole exercise: 3 is not less than 3 and 10 is not more than 10, so both fall through to the middle band. Ordering the branches so the last one needs no condition of its own is safer than writing `age >= 3 && age <= 10` and getting one of the two signs wrong.",
+   "hint": "Two conditions and a final fallback are enough - the in-between band needs no test of its own.",
+   "xp": 50,
+   "source": "exercism/javascript vehicle-purchase"
+  },
+  {
+   "id": "js-2-g-05",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`isZero(value)` should answer whether `value` is the number zero. It currently answers `true` for the empty string and for `false` as well. Fix it so only the number `0` passes.",
+   "fn": "isZero",
+   "starterCode": "function isZero(value) {\n  if (value == 0) {\n    return true;\n  }\n  return false;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": true
+    },
+    {
+     "input": "5",
+     "expected": false
+    },
+    {
+     "input": "\"\"",
+     "expected": false
+    },
+    {
+     "input": "false",
+     "expected": false
+    },
+    {
+     "input": "\"0\"",
+     "expected": false
+    }
+   ],
+   "solution": "function isZero(value) {\n  return value === 0;\n}\n",
+   "concepts": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "tags": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "explain": "Loose equality converts the other operand to a number before comparing, and `\"\"`, `false` and `\"0\"` all convert to 0 - so the test was really asking \"does this become zero\", not \"is this zero\". One extra `=` narrows the question back to the one that was intended.",
+   "hint": "The condition is already the answer; the only problem is which equality operator asks it.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-g-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "console.log(Boolean(\"\"));\nconsole.log(Boolean(\" \"));\nconsole.log(Boolean(\"0\"));\nconsole.log(Boolean(0));\nconsole.log(Boolean(undefined));",
+   "lang": "javascript",
+   "answer": "false\ntrue\ntrue\nfalse\nfalse",
+   "concepts": [
+    "truthiness"
+   ],
+   "tags": [
+    "truthiness"
+   ],
+   "explain": "Falsiness is about the value being empty, zero or absent - never about what the value looks like. A single space and the string `\"0\"` both contain a character, so both count as true in a condition, which is exactly why a blank-looking form field can still sail through an `if (field)` check.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-g-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `parity(n)` returning the string `\"even\"` when `n` divides by two exactly and `\"odd\"` when it does not. Use the ternary operator rather than an `if` statement.",
+   "fn": "parity",
+   "starterCode": "function parity(n) {\n  // one return, one ternary\n}\n",
+   "tests": [
+    {
+     "input": "4",
+     "expected": "even"
+    },
+    {
+     "input": "7",
+     "expected": "odd"
+    },
+    {
+     "input": "0",
+     "expected": "even"
+    },
+    {
+     "input": "-3",
+     "expected": "odd"
+    }
+   ],
+   "solution": "function parity(n) {\n  return n % 2 === 0 ? \"even\" : \"odd\";\n}\n",
+   "concepts": [
+    "ternary"
+   ],
+   "tags": [
+    "ternary"
+   ],
+   "explain": "A ternary is an expression, so it can be returned directly and the whole function collapses to one line. The negative case is the one worth checking: `-3 % 2` is `-1` in JavaScript rather than `1`, so comparing the remainder against `0` is safe while comparing it against `1` would not be.",
+   "hint": "condition ? whenTrue : whenFalse - and the condition here is a remainder test.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-g-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "A form hands you its two number fields as strings. Write `addAsNumbers(a, b)` returning the **numeric** sum, so `addAsNumbers(\"5\", \"3\")` is `8` and not `\"53\"`. It must still work when the arguments are already numbers.",
+   "fn": "addAsNumbers",
+   "starterCode": "function addAsNumbers(a, b) {\n  // convert first, add second\n}\n",
+   "tests": [
+    {
+     "input": "\"5\", \"3\"",
+     "expected": 8
+    },
+    {
+     "input": "5, 3",
+     "expected": 8
+    },
+    {
+     "input": "\"0\", 0",
+     "expected": 0
+    },
+    {
+     "input": "\"-2\", \"2\"",
+     "expected": 0
+    },
+    {
+     "input": "\"10\", 5",
+     "expected": 15
+    }
+   ],
+   "solution": "function addAsNumbers(a, b) {\n  return Number(a) + Number(b);\n}\n",
+   "concepts": [
+    "type-coercion"
+   ],
+   "tags": [
+    "type-coercion"
+   ],
+   "explain": "`+` is the one arithmetic operator with two jobs: given a string on either side it joins rather than adds, while `-`, `*` and `/` have no string meaning and convert to numbers on their own. Converting explicitly with `Number()` states the intention in the code instead of leaving it to the operator to guess.",
+   "hint": "Number(\"5\") is 5, and Number(5) is still 5 - so converting twice is harmless.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-g-09",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these fragments in the order that defines `fee(kind)`, returning 0 for a child and 12 for everyone else.",
+   "fragments": [
+    "function fee(kind) {",
+    "  switch (kind) {",
+    "    case \"child\":",
+    "      return 0;",
+    "    default:",
+    "      return 12;",
+    "  }",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "switch"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "explain": "A `switch` needs its own braces inside the function braces, and every `case` label ends with a colon rather than opening a block of its own. `default` goes last because it is the catch-all, and the two closing braces unwind in the reverse of the order they were opened.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-g-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Li Mei tells customers how long a drink will take. Write `timeToMixJuice(juice)` returning `0.5` for `\"Pure Strawberry Joy\"`, `1.5` for `\"Energizer\"` and for `\"Green Garden\"`, `3` for `\"Tropical Island\"`, `5` for `\"All or Nothing\"`, and `2.5` for anything else. Use a `switch`.",
+   "fn": "timeToMixJuice",
+   "starterCode": "function timeToMixJuice(juice) {\n  switch (juice) {\n    // two of these drinks take the same time - let them share a body\n  }\n}\n",
+   "tests": [
+    {
+     "input": "\"Tropical Island\"",
+     "expected": 3
+    },
+    {
+     "input": "\"Energizer\"",
+     "expected": 1.5
+    },
+    {
+     "input": "\"Green Garden\"",
+     "expected": 1.5
+    },
+    {
+     "input": "\"Pure Strawberry Joy\"",
+     "expected": 0.5
+    },
+    {
+     "input": "\"All or Nothing\"",
+     "expected": 5
+    },
+    {
+     "input": "\"Berries & Lime\"",
+     "expected": 2.5
+    },
+    {
+     "input": "\"\"",
+     "expected": 2.5
+    }
+   ],
+   "solution": "function timeToMixJuice(juice) {\n  switch (juice) {\n    case \"Pure Strawberry Joy\":\n      return 0.5;\n    case \"Energizer\":\n    case \"Green Garden\":\n      return 1.5;\n    case \"Tropical Island\":\n      return 3;\n    case \"All or Nothing\":\n      return 5;\n    default:\n      return 2.5;\n  }\n}\n",
+   "concepts": [
+    "switch"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "explain": "Two drinks with the same answer become two stacked labels above one body - fall-through used on purpose, rather than the same `return` copied twice. The empty string is not on the menu and is not special-cased either, so it lands in `default` like any other unknown order.",
+   "hint": "A case with no body of its own falls straight into the next case.",
+   "xp": 50,
+   "source": "exercism/javascript mixed-juices"
+  }
+ ],
+ "exam": [
+  {
+   "id": "js-2-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`\"7\" == 7` is `true` but `\"7\" === 7` is `false`. Which sentence explains the difference?",
+   "choices": [
+    "`==` compares the characters, while `===` compares where the values are stored in memory.",
+    "`==` converts one operand so the types match and then compares; `===` refuses to convert and demands the same type as well as the same value.",
+    "`===` compares three things - the type, the value and the variable name - so it needs a variable on both sides.",
+    "`==` is an older spelling of `===` kept for compatibility, and the two always agree."
+   ],
+   "answer": 1,
+   "concepts": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "tags": [
+    "equality-operators",
+    "type-coercion"
+   ],
+   "explain": "Loose equality runs a conversion step first, so it answers a question about what the values could become rather than about what they are. Strict equality has no such step, which is what makes its answer predictable without knowing the conversion rules by heart.",
+   "xp": 10
+  },
+  {
+   "id": "js-2-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these values are **falsy** - that is, `Boolean(value)` is `false`?",
+   "choices": [
+    "0",
+    "\"0\"",
+    "\"\"",
+    "undefined",
+    "-1",
+    "\" \""
+   ],
+   "answer": [
+    0,
+    2,
+    3
+   ],
+   "concepts": [
+    "truthiness"
+   ],
+   "tags": [
+    "truthiness"
+   ],
+   "explain": "Only the empty, zero and absent values are falsy. A string is judged on whether it holds characters, never on what those characters spell, so `\"0\"` and a lone space are both truthy - and `-1` is a perfectly ordinary non-zero number.",
+   "xp": 10
+  },
+  {
+   "id": "js-2-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "console.log(\"5\" + 3);\nconsole.log(\"5\" - 3);\nconsole.log(1 + true);\nconsole.log(\"3\" * \"4\");\nconsole.log(2 + 2 + \"2\");",
+   "lang": "javascript",
+   "answer": "53\n2\n2\n12\n42",
+   "concepts": [
+    "type-coercion"
+   ],
+   "tags": [
+    "type-coercion"
+   ],
+   "explain": "`+` means \"join\" the moment either side is a string, while `-` and `*` have no string meaning and convert to numbers instead - which is why one operator turns 5 and 3 into 53 and the next turns them into 2. The last line reads left to right: 2 + 2 is 4 while both sides are numbers, and only then does the string arrive and turn the result into \"42\".",
+   "xp": 20
+  },
+  {
+   "id": "js-2-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "let out = \"\";\n\nswitch (3) {\n  case 2:\n    out += \"[two]\";\n  case 3:\n    out += \"[three]\";\n  case 4:\n    out += \"[four]\";\n    break;\n  case 5:\n    out += \"[five]\";\n}\n\nconsole.log(out);",
+   "lang": "javascript",
+   "answer": "[three][four]",
+   "concepts": [
+    "switch"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "explain": "Matching a case is an entry point, not a boundary: execution begins at `case 3` and then keeps going downwards through `case 4` because nothing stopped it. The `break` inside case 4 is what saves case 5, and case 2 is untouched because fall-through only ever runs forwards.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `stockLabel(count)` returns \"in stock\" whenever `count` is a non-zero number and \"sold out\" when it is 0. Judge `count` by its own truthiness - do not compare it with anything.",
+   "template": "function stockLabel(count) {\n  return ___ ? \"in stock\" ___ \"sold out\";\n}",
+   "blanks": [
+    "count",
+    ":"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "ternary",
+    "truthiness"
+   ],
+   "tags": [
+    "ternary",
+    "truthiness"
+   ],
+   "explain": "A bare value in the condition slot is converted to a boolean for you, so `count` alone already asks \"is there any stock\". The colon is what separates the two results of the ternary; without it the expression is incomplete and the file will not even parse.",
+   "xp": 20
+  },
+  {
+   "id": "js-2-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "`x` holds the one-character string `\"0\"`. Give the value of each expression below - each one is `true` or `false`.",
+   "code": "const x = \"0\";",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "Boolean(x)",
+     "expected": "true"
+    },
+    {
+     "label": "x == 0",
+     "expected": "true"
+    },
+    {
+     "label": "x === 0",
+     "expected": "false"
+    },
+    {
+     "label": "x == false",
+     "expected": "true"
+    },
+    {
+     "label": "x != 0",
+     "expected": "false"
+    }
+   ],
+   "concepts": [
+    "type-coercion",
+    "truthiness",
+    "equality-operators"
+   ],
+   "tags": [
+    "type-coercion",
+    "truthiness",
+    "equality-operators"
+   ],
+   "explain": "This value is truthy in an `if` and yet loosely equal to `false`, because the two mechanisms convert differently: a condition asks whether the string is empty, while `==` turns both sides into numbers first and gets 0 == 0. Strict equality is the only line here that reports what `x` actually is.",
+   "xp": 40
+  },
+  {
+   "id": "js-2-e-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `waterState(celsius)` returning `\"solid\"` at 0 degrees or below, `\"gas\"` at 100 or above, and `\"liquid\"` anywhere in between.",
+   "fn": "waterState",
+   "starterCode": "function waterState(celsius) {\n  // handle the two extremes, then whatever is left\n}\n",
+   "tests": [
+    {
+     "input": "-5",
+     "expected": "solid"
+    },
+    {
+     "input": "0",
+     "expected": "solid"
+    },
+    {
+     "input": "50",
+     "expected": "liquid"
+    },
+    {
+     "input": "100",
+     "expected": "gas"
+    },
+    {
+     "input": "99.9",
+     "expected": "liquid"
+    },
+    {
+     "input": "0.1",
+     "expected": "liquid"
+    }
+   ],
+   "solution": "function waterState(celsius) {\n  if (celsius <= 0) {\n    return \"solid\";\n  }\n  if (celsius >= 100) {\n    return \"gas\";\n  }\n  return \"liquid\";\n}\n",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "Both boundaries belong to the extremes, which is the whole difference between `<` and `<=` here, and getting either one wrong shows up only at exactly 0 or exactly 100. Handling the extremes first lets the final `return` need no condition at all, because everything that reaches it has already been ruled out twice.",
+   "hint": "Once the first two returns have run, nothing is left to test.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-e-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "The two amounts arrive from a form, so they are strings. `totalPrice(\"100\", \"5\")` should be `105` but returns `\"1005\"` instead. Fix it so the function always returns a number.",
+   "fn": "totalPrice",
+   "starterCode": "function totalPrice(base, tax) {\n  return base + tax;\n}\n",
+   "tests": [
+    {
+     "input": "\"100\", \"5\"",
+     "expected": 105
+    },
+    {
+     "input": "100, 5",
+     "expected": 105
+    },
+    {
+     "input": "\"0\", \"0\"",
+     "expected": 0
+    },
+    {
+     "input": "\"-10\", \"10\"",
+     "expected": 0
+    },
+    {
+     "input": "\"2.5\", \"2.5\"",
+     "expected": 5
+    }
+   ],
+   "solution": "function totalPrice(base, tax) {\n  return Number(base) + Number(tax);\n}\n",
+   "concepts": [
+    "type-coercion"
+   ],
+   "tags": [
+    "type-coercion"
+   ],
+   "explain": "Nothing is broken about the `+`: it saw a string and did what `+` does to strings, which is join them. This bug is invisible in testing whenever the inputs happen to already be numbers, so the fix is to convert at the boundary where untrusted text enters rather than to hope about what the caller sends.",
+   "hint": "The operator is fine. The types reaching it are not.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Days are numbered with 0 for Sunday through to 6 for Saturday. Write `dayType(dayNumber)` returning `\"weekend\"` for 0 and 6, `\"weekday\"` for 1 to 5, and `\"unknown\"` for any other number. Use a `switch` with stacked labels rather than a chain of `if`s.",
+   "fn": "dayType",
+   "starterCode": "function dayType(dayNumber) {\n  switch (dayNumber) {\n    // stack the labels that share an answer\n  }\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": "weekend"
+    },
+    {
+     "input": "6",
+     "expected": "weekend"
+    },
+    {
+     "input": "3",
+     "expected": "weekday"
+    },
+    {
+     "input": "1",
+     "expected": "weekday"
+    },
+    {
+     "input": "5",
+     "expected": "weekday"
+    },
+    {
+     "input": "7",
+     "expected": "unknown"
+    },
+    {
+     "input": "-1",
+     "expected": "unknown"
+    }
+   ],
+   "solution": "function dayType(dayNumber) {\n  switch (dayNumber) {\n    case 0:\n    case 6:\n      return \"weekend\";\n    case 1:\n    case 2:\n    case 3:\n    case 4:\n    case 5:\n      return \"weekday\";\n    default:\n      return \"unknown\";\n  }\n}\n",
+   "concepts": [
+    "switch"
+   ],
+   "tags": [
+    "switch"
+   ],
+   "explain": "A switch matches discrete values, so a range has to be spelled out label by label - seven labels for two answers, which is exactly when an `if` on `>=` and `<=` would have read better. `default` is doing real work here: without it, 7 and -1 would fall out of the switch and the function would return `undefined`.",
+   "hint": "The two weekend days are not adjacent, so they need their own pair of stacked labels.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `displayName(name)` returning `name` itself when it holds something, and `\"anonymous\"` when it does not. Decide with the truthiness of the value itself and a ternary - do not compare against `\"\"`.",
+   "fn": "displayName",
+   "starterCode": "function displayName(name) {\n  // one ternary is enough\n}\n",
+   "tests": [
+    {
+     "input": "\"Mira\"",
+     "expected": "Mira"
+    },
+    {
+     "input": "\"\"",
+     "expected": "anonymous"
+    },
+    {
+     "input": "\"0\"",
+     "expected": "0"
+    },
+    {
+     "input": "\" \"",
+     "expected": " "
+    },
+    {
+     "input": "undefined",
+     "expected": "anonymous"
+    }
+   ],
+   "solution": "function displayName(name) {\n  return name ? name : \"anonymous\";\n}\n",
+   "concepts": [
+    "truthiness",
+    "ternary"
+   ],
+   "tags": [
+    "truthiness",
+    "ternary"
+   ],
+   "explain": "Testing truthiness catches the empty string and a missing argument with one condition, where `name === \"\"` would let `undefined` straight through. It also decides the two awkward cases for you: `\"0\"` and a lone space hold characters, so they are names and are returned unchanged.",
+   "hint": "A missing argument is undefined, and undefined is falsy - so one condition covers both empty cases.",
+   "xp": 50
+  },
+  {
+   "id": "js-2-e-11",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A logger uses `switch (level)` with `case \"warn\":` and `case \"error\":`, each logging its own message, and no `break` anywhere. Called with `\"warn\"` it logged both messages. Explain what the missing keyword changes, and why stacking two `case` labels with nothing between them is not the same mistake.",
+   "rubric": {
+    "required": [
+     "break",
+     "fall"
+    ],
+    "optional": [
+     "case",
+     "default",
+     "return",
+     "match",
+     "stack",
+     "body",
+     "label"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "concepts": [
+    "switch",
+    "conditionals"
+   ],
+   "tags": [
+    "switch",
+    "conditionals"
+   ],
+   "explain": "A matching case says where to start, not where to stop, so without `break` or `return` execution keeps running through every case beneath it. Stacked labels exploit the same rule deliberately: there is no body to run in between, so several values arrive at one shared body rather than accumulating several bodies.",
+   "xp": 20
+  }
+ ]
+}
