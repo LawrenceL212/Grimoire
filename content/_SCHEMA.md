@@ -1,75 +1,111 @@
-# Grimoire Content Schema — v2
+# Grimoire Content Schema — v3
 
-The engine knows nothing about any subject. It reads `content/index.json` for
-the catalogue and `content/{id}.json` for a curriculum. Adding a course means
-adding a JSON file — the engine never changes.
+Grimoire measures **competence**, not completion. Everything in this schema
+follows from that.
 
-Copy `_TEMPLATE.json` to start. Validate with:
+The engine knows nothing about any subject. It reads `content/index.json` for the
+catalogue and `content/{id}.json` for a curriculum. Adding a course means adding a
+JSON file — the engine never changes.
 
 ```bash
 python scripts/validate_content.py {id}
-python scripts/validate_content.py --strict   # warnings fail too
+python scripts/validate_content.py --strict     # warnings fail too
 ```
 
 **Content that fails validation does not ship.**
 
 ---
 
-## 1. `content/index.json` — the catalogue
+## 0. The model in one page
 
-Drives the dungeon map. Three wings, and the dungeons that fill them.
+### Three layers
+
+Every concept must be carried through all three. They are ordered and
+non-skippable.
+
+| layer | what it means | what satisfies it |
+|---|---|---|
+| **Exposure** | you met the concept | lesson sections, worked examples, demos |
+| **Retrieval** | you can produce it from memory | `mcq` `multi` `output` `fill` `order` |
+| **Application** | you used it on something unseen | `code` `debug` `design` `project` `scenario` `diagnose` `complexity` `problem` `proof` |
+
+**Reading a lesson satisfies Exposure and nothing else.** A dungeon is complete
+only when all three layers are satisfied **for every concept in its syllabus** —
+so the unit of record is the *concept × layer* pair, not the floor.
+
+### Mastery — four components
+
+| component | weight | computed from |
+|---|---|---|
+| Coverage | 25% | concepts addressed at **Application** layer |
+| Retention | 25% | SM-2 performance from the review outcome log |
+| Application depth | 30% | performance on Application-layer types |
+| Boss performance | 20% | boss assessment results |
+
+| score | rank |
+|---|---|
+| 0–39 | Novice |
+| 40–59 | Apprentice |
+| 60–74 | Journeyman |
+| 75–89 | Adept |
+| 90–100 | Master |
+
+- **Dungeon complete** = Adept (75+) **and** boss cleared.
+- **Dungeon mastered** = Master (90+) **and** 30 days of retention above 80%.
+
+Note Application depth is the heaviest single component, and Coverage is itself
+defined at the Application layer. There is no path to Adept by reading.
+
+---
+
+## 1. `content/index.json` — the catalogue
 
 ```json
 {
-  "version": 2,
+  "version": 3,
+  "pistonUrl": null,
+  "logoBase": "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/",
   "books": [
-    { "id": "spellbook", "numeral": "I", "name": "The Spellbook",
-      "subtitle": "Languages", "tint": "#3E5A78", "blurb": "Every language a spell." }
+    { "id": "spellbook", "name": "The Spellbook", "subtitle": "Languages",
+      "tint": "#3E5A78", "blurb": "Master the languages of creation.",
+      "layout": "grid" }
   ],
   "dungeons": [
     {
-      "id": "python",
-      "name": "Python",
-      "books": ["spellbook"],
-      "sigil": "🐍",
-      "floors": 10,
-      "status": "scaffold",
-      "source": "exercism/python",
-      "exercismTrack": "python",
-      "requires": [],
-      "unlocks": ["data-structures", "machine-learning"],
-      "mentions": []
+      "id": "python", "name": "Python", "books": ["spellbook"], "order": 1,
+      "disciplineType": "language",
+      "sigil": "🐍", "logo": "python/python-original.svg",
+      "floors": 10, "status": "available",
+      "requires": [], "unlocks": ["data-structures"], "mentions": []
     }
   ]
 }
 ```
 
-### Book
+Wings are `spellbook` (languages), `arcana` (CS theory), `athenaeum`
+(mathematics). All three are open from the start; the dependency graph, not the
+wing, decides what you can enter.
 
 | field | required | meaning |
 |---|---|---|
-| `id` | yes | `spellbook` \| `arcana` \| `athenaeum` |
-| `numeral` | yes | Roman numeral shown above the name |
-| `name` | yes | e.g. "The Spellbook" |
-| `subtitle` | yes | e.g. "Languages" |
-| `tint` | yes | Hex. Applied as a low-alpha wash, never as a text colour |
-| `blurb` | no | One line under the tab row |
+| `id` | yes | Filename stem: `"python"` → `content/python.json` |
+| `books` | yes | Wing ids. A dungeon may appear in more than one |
+| `order` | yes | Position in that wing's learning path, 1-based |
+| `disciplineType` | yes | See §2. Drives which assessment types are legal |
+| `floors` | yes | Integer, or `null` when the syllabus is not derived yet. **Never hardcode 10** |
+| `status` | yes | `available` · `scaffold` (imported, unauthored) · `planned` |
+| `requires` | no | Requirement objects, see below. A **real** gate on Arcana/Athenaeum |
+| `unlocks` | no | Derived as the inverse of `requires`; never hand-edited |
+| `mentions` | no | Dungeons whose concepts appear in this one's lessons |
 
-### Dungeon entry
+### Requirement objects
 
-| field | required | meaning |
-|---|---|---|
-| `id` | yes | Filename stem: `"python"` → `content/python.json`. Lowercase, no spaces |
-| `name` | yes | Display name |
-| `books` | yes | Array. A dungeon may appear in more than one book — `discrete-maths` is in both The Arcana and The Athenaeum and is **one** dungeon, not two |
-| `sigil` | no | Single glyph on the node |
-| `floors` | yes | Integer, or `null` when the syllabus has not been derived yet. **Never hardcode 10** — floor count follows the syllabus |
-| `status` | yes | `available` = playable · `scaffold` = imported, not yet authored · `planned` = catalogued only |
-| `source` | no | Attribution string; see `attribution.md` |
-| `requires` | no | Dungeons you should finish first. **Soft gate** — a warning, not a lock |
-| `requiresAny` | no | Satisfied by **any one** of the listed dungeons |
-| `unlocks` | no | Completing this highlights these |
-| `mentions` | no | Dungeons whose concepts appear inside this one's lessons; these become the inline concept links |
+```json
+{"dungeon": "c"}                             completed
+{"dungeon": "c", "minFloor": 3}              reached that floor
+{"anyOf": ["c", "cpp"]}                      any one completed
+{"anyFromBook": "spellbook", "minFloor": 3}  any dungeon in that wing at that floor
+```
 
 ---
 
@@ -81,295 +117,324 @@ Drives the dungeon map. Three wings, and the dungeons that fill them.
   "name": "The Serpent's Descent",
   "subject": "Python",
   "category": "language",
-  "sigil": "🐍",
-  "unlock": null,
-  "source": "exercism/python (MIT)",
+  "disciplineType": "language",
   "lang": "python",
   "runtime": "pyodide",
+  "totalFloors": 10,
+  "source": "exercism/python (MIT)",
+  "relic": { "id": "serpents-tongue", "name": "The Serpent's Tongue",
+             "effect": "hint-discount", "value": 1,
+             "flavour": "Hints cost one less mana." },
   "floors": [ Floor, ... ]
 }
 ```
 
-`category` is `language` or `theory`. Top-level `lang` and `runtime` are the
-defaults for every section and challenge in the file; either may be overridden
-per section or per challenge.
+`lang` and `runtime` are the execution defaults for every section and challenge
+in the file. **A dungeon with no `lang` falls through to the remote runner** —
+this is not optional.
 
-### Floor
+### Discipline types
 
-```json
-{
-  "n": 1,
-  "name": "Threshold of Syntax",
-  "concepts": ["basics", "bools", "numbers"],
-  "lesson":   { "sections": [ Section, ... ] },
-  "practice": [ Challenge, ... ],
-  "exam":     [ Challenge, ... ]
-}
-```
+`disciplineType` determines which assessment types are legal and what a new
+floor's default sequence looks like. The engine never special-cases a discipline;
+it reads this field.
 
-| field | rule |
+| discipline | valid types |
 |---|---|
-| `n` | 1-based, must equal its position in the array |
-| `name` | Floor title |
-| `concepts` | Every concept this floor teaches. **Each needs ≥2 practice challenges tagged to it** |
-| `lesson` | 2–4 sections, each with a code example and a checkpoint |
-| `practice` | 6–10 challenges |
-| `exam` | 8–12 challenges |
+| `language` | `code` `debug` `design` `output` `fill` `explain` — **never `mcq` as a primary instrument** |
+| `algorithms` | `code` `complexity` `proof` `trace` `explain` `order` |
+| `mathematics` | `problem` `proof` `fill` `explain`, `mcq` for definitions only |
+| `systems` | `trace` `diagnose` `scenario` `explain`, `code` for small components |
+| `security` | `scenario` `diagnose` `explain`, `code` in a sandbox |
+| `theory` | `proof` `problem` `fill` `trace` `explain` |
+| `engineering` | `scenario` `design` `explain`, `mcq` sparingly |
 
-All three phases are required. Gating is enforced by the engine and is not
-configurable:
+### Relic
 
-**lesson** (every checkpoint passed) → **practice** (every challenge passed) →
-**exam** (≥80%) → next floor unlocks.
-
-The last floor of a dungeon is the **boss floor** and must contain a `project`
-challenge.
+Awarded automatically on boss clear. `effect` is an engine-known identifier;
+`value` parameterises it. Unknown effects are ignored rather than crashing.
 
 ---
 
-## 3. Lesson section
+## 3. Floor
 
-A section is a loop, not a page: explain, let them run it, then make them prove
-it. The learner cannot reach the next section until this one's checkpoint passes.
+```json
+{
+  "n": 3,
+  "name": "The Bound Sigil",
+  "concepts": ["lists", "list-methods"],
+  "cognitiveLevel": "recall",
+  "sequence": ["lesson", "guided-practice", "challenge-set", "exam"],
+  "lesson": { "sections": [ Section, ... ] },
+  "guided-practice": [ Challenge, ... ],
+  "challenge-set":   [ Challenge, ... ],
+  "exam":            [ Challenge, ... ]
+}
+```
+
+### `sequence` — the floor's shape is content-declared
+
+The engine renders whatever this array names, in order. There is no fixed
+lesson → practice → exam structure any more.
+
+```json
+["lesson", "guided-coding", "debugging", "novel-challenge", "exam"]   // Python
+["lesson", "worked-examples", "complexity-analysis", "novel-problems", "exam"]
+["lesson", "worked-proof", "complete-proof", "unseen-proof", "exam"]  // proofs
+["lesson", "packet-trace", "scenario", "diagnose-network", "exam"]    // networking
+```
+
+Rules:
+- `"lesson"` maps to the `lesson` object. **Every other name maps to a key on the
+  floor holding an array of challenges.** Every named stage must exist.
+- The first stage should be `lesson`; the last should be `exam` (or, on a boss
+  floor, a stage containing the `project`).
+- Stage names are free text, rendered title-cased. Pick names that say what the
+  learner does.
+
+### `cognitiveLevel`
+
+Difficulty rises across a dungeon on a **proportional** curve, so a 9-floor and a
+14-floor dungeon are both coherent. The engine derives the expected band from
+`floor.n / totalFloors`; the floor declares its own level and the validator
+checks the two agree.
+
+| band | position | level | what the engine does |
+|---|---|---|---|
+| Recognition | first 20% | `recognition` | more scaffolding, hints cheap |
+| Recall | next 20% | `recall` | scaffolding reduced |
+| Application | next 20% | `application` | normal |
+| Transfer | next 20% | `transfer` | unfamiliar framing, debugging |
+| Design | second-to-last floor | `design` | **no starter code, no hints** |
+| Boss | last floor | `boss` | project harness, no hints |
+
+---
+
+## 4. Lesson section
 
 ```json
 {
   "title": "Variables and Assignment",
-  "body": "Programmers bind **names** to values with the `=` operator...",
-  "code": "x = 42\nprint(x)",
+  "body": "A **variable** is a name pointing at a value...",
+  "code": "score = 42\nprint(score)",
   "lang": "python",
-  "annotations": [
-    { "line": 1, "text": "x now refers to the integer 42." },
-    { "line": 2, "text": "print writes the value, not the name." }
-  ],
-  "checkpoint": {
-    "prompt": "Assign the value 100 to a variable called `score` and print it.",
-    "starterCode": "# your code here",
-    "tests": [ { "input": "", "expected": "100" } ],
-    "hint1": "Use the = operator to assign a value.",
-    "hint2": "Variable names go on the left: score = ...",
-    "hint3": "print(score) will output the value."
-  }
+  "annotations": [ { "line": 1, "text": "score now refers to the integer 42." } ],
+  "checkpoint": Challenge
 }
 ```
 
-| field | required | rule |
-|---|---|---|
-| `title` | yes | One idea per section |
-| `body` | yes | **3–5 sentences.** Markdown subset below. If it needs more, it is two sections |
-| `code` | yes | Must run standalone and produce useful output. Rendered into a live editor with Run and Experiment |
-| `lang` | no | Defaults to the dungeon's `lang` |
-| `annotations` | no | 1-based line numbers into `code`. Annotate the lines that carry the idea, not every line |
-| `checkpoint` | yes | See below |
-
-**2–4 sections per lesson.** One idea each.
+- **3–5 sentences of body.** If it needs more, it is two sections.
+- `code` renders into a live editor with Run. It must run standalone.
+- `checkpoint` is an inline challenge that gates the next section. It is a full
+  Challenge object, but its `id`, `xp` and `tags` may be omitted.
+- **2–4 sections per lesson.**
 
 ### Body markdown subset
 
-Only these are rendered. No headings, links, images, tables or raw HTML.
+Only these render. No headings, tables, images or raw HTML.
 
-- `**bold**`
-- `` `inline code` ``
-- blank-line paragraphs
-- `- ` bullet lists
-- `{{link:dungeon-id}}` — inline concept link into another dungeon
-
-`{{link:...}}` is authored now and reserved for the knowledge-graph phase.
-Until that ships the engine renders it as the dungeon's plain name, so it is
-never shown raw to a learner. The target id must exist in `index.json`, and the
-dungeon should also list it in `mentions`.
-
-### Checkpoint
-
-A single inline challenge, directly about what the section just showed. It is
-the gate to the next section.
-
-| field | required | rule |
-|---|---|---|
-| `prompt` | yes | One task. Simple — it tests the idea just shown, nothing more |
-| `starterCode` | yes | Sets the shape, never the answer. May be a comment |
-| `tests` | yes | Same format as a challenge's `tests` (§5) |
-| `hint1` | no | Revealed on the first "Stuck?" |
-| `hint2` | no | Second press |
-| `hint3` | no | Third press. Nearest thing to the answer without being it |
-
-Hints cost **no mana** — a lesson is for learning, not gatekeeping. Whether a
-hint was used is recorded: a checkpoint passed with hints is flagged for the
-spaced-repetition queue.
-
-A checkpoint has no `id`, `xp`, `type` or `tags`. It is not a graded challenge;
-it is the price of admission to the next section.
+- `**bold**`, `` `inline code` ``
+- blank-line paragraphs, `- ` bullets
+- `$inline math$` and `$$block math$$` — rendered with KaTeX
+- `{{link:dungeon-id}}` — inline concept link
 
 ---
 
-## 4. Challenges
-
-Used in `practice` and `exam`. Every challenge needs an `id` unique within its
-floor, a `type`, a `prompt`, an `explain`, `xp` and `tags`.
+## 5. Challenge
 
 ```json
 {
-  "id": "py-1-p-01",
+  "id": "py-3-c-01",
   "type": "code",
-  "fn": "bake_time_remaining",
-  "prompt": "Complete `bake_time_remaining()` so it returns the minutes left.",
-  "starterCode": "def bake_time_remaining(elapsed):\n    pass",
-  "tests": [
-    { "input": "1", "expected": 39 },
-    { "input": "30", "expected": 10 }
-  ],
-  "explain": "Subtracting from the constant keeps the rule in one place...",
-  "hint": "EXPECTED_BAKE_TIME is already defined for you.",
-  "xp": 15,
-  "tags": ["basics"]
+  "layer": "application",
+  "prompt": "Write `add(a, b)` returning their sum.",
+  "concepts": ["functions"],
+  "tags": ["functions"],
+  "xp": 50,
+  "explain": "Returning rather than printing lets the caller use the result...",
+  "hint": "return a + b",
+  "fn": "add",
+  "starterCode": "def add(a, b):\n    pass\n",
+  "tests": [ { "input": "2, 3", "expected": 5 } ]
 }
 ```
 
-| field | required | meaning |
-|---|---|---|
-| `id` | yes | Unique within the floor. Convention: `{lang}-{floor}-{p\|e}-{nn}` |
-| `type` | yes | See the table below |
-| `prompt` | yes | The task. Same markdown subset as `body` |
-| `explain` | yes | **Shown after answering, right or wrong. This is the actual teaching moment** — say why, not just what |
-| `xp` | yes | Positive integer. `code`, `debug` and `project` are worth most |
-| `tags` | yes | Concept slugs. Coverage is measured from these |
-| `hint` | no | Costs mana to reveal in practice and exam, unlike a lesson checkpoint |
-| `fn` | for `code`/`debug` | The function the tests call |
-| `starterCode` | for `code`/`debug` | Opens in the editor |
-| `tests` | for `code`/`debug`/`project` | See §5 |
-| `answer` | for `output`/`mcq`/`multi` | Expected output string, or choice index |
-| `choices` | for `mcq`/`multi` | Array of options |
+Universal fields: `id`, `type`, `layer`, `prompt`, `explain`, `xp`, `tags`.
 
-### Types
-
-| type | what the learner does | notes |
-|---|---|---|
-| `code` | writes code, executed against test cases | the default |
-| `debug` | fixes broken `starterCode`, tests must pass | |
-| `output` | types what the code prints | free text, whitespace-normalised |
-| `fill` | fills blanks in code | |
-| `order` | drags fragments into sequence | |
-| `mcq` | one correct of four | **exams only** |
-| `multi` | several correct | **exams only** |
-| `explain` | free text, graded against a keyword rubric | |
-| `project` | full project spec with acceptance tests | **boss floor only** |
-
-MCQ is for things code cannot test — a complexity class, a judgement call,
-"which of these is invalid". Never as the primary way to learn or practise.
+- **`layer`** is declared, never inferred. Defaults per type are in §6, but content
+  overrides them: a hard `explain` asking *why does this design cause a memory
+  leak* is `application`; *define recursion* is `retrieval`.
+- **`explain`** is shown after answering, right or wrong. It is the teaching
+  moment — say **why**, not what. A restatement of the prompt is a validation
+  warning.
+- **`concepts`** feeds Coverage. Falls back to `tags` when absent.
 
 ---
 
-## 5. Tests
+## 6. The sixteen assessment types
 
-A challenge passes only when **every** test passes.
+Every type renders itself, accepts input, grades itself, and returns
+`{ correct, score, detail }`. `score` is 0–1.
+
+| type | default layer | input | graded by |
+|---|---|---|---|
+| `code` | application | editor | test cases |
+| `debug` | application | editor, broken starter | test cases |
+| `design` | application | empty editor, no hints | acceptance tests |
+| `project` | application | editor / multi-file | acceptance test suite |
+| `output` | retrieval | text | normalised comparison |
+| `fill` | retrieval | one input per blank | exact match per blank |
+| `order` | retrieval | reorderable list | sequence equality |
+| `mcq` | retrieval | radio, exam only | index match |
+| `multi` | retrieval | checkbox, exam only | exact set match |
+| `explain` | **declare** | textarea | keyword rubric |
+| `trace` | **declare** | step table | per-step comparison |
+| `complexity` | application | big-O field + justification | answer + rubric |
+| `problem` | application | textarea | worked-solution keyword rubric |
+| `proof` | application | textarea | rubric |
+| `diagnose` | application | cause field + reasoning | answer + rubric |
+| `scenario` | application | textarea | rubric |
+
+### Test cases — `code` `debug` `design` `project`
 
 ```json
-{ "input": "1, 2", "expected": 39 }
+{ "input": "2, 3", "expected": 5 }
 ```
 
-| field | meaning |
+`input` is the **arguments to `fn` as source text**, or stdin for a whole-program
+challenge. `expected` is a real JSON value. Comparison is **structural** — the
+serialised forms are parsed back and compared as values, so `30` matches `30.0`
+and Python's `[1, 9]` matches JavaScript's `[1,9]`.
+
+### Keyword rubric — `explain` `problem` `proof` `scenario` `diagnose`
+
+```json
+"rubric": {
+  "required": ["base case", "recursive case"],
+  "optional": ["stack", "termination"],
+  "forbidden": ["infinite"],
+  "minWords": 25
+}
+```
+
+Score = required hits / required count, plus up to 0.2 for optional hits, zeroed
+by a forbidden hit or by falling under `minWords`. Matching is
+case-insensitive on word boundaries. This is deliberately thin — it is a first
+pass, not a grader that understands prose.
+
+### Structured types
+
+```json
+// fill
+"template": "for i in ___(5):\n    print(___)",
+"blanks": ["range", "i"]
+
+// order
+"fragments": ["def f():", "    x = 1", "    return x"],
+"answer": [0, 1, 2]
+
+// trace
+"steps": [ { "label": "after pass 1", "expected": "[1, 3, 5]" } ]
+
+// complexity
+"answer": "O(n log n)", "rubric": { "required": ["divide", "merge"] }
+
+// diagnose
+"answer": "TCP window exhaustion", "rubric": { "required": ["window", "ack"] }
+```
+
+---
+
+## 7. Boss floors and the acceptance harness
+
+The last floor is the boss. It must contain a `project` challenge graded by
+acceptance tests — never self-assessment.
+
+Three harness modes:
+
+```json
+"harness": "function"                       // call fn with args, assert return
+"harness": "cli", "argv": ["--count","3"], "stdin": "a\nb\n"
+"harness": "file", "writes": "out.txt"      // assert on file contents
+```
+
+`function` is fully implemented. `cli` and `file` are declared and stubbed —
+a challenge using them reports honestly that the mode is not yet available
+rather than passing the learner.
+
+---
+
+## 8. XP
+
+Base by type, multiplied by the floor's cognitive level.
+
+| types | base |
 |---|---|
-| `input` | The **arguments** to `fn`, as source text. `""` for a function taking none. For a whole-program challenge with no `fn`, this is stdin |
-| `expected` | A real JSON value, not a string of source code |
+| `project` `design` | 100 |
+| `code` `debug` `proof` `problem` | 50 |
+| `complexity` `scenario` `diagnose` `trace` | 40 |
+| `explain` `output` `fill` `order` | 20 |
+| `mcq` `multi` | 10 |
 
-**How comparison works.** The result is serialised (`json.dumps` in Python,
-`JSON.stringify` in JavaScript) and compared **structurally**, not as text — the
-serialised forms are parsed back and compared as values. So `30` matches `30.0`,
-and Python's `[1, 9]` matches JavaScript's `[1,9]`. A value that cannot be
-serialised falls back to a string comparison against its `repr()`.
-
-| target value | write `expected` as |
+| level | ×
 |---|---|
-| integer `5` | `5` |
-| float `13.5` | `13.5` |
-| string `"hi"` | `"hi"` |
-| boolean | `true` / `false` |
-| `None` / `null` | `null` |
-| list `[1, 2]` | `[1, 2]` |
-| Python tuple `(1, 9)` | `[1, 9]` — tuples serialise as arrays |
+| recognition | 1.0 |
+| recall | 1.2 |
+| application | 1.5 |
+| transfer | 1.8 |
+| design | 2.2 |
+| boss | 3.0 |
 
-On failure the learner sees the failing input and a line-by-line diff of
-expected against actual.
-
-### Carried-forward context
-
-Imported exercises often split one file across several tasks, where a later
-task uses something an earlier one defined. The practice runner therefore
-**accumulates each passing solution into a running context** and prepends it
-before executing the next challenge from the same source exercise. Multi-task
-exercises are not collapsed into one giant challenge.
-
-This means a challenge may rely on a function or constant defined by an earlier
-challenge **in the same floor, from the same `source` exercise**. It may never
-rely on anything from another floor.
+`xp` on a challenge overrides the computed value.
 
 ---
 
-## 6. Languages and runtimes
+## 9. Firestore
 
-| `runtime` | how it executes | notes |
-|---|---|---|
-| `pyodide` | CPython on WebAssembly, in a Web Worker | loaded lazily on first use; one-time "loading runtime" state |
-| `worker` | sandboxed Web Worker | JavaScript/TypeScript. 2 s hard timeout, no network, no DOM |
-| `piston` | `https://emkc.org/api/v2/piston/execute` | everything else. Free, no key, 70+ languages |
+```
+users/{uid}     profile, level, xp, mana, manaUpdatedAt, streak, relics[], titles[]
+progress/{uid}  dungeons: { <id>: { floors:{}, concepts:{}, mastery:{} } }
+sessions/{uid}  reviewQueue: [...]
+sessions/{uid}/reviewLog/{entryId}
+                { challengeId, dungeonId, reviewedAt, outcome, ease, interval }
+```
 
-`lang` for Piston follows Piston's own naming: `c`, `cpp`, `csharp`, `java`,
-`rust`, `go`, `swift`, `kotlin`, `ruby`, `php`, `r`, `scala`, `haskell`, `lua`,
-`dart`, `zig`, `typescript`, `bash`.
-
-**If execution is unavailable** — Pyodide fails to load, Piston is unreachable,
-the learner is offline — the engine shows the expected output, blocks
-progression, and offers no self-assessment override. A floor is completed by
-running code or not at all.
+The review **log** is append-only and separate from the queue: the queue holds
+*next due* state, the log holds history, and the 30-day retention figure is
+computed from the log. Streak counts days with at least one **Application-layer**
+challenge — reading a lesson does not extend it.
 
 ---
 
-## 7. Authoring rules
+## 10. Authoring rules
 
-1. **Teach, then test.** Every practice challenge is solvable using only what
-   that floor's lesson taught. No forward references.
-2. **Deterministic.** No randomness, no clocks, no network. Same input, same
-   output, every run.
-3. **Test behaviour, not source.** Never assert on how code is written — only
-   on what it returns or prints.
-4. **Prompts state the exact expected output.** If the test wants
-   `Hello, Grimoire!`, the prompt shows that string verbatim.
-5. **Cover the edges.** 3–4 tests per challenge including at least one boundary
-   case — zero, empty, negative.
-6. **Starter code sets the shape**, never the answer.
-7. **Escalate across a floor.** The first practice challenge is near-trivial;
-   the last combines every idea on the floor.
-8. **`explain` is not optional and is not a restatement.** "Returns the sum" is
-   useless. Say why this approach and not the obvious wrong one.
+1. **Teach, then test.** Every challenge is solvable from that floor's lesson.
+2. **Deterministic.** No randomness, clocks or network.
+3. **Test behaviour, not source.**
+4. **Prompts state expected output verbatim.**
+5. **Cover the edges** — 3–4 tests including a boundary case.
+6. **Starter code sets the shape**, never the answer. Design and boss floors have
+   none at all.
+7. **Escalate within a floor** and across the dungeon, following `cognitiveLevel`.
+8. **`explain` is mandatory and is not a restatement.**
+9. **Every concept in `concepts` reaches Application somewhere in the dungeon**,
+   or the dungeon can never be completed.
 
 ---
 
-## 8. What the validator checks
+## 11. What the validator enforces
 
-`scripts/validate_content.py` enforces:
+- floor `n` matches array position; `cognitiveLevel` matches the proportional band
+- every name in `sequence` exists on the floor
+- lesson: 2–4 sections, each with a code example
+- every challenge: known `type`, valid `layer`, non-empty `prompt` and `explain`,
+  positive `xp`, unique `id`
+- type is legal for the dungeon's `disciplineType`
+- `mcq`/`multi` never outside an exam stage
+- type-specific shape: `tests` for code-likes, `blanks` matching `___` count,
+  `answer` in range for `mcq`, `rubric.required` non-empty for rubric types
+- every concept in `concepts` has at least one Application-layer challenge
+- the last floor has a `project`
 
-- every floor has a lesson with ≥2 sections, each carrying a code example
-- every floor has ≥6 practice challenges and ≥8 exam questions
-- every concept in `concepts` has ≥2 practice challenges tagged to it
-- every challenge has `explain`, positive `xp`, a known `type`, a unique id
-- `code`/`debug`/`project` have non-empty `tests`; every test has `expected`
-- `mcq` has ≥2 choices and an in-range `answer`
-- `mcq`/`multi` do not appear in a practice phase
-- the boss floor has a `project` challenge
-- floor `n` matches its array position
-
-Warnings (failures under `--strict`): a TODO `explain`, missing `tags`,
-missing `starterCode`, missing `fn`, a lesson over 4 sections, an exam over 12.
-
-### Known gaps in the validator
-
-Two things this document specifies that the validator does not yet enforce.
-Do not rely on it to catch either.
-
-1. **`checkpoint` on lesson sections** is required here but unchecked. The check
-   lands with the interactive checkpoint work in step 2c.
-2. **The boss floor is identified as `n == 10`** in code, but floor count now
-   follows the syllabus — a nine-floor dungeon's boss is floor 9. The rule is
-   *last floor*, and the validator will be corrected to match when the boss
-   floor is implemented. Until then a `project` challenge on any floor other
-   than 10 raises a warning it should not.
+Warnings (failures under `--strict`): TODO `explain`, missing `tags`, missing
+`starterCode` on a scaffolded floor, hint present on a design/boss floor.
