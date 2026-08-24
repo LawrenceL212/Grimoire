@@ -342,6 +342,59 @@ code,kbd{
    that a 48px target never crowds the label above it */
 .node{min-height:172px}
 
+/* ===================== DEPENDENCY PATH LAYOUT ======================
+   Books whose layout is "path" render as an ordered single column with a
+   connector rail, so the learning order is the shape of the page. */
+.path-list{list-style:none;margin:0;padding:0;position:relative}
+.path-item{position:relative;padding-left:var(--s8);padding-bottom:var(--s3)}
+/* the rail segment running up from this node to the one above */
+.path-item::before{
+  content:"";position:absolute;left:13px;top:0;bottom:0;width:2px;
+  background:rgba(196,154,60,.16);
+}
+.path-item:first-child::before{top:26px}
+.path-item:last-child::before{bottom:calc(100% - 26px)}
+/* a direct requires relationship with the node above is drawn in gold */
+.path-item[data-linked="1"]::before{background:var(--trim2)}
+.path-item .dot{
+  position:absolute;left:6px;top:19px;width:16px;height:16px;border-radius:50%;
+  border:2px solid rgba(196,154,60,.3);background:var(--bg);z-index:1;
+}
+.path-item[data-state="ready"] .dot{border-color:var(--gold);background:rgba(196,154,60,.25)}
+.path-item[data-state="done"] .dot{border-color:var(--gold);background:var(--gold)}
+.path-node{min-height:0}
+.path-node .head{display:flex;align-items:center;gap:var(--s3)}
+.path-node .head .nm{flex:1;min-width:0}
+.path-node .status{
+  font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.06em;
+  color:var(--faint);margin-top:var(--s1);
+}
+/* unlocked but untouched: a subtle glow so "you can start this" reads at a glance */
+.path-item[data-state="ready"] .path-node{
+  border-color:var(--trim2);
+  box-shadow:var(--shadow), 0 0 14px rgba(196,154,60,.18);
+}
+.reqs{margin-top:var(--s2);display:flex;flex-wrap:wrap;gap:var(--s1) var(--s2);align-items:baseline}
+.reqs .lbl{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.req{
+  font-size:var(--text-sm);color:var(--dim);background:none;border:none;
+  padding:2px 0;text-align:left;text-decoration:underline;
+  text-decoration-color:var(--trim2);text-underline-offset:3px;
+}
+.req:hover{color:var(--text)}
+.req .prog{font-family:var(--mono);font-size:var(--text-xs);color:var(--faint)}
+.req.met{color:var(--ok);text-decoration:none}
+.req.met .prog{color:var(--ok)}
+.rec{
+  display:inline-flex;align-items:center;gap:var(--s1);
+  font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;
+  text-transform:uppercase;color:#1A1206;background:var(--gold);
+  border-radius:2px;padding:2px var(--s2);
+}
+.path-node.flash{animation:flash 1.2s ease}
+@keyframes flash{0%,100%{box-shadow:var(--shadow)}30%{box-shadow:0 0 0 3px var(--trim2), var(--glow)}}
+
 .empty{padding:var(--s12) var(--s4);text-align:center;color:var(--faint);
   font-family:var(--serif);font-style:italic;line-height:1.7}
 .empty .big{font-size:var(--text-xl);color:rgba(196,154,60,.35);margin-bottom:var(--s2);font-style:normal}
@@ -665,7 +718,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* Book tints are applied as a low-alpha wash so the palette stays warm. */
-function wash(hex, alpha) {
+function washOf(hex, alpha) {
   const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${alpha})`;
@@ -852,6 +905,96 @@ async function loadIndex() {
 
 const dungeonById = (id) => (State.index.dungeons || []).find((d) => d.id === id);
 
+/* ---- progress + requirement evaluation ----------------------------------
+   A dungeon is complete when every authored floor is cleared. "Floor n" means
+   the floor you are currently on, which is cleared + 1 once you have entered.
+   A dungeon you have never opened is on floor 0. */
+function progressOf(id) {
+  const d = dungeonById(id);
+  const p = State.progress[id] || {};
+  const cleared = Array.isArray(p.cleared) ? p.cleared.length : 0;
+  const total = d?.floors || 0;
+  const started = cleared > 0 || !!p.floor;
+  return { cleared, total, started, floor: started ? cleared + 1 : 0,
+           complete: total > 0 && cleared >= total };
+}
+
+function reqMet(r) {
+  if (r.dungeon) {
+    const pr = progressOf(r.dungeon);
+    return r.minFloor ? pr.floor >= r.minFloor : pr.complete;
+  }
+  if (r.anyOf) return r.anyOf.some((id) => progressOf(id).complete);
+  if (r.anyFromBook) {
+    return (State.index.dungeons || [])
+      .filter((d) => (d.books || []).includes(r.anyFromBook))
+      .some((d) => progressOf(d.id).floor >= (r.minFloor || 1));
+  }
+  return true;
+}
+
+/* Human-readable, and honest about how far off it is. */
+function reqLabel(r) {
+  if (r.dungeon) {
+    const d = dungeonById(r.dungeon);
+    const pr = progressOf(r.dungeon);
+    const name = d?.name || r.dungeon;
+    let state;
+    if (pr.complete) state = "complete";
+    else if (!pr.started) state = "not started";
+    else if (pr.total) state = `floor ${pr.floor}/${pr.total}`;
+    else state = "in progress";
+    if (r.minFloor && !pr.complete) state += `, need floor ${r.minFloor}`;
+    return { id: r.dungeon, name, state };
+  }
+  if (r.anyOf) {
+    const names = r.anyOf.map((id) => dungeonById(id)?.name || id);
+    return { id: r.anyOf[0], name: names.join(" or "),
+             state: reqMet(r) ? "complete" : "neither started" };
+  }
+  if (r.anyFromBook) {
+    const book = (State.index.books || []).find((b) => b.id === r.anyFromBook);
+    const best = (State.index.dungeons || [])
+      .filter((d) => (d.books || []).includes(r.anyFromBook))
+      .reduce((m, d) => Math.max(m, progressOf(d.id).floor), 0);
+    return { id: null, name: `any ${book?.subtitle?.toLowerCase() || r.anyFromBook} dungeon at floor ${r.minFloor}+`,
+             state: best ? `best so far: floor ${best}` : "none started" };
+  }
+  return { id: null, name: "unknown requirement", state: "" };
+}
+
+function gateOf(d) {
+  const reqs = d.requires || [];
+  const met = reqs.filter(reqMet).length;
+  const pr = progressOf(d.id);
+  // NB: progressOf() also carries a `total` (the floor count). Spread it first
+  // so the requirement counts below are the ones that survive.
+  return {
+    ...pr,
+    reqs, met, reqTotal: reqs.length,
+    unlocked: met === reqs.length,
+    readiness: reqs.length ? met / reqs.length : 1,
+  };
+}
+
+/* The single dungeon most worth opening next: furthest along its
+   prerequisites, unlocked ones first, earliest in the path to break ties. */
+function recommendedIn(list) {
+  const candidates = list.filter((d) => !gateOf(d).complete);
+  if (!candidates.length) return null;
+  let best = null, bestKey = null;
+  for (const d of candidates) {
+    const g = gateOf(d);
+    const key = [g.unlocked ? 1 : 0, g.readiness, -(d.order || 0)];
+    if (!bestKey || key[0] > bestKey[0] ||
+        (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
+        (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])) {
+      best = d; bestKey = key;
+    }
+  }
+  return best;
+}
+
 function masteryOf(id) {
   const p = State.progress[id];
   return p?.mastery ? Math.round(p.mastery * 100) : 0;
@@ -863,7 +1006,7 @@ function renderBookTabs() {
     <button type="button" class="book-tab" role="tab" id="tab-${esc(b.id)}"
             aria-selected="${b.id === State.book}" aria-controls="map-grid"
             tabindex="${b.id === State.book ? 0 : -1}"
-            data-book="${esc(b.id)}" style="--tint-wash:${wash(b.tint, 0.34)}">
+            data-book="${esc(b.id)}" style="--tint-wash:${washOf(b.tint, 0.34)}">
       <span class="rn">Book ${esc(b.numeral)}</span>
       <span class="bn">${esc(b.name)}</span>
       <span class="bs">${esc(b.subtitle)}</span>
@@ -929,12 +1072,18 @@ function renderMap() {
   renderBookTabs();
   $("book-blurb").textContent = book.blurb || "";
 
-  const list = (State.index.dungeons || []).filter((d) => (d.books || []).includes(book.id));
+  const list = (State.index.dungeons || [])
+    .filter((d) => (d.books || []).includes(book.id))
+    .sort((a, c) => (a.order || 0) - (c.order || 0));
+
+  if (book.layout === "path") return renderPath(book, list);
+
+  $("map-grid").className = "map-grid";
   $("map-grid").innerHTML = list.map((d) => {
     const planned = d.status === "planned";
     return `
       <div class="node" role="button" tabindex="0" data-dungeon="${esc(d.id)}"
-           style="--tint:${esc(book.tint)};--tint-wash:${wash(book.tint, 0.20)}"
+           style="--tint:${esc(book.tint)};--tint-wash:${washOf(book.tint, 0.20)}"
            aria-label="${esc(nodeLabel(d))}"${planned ? ' aria-disabled="true"' : ""}>
         ${sigilHTML(d)}
         <span class="nm">${esc(d.name)}</span>
@@ -957,6 +1106,83 @@ function renderMap() {
   });
   $("map-grid").querySelectorAll("[data-assess]").forEach((b) =>
     b.addEventListener("click", (e) => { e.stopPropagation(); openAssessment(b.dataset.assess); }));
+}
+
+/* Dependency-ordered books render as a path, not a grid: the order on the
+   page IS the learning order, and the rail shows what leads to what. */
+function renderPath(book, list) {
+  const rec = recommendedIn(list);
+  const wash = `--tint:${esc(book.tint)};--tint-wash:${washOf(book.tint, 0.16)}`;
+
+  const html = list.map((d, i) => {
+    const g = gateOf(d);
+    const prev = list[i - 1];
+    const linked = prev && (d.requires || []).some(
+      (r) => r.dungeon === prev.id || (r.anyOf || []).includes(prev.id));
+    const state = g.complete ? "done" : (g.unlocked ? (g.started ? "active" : "ready") : "locked");
+
+    const status = g.complete ? "Mastered"
+      : !g.unlocked ? `Locked \u00b7 ${g.met}/${g.reqTotal} prerequisite${g.reqTotal === 1 ? "" : "s"} met`
+      : g.started ? `Floor ${g.floor}${g.total ? "/" + g.total : ""}`
+      : d.floors ? `Ready \u00b7 ${d.floors} floors` : "Ready \u00b7 syllabus pending";
+
+    const reqsHTML = (!g.unlocked && g.reqs.length) ? `
+      <div class="reqs"><span class="lbl">Requires</span>${g.reqs.map((r) => {
+        const L = reqLabel(r);
+        return `<button type="button" class="req${reqMet(r) ? " met" : ""}"
+                  ${L.id ? `data-goto="${esc(L.id)}"` : "disabled"}>
+                  ${reqMet(r) ? "\u2713 " : ""}${esc(L.name)}
+                  <span class="prog">(${esc(L.state)})</span></button>`;
+      }).join("")}</div>` : "";
+
+    return `
+      <li class="path-item" data-linked="${linked ? 1 : 0}" data-state="${state}">
+        <span class="dot" aria-hidden="true"></span>
+        <div class="node path-node" role="button" tabindex="0" style="${wash}"
+             data-dungeon="${esc(d.id)}" aria-label="${esc(nodeLabel(d))}"
+             ${g.unlocked ? "" : 'aria-disabled="true"'}>
+          <div class="head">
+            ${sigilHTML(d)}
+            <span class="nm">${esc(d.name)}</span>
+            ${d === rec ? '<span class="rec">Recommended next</span>' : ""}
+            ${g.complete ? '<span class="badge">100%</span>' : ""}
+          </div>
+          <div class="status">${status}</div>
+          ${reqsHTML}
+        </div>
+      </li>`;
+  }).join("");
+
+  const grid = $("map-grid");
+  grid.className = "";
+  grid.innerHTML = `<ol class="path-list">${html}</ol>`;
+
+  grid.querySelectorAll("[data-dungeon]").forEach((el) => {
+    const open = () => openDungeon(el.dataset.dungeon);
+    el.addEventListener("click", (e) => { if (!e.target.closest("[data-goto]")) open(); });
+    el.addEventListener("keydown", (e) => {
+      if (e.target.closest("[data-goto]")) return;
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    });
+  });
+  grid.querySelectorAll("[data-goto]").forEach((b) =>
+    b.addEventListener("click", (e) => { e.stopPropagation(); focusDungeon(b.dataset.goto); }));
+}
+
+/* Jump to a prerequisite, switching book first if it lives in another wing. */
+function focusDungeon(id) {
+  const d = dungeonById(id);
+  if (!d) return;
+  const book = (d.books || [])[0];
+  if (book && book !== State.book) { State.book = book; renderMap(); }
+  requestAnimationFrame(() => {
+    const el = $("map-grid").querySelector(`[data-dungeon="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1300);
+    el.focus({ preventScroll: true });
+  });
 }
 
 function openDungeon(id) {
