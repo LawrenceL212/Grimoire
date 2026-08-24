@@ -732,9 +732,10 @@ def build_floor(track, ext, lang_id, n, group, fetcher, report):
                     continue
                 cases = [{"input": c["input"], "expected": jsonable(c["expected"])}
                          for c in t["cases"]]
-                practice.append({
+                entry = {
                     "id": "%s-%d-p-%02d" % (track[:2], n, len(practice) + 1),
                     "type": "code",
+                    "layer": "application",
                     "fn": t["fn"],
                     "prompt": prompt_for(t, slug, instructions),
                     "starterCode": starter_for(starter, t, ext),
@@ -745,7 +746,11 @@ def build_floor(track, ext, lang_id, n, group, fetcher, report):
                     "xp": XP["code"],
                     "tags": ex.get("concepts", []) or [slug],
                     "source": "exercism/%s %s" % (track, slug),
-                })
+                }
+                # a constant is evaluated by name; calling it would raise
+                if t.get("constant"):
+                    entry["constant"] = True
+                practice.append(entry)
                 got += len(cases)
             report["tasks_parsed"] += len(tasks)
             report["tasks_with_cases"] += sum(1 for t in tasks.values() if t["cases"])

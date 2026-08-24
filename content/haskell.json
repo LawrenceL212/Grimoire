@@ -1,0 +1,121 @@
+{
+ "id": "haskell",
+ "name": "The Lambda Sanctum",
+ "subject": "Haskell",
+ "category": "language",
+ "sigil": "λ",
+ "unlock": null,
+ "lang": "haskell",
+ "runtime": "piston",
+ "source": "exercism/haskell (MIT)",
+ "importedBy": "scripts/import_exercism.py",
+ "blurb": "Haskell is a functional programming language which is pure and statically-typed. It's known for lazy evaluation, where evaluation is deferred until necessary, and its purity, where monads are used for working with side-effects.",
+ "floors": [
+  {
+   "n": 1,
+   "name": "Threshold of Syntax",
+   "concepts": [
+    "basics",
+    "lists",
+    "numbers"
+   ],
+   "exercises": [
+    "lucians-luscious-lasagna",
+    "language-list",
+    "temperature"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Constants and functions",
+      "body": "Haskell programs are composed of definitions and expressions.\n\nA constant value is defined with `name = expression`.\n\nFunctions are defined with `name parameters... = expression`, parameters being only separated by space.\n\nInvoking a function is also an expression and is done by specifying its name and passing arguments for each of the function's parameters, separated by spaces, just like for function definitions.\n\nParentheses can be used to specify the order of evaluation of an expression.",
+      "code": "five = 5\n\nsix = 3 + 3",
+      "lang": "haskell"
+     },
+     {
+      "title": "Indentation / significant whitespace",
+      "body": "Haskell uses whitespaces and indentation to specify code boundaries.\n***Code which is part of some expression should be indented further in than the beginning of that expression.***\n\n- Module, import, and top-level function definitions must start at the leftmost column.\n- If an expression is split into multiple lines, the code that is part of that expression must be indented under that expression with at least one space.\n- Parts of the expression that are grouped together should be indented with equal numbers of spaces.\n\nhttps://en.wikibooks.org/wiki/Haskell/Indentation",
+      "code": "-- A function split over multiple lines, so subsequent lines must be indented\nadd number1 number2 =\n    number1 + number2",
+      "lang": "haskell"
+     },
+     {
+      "title": "List types",
+      "body": "In Haskell, lists are **homogenous**.\nThis means that all elements of a list have the same type.\nWhen you try to put elements of different types into the same list, you will get a type error.\n\nThe type annotation of a list is `[a]` where a is the type which the lists holds, for example `String` or `Int`.\n\n``` haskell\na :: [Int] \na = [1, 2, 3]\n```",
+      "code": "list = [1, \"string\"]\n-- Error: No instance for (Num String) arising from the literal ‘1’",
+      "lang": "haskell"
+     },
+     {
+      "title": "Integers hold any number no matter how big, up to the...",
+      "body": "`Integer`s hold any number no matter how big, up to the limit of your machine's memory, while `Int` corresponds to the set of positive and negative integers that can be expressed in 32 or 64 bits (guaranteed at least -2^29 to 2^29).\n\n`Float` corresponds to the set of real numbers, limited by the precision of the computer.\nOperations defined on numbers usually work on one type or the other, but not both.\n\nFunctions to convert between `Float` and `Integer` include, among others, `toFloat` which converts `Int`/`Integer` to `Float` and `ceiling` which converts a `Float` to an `Int`.\n\nConversion from an integer type (`Int` or `Integer`) to any other numeric type is done using the function `fromIntegral`.\nThe target type is inferred automatically.\nFor example:",
+      "code": "n :: Integer\nn = 6\nx :: Float\nx = fromIntegral n      --> x = 6.0\n\nm :: Int\nm = 7\ny :: Double\ny = fromIntegral m      --> y = 7.0",
+      "lang": "haskell"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "lucians-luscious-lasagna: tests not parsed (no extractor for 'haskell')",
+    "language-list: tests not parsed (no extractor for 'haskell')",
+    "temperature: tests not parsed (no extractor for 'haskell')"
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Hall of Branching Paths",
+   "concepts": [
+    "algebraic-data-types",
+    "booleans",
+    "pattern-matching",
+    "pattern-matching-literals",
+    "tuples"
+   ],
+   "exercises": [
+    "pacman-rules",
+    "guessing-game",
+    "valentines-day",
+    "kitchen-calculator"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Logical operators",
+      "body": "Haskell has three logical operators (`not`, `||`, `&&`), which combine Bools and make expressions that produce different values.\n\n**And(`&&`)**\nThe **and** operator in Haskell is represented by `&&` and returns `True` if both values are `True`; otherwise, it returns `False`.\nWhen using the **and** operator, one Bool is placed on the right side of the `&&` and another on the left side.\n\n**Or(`||`)**\nThe **or** operator in Haskell is represented by `||` and returns `True` if **at least one** of the values given is `True`. \nIf both of the values are `False`, then it returns `False`.\nWhen using the **or** operator, one Bool should be placed on the right side of the `||` and another on the left.\n\n**Not(`not`)**\nThe **not** operator in Haskell is represented by `not` and returns `True` if the given Bool is `False` and returns `False` if `True` is provided.\nWhen using the **not** operator, one Bool should be placed after the operator (`not`).",
+      "code": "True && True\n-- -> True\n\nTrue && False\n-- -> False",
+      "lang": "haskell"
+     },
+     {
+      "title": "Using parentheses(`()`)",
+      "body": "When working with booleans, you can use parentheses to decide which Bools to evaluate first.\nThe result can differ depending on how the parentheses are used.\nIn Haskell, what is in parentheses is evaluated first.\n\nSince what is in parentheses is evaluated first, the **not** operator will apply to the expression inside parentheses in the following example.\n\n~~~~exercism/note\nYou should only use parentheses when they affect the result; otherwise, they should be omitted.\n~~~~",
+      "code": "True && False && False || True\n-- -> True\n\nTrue && False && (False || True)\n-- -> False",
+      "lang": "haskell"
+     },
+     {
+      "title": "Pattern Matching Literals",
+      "body": "While `if/else` expressions can be used to execute conditional logic, Haskell also has a more powerful way to execute conditional logic: pattern matching.\nWith pattern matching, a value can be tested against one or more **patterns**.\nAn example of such a pattern is the **constant pattern**, which matches a value against a constant (e.g. `1` or `\"hello\"`).\n\nWhen defining functions, you can define separate function bodies for different patterns.\nThis leads to clean code that is simple and readable.\nYou can pattern match on any data type — numbers, characters, lists, tuples, etc.\n\nFor example, a trivial function that takes a whole number (`Int`) and makes it **1** closer to **0** could be expressed like this:\n\nPattern matching starts to shine when used together with other patterns, for example the **variable pattern**:\n\nThe above example treats all inputs other than **0** the same, and would produce incorrect results for negative numbers.\nThis can be solved using conditional patterns, known as **guards**, which are expressed with the `|` symbol:\n\nIn the above examples not all possible inputs have a matching pattern.\nThe compiler will detect this and output a warning.\nThis is a very useful feature of Haskell that helps ensure all possible paths are covered to avoid run-time errors.\nIt is known as **exhaustive checking**.\nTo solve the warning, you have to handle all cases.\nWithin **guards** you can use the expression `otherwise` as syntactic sugar for `True` to catch all remaining patterns.\n\nPattern matching will test a value against each pattern from top to bottom, until it finds a matching pattern and executes the logic associated with that pattern.\n**The order of patterns matters!**",
+      "code": "closerToZero :: Int -> Int\ncloserToZero 0 = 0\ncloserToZero 1 = 0",
+      "lang": "haskell"
+     },
+     {
+      "title": "An Algebraic Data Type (ADT) represents a fixed number...",
+      "body": "An Algebraic Data Type (ADT) represents a fixed number of named cases.\nEach value of an ADT corresponds to exactly one of the named cases.\n\nAn ADT is defined using the `data` keyword, with cases separated by pipe (`|`) characters.\nIf none of the cases have data associated with them the ADT is similar to what other languages usually refer to as an **enumeration** (or **enum**).",
+      "code": "data Season\n  = Spring\n  | Summer\n  | Autumn\n  | Winter",
+      "lang": "haskell"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "pacman-rules: tests not parsed (no extractor for 'haskell')",
+    "guessing-game: tests not parsed (no extractor for 'haskell')",
+    "valentines-day: tests not parsed (no extractor for 'haskell')",
+    "kitchen-calculator: tests not parsed (no extractor for 'haskell')"
+   ]
+  }
+ ]
+}

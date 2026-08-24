@@ -12,6 +12,9 @@
 <meta name="description" content="Grimoire - a dungeon-crawler learning platform for computer science.">
 <title>Grimoire</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%231A1410%27/%3E%3Ctext x=%2732%27 y=%2744%27 font-size=%2740%27 fill=%27%23C49A3C%27 text-anchor=%27middle%27 font-family=%27Georgia,serif%27%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -500,6 +503,115 @@ code,kbd{
   color:var(--faint);margin-top:2px}
 .floor-row .fgo{color:var(--faint);font-size:var(--text-lg)}
 
+/* KaTeX inherits colour, but its own rules need help on a dark ground */
+.katex{color:var(--text);font-size:1.05em}
+.katex-display{margin:var(--s3) 0;overflow-x:auto;overflow-y:hidden;padding:var(--s1) 0}
+.katex .mord,.katex .mbin,.katex .mrel,.katex .mopen,.katex .mclose{color:inherit}
+.math-error{color:var(--warn-ink);font-family:var(--mono);font-size:var(--text-sm)}
+
+/* ========================= ASSESSMENT COMPONENTS ======================= */
+.ch{border:1px solid var(--trim);border-radius:var(--radius);background:var(--surface);
+  padding:var(--s4);margin-bottom:var(--s4)}
+.ch-head{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+.ch-type{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--bronze);border:1px solid var(--trim);
+  border-radius:2px;padding:2px var(--s2)}
+.ch-layer{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.ch-layer.application{color:var(--gold)}
+.ch-xp{margin-left:auto;font-family:var(--mono);font-size:var(--text-xs);color:var(--faint)}
+.ch-prompt{font-size:var(--text-base);line-height:1.7;max-width:68ch;margin-bottom:var(--s3)}
+.ch-prompt p{margin:0 0 var(--s2)}
+.ch-actions{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s3)}
+.ch-result{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius-sm);
+  border:1px solid var(--trim);font-size:var(--text-sm);line-height:1.6}
+.ch-result[hidden]{display:none}
+.ch-result.pass{border-color:rgba(122,158,110,.5);background:rgba(122,158,110,.10);color:var(--ok)}
+.ch-result.fail{border-color:rgba(158,78,60,.5);background:rgba(158,78,60,.10);color:var(--danger-ink)}
+.ch-result .rhead{display:flex;align-items:center;gap:var(--s2);font-weight:600}
+.ch-explain{margin-top:var(--s3);padding:var(--s3);border-left:2px solid var(--trim2);
+  background:rgba(196,154,60,.05);font-size:var(--text-sm);line-height:1.7;color:var(--dim)}
+.ch-hint{margin-top:var(--s2);padding:var(--s2) var(--s3);border-left:2px solid var(--warn);
+  background:rgba(196,120,60,.07);font-size:var(--text-sm);color:var(--dim);line-height:1.6}
+
+.ta-answer{width:100%;min-height:120px;padding:var(--s3);border-radius:var(--radius-sm);
+  background:var(--code);border:1px solid var(--trim);color:var(--text);
+  font-family:var(--sans);font-size:var(--text-base);line-height:1.6;resize:vertical}
+.ta-answer.mono{font-family:var(--mono);font-size:var(--text-sm);min-height:80px}
+.ta-answer:focus{border-color:var(--trim2);outline:none}
+
+.choices{display:flex;flex-direction:column;gap:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s3);
+  border:1px solid var(--trim);border-radius:var(--radius-sm);background:rgba(0,0,0,.2);
+  text-align:left;font-size:var(--text-base);line-height:1.5;width:100%;min-height:48px}
+.choice:hover{background:rgba(196,154,60,.07)}
+.choice .mark{flex:none;width:22px;height:22px;border:1px solid var(--trim2);
+  display:grid;place-items:center;font-family:var(--mono);font-size:var(--text-xs);color:var(--faint)}
+.choice[aria-pressed="true"]{border-color:var(--gold);background:rgba(196,154,60,.12)}
+.choice[aria-pressed="true"] .mark{background:var(--gold);color:#1A1206;border-color:var(--gold)}
+.choice.right{border-color:rgba(122,158,110,.6);background:rgba(122,158,110,.12)}
+.choice.wrong{border-color:rgba(158,78,60,.6);background:rgba(158,78,60,.12)}
+.choice.mcq .mark{border-radius:50%}
+
+.blanks{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s3)}
+.blank-row{display:flex;align-items:center;gap:var(--s3)}
+.blank-row label{font-family:var(--mono);font-size:var(--text-xs);color:var(--faint);flex:none;width:64px}
+.blank-row input{flex:1;min-height:44px;padding:var(--s2) var(--s3);background:var(--code);
+  border:1px solid var(--trim);border-radius:var(--radius-sm);color:var(--text);
+  font-family:var(--mono);font-size:var(--text-sm)}
+.blank-row input.right{border-color:rgba(122,158,110,.6)}
+.blank-row input.wrong{border-color:rgba(158,78,60,.6)}
+
+.frags{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s3)}
+.frag{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s3);
+  border:1px solid var(--trim);border-radius:var(--radius-sm);background:var(--code);
+  font-family:var(--mono);font-size:var(--text-sm);white-space:pre}
+.frag .grip{flex:none;color:var(--faint);font-size:var(--text-base);cursor:grab}
+.frag .fmove{flex:none;display:flex;gap:var(--s1);margin-left:auto}
+.frag .fmove button{width:36px;height:36px;border:1px solid var(--trim);border-radius:3px;
+  color:var(--gold);background:rgba(196,154,60,.06);font-size:var(--text-sm)}
+.frag.right{border-color:rgba(122,158,110,.5)}
+.frag.wrong{border-color:rgba(158,78,60,.5)}
+
+.steps{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s3)}
+.step-row{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.step-row .slabel{flex:1 1 180px;font-size:var(--text-sm);color:var(--dim)}
+.step-row input{flex:2 1 200px;min-height:44px;padding:var(--s2) var(--s3);background:var(--code);
+  border:1px solid var(--trim);border-radius:var(--radius-sm);color:var(--text);
+  font-family:var(--mono);font-size:var(--text-sm)}
+.step-row input.right{border-color:rgba(122,158,110,.6)}
+.step-row input.wrong{border-color:rgba(158,78,60,.6)}
+
+.field-inline{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;margin-bottom:var(--s3)}
+.field-inline label{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.field-inline input{flex:1 1 200px;min-height:44px;padding:var(--s2) var(--s3);
+  background:var(--code);border:1px solid var(--trim);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--mono);font-size:var(--text-sm)}
+
+.tests-out{margin-top:var(--s3);display:flex;flex-direction:column;gap:var(--s2)}
+.tres{display:flex;gap:var(--s2);align-items:flex-start;padding:var(--s2) var(--s3);
+  border:1px solid var(--trim);border-radius:var(--radius-sm);background:rgba(0,0,0,.2);
+  font-family:var(--mono);font-size:var(--text-sm)}
+.tres.pass{border-color:rgba(122,158,110,.4);background:rgba(122,158,110,.07);color:var(--ok)}
+.tres.fail{border-color:rgba(158,78,60,.45);background:rgba(158,78,60,.07);color:var(--danger-ink)}
+.tres .ti{flex:none}
+.tres .tb{flex:1;min-width:0;word-break:break-word}
+.diffline{display:block;color:var(--dim)}
+.diffline b{color:var(--ok);font-weight:400}
+.diffline i{color:var(--danger-ink);font-style:normal}
+
+.preview-mount{margin-top:var(--s3);border:1px solid var(--trim);border-radius:var(--radius-sm);
+  overflow:hidden;background:#fff}
+.preview-frame{width:100%;height:260px;border:0;display:block;background:#fff}
+
+.backend-note{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius-sm);
+  border:1px solid var(--trim);background:rgba(196,120,60,.07);
+  font-size:var(--text-sm);line-height:1.65;color:var(--dim);display:flex;gap:var(--s2)}
+.backend-note .ico{flex:none;color:var(--warn-ink)}
+.compat-note{font-family:var(--mono);font-size:var(--text-xs);color:var(--faint);
+  margin-top:var(--s1);letter-spacing:.04em}
+
 /* ============================ FLOOR RUNNER ============================ */
 #runner{position:fixed;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column}
 #runner[hidden]{display:none}
@@ -807,6 +919,109 @@ self.onmessage = function (e) {
 };
 </script>
 
+<script type="text/plain" id="w-ruby">
+/* Ruby via Opal, in a worker so an endless loop cannot lock the tab.
+   Opal is a compatibility layer, not CRuby - the UI says so. */
+var booted = false;
+function boot(){
+  if (booted) return;
+  importScripts("https://cdn.opalrb.com/opal/current/opal.min.js");
+  importScripts("https://cdn.opalrb.com/opal/current/opal-parser.min.js");
+  booted = true;
+}
+self.onmessage = function (e) {
+  var id = e.data.id, out = [];
+  self.postMessage({ boot: booted ? "warm" : "loading" });
+  try {
+    boot();
+    self.postMessage({ boot: "ready" });
+    var Opal = self.Opal;
+    Opal.gvars.stdout.$write = function (str) { out.push(String(str)); return null; };
+    if (Opal.gvars.stdout['$puts'] !== undefined) {
+      Opal.gvars.stdout.$puts = function () {
+        for (var i = 0; i < arguments.length; i++) out.push(String(arguments[i]) + "\n");
+        if (!arguments.length) out.push("\n");
+        return null;
+      };
+    }
+    Opal.eval(e.data.code);
+    self.postMessage({ id: id, ok: true, stdout: out.join(""), stderr: "" });
+  } catch (err) {
+    self.postMessage({ id: id, ok: false, stdout: out.join(""),
+      stderr: (err && err.message) ? err.message : String(err) });
+  }
+};
+</script>
+
+<script type="text/plain" id="w-prolog">
+/* Prolog via Tau Prolog. The program is consulted, then the query is run and
+   every solution is printed as a binding list. */
+var booted = false;
+self.onmessage = function (e) {
+  var id = e.data.id, out = [];
+  self.postMessage({ boot: booted ? "warm" : "loading" });
+  try {
+    if (!booted) {
+      importScripts("https://cdn.jsdelivr.net/npm/tau-prolog@0.3.2/modules/core.js");
+      booted = true;
+      self.postMessage({ boot: "ready" });
+    }
+    var pl = self.pl;
+    var src = e.data.code || "";
+    var query = e.data.query || "";
+    // "?- goal." lines inside the program are treated as the query
+    var lines = src.split("\n"), prog = [];
+    lines.forEach(function (l) {
+      var m = l.match(/^\s*\?-\s*(.+?)\s*$/);
+      if (m) { if (!query) query = m[1]; } else prog.push(l);
+    });
+    var session = pl.create(1000000);
+    session.consult(prog.join("\n"), {
+      success: function () {
+        if (!query) {
+          self.postMessage({ id: id, ok: true, stdout: "(program loaded; no query)", stderr: "" });
+          return;
+        }
+        session.query(query, {
+          success: function () {
+            var count = 0;
+            (function next() {
+              session.answer({
+                success: function (ans) {
+                  out.push(pl.format_answer(ans));
+                  if (++count < 25) next();
+                  else { self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" }); }
+                },
+                fail: function () {
+                  if (!out.length) out.push("false.");
+                  self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" });
+                },
+                error: function (err) {
+                  self.postMessage({ id: id, ok: false, stdout: out.join("\n"),
+                    stderr: pl.format_answer(err) });
+                },
+                limit: function () {
+                  self.postMessage({ id: id, ok: true, stdout: out.join("\n") + "\n(limit reached)", stderr: "" });
+                },
+              });
+            })();
+          },
+          error: function (err) {
+            self.postMessage({ id: id, ok: false, stdout: "", stderr: "Query error: " + pl.format_answer(err) });
+          },
+        });
+      },
+      error: function (err) {
+        self.postMessage({ id: id, ok: false, stdout: "", stderr: "Program error: " + pl.format_answer(err) });
+      },
+    });
+  } catch (err) {
+    self.postMessage({ id: id, ok: false, stdout: "",
+      stderr: (err && err.message) ? err.message : String(err) });
+  }
+};
+</script>
+
 <script type="text/plain" id="w-js">
 self.onmessage = function (e) {
   var id = e.data.id, out = [];
@@ -842,11 +1057,7 @@ self.onmessage = function (e) {
         <div class="r-name" id="r-name"></div>
       </div>
     </div>
-    <div class="r-phases" role="tablist" aria-label="Floor phases">
-      <button role="tab" aria-selected="true" id="ph-lesson">Lesson</button>
-      <button role="tab" aria-selected="false" disabled id="ph-practice">&#128274; Practice</button>
-      <button role="tab" aria-selected="false" disabled id="ph-exam">&#128274; Exam</button>
-    </div>
+    <div class="r-phases" id="r-stages" aria-label="Floor stages"></div>
     <div class="r-progress">
       <span class="label" id="read-count">0 of 0 sections read</span>
       <div class="meter" role="progressbar" id="read-meter"
@@ -892,7 +1103,8 @@ import {
   signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, serverTimestamp
+  getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, addDoc,
+  getDocs, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1136,6 +1348,547 @@ async function loadIndex() {
 
 const dungeonById = (id) => (State.index.dungeons || []).find((d) => d.id === id);
 
+
+/* ==========================================================================
+   ASSESSMENT ENGINE
+   Sixteen first-class types. Each one renders itself, accepts input, grades
+   itself, and returns { correct, score, detail }. Nothing here is a stub:
+   the free-text types grade against a keyword rubric, which is thin but real.
+   ========================================================================== */
+
+const XP_BASE = {
+  project: 100, design: 100,
+  code: 50, debug: 50, proof: 50, problem: 50,
+  complexity: 40, scenario: 40, diagnose: 40, trace: 40,
+  explain: 20, output: 20, fill: 20, order: 20,
+  mcq: 10, multi: 10,
+};
+const LEVEL_MULT = {
+  recognition: 1.0, recall: 1.2, application: 1.5,
+  transfer: 1.8, design: 2.2, boss: 3.0,
+};
+const DEFAULT_LAYER = {
+  mcq: "retrieval", multi: "retrieval", output: "retrieval",
+  fill: "retrieval", order: "retrieval",
+  code: "application", debug: "application", design: "application",
+  project: "application", scenario: "application", diagnose: "application",
+  complexity: "application", problem: "application", proof: "application",
+  explain: "retrieval", trace: "application",
+};
+const APPLICATION_TYPES = new Set(["code", "debug", "design", "project",
+  "scenario", "diagnose", "complexity", "problem", "proof"]);
+
+const layerOf = (ch) => ch.layer || DEFAULT_LAYER[ch.type] || "retrieval";
+const xpFor = (ch, level) =>
+  ch.xp ?? Math.round((XP_BASE[ch.type] ?? 20) * (LEVEL_MULT[level] || 1));
+
+/* ---- shared comparison helpers ---- */
+function normOut(v) {
+  const lines = String(v ?? "").replace(/\r/g, "").split("\n")
+    .map((l) => l.replace(/[ \t]+$/, ""));
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  return lines.join("\n");
+}
+function deepEq(a, b) {
+  if (a === b) return true;
+  if (typeof a === "number" && typeof b === "number") return a === b;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((x, i) => deepEq(x, b[i]));
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) =>
+      Object.prototype.hasOwnProperty.call(b, k) && deepEq(a[k], b[k]));
+  }
+  return false;
+}
+const jlit = (v) => JSON.stringify(v === undefined ? null : v);
+
+/* Keyword rubric. Deliberately thin - a first pass, not prose comprehension.
+   Stated as such in _SCHEMA.md so nobody mistakes it for real grading. */
+function gradeRubric(text, rubric) {
+  const r = rubric || {};
+  const body = String(text || "");
+  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  const hit = (kw) => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(body);
+
+  const req = r.required || [], opt = r.optional || [], bad = r.forbidden || [];
+  const reqHits = req.filter(hit), optHits = opt.filter(hit), badHits = bad.filter(hit);
+  const short = r.minWords ? words < r.minWords : false;
+
+  let score = req.length ? reqHits.length / req.length : (words > 0 ? 1 : 0);
+  score += Math.min(0.2, opt.length ? (optHits.length / opt.length) * 0.2 : 0);
+  if (badHits.length || short) score = 0;
+  score = Math.max(0, Math.min(1, score));
+
+  return {
+    score, correct: score >= 0.6,
+    detail: {
+      words, minWords: r.minWords || 0, short,
+      matched: reqHits, missing: req.filter((k) => !hit(k)),
+      optional: optHits, forbidden: badHits,
+    },
+  };
+}
+
+/* ---- test-case harnesses ---- */
+function pyHarness(userCode, callExpr, stdinLines) {
+  const pre =
+    "import json as _gj, builtins as _gb\n" +
+    "_g_in = " + jlit(stdinLines || []) + "\n_g_ix = 0\n" +
+    "def _g_input(prompt=''):\n" +
+    "    global _g_ix\n" +
+    "    if _g_ix >= len(_g_in): raise EOFError('no more input')\n" +
+    "    _v = _g_in[_g_ix]; _g_ix += 1\n    return _v\n" +
+    "_gb.input = _g_input\ndel _g_input\n";
+  let body = pre + "\n" + userCode + "\n";
+  if (!callExpr) return body;
+  return body +
+    "\ndef _g_ser(v):\n    try: return _gj.dumps(v)\n    except Exception: return _gj.dumps(repr(v))\n" +
+    "try:\n    _g_out = {'ok': True, 'v': _g_ser(" + callExpr + ")}\n" +
+    "except Exception as _g_e:\n    _g_out = {'ok': False, 'v': type(_g_e).__name__ + ': ' + str(_g_e)}\n" +
+    "print(" + JSON.stringify(SENTINEL) + " + _gj.dumps(_g_out))\n";
+}
+function jsHarness(userCode, callExpr, stdinLines) {
+  const pre = "var __in = " + jlit(stdinLines || []) + ", __ix = 0;\n" +
+    "function readline(){ if (__ix >= __in.length) throw new Error('no more input'); return __in[__ix++]; }\n";
+  let body = pre + "\n" + userCode + "\n";
+  if (!callExpr) return body;
+  return body + "\n;(function(){ var __o;\n" +
+    "  try { var __v = (" + callExpr + ");\n" +
+    "    var __s; try { __s = JSON.stringify(__v); } catch(e){ __s = undefined; }\n" +
+    "    if (__s === undefined) __s = JSON.stringify(String(__v));\n" +
+    "    __o = { ok: true, v: __s };\n" +
+    "  } catch (e) { __o = { ok: false, v: (e && e.message) ? e.message : String(e) }; }\n" +
+    "  console.log(" + JSON.stringify(SENTINEL) + " + JSON.stringify(__o));\n})();\n";
+}
+const SENTINEL = "<<<GRIMOIRE_RESULTS>>>";
+
+function splitSentinel(stdout) {
+  const lines = String(stdout || "").split("\n");
+  let payload = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].indexOf(SENTINEL) === 0) {
+      try { payload = JSON.parse(lines[i].slice(SENTINEL.length)); } catch { payload = null; }
+      lines.splice(i, 1);
+      break;
+    }
+  }
+  return { stdout: lines.join("\n"), payload };
+}
+
+/* Runs one test case against the learner's code, in whatever runtime the
+   dungeon declares. `carry` is the accumulated context from earlier passing
+   challenges in the same source exercise. */
+async function runOneTest(dungeon, ch, userCode, test, carry) {
+  const rt = runtimeFor(dungeon);
+  const label = test.label || (ch.fn
+    ? `${ch.constant ? ch.fn : `${ch.fn}(${test.input ?? ""})`} -> ${jlit(test.expected)}`
+    : "program output");
+  const full = (carry ? carry + "\n\n" : "") + userCode;
+  const stdinLines = ch.fn ? [] : String(test.input ?? "").split("\n").filter((x) => x.length);
+
+  if (rt === "sqljs") {
+    const r = await Exec.runSql(full, ch.schema);
+    if (r.unavailable) return { ok: false, label, unavailable: true, error: r.stderr };
+    if (r.stderr) return { ok: false, label, error: r.stderr };
+    const got = normOut(r.stdout);
+    const want = normOut(typeof test.expected === "string" ? test.expected : jlit(test.expected));
+    return { ok: got === want, label, expected: want, actual: got, isOutput: true };
+  }
+
+  // A challenge whose target is a constant is evaluated by name; calling it
+  // would raise "int object is not callable".
+  const callExpr = ch.fn
+    ? (ch.constant ? ch.fn : `${ch.fn}(${test.input ?? ""})`)
+    : null;
+
+  let program = full;
+  if (rt === "pyodide") program = pyHarness(full, callExpr, stdinLines);
+  else if (rt === "worker") program = jsHarness(full, callExpr, stdinLines);
+
+  const r = await Exec.run(dungeon, program, stdinLines.join("\n"));
+  if (r.unavailable) return { ok: false, label, unavailable: true, error: r.stderr };
+
+  const split = splitSentinel(r.stdout);
+  if (ch.fn && (rt === "pyodide" || rt === "worker")) {
+    if (!split.payload) {
+      return { ok: false, label, error: r.stderr || "Your code did not finish running." };
+    }
+    if (!split.payload.ok) return { ok: false, label, error: split.payload.v };
+    let parsed, ok;
+    try { parsed = JSON.parse(split.payload.v); ok = deepEq(test.expected ?? null, parsed); }
+    catch { ok = jlit(test.expected) === split.payload.v; parsed = split.payload.v; }
+    return { ok, label, expected: jlit(test.expected), actual: jlit(parsed) };
+  }
+  if (r.stderr && !r.ok) {
+    return { ok: false, label, error: r.stderr,
+             expected: normOut(test.expected), actual: normOut(split.stdout) };
+  }
+  const want = normOut(typeof test.expected === "string" ? test.expected : jlit(test.expected));
+  const got = normOut(split.stdout);
+  return { ok: want === got, label, expected: want, actual: got, isOutput: true };
+}
+
+async function runTests(dungeon, ch, userCode, carry) {
+  const tests = ch.tests || [];
+  const results = [];
+  for (const t of tests) results.push(await runOneTest(dungeon, ch, userCode, t, carry));
+  return {
+    passed: results.length > 0 && results.every((r) => r.ok),
+    unavailable: results.some((r) => r.unavailable),
+    score: results.length ? results.filter((r) => r.ok).length / results.length : 0,
+    results,
+  };
+}
+
+function testResultsHTML(res) {
+  return `<div class="tests-out">${res.results.map((r) => `
+    <div class="tres ${r.ok ? "pass" : "fail"}">
+      <span class="ti" aria-hidden="true">${r.ok ? "\u2713" : "\u2717"}</span>
+      <span class="tb">${esc(r.label)}${
+        r.ok ? "" :
+        r.error ? `<span class="diffline">${esc(r.error)}</span>` :
+        r.isOutput ? diffHTML(r.expected, r.actual)
+                   : `<span class="diffline">expected <b>${esc(r.expected)}</b>, got <i>${esc(r.actual)}</i></span>`
+      }</span>
+    </div>`).join("")}</div>`;
+}
+function diffHTML(expected, actual) {
+  const e = String(expected).split("\n"), a = String(actual).split("\n");
+  const rows = [];
+  for (let i = 0; i < Math.max(e.length, a.length); i++) {
+    if (e[i] === a[i]) rows.push(`<span class="diffline">  ${esc(e[i] ?? "")}</span>`);
+    else {
+      if (e[i] !== undefined) rows.push(`<span class="diffline">expected <b>${esc(e[i])}</b></span>`);
+      rows.push(`<span class="diffline">yours    <i>${esc(a[i] ?? "(nothing)")}</i></span>`);
+    }
+  }
+  return rows.join("");
+}
+
+/* ---- the type registry ---------------------------------------------------
+   Every entry: render(ch, id, ctx) -> html, wire(ch, root, ctx),
+   grade(ch, root, ctx) -> { correct, score, detail }
+   -------------------------------------------------------------------------- */
+const editorBlock = (id, code, lang, opts = {}) => {
+  const lines = String(code || "").split("\n");
+  return `<div class="ed" data-ed="${id}">
+    <div class="ed-bar">
+      <span class="ed-lang">${esc(lang || "")}</span>
+      ${opts.noRun ? "" : `<button class="ed-btn" type="button" data-run="${id}">Run</button>`}
+    </div>
+    <div class="ed-wrap">
+      <div class="ed-gutter" data-gutter="${id}" aria-hidden="true">${
+        lines.map((_, k) => `<span>${k + 1}</span>`).join("")}</div>
+      <textarea class="ed-ta" data-ta="${id}" spellcheck="false" autocapitalize="off"
+        autocorrect="off" aria-label="Code editor">${esc(code)}</textarea>
+    </div>
+    <div class="boot-line" data-boot="${id}" hidden>
+      <span class="bar" aria-hidden="true"></span><span data-bootmsg>Starting the runtime\u2026</span>
+    </div>
+    <div class="ed-out" data-out="${id}" hidden></div>
+  </div>`;
+};
+
+const codeLike = (allowStarter) => ({
+  render(ch, id, ctx) {
+    const design = ctx.level === "design" || ctx.level === "boss" || ch.type === "design";
+    const starter = design && !allowStarter ? "" : (ch.starterCode ?? "");
+    return editorBlock(id, starter, ch.lang || ctx.dungeon.lang) +
+      (ch.type === "html-preview" ? `<div class="preview-mount" data-preview="${id}"></div>` : "");
+  },
+  wire(ch, root, ctx) { wireCodeEditor(ch, root, ctx); },
+  async grade(ch, root, ctx) {
+    const ta = root.querySelector("[data-ta]");
+    const res = await runTests(ctx.dungeon, ch, ta ? ta.value : "", ctx.carry);
+    return {
+      correct: res.passed, score: res.score,
+      unavailable: res.unavailable,
+      html: testResultsHTML(res),
+      detail: { tests: res.results.length, passed: res.results.filter((r) => r.ok).length },
+    };
+  },
+});
+
+const rubricType = (opts = {}) => ({
+  render(ch, id) {
+    return (opts.answerField ? `<div class="field-inline">
+        <label for="ans-${id}">${esc(opts.answerLabel || "Answer")}</label>
+        <input id="ans-${id}" data-answer type="text" autocomplete="off"
+               placeholder="${esc(opts.placeholder || "")}">
+      </div>` : "") +
+      `<textarea class="ta-answer" data-text aria-label="Your answer"
+        placeholder="${esc(opts.placeholder2 || "Write your reasoning\u2026")}"></textarea>`;
+  },
+  wire() {},
+  grade(ch, root) {
+    const text = root.querySelector("[data-text]")?.value || "";
+    const r = gradeRubric(text, ch.rubric);
+    let answerOK = true;
+    if (opts.answerField && ch.answer !== undefined) {
+      const given = (root.querySelector("[data-answer]")?.value || "").trim();
+      answerOK = normaliseAnswer(given) === normaliseAnswer(String(ch.answer));
+      r.detail.answerGiven = given;
+      r.detail.answerExpected = ch.answer;
+      r.score = answerOK ? (0.4 + r.score * 0.6) : r.score * 0.4;
+      r.correct = answerOK && r.score >= 0.6;
+    }
+    return { ...r, html: rubricFeedback(r.detail, ch, answerOK, opts) };
+  },
+});
+const normaliseAnswer = (v) => String(v).toLowerCase().replace(/\s+/g, "").replace(/[()]/g, "");
+function rubricFeedback(d, ch, answerOK, opts) {
+  const bits = [];
+  if (opts.answerField && ch.answer !== undefined) {
+    bits.push(`<div>${answerOK ? "\u2713" : "\u2717"} answer: ${esc(d.answerGiven || "(blank)")}${
+      answerOK ? "" : ` \u2014 expected <b>${esc(String(ch.answer))}</b>`}</div>`);
+  }
+  if (d.short) bits.push(`<div>\u2717 too short: ${d.words} words, needs ${d.minWords}</div>`);
+  if (d.matched?.length) bits.push(`<div>\u2713 covered: ${d.matched.map(esc).join(", ")}</div>`);
+  if (d.missing?.length) bits.push(`<div>\u2717 not mentioned: ${d.missing.map(esc).join(", ")}</div>`);
+  if (d.forbidden?.length) bits.push(`<div>\u2717 contains: ${d.forbidden.map(esc).join(", ")}</div>`);
+  bits.push(`<div class="compat-note">Free-text answers are checked against a keyword
+    rubric, not read for meaning. Treat the verdict as a prompt to compare your
+    answer with the explanation below.</div>`);
+  return bits.join("");
+}
+
+const TYPES = {
+  code: codeLike(true),
+  debug: codeLike(true),
+  design: codeLike(false),
+  project: codeLike(false),
+
+  output: {
+    render(ch, id, ctx) {
+      return (ch.code ? editorBlock(id, ch.code, ch.lang || ctx.dungeon.lang, { noRun: true }) : "") +
+        `<textarea class="ta-answer mono" data-text
+          aria-label="Predicted output" placeholder="exactly what it prints"></textarea>`;
+    },
+    wire() {},
+    grade(ch, root) {
+      const given = normOut(root.querySelector("[data-text]").value);
+      const want = normOut(ch.answer ?? ch.expect ?? "");
+      const ok = given === want;
+      return { correct: ok, score: ok ? 1 : 0,
+               html: ok ? "" : `<div class="tests-out"><div class="tres fail">
+                 <span class="ti">\u2717</span><span class="tb">${diffHTML(want, given)}</span></div></div>`,
+               detail: { given, want } };
+    },
+  },
+
+  fill: {
+    render(ch, id) {
+      const blanks = ch.blanks || [];
+      return `<pre class="ed"><div class="ed-wrap"><textarea class="ed-ta" readonly
+                aria-label="Code with blanks">${esc(ch.template || "")}</textarea></div></pre>
+        <div class="blanks">${blanks.map((_, i) => `
+          <div class="blank-row">
+            <label for="bl-${id}-${i}">blank ${i + 1}</label>
+            <input id="bl-${id}-${i}" data-blank="${i}" type="text" autocomplete="off" spellcheck="false">
+          </div>`).join("")}</div>`;
+    },
+    wire() {},
+    grade(ch, root) {
+      const want = ch.blanks || [];
+      let hits = 0;
+      want.forEach((w, i) => {
+        const el = root.querySelector(`[data-blank="${i}"]`);
+        const ok = (el?.value || "").trim() === String(w).trim();
+        if (ok) hits++;
+        el?.classList.toggle("right", ok);
+        el?.classList.toggle("wrong", !ok);
+      });
+      const score = want.length ? hits / want.length : 0;
+      return { correct: hits === want.length, score,
+               html: `<div>${hits} of ${want.length} blanks correct</div>`,
+               detail: { hits, total: want.length } };
+    },
+  },
+
+  order: {
+    render(ch, id) {
+      const frags = ch.fragments || [];
+      // presented shuffled deterministically, so it is a task not a formality
+      const shown = frags.map((f, i) => ({ f, i }))
+        .sort((a, b) => ((a.i * 7 + 3) % frags.length) - ((b.i * 7 + 3) % frags.length));
+      return `<div class="frags" data-frags="${id}">${shown.map((x) => `
+        <div class="frag" data-idx="${x.i}" draggable="true">
+          <span class="grip" aria-hidden="true">\u2261</span>
+          <span>${esc(x.f)}</span>
+          <span class="fmove">
+            <button type="button" data-up aria-label="Move up">\u2191</button>
+            <button type="button" data-down aria-label="Move down">\u2193</button>
+          </span>
+        </div>`).join("")}</div>`;
+    },
+    wire(ch, root) {
+      const list = root.querySelector("[data-frags]");
+      if (!list) return;
+      list.addEventListener("click", (e) => {
+        const row = e.target.closest(".frag");
+        if (!row) return;
+        if (e.target.closest("[data-up]") && row.previousElementSibling)
+          list.insertBefore(row, row.previousElementSibling);
+        if (e.target.closest("[data-down]") && row.nextElementSibling)
+          list.insertBefore(row.nextElementSibling, row);
+      });
+      let dragged = null;
+      list.addEventListener("dragstart", (e) => { dragged = e.target.closest(".frag"); });
+      list.addEventListener("dragover", (e) => e.preventDefault());
+      list.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const target = e.target.closest(".frag");
+        if (dragged && target && dragged !== target) list.insertBefore(dragged, target);
+      });
+    },
+    grade(ch, root) {
+      const got = [...root.querySelectorAll("[data-frags] .frag")].map((el) => Number(el.dataset.idx));
+      const want = ch.answer || ch.fragments.map((_, i) => i);
+      const ok = deepEq(got, want);
+      let hits = 0;
+      got.forEach((v, i) => { if (v === want[i]) hits++; });
+      root.querySelectorAll("[data-frags] .frag").forEach((el, i) => {
+        const good = Number(el.dataset.idx) === want[i];
+        el.classList.toggle("right", good);
+        el.classList.toggle("wrong", !good);
+      });
+      return { correct: ok, score: want.length ? hits / want.length : 0,
+               html: `<div>${hits} of ${want.length} in the right place</div>`,
+               detail: { got, want } };
+    },
+  },
+
+  mcq: {
+    render(ch, id, ctx) {
+      return (ch.code ? editorBlock(id, ch.code, ch.lang || ctx.dungeon.lang, { noRun: true }) : "") +
+        `<div class="choices" role="radiogroup" aria-label="Choices">${
+          (ch.choices || []).map((c, i) => `
+          <button type="button" class="choice mcq" role="radio" aria-checked="false"
+                  aria-pressed="false" data-choice="${i}">
+            <span class="mark" aria-hidden="true">${String.fromCharCode(65 + i)}</span>
+            <span>${esc(c)}</span></button>`).join("")}</div>`;
+    },
+    wire(ch, root) {
+      root.querySelectorAll("[data-choice]").forEach((b) => b.addEventListener("click", () => {
+        root.querySelectorAll("[data-choice]").forEach((o) => {
+          o.setAttribute("aria-pressed", "false"); o.setAttribute("aria-checked", "false");
+        });
+        b.setAttribute("aria-pressed", "true"); b.setAttribute("aria-checked", "true");
+      }));
+    },
+    grade(ch, root) {
+      const picked = [...root.querySelectorAll('[data-choice][aria-pressed="true"]')]
+        .map((b) => Number(b.dataset.choice))[0];
+      const ok = picked === ch.answer;
+      root.querySelectorAll("[data-choice]").forEach((b) => {
+        const i = Number(b.dataset.choice);
+        if (i === ch.answer) b.classList.add("right");
+        else if (i === picked) b.classList.add("wrong");
+      });
+      return { correct: ok, score: ok ? 1 : 0, detail: { picked, answer: ch.answer },
+               html: ok ? "" : `<div>Correct answer: <b>${esc(ch.choices[ch.answer])}</b></div>` };
+    },
+  },
+
+  multi: {
+    render(ch, id, ctx) {
+      return (ch.code ? editorBlock(id, ch.code, ch.lang || ctx.dungeon.lang, { noRun: true }) : "") +
+        `<div class="choices" role="group" aria-label="Select all that apply">${
+          (ch.choices || []).map((c, i) => `
+          <button type="button" class="choice" aria-pressed="false" data-choice="${i}">
+            <span class="mark" aria-hidden="true">${String.fromCharCode(65 + i)}</span>
+            <span>${esc(c)}</span></button>`).join("")}</div>`;
+    },
+    wire(ch, root) {
+      root.querySelectorAll("[data-choice]").forEach((b) => b.addEventListener("click", () => {
+        b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      }));
+    },
+    grade(ch, root) {
+      const picked = [...root.querySelectorAll('[data-choice][aria-pressed="true"]')]
+        .map((b) => Number(b.dataset.choice)).sort((a, b) => a - b);
+      const want = [...(ch.answer || [])].sort((a, b) => a - b);
+      const ok = deepEq(picked, want);
+      root.querySelectorAll("[data-choice]").forEach((b) => {
+        const i = Number(b.dataset.choice);
+        if (want.includes(i)) b.classList.add("right");
+        else if (picked.includes(i)) b.classList.add("wrong");
+      });
+      const hits = picked.filter((i) => want.includes(i)).length;
+      const wrong = picked.filter((i) => !want.includes(i)).length;
+      return { correct: ok, score: want.length ? Math.max(0, (hits - wrong) / want.length) : 0,
+               html: ok ? "" : `<div>All of: ${want.map((i) => `<b>${esc(ch.choices[i])}</b>`).join(", ")}</div>`,
+               detail: { picked, want } };
+    },
+  },
+
+  explain: rubricType({}),
+  problem: rubricType({ placeholder2: "Show your working\u2026" }),
+  proof: rubricType({ placeholder2: "State what you are proving, then argue it\u2026" }),
+  scenario: rubricType({ placeholder2: "How would you approach this?\u2026" }),
+  complexity: rubricType({ answerField: true, answerLabel: "Complexity",
+                           placeholder: "O(n log n)", placeholder2: "Justify it\u2026" }),
+  diagnose: rubricType({ answerField: true, answerLabel: "Cause",
+                         placeholder: "name the cause", placeholder2: "How did you narrow it down?\u2026" }),
+
+  trace: {
+    render(ch, id, ctx) {
+      return (ch.code ? editorBlock(id, ch.code, ch.lang || ctx.dungeon.lang, { noRun: true }) : "") +
+        `<div class="steps">${(ch.steps || []).map((st, i) => `
+          <div class="step-row">
+            <label class="slabel" for="st-${id}-${i}">${esc(st.label || `step ${i + 1}`)}</label>
+            <input id="st-${id}-${i}" data-step="${i}" type="text" autocomplete="off"
+                   spellcheck="false" placeholder="state after this step">
+          </div>`).join("")}</div>`;
+    },
+    wire() {},
+    grade(ch, root) {
+      const steps = ch.steps || [];
+      let hits = 0;
+      steps.forEach((st, i) => {
+        const el = root.querySelector(`[data-step="${i}"]`);
+        const ok = normaliseAnswer(el?.value || "") === normaliseAnswer(String(st.expected));
+        if (ok) hits++;
+        el?.classList.toggle("right", ok);
+        el?.classList.toggle("wrong", !ok);
+      });
+      return { correct: hits === steps.length, score: steps.length ? hits / steps.length : 0,
+               html: `<div>${hits} of ${steps.length} steps correct</div>` +
+                     (hits === steps.length ? "" :
+                      `<div class="compat-note">Expected: ${steps.map((s) => esc(String(s.expected))).join(" \u2192 ")}</div>`),
+               detail: { hits, total: steps.length } };
+    },
+  },
+};
+
+/* HTML/CSS challenges preview in a sandboxed iframe rather than assert on stdout. */
+TYPES["html-preview"] = {
+  render(ch, id, ctx) {
+    return editorBlock(id, ch.starterCode ?? "", "html") +
+      `<div class="preview-mount" data-preview="${id}"></div>`;
+  },
+  wire(ch, root, ctx) { wireCodeEditor(ch, root, ctx); },
+  async grade(ch, root, ctx) {
+    const id = root.querySelector("[data-ed]")?.dataset.ed;
+    const ta = root.querySelector("[data-ta]");
+    await Exec.runIframe(ta.value, `preview-mount-${id}`);
+    const checks = ch.expectSelectors || [];
+    const doc = new DOMParser().parseFromString(ta.value, "text/html");
+    const missing = checks.filter((sel) => !doc.querySelector(sel));
+    return { correct: missing.length === 0, score: checks.length ? (checks.length - missing.length) / checks.length : 1,
+             html: missing.length ? `<div>missing: ${missing.map(esc).join(", ")}</div>` : "",
+             detail: { missing } };
+  },
+};
+
+function assessType(ch) {
+  if (ch.type === "code" && (ch.lang === "html" || ch.lang === "css")) return TYPES["html-preview"];
+  return TYPES[ch.type] || null;
+}
+window.__assess = { TYPES, gradeRubric, runTests, xpFor, layerOf, APPLICATION_TYPES, assessType };
+
 /* ==========================================================================
    EXECUTION
    The runtime comes from the dungeon's own content file, never from a
@@ -1148,12 +1901,50 @@ const dungeonById = (id) => (State.index.dungeons || []).find((d) => d.id === id
 const PISTON_DEFAULT = "https://emkc.org/api/v2/piston/execute";
 const pistonUrl = () => State.index?.pistonUrl || PISTON_DEFAULT;
 
+/* Languages that genuinely execute in the browser. Everything else needs a
+   backend, and the UI says so plainly rather than failing at Run time. */
+const BROWSER_RUNTIMES = {
+  python: "pyodide",
+  javascript: "worker",
+  typescript: "worker",
+  sql: "sqljs",
+  html: "iframe",
+  css: "iframe",
+  "html-css": "iframe",
+  prolog: "prolog",
+  ruby: "ruby",
+};
+
+/* No in-browser engine exists for these; they need a self-hosted Piston. */
+const NEEDS_BACKEND = new Set(["c", "cpp", "rust", "go", "java", "csharp", "swift",
+  "kotlin", "haskell", "lua", "r", "scala", "elixir", "zig", "assembly", "bash",
+  "octave", "php", "dart"]);
+
 function runtimeFor(dungeon) {
-  if (dungeon.runtime) return dungeon.runtime;
   const lang = (dungeon.lang || "").toLowerCase();
-  if (lang === "python") return "pyodide";
-  if (lang === "javascript" || lang === "typescript") return "worker";
+  if (dungeon.runtime && dungeon.runtime !== "piston") return dungeon.runtime;
+  if (BROWSER_RUNTIMES[lang]) return BROWSER_RUNTIMES[lang];
+  if (lang === "text" || lang === "" || !lang) return "none";
   return "piston";
+}
+
+/* True when the dungeon can actually run code here and now. */
+function canExecute(dungeon) {
+  const rt = runtimeFor(dungeon);
+  if (rt === "none") return false;
+  if (rt !== "piston") return true;
+  return !!State.index?.pistonUrl;
+}
+
+function backendNotice(dungeon) {
+  const rt = runtimeFor(dungeon);
+  if (rt === "none") {
+    return "This dungeon is reading and reasoning - there is no code to run here.";
+  }
+  return "This language requires a code execution backend. The lesson, challenge " +
+         "prompts and exam questions are all readable. To run code, set up a " +
+         "self-hosted Piston instance and point \"pistonUrl\" in content/index.json " +
+         "at it - see the README.";
 }
 
 const Exec = {
@@ -1241,13 +2032,85 @@ const Exec = {
     }
   },
 
-  run(dungeon, code, stdin) {
+  /* SQLite compiled to WebAssembly, in the page (sql.js has no worker build
+     that survives a terminate cleanly). Queries are bounded by their own
+     nature; there is no user loop to run away. */
+  sql: null,
+  async runSql(code, schema) {
+    if (!Exec.sql) {
+      Exec.onBootChange?.(true);
+      try {
+        await new Promise((res, rej) => {
+          if (window.initSqlJs) return res();
+          const t = document.createElement("script");
+          t.src = "https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/sql-wasm.js";
+          t.onload = res; t.onerror = () => rej(new Error("sql.js failed to load"));
+          document.head.appendChild(t);
+        });
+        Exec.sql = await window.initSqlJs({
+          locateFile: (f) => "https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/" + f });
+      } catch (e) {
+        Exec.onBootChange?.(false);
+        return { ok: false, stdout: "", unavailable: true,
+                 stderr: "SQLite runtime failed to load: " + e.message };
+      }
+      Exec.onBootChange?.(false);
+    }
+    let db;
+    try {
+      db = new Exec.sql.Database();
+      if (schema) db.run(schema);
+      const res = db.exec(code);
+      if (!res.length) return { ok: true, stdout: "(no rows)", stderr: "", rows: [] };
+      const t = res[res.length - 1];
+      const lines = [t.columns.join(" | "),
+                     t.columns.map(() => "---").join(" | ")]
+        .concat(t.values.map((r) => r.map((v) => v === null ? "NULL" : String(v)).join(" | ")));
+      return { ok: true, stdout: lines.join("\n"), stderr: "",
+               rows: t.values, columns: t.columns };
+    } catch (e) {
+      return { ok: false, stdout: "", stderr: String(e.message || e) };
+    } finally {
+      try { db?.close(); } catch {}
+    }
+  },
+
+  /* HTML/CSS renders in a sandboxed iframe. Nothing escapes it: no same-origin,
+     no top navigation, scripts only so the page can behave. */
+  runIframe(code, mountId) {
+    return new Promise((resolve) => {
+      const mount = document.getElementById(mountId);
+      if (!mount) return resolve({ ok: false, stdout: "", stderr: "no preview mount" });
+      mount.innerHTML = "";
+      const f = document.createElement("iframe");
+      f.className = "preview-frame";
+      f.setAttribute("sandbox", "allow-scripts");
+      f.setAttribute("title", "Rendered preview of your code");
+      f.srcdoc = code;
+      f.onload = () => resolve({ ok: true, stdout: "(rendered below)", stderr: "", frame: f });
+      mount.appendChild(f);
+    });
+  },
+
+  run(dungeon, code, stdin, opts = {}) {
     const rt = runtimeFor(dungeon);
     if (rt === "pyodide") {
       // the first run downloads the interpreter, so allow it far longer
       return Exec.runWorker("python", code, Exec.pyReady ? 10000 : 90000);
     }
     if (rt === "worker") return Exec.runWorker("js", code, 2000);
+    if (rt === "ruby") return Exec.runWorker("ruby", code, 8000);
+    if (rt === "prolog") return Exec.runWorker("prolog", code, 6000);
+    if (rt === "sqljs") return Exec.runSql(code, opts.schema);
+    if (rt === "iframe") return Exec.runIframe(code, opts.mountId);
+    if (rt === "none") {
+      return Promise.resolve({ ok: false, stdout: "", unavailable: true,
+                               stderr: backendNotice(dungeon) });
+    }
+    if (!State.index?.pistonUrl) {
+      return Promise.resolve({ ok: false, stdout: "", unavailable: true,
+                               stderr: backendNotice(dungeon) });
+    }
     return Exec.runPiston(dungeon.lang, code, stdin);
   },
 };
@@ -1344,8 +2207,13 @@ function recommendedIn(list) {
 }
 
 function masteryOf(id) {
-  const p = State.progress[id];
-  return p?.mastery ? Math.round(p.mastery * 100) : 0;
+  const m = State.progress[id]?.mastery;
+  if (!m) return 0;
+  return typeof m === "number" ? Math.round(m * 100) : (m.score || 0);
+}
+function masteryRank(id) {
+  const m = State.progress[id]?.mastery;
+  return m && typeof m === "object" ? m.rank : "Novice";
 }
 
 function renderBookTabs() {
@@ -1542,6 +2410,432 @@ async function loadDungeonContent(id) {
   return j;
 }
 
+
+
+/* ==========================================================================
+   MASTERY
+   Four weighted components, computed from what the learner actually did:
+     Coverage 25 - concepts reached at the Application layer
+     Retention 25 - SM-2 performance from the append-only review log
+     Application depth 30 - performance on Application-layer types
+     Boss 20 - boss assessment results
+   Stored on every graded attempt so nothing needs backfilling later.
+   ========================================================================== */
+const MASTERY_WEIGHTS = { coverage: 0.25, retention: 0.25, application: 0.30, boss: 0.20 };
+const RANKS = [
+  [90, "Master"], [75, "Adept"], [60, "Journeyman"], [40, "Apprentice"], [0, "Novice"],
+];
+const rankFor = (score) => (RANKS.find(([min]) => score >= min) || RANKS[RANKS.length - 1])[1];
+
+/* SM-2. Kept deliberately close to the original so the numbers mean what
+   people expect them to mean. */
+function sm2(prev, quality) {
+  let { ease = 2.5, interval = 0, reps = 0 } = prev || {};
+  if (quality < 3) { reps = 0; interval = 1; }
+  else {
+    reps += 1;
+    interval = reps === 1 ? 1 : reps === 2 ? 6 : Math.round(interval * ease);
+    ease = Math.max(1.3, ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+  }
+  return { ease: Number(ease.toFixed(2)), interval, reps,
+           due: Date.now() + interval * 86400000 };
+}
+
+const Progress = {
+  /* Records one graded attempt and recomputes that dungeon's mastery. */
+  record(dungeonId, ev) {
+    const dg = (State.progress[dungeonId] = State.progress[dungeonId] || {});
+    dg.concepts = dg.concepts || {};
+    dg.attempts = (dg.attempts || 0) + 1;
+    dg.floors = dg.floors || {};
+
+    // concept x layer is the unit of record
+    (ev.concepts || []).forEach((c) => {
+      const rec = (dg.concepts[c] = dg.concepts[c] || { exposure: true });
+      if (ev.correct) {
+        if (ev.layer === "retrieval") rec.retrieval = true;
+        if (ev.isApplication) rec.application = true;
+      }
+    });
+
+    // application-depth samples
+    if (ev.isApplication) {
+      dg.appScores = (dg.appScores || []).concat(ev.score).slice(-60);
+    }
+    if (ev.type === "project") {
+      dg.bossScores = (dg.bossScores || []).concat(ev.score).slice(-10);
+    }
+
+    // floor-level record
+    if (ev.floor != null) {
+      const fl = (dg.floors[String(ev.floor)] = dg.floors[String(ev.floor)] || { solved: [] });
+      if (ev.correct && ev.challengeId && !fl.solved.includes(ev.challengeId)) {
+        fl.solved.push(ev.challengeId);
+      }
+    }
+
+    // spaced repetition: anything wrong, or right only with a hint, comes back
+    const outcome = !ev.correct ? "fail" : (ev.hintsUsed > 0 ? "hint" : "pass");
+    if (ev.challengeId && outcome !== "pass") {
+      Reviews.schedule(dungeonId, ev.challengeId, outcome);
+    }
+    if (ev.challengeId) Reviews.log(dungeonId, ev.challengeId, outcome);
+
+    // XP, streak, mastery
+    if (ev.xp) Profile.awardXP(ev.xp);
+    if (ev.isApplication && ev.correct) Profile.markApplicationDay();
+
+    dg.mastery = Progress.mastery(dungeonId);
+    queueSave();
+    renderStats();
+    if (State.view === "map") renderMap();
+    return dg.mastery;
+  },
+
+  /* The four components. Each is 0-1 before weighting. */
+  mastery(dungeonId) {
+    const dg = State.progress[dungeonId] || {};
+    const entry = dungeonById(dungeonId);
+    const declared = Content.conceptsOf(dungeonId);
+    const concepts = dg.concepts || {};
+
+    const applied = declared.filter((c) => concepts[c]?.application).length;
+    const coverage = declared.length ? applied / declared.length : 0;
+
+    const app = dg.appScores || [];
+    const application = app.length ? app.reduce((a, b) => a + b, 0) / app.length : 0;
+
+    const boss = dg.bossScores || [];
+    const bossScore = boss.length ? Math.max(...boss) : 0;
+
+    const retention = Reviews.retention(dungeonId);
+
+    const score = Math.round(100 * (
+      coverage * MASTERY_WEIGHTS.coverage +
+      retention * MASTERY_WEIGHTS.retention +
+      application * MASTERY_WEIGHTS.application +
+      bossScore * MASTERY_WEIGHTS.boss));
+
+    return {
+      score, rank: rankFor(score),
+      coverage: Math.round(coverage * 100),
+      retention: Math.round(retention * 100),
+      application: Math.round(application * 100),
+      boss: Math.round(bossScore * 100),
+      conceptsApplied: applied, conceptsTotal: declared.length,
+      complete: score >= 75 && bossScore > 0,
+      mastered: score >= 90 && Reviews.retentionOver(dungeonId, 30) >= 0.8,
+      updatedAt: Date.now(),
+    };
+  },
+};
+
+/* ---- review queue + append-only outcome log ---- */
+const Reviews = {
+  queue: [], log: [],
+
+  schedule(dungeonId, challengeId, outcome) {
+    const q = Reviews.queue;
+    const i = q.findIndex((x) => x.challengeId === challengeId);
+    const prev = i >= 0 ? q[i] : null;
+    const quality = outcome === "pass" ? 5 : outcome === "hint" ? 3 : 1;
+    const next = sm2(prev, quality);
+    const item = { challengeId, dungeonId, ...next };
+    if (i >= 0) q[i] = item; else q.push(item);
+  },
+
+  /* Append-only. The queue holds next-due state; this holds history, and the
+     30-day retention figure is computed from here. */
+  log(dungeonId, challengeId, outcome) {
+    const q = Reviews.queue.find((x) => x.challengeId === challengeId);
+    Reviews.log_.push({
+      challengeId, dungeonId, reviewedAt: Date.now(), outcome,
+      ease: q?.ease ?? 2.5, interval: q?.interval ?? 0,
+    });
+    if (Reviews.log_.length > 2000) Reviews.log_ = Reviews.log_.slice(-2000);
+    Reviews.persist(dungeonId, challengeId, outcome, q);
+  },
+  log_: [],
+
+  async persist(dungeonId, challengeId, outcome, q) {
+    if (!State.user || !firebaseUp) return;
+    await safe("append review log", () =>
+      addDoc(collection(db, "sessions", State.user.uid, "reviewLog"), {
+        challengeId, dungeonId, reviewedAt: serverTimestamp(),
+        outcome, ease: q?.ease ?? 2.5, interval: q?.interval ?? 0,
+      }));
+    await safe("save review queue", () =>
+      setDoc(doc(db, "sessions", State.user.uid),
+        { reviewQueue: Reviews.queue, updatedAt: Date.now() }, { merge: true }));
+  },
+
+  due(dungeonId) {
+    const now = Date.now();
+    return Reviews.queue.filter((x) =>
+      (!dungeonId || x.dungeonId === dungeonId) && (x.due || 0) <= now);
+  },
+
+  /* Share of logged outcomes for this dungeon that were clean passes. */
+  retention(dungeonId, sinceDays) {
+    const cutoff = sinceDays ? Date.now() - sinceDays * 86400000 : 0;
+    const rows = Reviews.log_.filter((r) =>
+      r.dungeonId === dungeonId && r.reviewedAt >= cutoff);
+    if (!rows.length) return 0;
+    return rows.filter((r) => r.outcome === "pass").length / rows.length;
+  },
+  retentionOver(dungeonId, days) { return Reviews.retention(dungeonId, days); },
+};
+
+/* ---- profile side effects ---- */
+const Profile = {
+  awardXP(amount) {
+    State.profile = State.profile || {};
+    State.profile.xp = Math.round((State.profile.xp || 0) + amount);
+    State.profile.level = casterLevel(State.profile.xp);
+  },
+  /* Streak counts days with at least one Application-layer challenge.
+     Reading a lesson does not extend it. */
+  markApplicationDay() {
+    const p = (State.profile = State.profile || {});
+    const today = dayKey(new Date());
+    if (p.lastApplicationDay === today) return;
+    if (p.lastApplicationDay && daysBetween(p.lastApplicationDay, today) === 1) {
+      p.streak = (p.streak || 0) + 1;
+    } else p.streak = 1;
+    p.lastApplicationDay = today;
+  },
+};
+
+/* Concepts declared by a dungeon's floors - the denominator for Coverage. */
+const Content = {
+  conceptsOf(dungeonId) {
+    const c = contentCache[dungeonId];
+    if (!c) return [];
+    const out = new Set();
+    (c.floors || []).forEach((f) => (f.concepts || []).forEach((x) => out.add(x)));
+    return [...out];
+  },
+};
+
+/* ==========================================================================
+   RENDER HELPERS shared by the lesson and every assessment component
+   ========================================================================== */
+
+/* KaTeX. Called after any content render; a malformed expression must not
+   take the page down with it. */
+function renderMath(el) {
+  if (!el || !window.renderMathInElement) return;
+  try {
+    window.renderMathInElement(el, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\[", right: "\\]", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+      ],
+      throwOnError: false,
+      errorColor: "#CE8347",
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+    });
+  } catch (e) { console.warn("KaTeX render failed:", e.message); }
+}
+
+/* Wires a code editor inside any container: gutter, tab, Ctrl+Enter, Run. */
+function wireCodeEditor(ch, root, ctx) {
+  const ta = root.querySelector("[data-ta]");
+  if (!ta) return;
+  const id = root.querySelector("[data-ed]")?.dataset.ed;
+  const gutter = root.querySelector("[data-gutter]");
+  const out = root.querySelector("[data-out]");
+  const runBtn = root.querySelector("[data-run]");
+
+  const resize = () => {
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, 48) + "px";
+    if (gutter) gutter.innerHTML = ta.value.split("\n")
+      .map((_, k) => `<span>${k + 1}</span>`).join("");
+  };
+  ta.addEventListener("input", resize);
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = ta.value.slice(0, a) + "    " + ta.value.slice(b);
+      ta.selectionStart = ta.selectionEnd = a + 4;
+      resize();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (runBtn && !runBtn.disabled) runBtn.click();
+    }
+  });
+  setTimeout(resize, 0);
+  if (!runBtn) return;
+
+  const dungeon = ctx?.dungeon || Lesson.dungeon || {};
+  if (!canExecute(dungeon)) {
+    runBtn.disabled = true;
+    runBtn.title = backendNotice(dungeon);
+    return;
+  }
+
+  runBtn.addEventListener("click", async () => {
+    const boot = root.querySelector("[data-boot]");
+    runBtn.dataset.busy = "1";
+    runBtn.disabled = true;
+    runBtn.textContent = "Running";
+    if (out) { out.hidden = false; out.className = "ed-out";
+               out.innerHTML = '<span class="muted">Running\u2026</span>'; }
+    const rt = runtimeFor(dungeon);
+    if (boot && ((rt === "pyodide" && !Exec.pyReady) || rt === "sqljs" ||
+                 rt === "ruby" || rt === "prolog")) {
+      const msg = boot.querySelector("[data-bootmsg]");
+      if (msg) msg.textContent = BOOT_MSG[rt] || "Starting the runtime\u2026";
+      boot.hidden = false;
+    }
+
+    const mountId = `preview-mount-${id}`;
+    const mount = root.querySelector("[data-preview]");
+    if (mount) mount.id = mountId;
+    const r = await Exec.run(dungeon, ta.value, "", { mountId, schema: ch?.schema });
+
+    if (boot) boot.hidden = true;
+    delete runBtn.dataset.busy;
+    runBtn.disabled = false;
+    runBtn.textContent = "Run";
+    if (!out) return;
+    const body = (r.stdout || "").replace(/\s+$/, "");
+    if (r.stderr) {
+      out.className = "ed-out err";
+      out.innerHTML = `<div class="olabel">${r.unavailable ? "Cannot run here" : "Error"}</div>` +
+        esc(body ? body + "\n" + r.stderr : r.stderr);
+    } else {
+      out.className = "ed-out";
+      out.innerHTML = `<div class="olabel">Output</div>${
+        body ? esc(body) : '<span class="muted">(no output)</span>'}`;
+    }
+  });
+}
+
+const BOOT_MSG = {
+  pyodide: "Conjuring the Python runtime\u2026 (first load only)",
+  sqljs: "Conjuring the SQLite engine\u2026 (first load only)",
+  ruby: "Conjuring the Ruby compatibility layer\u2026 (first load only)",
+  prolog: "Conjuring the Prolog engine\u2026 (first load only)",
+};
+
+/* ==========================================================================
+   CHALLENGE CARD - renders any of the sixteen types
+   ========================================================================== */
+let chSeq = 0;
+
+function renderChallenge(ch, ctx) {
+  const impl = assessType(ch);
+  const id = "c" + (++chSeq);
+  const layer = layerOf(ch);
+  const xp = xpFor(ch, ctx.level);
+
+  if (!impl) {
+    return `<div class="ch" data-ch="${id}">
+      <div class="ch-head"><span class="ch-type">${esc(ch.type || "unknown")}</span></div>
+      <div class="ch-prompt">${md(ch.prompt || "")}</div>
+      <div class="backend-note"><span class="ico">!</span>
+        <span>This challenge declares type <code>${esc(ch.type)}</code>, which this
+        build does not know how to render. It has been skipped rather than shown
+        broken.</span></div></div>`;
+  }
+
+  const hintable = ctx.level !== "design" && ctx.level !== "boss" && (ch.hint || ch.hint1);
+  return `<div class="ch" data-ch="${id}" data-type="${esc(ch.type)}" data-cid="${esc(ch.id || id)}">
+    <div class="ch-head">
+      <span class="ch-type">${esc(ch.type)}</span>
+      <span class="ch-layer ${layer}">${layer}</span>
+      <span class="ch-xp">${xp} XP</span>
+    </div>
+    <div class="ch-prompt">${md(ch.prompt || "")}</div>
+    ${impl.render(ch, id, ctx)}
+    <div class="ch-actions">
+      <button class="btn sm" type="button" data-submit style="width:auto">Submit</button>
+      ${hintable ? '<button class="btn ghost sm" type="button" data-hint style="width:auto">Stuck?</button>' : ""}
+    </div>
+    <div class="ch-hint" data-hintbox hidden></div>
+    <div class="ch-result" data-result hidden></div>
+    <div class="ch-explain" data-explain hidden></div>
+  </div>`;
+}
+
+function wireChallenge(ch, root, ctx) {
+  const impl = assessType(ch);
+  if (!impl) return;
+  impl.wire(ch, root, ctx);
+
+  const result = root.querySelector("[data-result]");
+  const explain = root.querySelector("[data-explain]");
+  const submit = root.querySelector("[data-submit]");
+  const hintBtn = root.querySelector("[data-hint]");
+  const hintBox = root.querySelector("[data-hintbox]");
+  let hintsUsed = 0;
+
+  hintBtn?.addEventListener("click", () => {
+    const hints = [ch.hint1, ch.hint2, ch.hint3].filter(Boolean);
+    const all = hints.length ? hints : (ch.hint ? [ch.hint] : []);
+    if (hintsUsed >= all.length) { hintBtn.disabled = true; return; }
+    hintsUsed++;
+    hintBox.hidden = false;
+    hintBox.innerHTML = all.slice(0, hintsUsed)
+      .map((h, i) => `<div><b>${i + 1}.</b> ${md(h)}</div>`).join("");
+    renderMath(hintBox);
+    if (hintsUsed >= all.length) hintBtn.disabled = true;
+  });
+
+  submit?.addEventListener("click", async () => {
+    submit.disabled = true;
+    submit.textContent = "Checking\u2026";
+    let res;
+    try { res = await impl.grade(ch, root, ctx); }
+    catch (e) {
+      res = { correct: false, score: 0, html: `<div>${esc(e.message)}</div>`, detail: {} };
+    }
+    submit.disabled = false;
+    submit.textContent = "Submit";
+
+    result.hidden = false;
+    if (res.unavailable) {
+      result.className = "ch-result";
+      result.innerHTML = `<div class="rhead"><span aria-hidden="true">!</span>
+        Cannot be graded here</div>${res.html || ""}
+        <div class="compat-note">${esc(backendNotice(ctx.dungeon))}</div>`;
+    } else {
+      result.className = "ch-result " + (res.correct ? "pass" : "fail");
+      result.innerHTML = `<div class="rhead"><span aria-hidden="true">${
+        res.correct ? "\u2713" : "\u2717"}</span>${
+        res.correct ? "Correct" : "Not yet"} \u00b7 ${Math.round((res.score || 0) * 100)}%</div>
+        ${res.html || ""}`;
+    }
+    if (ch.explain) {
+      explain.hidden = false;
+      explain.innerHTML = md(ch.explain);
+      renderMath(explain);
+    }
+    renderMath(result);
+    if (!res.unavailable) {
+      onChallengeGraded(ch, res, ctx, hintsUsed);
+    }
+  });
+}
+
+/* Recorded on every graded attempt. The mastery model reads these. */
+function onChallengeGraded(ch, res, ctx, hintsUsed) {
+  const layer = layerOf(ch);
+  const dgId = ctx.dungeon.id;
+  Progress.record(dgId, {
+    challengeId: ch.id, floor: ctx.floor?.n, layer, type: ch.type,
+    concepts: ch.concepts || ch.tags || [],
+    correct: res.correct, score: res.score || 0,
+    hintsUsed, xp: res.correct ? xpFor(ch, ctx.level) : 0,
+    isApplication: layer === "application" && APPLICATION_TYPES.has(ch.type),
+  });
+}
+
 /* ==========================================================================
    FLOOR RUNNER - lesson phase
    ========================================================================== */
@@ -1568,8 +2862,6 @@ async function openFloor(dungeonId, floorNo) {
   Lesson.dungeon = content;
   Lesson.floor = floor;
   Lesson.sections = floor.lesson?.sections || [];
-  Lesson.read = new Set();
-  Lesson.timers = new Map();
   Lesson.editors = [];
 
   closeSheet();
@@ -1578,71 +2870,141 @@ async function openFloor(dungeonId, floorNo) {
   $("r-crumb").textContent = `${content.subject || content.name} \u00b7 Floor ${floor.n}`;
   $("r-name").textContent = floor.name || floor.title || `Floor ${floor.n}`;
   renderLesson();
+  renderStageTabs();
   $("r-body").scrollTop = 0;
   $("r-exit").focus();
 }
 
 function closeFloor() {
-  Lesson.observer?.disconnect();
-  Lesson.observer = null;
-  Lesson.timers.forEach(clearTimeout);
-  Lesson.timers.clear();
   Exec.onBootChange = null;
   $("runner").hidden = true;
   document.body.style.overflow = "";
   if (Lesson.dungeon) openDungeon(Lesson.dungeon.id);
 }
 
+/* Stage chips are navigation, not gates - they scroll to the stage. */
+function renderStageTabs() {
+  const f = Lesson.floor;
+  const seq = Array.isArray(f.sequence) && f.sequence.length ? f.sequence
+    : ["lesson", ...(f.practice?.length ? ["practice"] : []), ...(f.exam?.length ? ["exam"] : [])];
+  $("r-stages").innerHTML = seq.map((st, i) =>
+    `<button type="button" data-stage="${esc(st)}"${i === 0 ? ' aria-selected="true"' : ""}>${
+      esc(stageTitle(st))}</button>`).join("");
+  $("r-stages").querySelectorAll("[data-stage]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const st = b.dataset.stage;
+      const target = st === "lesson"
+        ? $("r-inner").querySelector(".lsec")
+        : [...$("r-inner").querySelectorAll(".sectionhead .label")]
+            .find((el) => el.textContent === stageTitle(st))?.closest(".sectionhead");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      $("r-stages").querySelectorAll("[data-stage]").forEach((o) =>
+        o.removeAttribute("aria-selected"));
+      b.setAttribute("aria-selected", "true");
+    }));
+}
+
+function stageTitle(name) {
+  return name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/* The floor's shape is whatever its content declares. The engine renders the
+   named stages in order and knows nothing about any discipline. */
 function renderLesson() {
   const d = Lesson.dungeon, f = Lesson.floor;
   const lang = d.lang || "text";
-  const rt = runtimeFor(d);
+  const level = f.cognitiveLevel || bandFor(f.n, d.totalFloors || (d.floors || []).length);
+  const ctx = { dungeon: d, floor: f, level, carry: "" };
+  Lesson.ctx = ctx;
+
+  const sequence = Array.isArray(f.sequence) && f.sequence.length
+    ? f.sequence
+    : ["lesson", ...(f.practice?.length ? ["practice"] : []), ...(f.exam?.length ? ["exam"] : [])];
 
   let html = "";
-  if (f.goal) {
-    html += `<div class="card elevated goal">
-      <div class="label">Goal of this floor</div>
-      <p style="font-family:var(--serif);font-size:var(--text-lg);margin:var(--s2) 0 0">${esc(f.goal)}</p>
+  html += `<div class="card elevated goal">
+      <div class="label">Floor ${f.n} \u00b7 ${esc(level)}${f.goal ? "" : ""}</div>
+      ${f.goal ? `<p style="font-family:var(--serif);font-size:var(--text-lg);margin:var(--s2) 0 0">${esc(f.goal)}</p>` : ""}
+      <div class="compat-note">${esc(LEVEL_NOTE[level] || "")}</div>
     </div>`;
-  }
-  if (f.lesson?.title) html += `<h2 style="font-size:var(--text-xl);margin-bottom:var(--s3)">${esc(f.lesson.title)}</h2>`;
-  if (f.lesson?.intro) html += `<div class="lsec"><div class="body">${md(f.lesson.intro)}</div></div>`;
 
-  html += Lesson.sections.map((sec, i) => `
-    <section class="lsec" data-sec="${i}" data-read="0" aria-labelledby="sec-h-${i}">
-      <h3 id="sec-h-${i}">${esc(sec.title)}
-        <span class="tick" aria-hidden="true">&#10003;</span>
-        <span class="sr-only" data-readlabel="${i}">not yet read</span>
-      </h3>
-      <div class="body">${md(sec.body)}</div>
-      ${editorHTML(i, sec.code, sec.lang || lang, rt)}
-      ${(sec.annotations || []).length ? `<div class="ann">${sec.annotations.map((a) =>
-        `<div><b>${a.line}</b>${esc(a.text)}</div>`).join("")}</div>` : ""}
-    </section>`).join("");
+  if (!canExecute(d)) {
+    html += `<div class="backend-note"><span class="ico" aria-hidden="true">!</span>
+      <span>${esc(backendNotice(d))}</span></div>`;
+  } else if (runtimeFor(d) === "ruby") {
+    html += `<div class="backend-note"><span class="ico" aria-hidden="true">!</span>
+      <span>Ruby runs here in compatibility mode (Opal, compiled to JavaScript).
+      Most exercises behave identically, but this is not CRuby.</span></div>`;
+  }
+
+  sequence.forEach((stage) => {
+    if (stage === "lesson") {
+      const L = f.lesson || {};
+      if (L.title) html += `<h2 style="font-size:var(--text-xl);margin:var(--s8) 0 var(--s3)">${esc(L.title)}</h2>`;
+      if (L.intro) html += `<div class="lsec"><div class="body">${md(L.intro)}</div></div>`;
+      html += (L.sections || []).map((sec, i) => `
+        <section class="lsec" data-sec="${i}" aria-labelledby="sec-h-${i}">
+          <h3 id="sec-h-${i}">${esc(sec.title)}</h3>
+          <div class="body">${md(sec.body)}</div>
+          ${sec.code ? editorHTML(i, sec.code, sec.lang || lang, runtimeFor(d)) : ""}
+          ${(sec.annotations || []).length ? `<div class="ann">${sec.annotations.map((a) =>
+            `<div><b>${a.line}</b>${esc(a.text)}</div>`).join("")}</div>` : ""}
+          ${sec.checkpoint ? `<div data-checkpoint="${i}">${
+            renderChallenge(sec.checkpoint, ctx)}</div>` : ""}
+        </section>`).join("");
+      return;
+    }
+    const items = f[stage];
+    if (!Array.isArray(items) || !items.length) return;
+    html += `<div class="sectionhead"><span class="label">${esc(stageTitle(stage))}</span></div>`;
+    html += items.map((ch) => renderChallenge(ch, ctx)).join("");
+  });
 
   html += `<div class="r-foot">
-      <button class="btn" id="to-practice" disabled>Read every section to continue</button>
+      <button class="btn" id="floor-done">Return to the dungeon</button>
       <p class="hint" id="foot-hint"></p>
     </div>`;
 
   $("r-inner").innerHTML = html;
-  Lesson.sections.forEach((sec, i) => wireEditor(i, sec.code));
-  wireDwell();
-  updateReadProgress();
 
-  $("to-practice").addEventListener("click", () => {
-    toast("Practice arrives in the next step.");
+  // wire lesson example editors
+  (f.lesson?.sections || []).forEach((sec, i) => { if (sec.code) wireEditor(i, sec.code); });
+
+  // wire every challenge card, in document order, against its source object
+  const cards = [...$("r-inner").querySelectorAll(".ch[data-ch]")];
+  const all = [];
+  sequence.forEach((stage) => {
+    if (stage === "lesson") {
+      (f.lesson?.sections || []).forEach((sec) => { if (sec.checkpoint) all.push(sec.checkpoint); });
+    } else if (Array.isArray(f[stage])) all.push(...f[stage]);
   });
+  cards.forEach((card, i) => { if (all[i]) wireChallenge(all[i], card, ctx); });
 
-  // one boot line per editor, driven by the shared runtime state
-  Exec.onBootChange = (booting) => {
-    document.querySelectorAll(".boot-line").forEach((el) => { el.hidden = !booting; });
-    document.querySelectorAll("[data-run]").forEach((b) => {
-      b.disabled = booting;
-      if (booting) b.textContent = "Conjuring\u2026";
-      else if (!b.dataset.busy) b.textContent = "Run";
-    });
-  };
+  $("floor-done").addEventListener("click", closeFloor);
+  updateReadProgress();
+  renderMath($("r-inner"));
+}
+
+const LEVEL_NOTE = {
+  recognition: "Recognition \u00b7 meeting the idea. Hints are cheap here.",
+  recall: "Recall \u00b7 producing it without the page in front of you.",
+  application: "Application \u00b7 using it correctly on new input.",
+  transfer: "Transfer \u00b7 unfamiliar framing, and code that is already broken.",
+  design: "Design \u00b7 no starter code and no hints. Build it from nothing.",
+  boss: "Boss \u00b7 a real project, graded by acceptance tests.",
+};
+
+/* Proportional cognitive band, so a 9-floor and a 14-floor dungeon are both
+   coherent. The last floor is always the boss, the one before it design. */
+function bandFor(nFloor, total) {
+  if (!total || total < 2) return "application";
+  if (nFloor >= total) return "boss";
+  if (nFloor === total - 1) return "design";
+  const pos = nFloor / total;
+  if (pos <= 0.2) return "recognition";
+  if (pos <= 0.4) return "recall";
+  if (pos <= 0.6) return "application";
+  return "transfer";
 }
 
 function editorHTML(i, code, lang, rt) {
@@ -1695,6 +3057,14 @@ function wireEditor(i, original) {
   });
   setTimeout(resize, 0);
 
+  // a dungeon with no in-browser runtime says so instead of offering a
+  // button that can only ever fail
+  if (!canExecute(Lesson.dungeon || {})) {
+    runBtn.disabled = true;
+    runBtn.title = backendNotice(Lesson.dungeon || {});
+    return;
+  }
+
   runBtn.addEventListener("click", async () => {
     const boot = document.querySelector(`[data-boot="${i}"]`);
     runBtn.dataset.busy = "1";
@@ -1723,54 +3093,18 @@ function wireEditor(i, original) {
   });
 }
 
-/* A section counts as read only after it has been on screen for DWELL_MS.
-   Scrolling to the bottom therefore cannot unlock the practice gate. */
-function wireDwell() {
-  Lesson.observer?.disconnect();
-  Lesson.observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      const i = Number(entry.target.dataset.sec);
-      if (Lesson.read.has(i)) return;
-      if (entry.isIntersecting) {
-        if (Lesson.timers.has(i)) return;
-        Lesson.timers.set(i, setTimeout(() => {
-          Lesson.read.add(i);
-          Lesson.timers.delete(i);
-          entry.target.dataset.read = "1";
-          const lbl = entry.target.querySelector(`[data-readlabel="${i}"]`);
-          if (lbl) lbl.textContent = "read";
-          updateReadProgress();
-        }, DWELL_MS));
-      } else {
-        clearTimeout(Lesson.timers.get(i));
-        Lesson.timers.delete(i);
-      }
-    });
-  }, { threshold: 0.4, root: $("r-body") });
-  document.querySelectorAll(".lsec[data-sec]").forEach((el) => Lesson.observer.observe(el));
-}
-
+/* Progress is now measured by challenges answered, not by time on screen.
+   The 3-second dwell gate is gone: checkpoints are the real gate. */
 function updateReadProgress() {
-  const total = Lesson.sections.length;
-  const done = Lesson.read.size;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  $("read-count").textContent = `${done} of ${total} section${total === 1 ? "" : "s"} read`;
+  const cards = document.querySelectorAll(".ch[data-ch]").length;
+  const done = document.querySelectorAll(".ch [data-result].pass, .ch [data-result].fail").length;
+  const pct = cards ? Math.round((done / cards) * 100) : 0;
+  $("read-count").textContent = cards
+    ? `${done} of ${cards} challenge${cards === 1 ? "" : "s"} attempted`
+    : "no challenges on this floor yet";
   const meter = $("read-meter");
   meter.setAttribute("aria-valuenow", String(pct));
   meter.firstElementChild.style.width = pct + "%";
-
-  const btn = $("to-practice");
-  const hint = $("foot-hint");
-  if (!btn) return;
-  if (done >= total && total > 0) {
-    btn.disabled = false;
-    btn.textContent = "Enter the Practice Hall";
-    hint.textContent = "";
-  } else {
-    btn.disabled = true;
-    btn.textContent = "Read every section to continue";
-    hint.textContent = `${total - done} section${total - done === 1 ? "" : "s"} still to read`;
-  }
 }
 
 function openDungeon(id) {
@@ -1827,6 +3161,7 @@ async function showFloorList(d) {
         </span>
         <span class="fgo" aria-hidden="true">&rsaquo;</span>
       </button>`).join("")}</div>`;
+  renderMath($("sheet-body"));
   $("sheet-body").querySelectorAll("[data-floor]").forEach((b) =>
     b.addEventListener("click", () => openFloor(d.id, Number(b.dataset.floor))));
 }
@@ -2000,6 +3335,17 @@ async function enterApp(user) {
   const prog = await safe("read progress doc", () => getDoc(doc(db, "progress", user.uid)));
   if (prog?.exists()) State.progress = prog.data().dungeons || {};
 
+  const sess = await safe("read sessions doc", () => getDoc(doc(db, "sessions", user.uid)));
+  Reviews.queue = sess?.exists() ? (sess.data().reviewQueue || []) : [];
+
+  const logSnap = await safe("read review log", () =>
+    getDocs(query(collection(db, "sessions", user.uid, "reviewLog"),
+                  orderBy("reviewedAt", "desc"), limit(500))));
+  Reviews.log_ = logSnap ? logSnap.docs.map((x) => {
+    const v = x.data();
+    return { ...v, reviewedAt: v.reviewedAt?.toMillis ? v.reviewedAt.toMillis() : Date.now() };
+  }) : [];
+
   mirrorWrite();
   $("auth").hidden = true;
   $("shell").hidden = false;
@@ -2042,7 +3388,9 @@ async function boot() {
 
 /* exposed for the test harness only */
 window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSidebar,
-                     openFloor, closeFloor, Lesson, runtimeFor, Exec, loadDungeonContent };
+                     openFloor, closeFloor, Lesson, runtimeFor, canExecute, Exec,
+                     loadDungeonContent, Progress, Reviews, Profile, Content,
+                     bandFor, renderMath, TYPES, gradeRubric, sm2, rankFor };
 
 boot();
 </script>

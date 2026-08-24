@@ -1,0 +1,213 @@
+{
+ "id": "rust",
+ "name": "The Ironbound Vault",
+ "subject": "Rust",
+ "category": "language",
+ "sigil": "🦀",
+ "unlock": null,
+ "lang": "rust",
+ "runtime": "piston",
+ "source": "exercism/rust (MIT)",
+ "importedBy": "scripts/import_exercism.py",
+ "blurb": "Rust is a compiled programming language designed for speed, concurrency, and memory safety. Rust programs can run almost anywhere, from low-power embedded devices to web servers.",
+ "floors": [
+  {
+   "n": 1,
+   "name": "Threshold of Syntax",
+   "concepts": [
+    "floating-point-numbers",
+    "functions",
+    "integers"
+   ],
+   "exercises": [
+    "lucians-luscious-lasagna",
+    "assembly-line"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "In Rust, assigning a value to a name is referred to as a...",
+      "body": "In Rust, assigning a value to a name is referred to as a **binding**. Bindings are immutable unless declared with the `mut` keyword. As Rust is a statically-typed language, each binding has a type known at compile-time.\n\nBindings are most commonly defined using the `let` keyword. Specifying a binding's type is optional for most bindings, as Rust's **type inference** can usually infer the type based on their value. A binding looks like this:",
+      "code": "// Automatically inferred type\nlet fingers = 10;",
+      "lang": "rust"
+     },
+     {
+      "title": "Functions are items. Where bindings typically refer to a...",
+      "body": "Functions are **items**. Where bindings typically refer to a particular value, items refer to a unit of code organization, typically a function or a module, which is available throughout the lifetime of the program. A function automatically returns the result of its last expression. A function may have 0 or more parameters, which are bindings with a lifetime of the function call.\n\nType inference is theoretically possible for functions, but is disabled as an intentional language design choice. While this means that you need to spend a little more time when writing code to specify precisely what a function's input and output types are, you save the time when you're reading the code, because all the input and output types are explicitly defined.",
+      "code": "fn add(x: i32, y: i32) -> i32 {\n  x + y\n}",
+      "lang": "rust"
+     },
+     {
+      "title": "Numbers",
+      "body": "There are two different categories of numbers in Rust: integers (which can be signed or unsigned) and floating-point numbers.",
+      "code": "const PRODUCTION_RATE_DEFAULT: f64 = 221.;\n\npub fn production_rate_per_hour(speed: u8) -> f64 {\n    match speed {\n        0 => 0.0,\n        s @ 1..=4 => PRODUCTION_RATE_DEFAULT * s as f64,\n        s @ 5..=8 => PRODUCTION_RATE_DEFAULT * s as f64 * 0.9,\n        s @ 9..=10 => PRODUCTION_RATE_DEFAULT * s as f64 * 0.77,\n        _ => panic!(\"Speed should be a value from 0 to 10\"),\n    }\n}\n\npub fn workin",
+      "lang": "rust"
+     },
+     {
+      "title": "Integers",
+      "body": "- Integers: numbers with no digits behind the decimal separator (whole numbers).\n  Integer types can either store only positive numbers (unsigned) or store either positive and negative numbers (signed).\n  Examples are -6, 0, 1, 25, 976 and 500000.",
+      "code": "const PRODUCTION_RATE_DEFAULT: f64 = 221.;\n\npub fn production_rate_per_hour(speed: u8) -> f64 {\n    match speed {\n        0 => 0.0,\n        s @ 1..=4 => PRODUCTION_RATE_DEFAULT * s as f64,\n        s @ 5..=8 => PRODUCTION_RATE_DEFAULT * s as f64 * 0.9,\n        s @ 9..=10 => PRODUCTION_RATE_DEFAULT * s as f64 * 0.77,\n        _ => panic!(\"Speed should be a value from 0 to 10\"),\n    }\n}\n\npub fn workin",
+      "lang": "rust"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "lucians-luscious-lasagna: tests not parsed (no extractor for 'rust')",
+    "assembly-line: tests not parsed (no extractor for 'rust')"
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Hall of Branching Paths",
+   "concepts": [
+    "destructuring",
+    "methods",
+    "option",
+    "structs",
+    "tuples"
+   ],
+   "exercises": [
+    "health-statistics",
+    "low-power-embedded-game",
+    "role-playing-game"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "It is often useful to group a collection of items...",
+      "body": "It is often useful to group a collection of items together, and handle those groups as units. In Rust, we call such a group a struct, and each item one of the struct's fields. A struct defines the general set of fields available, but a particular example of a struct is called an instance.\n\nFurthermore, structs can have methods defined on them, which have access to the fields. The struct itself in that case is referred to as `self`. When a method uses `&mut self`, the fields can be changed, or mutated. When a method uses `&self`, the fields cannot be changed: they are immutable. Controlling mutability helps the borrow-checker ensure that entire classes of concurrency bug just don't happen in Rust.\n\nIn this exercise, you'll be implementing two kinds of methods on a struct. The first are generally known as getters: they expose the struct's fields to the world, without letting anyone else mutate that value. In Rust, these methods idiomatically share the name of the field they expose, i.e., if we have a getter method that fetches a struct field called `name`, the method would simply be called `name()`.\n\nYou'll also be implementing methods of another type, generally known as setters. These change the value of the field. Setters aren't very common in Rust--if a field can be freely modified, it is more common to just make it public--but they're useful if updating the field should have side effects, or for access control: a setter marked as `pub(crate)` allows other modules within the same crate to update a private field, which can't be affected by the outside world.\n\nStructs come in three flavors: structs with named fields, tuple structs, and unit structs. For this concept exercise, we'll be exploring the first variant: structs with named fields.\n\nStructs are defined using the `struct` keyword, followed by the capitalized name of the type the struct is describing:",
+      "code": "struct Item {}",
+      "lang": "rust"
+     },
+     {
+      "title": "Additional types are then brought into the struct body...",
+      "body": "Additional types are then brought into the struct body as **fields** of the struct, each with their own type:",
+      "code": "struct Item {\n    name: String,\n    weight: f32,\n    worth: u32,\n}",
+      "lang": "rust"
+     },
+     {
+      "title": "Syntax",
+      "body": "**Creation**\nTuples are always created with a tuple expression:\n\nTuples can have an arbitrary number of elements.\n\n**Access by destructuring**\nIt is possible to access the elements of a tuple by destructuring. This just means assigning variable\nnames to the individual elements of the tuple, consuming it.\n\n**Access by position**\nIt is also possible to access the elements of a tuple by numeric positional index. Indexing, as always,\nbegins at 0.",
+      "code": "// pointless but legal\nlet unit = ();\n// single element\nlet single_element = (\"note the comma\",);\n// two element\nlet two_element = (123, \"elements can be of differing types\");",
+      "lang": "rust"
+     },
+     {
+      "title": "Tuple Structs",
+      "body": "You will also be asked to work with tuple structs. Like normal structs, these are named types; unlike\nnormal structs, they have anonymous fields. Their syntax is very similar to normal tuple syntax. It is\nlegal to use both destructuring and positional access.\n\n**Field Visibility**\nAll fields of anonymous tuples are always public. However, fields of tuple structs have individual\nvisibility which defaults to private, just like fields of standard structs. You can make the fields\npublic with the `pub` modifier, just as in a standard struct.",
+      "code": "struct TupleStruct(u8, i32);\nlet my_tuple_struct = TupleStruct(123, -321);\nlet neg = my_tuple_struct.1;\nlet TupleStruct(byte, _) = my_tuple_struct;\nassert_eq!(neg, -321);\nassert_eq!(byte, 123);",
+      "lang": "rust"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "health-statistics: tests not parsed (no extractor for 'rust')",
+    "low-power-embedded-game: tests not parsed (no extractor for 'rust')",
+    "role-playing-game: tests not parsed (no extractor for 'rust')"
+   ]
+  },
+  {
+   "n": 3,
+   "name": "The Bound Sigil",
+   "concepts": [
+    "entry-api",
+    "enums",
+    "external-crates"
+   ],
+   "exercises": [
+    "magazine-cutout",
+    "semi-structured-logs",
+    "resistor-color"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Rust's entry API provides a view into a single entry in...",
+      "body": "Rust's entry API provides a view into a single entry in map, which may be either a `HashMap` or a `BTreeMap`.\nThe entry may be either occupied or vacant, and the API provides methods to modify the contents of the entry.",
+      "code": "use std::collections::HashMap;\n\npub fn can_construct_note(magazine: &[&str], note: &[&str]) -> bool {\n    let mut counts: HashMap<&str, i32> = HashMap::with_capacity(magazine.len());\n\n    for m in magazine {\n        *counts.entry(*m).or_default() += 1;\n    }\n\n    for n in note {\n        *counts.entry(*n).or_default() -= 1;\n\n        if counts[n] < 0 {\n            return false;\n        }\n    }\n\n    ",
+      "lang": "rust"
+     },
+     {
+      "title": "Enums, short for enumerations, are a type that limits...",
+      "body": "Enums, short for enumerations, are a type that limits all possible values of some data. The possible values of an `enum` are called variants. Enums also work well with `match` and other control flow operators to help you express intent in your Rust programs.",
+      "code": "#[derive(Clone, PartialEq, Debug)]\npub enum LogLevel {\n    Info,\n    Warning,\n    Error,\n    Debug,\n}\npub fn log(level: LogLevel, message: &str) -> String {\n    match level {\n        LogLevel::Info => info(message),\n        LogLevel::Warning => warn(message),\n        LogLevel::Error => error(message),\n        LogLevel::Debug => format!(\"[DEBUG]: {message}\"),\n    }\n}\npub fn info(message: &str) -> S",
+      "lang": "rust"
+     },
+     {
+      "title": "Most programs have dependencies on some libraries....",
+      "body": "Most programs have dependencies on some libraries. Managing those by hand can be a pain. Luckily, the Rust ecosystem comes standard with `cargo`! `cargo` can manage dependencies for a project.\n\nYou will often see external packages being referred to as \"crates\" in Rust. A crate is a compilation unit in Rust. A crate can be compiled into a binary or into a library.\n\nMost of the time, adding an external dependency is as simple as adding a line to your `Cargo.toml` file.\n\nIn this exercise, `enum-iterator` and `int-enum` dependencies were added for you.",
+      "code": "use enum_iterator::{Sequence, all};\nuse int_enum::IntEnum;\n\n#[repr(usize)]\n#[derive(Clone, Copy, Debug, PartialEq, IntEnum, Sequence)]\npub enum ResistorColor {\n    Black = 0,\n    Brown = 1,\n    Red = 2,\n    Orange = 3,\n    Yellow = 4,\n    Green = 5,\n    Blue = 6,\n    Violet = 7,\n    Grey = 8,\n    White = 9,\n}\n\npub fn color_to_value(color: ResistorColor) -> usize {\n    color.into()\n}\n\npub fn value_",
+      "lang": "rust"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "magazine-cutout: tests not parsed (no extractor for 'rust')",
+    "semi-structured-logs: tests not parsed (no extractor for 'rust')",
+    "resistor-color: tests not parsed (no extractor for 'rust')"
+   ]
+  },
+  {
+   "n": 4,
+   "name": "Vault of Collections",
+   "concepts": [
+    "string-vs-str",
+    "vec-macro",
+    "vec-stack"
+   ],
+   "exercises": [
+    "short-fibonacci",
+    "rpn-calculator",
+    "csv-builder"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Rust provides a macro vec![] to help you create Vectors.",
+      "body": "Rust provides a macro `vec![]` to help you create Vectors.\nThis comes in quite handy when you need to initialize lists.",
+      "code": "/// Create an empty vector\npub fn create_empty() -> Vec<u8> {\n    vec![]\n}\n\n/// Create a buffer of `count` zeroes.\n///\n/// Applications often use buffers when serializing data to send over the network.\npub fn create_buffer(count: usize) -> Vec<u8> {\n    vec![0; count]\n}\n\n/// Create a vector containing the first five elements of the Fibonacci sequence.\n///\n/// Fibonacci's sequence is the list of nu",
+      "lang": "rust"
+     },
+     {
+      "title": "Stacks are a type of collection commonly used in...",
+      "body": "Stacks are a type of collection commonly used in computer science.\nThey are defined by their two key operations: **push** and **pop**.\n**Push** adds an element to the top of the stack.\n**Pop** removes and returns the topmost element.\n\nThink of a stack like a stack of plates.\nYou can either add a plate to the top of the stack or take the topmost plate.\nTo access something further down, you have to remove all of the plates above it.\n\nRust's vector implementation, `std::vec::Vec`, can be used as a stack by using its `push()` and `pop()` methods.\nNaturally, `push()` adds an element to the end of the `Vec` and `pop()` removes and returns the last element.\nThese operation can be very fast (O(1) in Big O Notation),\nso they are one of the most idiomatic ways to use a `Vec`.\n\nStacks are useful to hold arbitrary numbers of elements in a specific order.\nBecause the last element inserted is the first element returned,\nstacks are commonly refered to as **LIFO** (Last-In, First-Out).\nThis inherent ordering can be used for many things,\nincluding tracking state when evaulating **Reverse Polish notation**.",
+      "code": "#[derive(Debug)]\npub enum CalculatorInput {\n    Add,\n    Subtract,\n    Multiply,\n    Divide,\n    Value(i32),\n}\n\npub fn evaluate(inputs: &[CalculatorInput]) -> Option<i32> {\n    let mut stack = Vec::new();\n\n    for input in inputs {\n        use CalculatorInput::*;\n\n        match input {\n            Add => {\n                let rhs = stack.pop()?;\n                let lhs = stack.pop()?;\n            ",
+      "lang": "rust"
+     },
+     {
+      "title": "String and &str are two fundamental ways of working with...",
+      "body": "`String` and `&str` are two fundamental ways of working with textual data in Rust.\n\n`String` is an owned, vector of `u8` bytes and mutable.\n`&str` is a borrowed reference to a String slice and thus immutable.\n\nYou can also create and modify `String`'s using one of their many methods, such as `push`.",
+      "code": "let mut a_string = String::from(\"hello\");\na_string.push('!');",
+      "lang": "rust"
+     },
+     {
+      "title": "You can also create a String by converting a &str:",
+      "body": "You can also create a `String` by converting a `&str`:",
+      "code": "let a_string = \"hello\".to_string();",
+      "lang": "rust"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "short-fibonacci: tests not parsed (no extractor for 'rust')",
+    "rpn-calculator: tests not parsed (no extractor for 'rust')",
+    "csv-builder: tests not parsed (no extractor for 'rust')"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,278 @@
+{
+ "id": "ruby",
+ "name": "The Crimson Atelier",
+ "subject": "Ruby",
+ "category": "language",
+ "sigil": "💎",
+ "unlock": null,
+ "lang": "ruby",
+ "runtime": "piston",
+ "source": "exercism/ruby (MIT)",
+ "importedBy": "scripts/import_exercism.py",
+ "blurb": "Ruby is a dynamic, open source programming language with a focus on simplicity and productivity. It has an elegant syntax that is natural to read and easy to write.",
+ "floors": [
+  {
+   "n": 1,
+   "name": "Threshold of Syntax",
+   "concepts": [
+    "basics",
+    "booleans",
+    "instance-variables",
+    "nil"
+   ],
+   "exercises": [
+    "lasagna",
+    "amusement-park",
+    "amusement-park-improvements"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Variables and Constants",
+      "body": "We tend to make use of objects by assigning them names, either using variables or constants.\n\nVariables are always written in snake case.\nA variable can reference different objects over its lifetime.\nFor example, `my_first_variable` can be defined and redefined many times using the `=` operator:\n\nConstants, however, are meant to be assigned once.\nThey must start with capital letters and are normally written in block capitals with words separated by underscores.\nFor example:",
+      "code": "my_first_variable = 1\nmy_first_variable = \"Some string\"\nmy_first_variable = SomeComplexObject.new",
+      "lang": "ruby"
+     },
+     {
+      "title": "Classes",
+      "body": "Ruby is organised into classes.\nClasses are defined using the `class` keyword followed by the name of the class.\nObjects are generally created by instantiating classes using the `.new` method.\nFor example:",
+      "code": "# Define the class\nclass Calculator\n  #...\nend\n\n# Create an instance of it and assign it to a variable\nmy_first_calc = Calculator.new",
+      "lang": "ruby"
+     },
+     {
+      "title": "Instance Variables",
+      "body": "Objects can hold their own state by setting **instance variables**.\nThese variables live within an object and are normally used to store some internal state.\n\nInstance variables always start with an `@`.\nYou can create a new instance variable by setting a variable starting with an `@`.\nFor example:\n\nObjects usually set their initial state in an `initialize` method, which is automatically called when calling `new` on a class.\n\nThe `initialize` method may also take arguments, so that each instance can start with a custom state:\n\nIt is good practice to consider **instance** variables to be private from external read and writes.\nWe instead define methods to get and set their values.\nFor example:",
+      "code": "class Repeater\n  def hear(something)\n    # Save what's been heard into a new instance variable called @heard\n    @heard = something\n  end\n\n  def repeat\n    # Return the value of the instance variable\n    @heard\n  end\nend\n\nrepeater = Repeater.new\nrepeater.hear(\"Hello, friend!\")\nprint repeater.repeat # Prints \"Hello, friend!\"",
+      "lang": "ruby"
+     },
+     {
+      "title": "Nil",
+      "body": "Nil is an English word meaning \"nothing\" or \"zero\".\nIn Ruby, `nil` is used to express the **absence** of an object.\nIn other programming languages, `null` or `none` values may play a similar role.\n\nRuby gives any instance variable the default value of `nil` when it is first encountered, until it is otherwise given a value.",
+      "code": "# I do not have a favorite color\nfavorite_color = nil",
+      "lang": "ruby"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "lasagna: tests not parsed (no extractor for 'ruby')",
+    "amusement-park: tests not parsed (no extractor for 'ruby')",
+    "amusement-park-improvements: tests not parsed (no extractor for 'ruby')"
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Hall of Branching Paths",
+   "concepts": [
+    "conditionals",
+    "floating-point-numbers",
+    "loops",
+    "modules",
+    "numbers",
+    "strings"
+   ],
+   "exercises": [
+    "log-line-parser",
+    "assembly-line",
+    "savings-account"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Creating a string",
+      "body": "Although you can use `String.new(...)` to create a string, it is much more common to use a literal.\nThere are lots of different literals you can use - and they split into two categories: those that allow interpolation and those that don't.\n\nThe most common literals are single and double quotes (`'...'` and `\"...\"`).\nSingle quotes do not allow interpolation, whereas double quotes do.\nInterpolation is where one string is included in another using the `#{}` syntax.\n\nYou can also use other literals such `%{... }` for interpolated strings and `%q{...}` for non-interpolated strings.\nThese are useful if your strings have the characters `'` or `\"` in them.\n\n**Note: There's no absolute rule saying you have to use non-interpolated strings if your string does not contain interpolation.**",
+      "code": "# Use single quotes when not interpolated\nlocation = 'World'\n\n# And double quotes when interpolated\nputs \"Hello, #{location}!\"   #=> \"Hello, World!\"",
+      "lang": "ruby"
+     },
+     {
+      "title": "Interacting with strings",
+      "body": "It is helpful to think of Strings in Ruby in a similar way to how you think of Arrays.\nThey have a size and their characters are indexed (with `0` as the first index):\n\nParts of strings can be extracted using indexes or `slice`:\n\nThe semantic values of strings can also be manipulated.\nIt's worth exploring the Ruby docs to learn about all the methods, but here are a few commonly used examples:\n\nYou can also use methods such as `gsub` to substitute characters:\n\nIn all of the examples above, a new `String` is returned.\nHowever, many methods have equivalents which end in `!` which actually modify the string itself.",
+      "code": "my_string = \"Some string\"\n\nmy_string.size   #=> 11\n\nmy_string[0]    #=> 'S'\nmy_string[1]    #=> 'o'\nmy_string[-1]   #=> 'g'\n\n# Find the first index of a character\nmy_string.index('m')   #=> 2",
+      "lang": "ruby"
+     },
+     {
+      "title": "If statement",
+      "body": "The `if` statement is used to check if a given condition is \"truthy\" or \"falsey\".\nIf the condition is truthy then the code inside the if statement will run.\nAn `if` statement ends with the `end` keyword.",
+      "code": "value = 1\nif value == 1\n  \"1 is equal to 1\"\nend\n# => \"1 is equal to 1\"\n\nif value > 2\n  \"1 is greater than 2\"\nend\n# => nil",
+      "lang": "ruby"
+     },
+     {
+      "title": "Unless statement",
+      "body": "The `unless` statement works very similarly to the `if` statement but it will run the code inside the `unless` statement if the condition is falsey.",
+      "code": "value = 1\nunless value == 1\n  \"1 is not equal to 1\"\nend\n# => nil\n\nunless value > 2\n  \"1 is not greater than 2\"\nend\n# => \"1 is not greater than 2\"",
+      "lang": "ruby"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "log-line-parser: tests not parsed (no extractor for 'ruby')",
+    "assembly-line: tests not parsed (no extractor for 'ruby')",
+    "savings-account: tests not parsed (no extractor for 'ruby')"
+   ]
+  },
+  {
+   "n": 3,
+   "name": "The Bound Sigil",
+   "concepts": [
+    "case",
+    "ranges",
+    "symbols"
+   ],
+   "exercises": [
+    "port-palermo",
+    "chess-game",
+    "blackjack"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Identifier",
+      "body": "What makes symbols different from strings is that they are identifiers, and do not represent data or text.\nThis means that two symbols with the same name are always the same object.",
+      "code": "\"foo\".object_id # => 60\n\"foo\".object_id # => 80\n:foo.object_id # => 1086748\n:foo.object_id # => 1086748",
+      "lang": "ruby"
+     },
+     {
+      "title": "Modifying Symbols",
+      "body": "Symbols are immutable, which means that they cannot be modified.\nThis means that when you \"modify\" a symbol, you are actually creating a new symbol.\nThere are a few methods that can be used to manipulate symbols, they all return new symbols.\nAll methods can be found in the Symbol API.\n\nThe benefit of symbols being immutable is that they are more memory efficient than strings, but also safer to use as identifiers.",
+      "code": ":foo.upcase # => :FOO\n\n:foo.object_id # => 1086748\n:foo.upcase.object_id # => 60",
+      "lang": "ruby"
+     },
+     {
+      "title": "Getting substrings",
+      "body": "When wanting to slice a string, you can use the range operator to get a substring.\nThat is, by creating a range with the start and end index of the sub-string.\n\nYou can also use negative indexes to get the substring from the end of the string.",
+      "code": "\"Hello World\"[0..4] # => \"Hello\"\n\"Hello World\"[6..10] # => \"World\"",
+      "lang": "ruby"
+     },
+     {
+      "title": "Endless & Beginless ranges",
+      "body": "A range can be endless and beginless.\nThe endless or beginless range has their start or end value being `nil`, but when defining the range the `nil` can be omitted.\n\nUsing beginless and endless ranges is useful when you want to, for example, slice a string from the beginning or to the end.\n\n~~~~exercism/caution\nIf not used on a collection, the endless range can cause an endless sequence, if not used with caution.\n~~~~",
+      "code": "\"Hello World\"[0..] # => \"Hello World\"\n\"Hello World\"[4..] # => \"o World\"\n\"Hello World\"[..5] # => \"Hello \"",
+      "lang": "ruby"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "port-palermo: tests not parsed (no extractor for 'ruby')",
+    "chess-game: tests not parsed (no extractor for 'ruby')",
+    "blackjack: tests not parsed (no extractor for 'ruby')"
+   ]
+  },
+  {
+   "n": 4,
+   "name": "Vault of Collections",
+   "concepts": [
+    "advanced-enumeration",
+    "arrays",
+    "enumeration",
+    "ostruct"
+   ],
+   "exercises": [
+    "bird-count",
+    "boutique-inventory",
+    "boutique-inventory-improvements"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Arrays",
+      "body": "In Ruby, **arrays** are ordered, integer-indexed collections of any object.\nArray indexing starts at `0`.\nA negative index is assumed to be relative to the end of the array — e.g.. an index of `-1` indicates the last element of the array, `-2` is the next to last element in the array, and so on.\n\n**Creating arrays**\nArrays are normally created using the `[]` notation.\nThey can contain any different type of object.\n\n**Element Reference**\nElements in an array can be retrieved by their indexes using the `#[]` method.\nThis returns the element at index, or returns a subarray starting at the start index and continuing for a specified length.\nNegative indices count backward from the end of the array.\n\n**Helper Methods**\nThere are lots of useful helper methods on arrays.\nHere are some of the more common:",
+      "code": "array = [1, \"two\", 3.0]",
+      "lang": "ruby"
+     },
+     {
+      "title": "Enumeration",
+      "body": "Rather than using loops to iterate through collections, in Ruby we use enumeration.\n\nEnumeration is the act of stepping through a collection (in this case an array) and performing some action on each object.  Enumeration is a key concept in Ruby and is used for things like sorting, grouping, mapping, reducing, and much more.\n\nAn enumeration to print each word in an array would look like this:\n\nIn this example, we have called the `.each` method on our array and passed in a **block** that takes one parameter (`word`) and prints it out.\n\nWe'll look at **blocks** in much more depth later in the Track, but for now think of them as anonymous functions that can take zero or more arguments.\nThey can be defined using the `do...end` syntax (above), or the `{}` syntax (below).\n\nHere are some other examples of array methods that use blocks:",
+      "code": "words = [\"the\", \"cat\", \"sat\"]\nwords.each do |word|\n  puts word\nend\n\n# Output:\n# the\n# cat\n# sat",
+      "lang": "ruby"
+     },
+     {
+      "title": "More enumeration methods",
+      "body": "In Bird Count, you were introduced to the `count`, `any?`, `select`, `all?` and `map` enumeration methods.\nHere's a recap of those, with a few extras added:",
+      "code": "fibonacci = [0, 1, 1, 2, 3, 5, 8, 13]\n\nfibonacci.count  { |number| number == 1 }   #=> 2\nfibonacci.any?   { |number| number > 20 }   #=> false\nfibonacci.none?  { |number| number > 20 }   #=> true\nfibonacci.select { |number| number.odd? }   #=> [1, 1, 3, 5, 13]\nfibonacci.all?   { |number| number < 20 }   #=> true\nfibonacci.map    { |number| number * 2  }   #=> [0, 2, 2, 4, 6, 10, 16, 26]\nfibonacci.select { |number| number >= 5 }   #=> [5, 8, 13]\nfibonacci.find   { |number| number >= 6 }   #=> 8\n\n# Some methods work with or without a block\nfibonacci.sum  #=> 33\nfibonacci.sum { |number| number * number }  #=> 273\n\n# There are also methods to help with nested arrays:\nanimals = [ ['cat', 'bob'], ['horse', 'caris'], ['mouse', 'arya'] ]\nanimals.flatten  #=> [\"cat\", \"bob\", \"horse\", \"caris\", \"mouse\", \"arya\"]",
+      "lang": "ruby"
+     },
+     {
+      "title": "Enumerating Hashes",
+      "body": "Enumerating `Hash` objects is exactly the same as enumerating `Array` objects, except that the block receives two arguments: the key and the value:\n\nIf you only need one of the values, you can use the special `_` symbol to indicate that one value is not needed.\nThis helps both in terms of developer clarity and also is a performance optimisation.",
+      "code": "pet_names = {cat: \"bob\", horse: \"caris\", mouse: \"arya\"}\npet_names.each { |animal, name| ... }",
+      "lang": "ruby"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "bird-count: tests not parsed (no extractor for 'ruby')",
+    "boutique-inventory: tests not parsed (no extractor for 'ruby')",
+    "boutique-inventory-improvements: tests not parsed (no extractor for 'ruby')"
+   ]
+  },
+  {
+   "n": 5,
+   "name": "Chamber of Forms",
+   "concepts": [
+    "exceptions",
+    "multiple-assignment-and-decomposition",
+    "namespaces",
+    "ternary-operator"
+   ],
+   "exercises": [
+    "locomotive-engineer",
+    "last-will",
+    "simple-calculator",
+    "moviegoer"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Multiple assignment",
+      "body": "Multiple assignment allows you to assign multiple variables in one line.\nTo separate the values, use a comma `,`:\n\nMultiple assignment is not limited to one data type:\n\nMultiple assignment can be used to swap elements in **arrays**.\nThis practice is pretty common in sorting algorithms.\nFor example:\n\n~~~~exercism/note\nThis is also known as \"Parallel Assignment\", and can be used to avoid a temporary variable.\n~~~~\n\nIf there are more variables than values, the extra variables will be assigned `nil`:",
+      "code": ">> a, b = 1, 2\n=> [1, 2]\n>> a\n=> 1",
+      "lang": "ruby"
+     },
+     {
+      "title": "Decomposition",
+      "body": "In Ruby, it is possible to decompose the elements of **arrays**/**hashes** into distinct variables.\nSince values appear within **arrays** in a index order, they are unpacked into variables in the same order:\n\nIf there are values that are not needed then you can use `_` to indicate \"collected but not used\":\n\n**Deep decomposing**\nDecomposing and assigning values from **arrays** inside of an **array** (**also known as a nested array**), works in the same way a shallow decomposing does, but needs delimited decomposition expression (`()`) to clarify the values context or position:\n\nYou can also deeply unpack just a portion of a nested **array**:\n\nIf the decomposition has variables with incorrect placement and/or an incorrect number of values, you will get a **syntax error**:\n\nExperiment here, and you will notice that the first pattern dictates, not the available values on the right hand side.\nThe syntax error is not tied to the data structure.\n\n**Decomposing an array with the single splat operator (`*`)**\nWhen [decomposing an **array** you can use the splat operator (`*`) to capture the \"leftover\" values.\nThis is clearer than slicing the **array** (**which in some situations is less readable**).\nFor example, we can extract the first element and then assign the remaining values into a new **array** without the first element:\n\nWe can also extract the values at the beginning and end of the **array** while grouping all the values in the middle:\n\nWe can also use `*` in deep decomposition:\n\n**Decomposing a `Hash`**\nDecomposing a **hash** is a bit different than decomposing an **array**.\nTo be able to unpack a **hash** you need to convert it to an **array** first.\nOtherwise there will be no decomposing:\n\nTo coerce a `Hash` to an **array** you can use the `to_a` method:\n\nIf you want to unpack the keys then you can use the `keys` method:\n\nIf you want to unpack the values then you can use the `values` method:",
+      "code": ">> fruits = [\"apple\", \"banana\", \"cherry\"]\n>> x, y, z = fruits\n>> x\n=> \"apple\"",
+      "lang": "ruby"
+     },
+     {
+      "title": "# Namespaces",
+      "body": "**Namespaces**\nAn important method for code organization is the use of namespaces.\nClasses and modules provide namespaces.\nTwo methods might have a naming collision, which can be resolved by putting them in different namespaces.\nNamespaces can be nested, which might help to structure big code bases.\nAccess to the namespaces is done via the scope-resolution operator `::`.\n\nThe example below shows the use of two different `foo` methods.\nThey are used together by prefixing their respective namespaces.",
+      "code": "class MyNamespace\n  def self.foo\n    44\n  end\n\n  class MyInnerNamespace\n    def self.baz\n      90\n    end\n  end\nend\n\nclass MyOtherNamespace\n  def self.foo\n    -2\n  end\nend\n\np MyNamespace::foo + MyOtherNamespace::foo * MyNamespace::MyInnerNamespace::baz  # => -136",
+      "lang": "ruby"
+     },
+     {
+      "title": "Note that namespaces are interpreted based on where the...",
+      "body": "Note that namespaces are interpreted based on where the executing code is.\nTo refer to something in the *root* namespace, (ie outside all defined namespaces), start with `::`.\n\nFor example:",
+      "code": "class Example\n  def self.example\n    5\n  end\nend\n\nclass MyNamespace\n\n  class Example\n    def self.example\n      10\n    end\n  end\n\n  def self.call_example\n    p Example::example  # => 10\n    p ::Example::example  # => 5\n  end\nend",
+      "lang": "ruby"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "locomotive-engineer: tests not parsed (no extractor for 'ruby')",
+    "last-will: tests not parsed (no extractor for 'ruby')",
+    "simple-calculator: tests not parsed (no extractor for 'ruby')",
+    "moviegoer: tests not parsed (no extractor for 'ruby')"
+   ]
+  }
+ ]
+}

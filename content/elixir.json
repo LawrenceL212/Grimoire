@@ -1,0 +1,723 @@
+{
+ "id": "elixir",
+ "name": "Elixir Depths",
+ "subject": "Elixir",
+ "category": "language",
+ "sigil": "◈",
+ "unlock": null,
+ "lang": "elixir",
+ "runtime": "piston",
+ "source": "exercism/elixir (MIT)",
+ "importedBy": "scripts/import_exercism.py",
+ "blurb": "Elixir is a dynamic, functional language designed for building scalable and maintainable applications. Elixir leverages the Erlang VM, known for running low-latency, distributed and fault-tolerant systems, while also being successfully used in web development and the embedded software domain.",
+ "floors": [
+  {
+   "n": 1,
+   "name": "Threshold of Syntax",
+   "concepts": [
+    "basics",
+    "booleans",
+    "floating-point-numbers",
+    "integers"
+   ],
+   "exercises": [
+    "lasagna",
+    "pacman-rules",
+    "freelancer-rates"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Basics",
+      "body": "**Variables**\nElixir is a dynamically-typed language, meaning that the type of a variable is only checked at runtime. Using the match `=` operator, we can bind a value of any type to a variable name:\n\n**Modules**\nElixir is a functional-programming language and requires all named functions to be defined in a **module**. The `defmodule` keyword is used to define a module. All modules are available to all other modules at runtime and do not require an **access modifier** to make them visible to other parts of the program. A **module** is analogous to a **class** in other programming languages.\n\n**Named functions**\n**Named Functions** must be defined in a module. The `def` keyword is used to define a **public** named function.\n\nEach function can have zero or more arguments. The value of the last expression in a function is always **implicitly returned**.\n\nInvoking a function is done by specifying its module and function name and passing arguments for each of the function's arguments.\n\nThe `defp` keyword can be used instead of `def` to define a **private** function. Private functions can only be used from within the same module that defined them.\n\nWhen invoking a function inside the same module where it's defined, the module name can be omitted.\n\nYou may also write short functions using a one-line syntax (note the comma `,` and the colon `:` around the keyword `do`).\n\n**Arity of functions**\nIt is common to refer to functions with their **arity**. The **arity** of a function is the number of arguments it accepts.\n\n**Naming conventions**\nModule names should use `PascalCase`. A module name must start with an uppercase letter `A-Z` and can contain letters `a-zA-Z`, numbers `0-9`, and underscores `_`.\n\nVariable and function names should use `snake_case`. A variable or function name must start with a lowercase letter `a-z` or an underscore `**`, can contain letters `a-zA-Z`, numbers `0-9`, and underscores `**`, and might end with a question mark `?` or an exclamation mark `!`.\n\n**Standard library**\nElixir has a very rich and well-documented standard library. The documentation is available online at hexdocs.pm/elixir. Save this link somewhere - you will use it a lot!\n\nMost built-in data types have a corresponding module that offers functions for working with that data type, e.g. there's the `Integer` module for integers, `String` module for strings, `List` module for lists and so on.\n\nA notable module is the `Kernel` module. It provides the basic capabilities on top of which the rest of the standard library is built, like arithmetic operators, control-flow macros, and much more. Functions for the `Kernel` module are automatically imported, so you can use them without the `Kernel.` prefix.\n\n**Code comments**\nComments can be used to leave notes for other developers reading the source code. Single line comments in Elixir are preceded by `#`.",
+      "code": "# Bound an integer value of 1\ncount = 1\n# You may re-bind variables\ncount = 2\n\n# You may re-bind any type to a variable\ncount = false\n\n# Strings can be created by enclosing characters within double quotes\nmessage = \"Success!\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "Booleans",
+      "body": "Elixir represents true and false values with the boolean type. There are only two values: `true` and `false`. These values can be bound to a variable:\n\nWe can evaluate strict boolean expressions using the `and/2`, `or/2`, and `not/1` operators.\n\nWhen writing a function that returns a boolean value, it is idiomatic to end the function name with a `?`. The same convention can be used for variables that store boolean values.",
+      "code": "true_variable = true\nfalse_variable = false",
+      "lang": "elixir"
+     },
+     {
+      "title": "Integers",
+      "body": "There are two different kinds of numbers in Elixir - integers and floats.\n\nIntegers are whole numbers.",
+      "code": "integer = 3\n# => 3",
+      "lang": "elixir"
+     },
+     {
+      "title": "Floating Point Numbers",
+      "body": "Floats are numbers with one or more digits behind the decimal separator. They use the 64-bit double precision floating-point format.\n\n**Working with numbers**\nIn the `Integer` and `Float` modules you can find some useful functions for working with those types. Basic arithmetic operators are defined in the `Kernel` module.\n\n**Conversion**\nIntegers and floats can be mixed together in a single arithmetic expression. Using a float in an expression ensures the result will be a float too.\n\nHowever, when doing division, the result will always be a float, even if only integers are used.\n\nTo convert a float to an integer, you can discard the decimal part with `trunc/1`.",
+      "code": "float = 3.45\n# => 3.45",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "lasagna: tests not parsed (no extractor for 'elixir')",
+    "pacman-rules: tests not parsed (no extractor for 'elixir')",
+    "freelancer-rates: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 2,
+   "name": "Hall of Branching Paths",
+   "concepts": [
+    "anonymous-functions",
+    "atoms",
+    "bit-manipulation",
+    "cond",
+    "lists"
+   ],
+   "exercises": [
+    "secrets",
+    "log-level",
+    "language-list"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Anonymous Functions",
+      "body": "Functions are treated as first class citizens in Elixir. This means that:\n\n- Named and anonymous functions can be assigned to variables.\n- Named and anonymous functions can be passed around like data as arguments and return values.\n- Anonymous functions can be created dynamically.\n\nAnonymous functions, in contrast to named functions, don't have a static reference available to them, they are only available if they are assigned to a variable or immediately invoked.\n\nWe might use anonymous functions to:\n\n- Hide data using lexical scope (also known as a closure).\n- Dynamically create functions at run-time.\n\nAnonymous functions start with the reserved word `fn`, the arguments are separated from the body of the function with the `->` token, and they are finished with an `end`. As with named functions, the last expression in the function is **implicitly returned** to the calling function.\n\nTo invoke a function reference, you must use a `.` between the reference variable and the list of arguments:\n\nYou can even use short hand capture notation to make this more concise:",
+      "code": "function_variable = fn param ->\n  param + 1\nend\n\nfunction_variable.(1)\n# => 2",
+      "lang": "elixir"
+     },
+     {
+      "title": "Bit Manipulation",
+      "body": "Elixir supports many functions for working with bits found in the **Bitwise module**.\n\n- `band/2`: bitwise AND\n- `bsl/2`: bitwise SHIFT LEFT\n- `bsr/2`: bitwise SHIFT RIGHT\n- `bxor/2`: bitwise XOR\n- `bor/2`: bitwise OR\n- `bnot/1`: bitwise NOT\n\nHere is an example of how to use a bitwise function:\n\nAll bitwise functions only work on integers.\n\nIf you are running Elixir version 1.9 or lower, you will need to call `require Bitwise` at the beginning of the module definition to be able to use the **Bitwise** module.",
+      "code": "Bitwise.bsl(1, 3)\n# => 8",
+      "lang": "elixir"
+     },
+     {
+      "title": "Atoms",
+      "body": "Elixir's `atom` type represents a fixed constant. An atom's value is simply its own name. This gives us a type-safe way to interact with data. Atoms can be defined as follows:\n\n**Atoms** are internally represented by an integer in a lookup table, which are set automatically. It is not possible to change this internal value.",
+      "code": "# All atoms are preceded with a ':' then follow with alphanumeric snake-cased characters\nvariable = :an_atom",
+      "lang": "elixir"
+     },
+     {
+      "title": "Cond",
+      "body": "Often, we want to write code that can branch based on a condition. While there are many ways to do this in Elixir, one of the simplest ways is using `cond/1`.\n\nAt its simplest, `cond` follows the first path that evaluates to `true` with one or more branches:\n\nIf no path evaluates to `true`, an error is raised by the runtime.",
+      "code": "cond do\n  x > 10 -> :this_might_be_the_way\n  y < 7 -> :or_that_might_be_the_way\n  true -> :this_is_the_default_way\nend",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "secrets: tests not parsed (no extractor for 'elixir')",
+    "log-level: tests not parsed (no extractor for 'elixir')",
+    "language-list: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 3,
+   "name": "The Bound Sigil",
+   "concepts": [
+    "default-arguments",
+    "guards",
+    "multiple-clause-functions",
+    "pattern-matching",
+    "pipe-operator",
+    "strings",
+    "tuples"
+   ],
+   "exercises": [
+    "guessing-game",
+    "kitchen-calculator",
+    "high-school-sweetheart"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Multiple Clause Functions",
+      "body": "Elixir facilitates **Open-Closed Principle** practices by allowing functions to have multiple clauses, so instead of sprawling and hard-coded control-logic, pointed functions can be written to add/remove behavior easily.\n\nElixir offers **multiple function clauses** and **guards** to write:\n\nAt run-time, Elixir will test, from top to bottom of the source file, which function clause to invoke.\n\nVariables that are unused should be prefixed with an underscore.",
+      "code": "def number(n) when n == 7 do\n  \"Awesome, that's my favorite\"\nend\n\ndef number(_n) do\n  \"That's not my favorite\"\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Default Arguments",
+      "body": "Functions may declare default values for one or more arguments. Let's consider this function:\n\nWhen compiled, Elixir creates a function definition for `number/0` (no arguments), and `number/1` (one argument).\n\nIf more than one argument has default values, the default values will be applied to the function from left to right to fill in for missing arguments.\n\nIf the function has more than one clause, the default arguments should be defined in a function header (a function without a body) before the function clauses:",
+      "code": "def number(n \\\\ 13), do: \"That's not my favorite\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "Tuples",
+      "body": "In Elixir, a tuple is a data structure which organizes data, holding a fixed number of items of any type, but without explicit names for each element. Tuples are often used in Elixir for memory read-intensive operations, since read-access of an element is a constant-time operation. They are not usually used when elements may need to be added/removed dynamically because rather than modifying the existing tuple, a new tuple is created which requires memory to be allocated upfront.\n\nIn practice, tuples are created in Elixir using curly braces. Elements in a tuple can be individually accessed using the `elem/2` function using 0-based indexing:\n\n**Tuples as grouped information**\nTuples are often used in practice to represent grouped information.",
+      "code": "empty_tuple = {}\none_element_tuple = {1}\nmultiple_element_tuple = {1, :a, \"hello\"}\n\nelem(multiple_element_tuple, 2)\n# => \"hello\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "Pattern Matching",
+      "body": "The use of pattern matching is dominant in assertive, idiomatic Elixir code. You might recall that `=/2` is described as a match operator rather than as an assignment operator. When using the match operator, if the pattern on the left matches the right, any variables on the left are bound, and the value of the right side is returned. A `MatchError` is raised if there is no match.\n\nRemember, matches occur from the right side to the left side.\n\nIn the last example, if we don't need a variable in a pattern match, we can discard it by referencing `_`.\nAny variable starting with an `_` is not tracked by the runtime.\n\n**Pattern matching in named functions**\nPattern matching is also a useful tool when creating multiple function clauses. Pattern matching can be used on the functions' arguments which then determines which function clause to invoke -- starting from the top of the file down until the first match. Variables may be bound in a function head and used in the function body.",
+      "code": "2 = 2\n# => 2\n# Literals can be matched if they are the same\n\n2 = 3\n# => ** (MatchError) no match of right hand side value: 3\n\n{_, denominator} = Float.ratio(0.25)\n# => {1, 4}\n# the variable `denominator` is bound to the value 4",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "guessing-game: tests not parsed (no extractor for 'elixir')",
+    "kitchen-calculator: tests not parsed (no extractor for 'elixir')",
+    "high-school-sweetheart: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 4,
+   "name": "Vault of Collections",
+   "concepts": [
+    "docs",
+    "maps",
+    "module-attributes-as-constants",
+    "recursion",
+    "typespecs"
+   ],
+   "exercises": [
+    "bird-count",
+    "high-score",
+    "city-office"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Recursion",
+      "body": "Recursive functions are functions that call themselves.\n\nA recursive function needs to have at least one **base case** and at least one **recursive case**.\n\nA **base case** returns a value without calling the function again. A **recursive case** calls the function again, modifying the input so that it will at some point match the base case.\n\nVery often, each case is written in its own function clause.",
+      "code": "# base case\ndef count([]), do: 0\n\n# recursive case\ndef count([_head | tail]), do: 1 + count(tail)",
+      "lang": "elixir"
+     },
+     {
+      "title": "Maps",
+      "body": "Maps in Elixir are the data structure for storing information in key-value pairs. In other languages, these might also be known as associative arrays (PHP), hashes (Perl 5, Raku), or dictionaries (Python).\n\nKeys and values can be of any data type, but if the key is an atom we can use a shorthand syntax. Maps do not guarantee the order of their entries when accessed or returned.\n\n**Literal forms**\nAn empty map is simply declared with `%{}`. If we want to add items to a map literal, we can use two forms:\n\nWhile there is no canonical format, choose a consistent way to represent the key-value literal pairs.\n\n**Map module functions**\nElixir provides many functions for working with maps in the **Map module**. Some **Map module** functions require an **anonymous** function to be passed into the function to assist with the map transformation.",
+      "code": "# If the key is an atom:\n%{atom_key: 1}\n\n# If the key is a different type:\n%{1 => :atom_value}\n\n# You can even mix these if the atom form comes second:\n%{\"first_form\" => :a, atom_form: :b}",
+      "lang": "elixir"
+     },
+     {
+      "title": "Module Attributes As Constants",
+      "body": "In Elixir, we can define module attributes which can be used as constants in our functions.\n\nWhen used to define module constants, attributes can be any expression which can be evaluated at compilation time. After compilation, module attributes are not accessible since they are expanded during compilation, similar to defined macros in languages like C.",
+      "code": "defmodule Example do\n  # Defines the attribute as the value 1\n  @constant_number 1\n\n  def example_value() do\n    # Returns the value 1\n    @constant_number\n  end\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Docs",
+      "body": "Documentation in Elixir is a first-class citizen.\n\nThere are two module attributes commonly used to document your code - `@moduledoc` for documenting a module and `@doc` for documenting a function that follows the attribute. The `@moduledoc` attribute usually appears on the first line of the module, and the `@doc` attribute usually appears right before a function definition, or the function's typespec if it has one. The documentation is commonly written in a multiline string using the heredoc syntax.\n\nElixir documentation is written in **Markdown**.",
+      "code": "defmodule String do\n  @moduledoc \"\"\"\n  Strings in Elixir are UTF-8 encoded binaries.\n  \"\"\"\n\n  @doc \"\"\"\n  Converts all characters in the given string to uppercase according to `mode`.\n\n  ## Examples\n\n      iex> String.upcase(\"abcd\")\n      \"ABCD\"\n\n      iex> String.upcase(\"olá\")\n      \"OLÁ\"\n  \"\"\"\n  def upcase(string, mode \\\\ :default)\nend",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "bird-count: tests not parsed (no extractor for 'elixir')",
+    "high-score: tests not parsed (no extractor for 'elixir')",
+    "city-office: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 5,
+   "name": "Chamber of Forms",
+   "concepts": [
+    "case",
+    "charlists",
+    "if",
+    "io",
+    "nil"
+   ],
+   "exercises": [
+    "german-sysadmin",
+    "rpg-character-sheet",
+    "name-badge"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Charlists",
+      "body": "Charlists are created using the `~c` Sigil.\n\n~~~~exercism/note\nNote that in older versions of Elixir, charlists are represented as `'hello'` with single quotes.\n~~~~\n\nAlthough they look very similar to strings, the two data types are quite different from one another. A charlist is a list of integers. The integers represent the Unicode values of a given character — also known as code points.\n\nYou can prepend a character with `?` to get its code point.\n\nBecause charlist are lists, you can work with them just like with any other list - using recursion and pattern matching.\n\nYou can concatenate two lists using `++`.\n\nThe longer the first list is, the slower the concatenation, so avoid repeatedly appending to lists of arbitrary length.",
+      "code": "~c\"hello\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "Case",
+      "body": "`case` is a control flow structure that allows us to compare a given value against many patterns. Clauses in a `case` expression are evaluated from top to bottom, until a match is found.",
+      "code": "age = 15\n\ncase age do\n  0 -> ~c\"infant\"\n  age when age < 4 -> ~c\"baby\"\n  age when age < 13 -> ~c\"child\"\n  age when age < 18 -> ~c\"teenager\"\n  _ -> ~c\"adult\"\nend\n\n# => ~c\"teenager\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "IO",
+      "body": "Functions for handling input and output are provided by the `IO` module.\n\n**Output**\nTo write a string to the standard output, use `IO.puts`. `IO.puts` always adds a new line at the end of the string. If you don't want that behavior, use `IO.write` instead. Both functions return the atom `:ok` if they succeed.\n\n`IO.puts` is useful for writing strings, but not much else. If you need a tool for debugging that will allow you to write any value to standard output, use `IO.inspect` instead. `IO.inspect` returns the value it was passed unchanged, so it can be inserted in any point in your code. It also accepts many options, for example `:label`, that will allow you to distinguish it from other `IO.inspect` calls.\n\n**Input**\nTo read a line from the standard input, use `IO.gets`. `IO.gets` accepts one argument - a string that it will print as a prompt for the input. `IO.gets` doesn't add a new line after the prompt, include it yourself if you need it.",
+      "code": "IO.puts(\"Hi!\")\n# > Hi!\n# => :ok",
+      "lang": "elixir"
+     },
+     {
+      "title": "Nil",
+      "body": "Nil is an English word meaning \"nothing\" or \"zero\". In Elixir, `nil` is a special value that means an **absence** of a value.\n\nIn other programming languages, `null` or `none` values might play a similar role.",
+      "code": "# I do not have a favorite color\nfavorite_color = nil",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "german-sysadmin: tests not parsed (no extractor for 'elixir')",
+    "rpg-character-sheet: tests not parsed (no extractor for 'elixir')",
+    "name-badge: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 6,
+   "name": "The Iterating Spiral",
+   "concepts": [
+    "bitstrings",
+    "keyword-lists",
+    "pids",
+    "processes"
+   ],
+   "exercises": [
+    "take-a-number",
+    "wine-cellar",
+    "paint-by-number"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Processes",
+      "body": "In Elixir, all code runs inside processes.\n\nBy default, a function will execute in the same process from which it was called. When you need to explicitly run a certain function in a new process, use `spawn/1`:\n\n`spawn/1` creates a new process that executes the given 0-arity function and returns a **process identifier** (PID). The new process will stay alive as long as the function executes, and then silently exit.\n\nElixir's processes should not be confused with operating system processes. Elixir's processes use much less memory and CPU. It's perfectly fine to have Elixir applications that run hundreds of Elixir processes.\n\n**Messages**\nProcesses do not directly share information with one another. Processes **send and receive messages** to share data.\n\nYou can send a message to any process with `send/2`. The first argument to `send/2` is the PID of the recipient, the second argument is the message.\n\nA message can be of any type. Often it consists of atoms and tuples. If you want to get a response, you should include the PID of the sender somewhere in the message. You can get the PID of the current process with `self()`.\n\n`send/2` does not check if the message was received by the recipient, nor if the recipient is still alive. The message ends up in the recipient's **mailbox** and it will only be read if and when the recipient explicitly asks to **receive messages**.\n\nA message can be read from a mailbox using the `receive/1` macro. It accepts a `do` block that can pattern match on the messages.\n\n`receive/1` will take **one message** from the mailbox that matches any of the given patterns and execute the expression given for that pattern. If there are no messages in the mailbox, or none of messages in the mailbox match any of the patterns, `receive/1` is going to wait for one.\n\n**Receive loop**\nIf you want to receive more than one message, you need to call `receive/1` recursively. It is a common pattern to implement a recursive function, for example named `loop`, that calls `receive/1`, does something with the message, and then calls itself to wait for more messages. If you need to carry some state from one `receive/1` call to another, you can do it by passing an argument to that `loop` function.",
+      "code": "spawn(fn -> 2 + 2 end)\n# => #PID<0.125.0>",
+      "lang": "elixir"
+     },
+     {
+      "title": "PIDs",
+      "body": "Process identifiers are their own data type. They function as **mailbox addresses** - if you have a process's PID, you can send a message to that process. PIDs are usually created indirectly, as a return value of functions that create new processes, like `spawn`.",
+      "code": "defmodule TakeANumber do\n  def start() do\n    spawn(fn -> loop(0) end)\n  end\n\n  defp loop(state) do\n    receive do\n      {:report_state, sender_pid} ->\n        send(sender_pid, state)\n        loop(state)\n\n      {:take_a_number, sender_pid} ->\n        state = state + 1\n        send(sender_pid, state)\n        loop(state)\n\n      :stop ->\n        nil\n\n      _ ->\n        loop(state)\n    end\n  end\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Keyword Lists",
+      "body": "Keyword lists are a key-value data structure.\n\nKeyword lists are lists of `{key, value}` tuples, and can also be written as such, but the shorter syntax is more widely used.\n\nKeys in a keyword list must be atoms, but the values can be anything. Each key can be used more than once. The key-value pairs in a keyword list are ordered.\n\nYou can work with keyword lists using the same approaches as for lists, or you can use the `Keyword` module.",
+      "code": "[month: \"April\", year: 2018]",
+      "lang": "elixir"
+     },
+     {
+      "title": "Bitstrings",
+      "body": "Working with binary data is an important concept in any language, and Elixir provides an elegant syntax to write, match, and construct binary data.\n\nIn Elixir, binary data is referred to as the bitstring type. The binary data **type** (not to be confused with binary data in general) is a specific form of a bitstring, which we will discuss in a later exercise.\n\nBitstring literals are defined using the bitstring special form `<<>>`. When defining a bitstring literal, it is defined in segments. Each segment has a value and type, separated by the `::` operator. The type specifies how many bits will be used to encode the value. The type can be omitted completely, which will default to a 8-bit integer value.\n\nSpecifying the type as `::1` is a shorthand for writing `::size(1)`. You need to use the longer syntax if the bit size comes from a variable.\n\n**Binary**\nWhen writing binary integer literals, we can write them directly in base-2 notation by prefixing the literal with `0b`. Note that they will be anyway displayed as decimal numbers when printed in tests results or when using iex.\n\n**Truncating**\nIf the value of the segment overflows the capacity of the segment's type, it will be truncated from the left.\n\n**Prepending and appending**\nYou can both prepend and append to an existing bitstring using the special form. The `::bitstring` type must be used on the existing bitstring if it's of unknown size.\n\n**Concatenating**\nWe can concatenate bitstrings stored in variables using the special form. The `::bitstring` type must be used when concatenating two bitstrings of unknown sizes.\n\n**Pattern matching**\nPattern matching can also be done to obtain values from the special form. You have to know the number of bits for each fragment you want to capture, with one exception: the `::bitstring` type can be used to pattern match on a bitstring of an unknown size, but this can only be used for the last fragment.\n\n**Inspecting bitstrings**\n~~~~exercism/note\nBitstrings might be printed (by the test runner or in iex) in a\ndifferent format than the format that was used to create them. This often\ncauses confusion when learning bitstrings.\n~~~~\n\nBy default, bitstrings are displayed in fragments of 8 bits (a byte), even if you created them with fragments of a different size.\n\nIf you create a bitstring that represents a printable UTF-8 encoded string, it gets displayed as a string.",
+      "code": "# This defines a bitstring with three segments of a single bit each\n<<0::1, 1::1, 0::1>>",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "take-a-number: tests not parsed (no extractor for 'elixir')",
+    "wine-cellar: tests not parsed (no extractor for 'elixir')",
+    "paint-by-number: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 7,
+   "name": "Sanctum of Structure",
+   "concepts": [
+    "access-behaviour",
+    "dates-and-time",
+    "tail-call-recursion"
+   ],
+   "exercises": [
+    "dna-encoding",
+    "library-fees",
+    "basketball-website"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Tail Call Recursion",
+      "body": "When recursing through enumerables (lists, bitstrings, strings), there are often two concerns:\n\n- how much memory is required to store the trail of recursive function calls\n- how to build the solution efficiently\n\nTo deal with these concerns an **accumulator** may be used.\n\nAn accumulator is a variable that is passed along in addition to the data. It is used to pass the current state of the function's execution, from function call to function call, until the **base case** is reached. In the base case, the accumulator is used to return the final value of the recursive function call.\n\nAccumulators should be initialized by the function's author, not the function's user. To achieve this, declare two functions - a public function that takes just the necessary data as arguments and initializes the accumulator, and a private function that also takes an accumulator. In Elixir, it is a common pattern to prefix the private function's name with `do_`.\n\nThe usage of an accumulator allows us to turn recursive functions into **tail-recursive** functions. A function is tail-recursive if the **last** thing executed by the function is a call to itself.",
+      "code": "# Count the length of a list without an accumulator\ndef count([]), do: 0\ndef count([_head | tail]), do: 1 + count(tail)\n\n# Count the length of a list with an accumulator\ndef count(list), do: do_count(list, 0)\n\ndefp do_count([], count), do: count\ndefp do_count([_head | tail], count), do: do_count(tail, count + 1)",
+      "lang": "elixir"
+     },
+     {
+      "title": "Dates and Time",
+      "body": "Elixir's standard library offers 4 different modules for working with dates and time, each with its own struct.\n\n- The `Date` module. A `Date` struct can be created with the `~D` sigil.\n\n  \n\n- The `Time` module. A `Time` struct can be created with the `~T` sigil.\n\n  \n\n- The `NaiveDateTime` module for datetimes without a timezone. A `NaiveDateTime` struct can be created with the `~N` sigil.\n\n  \n\n- The `DateTime` module for datetimes with a timezone. Using this module for timezones other than UTC requires an external dependency, a timezone database.\n\n**Comparisons**\nTo compare dates or times to one another, look for a `compare` or `diff` function in the corresponding module. Comparison operators such as `==`, `>`, and `<` **seem** to work, but they don't do a correct semantic comparison for those structs.",
+      "code": "  ~D[2021-01-01]\n  ",
+      "lang": "elixir"
+     },
+     {
+      "title": "Access Behaviour",
+      "body": "Elixir uses code **Behaviours** to provide common generic interfaces while facilitating specific implementations for each module which implements it. One such common example is the **Access Behaviour**.\n\nThe **Access Behaviour** provides a common interface for retrieving data from a key-based data structure. The **Access Behaviour** is implemented for maps and keyword lists, but let's look at its use for maps to get a feel for it. **Access Behaviour** specifies that when you have a map, you may follow it with **square brackets** and then use the key to retrieve the value associated with that key.\n\nIf the key does not exist in the data structure, then `nil` is returned. This can be a source of unintended behavior, because it does not raise an error. Note that `nil` itself implements the Access Behaviour and always returns `nil` for any key.",
+      "code": "# Suppose we have these two maps defined (note the difference in the key type)\nmy_map = %{key: \"my value\"}\nyour_map = %{\"key\" => \"your value\"}\n\n# Obtain the value using the Access Behaviour\nmy_map[:key] == \"my value\"\nyour_map[:key] == nil\nyour_map[\"key\"] == \"your value\"",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "dna-encoding: tests not parsed (no extractor for 'elixir')",
+    "library-fees: tests not parsed (no extractor for 'elixir')",
+    "basketball-website: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 8,
+   "name": "The Warded Gate",
+   "concepts": [
+    "binaries",
+    "enum",
+    "file"
+   ],
+   "exercises": [
+    "boutique-inventory",
+    "file-sniffer",
+    "newsletter"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Enum",
+      "body": "`Enum` is a very useful module that provides a set of algorithms for working with enumerables. It offers sorting, filtering, grouping, counting, searching, finding min/max values, and much more.\n\nIn general, an **enumerable** is any data that can be iterated over, a collection. In Elixir, an enumerable is any data type that implements the `Enumerable` protocol. The most common of those are lists and maps.\n\nMany `Enum` functions accept a function as an argument.\n\nThe most common `Enum` functions are `map` and `reduce`.\n\n**`map/2`**\n`Enum.map/2` allows you to replace every element in an enumerable with another element. The second argument to `Enum.map/2` is a function that accepts the original element and returns its replacement.\n\n**`reduce/3`**\n`Enum.reduce/3` allows you to **reduce** the whole enumerable to a single value. To achieve this, a special variable called the **accumulator** is used. The accumulator carries the intermediate state of the reduction between iterations.\n\nThe second argument to `Enum.reduce/3` is the initial value of the accumulator. The third argument is a function that accepts an element and an accumulator, and returns the new value for the accumulator.\n\n**Working with maps**\nWhen using maps with `Enum` functions, the map gets automatically converted to a list of 2 `{key, value}` tuples.\n\nTo transform it back to a map, use `Enum.into/2`. `Enum.into/2` is a function that transforms an enumerable into a collectable - any data structure implementing the `Collectable` protocol. It can be thought of as the opposite of `Enum.reduce/3`.\n\n`Enum` also has `Enum.into/3`. `Enum.into/3` is a variation of `Enum.into/2` that accepts a transformation function to be applied while transforming the enumerable into a collectable.\n\n**Mapping maps**\nInstead of using `Enum.into/3` or `Enum.map/2` plus `Enum.into/2` to apply a transformation (mapping) to a map, we can also use a dedicated `Map.new/2` function. It works exactly like `Enum.into/3` in that it accepts an enumerable and a transformation function, but it always returns a new map instead of letting us choose a collectible.",
+      "code": "Enum.all?([1, 2, 3, 4, 5], fn x -> x > 3 end)\n# => false",
+      "lang": "elixir"
+     },
+     {
+      "title": "Binaries",
+      "body": "Elixir provides an elegant syntax for working with binary data as we have seen with the `<<>>` special form provided for working with bitstrings.\n\nThe binary type is a specialization on the bitstring type. Where bitstrings could be of any length (any number of bits), binaries are where the number of bits can be evenly divided by 8. That is, when working with binaries, we often think of things in terms of bytes (8 bits). A byte can represent integer numbers from `0` to `255`. It is common to work with byte values in hexadecimal, `0x00 - 0xFF`.\n\nBinary literals are defined using the bitstring special form `<<>>`. When defining a binary literal, we can use integer and string literals. Integer values greater than 255 will overflow and only the last 8 bits of the integer will be used. By default, the `::binary` modifier is applied to the value. We can concatenate binaries with the `<>/2` operator.\n\nA **null-byte** is another name for `<<0>>`.\n\n**Pattern matching on binary data**\nPattern matching is even extended to binaries, and we can pattern match on a portion of binary data much like we could for a list.\n\nLike with other types of pattern matching, we can use this in function signatures to match when selecting from multiple function clauses.",
+      "code": "<<255>> == <<0xFF>>\n# Overflowing bits are truncated\n<<256>> == <<0>>\n<<2, 4, 6, 8, 10, 12, 14, 16>> == <<0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0E, 0x10>>",
+      "lang": "elixir"
+     },
+     {
+      "title": "File",
+      "body": "Functions for working with files are provided by the `File` module.\n\nTo read a whole file, use `File.read/1`. To write to a file, use `File.write/2`.\n\nEvery time a file is written to with `File.write/2`, a file descriptor is opened and a new Elixir process is spawned. For this reason, writing to a file in a loop using `File.write/2` should be avoided.\n\nInstead, a file can be opened using `File.open/2`. The second argument to `File.open/2` is a list of modes, which allows you to specify if you want to open the file for reading or for writing.\n\n`File.open/2` returns a PID of a process that handles the file. To read and write to the file, use functions from the `IO` module and pass this PID as the IO device.\n\nWhen you're finished working with the file, close it with `File.close/1`.\n\nAll the mentioned functions from the `File` module also have a `!` variant that raises an error instead of returning an error tuple (e.g. `File.read!/1`). Use that variant if you don't intend to handle errors such as missing files or lack of permissions.",
+      "code": "defmodule Newsletter do\n  def read_emails(path) do\n    path\n    |> File.read!()\n    |> String.split()\n  end\n\n  def open_log(path) do\n    File.open!(path, [:write])\n  end\n\n  def log_sent_email(pid, email) do\n    IO.puts(pid, email)\n  end\n\n  def close_log(pid) do\n    File.close(pid)\n  end\n\n  def send_newsletter(emails_path, log_path, send_fun) do\n    log_pid = open_log(log_path)\n    emails = read_em",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "boutique-inventory: tests not parsed (no extractor for 'elixir')",
+    "file-sniffer: tests not parsed (no extractor for 'elixir')",
+    "newsletter: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 9,
+   "name": "Depths of Abstraction",
+   "concepts": [
+    "list-comprehensions",
+    "ranges",
+    "structs"
+   ],
+   "exercises": [
+    "chessboard",
+    "remote-control-car",
+    "boutique-suggestions"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Ranges",
+      "body": "Ranges represent a sequence of one or many consecutive integers. They are created by connecting two integers with `..`.\n\nRanges can be ascending or descending. They are always inclusive of the first and last values.\n\nA range implements the **Enumerable protocol**, which means functions in the `Enum` module can be used to work with ranges.",
+      "code": "1..5",
+      "lang": "elixir"
+     },
+     {
+      "title": "Structs",
+      "body": "Structs are an extension built on top of maps which provide compile-time checks and default values. A struct is named after the module it is defined in. To define a struct use the `defstruct` construct. The construct usually immediately follows after the module definition. `defstruct` accepts either a list of atoms (for `nil` default values) or a keyword list (for specified default values). The fields without defaults must precede the fields with default values.\n\n**Accessing fields and updating**\nSince structs are built on maps, we can use most map functions to get and manipulate values. The **Access Behaviour** is **not** implemented for structs. It is recommended to use the **static access operator** `.` to access struct fields instead.\n\n- get/fetch field values:\n\n  \n\n- update field values\n\n  \n\n**Pattern matching**\nStructs can be used in pattern matching with or without the struct name.\n\nBy including the struct name in the pattern, you can ensure that both the left and right side are structs of the same type.\n\n**Enforcing field value initialization**\nWe can use the `@enforce_keys` module attribute with a list of the field keys to ensure that the values are initialized when the struct is created. If a key is not listed, its value will be `nil` as seen in the above example. If an enforced key is not initialized, an error is raised.",
+      "code": "defmodule Plane do\n  defstruct [:engine, wings: 2]\nend\n\nplane = %Plane{}\n# => %Plane{engine: nil, wings: 2}",
+      "lang": "elixir"
+     },
+     {
+      "title": "List Comprehensions",
+      "body": "Comprehensions provide a facility for transforming **Enumerables** easily and declaratively.\n\nTo declare a very simple comprehension, we can use the `for` keyword followed by a **generator** and a **do-block** which creates the new values from the enumerated values.\n\nComprehensions can also have **filters**. Values that do not pass the filter are removed from the final list:\n\nWe can declare more complicated comprehensions over several lines:\n\nA **cartesian product** can be created using multiple generators. That means that each value generated by the first generator will be paired once with each value generated by the second generator:",
+      "code": "for n <- [0, 1, 2, 3], do: n + 1\n# => [1, 2, 3, 4]",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "chessboard: tests not parsed (no extractor for 'elixir')",
+    "remote-control-car: tests not parsed (no extractor for 'elixir')",
+    "boutique-suggestions: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 10,
+   "name": "The Archmage's Trial",
+   "concepts": [
+    "agent",
+    "erlang-libraries",
+    "protocols",
+    "randomness"
+   ],
+   "exercises": [
+    "community-garden",
+    "bread-and-potions",
+    "captains-log"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Agent",
+      "body": "The `Agent` module facilitates an abstraction for spawning processes and the **receive-send** loop. From here, we will call processes started using the `Agent` module **'agent processes'**. An **agent process** might be chosen to represent a central shared state.\n\nTo start an **agent process**, `Agent` provides the `start/2` function. The supplied function when `start`**-ing** the **agent process** returns the initial state of the process:\n\nJust like `Map` or `List`, `Agent` provides many functions for working with **agent processes**.\n\nIt is customary to organize and encapsulate all `Agent`-related functionality into a module for the domain being modeled.",
+      "code": "# Start an agent process with an initial value of an empty list\n{:ok, agent_pid} = Agent.start(fn -> [] end)",
+      "lang": "elixir"
+     },
+     {
+      "title": "Protocols",
+      "body": "Protocols are a mechanism to achieve polymorphism in Elixir when you want behavior to vary depending on the data type.\n\nProtocols are defined using `defprotocol` and contain one or more function headers.\n\nProtocols can be implemented using `defimpl`.\n\nA protocol can be implemented for any existing Elixir data type or for a struct.\n\nWhen a protocol function is invoked, the appropriate implementation gets automatically chosen based on the type of the first argument.",
+      "code": "defprotocol Reversible do\n  def reverse(term)\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Erlang Libraries",
+      "body": "Elixir code runs in the BEAM virtual machine. BEAM is part of the Erlang Run-Time System. Being inspired by Erlang, and sharing its run environment, Elixir provides great interoperability with Erlang libraries. This means that Elixir developers can use Erlang libraries from within their Elixir code. In fact, writing Elixir libraries for functionality already provided by Erlang libraries is discouraged in the Elixir community.\n\nAs a result, certain functionality, like mathematical operations or timer functions, is only available in Elixir via Erlang.\n\nErlang's standard library is available for use in our Elixir code without any extra steps necessary.\n\nErlang functions can be called in the same way we call Elixir functions, with one small difference. Erlang module names are `snake_case` atoms. For example, to call the Erlang `pi/0` function from the `math` module, one would write:\n\nThe most commonly used Erlang functions that do not have an Elixir equivalent are:\n\n- `:timer.sleep/1` which suspends a process for the given amount of milliseconds.\n- `:rand.uniform/0` which generates a random float `x`, where `0.0 <= x < 1.0`.\n- `:io_lib.format/2` which provides C-style string formatting (using control sequences). Using this function, we could for example print an integer in any base between 2 and 36 or format a float with desired precision. Note that this function, like many Erlang functions, returns a charlist.\n- The `math` module that provides mathematical functions such as `sin/1`, `cos/1`, `log2/1`, `log10/1`, `pow/2`, and more.\n\nTo discover Erlang's standard library, explore the STDLIB Reference Manual.",
+      "code": ":math.pi()\n# => 3.141592653589793",
+      "lang": "elixir"
+     },
+     {
+      "title": "Randomness",
+      "body": "In Elixir, to choose a random element from an enumerable data structure (e.g. list, range), we use `Enum.random`. This function will pick a single element, with every element having equal probability of being picked.\n\nElixir does not have its own functions for picking a random float. To do that, we have to use Erlang directly.",
+      "code": "defmodule CaptainsLog do\n  @planetary_classes [\"D\", \"H\", \"J\", \"K\", \"L\", \"M\", \"N\", \"R\", \"T\", \"Y\"]\n\n  def random_planet_class() do\n    Enum.random(@planetary_classes)\n  end\n\n  def random_ship_registry_number() do\n    number = Enum.random(1000..9999)\n    \"NCC-#{number}\"\n  end\n\n  def random_stardate() do\n    :rand.uniform() * 1000 + 41_000\n  end\n\n  def format_stardate(stardate) do\n    to_string(:io_li",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "community-garden: tests not parsed (no extractor for 'elixir')",
+    "bread-and-potions: tests not parsed (no extractor for 'elixir')",
+    "captains-log: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 11,
+   "name": "Floor 11",
+   "concepts": [
+    "alias",
+    "errors",
+    "exceptions",
+    "import",
+    "try-rescue"
+   ],
+   "exercises": [
+    "need-for-speed",
+    "rpn-calculator",
+    "stack-underflow"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Alias",
+      "body": "To share code between different Elixir modules within the same project, you need to reference the outside module by its full name. But what if that name is too long or confusing?\n\nThe special form `alias` allows you to shorten or change the name by which you reference an outside module. When used without any arguments, it trims down the module name to its last segment, e.g. `MyApp.Logger.Settings` becomes `Settings`. A custom name can be specified with the `:as` option.\n\nUsually aliases are added at the beginning of the module definition.",
+      "code": "defmodule Square do\n  alias Integer, as: I\n\n  def area(a), do: I.pow(a, 2)\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Import",
+      "body": "The special form `import` allows you to use functions from an outside module without using the module's name.\n\nImporting a whole outside module might create conflicts with existing local functions. To avoid this, two options are available: `:except` and `:only`. Both expect a keyword list, where the key is the function name, and the value is the function's arity.\n\nUsually imports are added at the beginning of the module definition.",
+      "code": "defmodule Square do\n  import Integer, only: [pow: 2]\n\n  def area(a), do: pow(a, 2)\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Errors",
+      "body": "Errors happen. In Elixir, while people often say to \"let it crash\", there are times when we need to rescue the function call to a known good state to fulfill a software contract. In some languages, errors are used as a method of control flow, but in Elixir, this pattern is discouraged. We can often recognize functions that may raise an error just by their name: functions that raise errors are to have `!` at the end of their name. This is in comparison with functions that return `{:ok, value}` or `:error`. Look at these library examples:",
+      "code": "Map.fetch(%{a: 1}, :b)\n# => :error\nMap.fetch!(%{a: 1}, :b)\n# => raises KeyError",
+      "lang": "elixir"
+     },
+     {
+      "title": "Try/Rescue",
+      "body": "Elixir provides a construct for rescuing from errors using `try .. rescue`\n\nLet's examine this construct:\n\n- **Line 1**, the block is declared with `try`.\n- **Line 2**, the function call which may error is placed here, in this case we are calling `raise/2`.\n- **Line 4**, in the `rescue` section, we pattern match on the **Module** name of the error raised\n  - on the left side of `->`:\n    - `e` is matched to the error struct.\n    - `in` is a keyword.\n    - `RuntimeError` is the error that we want to rescue.\n      - If we wanted to rescue from all errors, we could use `_` instead of the module name or omit the `in` keyword entirely.\n  - on the right side:\n    - the instructions to be executed if the error matches.\n\n**Error structs**\nErrors (sometimes also called \"exceptions\") that you rescue this way are structs.\nRescuing errors in Elixir is done very rarely.\nUsually the rescued error is logged or sent to an external monitoring service, and then reraised.\nThis means we usually don't care about the internal structure of the specific error struct.\n\nIn the Exceptions concept you will learn more about error structs, including how to define your own custom error.",
+      "code": "try do\n  raise RuntimeError, \"error\"\nrescue\n  e in RuntimeError -> :error\nend",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "need-for-speed: tests not parsed (no extractor for 'elixir')",
+    "rpn-calculator: tests not parsed (no extractor for 'elixir')",
+    "stack-underflow: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 12,
+   "name": "Floor 12",
+   "concepts": [
+    "dynamic-dispatch",
+    "links",
+    "streams",
+    "tasks",
+    "try-rescue-else-after"
+   ],
+   "exercises": [
+    "rpn-calculator-output",
+    "rpn-calculator-inspection",
+    "lucas-numbers"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "Try/Rescue/Else/After",
+      "body": "Using `try..rescue` is a powerful construct for catching errors when they occur. Rescuing errors allows functions to return defined values when it is necessary. The `try..rescue` construct also offers us two additional features we can make use of:\n\n- the `else` block\n  - When the try block succeeds, the result is matched to this block.\n- the `after` block\n  - Whether the try block succeeds or raises, the code in the `after` block is always executed as long as the program is running at that point.\n  - The result of the `after` block is not returned to the calling scope.",
+      "code": "try do\n  :a\nrescue\n  _ -> :error\nelse\n  :a -> :success\nafter\n  :some_action\nend\n\n# => :success",
+      "lang": "elixir"
+     },
+     {
+      "title": "Dynamic Dispatch",
+      "body": "When Elixir resolves the function to be invoked, it uses the Module's name to perform a lookup. The lookup can be done dynamically if the Module's name is bound to a variable.\n\nInternally, a Module's name is an atom. All Elixir module atoms are automatically prefixed with `Elixir.`",
+      "code": "defmodule MyModule do\n  def message(), do: \"My message\"\nend\n\natom = MyModule\natom.message()\n# => \"My message\"",
+      "lang": "elixir"
+     },
+     {
+      "title": "Links",
+      "body": "Elixir processes are isolated and don't share anything by default. When an unlinked child process crashes, its parent process is not affected.\n\nThis behavior can be changed by **linking** processes to one another. If two processes are linked, a failure in one process will be propagated to the other process. Links are **bidirectional**.\n\nProcesses can be spawned already linked to the calling process using `spawn_link/1` which is an atomic operation, or they can be linked later with `Process.link/1`.\n\nLinking processes can be useful when doing parallelized work when each chunk of work shouldn't be continued in case another chunk fails to finish.\n\n**Trapping exits**\nLinking can also be used for **supervising** processes. If a process **traps exits**, it will not crash when a process to which it's linked crashes. It will instead receive a message about the crash. This allows it to deal with the crash gracefully, for example by restarting the crashed process.\n\nA process can be configured to trap exits by calling `Process.flag(:trap_exit, true)`. Note that `Process.flag/2` returns the **old** value of the flag, not the new one.\n\nThe message that will be sent to the process in case a linked process crashes will match the pattern `{:EXIT, from, reason}`, where `from` is a PID. If `reason` is anything other than the atom `:normal`, that means that the process crashed or was forcefully killed.",
+      "code": "defmodule RPNCalculatorInspection do\n  def start_reliability_check(calculator, input) do\n    %{input: input, pid: spawn_link(fn -> calculator.(input) end)}\n  end\n\n  def await_reliability_check_result(%{pid: pid, input: input}, results) do\n    receive do\n      {:EXIT, ^pid, :normal} -> Map.put(results, input, :ok)\n      {:EXIT, ^pid, _} -> Map.put(results, input, :error)\n    after\n      100 ->\n    ",
+      "lang": "elixir"
+     },
+     {
+      "title": "Tasks",
+      "body": "Tasks are processes meant to execute one specific operation.\nThey usually don't communicate with other processes, but they can return a result to the process that started the task.\n\nTasks are commonly used to parallelize work.\n\n**`async`/`await`**\nTo start a task, use `Task.async/1`. It takes an anonymous function as an argument and executes it in a new process that is linked to the caller process. It returns a `%Task{}` struct.\n\nTo get the result of the execution, pass the `%Task{}` struct to `Task.await/2`. It will wait for the task to finish and return its result. The second argument is a timeout in milliseconds, defaulting to 5000.\n\nNote that between starting the task and awaiting the task, the process that started the task is not blocked and might do other operations.\n\nAny task started with `Task.async/1` should be awaited because it will send a message to the calling process. `Task.await/2` can be called for each task only once.\n\n**`start`/`start_link`**\nIf you want to start a task for side-effects only, use `Task.start/1` or `Task.start_link/1`. `Task.start/1` will start a task that is not linked to the calling process, and `Task.start_link/1` will start a task that is linked to the calling process. Both functions return a `{:ok, pid}` tuple.",
+      "code": "defmodule RPNCalculatorInspection do\n  def start_reliability_check(calculator, input) do\n    %{input: input, pid: spawn_link(fn -> calculator.(input) end)}\n  end\n\n  def await_reliability_check_result(%{pid: pid, input: input}, results) do\n    receive do\n      {:EXIT, ^pid, :normal} -> Map.put(results, input, :ok)\n      {:EXIT, ^pid, _} -> Map.put(results, input, :error)\n    after\n      100 ->\n    ",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "rpn-calculator-output: tests not parsed (no extractor for 'elixir')",
+    "rpn-calculator-inspection: tests not parsed (no extractor for 'elixir')",
+    "lucas-numbers: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 13,
+   "name": "Floor 13",
+   "concepts": [
+    "ast",
+    "behaviours",
+    "use",
+    "with"
+   ],
+   "exercises": [
+    "new-passport",
+    "top-secret",
+    "dancing-dots"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "With",
+      "body": "The special form with provides a way to focus on the \"happy path\" of a series of potentially failing steps and deal with the failures later.\n\nAt each step, if a clause matches, the chain will continue until the `do` block is executed. If one match fails, the chain stops and the non-matching clause is returned. You have the option of using an `else` block to catch failed matches and modify the return value.",
+      "code": "with {:ok, id} <- get_id(username),\n     {:ok, avatar} <- fetch_avatar(id),\n     {:ok, image_type} <- check_valid_image_type(avatar) do\n  {:ok, image_type, avatar}\nelse\n  :not_found ->\n    {:error, \"invalid username\"}\n\n  {:error, \"not an image\"} ->\n    {:error, \"avatar associated to #{username} is not an image\"}\n\n  err ->\n    err\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "AST",
+      "body": "The Abstract Syntax Tree (AST), also called a **quoted expression**, is a way to represent code as data.\n\nEach node in the AST is a three-element tuple.\n\nThe first element, an atom, is the operation. The second element, a keyword list, is the metadata. The third element is a list of arguments, which contains other nodes. Literal values such as integers, atoms, and strings are represented in the AST as themselves instead of three-element tuples.\n\n**Turning code into ASTs**\nChanging Elixir code to ASTs and ASTs back to code is part of the standard library. You can find functions for working with ASTs in the modules `Code` (e.g. to change a string with code to an AST) and `Macro` (e.g. to traverse the AST or change it to a string).\n\nNote that all of the functions in the standard library use the name \"quoted\" to mean the AST (short for **quoted expression**).\n\nThe special form for turning code into an AST is called `quote`. It accepts a code block and returns its AST.\n\n**Use cases**\nThe ability to represent code as an AST is at the heart of metaprogramming in Elixir. **Macros**, which is a way to write Elixir code that produces Elixir code, work by returning ASTs as output.\n\nAnother use case for ASTs is static code analysis, like Exercism's own tool, the Analyzer, which you might already know as the little bot that leaves comments on your solutions.",
+      "code": "# AST representation of:\n# 2 + 3\n{:+, [], [2, 3]}",
+      "lang": "elixir"
+     },
+     {
+      "title": "Use",
+      "body": "The `use` macro allows us to quickly extend our module with functionality provided by another module. When we `use` a module, that module can inject code into our module - it can for example define functions, `import` or `alias` other modules, or set module attributes.\n\nIf you ever looked at the test files of some of the Elixir exercises here on Exercism, you most likely noticed that they all start with `use ExUnit.Case`. This single line of code is what makes the macros `test` and `assert` available in the test module.\n\n**`__using__/1` macro**\nWhat exactly happens when you `use` a module is dictated by that module's `__using__/1` macro. It takes one argument, a keyword list with options, and it returns a quoted expression. The code in this quoted expression is inserted into our module when calling `use`.\n\nThe options can be given as a second argument when calling `use`, e.g. `use ExUnit.Case, async: true`. When not given explicitly, they default to an empty list.",
+      "code": "defmodule LasagnaTest do\n  use ExUnit.Case\n\n  test \"expected minutes in oven\" do\n    assert Lasagna.expected_minutes_in_oven() === 40\n  end\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Behaviours",
+      "body": "Behaviours allow us to define interfaces (sets of functions and macros) in a **behaviour module** that can be later implemented by different **callback modules**. Thanks to the shared interface, those callback modules can be used interchangeably.\n\n~~~~exercism/note\nNote the British spelling of \"behaviours\".\n~~~~\n\n**Defining behaviours**\nTo define a behaviour, we need to create a new module and specify a list of functions that are part of the desired interface. Each function needs to be defined using the `@callback` module attribute. The syntax is identical to a function typespec (`@spec`). We need to specify a function name, a list of argument types, and all the possible return types.\n\n**Implementing behaviours**\nTo add an existing behaviour to our module (create a callback module) we use the `@behaviour` module attribute. Its value should be the name of the behaviour module that we're adding.\n\nThen, we need to define all the functions (callbacks) that are required by that behaviour module. If we're implementing somebody else's behaviour, like Elixir's built-in `Access` or `GenServer` behaviours, we would find the list of all the behaviour's callbacks in the documentation on hexdocs.pm.\n\nA callback module is not limited to implementing only the functions that are part of its behaviour. It is also possible for a single module to implement multiple behaviours.\n\nTo mark which function comes from which behaviour, we should use the module attribute `@impl` before each function. Its value should be the name of the behaviour module that defines this callback.\n\n**Default callback implementations**\nWhen defining a behaviour, it is possible to provide a default implementation of a callback. This implementation should be defined in the quoted expression of the `__using__/1` macro. To make it possible for users of the behaviour module to override the default implementation, call the `defoverridable/1` macro after the function implementation. It accepts a keyword list of function names as keys and function arities as values.\n\nNote that defining functions inside of `__using__/1` is discouraged for any other purpose than defining default callback implementations, but you can always define functions in another module and import them in the `__using__/1` macro.",
+      "code": "defmodule Countable do\n  @callback count(collection :: any) :: pos_integer\nend",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "new-passport: tests not parsed (no extractor for 'elixir')",
+    "top-secret: tests not parsed (no extractor for 'elixir')",
+    "dancing-dots: tests not parsed (no extractor for 'elixir')"
+   ]
+  },
+  {
+   "n": 14,
+   "name": "Floor 14",
+   "concepts": [
+    "genserver",
+    "mapsets",
+    "regular-expressions"
+   ],
+   "exercises": [
+    "take-a-number-deluxe",
+    "log-parser",
+    "gotta-snatch-em-all"
+   ],
+   "lesson": {
+    "sections": [
+     {
+      "title": "GenServer",
+      "body": "`GenServer` (generic server) is a behaviour that abstracts common client-server interactions between Elixir processes.\n\nRemember the receive loop from when we learned about processes? The `GenServer` behaviour provides abstractions for implementing such loops, and for exchanging messages with a process that runs such a loop. It makes it easier to keep state and execute asynchronous code.\n\n~~~~exercism/note\nBe warned that the name `GenServer` is loaded. It is also used to describe a **module** that **uses** the `GenServer` behaviour, as well as a **process** that was started from a module that **uses** the `GenServer` behaviour.\n~~~~\n\nThe `GenServer` behaviour defines one required callback, `init/1`, and a few interesting optional callbacks: `handle_call/3`, `handle_cast/2`, and `handle_info/3`. The **clients** using a `GenServer` aren't supposed to call those callbacks directly. Instead, the `GenServer` module provides functions that clients can use to communicate with a `GenServer` process.\n\nOften, a single module defines both a **client API**, a set of functions that other parts of your Elixir app can call to communicate with this `GenServer` process, and **server callback implementations**, which contain this `GenServer`'s logic.\n\nLet's take a look at a simple example of a `GenServer` first, and then learn what each callback means.\n\n**Example**\nThis is an example server that can respond to the repetitive inquisitions of annoying passengers during a long road trip, more exactly the question: \"are we there yet?\". It keeps track of how many times this question has been asked, returning increasingly more annoyed responses.\n\n**Callbacks**\n**`init/1`**\nA server can be started by calling `GenServer.start/3` or `GenServer.start_link/3`. We learned about the difference between those functions in the links concept.\n\nThose two functions:\n\n- Accept a module implementing the `GenServer` behaviour as the first argument.\n- Accept anything as the second argument called `init_arg`. As the name suggest, this argument gets passed to the `init/1` callback.\n- Accept an optional third argument with advanced options for running the process that we won't cover now.\n\nStarting a server by calling `GenServer.start/3` or `GenServer.start_link/3` will invoke the `init/1` callback in a blocking way. The return value of `init/1` dictates if the server can be started successfully.\n\nThe `init/1` callback usually returns one of those values:\n\n- `{:ok, state}`. The server will start its receive loop using `state` as its initial state. `state` can be of any type.\n- `{:stop, reason}`. `reason` can be of any type. The server will not start its receive loop. The process will exit with the given reason.\n\nThere are also more advanced possibilities that we won't cover now.\n\nIf the server's receive loop starts, the functions `GenServer.start/3` and `GenServer.start_link/3` return an `{:ok, pid}` tuple. Otherwise they return `{:error, reason}`\n\n**`handle_call/3`**\nA message that requires a reply can be sent to a server process with `GenServer.call/2`. This function expects the `pid` of a running server process as the first argument, and the message as the second argument. The message can be of any type.\n\nThe `handle_call/3` callback is responsible for handling and responding to synchronous messages. It receives three arguments:\n\n1. `message` - the value passed as the second argument to `GenServer.call/2`.\n2. `from` - the `pid` of the process calling `GenServer.call/2`. Most often this argument can be ignored.\n3. `state` - the current state of the server. Remember that its initial value was set in the `init/1` callback.\n\nThe `handle_call/3` callback usually returns a 3 tuple of `{:reply, reply, state}`. This means that the second element in the tuple, a `reply` that can be of any type, will be sent back to the caller. The third element in the tuple, `state`, is the new state of the server after handling this message.\n\nThere are also more advanced possibilities that we won't cover now.\n\n~~~~exercism/note\nTo memorize what this callback does by its name,\nthink of it as \"calling\" somebody on the phone.\n\nIf that person is available, you'll receive a reply immediately (synchronously).\n~~~~\n\n**`handle_cast/2`**\nA message that doesn't require a reply can be sent to a server process with `GenServer.cast/2`. Its arguments are identical to those of `GenServer.call/2`.\n\nThe `handle_cast/2` callback is responsible for handling those messages. It receives two arguments, `message` and `state`, which are the same arguments as in the `handle_call/3` callback (except for `from`).\n\nThe `handle_cast/2` callback usually returns a 2 tuple of `{:noreply, state}`.\n\nThere are also more advanced possibilities that we won't cover now.\n\n~~~~exercism/note\nTo memorize what this callback does by its name,\nremember that \"to cast\" also means \"to throw\".\n\nIf you throw a message in a bottle into the sea,\nyou don't expect to receive a reply immediately,\nor maybe ever.\n~~~~\n\n**Should I use `call` or `cast`?**\nAlmost always use `call` even if your client code doesn't need the reply from the server.\n\nUsing `call` waits for the reply, which serves as a backpressure mechanism (to prevent clients from sending too many messages at once). Receiving a reply from the server is also the only way to be sure that the server received and handled the client's message.\n\n**`handle_info/2`**\nMessages can also end up in the server's inbox by means other than calling `GenServer.call/2` or `GenServer.cast/2`, for example calling the plain `send/2` function.\n\nTo handle such messages, use the `handle_info/2` callback. This callback works in exactly the same way as `handle_cast/2`.\n\nThe `GenServer` behaviour provides a catch-all implementation of `handle_info/2` that logs errors about unexpected messages. If you override that default implementation, make sure to always include your own catch-all implementation. If you forget, the server will crash if it receives an unexpected message.\n\n**Timeouts**\nThe return value of each of the four callbacks described above can be extended by one more tuple element, a timeout. E.g. instead of returning `{:ok, state}` from `init/1`, return `{:ok, state, timeout}`.\n\nThe timeout can be used to detect a lack of messages in the mailbox for a specific period. If the server returns a timeout from one of its callbacks, and the specified number of milliseconds have elapsed with no message arriving, `handle_info/2` is called with `:timeout` as the first argument.",
+      "code": "defmodule AnnoyingPassengerAutoresponder do\n  use GenServer\n  # Client API\n\n  def start_link(init_arg) do\n    GenServer.start_link(__MODULE__, init_arg)\n  end\n\n  def are_we_there_yet?(pid) do\n    GenServer.call(pid, :are_we_there_yet?)\n  end\n\n  # Server callbacks\n\n  @impl GenServer\n  def init(_init_arg) do\n    # the initial count of questions asked is always 0\n    state = 0\n    {:ok, state}\n  end\n\n  @impl GenServer\n  def handle_call(:are_we_there_yet?, _from, state) do\n    reply =\n      cond do\n        state <= 3 -> \"No.\"\n        state <= 10 -> \"I told you #{state} times already. No.\"\n        true -> \"...\"\n      end\n\n    # increase the count of questions asked\n    new_state = state + 1\n    # reply to the caller\n    {:reply, reply, new_state}\n  end\nend",
+      "lang": "elixir"
+     },
+     {
+      "title": "Regular Expressions",
+      "body": "Regular expressions in Elixir follow the **PCRE** specification (**P**erl **C**ompatible **R**egular **E**xpressions), similarly to other popular languages like Java, JavaScript, or Ruby.\n\nThe `Regex` module offers functions for working with regular expressions. Some of the `String` module functions accept regular expressions as arguments as well.\n\n~~~~exercism/note\nThis exercise assumes that you already know regular expression syntax, including character classes, quantifiers, groups, and captures.\n\nIf you need a refresh your regular expression knowledge, check out one of those sources: Regular-Expressions.info, Rex Egg, RegexOne, Regular Expressions 101, RegExr.\n~~~~\n\n**Sigils**\nThe most common way to create regular expressions is using the `~r` sigil.\n\nNote that all Elixir sigils support different kinds of delimiters, not only `/`.\n\n**Matching**\nThe `=~/2` operator can be used to perform a regex match that returns `boolean` result. Alternatively, there are also `match?/2` functions in the `Regex` module as well as the `String` module.\n\n**Capturing**\nIf a simple boolean check is not enough, use the `Regex.run/3` function to get a list of all captures (or `nil` if there was no match). The first element in the returned list is always a match for the whole regular expression, and the following elements are matched groups.\n\n**Modifiers**\nThe behavior of a regular expression can be modified by appending special flags. When using a sigil to create a regular expression, add the modifiers after the second delimiter.\n\nCommon modifiers are:\n- `i` - makes the match case-insensitive.\n- `u` - enables Unicode specific patterns like `\\p` and causes character classes like `\\w`, `\\s` etc. to also match Unicode.",
+      "code": "~r/test/",
+      "lang": "elixir"
+     },
+     {
+      "title": "MapSets",
+      "body": "A `MapSet` is a collection of unique values, representing sets in Elixir.\nIt can contain values of any kind, without a notion of order.\n\nNote that the `Set` module also exists, but is deprecated in favor of `MapSet`.\n\nYou can create sets using `MapSet.new/0`, `MapSet.new/1` and `MapSet.new/2`, and transform them into lists using `MapSet.to_list/1`.\n\nNote that since `MapSet`s do not have a notion of order, `MapSet.to_list/1` is not guaranteed to return a sorted list.\n\nYou can add or remove elements with `MapSet.put/2` and `MapSet.delete/2`.\n\nYou can query the contents of a set with the functions `MapSet.size/1`, `MapSet.member?/2`, and compare sets with `MapSet.equal?/2`, `MapSet.subset?/2` and `MapSet.disjoint?/2`.\n\nMapSets can be combined with `MapSet.union/2`, `MapSet.intersection/2`, `MapSet.difference/2` and `MapSet.symmetric_difference/2`.\n\nYou can filter and partition sets with `MapSet.filter/2`, `MapSet.reject/2` and `MapSet.split_with/2`.",
+      "code": "MapSet.new()\n# => MapSet.new([])\n\nMapSet.new([2, 3, 3, 3, 1, 1, 2, \"hello\"])\n# => MapSet.new([1, 2, 3, \"hello\"])\n\nMapSet.new([2, 3, 3, 3, 1, 1, 2], fn n -> 10 * n end)\n# => MapSet.new([10, 20, 30])\n\n[2, 3, 3, 3, 1, 1, 2] |> MapSet.new() |> MapSet.to_list()\n# => [1, 2, 3]",
+      "lang": "elixir"
+     }
+    ]
+   },
+   "practice": [],
+   "exam": [],
+   "_todo": [
+    "practice needs 6 more challenge(s)",
+    "exam: author 8-12 questions",
+    "take-a-number-deluxe: tests not parsed (no extractor for 'elixir')",
+    "log-parser: tests not parsed (no extractor for 'elixir')",
+    "gotta-snatch-em-all: tests not parsed (no extractor for 'elixir')"
+   ]
+  }
+ ]
+}

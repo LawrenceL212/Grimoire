@@ -5,12 +5,13 @@ Derived from `exercism/python (MIT)`. This is the contract: content must cover e
 
 | Floor | Name | Concepts | Exercism exercises |
 |---|---|---|---|
-| 1 | Threshold of Syntax | `basics`, `bools`, `numbers` | guidos-gorgeous-lasagna, ghost-gobble-arcade-game, currency-exchange |
-| 2 | Hall of Branching Paths | `comparisons`, `conditionals`, `strings` | meltdown-mitigation, black-jack, little-sisters-vocab |
-| 3 | The Bound Sigil | `list-methods`, `lists`, `string-methods` | little-sisters-essay, card-games, chaitanas-colossal-coaster |
-| 4 | Vault of Collections | `loops`, `string-formatting`, `tuples` | making-the-grade, pretty-leaflet, tisbury-treasure-hunt |
-| 5 | Chamber of Forms | `dict-methods`, `dicts`, `sets`, `unpacking-and-multiple-assignment` | inventory-management, mecha-munch-management, locomotive-engineer, cater-waiter |
-| 6 | The Iterating Spiral | `classes`, `enums`, `generators`, `none` | ellens-alien-game, plane-tickets, log-levels, restaurant-rozalynn |
+| 1 | Threshold of Syntax | `basics`, `bools` | guidos-gorgeous-lasagna, ghost-gobble-arcade-game |
+| 2 | Hall of Branching Paths | `comparisons`, `conditionals`, `numbers` | currency-exchange, meltdown-mitigation, black-jack |
+| 3 | The Bound Sigil | `lists`, `string-methods`, `strings` | little-sisters-vocab, little-sisters-essay, card-games |
+| 4 | Vault of Collections | `list-methods`, `loops`, `string-formatting` | chaitanas-colossal-coaster, making-the-grade, pretty-leaflet |
+| 5 | Chamber of Forms | `dict-methods`, `dicts`, `tuples` | tisbury-treasure-hunt, inventory-management, mecha-munch-management |
+| 6 | The Iterating Spiral | `classes`, `sets`, `unpacking-and-multiple-assignment` | locomotive-engineer, cater-waiter, ellens-alien-game |
+| 7 | Sanctum of Structure | `enums`, `generators`, `none` | plane-tickets, log-levels, restaurant-rozalynn |
 
 ## Declared in the track but not yet on a floor
 
@@ -62,6 +63,8 @@ Derived from `exercism/python (MIT)`. This is the contract: content must cover e
 - `fractions`
 - `secrets`
 <!-- GENERATED:END -->
+
+
 
 
 
