@@ -1,0 +1,1099 @@
+{
+ "n": 5,
+ "name": "Chamber of Forms",
+ "concepts": [
+  "dicts",
+  "dict-methods",
+  "sets",
+  "tuples",
+  "unpacking-and-multiple-assignment"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "level-project",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Keys, Sets and Fixed Shapes",
+  "sections": [
+   {
+    "title": "Keys Instead of Positions",
+    "body": "A **dict** maps keys to values, so you look a thing up by name instead of by position. Write one as comma-separated `key: value` pairs inside braces, and read a value back with `d[key]`.\n\nAssigning to a key that does not exist creates it; assigning to one that already exists replaces its value. There is no separate add and update, and no `append`.\n\nAsking for a key that is not there with `d[key]` raises a **KeyError**, which is why `in` matters - it asks whether a **key** is present, never a value.",
+    "code": "spells = {\"ember\": 3, \"frost\": 5}\nspells[\"gale\"] = 2\nprint(spells[\"frost\"])\nprint(\"ember\" in spells)\nprint(len(spells))\nprint(spells)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "A dict literal: comma-separated key: value pairs inside braces."
+     },
+     {
+      "line": 2,
+      "text": "The key `gale` did not exist, so this assignment creates it."
+     },
+     {
+      "line": 4,
+      "text": "`in` asks about keys only - `3 in spells` would be False even though 3 is a value."
+     },
+     {
+      "line": 6,
+      "text": "Printing the whole dict shows insertion order: ember, frost, then the new gale."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "runes = {\"a\": 1, \"b\": 2}\nrunes[\"c\"] = 3\nrunes[\"a\"] = 9\nprint(runes)\nprint(\"d\" in runes)",
+     "lang": "python",
+     "answer": "{'a': 9, 'b': 2, 'c': 3}\nFalse",
+     "concepts": [
+      "dicts"
+     ],
+     "explain": "Reassigning an existing key edits it in place and keeps its original position, so `a` stays first even though it was written last. Only a brand-new key is appended at the end."
+    }
+   },
+   {
+    "title": "Asking a Dictionary Politely",
+    "body": "`d.get(key)` is the polite form of `d[key]` - it hands back `None` for a missing key instead of raising. Pass a second argument and that becomes the fallback, which is what turns counting into one line: `counts.get(word, 0) + 1`.\n\nThree views let you walk a dict: `.keys()`, `.values()` and `.items()`.\n\n`.items()` yields `(key, value)` pairs, so `for name, count in d.items()` splits each pair into two names as it goes.",
+    "code": "loot = {\"gold\": 12, \"silver\": 3}\nprint(loot.get(\"gold\"))\nprint(loot.get(\"copper\"))\nprint(loot.get(\"copper\", 0))\nfor name, count in loot.items():\n    print(name, count)\nprint(sorted(loot.keys()))\nprint(sum(loot.values()))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A missing key gives None rather than raising KeyError."
+     },
+     {
+      "line": 4,
+      "text": "The second argument is the value to use when the key is absent."
+     },
+     {
+      "line": 5,
+      "text": "Each item is a pair, and the two names on the left take its two parts."
+     },
+     {
+      "line": 8,
+      "text": "`.values()` is a plain collection of the values - sum, max and len all work on it."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `shelf_count(stock, item)` returning how many of `item` the dict `stock` holds, and `0` when the item is not in the dict at all.",
+     "fn": "shelf_count",
+     "starterCode": "def shelf_count(stock, item):\n    pass\n",
+     "tests": [
+      {
+       "input": "{'apple': 4}, 'apple'",
+       "expected": 4
+      },
+      {
+       "input": "{'apple': 4}, 'pear'",
+       "expected": 0
+      },
+      {
+       "input": "{}, 'apple'",
+       "expected": 0
+      }
+     ],
+     "solution": "def shelf_count(stock, item):\n    return stock.get(item, 0)\n",
+     "concepts": [
+      "dict-methods"
+     ],
+     "explain": "The default argument removes the `if item in stock` branch entirely, so the absent case and the present case travel the same path. That is why `.get` shows up in almost every counting loop."
+    }
+   },
+   {
+    "title": "Sets Forget Duplicates",
+    "body": "A **set** is an unordered collection that stores each value once, written with braces around bare values. Building one from any sequence deduplicates it in a single pass, and `in` on a set is a direct membership test rather than a scan.\n\nSets carry the three operations from school maths - `|` union, `&` intersection, `-` difference - and each returns a new set.\n\nTwo traps: `{}` is an empty **dict**, so the empty set must be written `set()`; and a set has no order, so wrap it in `sorted(...)` whenever you need a predictable result.",
+    "code": "seen = {\"ash\", \"ember\", \"ash\"}\nprint(len(seen))\nseen.add(\"frost\")\nseen.add(\"ash\")\nprint(sorted(seen))\na = {1, 2, 3}\nb = {3, 4}\nprint(sorted(a | b), sorted(a & b), sorted(a - b))\nprint(sorted(set(\"banana\")))\nprint(type(set()), type({}))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The duplicate collapses on the way in - the set holds two values, not three."
+     },
+     {
+      "line": 4,
+      "text": "Adding something already present is a no-op, not an error."
+     },
+     {
+      "line": 8,
+      "text": "Union, intersection, difference. sorted() is only here to make the output deterministic."
+     },
+     {
+      "line": 10,
+      "text": "`{}` is an empty dict; the empty set has no literal and must be written set()."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "tags = [\"red\", \"blue\", \"red\", \"green\"]\nunique = set(tags)\nprint(len(unique))\nprint(sorted(unique))\nprint(\"blue\" in unique)",
+     "lang": "python",
+     "answer": "3\n['blue', 'green', 'red']\nTrue",
+     "concepts": [
+      "sets"
+     ],
+     "explain": "Four items go in and three come out because the second `red` has nowhere to live. Sorting is what makes the middle line predictable - the raw set has no order to print."
+    }
+   },
+   {
+    "title": "Tuples, Unpacking and the Swap",
+    "body": "A **tuple** is a fixed sequence written with commas, usually inside parentheses. It is **immutable**: you can read `point[0]`, but assigning to it raises a `TypeError`.\n\nThat restriction is the feature. A value that cannot change can be a dict key or a set member, which is exactly why a list cannot be either.\n\n**Unpacking** spreads a tuple across several names at once, and the count of names must match the count of items. Because Python builds the whole right-hand side before binding anything on the left, `a, b = b, a` swaps two names with no temporary variable.",
+    "code": "point = (3, 7)\nx, y = point\nprint(x + y)\na, b = 1, 2\na, b = b, a\nprint(a, b)\npairs = [(\"ash\", 2), (\"ember\", 5)]\nfor name, count in pairs:\n    print(name, count)\nprint({(0, 0): \"origin\"}[(0, 0)])\ntry:\n    point[0] = 99\nexcept TypeError as err:\n    print(\"TypeError:\", err)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Unpacking: the names on the left line up with the items on the right."
+     },
+     {
+      "line": 5,
+      "text": "The right side (b, a) is built first, so nothing is overwritten mid-swap."
+     },
+     {
+      "line": 10,
+      "text": "A tuple can be a dict key because it can never change; a list cannot."
+     },
+     {
+      "line": 12,
+      "text": "Immutable means exactly this - item assignment is not available, ever."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `swap(pair)` that takes a two-item tuple and returns a new tuple holding the same two items in the opposite order. Unpack the pair rather than indexing it.",
+     "fn": "swap",
+     "starterCode": "def swap(pair):\n    # unpack pair into two names, then return them the other way round\n    pass\n",
+     "tests": [
+      {
+       "input": "(1, 2)",
+       "expected": [
+        2,
+        1
+       ]
+      },
+      {
+       "input": "('a', 'b')",
+       "expected": [
+        "b",
+        "a"
+       ]
+      },
+      {
+       "input": "(0, 0)",
+       "expected": [
+        0,
+        0
+       ]
+      }
+     ],
+     "solution": "def swap(pair):\n    a, b = pair\n    return b, a\n",
+     "concepts": [
+      "tuples",
+      "unpacking-and-multiple-assignment"
+     ],
+     "explain": "You cannot rearrange the tuple you were handed, so the only move is to build a new one. Unpacking names the parts, and `return b, a` packs them straight back into a tuple without any parentheses."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-5-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "potions = {\"heal\": 2, \"mana\": 5}\nprint(potions[\"mana\"])\nprint(len(potions))",
+   "lang": "python",
+   "answer": "5\n2",
+   "concepts": [
+    "dicts"
+   ],
+   "tags": [
+    "dicts"
+   ],
+   "explain": "Indexing a dict asks for a value by its key, while `len` counts key-value pairs, not values. Reading 5 then 2 is the difference between looking inside and looking at the whole.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `stock` returns the recorded count for `name`, or 0 when the dict has no such key.",
+   "template": "def stock(counts, name):\n    return counts.___(name, ___)",
+   "blanks": [
+    "get",
+    "0"
+   ],
+   "lang": "python",
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "explain": "Without the second argument this returns `None` for a missing key, and `None` cannot be added to anything. Supplying the fallback is what makes the result safe to do arithmetic on.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-g-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "runes = [\"ae\", \"or\", \"ae\", \"ur\", \"or\"]\nprint(len(runes))\nprint(len(set(runes)))\nprint(sorted(set(runes)))",
+   "lang": "python",
+   "answer": "5\n3\n['ae', 'or', 'ur']",
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "The gap between the first two numbers is the count of duplicates the set discarded. Sorting afterwards is required because a set has no order of its own to print.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `letter_set(word)` returning a sorted list of the distinct characters in `word`. `letter_set('banana')` returns `['a', 'b', 'n']`.",
+   "fn": "letter_set",
+   "starterCode": "def letter_set(word):\n    pass\n",
+   "tests": [
+    {
+     "input": "'banana'",
+     "expected": [
+      "a",
+      "b",
+      "n"
+     ]
+    },
+    {
+     "input": "'aaa'",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "''",
+     "expected": []
+    },
+    {
+     "input": "'Hello'",
+     "expected": [
+      "H",
+      "e",
+      "l",
+      "o"
+     ]
+    }
+   ],
+   "solution": "def letter_set(word):\n    return sorted(set(word))\n",
+   "hint": "A string is a sequence of characters, so set() accepts one directly.",
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "Iterating a string yields characters, so `set(word)` deduplicates without a loop. The last test is a reminder that sorting is by code point, which puts every capital letter before every lowercase one.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a function that counts how many times each item appears.",
+   "fragments": [
+    "def tally(items):",
+    "    counts = {}",
+    "    for item in items:",
+    "        counts[item] = counts.get(item, 0) + 1",
+    "    return counts"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "lang": "python",
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "explain": "The accumulator has to be created before the loop, or every pass would start from an empty dict again. The `return` sits outside the loop because the answer is only complete once every item has been seen.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-g-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Two points are given as `(x, y)` tuples. Write `distance_apart(a, b)` returning the number of grid steps between them: the size of the x difference plus the size of the y difference.",
+   "fn": "distance_apart",
+   "starterCode": "def distance_apart(a, b):\n    # unpack each point into two names\n    pass\n",
+   "tests": [
+    {
+     "input": "(0, 0), (3, 4)",
+     "expected": 7
+    },
+    {
+     "input": "(1, 1), (1, 1)",
+     "expected": 0
+    },
+    {
+     "input": "(-2, 0), (2, 0)",
+     "expected": 4
+    },
+    {
+     "input": "(5, 5), (0, 0)",
+     "expected": 10
+    }
+   ],
+   "solution": "def distance_apart(a, b):\n    x1, y1 = a\n    x2, y2 = b\n    return abs(x1 - x2) + abs(y1 - y2)\n",
+   "hint": "x1, y1 = a gives the first point two readable names.",
+   "concepts": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "Unpacking each point into named coordinates makes the formula read like the sentence it came from, where `a[0] - b[0]` reads like an index puzzle. `abs` is what stops the two differences cancelling each other out.",
+   "xp": 50
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "py-5-c-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`tally(items)` should count how many times each item appears, but it raises `KeyError` on the very first item. Fix it so the tests pass.",
+   "fn": "tally",
+   "starterCode": "def tally(items):\n    counts = {}\n    for item in items:\n        counts[item] = counts[item] + 1\n    return counts\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'a']",
+     "expected": {
+      "a": 2,
+      "b": 1
+     }
+    },
+    {
+     "input": "['z']",
+     "expected": {
+      "z": 1
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "['a', 'a', 'a']",
+     "expected": {
+      "a": 3
+     }
+    }
+   ],
+   "solution": "def tally(items):\n    counts = {}\n    for item in items:\n        counts[item] = counts.get(item, 0) + 1\n    return counts\n",
+   "hint": "The right-hand side reads a key that has not been created yet.",
+   "concepts": [
+    "dicts",
+    "dict-methods"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods"
+   ],
+   "explain": "The first sighting of an item is also the moment its key does not exist yet, so the read fails before the write can help. Supplying `0` as the default makes the first sighting behave like every later one.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-c-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The loop below runs over `items = ['ash', 'ember', 'ash']`. Give the full contents of `counts` after each pass, written exactly as Python would print the dict.",
+   "code": "counts = {}\nfor item in items:\n    counts[item] = counts.get(item, 0) + 1",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "counts after 'ash'",
+     "expected": "{'ash': 1}"
+    },
+    {
+     "label": "counts after 'ember'",
+     "expected": "{'ash': 1, 'ember': 1}"
+    },
+    {
+     "label": "counts after the second 'ash'",
+     "expected": "{'ash': 2, 'ember': 1}"
+    }
+   ],
+   "concepts": [
+    "dicts",
+    "dict-methods"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods"
+   ],
+   "explain": "Watching the dict grow shows the two distinct events a counting loop mixes together: creating a key with the default, and bumping one that is already there. The repeat updates in place, so the printed order never changes after a key first appears.",
+   "xp": 40
+  },
+  {
+   "id": "py-5-c-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `set_report(a, b)` taking two lists and returning a tuple of three sorted lists: the values in both, the values only in `a`, and the values only in `b`. `set_report([1, 2, 3], [2, 3, 4])` returns `([2, 3], [1], [4])`.",
+   "fn": "set_report",
+   "starterCode": "def set_report(a, b):\n    # turn each list into a set first\n    pass\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3], [2, 3, 4]",
+     "expected": [
+      [
+       2,
+       3
+      ],
+      [
+       1
+      ],
+      [
+       4
+      ]
+     ]
+    },
+    {
+     "input": "['a'], ['a']",
+     "expected": [
+      [
+       "a"
+      ],
+      [],
+      []
+     ]
+    },
+    {
+     "input": "[], []",
+     "expected": [
+      [],
+      [],
+      []
+     ]
+    },
+    {
+     "input": "[1, 1, 2], []",
+     "expected": [
+      [],
+      [
+       1,
+       2
+      ],
+      []
+     ]
+    }
+   ],
+   "solution": "def set_report(a, b):\n    sa = set(a)\n    sb = set(b)\n    return sorted(sa & sb), sorted(sa - sb), sorted(sb - sa)\n",
+   "hint": "& is intersection and - is difference; note that a - b and b - a are different sets.",
+   "concepts": [
+    "sets",
+    "tuples"
+   ],
+   "tags": [
+    "sets",
+    "tuples"
+   ],
+   "explain": "Difference is not symmetric, which is why the answer needs both `a - b` and `b - a` rather than one of them. Returning three values at once packs them into a tuple, so the caller can unpack them into three names in a single line.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-c-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`{(0, 0): 'origin'}` is a valid dict, but `{[0, 0]: 'origin'}` raises `TypeError: unhashable type: 'list'`. Explain what property of a tuple lets it be a key, and what would go wrong if lists were allowed as keys.",
+   "rubric": {
+    "required": [
+     "immutable",
+     "hash"
+    ],
+    "optional": [
+     "key",
+     "change",
+     "mutable",
+     "lookup",
+     "set"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "tuples"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "explain": "A dict finds a key by its hash, and that hash is computed from the value's contents. If the contents could change after storage the entry would be filed in a place nobody could ever look, so Python refuses mutable values as keys instead of letting them go missing.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-c-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "You are given a list of `(name, score)` tuples. Write `rank_by_score(pairs)` returning a new list of the same tuples ordered by score, lowest first, with equal scores broken alphabetically by name. `rank_by_score([('ash', 3), ('ember', 1)])` returns `[('ember', 1), ('ash', 3)]`.",
+   "fn": "rank_by_score",
+   "starterCode": "def rank_by_score(pairs):\n    # sorting (score, name) pairs orders by score first\n    pass\n",
+   "tests": [
+    {
+     "input": "[('ash', 3), ('ember', 1)]",
+     "expected": [
+      [
+       "ember",
+       1
+      ],
+      [
+       "ash",
+       3
+      ]
+     ]
+    },
+    {
+     "input": "[('b', 2), ('a', 2)]",
+     "expected": [
+      [
+       "a",
+       2
+      ],
+      [
+       "b",
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[('solo', 7)]",
+     "expected": [
+      [
+       "solo",
+       7
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[('c', 3), ('a', 1), ('b', 1)]",
+     "expected": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       1
+      ],
+      [
+       "c",
+       3
+      ]
+     ]
+    }
+   ],
+   "solution": "def rank_by_score(pairs):\n    swapped = []\n    for name, score in pairs:\n        swapped.append((score, name))\n    swapped.sort()\n    result = []\n    for score, name in swapped:\n        result.append((name, score))\n    return result\n",
+   "hint": "Build (score, name) tuples, sort those, then unpack them back the other way round.",
+   "concepts": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "Tuples compare item by item, so sorting `(score, name)` gives you the primary and tie-break rules for free without writing a comparison at all. Unpacking on the way in and repacking on the way out is the whole trick - the ordering logic is the tuple's, not yours.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-c-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `group_by_first_letter(words)` returning a dict whose keys are first letters and whose values are the sorted lists of words starting with that letter. `group_by_first_letter(['ash', 'ember', 'ale'])` returns `{'a': ['ale', 'ash'], 'e': ['ember']}`. Assume no word is empty.",
+   "fn": "group_by_first_letter",
+   "starterCode": "def group_by_first_letter(words):\n    groups = {}\n    # a key that is not there yet needs an empty list before you can append\n    return groups\n",
+   "tests": [
+    {
+     "input": "['ash', 'ember', 'ale']",
+     "expected": {
+      "a": [
+       "ale",
+       "ash"
+      ],
+      "e": [
+       "ember"
+      ]
+     }
+    },
+    {
+     "input": "['solo']",
+     "expected": {
+      "s": [
+       "solo"
+      ]
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "['bb', 'ba', 'ab']",
+     "expected": {
+      "b": [
+       "ba",
+       "bb"
+      ],
+      "a": [
+       "ab"
+      ]
+     }
+    }
+   ],
+   "solution": "def group_by_first_letter(words):\n    groups = {}\n    for word in words:\n        letter = word[0]\n        if letter not in groups:\n            groups[letter] = []\n        groups[letter].append(word)\n    for letter in groups:\n        groups[letter].sort()\n    return groups\n",
+   "hint": "Check membership with `if letter not in groups` before appending.",
+   "concepts": [
+    "dicts",
+    "dict-methods"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods"
+   ],
+   "explain": "A dict of lists needs the empty list created before the first append, which is the same missing-key problem as counting, solved with `in` instead of `.get` because the default here has to be a fresh list each time. Sorting at the end keeps the answer independent of the order the words arrived in.",
+   "xp": 50
+  }
+ ],
+ "level-project": [
+  {
+   "id": "py-5-p-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Build the floor's word frequency counter.\n\nWrite `word_frequency(text)` returning a dict that maps each word to the number of times it appears. Split the text on whitespace with `text.split()`. From each piece, strip the characters `.,!?;:` off both ends with `raw.strip(PUNCTUATION)`, then lowercase it, so `Hello,` and `hello` are the same word. Skip any piece that is empty once stripped. Text with no words at all returns an empty dict.",
+   "fn": "word_frequency",
+   "starterCode": "PUNCTUATION = \".,!?;:\"\n\ndef word_frequency(text):\n    counts = {}\n    # for each piece of text.split(): strip, lowercase, skip if empty, then count\n    return counts\n",
+   "tests": [
+    {
+     "input": "'the cat the hat'",
+     "expected": {
+      "the": 2,
+      "cat": 1,
+      "hat": 1
+     }
+    },
+    {
+     "input": "'Hello, hello! HELLO'",
+     "expected": {
+      "hello": 3
+     }
+    },
+    {
+     "input": "''",
+     "expected": {}
+    },
+    {
+     "input": "'one'",
+     "expected": {
+      "one": 1
+     }
+    },
+    {
+     "input": "'a b. b, a; c'",
+     "expected": {
+      "a": 2,
+      "b": 2,
+      "c": 1
+     }
+    },
+    {
+     "input": "'... !!!'",
+     "expected": {}
+    },
+    {
+     "input": "'  spaced   out  '",
+     "expected": {
+      "spaced": 1,
+      "out": 1
+     }
+    }
+   ],
+   "solution": "PUNCTUATION = \".,!?;:\"\n\ndef word_frequency(text):\n    counts = {}\n    for raw in text.split():\n        word = raw.strip(PUNCTUATION).lower()\n        if word == '':\n            continue\n        counts[word] = counts.get(word, 0) + 1\n    return counts\n",
+   "hint": "counts[word] = counts.get(word, 0) + 1 handles the first sighting and every repeat with one line.",
+   "concepts": [
+    "dicts",
+    "dict-methods"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods"
+   ],
+   "explain": "Normalising each token before it reaches the dict is what collapses `Hello,` and `HELLO` onto one key - counting first and cleaning afterwards cannot be repaired. The empty cases fall out for free rather than needing a guard, because a loop over nothing simply never runs and returns the dict it started with.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-5-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`prices = {'ink': 3}`. What is the value of `prices.get('quill')`?",
+   "choices": [
+    "It raises a KeyError",
+    "None",
+    "0",
+    "An empty string"
+   ],
+   "answer": 1,
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "explain": "`.get` never raises - it substitutes a value, and with no second argument that value is `None`. That is exactly why `.get(key, 0)` exists: `None + 1` would fail just as loudly as the KeyError you were avoiding.",
+   "xp": 10
+  },
+  {
+   "id": "py-5-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `len({1, 2, 2, 3, 3, 3})` evaluate to?",
+   "choices": [
+    "1",
+    "2",
+    "3",
+    "6"
+   ],
+   "answer": 2,
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "Deduplication happens as the literal is built, not when it is read, so the repeats never occupy space to be counted. Six values are written and three survive.",
+   "xp": 10
+  },
+  {
+   "id": "py-5-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "scores = {\"ash\": 2, \"ember\": 5}\nscores[\"ash\"] = scores[\"ash\"] + 1\nfor name, value in scores.items():\n    print(name, value)\nprint(sum(scores.values()))",
+   "lang": "python",
+   "answer": "ash 3\nember 5\n8",
+   "concepts": [
+    "dicts",
+    "dict-methods"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods"
+   ],
+   "explain": "Each item arrives as a pair and is unpacked into two names by the loop header, which is why `print` receives two separate arguments rather than a tuple. `.values()` hands `sum` the numbers alone, with no keys in the way.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-e-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "a = {1, 2, 3}\nb = {2, 3, 4}\nprint(sorted(a & b))\nprint(sorted(a - b))\nprint(sorted(b - a))\nprint(len(a | b))",
+   "lang": "python",
+   "answer": "[2, 3]\n[1]\n[4]\n4",
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "The two difference lines print different answers, which is the point: subtraction of sets has a direction. Union counts each value once, so the four distinct values across both sets give 4 rather than 6.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this swaps the two values and prints `2 1`.",
+   "template": "a = 1\nb = 2\n___, ___ = b, a\nprint(a, b)",
+   "blanks": [
+    "a",
+    "b"
+   ],
+   "lang": "python",
+   "concepts": [
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "The right side is evaluated into a tuple before any name on the left is touched, so neither old value is lost part-way through. Writing it as two separate assignments would clobber `a` before `b` could read it.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-e-06",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these expressions may be used as a dictionary key?",
+   "choices": [
+    "(1, 2)",
+    "[1, 2]",
+    "'ash'",
+    "{1, 2}"
+   ],
+   "answer": [
+    0,
+    2
+   ],
+   "concepts": [
+    "tuples"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "explain": "Tuples and strings are immutable, so their hash is stable for as long as they exist. Lists and sets can be changed after they are stored, which would strand the entry in a bucket nobody could find again.",
+   "xp": 10
+  },
+  {
+   "id": "py-5-e-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a function that removes duplicates while keeping first-seen order.",
+   "fragments": [
+    "def dedupe(items):",
+    "    seen = set()",
+    "    result = []",
+    "    for item in items:",
+    "        if item not in seen:",
+    "            seen.add(item)",
+    "            result.append(item)",
+    "    return result"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "lang": "python",
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "The set answers `have I seen this` and the list remembers `in what order`, and neither structure can do both jobs alone. Recording into `seen` has to happen inside the `if`, or the guard would never fire.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-e-08",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Give the values of `(a, b, c)` after each line of this program, written as a tuple such as `(1, 2, 3)`.",
+   "code": "a, b, c = 1, 2, 3\na, b = b, a\nb, c = c, b",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after a, b, c = 1, 2, 3",
+     "expected": "(1, 2, 3)"
+    },
+    {
+     "label": "after a, b = b, a",
+     "expected": "(2, 1, 3)"
+    },
+    {
+     "label": "after b, c = c, b",
+     "expected": "(2, 3, 1)"
+    }
+   ],
+   "concepts": [
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "Each line packs the right-hand side into a tuple first and only then unpacks it into the names, so the third line moves the old `c` into `b` and the old `b` into `c` simultaneously. Reading these as two sequential assignments instead is what produces the wrong final answer.",
+   "xp": 40
+  },
+  {
+   "id": "py-5-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`counts[key]` and `counts.get(key, 0)` behave differently when the key is absent. Describe the difference, and say which you would choose inside a counting loop and which you would choose when an unknown key means the program has a bug.",
+   "rubric": {
+    "required": [
+     "default",
+     "KeyError"
+    ],
+    "optional": [
+     "missing",
+     "absent",
+     "raise",
+     "count",
+     "crash"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "explain": "The choice is about whether an absent key is expected or is evidence of a mistake. Silencing the failure inside a counting loop is right because the first sighting is normal, but silencing it everywhere converts a loud bug into a quiet wrong answer.",
+   "xp": 20
+  },
+  {
+   "id": "py-5-e-10",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`bump(pair)` should return a pair whose second item is one larger, leaving the original alone. It raises `TypeError: 'tuple' object does not support item assignment`. Fix it.",
+   "fn": "bump",
+   "starterCode": "def bump(pair):\n    pair[1] = pair[1] + 1\n    return pair\n",
+   "tests": [
+    {
+     "input": "(1, 2)",
+     "expected": [
+      1,
+      3
+     ]
+    },
+    {
+     "input": "('a', 0)",
+     "expected": [
+      "a",
+      1
+     ]
+    },
+    {
+     "input": "(0, -1)",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "(9, 9)",
+     "expected": [
+      9,
+      10
+     ]
+    }
+   ],
+   "solution": "def bump(pair):\n    first, second = pair\n    return first, second + 1\n",
+   "hint": "You cannot edit a tuple, so build a new one from its parts.",
+   "concepts": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "No amount of rewriting makes item assignment work on a tuple - the fix is to stop trying to mutate and start returning a new value. Unpacking to two names and repacking them is the standard shape for editing anything immutable.",
+   "xp": 50
+  },
+  {
+   "id": "py-5-e-11",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Two ledgers are given as lists of `(name, amount)` tuples. Write `merge_ledgers(a, b)` returning a tuple of two things: a dict mapping each name to the sum of all its amounts across both ledgers, and a sorted list of the names that appear in both ledgers. `merge_ledgers([('ash', 2), ('ember', 3)], [('ash', 5)])` returns `({'ash': 7, 'ember': 3}, ['ash'])`.",
+   "fn": "merge_ledgers",
+   "starterCode": "def merge_ledgers(a, b):\n    totals = {}\n    # count the totals, collect each ledger's names, then compare the two name sets\n    return totals, []\n",
+   "tests": [
+    {
+     "input": "[('ash', 2), ('ember', 3)], [('ash', 5)]",
+     "expected": [
+      {
+       "ash": 7,
+       "ember": 3
+      },
+      [
+       "ash"
+      ]
+     ]
+    },
+    {
+     "input": "[], []",
+     "expected": [
+      {},
+      []
+     ]
+    },
+    {
+     "input": "[('solo', 1)], []",
+     "expected": [
+      {
+       "solo": 1
+      },
+      []
+     ]
+    },
+    {
+     "input": "[('a', 1), ('a', 2)], [('a', -3), ('b', 4)]",
+     "expected": [
+      {
+       "a": 0,
+       "b": 4
+      },
+      [
+       "a"
+      ]
+     ]
+    },
+    {
+     "input": "[('x', 1)], [('y', 2)]",
+     "expected": [
+      {
+       "x": 1,
+       "y": 2
+      },
+      []
+     ]
+    }
+   ],
+   "solution": "def merge_ledgers(a, b):\n    totals = {}\n    names_a = set()\n    names_b = set()\n    for name, amount in a:\n        totals[name] = totals.get(name, 0) + amount\n        names_a.add(name)\n    for name, amount in b:\n        totals[name] = totals.get(name, 0) + amount\n        names_b.add(name)\n    return totals, sorted(names_a & names_b)\n",
+   "hint": "One dict for the sums, one set of names per ledger, and & for the overlap.",
+   "concepts": [
+    "dicts",
+    "dict-methods",
+    "sets",
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "tags": [
+    "dicts",
+    "dict-methods",
+    "sets",
+    "tuples",
+    "unpacking-and-multiple-assignment"
+   ],
+   "explain": "Every structure on this floor earns its place here: the dict accumulates by key, the sets answer the membership question the dict cannot, and unpacking the tuples is what lets the loop read like the data. Note that a total of 0 is not the same as an absent name, which is why the overlap must be computed from the names seen rather than from the totals.",
+   "xp": 50
+  }
+ ]
+}

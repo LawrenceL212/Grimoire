@@ -1,0 +1,792 @@
+{
+ "n": 2,
+ "name": "Hall of Branching Paths",
+ "concepts": [
+  "comparisons",
+  "conditionals",
+  "boolean-logic",
+  "truthiness"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Fork in the Path",
+  "sections": [
+   {
+    "title": "Asking Questions",
+    "body": "A **comparison** asks a question about two values and answers it with a `bool` - either `True` or `False`. Python gives you six of them: `==` and `!=` for equality, and `<`, `>`, `<=`, `>=` for ordering.\n\nThe pair that catches everybody is `=` against `==`. A single `=` **stores** a value under a name and asks nothing at all; a doubled `==` **compares** two values and hands back an answer. Python refuses `=` inside a condition, which turns a whole family of silent bugs into a loud syntax error you cannot miss.",
+    "code": "score = 60\n\nprint(score == 60)\nprint(score != 60)\nprint(score < 100, score > 100)\nprint(score <= 60, score >= 61)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "A single = stores 60 under the name score. Nothing is compared here."
+     },
+     {
+      "line": 3,
+      "text": "== compares and produces a bool, which print then shows you."
+     },
+     {
+      "line": 6,
+      "text": "<= includes the boundary, >= on 61 does not - 60 is not 61 or more."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "a = 4\nb = 5\nprint(a == b)\nprint(a < b)",
+     "lang": "python",
+     "answer": "False\nTrue",
+     "concepts": [
+      "comparisons"
+     ],
+     "explain": "Each comparison is evaluated into a single bool before print ever sees it, which is why the output is two words rather than the expressions themselves."
+    }
+   },
+   {
+    "title": "Choosing a Branch",
+    "body": "An `if` statement runs its indented block only when the condition is true. Adding `elif` branches offers alternatives, and a closing `else` catches everything left over.\n\nPython tests the conditions **top to bottom and stops at the first true one** - the branches below it are never even evaluated, however true they might be. Because the body of an `if` is ordinary code, an `if` can sit inside another one, and the indentation is the only thing telling you which `else` belongs to which `if`.",
+    "code": "temperature = 31\n\nif temperature > 30:\n    print(\"heatwave\")\nelif temperature > 20:\n    print(\"warm\")\nelse:\n    print(\"cool\")\n\nif temperature > 30:\n    if temperature > 40:\n        print(\"stay inside\")\n    else:\n        print(\"drink water\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "31 > 30 is true, so this branch runs and both branches below it are skipped."
+     },
+     {
+      "line": 11,
+      "text": "A nested if: it is only reached because the outer condition was true."
+     },
+     {
+      "line": 14,
+      "text": "This else belongs to the inner if - it means over 30 but not over 40."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so that exactly one label prints, whatever the hour is.",
+     "template": "hour = 9\nif hour < 12:\n    print('morning')\n___ hour < 18:\n    print('afternoon')\n___:\n    print('evening')",
+     "blanks": [
+      "elif",
+      "else"
+     ],
+     "lang": "python",
+     "concepts": [
+      "conditionals"
+     ],
+     "explain": "Chaining with elif is what makes the branches mutually exclusive. Three separate if statements would test all three conditions and could print two labels for one hour."
+    }
+   },
+   {
+    "title": "Combining Conditions",
+    "body": "Conditions join together with three words. `and` is true only when **both** sides are true, `or` is true when **at least one** side is, and `not` flips whatever follows it.\n\n- `not` binds tightest, then `and`, then `or`\n- brackets override that order, and are worth adding whenever the reading is not instant\n\nPython also **short-circuits**: if the left side of an `and` is already false, the right side is never evaluated, because nothing it could say would change the answer.",
+    "code": "age = 20\nhas_ticket = False\n\nprint(age >= 18 and has_ticket)\nprint(age >= 18 or has_ticket)\nprint(not has_ticket)\nprint(age >= 18 and not has_ticket)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The left side is true but the right is false, so and gives False."
+     },
+     {
+      "line": 5,
+      "text": "or only needs one true side, so this is True."
+     },
+     {
+      "line": 7,
+      "text": "not binds tighter than and, so this reads as (age >= 18) and (not has_ticket)."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "x = 5\nprint(x > 0 and x < 10)\nprint(x < 0 or x > 100)\nprint(not x == 5)",
+     "lang": "python",
+     "answer": "True\nFalse\nFalse",
+     "concepts": [
+      "boolean-logic"
+     ],
+     "explain": "Comparisons are resolved before the connecting word is applied, so the last line flips the result of x == 5 rather than comparing not x against 5."
+    }
+   },
+   {
+    "title": "Truthy and Falsy",
+    "body": "Any value at all can be used as a condition, not only a `bool`. Python treats the empty and zero ones as **falsy** - `0`, `0.0`, `\"\"`, `[]`, `{}`, `None` and `False` - and absolutely everything else as **truthy**.\n\nThat is why `if items:` is the idiomatic way to ask whether a collection holds anything. One surprise travels with it: `and` and `or` hand back **one of their operands** rather than a `bool`, so `name or \"anonymous\"` gives you the name when there is one and the fallback when the name is empty.",
+    "code": "print(bool(0), bool(\"\"), bool([]), bool({}))\nprint(bool(3), bool(\"no\"), bool([0]))\n\nname = \"\"\nprint(name or \"anonymous\")\n\nif not name:\n    print(\"no name given\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Zero, the empty string, the empty list and the empty dict are all falsy."
+     },
+     {
+      "line": 2,
+      "text": "A list holding a single zero is still non-empty, so it is truthy."
+     },
+     {
+      "line": 5,
+      "text": "or returns the first truthy operand - the fallback string, since name is empty."
+     },
+     {
+      "line": 7,
+      "text": "not turns the falsy empty string into True, so the message prints."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `is_blank(text)` returning `True` when `text` is the empty string and `False` otherwise. Test the string's own truthiness rather than comparing it to two quote marks.",
+     "fn": "is_blank",
+     "starterCode": "def is_blank(text):\n    pass\n",
+     "tests": [
+      {
+       "input": "''",
+       "expected": true
+      },
+      {
+       "input": "'a'",
+       "expected": false
+      },
+      {
+       "input": "' '",
+       "expected": false
+      }
+     ],
+     "solution": "def is_blank(text):\n    return not text\n",
+     "concepts": [
+      "truthiness"
+     ],
+     "explain": "`not text` reads as 'there is no text' and already produces a bool, so no if statement is needed. A single space is a real character, which is why the third case comes out False."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-2-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "print(3 > 2)\nprint(3 == 2)\nprint(3 != 2)",
+   "lang": "python",
+   "answer": "True\nFalse\nTrue",
+   "concepts": [
+    "comparisons"
+   ],
+   "tags": [
+    "comparisons"
+   ],
+   "explain": "A comparison is an expression like any other: it is evaluated down to a single bool before anything else happens to it. That is why you can print one, store it in a variable, or hand it straight to an if.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "x = 7\nif x > 10:\n    print(\"big\")\nelif x > 5:\n    print(\"medium\")\nelif x > 0:\n    print(\"small\")\nelse:\n    print(\"none\")",
+   "lang": "python",
+   "answer": "medium",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "Only one branch of a chain can ever run. Python stops at the first true condition, so `x > 0` is never tested even though it would also have been true - which is exactly why the order of the branches is part of the logic.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `grade(score)` returns 'pass' for 60 and above, and 'fail' for anything lower.",
+   "template": "def grade(score):\n    if score ___ 60:\n        return 'pass'\n    ___:\n        return 'fail'",
+   "blanks": [
+    ">=",
+    "else"
+   ],
+   "lang": "python",
+   "concepts": [
+    "comparisons",
+    "conditionals"
+   ],
+   "tags": [
+    "comparisons",
+    "conditionals"
+   ],
+   "explain": "The words '60 and above' include 60 itself, which is the whole difference between `>` and `>=`. Boundary bugs almost always come down to that one character rather than to the shape of the code.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `sign(n)` returning `1` when `n` is positive, `-1` when `n` is negative, and `0` when `n` is exactly zero.",
+   "fn": "sign",
+   "starterCode": "def sign(n):\n    pass\n",
+   "tests": [
+    {
+     "input": "5",
+     "expected": 1
+    },
+    {
+     "input": "-3",
+     "expected": -1
+    },
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "-0.5",
+     "expected": -1
+    }
+   ],
+   "solution": "def sign(n):\n    if n > 0:\n        return 1\n    elif n < 0:\n        return -1\n    return 0\n",
+   "concepts": [
+    "comparisons",
+    "conditionals"
+   ],
+   "tags": [
+    "comparisons",
+    "conditionals"
+   ],
+   "explain": "Zero is neither positive nor negative, so three outcomes need three branches - a plain if/else would silently file zero under one of the other two. Falling off the end of the chain is itself a meaningful answer here.",
+   "hint": "Three possible answers means the chain needs a third path.",
+   "xp": 50
+  },
+  {
+   "id": "py-2-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these fragments in the order that defines `label(t)` so it returns 'freezing' below 0, 'mild' below 20, and 'hot' otherwise.",
+   "fragments": [
+    "def label(t):",
+    "    if t < 0:",
+    "        return 'freezing'",
+    "    elif t < 20:",
+    "        return 'mild'",
+    "    return 'hot'"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "lang": "python",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "Each branch's body is indented one level under its condition, and the chain has to run coldest first: a wider test placed earlier would swallow every narrower one below it. The final line needs no else, because a return has already left the function on every other path.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "a = True\nb = False\nprint(a and b)\nprint(a or b)\nprint(not a)\nprint(not (a and b))",
+   "lang": "python",
+   "answer": "False\nTrue\nFalse\nTrue",
+   "concepts": [
+    "boolean-logic"
+   ],
+   "tags": [
+    "boolean-logic"
+   ],
+   "explain": "`and` demands both sides, `or` settles for one, and `not` flips whatever it is handed. The last line hands it a whole bracketed expression rather than a single name, so what gets flipped is the result of `a and b`.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This function will not even run - Python reports a syntax error on the `if` line. Fix it so `is_zero(n)` returns `True` only when `n` is zero.",
+   "fn": "is_zero",
+   "starterCode": "def is_zero(n):\n    if n = 0:\n        return True\n    return False\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": true
+    },
+    {
+     "input": "5",
+     "expected": false
+    },
+    {
+     "input": "-1",
+     "expected": false
+    }
+   ],
+   "solution": "def is_zero(n):\n    if n == 0:\n        return True\n    return False\n",
+   "concepts": [
+    "comparisons"
+   ],
+   "tags": [
+    "comparisons"
+   ],
+   "explain": "`=` stores a value and produces nothing to test, so Python rejects it in a condition outright. The rejection is a gift: in languages that permit it, this typo becomes a bug that runs happily and quietly does the wrong thing.",
+   "hint": "One of these operators stores a value; the other asks a question.",
+   "xp": 50
+  },
+  {
+   "id": "py-2-g-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `can_enter(age, has_ticket)` returning `True` only when `age` is at least 18 **and** `has_ticket` is true, and `False` otherwise.",
+   "fn": "can_enter",
+   "starterCode": "def can_enter(age, has_ticket):\n    pass\n",
+   "tests": [
+    {
+     "input": "20, True",
+     "expected": true
+    },
+    {
+     "input": "16, True",
+     "expected": false
+    },
+    {
+     "input": "20, False",
+     "expected": false
+    },
+    {
+     "input": "18, True",
+     "expected": true
+    }
+   ],
+   "solution": "def can_enter(age, has_ticket):\n    return age >= 18 and has_ticket\n",
+   "concepts": [
+    "boolean-logic",
+    "comparisons"
+   ],
+   "tags": [
+    "boolean-logic",
+    "comparisons"
+   ],
+   "explain": "The combined expression already is the answer, so returning it beats an if that returns True in one branch and False in the other. The 18 case is the one that matters: 'at least' means the boundary counts, so `>` would quietly turn away someone who qualifies.",
+   "hint": "You can return the whole condition in one line.",
+   "xp": 50
+  },
+  {
+   "id": "py-2-g-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "print(bool(0))\nprint(bool(\"\"))\nprint(bool([]))\nprint(bool(\"0\"))\nprint(bool([0]))",
+   "lang": "python",
+   "answer": "False\nFalse\nFalse\nTrue\nTrue",
+   "concepts": [
+    "truthiness"
+   ],
+   "tags": [
+    "truthiness"
+   ],
+   "explain": "Emptiness decides falsiness, not what a value contains. The string \"0\" is one character long and the list `[0]` holds one item, so both are truthy however zero-like they look - only the genuinely empty cases flip to False.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-g-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `greet(name)` returning `'Hello, ' + name`, except that when `name` is an empty string it returns `'Hello, stranger'`. Test the string's truthiness rather than comparing it to an empty string literal.",
+   "fn": "greet",
+   "starterCode": "def greet(name):\n    pass\n",
+   "tests": [
+    {
+     "input": "'Mira'",
+     "expected": "Hello, Mira"
+    },
+    {
+     "input": "''",
+     "expected": "Hello, stranger"
+    },
+    {
+     "input": "'B'",
+     "expected": "Hello, B"
+    }
+   ],
+   "solution": "def greet(name):\n    if not name:\n        return 'Hello, stranger'\n    return 'Hello, ' + name\n",
+   "concepts": [
+    "truthiness",
+    "conditionals"
+   ],
+   "tags": [
+    "truthiness",
+    "conditionals"
+   ],
+   "explain": "`if not name` reads as 'if there is no name' and handles the empty case without a second comparison. Dealing with the exceptional case first and returning early also keeps the ordinary path unindented, which is how most Python guard clauses are written.",
+   "hint": "An empty string is falsy, so `not name` is already the test you need.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-2-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which line **asks** whether `x` currently holds 3, rather than making it hold 3?",
+   "choices": [
+    "x = 3",
+    "x == 3",
+    "x =: 3",
+    "x -> 3"
+   ],
+   "answer": 1,
+   "concepts": [
+    "comparisons"
+   ],
+   "tags": [
+    "comparisons"
+   ],
+   "explain": "One repeated character separates storing from asking. Python defends you inside a condition by refusing the single `=`, but on a line of its own each form is legal and only one of them is a question.",
+   "xp": 10
+  },
+  {
+   "id": "py-2-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these values are **falsy** - that is, `bool(value)` is `False`?",
+   "choices": [
+    "0",
+    "''",
+    "[]",
+    "'0'",
+    "-1"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "truthiness"
+   ],
+   "tags": [
+    "truthiness"
+   ],
+   "explain": "Falsiness means empty or zero, nothing more. `'0'` is a string with a character in it and `-1` is a number that is not zero, so both count as true in a condition however small or negative they look.",
+   "xp": 10
+  },
+  {
+   "id": "py-2-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "balance = 120\nis_member = True\n\nif balance > 100:\n    if is_member:\n        print(\"gold\")\n    else:\n        print(\"silver\")\nelse:\n    print(\"basic\")",
+   "lang": "python",
+   "answer": "gold",
+   "concepts": [
+    "conditionals"
+   ],
+   "tags": [
+    "conditionals"
+   ],
+   "explain": "The inner if is only reached because the outer one was true, so the else beside it means 'over 100 but not a member' rather than 'not over 100'. Indentation is the only signal of which else answers which if.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `in_range(n)` is True only for values from 1 to 9 inclusive, and `outside(n)` is its exact opposite.",
+   "template": "def in_range(n):\n    return n >= 1 ___ n <= 9\n\ndef outside(n):\n    return ___ in_range(n)",
+   "blanks": [
+    "and",
+    "not"
+   ],
+   "lang": "python",
+   "concepts": [
+    "boolean-logic"
+   ],
+   "tags": [
+    "boolean-logic"
+   ],
+   "explain": "Both bounds have to hold at once, which is `and`; the opposite of a whole condition is `not` wrapped around it. Flipping each half separately is the classic mistake - the true opposite of 'at least 1 and at most 9' is 'below 1 **or** above 9'.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "With `x = 0` and `y = 4`, evaluate `not x and y > 3` one piece at a time. Give the value at each step.",
+   "code": "x = 0\ny = 4\nresult = not x and y > 3",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "bool(x)",
+     "expected": "False"
+    },
+    {
+     "label": "not x",
+     "expected": "True"
+    },
+    {
+     "label": "y > 3",
+     "expected": "True"
+    },
+    {
+     "label": "result",
+     "expected": "True"
+    }
+   ],
+   "concepts": [
+    "boolean-logic",
+    "truthiness"
+   ],
+   "tags": [
+    "boolean-logic",
+    "truthiness"
+   ],
+   "explain": "`not` binds tighter than `and`, so the expression is really `(not x) and (y > 3)`. Applying `not` to a plain number sends it through truthiness first, which is how a zero ends up producing True.",
+   "xp": 40
+  },
+  {
+   "id": "py-2-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A login check is written `if username and password:`. A user types a name but leaves the password box blank, so `password` is the empty string. Explain what the condition evaluates to and why, and say whether `password` is ever compared against anything.",
+   "rubric": {
+    "required": [
+     "empty",
+     "false"
+    ],
+    "optional": [
+     "falsy",
+     "truthy",
+     "short",
+     "skip",
+     "compare"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "truthiness",
+    "boolean-logic"
+   ],
+   "tags": [
+    "truthiness",
+    "boolean-logic"
+   ],
+   "explain": "An empty string is falsy, so `and` finds a false operand and the whole condition is False without a single `==` being written or run. The value is judged on its own emptiness, which is what lets this one-line idiom reject a blank field for free.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-e-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `letter_grade(score)` returning 'A' for 90 and above, 'B' for 80 to 89, 'C' for 70 to 79, and 'F' for anything below 70.",
+   "fn": "letter_grade",
+   "starterCode": "def letter_grade(score):\n    pass\n",
+   "tests": [
+    {
+     "input": "95",
+     "expected": "A"
+    },
+    {
+     "input": "90",
+     "expected": "A"
+    },
+    {
+     "input": "83",
+     "expected": "B"
+    },
+    {
+     "input": "70",
+     "expected": "C"
+    },
+    {
+     "input": "69",
+     "expected": "F"
+    },
+    {
+     "input": "0",
+     "expected": "F"
+    }
+   ],
+   "solution": "def letter_grade(score):\n    if score >= 90:\n        return 'A'\n    elif score >= 80:\n        return 'B'\n    elif score >= 70:\n        return 'C'\n    return 'F'\n",
+   "concepts": [
+    "conditionals",
+    "comparisons"
+   ],
+   "tags": [
+    "conditionals",
+    "comparisons"
+   ],
+   "explain": "Ordering the chain from the highest bound downwards means each elif already knows the earlier tests failed, so you never have to write `score >= 80 and score < 90`. Reverse the order and every passing score would come out as the loosest grade that matched it.",
+   "hint": "Start with the highest band and let each elif inherit what the tests above it ruled out.",
+   "xp": 50
+  },
+  {
+   "id": "py-2-e-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`band(150)` should be 'huge' but returns 'positive' instead - one branch can never run at all. Fix it so 'huge' is returned above 100, 'positive' for 1 to 100, and 'non-positive' for zero and below.",
+   "fn": "band",
+   "starterCode": "def band(n):\n    if n > 0:\n        return 'positive'\n    elif n > 100:\n        return 'huge'\n    return 'non-positive'\n",
+   "tests": [
+    {
+     "input": "150",
+     "expected": "huge"
+    },
+    {
+     "input": "5",
+     "expected": "positive"
+    },
+    {
+     "input": "0",
+     "expected": "non-positive"
+    },
+    {
+     "input": "-2",
+     "expected": "non-positive"
+    },
+    {
+     "input": "101",
+     "expected": "huge"
+    }
+   ],
+   "solution": "def band(n):\n    if n > 100:\n        return 'huge'\n    elif n > 0:\n        return 'positive'\n    return 'non-positive'\n",
+   "concepts": [
+    "conditionals",
+    "comparisons"
+   ],
+   "tags": [
+    "conditionals",
+    "comparisons"
+   ],
+   "explain": "Every number over 100 is also over 0, so the wider test placed first consumes the narrower one and leaves it as dead code. In an if/elif chain the more specific condition has to come first, because only the first true branch ever runs.",
+   "hint": "Ask which of the two conditions is true for more values, then put the other one first.",
+   "xp": 50
+  },
+  {
+   "id": "py-2-e-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "name = \"\"\nprint(name or \"anonymous\")\nprint(0 or 5)\nprint(1 and 0)\nprint(bool(name))",
+   "lang": "python",
+   "answer": "anonymous\n5\n0\nFalse",
+   "concepts": [
+    "truthiness",
+    "boolean-logic"
+   ],
+   "tags": [
+    "truthiness",
+    "boolean-logic"
+   ],
+   "explain": "`or` hands back the first truthy operand and `and` the first falsy one - they return an operand, not a bool, and only the last line forces one. That is what makes `name or \"anonymous\"` a default-value idiom rather than a comparison.",
+   "xp": 20
+  },
+  {
+   "id": "py-2-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "A reactor is balanced in criticality when **all three** hold: the temperature is below 800, the neutrons emitted per second are above 500, and temperature times neutrons is below 500000. Write `is_criticality_balanced(temperature, neutrons_emitted)` returning `True` when it is balanced and `False` when it is not.",
+   "fn": "is_criticality_balanced",
+   "starterCode": "def is_criticality_balanced(temperature, neutrons_emitted):\n    pass\n",
+   "tests": [
+    {
+     "input": "750, 600",
+     "expected": true
+    },
+    {
+     "input": "800, 600",
+     "expected": false
+    },
+    {
+     "input": "750, 500",
+     "expected": false
+    },
+    {
+     "input": "1000, 800",
+     "expected": false
+    },
+    {
+     "input": "500, 600",
+     "expected": true
+    }
+   ],
+   "solution": "def is_criticality_balanced(temperature, neutrons_emitted):\n    return (temperature < 800 and neutrons_emitted > 500\n            and temperature * neutrons_emitted < 500000)\n",
+   "concepts": [
+    "boolean-logic",
+    "comparisons"
+   ],
+   "tags": [
+    "boolean-logic",
+    "comparisons"
+   ],
+   "explain": "Chained `and`s read as a checklist where every item has to pass, and the two boundary cases show why the strict operators were the right choice: 800 exactly is not below 800, and 500 exactly is not above 500. Short-circuiting also means the multiplication is skipped entirely once an earlier check has failed.",
+   "hint": "Three conditions joined by and, returned directly.",
+   "xp": 50,
+   "source": "exercism/python meltdown-mitigation"
+  },
+  {
+   "id": "py-2-e-11",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `ticket_price(age, is_member)`. Anyone under 5 gets in free and pays `0`. Anyone aged 65 or over pays `5`, member or not - so a 70-year-old member pays `5`, not `8`. Any other member pays `8`, and everybody else pays `12`.",
+   "fn": "ticket_price",
+   "starterCode": "def ticket_price(age, is_member):\n    pass\n",
+   "tests": [
+    {
+     "input": "3, False",
+     "expected": 0
+    },
+    {
+     "input": "70, True",
+     "expected": 5
+    },
+    {
+     "input": "30, True",
+     "expected": 8
+    },
+    {
+     "input": "30, False",
+     "expected": 12
+    },
+    {
+     "input": "5, False",
+     "expected": 12
+    },
+    {
+     "input": "65, False",
+     "expected": 5
+    },
+    {
+     "input": "4, True",
+     "expected": 0
+    }
+   ],
+   "solution": "def ticket_price(age, is_member):\n    if age < 5:\n        return 0\n    if age >= 65:\n        return 5\n    if is_member:\n        return 8\n    return 12\n",
+   "concepts": [
+    "conditionals",
+    "comparisons",
+    "boolean-logic",
+    "truthiness"
+   ],
+   "tags": [
+    "conditionals",
+    "comparisons",
+    "boolean-logic",
+    "truthiness"
+   ],
+   "explain": "Writing each rule as its own early return makes the order of the branches the priority order, so no condition has to repeat what an earlier one already ruled out - the membership test never needs to add 'and not a pensioner'. `if is_member` is a truthiness test on a bool, so `== True` would add characters and nothing else.",
+   "hint": "Handle the two age rules first, in the order the prompt states them, then the membership rule.",
+   "xp": 50
+  }
+ ]
+}

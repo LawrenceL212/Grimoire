@@ -1604,8 +1604,10 @@ const editorBlock = (id, code, lang, opts = {}) => {
 
 const codeLike = (allowStarter) => ({
   render(ch, id, ctx) {
-    const design = ctx.level === "design" || ctx.level === "boss" || ch.type === "design";
-    const starter = design && !allowStarter ? "" : (ch.starterCode ?? "");
+    // A design or boss floor gives nothing to start from, whatever the type.
+    // Elsewhere, design and project types still start empty by definition.
+    const bare = ctx.level === "design" || ctx.level === "boss" || !allowStarter;
+    const starter = bare ? "" : (ch.starterCode ?? "");
     return editorBlock(id, starter, ch.lang || ctx.dungeon.lang) +
       (ch.type === "html-preview" ? `<div class="preview-mount" data-preview="${id}"></div>` : "");
   },

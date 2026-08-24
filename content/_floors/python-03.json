@@ -1,0 +1,906 @@
+{
+ "n": 3,
+ "name": "The Rune-Carver's Bench",
+ "concepts": [
+  "strings",
+  "string-methods",
+  "functions"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "challenge-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Runes You Can Read, Spells You Can Name",
+  "sections": [
+   {
+    "title": "A String Is a Sequence",
+    "body": "A **string** is a sequence of characters, and every character sits at a numbered position called an **index**. Counting starts at `0` from the left, and negative numbers count from the right, so `s[-1]` is always the last character.\n\nA **slice** `s[a:b]` builds a new string from index `a` up to but not including `b`; leave a side empty to mean \"from the start\" or \"to the end\". `len(s)` gives you how many characters there are, so the last valid index is always `len(s) - 1`.\n\nOne asymmetry is worth memorising now: indexing past the end raises an `IndexError`, but slicing past the end simply gives you whatever it can - which is why `s[-1:]` is safe even when `s` is empty.",
+    "code": "spell = \"fireball\"\nprint(spell[0])\nprint(spell[-1])\nprint(spell[0:4])\nprint(spell[4:])\nprint(len(spell))\nprint(spell[100:200] == \"\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "-1 is the last character; you never have to compute len(spell) - 1."
+     },
+     {
+      "line": 4,
+      "text": "Stops before index 4, so this is 'fire' - four characters, not five."
+     },
+     {
+      "line": 5,
+      "text": "An empty end means 'run to the end of the string'."
+     },
+     {
+      "line": 7,
+      "text": "A slice that is entirely out of range returns '' instead of raising."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "word = \"grimoire\"\nprint(word[1])\nprint(word[-3])\nprint(word[2:5])",
+     "lang": "python",
+     "answer": "r\ni\nimo",
+     "concepts": [
+      "strings"
+     ],
+     "explain": "Index 1 is the second character because counting starts at zero, and -3 counts back from the end without needing len(). The slice stops before index 5, so it yields three characters, not four."
+    }
+   },
+   {
+    "title": "Methods Hand Back New Strings",
+    "body": "Strings are **immutable**: nothing can change the characters inside an existing string. So `upper()`, `lower()`, `strip()` and `replace(old, new)` never edit in place - each one builds and returns a **new** string and leaves the original exactly as it was.\n\nThat is why a method call on its own line accomplishes nothing: the new string is created and immediately thrown away. You must store the result, return it, or print it.\n\nYou can also interrogate a string. `\"fire\" in spell` is a `bool` saying whether that substring appears anywhere, and `spell.find(\"ball\")` gives the index where it starts - or `-1` when it is absent, rather than an error.",
+    "code": "name = \"  Mira  \"\nprint(name.strip().upper())\nprint(name)\nprint(\"mira\".replace(\"i\", \"y\"))\nprint(\"fire\" in \"fireball\")\nprint(\"fireball\".find(\"ball\"))\nprint(\"fireball\".find(\"ice\"))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Methods chain left to right: strip() first, then upper() on its result."
+     },
+     {
+      "line": 3,
+      "text": "The original still has its spaces and its lowercase letters. Nothing was modified."
+     },
+     {
+      "line": 7,
+      "text": "find returns -1 for 'not here' - it never raises, so you must check for it."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this prints `HELLO` with no surrounding spaces.",
+     "template": "greeting = '  hello  '\nprint(greeting.___().___())",
+     "blanks": [
+      "strip",
+      "upper"
+     ],
+     "lang": "python",
+     "concepts": [
+      "string-methods"
+     ],
+     "explain": "Each call is applied to the string the previous one returned, so the order in the chain is the order the work happens in. Reversing them would still work here, but only because uppercasing leaves spaces alone."
+    }
+   },
+   {
+    "title": "Splitting Apart and Joining Back",
+    "body": "`split()` cuts a string into a **list** of pieces. With no argument it splits on runs of whitespace and discards the empty pieces, which makes it the tidy way to get the words out of a messy line. Give it a separator, as in `\"a,b\".split(\",\")`, and it cuts on exactly that instead - keeping empty pieces where two separators touch.\n\nA list is indexed with the same square brackets a string is, so `parts[0]` is the first piece and `parts[-1]` the last, and `len(parts)` counts them.\n\nGoing the other way, `sep.join(pieces)` glues the pieces into one string with `sep` between each pair. Note which side is which: the separator is the string you call `.join` on, and the pieces are the argument.",
+    "code": "line = \"  fire   ice  wind \"\nparts = line.split()\nprint(parts)\nprint(len(parts))\nprint(parts[0])\nprint(\"-\".join(parts))\nprint(\"a,b,,c\".split(\",\"))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "No argument: split on any run of spaces and drop the empty pieces."
+     },
+     {
+      "line": 6,
+      "text": "'-' is the glue, parts is what gets glued. Separators only go between."
+     },
+     {
+      "line": 7,
+      "text": "With an explicit separator, the empty piece between the two commas is kept."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `count_words(text)` returning how many whitespace-separated words `text` contains.",
+     "fn": "count_words",
+     "starterCode": "def count_words(text):\n    pass\n",
+     "tests": [
+      {
+       "input": "'one two three'",
+       "expected": 3
+      },
+      {
+       "input": "'  spaced   out  '",
+       "expected": 2
+      },
+      {
+       "input": "''",
+       "expected": 0
+      }
+     ],
+     "solution": "def count_words(text):\n    return len(text.split())\n",
+     "concepts": [
+      "string-methods"
+     ],
+     "explain": "Splitting with no argument collapses runs of whitespace and drops the empty pieces, so the messy and the empty cases both fall out for free - no counting of spaces required."
+    }
+   },
+   {
+    "title": "def, return, and the print Trap",
+    "body": "A **function** packages work under a name. `def` names it, the parentheses list its **parameters**, and the indented block below is its body; calling it runs that body with your arguments bound to those parameter names.\n\n`return` hands a value back to whoever called the function and ends the call there and then. `print` does something quite different: it writes text to the screen and hands nothing back.\n\nA function that never reaches a `return` hands back `None`. That is the single most common beginner bug - the output looks right on screen, but the value you captured is `None` and blows up the moment you use it.",
+    "code": "def shout(text):\n    return text.upper() + \"!\"\n\ndef show(text):\n    print(text.upper() + \"!\")\n\nloud = shout(\"hello\")\nprint(loud + \" \" + loud)\ngot = show(\"hello\")\nprint(got)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "return produces a value for the caller - nothing is displayed yet."
+     },
+     {
+      "line": 5,
+      "text": "print displays a value and returns nothing at all."
+     },
+     {
+      "line": 8,
+      "text": "Because shout returned a string, it can be used in an expression."
+     },
+     {
+      "line": 10,
+      "text": "show only printed; its call evaluated to None, and that is what got holds."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `initial(name)` returning the first character of `name` in uppercase. Assume `name` is not empty.",
+     "fn": "initial",
+     "starterCode": "def initial(name):\n    pass\n",
+     "tests": [
+      {
+       "input": "'mira'",
+       "expected": "M"
+      },
+      {
+       "input": "'Zed'",
+       "expected": "Z"
+      },
+      {
+       "input": "'a'",
+       "expected": "A"
+      }
+     ],
+     "solution": "def initial(name):\n    return name[0].upper()\n",
+     "concepts": [
+      "functions"
+     ],
+     "explain": "Indexing gives a one-character string, and upper() works on it like any other string. Printing it here would satisfy your eyes and fail every test, because the caller receives None."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-3-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "spell = \"ember\"\nprint(spell[0])\nprint(spell[-1])",
+   "lang": "python",
+   "answer": "e\nr",
+   "concepts": [
+    "strings"
+   ],
+   "tags": [
+    "strings"
+   ],
+   "explain": "Index 0 is the first character, not the second - counting starts at zero. The -1 index saves you from writing spell[len(spell) - 1] every time you want the end.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `fire-bolt`.",
+   "template": "name = 'Fire Bolt'\nprint(name.___().___(' ', '-'))",
+   "blanks": [
+    "lower",
+    "replace"
+   ],
+   "lang": "python",
+   "concepts": [
+    "string-methods"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "replace takes the old text first and the new text second, and it operates on whatever the previous call in the chain returned - so lowercasing before replacing means the replace only has to deal with one case of letters.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `add_prefix_un(word)` that returns `word` with `un` stuck on the front. `add_prefix_un('happy')` returns `'unhappy'`.",
+   "fn": "add_prefix_un",
+   "starterCode": "def add_prefix_un(word):\n    pass\n",
+   "tests": [
+    {
+     "input": "'happy'",
+     "expected": "unhappy"
+    },
+    {
+     "input": "'manageable'",
+     "expected": "unmanageable"
+    },
+    {
+     "input": "''",
+     "expected": "un"
+    }
+   ],
+   "solution": "def add_prefix_un(word):\n    return 'un' + word\n",
+   "hint": "`+` joins two strings; the prefix goes on the left.",
+   "concepts": [
+    "strings",
+    "functions"
+   ],
+   "tags": [
+    "strings",
+    "functions"
+   ],
+   "explain": "Concatenation builds a brand new string rather than pushing characters into the old one - which is exactly why the empty-string case needs no special branch and simply produces the prefix alone.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "name = \"mira\"\nname.upper()\nprint(name)\nprint(name.upper())",
+   "lang": "python",
+   "answer": "mira\nMIRA",
+   "concepts": [
+    "strings",
+    "string-methods"
+   ],
+   "tags": [
+    "strings",
+    "string-methods"
+   ],
+   "explain": "The second line does real work and then discards it: the new uppercase string is never stored anywhere. Nothing a string method does can ever reach back and alter the string it was called on.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `first_and_last(word)` returning a two-character string made of the first and last characters of `word`. Assume `word` is not empty, so `first_and_last('a')` returns `'aa'`.",
+   "fn": "first_and_last",
+   "starterCode": "def first_and_last(word):\n    pass\n",
+   "tests": [
+    {
+     "input": "'python'",
+     "expected": "pn"
+    },
+    {
+     "input": "'hi'",
+     "expected": "hi"
+    },
+    {
+     "input": "'a'",
+     "expected": "aa"
+    }
+   ],
+   "solution": "def first_and_last(word):\n    return word[0] + word[-1]\n",
+   "hint": "Two indexes joined with +. What is the index of the last character?",
+   "concepts": [
+    "strings",
+    "functions"
+   ],
+   "tags": [
+    "strings",
+    "functions"
+   ],
+   "explain": "For a one-character word the two indexes 0 and -1 land on the same character, which is why 'a' doubles rather than failing. Reaching for len(word) - 1 works too but is longer and easier to get wrong by one.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-g-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`double_word` is supposed to hand back the word written twice so the caller can use it, but every test reports `None`. Fix it.",
+   "fn": "double_word",
+   "starterCode": "def double_word(word):\n    print(word + word)\n",
+   "tests": [
+    {
+     "input": "'ha'",
+     "expected": "haha"
+    },
+    {
+     "input": "'x'",
+     "expected": "xx"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    }
+   ],
+   "solution": "def double_word(word):\n    return word + word\n",
+   "hint": "The function shows the answer but never gives it back.",
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "Printing satisfies a human reader; returning satisfies the program. A function that falls off the end without a return evaluates to None, and None is what the test harness compared against your expected string.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-g-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that defines `tidy` and then prints `OK`.",
+   "fragments": [
+    "    return trimmed.upper()",
+    "def tidy(text):",
+    "    trimmed = text.strip()",
+    "print(tidy('  ok  '))"
+   ],
+   "answer": [
+    1,
+    2,
+    0,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "functions",
+    "string-methods"
+   ],
+   "tags": [
+    "functions",
+    "string-methods"
+   ],
+   "explain": "The header comes first, the body is indented under it, and the return has to come after the variable it uses exists. The call sits at the left margin because it is not part of the function - and it must follow the def, since Python runs top to bottom.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-g-08",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "A line reading just `name.strip()` sits in the middle of a program, and afterwards `name` still has its spaces. State the rule that explains this.",
+   "rubric": {
+    "required": [
+     "immutab",
+     "new",
+     "return"
+    ],
+    "optional": [
+     "assign",
+     "store",
+     "original",
+     "discard",
+     "copy"
+    ],
+    "forbidden": [],
+    "minWords": 20
+   },
+   "concepts": [
+    "strings",
+    "string-methods"
+   ],
+   "tags": [
+    "strings",
+    "string-methods"
+   ],
+   "explain": "The stripped string really was built - it just had nowhere to live, so it was discarded on the spot. Once you internalise that every string method is a factory rather than an editor, a whole family of silent bugs disappears.",
+   "xp": 20
+  }
+ ],
+ "challenge-set": [
+  {
+   "id": "py-3-c-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `replace_word_choice(sentence, old_word, new_word)` returning `sentence` with every occurrence of `old_word` swapped for `new_word`. If `old_word` never appears, return the sentence unchanged.",
+   "fn": "replace_word_choice",
+   "starterCode": "def replace_word_choice(sentence, old_word, new_word):\n    pass\n",
+   "tests": [
+    {
+     "input": "'I bake good cakes.', 'good', 'amazing'",
+     "expected": "I bake amazing cakes."
+    },
+    {
+     "input": "'good good', 'good', 'great'",
+     "expected": "great great"
+    },
+    {
+     "input": "'nothing to see', 'zzz', 'x'",
+     "expected": "nothing to see"
+    }
+   ],
+   "solution": "def replace_word_choice(sentence, old_word, new_word):\n    return sentence.replace(old_word, new_word)\n",
+   "hint": "One method does the whole job, and it replaces every occurrence by default.",
+   "concepts": [
+    "string-methods",
+    "functions"
+   ],
+   "tags": [
+    "string-methods",
+    "functions"
+   ],
+   "explain": "replace handles all occurrences, not just the first, and quietly returns an identical copy when there is no match - so the 'not found' case needs no guard. It matches raw substrings, not whole words, which is worth remembering before you replace 'cat' inside 'category'.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-c-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `remove_suffix_ness(word)` that strips the four-letter suffix `ness`. English spelling turned a final `y` into `i`, so restore it: `'heaviness'` becomes `'heavy'` while `'sadness'` becomes `'sad'`.",
+   "fn": "remove_suffix_ness",
+   "starterCode": "def remove_suffix_ness(word):\n    root = word[:-4]\n    return root\n",
+   "tests": [
+    {
+     "input": "'heaviness'",
+     "expected": "heavy"
+    },
+    {
+     "input": "'sadness'",
+     "expected": "sad"
+    },
+    {
+     "input": "'happiness'",
+     "expected": "happy"
+    },
+    {
+     "input": "'ness'",
+     "expected": ""
+    }
+   ],
+   "solution": "def remove_suffix_ness(word):\n    root = word[:-4]\n    if root[-1:] == 'i':\n        return root[:-1] + 'y'\n    return root\n",
+   "hint": "word[:-4] drops the last four characters. Then look at what the new last character is.",
+   "concepts": [
+    "strings",
+    "string-methods",
+    "functions"
+   ],
+   "tags": [
+    "strings",
+    "string-methods",
+    "functions"
+   ],
+   "explain": "A negative end index counts from the right, so word[:-4] means 'everything except the last four'. Testing root[-1:] rather than root[-1] is what keeps the bare 'ness' case from raising an IndexError - a one-character slice of an empty string is just an empty string.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-c-03",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`domain(email)` must return the part after the `@`, and an empty string when there is no `@` at all. It currently keeps the `@`, and returns the whole address when the `@` is missing. Fix both faults.",
+   "fn": "domain",
+   "starterCode": "def domain(email):\n    at = email.find(\"@\")\n    return email[at:]\n",
+   "tests": [
+    {
+     "input": "'mira@grim.io'",
+     "expected": "grim.io"
+    },
+    {
+     "input": "'a@b'",
+     "expected": "b"
+    },
+    {
+     "input": "'noatsign'",
+     "expected": ""
+    },
+    {
+     "input": "'x@'",
+     "expected": ""
+    }
+   ],
+   "solution": "def domain(email):\n    at = email.find(\"@\")\n    if at == -1:\n        return \"\"\n    return email[at + 1:]\n",
+   "hint": "find returns -1 when the substring is absent, and -1 is a perfectly valid index.",
+   "concepts": [
+    "string-methods",
+    "strings",
+    "functions"
+   ],
+   "tags": [
+    "string-methods",
+    "strings",
+    "functions"
+   ],
+   "explain": "The two faults share one root: a slice that starts at the found index includes the separator, and the sentinel -1 is not an error value to Python - it is the last character, so the slice silently returns everything. Checking for -1 before slicing is the habit that makes find safe.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-c-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value bound to each name after its line runs. Write strings without quotes; write the list exactly as Python would display it.",
+   "code": "raw = \"  Fire Bolt  \"\na = raw.strip()\nb = a.lower()\nc = b.split()\nd = \"-\".join(c)",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "a (no quotes)",
+     "expected": "Fire Bolt"
+    },
+    {
+     "label": "b (no quotes)",
+     "expected": "fire bolt"
+    },
+    {
+     "label": "c (as Python displays it)",
+     "expected": "['fire', 'bolt']"
+    },
+    {
+     "label": "d (no quotes)",
+     "expected": "fire-bolt"
+    }
+   ],
+   "concepts": [
+    "string-methods",
+    "strings"
+   ],
+   "tags": [
+    "string-methods",
+    "strings"
+   ],
+   "explain": "Every line consumes the previous value and produces a fresh one, and the type changes halfway through: split turns one string into a list of them, join turns a list back into one string. Naming each intermediate is how you catch a chain that silently lost a piece.",
+   "xp": 40
+  },
+  {
+   "id": "py-3-c-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "This code crashes on the last line with `TypeError: can only concatenate str (not \"NoneType\") to str`. Explain what `tidy` actually gives back and what one change fixes it.",
+   "code": "def tidy(text):\n    print(text.strip())\n\nlabel = \"[\" + tidy(\"  ok  \") + \"]\"",
+   "lang": "python",
+   "rubric": {
+    "required": [
+     "return",
+     "print",
+     "none"
+    ],
+    "optional": [
+     "value",
+     "caller",
+     "screen",
+     "expression",
+     "hand"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "The stripped text was displayed and then dropped; the call itself evaluated to None, and None cannot be concatenated with a string. The reason the error is confusing is that the correct text appeared on screen a moment earlier - proof that printing and returning are different acts.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-c-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Vocabulary drill: `make_word_groups(text)` takes a string whose first word is a prefix, and returns the prefix followed by each remaining word with the prefix applied, separated by ` :: `. `make_word_groups('en close joy lighten')` returns `'en :: enclose :: enjoy :: enlighten'`. Do it without a loop.",
+   "fn": "make_word_groups",
+   "starterCode": "def make_word_groups(text):\n    words = text.split()\n    pass\n",
+   "tests": [
+    {
+     "input": "'en close joy lighten'",
+     "expected": "en :: enclose :: enjoy :: enlighten"
+    },
+    {
+     "input": "'pre serve dispose'",
+     "expected": "pre :: preserve :: predispose"
+    },
+    {
+     "input": "'auto'",
+     "expected": "auto"
+    }
+   ],
+   "solution": "def make_word_groups(text):\n    words = text.split()\n    prefix = words[0]\n    return (' :: ' + prefix).join(words)\n",
+   "hint": "The separator can be more than punctuation. What if the glue itself carried the prefix?",
+   "concepts": [
+    "string-methods",
+    "functions"
+   ],
+   "tags": [
+    "string-methods",
+    "functions"
+   ],
+   "explain": "The trick is realising the separator is just a string you get to build: making the glue ' :: ' + prefix applies the prefix to every word after the first, because join only inserts between pieces. That is also why a single word comes back untouched - there is no gap to fill.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-3-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `\"fireball\".find(\"ice\")` evaluate to?",
+   "choices": [
+    "0",
+    "-1",
+    "None",
+    "it raises a ValueError"
+   ],
+   "answer": 1,
+   "concepts": [
+    "string-methods"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "find reports absence with the sentinel -1 rather than raising, which is convenient until you forget to check it: -1 is also a legal index, so the mistake shows up as wrong data instead of a crash.",
+   "xp": 10
+  },
+  {
+   "id": "py-3-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these expressions evaluate to `True`?",
+   "choices": [
+    "'fire' in 'fireball'",
+    "'ball' in 'fireball'",
+    "'Fire' in 'fireball'",
+    "'fireball'.find('fire') == 0"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "strings",
+    "string-methods"
+   ],
+   "tags": [
+    "strings",
+    "string-methods"
+   ],
+   "explain": "`in` finds a substring anywhere, not just at the start, so both halves match. It is case-sensitive, which is why the capitalised one fails - lowercase both sides first when you want a case-blind search.",
+   "xp": 10
+  },
+  {
+   "id": "py-3-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "s = \"grimoire\"\nprint(s[:3])\nprint(s[-4:])\nprint(s[3:3] == \"\")\nprint(len(s[2:5]))",
+   "lang": "python",
+   "answer": "gri\noire\nTrue\n3",
+   "concepts": [
+    "strings"
+   ],
+   "tags": [
+    "strings"
+   ],
+   "explain": "An empty start or end means 'from the beginning' or 'to the end'. A slice whose bounds are equal spans nothing at all, and the length of any slice s[a:b] within range is simply b - a.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `a-b-c`.",
+   "template": "text = 'a b c'\nprint('-'.___(text.___()))",
+   "blanks": [
+    "join",
+    "split"
+   ],
+   "lang": "python",
+   "concepts": [
+    "string-methods"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "The separator is the string you call join on, and the pieces are its argument - the reverse of what most people guess. split runs first because join needs the list of pieces before it can glue anything.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-e-05",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "In two or three sentences, state the difference between `return` and `print` inside a function, and say what a function without a `return` gives back.",
+   "rubric": {
+    "required": [
+     "return",
+     "print",
+     "none"
+    ],
+    "optional": [
+     "value",
+     "caller",
+     "screen",
+     "display",
+     "expression"
+    ],
+    "forbidden": [],
+    "minWords": 20
+   },
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "One communicates with the program, the other with the person watching. Getting this backwards produces code that looks correct while every value it hands on is None - and None only fails later, far from the function that caused it.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-e-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `check_sentence_ending(sentence)` returning `True` when `sentence` ends with a full stop `.` and `False` otherwise. An empty sentence is `False`.",
+   "fn": "check_sentence_ending",
+   "starterCode": "def check_sentence_ending(sentence):\n    pass\n",
+   "tests": [
+    {
+     "input": "'I like to hike, bake, and read.'",
+     "expected": true
+    },
+    {
+     "input": "'no period here'",
+     "expected": false
+    },
+    {
+     "input": "'.'",
+     "expected": true
+    },
+    {
+     "input": "''",
+     "expected": false
+    }
+   ],
+   "solution": "def check_sentence_ending(sentence):\n    return sentence[-1:] == \".\"\n",
+   "hint": "A one-character slice of the end is safe even when there is no end to speak of.",
+   "concepts": [
+    "strings",
+    "functions"
+   ],
+   "tags": [
+    "strings",
+    "functions"
+   ],
+   "explain": "Comparing sentence[-1:] instead of sentence[-1] is what makes the empty case return False rather than raising an IndexError, because slicing out of range is permitted while indexing out of range is not. Returning the comparison directly is better than an if that returns True or False - the comparison is already the bool you want.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-e-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`initials` should turn a full name into uppercase initials with a dot after each, so `'mira vex'` gives `'M.V.'`. It keeps the original letter case. Fix it.",
+   "fn": "initials",
+   "starterCode": "def initials(full_name):\n    parts = full_name.split()\n    return parts[0][0] + \".\" + parts[1][0] + \".\"\n",
+   "tests": [
+    {
+     "input": "'mira vex'",
+     "expected": "M.V."
+    },
+    {
+     "input": "'Zed Kane'",
+     "expected": "Z.K."
+    },
+    {
+     "input": "'  mira   vex  '",
+     "expected": "M.V."
+    },
+    {
+     "input": "'a b'",
+     "expected": "A.B."
+    }
+   ],
+   "solution": "def initials(full_name):\n    parts = full_name.split()\n    return parts[0][0].upper() + \".\" + parts[1][0].upper() + \".\"\n",
+   "hint": "Every other part of the function is already correct - only the letters are wrong.",
+   "concepts": [
+    "string-methods",
+    "strings",
+    "functions"
+   ],
+   "tags": [
+    "string-methods",
+    "strings",
+    "functions"
+   ],
+   "explain": "parts[0][0] is a double index: the first word, then the first character of that word - and a one-character string still has all the string methods. The messy spacing case already passes untouched because split() with no argument collapses runs of whitespace for you.",
+   "xp": 50
+  },
+  {
+   "id": "py-3-e-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these lines into a program that defines `last_word` and prints the last word of a sentence.",
+   "fragments": [
+    "print(last_word('fire and ice'))",
+    "def last_word(sentence):",
+    "    return words[-1]",
+    "    words = sentence.split()"
+   ],
+   "answer": [
+    1,
+    3,
+    2,
+    0
+   ],
+   "lang": "python",
+   "concepts": [
+    "string-methods",
+    "functions"
+   ],
+   "tags": [
+    "string-methods",
+    "functions"
+   ],
+   "explain": "A name has to exist before it is used, so the split must run before the return - and nothing after a return in the same block would ever execute anyway. The call is unindented because it belongs to the program, not the function.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-e-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "def tag(word):\n    print(\"<\" + word + \">\")\n\nresult = tag(\"fire\")\nprint(result)",
+   "lang": "python",
+   "answer": "<fire>\nNone",
+   "concepts": [
+    "functions"
+   ],
+   "tags": [
+    "functions"
+   ],
+   "explain": "Two lines appear even though only one print is inside the function: the second comes from printing what the call produced. Reaching the end of a body without a return is not an error, it just yields None.",
+   "xp": 20
+  },
+  {
+   "id": "py-3-e-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `slugify(title)` that turns a title into a URL slug: trim the outer whitespace, drop one trailing full stop `.` if there is one, lowercase everything, and join the words with single `-` characters. `slugify('  Fire   Bolt. ')` returns `'fire-bolt'`, and an empty title returns an empty string.",
+   "fn": "slugify",
+   "starterCode": "def slugify(title):\n    pass\n",
+   "tests": [
+    {
+     "input": "'  Fire   Bolt. '",
+     "expected": "fire-bolt"
+    },
+    {
+     "input": "'Python'",
+     "expected": "python"
+    },
+    {
+     "input": "'THE Bound SIGIL.'",
+     "expected": "the-bound-sigil"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    }
+   ],
+   "solution": "def slugify(title):\n    text = title.strip()\n    if text[-1:] == '.':\n        text = text[:-1]\n    return '-'.join(text.lower().split())\n",
+   "hint": "Deal with the full stop while the string is still one piece, then let split and join handle the spacing.",
+   "concepts": [
+    "strings",
+    "string-methods",
+    "functions"
+   ],
+   "tags": [
+    "strings",
+    "string-methods",
+    "functions"
+   ],
+   "explain": "Order is the whole design here: the full stop has to go before you split, or it clings to the last word, and split-then-join beats replacing spaces because it collapses runs of whitespace instead of producing a row of hyphens. The safe slice text[-1:] once again lets the empty title travel the same path as every other input, with no special case.",
+   "xp": 50
+  }
+ ]
+}
