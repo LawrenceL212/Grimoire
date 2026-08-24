@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D0A07">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grimoire">
+<meta name="description" content="GRIMOIRE - a spellbook for mastering computer science.">
+<title>GRIMOIRE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0A07; --surface:#141008; --elev:#1C1610;
+  --gold:#C49A3C; --bronze:#8B6F3E;
+  --text:#F0E6D3; --dim:#9C8B72; --faint:#6B5A45;
+  --ok:#7A9E6E; --warn:#C4783C; --danger:#9E4E3C;
+  --trim:rgba(196,154,60,0.15); --trim2:rgba(196,154,60,0.30);
+  --shadow:0 4px 24px rgba(0,0,0,0.6);
+  --serif:"Playfair Display",Georgia,serif;
+  --sans:"Inter",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --nav-h:64px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--sans);
+  font-size:15px; line-height:1.5; overscroll-behavior-y:none;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(ellipse 120% 80% at 50% -10%, rgba(196,154,60,0.055), transparent 60%);
+  background-attachment:fixed;
+}
+input,select,textarea,button{font-family:inherit;font-size:16px;color:inherit}
+button{cursor:pointer;border:none;background:none}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;margin:0;letter-spacing:0.01em}
+code{font-family:var(--mono);font-size:.88em;background:rgba(196,154,60,.10);border:1px solid rgba(196,154,60,.14);
+  border-radius:3px;padding:1px 5px;color:#E2C888;word-break:break-word}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(196,154,60,0.2);border-radius:3px}
+.hidden{display:none!important}
+
+.screen{display:none;padding:0 16px calc(var(--nav-h) + 34px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto}
+.screen.on{display:block;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.topbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg) 64%,rgba(13,10,7,0));padding:18px 0 12px}
+.topbar h1{font-size:21px;letter-spacing:0.16em;color:var(--gold);text-transform:uppercase}
+.topbar .sub{font-family:var(--serif);font-style:italic;color:var(--faint);font-size:12.5px;margin-top:3px}
+.topbar .row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.rule{height:1px;background:linear-gradient(90deg,transparent,var(--trim2),transparent);margin:18px 0}
+.label{font-family:var(--mono);font-size:10.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--faint)}
+.sectionhead{display:flex;align-items:center;gap:10px;margin:24px 0 12px}
+.sectionhead:after{content:"";flex:1;height:1px;background:var(--trim)}
+
+.card{background:linear-gradient(160deg,var(--surface),#100C06);border:1px solid var(--trim);
+  border-radius:6px;box-shadow:var(--shadow);padding:16px;position:relative}
+.card.elev{background:linear-gradient(160deg,var(--elev),#15100A)}
+.card:before{content:"";position:absolute;inset:3px;border:1px solid rgba(196,154,60,0.07);border-radius:3px;pointer-events:none}
+.card>*{position:relative}
+
+.filters{display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 13px;border-radius:3px;border:1px solid var(--trim);background:var(--surface);
+  color:var(--dim);font-size:12px;font-weight:500;letter-spacing:0.06em;white-space:nowrap;transition:.18s}
+.chip.on{background:rgba(196,154,60,0.13);border-color:var(--trim2);color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+@media(min-width:600px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+.dg{background:linear-gradient(155deg,#181209,#0F0B06);border:1px solid var(--trim);border-left:3px solid var(--bronze);
+  border-radius:4px;padding:13px 12px 12px;text-align:left;box-shadow:var(--shadow);position:relative;
+  transition:.18s;display:flex;flex-direction:column;gap:8px;min-height:132px;width:100%}
+.dg:active{transform:scale(.985)}
+.dg.done{border-left-color:var(--gold)}
+.dg.planned{opacity:.42;border-left-color:#3A2E1E;cursor:not-allowed}
+.dg .dn{font-family:var(--serif);font-size:15.5px;line-height:1.22;padding-right:14px}
+.dg .dc{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.dg .df{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+.dg .lvl{font-family:var(--mono);font-size:10.5px;color:var(--bronze);letter-spacing:.08em}
+.seal{color:var(--gold)}
+.dg .seal{position:absolute;top:11px;right:10px;font-size:14px}
+
+.bar{height:5px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;border:1px solid rgba(0,0,0,.4)}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--gold));border-radius:2px;transition:width .5s ease}
+.bar.tall{height:8px}
+.bar.ok>i{background:linear-gradient(90deg,#5F7D55,var(--ok))}
+
+/* floor rows */
+.floor{display:flex;gap:12px;align-items:center;padding:13px 4px;border-bottom:1px solid rgba(196,154,60,.09);width:100%;text-align:left}
+.floor:last-child{border-bottom:none}
+.floor .fn{flex:0 0 34px;height:34px;border-radius:50%;border:1px solid var(--trim2);display:grid;place-items:center;
+  font-family:var(--mono);font-size:12.5px;color:var(--faint);background:rgba(0,0,0,.3)}
+.floor.done .fn{background:rgba(196,154,60,.15);border-color:var(--gold);color:var(--gold)}
+.floor.active .fn{border-color:var(--warn);color:var(--warn);box-shadow:0 0 0 3px rgba(196,120,60,.08)}
+.floor.locked{opacity:.5}
+.floor .ft{font-family:var(--serif);font-size:15px}
+.floor .fs{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.1em;margin-top:4px}
+.phasedots{display:flex;gap:4px;margin-top:7px}
+.phasedots i{width:22px;height:3px;border-radius:2px;background:rgba(255,255,255,.08)}
+.phasedots i.on{background:var(--gold)}
+
+/* buttons */
+.btn{width:100%;padding:15px;border-radius:4px;background:linear-gradient(180deg,#C49A3C,#A07E2E);color:#1A1206;
+  font-weight:700;font-size:15px;letter-spacing:.09em;text-transform:uppercase;box-shadow:0 3px 14px rgba(196,154,60,.18);transition:.15s}
+.btn:active{transform:translateY(1px);filter:brightness(.94)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.ghost{background:transparent;border:1px solid var(--trim2);color:var(--gold);box-shadow:none;font-weight:600}
+.btn.sm{padding:11px;font-size:12.5px}
+.btn.auto{width:auto;padding:11px 20px}
+.btnrow{display:flex;gap:9px}
+.btnrow .btn{width:auto;flex:1}
+
+/* forms */
+.field{margin-bottom:16px}
+.field>label{display:block;margin-bottom:7px}
+.inp{width:100%;background:#0B0805;border:1px solid var(--trim);border-radius:4px;padding:13px 12px;
+  color:var(--text);outline:none;transition:.18s;font-size:16px}
+.inp:focus{border-color:var(--trim2);background:#0E0A06}
+textarea.inp{min-height:88px;resize:vertical;line-height:1.55}
+.msg{font-size:13px;padding:11px;border-radius:4px;margin-bottom:14px;display:none;line-height:1.45}
+.msg.on{display:block}
+.msg.err{background:rgba(158,78,60,.14);border:1px solid rgba(158,78,60,.4);color:#D9967F}
+.msg.ok{background:rgba(122,158,110,.12);border:1px solid rgba(122,158,110,.35);color:var(--ok)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:rgba(0,0,0,.28);border:1px solid var(--trim);border-radius:4px;padding:12px 8px;text-align:center}
+.stat .v{font-family:var(--serif);font-size:22px;color:var(--gold);line-height:1.1}
+.stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:5px}
+.empty{text-align:center;padding:40px 20px;color:var(--faint);font-family:var(--serif);font-style:italic;line-height:1.6}
+.empty .big{font-size:26px;color:rgba(196,154,60,.32);margin-bottom:10px;font-style:normal}
+
+/* nav */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;background:linear-gradient(180deg,#191309,#0E0A06);
+  border-top:1px solid var(--trim2);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 24px rgba(0,0,0,.6)}
+nav.on{display:flex}
+nav button{flex:1;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--faint);position:relative}
+nav button .ni{font-size:17px;line-height:1}
+nav button .nl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+nav button.on{color:var(--gold)}
+nav button.on:before{content:"";position:absolute;top:0;left:26%;right:26%;height:2px;background:var(--gold);border-radius:0 0 2px 2px}
+
+/* overlays */
+.sheet{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;display:none;-webkit-overflow-scrolling:touch}
+.sheet.on{display:block;animation:up .26s ease}
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.sheet .inner{max-width:760px;margin:0 auto;padding:0 16px 80px}
+.sheetbar{position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 74%,transparent);padding:16px 0 12px;
+  display:flex;align-items:center;gap:12px;z-index:5}
+.back{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.14em;padding:6px 0}
+
+#auth{display:grid;place-items:center;min-height:100vh;min-height:100dvh;padding:24px}
+#auth .box{width:100%;max-width:380px}
+#auth .crest{text-align:center;margin-bottom:26px}
+#auth .crest .mark{font-size:30px;color:var(--gold);letter-spacing:.2em}
+#auth h1{font-size:29px;letter-spacing:.22em;color:var(--gold);margin-top:12px}
+#auth .tag{font-family:var(--serif);font-style:italic;color:var(--faint);font-size:13px;margin-top:9px;line-height:1.6}
+.switch{text-align:center;margin-top:18px;font-size:13px;color:var(--dim)}
+.switch b{color:var(--gold);cursor:pointer}
+.notice{font-size:11px;color:var(--faint);text-align:center;margin-top:22px;line-height:1.7;font-family:var(--mono);letter-spacing:.04em}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(-24px);top:14px;z-index:90;background:var(--elev);
+  border:1px solid var(--trim2);color:var(--text);padding:12px 18px;border-radius:4px;box-shadow:var(--shadow);
+  font-size:13.5px;opacity:0;pointer-events:none;transition:.3s;max-width:90vw;text-align:center;line-height:1.5}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;transition:opacity .4s}
+#splash .m{font-family:var(--serif);font-size:32px;color:var(--gold);letter-spacing:.24em}
+
+/* ============ RUNNER ============ */
+#runner{position:fixed;inset:0;z-index:70;background:var(--bg);display:none;flex-direction:column}
+#runner.on{display:flex}
+.rhead{border-bottom:1px solid var(--trim);background:linear-gradient(180deg,#171106,#0F0B06);flex:0 0 auto}
+.rhead .rtop{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;max-width:760px;margin:0 auto;width:100%}
+.rhead .rtitle{flex:1;min-width:0}
+.rhead .rtitle .rt1{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.rhead .rtitle .rt2{font-family:var(--serif);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.phases{display:flex;max-width:760px;margin:0 auto;width:100%;padding:0 16px 0}
+.phases button{flex:1;padding:11px 4px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px}
+.phases button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.phases button.done{color:var(--ok)}
+.phases button[disabled]{opacity:.4;pointer-events:none}
+.rbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.rbody .inner{max-width:760px;margin:0 auto;padding:18px 16px calc(40px + env(safe-area-inset-bottom))}
+
+.lsec{margin-bottom:26px}
+.lsec h3{font-size:19px;color:var(--text);margin-bottom:9px}
+.lsec .body{color:var(--dim);font-size:14.5px;line-height:1.65}
+.lsec .body p{margin:0 0 11px}
+.lsec .body ul{margin:0 0 11px;padding-left:20px}
+.lsec .body li{margin-bottom:5px}
+.lsec .body strong{color:var(--text);font-weight:600}
+.ann{margin-top:10px;border-left:1px solid var(--trim2);padding-left:12px}
+.ann div{font-size:12.5px;color:var(--faint);line-height:1.5;margin-bottom:5px}
+.ann b{font-family:var(--mono);color:var(--bronze);font-size:11px;font-weight:500;margin-right:6px}
+
+/* editor */
+.ed{border:1px solid var(--trim);border-radius:5px;background:#0A0704;overflow:hidden;margin-top:12px}
+.ed .edbar{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(196,154,60,.05);border-bottom:1px solid var(--trim)}
+.ed .edbar .lang{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);flex:1}
+.ed .edbar button{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);
+  border:1px solid var(--trim2);border-radius:3px;padding:5px 12px;background:rgba(196,154,60,.08)}
+.ed .edbar button[disabled]{opacity:.4;pointer-events:none}
+.ed .edbar button.plain{color:var(--faint);border-color:var(--trim);background:none}
+.edwrap{display:flex;position:relative;max-height:52vh;overflow:auto}
+.gutter{flex:0 0 auto;padding:12px 0 12px 10px;text-align:right;font-family:var(--mono);font-size:12.5px;line-height:1.6;
+  color:#4A3D2C;user-select:none;background:rgba(0,0,0,.25)}
+.gutter span{display:block;padding-right:9px}
+.edta{flex:1;min-width:0;border:none;outline:none;resize:none;background:transparent;color:#E8DCC4;
+  font-family:var(--mono);font-size:12.5px;line-height:1.6;padding:12px 12px 12px 4px;white-space:pre;overflow-x:auto;
+  tab-size:4;-moz-tab-size:4}
+.out{border-top:1px solid var(--trim);background:#070503;padding:10px 12px;font-family:var(--mono);font-size:12px;
+  line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--dim);max-height:36vh;overflow:auto}
+.out .olabel{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.out.err{color:#D9967F}
+.out .run{color:var(--faint);font-style:italic}
+
+/* challenge */
+.prompt{font-size:15px;line-height:1.65;color:var(--text)}
+.prompt p{margin:0 0 10px}
+.prompt code{color:#E2C888}
+.chnav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chnav .d{width:26px;height:26px;border-radius:3px;border:1px solid var(--trim);background:rgba(0,0,0,.3);
+  font-family:var(--mono);font-size:11px;color:var(--faint);display:grid;place-items:center}
+.chnav .d.on{border-color:var(--gold);color:var(--gold);background:rgba(196,154,60,.12)}
+.chnav .d.solved{border-color:rgba(122,158,110,.5);color:var(--ok);background:rgba(122,158,110,.10)}
+.chnav .d.answered{border-color:var(--trim2);color:var(--dim);background:rgba(196,154,60,.06)}
+.kind{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--bronze);border:1px solid var(--trim);border-radius:2px;padding:3px 7px;margin-bottom:10px}
+.tests{margin-top:12px}
+.tres{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--trim);border-radius:4px;
+  margin-bottom:7px;background:rgba(0,0,0,.22);font-size:13px}
+.tres.pass{border-color:rgba(122,158,110,.35);background:rgba(122,158,110,.07)}
+.tres.fail{border-color:rgba(158,78,60,.4);background:rgba(158,78,60,.07)}
+.tres .ti{flex:0 0 16px;font-size:13px}
+.tres.pass .ti{color:var(--ok)} .tres.fail .ti{color:#C9705A}
+.tres .tl{flex:1;min-width:0;font-family:var(--mono);font-size:12px;word-break:break-word;color:var(--dim)}
+.tres.pass .tl{color:var(--text)}
+.diff{margin-top:8px;border:1px solid var(--trim);border-radius:3px;overflow:hidden;font-family:var(--mono);font-size:11.5px}
+.diff .dh{padding:5px 9px;background:rgba(196,154,60,.06);color:var(--faint);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase}
+.diff .dl{padding:3px 9px;white-space:pre-wrap;word-break:break-word;border-top:1px solid rgba(196,154,60,.07)}
+.diff .dl.same{color:var(--faint)}
+.diff .dl.exp{color:var(--ok);background:rgba(122,158,110,.07)}
+.diff .dl.got{color:#D9967F;background:rgba(158,78,60,.08)}
+.choices{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+.choice{text-align:left;padding:13px 14px;border:1px solid var(--trim);border-radius:4px;background:rgba(0,0,0,.24);
+  color:var(--text);font-size:14.5px;display:flex;gap:11px;align-items:flex-start;line-height:1.45}
+.choice .cl{flex:0 0 20px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+.choice.on{border-color:var(--gold);background:rgba(196,154,60,.10)}
+.choice.on .cl{color:var(--gold)}
+.choice.right{border-color:rgba(122,158,110,.5);background:rgba(122,158,110,.10)}
+.choice.wrong{border-color:rgba(158,78,60,.45);background:rgba(158,78,60,.10)}
+.explain{margin-top:12px;padding:11px 13px;border-left:2px solid var(--trim2);background:rgba(196,154,60,.05);
+  font-size:13.5px;color:var(--dim);line-height:1.6}
+.hintbox{margin-top:12px;padding:11px 13px;border-left:2px solid var(--warn);background:rgba(196,120,60,.06);
+  font-size:13.5px;color:var(--dim);line-height:1.6}
+.scorebig{font-family:var(--serif);font-size:52px;line-height:1;color:var(--gold);text-align:center}
+.stickyfoot{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(13,10,7,0),var(--bg) 34%);
+  padding:16px 0 calc(10px + env(safe-area-inset-bottom));margin-top:20px}
+</style>
+</head>
+<body>
+<div id="splash"><div class="m">&#10022;</div></div>
+<div id="toast"></div>
+
+<!-- ============ AUTH ============ -->
+<section id="auth" class="hidden">
+  <div class="box">
+    <div class="crest">
+      <div class="mark">&#10022;</div>
+      <h1>GRIMOIRE</h1>
+      <div class="tag">Every language a spell.<br>Every concept a power.</div>
+    </div>
+    <div class="card">
+      <div id="authMsg" class="msg"></div>
+      <div class="field">
+        <label class="label" id="nameLbl" style="display:none">Caster name</label>
+        <input id="aName" class="inp" type="text" placeholder="Caster name" autocomplete="nickname" style="display:none">
+      </div>
+      <div class="field">
+        <label class="label">Email</label>
+        <input id="aEmail" class="inp" type="email" autocomplete="email" placeholder="scholar@library.edu">
+      </div>
+      <div class="field">
+        <label class="label">Passphrase</label>
+        <input id="aPass" class="inp" type="password" autocomplete="current-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+      </div>
+      <button id="aGo" class="btn">Enter the Library</button>
+      <div class="switch" id="aSwitch">No tome of your own? <b>Inscribe one</b></div>
+    </div>
+    <div class="notice" id="authNotice"></div>
+  </div>
+</section>
+
+<!-- ============ MAP ============ -->
+<section id="s-map" class="screen">
+  <div class="topbar">
+    <div class="row">
+      <div><h1>Library</h1><div class="sub">Choose a dungeon to descend</div></div>
+      <div class="label" id="mapCount"></div>
+    </div>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="dgGrid"></div>
+</section>
+
+<!-- ============ CASTER ============ -->
+<section id="s-caster" class="screen">
+  <div class="topbar"><h1>Caster</h1><div class="sub">Your standing in the order</div></div>
+  <div id="casterBody"></div>
+</section>
+
+<!-- ============ DUNGEON SHEET ============ -->
+<div id="sheet" class="sheet">
+  <div class="inner">
+    <div class="sheetbar"><button class="back" id="sheetBack">&larr; LIBRARY</button></div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<!-- ============ FLOOR RUNNER ============ -->
+<div id="runner">
+  <div class="rhead">
+    <div class="rtop">
+      <button class="back" id="rExit">&larr;</button>
+      <div class="rtitle"><div class="rt1" id="rCrumb"></div><div class="rt2" id="rTitle"></div></div>
+    </div>
+    <div class="phases" id="rPhases"></div>
+  </div>
+  <div class="rbody" id="rBody"><div class="inner" id="rInner"></div></div>
+</div>
+
+<nav id="nav">
+  <button data-s="map"><span class="ni">&#9733;</span><span class="nl">Library</span></button>
+  <button data-s="caster"><span class="ni">&#9670;</span><span class="nl">Caster</span></button>
+</nav>
+
+<!-- ===== worker sources (plain text, never executed on this page) ===== -->
+<script type="text/plain" id="w-python">
+var ready = null;
+function boot(){
+  if (!ready){
+    importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js");
+    ready = loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+  }
+  return ready;
+}
+self.onmessage = function(e){
+  var id = e.data.id, code = e.data.code, out = "";
+  boot().then(function(py){
+    py.setStdout({ batched: function(s){ out += s + "\n"; } });
+    py.setStderr({ batched: function(s){ out += s + "\n"; } });
+    return py.runPythonAsync(code).then(function(){
+      self.postMessage({ id: id, ok: true, stdout: out, stderr: "" });
+    });
+  }).catch(function(err){
+    var m = (err && err.message) ? err.message : String(err);
+    self.postMessage({ id: id, ok: false, stdout: out, stderr: m });
+  });
+};
+</script>
+
+<script type="text/plain" id="w-js">
+self.onmessage = function(e){
+  var id = e.data.id, out = [];
+  function fmt(v){
+    if (typeof v === "string") return v;
+    if (v === undefined) return "undefined";
+    try { return JSON.stringify(v); } catch (_) { return String(v); }
+  }
+  function push(){ out.push(Array.prototype.map.call(arguments, fmt).join(" ")); }
+  var box = { log: push, info: push, warn: push, error: push, debug: push };
+  try {
+    var fn = new Function("console", "self", "window", "document", "fetch",
+                          "XMLHttpRequest", "importScripts", "WebSocket", "postMessage",
+                          '"use strict";' + e.data.code);
+    fn(box);
+    self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" });
+  } catch (err) {
+    var m = (err && err.message) ? (err.name + ": " + err.message) : String(err);
+    self.postMessage({ id: id, ok: false, stdout: out.join("\n"), stderr: m });
+  }
+};
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* =====================================================================
+   GRIMOIRE — engine
+   Knows nothing about any subject. Reads content/index.json for the
+   catalogue and content/{id}.json for a curriculum. See content/_SCHEMA.md.
+   ===================================================================== */
+
+var firebaseConfig = {
+  apiKey: "AIzaSyA8n1zKII80owaiyypVwSfmh6Z9yOI27So",
+  authDomain: "grimoire-250ad.firebaseapp.com",
+  projectId: "grimoire-250ad",
+  storageBucket: "grimoire-250ad.firebasestorage.app",
+  messagingSenderId: "579096796474",
+  appId: "1:579096796474:web:0f3a926f1081a8907c8403",
+  measurementId: "G-GE536F90K6"
+};
+
+var PISTON_URL = "https://emkc.org/api/v2/piston/execute";
+var SENTINEL = "<<<GRIMOIRE_RESULTS>>>";
+var PASS_MARK = 0.8;
+var XP_LESSON = 40, XP_PRACTICE = 25, XP_EXAM = 150;
+
+/* ---------------------------------------------------------------- utils */
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+  });
+}
+/* Markdown subset: **bold**, `code`, blank-line paragraphs, "- " bullets. */
+function md(src){
+  var s = esc(src == null ? "" : src);
+  s = s.replace(/`([^`]+)`/g, function(_, c){ return "<code>" + c + "</code>"; });
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return s.split(/\n{2,}/).map(function(block){
+    var lines = block.split("\n").filter(function(l){ return l.trim(); });
+    if (lines.length && lines.every(function(l){ return /^\s*-\s+/.test(l); })){
+      return "<ul>" + lines.map(function(l){
+        return "<li>" + l.replace(/^\s*-\s+/, "") + "</li>";
+      }).join("") + "</ul>";
+    }
+    return "<p>" + block.replace(/\n/g, "<br>") + "</p>";
+  }).join("");
+}
+/* Same subset as md() but inline-only: no paragraphs, no lists. */
+function mdInline(src){
+  var s = esc(src == null ? "" : src);
+  s = s.replace(/`([^`]+)`/g, function(_, c){ return "<code>" + c + "</code>"; });
+  return s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+function toast(msg, ms){
+  var t = $("toast");
+  t.innerHTML = msg;
+  t.classList.add("on");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove("on"); }, ms || 2600);
+}
+function dayKey(d){
+  d = d instanceof Date ? d : new Date(d);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function daysBetween(a, b){
+  return Math.round((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000);
+}
+function casterLevel(xp){ return Math.max(1, Math.floor(0.08 * Math.pow(Math.max(xp,0), 0.75))); }
+function xpForLevel(l){ return Math.ceil(Math.pow(l/0.08, 4/3)); }
+/* Trailing whitespace per line and leading/trailing blank lines are ignored. */
+function normOut(s){
+  var lines = String(s == null ? "" : s).replace(/\r/g, "").split("\n")
+    .map(function(l){ return l.replace(/[ \t]+$/, ""); });
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length-1].trim()) lines.pop();
+  return lines.join("\n");
+}
+
+/* ------------------------------------------------------------ execution */
+var Exec = {
+  workers: {},       // lang family -> Worker
+  pyBooted: false,
+
+  _src: function(kind){ return $("w-" + kind).textContent; },
+
+  _spawn: function(kind){
+    var blob = new Blob([Exec._src(kind)], {type:"application/javascript"});
+    var w = new Worker(URL.createObjectURL(blob));
+    Exec.workers[kind] = w;
+    return w;
+  },
+
+  _kill: function(kind){
+    if (Exec.workers[kind]){
+      try { Exec.workers[kind].terminate(); } catch(e){}
+      delete Exec.workers[kind];
+      if (kind === "python") Exec.pyBooted = false;
+    }
+  },
+
+  /* Runs a complete program. Resolves {ok, stdout, stderr, timedOut, unavailable} */
+  runWorker: function(kind, code, timeoutMs){
+    return new Promise(function(resolve){
+      var w;
+      try { w = Exec.workers[kind] || Exec._spawn(kind); }
+      catch(e){
+        return resolve({ok:false, stdout:"", stderr:"Cannot start the "+kind+" runtime: "+e.message, unavailable:true});
+      }
+      var id = Math.random().toString(36).slice(2);
+      var done = false;
+      var timer = setTimeout(function(){
+        if (done) return;
+        done = true;
+        Exec._kill(kind);          // only way to stop a runaway loop
+        resolve({ok:false, stdout:"", stderr:"Timed out after "+(timeoutMs/1000)+"s. Check for an endless loop.", timedOut:true});
+      }, timeoutMs);
+      w.onmessage = function(e){
+        if (done || e.data.id !== id) return;
+        done = true; clearTimeout(timer);
+        if (kind === "python") Exec.pyBooted = true;
+        resolve(e.data);
+      };
+      w.onerror = function(e){
+        if (done) return;
+        done = true; clearTimeout(timer);
+        Exec._kill(kind);
+        resolve({ok:false, stdout:"", stderr:"Runtime failed to load: " + (e.message || "unknown error"), unavailable:true});
+      };
+      w.postMessage({id:id, code:code});
+    });
+  },
+
+  runPiston: function(lang, code, stdin){
+    return fetch(PISTON_URL, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({language:lang, version:"*", stdin:(stdin||""),
+                            files:[{content:code}]})
+    }).then(function(r){
+      if (!r.ok) throw new Error("Piston returned " + r.status);
+      return r.json();
+    }).then(function(j){
+      var run = j.run || {};
+      var compileErr = (j.compile && j.compile.stderr) ? j.compile.stderr : "";
+      return { ok: !compileErr && run.code === 0, stdout: run.stdout || "",
+               stderr: compileErr || run.stderr || "" };
+    }).catch(function(e){
+      return { ok:false, stdout:"", stderr:"Remote runner unreachable: " + e.message, unavailable:true };
+    });
+  },
+
+  /* Single entry point. runtime comes from the content file. */
+  run: function(runtime, lang, code, stdin){
+    if (runtime === "pyodide"){
+      // First run downloads the interpreter, so allow it much longer.
+      return Exec.runWorker("python", code, Exec.pyBooted ? 8000 : 60000);
+    }
+    if (runtime === "worker") return Exec.runWorker("js", code, 2000);
+    return Exec.runPiston(lang, code, stdin);
+  },
+
+  ready: function(runtime){
+    if (runtime === "worker" || runtime === "pyodide") return typeof Worker !== "undefined";
+    return true;
+  }
+};
+
+/* --------------------------------------------------------- test harness */
+function jsonLit(v){ return JSON.stringify(v === undefined ? null : v); }
+
+/* Results are compared structurally, not as strings: Python's json.dumps
+   spaces its separators and renders 30.0 where JS renders 30. Neither
+   difference means the learner got it wrong. */
+function deepEq(a, b){
+  if (a === b) return true;
+  if (typeof a === "number" && typeof b === "number") return a === b;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every(function(x,i){ return deepEq(x, b[i]); });
+  if (a && b && typeof a === "object" && typeof b === "object"){
+    var ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every(function(k){
+      return Object.prototype.hasOwnProperty.call(b, k) && deepEq(a[k], b[k]);
+    });
+  }
+  return false;
+}
+function parseMaybe(json){
+  try { return {ok:true, v: JSON.parse(json)}; } catch(e){ return {ok:false}; }
+}
+
+function pyProgram(userCode, stdinLines, call){
+  var pre =
+    "import json as _gj, builtins as _gb\n" +
+    "_g_in = " + jsonLit(stdinLines || []) + "\n" +
+    "_g_ix = 0\n" +
+    "def _g_input(prompt=''):\n" +
+    "    global _g_ix\n" +
+    "    if _g_ix >= len(_g_in):\n" +
+    "        raise EOFError('input(): no more input was provided by the test')\n" +
+    "    _v = _g_in[_g_ix]\n" +
+    "    _g_ix += 1\n" +
+    "    return _v\n" +
+    "_gb.input = _g_input\n" +
+    "del _g_input\n";
+  var body = pre + "\n" + userCode + "\n";
+  if (!call) return body;
+  return body +
+    "\ndef _g_ser(v):\n" +
+    "    try:\n" +
+    "        return _gj.dumps(v)\n" +
+    "    except Exception:\n" +
+    "        return _gj.dumps(repr(v))\n" +
+    "try:\n" +
+    "    _g_out = {'ok': True, 'v': _g_ser(" + call + ")}\n" +
+    "except Exception as _g_e:\n" +
+    "    _g_out = {'ok': False, 'v': type(_g_e).__name__ + ': ' + str(_g_e)}\n" +
+    "print(" + JSON.stringify(SENTINEL) + " + _gj.dumps(_g_out))\n";
+}
+
+function jsProgram(userCode, stdinLines, call){
+  var pre =
+    "var __in = " + jsonLit(stdinLines || []) + ", __ix = 0;\n" +
+    "function readline(){ if (__ix >= __in.length) throw new Error('readline(): no more input'); return __in[__ix++]; }\n" +
+    "var prompt = readline;\n";
+  var body = pre + "\n" + userCode + "\n";
+  if (!call) return body;
+  return body +
+    "\n;(function(){\n" +
+    "  var __o;\n" +
+    "  try {\n" +
+    "    var __v = (" + call + ");\n" +
+    "    var __s;\n" +
+    "    try { __s = JSON.stringify(__v); } catch (e) { __s = undefined; }\n" +
+    "    if (__s === undefined) __s = JSON.stringify(String(__v));\n" +
+    "    __o = { ok: true, v: __s };\n" +
+    "  } catch (err) { __o = { ok: false, v: (err && err.message) ? err.message : String(err) }; }\n" +
+    "  console.log(" + JSON.stringify(SENTINEL) + " + JSON.stringify(__o));\n" +
+    "})();\n";
+}
+
+function splitSentinel(stdout){
+  var lines = String(stdout || "").split("\n");
+  var payload = null;
+  for (var i = lines.length - 1; i >= 0; i--){
+    if (lines[i].indexOf(SENTINEL) === 0){
+      try { payload = JSON.parse(lines[i].slice(SENTINEL.length)); } catch(e){ payload = null; }
+      lines.splice(i, 1);
+      break;
+    }
+  }
+  return { stdout: lines.join("\n"), payload: payload };
+}
+
+/* Runs one test. Resolves {ok, label, expected, actual, error, unavailable, diff} */
+function runTest(dungeon, challenge, userCode, test){
+  var runtime = challenge.runtime || dungeon.runtime;
+  var lang = challenge.lang || dungeon.lang;
+  var isExpr = test.kind === "expr";
+  var label = test.label || (isExpr ? test.call + "  \u2192  " + jsonLit(test.expect) : "program output");
+
+  if (isExpr && runtime === "piston"){
+    return Promise.resolve({ ok:false, label:label, error:
+      "Content error: expr tests are not supported for " + lang + ". Use stdout tests." });
+  }
+
+  var program;
+  if (runtime === "pyodide")     program = pyProgram(userCode, test.stdin, isExpr ? test.call : null);
+  else if (runtime === "worker") program = jsProgram(userCode, test.stdin, isExpr ? test.call : null);
+  else                           program = userCode;
+
+  var stdinText = (test.stdin || []).join("\n");
+  return Exec.run(runtime, lang, program, stdinText).then(function(r){
+    if (r.unavailable) return { ok:false, label:label, unavailable:true, error:r.stderr };
+    var split = splitSentinel(r.stdout);
+
+    if (isExpr){
+      if (!split.payload){
+        return { ok:false, label:label,
+                 error: r.stderr || (r.timedOut ? "Timed out." : "Your code did not finish running.") };
+      }
+      if (!split.payload.ok) return { ok:false, label:label, error: split.payload.v };
+      var parsed = parseMaybe(split.payload.v);
+      var want = jsonLit(test.expect);
+      var ok = parsed.ok ? deepEq(test.expect === undefined ? null : test.expect, parsed.v)
+                         : (want === split.payload.v);
+      return { ok: ok, label:label, expected: want,
+               actual: parsed.ok ? jsonLit(parsed.v) : split.payload.v };
+    }
+
+    if (r.stderr && !r.ok){
+      return { ok:false, label:label, error:r.stderr, expected:normOut(test.expect), actual:normOut(split.stdout) };
+    }
+    var e = normOut(test.expect), a = normOut(split.stdout);
+    return { ok: e === a, label:label, expected:e, actual:a, isOutput:true };
+  });
+}
+
+function runAllTests(dungeon, challenge, userCode){
+  var tests = challenge.tests || [];
+  var results = [];
+  return tests.reduce(function(chain, t){
+    return chain.then(function(){
+      return runTest(dungeon, challenge, userCode, t).then(function(r){ results.push(r); });
+    });
+  }, Promise.resolve()).then(function(){
+    return { passed: results.length > 0 && results.every(function(r){ return r.ok; }),
+             unavailable: results.some(function(r){ return r.unavailable; }),
+             results: results };
+  });
+}
+
+/* ------------------------------------------------------------- storage */
+var FB = { ready:false }, Store = null;
+function firebaseConfigured(){ return !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId); }
+function initFirebase(){
+  if (!firebaseConfigured() || typeof firebase === "undefined") return false;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    FB.auth = firebase.auth(); FB.db = firebase.firestore(); FB.ready = true;
+    return true;
+  } catch(e){ console.warn("Firebase unavailable, using local storage:", e.message); return false; }
+}
+var CloudStore = {
+  mode:"cloud",
+  onAuth: function(cb){ FB.auth.onAuthStateChanged(function(u){ cb(u ? {uid:u.uid, email:u.email} : null); }); },
+  signIn: function(e,p){ return FB.auth.signInWithEmailAndPassword(e,p).then(function(c){ return {uid:c.user.uid, email:c.user.email}; }); },
+  signUp: function(e,p){ return FB.auth.createUserWithEmailAndPassword(e,p).then(function(c){ return {uid:c.user.uid, email:c.user.email}; }); },
+  signOut: function(){ return FB.auth.signOut(); },
+  loadAll: function(uid){
+    return Promise.all([
+      FB.db.collection("users").doc(uid).get(),
+      FB.db.collection("progress").doc(uid).get()
+    ]).then(function(r){
+      return { profile: r[0].exists ? r[0].data() : null,
+               progress: r[1].exists ? (r[1].data().dungeons || {}) : {} };
+    });
+  },
+  saveProfile: function(uid,p){ return FB.db.collection("users").doc(uid).set(p,{merge:true}); },
+  saveProgress: function(uid,d){ return FB.db.collection("progress").doc(uid).set({dungeons:d, updatedAt:Date.now()},{merge:true}); }
+};
+var LKEY = "grimoire.v2";
+function lsRead(){ try { return JSON.parse(localStorage.getItem(LKEY) || "{}"); } catch(e){ return {}; } }
+function lsWrite(d){ try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch(e){} }
+function hashStr(s){ var h=5381; for (var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return h; }
+var LocalStore = {
+  mode:"local", _cb:null,
+  onAuth: function(cb){ LocalStore._cb = cb; var d = lsRead();
+    setTimeout(function(){ cb(d.session || null); }, 0); },
+  signUp: function(email, pass){
+    var d = lsRead(); d.users = d.users || {}; var k = email.toLowerCase();
+    if (d.users[k]) return Promise.reject({code:"auth/email-already-in-use"});
+    if ((pass||"").length < 6) return Promise.reject({code:"auth/weak-password"});
+    var uid = "local_" + Math.abs(hashStr(k)).toString(36);
+    d.users[k] = {uid:uid, email:email, pass:hashStr(pass)};
+    d.session = {uid:uid, email:email}; lsWrite(d);
+    return Promise.resolve(d.session);
+  },
+  signIn: function(email, pass){
+    var d = lsRead(); d.users = d.users || {}; var u = d.users[email.toLowerCase()];
+    if (!u) return Promise.reject({code:"auth/user-not-found"});
+    if (u.pass !== hashStr(pass)) return Promise.reject({code:"auth/wrong-password"});
+    d.session = {uid:u.uid, email:u.email}; lsWrite(d);
+    return Promise.resolve(d.session);
+  },
+  signOut: function(){ var d = lsRead(); delete d.session; lsWrite(d);
+    if (LocalStore._cb) LocalStore._cb(null); return Promise.resolve(); },
+  loadAll: function(uid){
+    var d = lsRead(), s = (d.data && d.data[uid]) || {};
+    return Promise.resolve({ profile:s.profile || null, progress:s.progress || {} });
+  },
+  _slot: function(uid){ var d = lsRead(); d.data = d.data || {}; d.data[uid] = d.data[uid] || {}; return {d:d, s:d.data[uid]}; },
+  saveProfile: function(uid,p){ var x = LocalStore._slot(uid); x.s.profile = Object.assign({}, x.s.profile||{}, p); lsWrite(x.d); return Promise.resolve(); },
+  saveProgress: function(uid,g){ var x = LocalStore._slot(uid); x.s.progress = g; lsWrite(x.d); return Promise.resolve(); }
+};
+
+/* --------------------------------------------------------------- state */
+var S = {
+  user:null, profile:null,
+  progress:{},            // dungeonId -> { "1": {lesson, practice:{solved:[]}, exam:{best,passed,attempts}} }
+  index:null, catalogue:[],
+  filter:"All", screen:"map",
+  dungeon:null,           // loaded content file
+  floor:null, phase:"lesson",
+  pi:0, practiceState:{}, // per-challenge editor buffers + results
+  exam:null,
+  authMode:"in"
+};
+
+function fprog(dgId, n){
+  var d = S.progress[dgId] || {};
+  var f = d[String(n)] || {};
+  return { lesson: !!f.lesson,
+           solved: f.practice && f.practice.solved ? f.practice.solved : [],
+           practiceDone: !!(f.practice && f.practice.done),
+           exam: f.exam || {best:0, passed:false, attempts:0} };
+}
+function setFprog(dgId, n, mut){
+  S.progress[dgId] = S.progress[dgId] || {};
+  var cur = S.progress[dgId][String(n)] || {lesson:false, practice:{solved:[], done:false}, exam:{best:0, passed:false, attempts:0}};
+  cur.practice = cur.practice || {solved:[], done:false};
+  cur.exam = cur.exam || {best:0, passed:false, attempts:0};
+  mut(cur);
+  S.progress[dgId][String(n)] = cur;
+}
+function floorUnlocked(dgId, n){ return n === 1 || fprog(dgId, n-1).exam.passed; }
+function floorComplete(dgId, n){ return fprog(dgId, n).exam.passed; }
+function dungeonCleared(dgId){
+  var e = S.catalogue.filter(function(c){ return c.id === dgId; })[0];
+  var authored = e ? (e.authoredFloors || 0) : 0;
+  var n = 0;
+  for (var i=1; i<=authored; i++){ if (floorComplete(dgId, i)) n++; }
+  return { cleared:n, authored:authored, total: e ? e.totalFloors : 0 };
+}
+function totalXP(){ return (S.profile && S.profile.xp) || 0; }
+
+function awardXP(amount, reason){
+  S.profile = S.profile || {};
+  S.profile.xp = Math.round((S.profile.xp || 0) + amount);
+  S.profile.level = casterLevel(S.profile.xp);
+  var today = dayKey(new Date());
+  if (S.profile.lastDay !== today){
+    if (S.profile.lastDay && daysBetween(S.profile.lastDay, today) === 1) S.profile.streak = (S.profile.streak||0) + 1;
+    else S.profile.streak = 1;
+    S.profile.lastDay = today;
+  }
+  S.profile.updatedAt = Date.now();
+  return persist().then(function(){
+    if (amount > 0) toast("+" + amount + " XP &middot; " + reason);
+  });
+}
+function persist(){
+  if (!S.user) return Promise.resolve();
+  return Promise.all([
+    Store.saveProgress(S.user.uid, S.progress),
+    Store.saveProfile(S.user.uid, S.profile || {})
+  ]).catch(function(e){
+    console.error("save failed", e);
+    toast("Could not save progress. " + esc(e.message || ""), 4000);
+  });
+}
+
+/* ------------------------------------------------------------- content */
+function loadIndex(){
+  return fetch("content/index.json", {cache:"no-cache"}).then(function(r){
+    if (!r.ok) throw new Error("content/index.json returned " + r.status);
+    return r.json();
+  }).then(function(j){
+    S.index = j; S.catalogue = j.dungeons || [];
+  });
+}
+var dungeonCache = {};
+function loadDungeon(id){
+  if (dungeonCache[id]) return Promise.resolve(dungeonCache[id]);
+  return fetch("content/" + id + ".json", {cache:"no-cache"}).then(function(r){
+    if (!r.ok) throw new Error("content/" + id + ".json returned " + r.status);
+    return r.json();
+  }).then(function(j){ dungeonCache[id] = j; return j; });
+}
+
+/* ------------------------------------------------------------- the map */
+var CATEGORIES = ["All","Languages","Web","Theory","Systems","Specialisms"];
+function show(screen){
+  S.screen = screen;
+  ["map","caster"].forEach(function(s){ $("s-" + s).classList.toggle("on", s === screen); });
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function(b){
+    b.classList.toggle("on", b.dataset.s === screen);
+  });
+  window.scrollTo(0,0);
+  if (screen === "map") renderMap();
+  if (screen === "caster") renderCaster();
+}
+function renderMap(){
+  $("filters").innerHTML = CATEGORIES.map(function(c){
+    return '<button class="chip' + (S.filter===c?" on":"") + '" data-f="' + c + '">' + c + "</button>";
+  }).join("");
+  var list = S.catalogue.filter(function(c){ return S.filter === "All" || c.category === S.filter; });
+  var avail = S.catalogue.filter(function(c){ return c.status === "available"; }).length;
+  $("mapCount").innerHTML = avail + " open &middot; " + S.catalogue.length + " dungeons";
+  $("dgGrid").innerHTML = list.map(function(c){
+    var open = c.status === "available";
+    var st = dungeonCleared(c.id);
+    var pct = st.authored ? (st.cleared / st.authored) * 100 : 0;
+    var full = st.authored > 0 && st.cleared === st.authored;
+    return '<button class="dg' + (open ? "" : " planned") + (full ? " done" : "") + '" data-d="' + c.id + '"' +
+      (open ? "" : " disabled") + ">" +
+      (full ? '<span class="seal">&#9670;</span>' : "") +
+      '<div class="dc">' + esc(c.category) + "</div>" +
+      '<div class="dn">' + esc(c.name) + "</div>" +
+      '<div class="df">' +
+        (open
+          ? '<div class="bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+            '<div style="display:flex;justify-content:space-between">' +
+              '<span class="lvl">FLOOR ' + Math.min(st.cleared+1, st.authored) + "/" + st.authored + "</span>" +
+              '<span class="lvl">' + st.total + " PLANNED</span></div>"
+          : '<span class="lvl">NOT YET WRITTEN</span>') +
+      "</div></button>";
+  }).join("");
+}
+
+/* -------------------------------------------------------- dungeon view */
+function openDungeon(id){
+  var entry = S.catalogue.filter(function(c){ return c.id === id; })[0];
+  $("sheetBody").innerHTML = '<div class="empty"><div class="big">&#10022;</div>Opening the dungeon&hellip;</div>';
+  $("sheet").classList.add("on");
+  document.body.style.overflow = "hidden";
+  loadDungeon(id).then(function(dg){
+    S.dungeon = dg;
+    var st = dungeonCleared(id);
+    var h = '<div class="card">' +
+      '<div class="label">' + esc(entry.category) + " &middot; " + esc(dg.lang) + "</div>" +
+      '<h2 style="font-size:26px;margin:6px 0 6px">' + esc(dg.name) + "</h2>" +
+      (dg.blurb ? '<div class="lsec"><div class="body"><p>' + esc(dg.blurb) + "</p></div></div>" : "") +
+      '<div class="bar tall"><i style="width:' + (st.authored ? (st.cleared/st.authored*100).toFixed(1) : 0) + '%"></i></div>' +
+      '<div class="stats" style="margin-top:16px">' +
+        '<div class="stat"><div class="v">' + st.cleared + '</div><div class="k">Floors cleared</div></div>' +
+        '<div class="stat"><div class="v">' + dg.floors.length + '</div><div class="k">Floors written</div></div>' +
+        '<div class="stat"><div class="v">' + (dg.totalFloors || dg.floors.length) + '</div><div class="k">Planned</div></div>' +
+      "</div></div>";
+
+    h += '<div class="sectionhead"><span class="label">Floors</span></div><div class="card">';
+    h += dg.floors.map(function(f){
+      var unlocked = floorUnlocked(id, f.n), done = floorComplete(id, f.n);
+      var p = fprog(id, f.n);
+      var practiceCount = (f.practice || []).length;
+      var status = done ? "MASTERED"
+        : !unlocked ? "SEALED &middot; clear floor " + (f.n-1)
+        : p.practiceDone ? "EXAM REMAINING"
+        : p.lesson ? "PRACTICE " + p.solved.length + "/" + practiceCount
+        : "LESSON NOT READ";
+      return '<button class="floor ' + (done?"done":(unlocked?"active":"locked")) + '"' +
+        (unlocked ? ' data-f="' + f.n + '"' : " disabled") + ">" +
+        '<div class="fn">' + (done ? "&#10003;" : f.n) + "</div>" +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="ft">' + esc(f.title) + "</div>" +
+          '<div class="fs">' + status + "</div>" +
+          '<div class="phasedots">' +
+            '<i class="' + (p.lesson?"on":"") + '"></i>' +
+            '<i class="' + (p.practiceDone?"on":"") + '"></i>' +
+            '<i class="' + (p.exam.passed?"on":"") + '"></i>' +
+          "</div>" +
+        "</div>" +
+        '<span class="lvl mono" style="color:var(--faint)">' + (unlocked ? "&rsaquo;" : "&#128274;") + "</span>" +
+      "</button>";
+    }).join("");
+    h += "</div>";
+
+    var remaining = (dg.totalFloors || 0) - dg.floors.length;
+    if (remaining > 0){
+      h += '<div class="card" style="margin-top:12px"><div class="empty" style="padding:22px">' +
+        remaining + " further floor" + (remaining===1?"":"s") + " planned for this dungeon,<br>not yet written." +
+        "</div></div>";
+    }
+    $("sheetBody").innerHTML = h;
+    Array.prototype.forEach.call($("sheetBody").querySelectorAll(".floor[data-f]"), function(b){
+      b.onclick = function(){ openFloor(dg, parseInt(b.dataset.f, 10)); };
+    });
+  }).catch(function(e){
+    $("sheetBody").innerHTML = '<div class="card"><div class="msg err on">Could not load this dungeon.<br>' +
+      esc(e.message) + '<br><br>Content files are fetched over HTTP — open the app through a web server, not as a file:// path.</div></div>';
+  });
+}
+function closeSheet(){
+  $("sheet").classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+/* ================================================================ RUNNER */
+function openFloor(dg, n){
+  S.dungeon = dg;
+  S.floor = dg.floors.filter(function(f){ return f.n === n; })[0];
+  if (!S.floor) return toast("That floor is not written yet.");
+  var p = fprog(dg.id, n);
+  S.phase = !p.lesson ? "lesson" : (!p.practiceDone ? "practice" : "exam");
+  S.pi = 0; S.practiceState = {}; S.exam = null;
+  $("runner").classList.add("on");
+  document.body.style.overflow = "hidden";
+  renderRunner();
+}
+function exitRunner(){
+  $("runner").classList.remove("on");
+  document.body.style.overflow = "hidden"; // sheet is still open behind
+  if (S.dungeon) openDungeon(S.dungeon.id);
+}
+function setPhase(ph){ S.phase = ph; S.pi = 0; renderRunner(); }
+
+function renderPhases(){
+  var p = fprog(S.dungeon.id, S.floor.n);
+  var phases = [
+    {k:"lesson",   label:"Lesson",   open:true,           done:p.lesson},
+    {k:"practice", label:"Practice", open:p.lesson,       done:p.practiceDone},
+    {k:"exam",     label:"Exam",     open:p.practiceDone, done:p.exam.passed}
+  ];
+  $("rPhases").innerHTML = phases.map(function(x){
+    return '<button data-p="' + x.k + '"' + (x.open ? "" : " disabled") +
+      ' class="' + (S.phase===x.k?"on ":"") + (x.done?"done":"") + '">' +
+      (x.done ? "&#10003; " : (x.open ? "" : "&#128274; ")) + x.label + "</button>";
+  }).join("");
+  Array.prototype.forEach.call($("rPhases").querySelectorAll("button[data-p]"), function(b){
+    b.onclick = function(){ setPhase(b.dataset.p); };
+  });
+}
+function renderRunner(){
+  var dg = S.dungeon, f = S.floor, p = fprog(dg.id, f.n);
+  $("rCrumb").innerHTML = esc(dg.name) + " &middot; Floor " + f.n;
+  $("rTitle").textContent = f.title;
+  renderPhases();
+  $("rBody").scrollTop = 0;
+  if (S.phase === "lesson") renderLesson();
+  else if (S.phase === "practice") renderPractice();
+  else renderExam();
+}
+
+/* ---------------- editor component ---------------- */
+var edSeq = 0;
+function editorHTML(code, lang, opts){
+  opts = opts || {};
+  var id = "ed" + (++edSeq);
+  var lines = String(code || "").split("\n").length;
+  var gut = "";
+  for (var i=1; i<=lines; i++) gut += "<span>" + i + "</span>";
+  return '<div class="ed" id="' + id + '">' +
+    '<div class="edbar">' +
+      '<span class="lang">' + esc(lang || "") + "</span>" +
+      (opts.reset ? '<button class="plain" data-act="reset">Reset</button>' : "") +
+      '<button data-act="run">Run</button>' +
+    "</div>" +
+    '<div class="edwrap">' +
+      '<div class="gutter">' + gut + "</div>" +
+      '<textarea class="edta" spellcheck="false" autocapitalize="off" autocorrect="off">' + esc(code) + "</textarea>" +
+    "</div>" +
+    '<div class="out hidden"></div>' +
+  "</div>";
+}
+function wireEditor(rootEl, handlers){
+  var ta = rootEl.querySelector(".edta");
+  var gutter = rootEl.querySelector(".gutter");
+  var wrap = rootEl.querySelector(".edwrap");
+  var original = ta.value;
+
+  function sizeTo(){
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, 60) + "px";
+    var n = ta.value.split("\n").length, g = "";
+    for (var i=1; i<=n; i++) g += "<span>" + i + "</span>";
+    gutter.innerHTML = g;
+  }
+  ta.addEventListener("input", sizeTo);
+  ta.addEventListener("keydown", function(e){
+    if (e.key === "Tab"){
+      e.preventDefault();
+      var s = ta.selectionStart, en = ta.selectionEnd;
+      ta.value = ta.value.slice(0,s) + "    " + ta.value.slice(en);
+      ta.selectionStart = ta.selectionEnd = s + 4;
+      sizeTo();
+    } else if (e.key === "Enter"){
+      // keep the current indent, and add one level after a line ending in ':'
+      var pos = ta.selectionStart;
+      var lineStart = ta.value.lastIndexOf("\n", pos - 1) + 1;
+      var line = ta.value.slice(lineStart, pos);
+      var indent = (line.match(/^[ \t]*/) || [""])[0];
+      if (/:\s*$/.test(line)) indent += "    ";
+      if (indent){
+        e.preventDefault();
+        ta.value = ta.value.slice(0, pos) + "\n" + indent + ta.value.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = pos + 1 + indent.length;
+        sizeTo();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){
+      e.preventDefault();
+      var rb = rootEl.querySelector('[data-act="run"]');
+      if (rb && !rb.disabled) rb.click();
+    }
+  });
+  wrap.addEventListener("scroll", function(){ gutter.style.transform = "translateY(" + (-wrap.scrollTop) + "px)"; });
+  setTimeout(sizeTo, 0);
+
+  Array.prototype.forEach.call(rootEl.querySelectorAll("[data-act]"), function(b){
+    b.onclick = function(){
+      if (b.dataset.act === "reset"){ ta.value = original; sizeTo(); if (handlers.onReset) handlers.onReset(); return; }
+      handlers.onRun(ta.value, rootEl);
+    };
+  });
+  return { get: function(){ return ta.value; }, set: function(v){ ta.value = v; sizeTo(); } };
+}
+function setOut(rootEl, html, cls){
+  var o = rootEl.querySelector(".out");
+  o.className = "out " + (cls || "");
+  o.innerHTML = html;
+}
+function busyBtn(rootEl, on, text){
+  var b = rootEl.querySelector('[data-act="run"]');
+  if (!b) return;
+  b.disabled = on;
+  b.textContent = on ? (text || "Running") : "Run";
+}
+function firstRunNote(){
+  return (S.dungeon && S.dungeon.runtime === "pyodide" && !Exec.pyBooted)
+    ? "Starting Python in your browser &mdash; the first run downloads the interpreter and takes a moment."
+    : "Running";
+}
+
+/* --------------------------- LESSON --------------------------- */
+function renderLesson(){
+  var f = S.floor, L = f.lesson, dg = S.dungeon;
+  var h = "";
+  if (f.goal) h += '<div class="card elev" style="margin-bottom:20px"><div class="label">Goal of this floor</div>' +
+    '<div style="margin-top:8px;font-family:var(--serif);font-size:16px;line-height:1.55">' + esc(f.goal) + "</div></div>";
+  h += '<h2 style="font-size:24px;margin-bottom:10px">' + esc(L.title) + "</h2>";
+  if (L.intro) h += '<div class="lsec"><div class="body">' + md(L.intro) + "</div></div>";
+  h += '<div class="rule"></div>';
+  (L.sections || []).forEach(function(sec, i){
+    h += '<div class="lsec" data-sec="' + i + '">' +
+      "<h3>" + esc(sec.title) + "</h3>" +
+      '<div class="body">' + md(sec.body) + "</div>" +
+      editorHTML(sec.code, sec.lang || dg.lang, {reset:true});
+    if (sec.annotations && sec.annotations.length){
+      h += '<div class="ann">' + sec.annotations.map(function(a){
+        return "<div><b>" + a.line + "</b>" + esc(a.text) + "</div>";
+      }).join("") + "</div>";
+    }
+    h += "</div>";
+  });
+  h += '<div class="stickyfoot"><button class="btn" id="lessonDone">' +
+       (fprog(dg.id, f.n).lesson ? "Continue to Practice" : "Mark lesson read &rarr; Practice") + "</button></div>";
+  $("rInner").innerHTML = h;
+
+  Array.prototype.forEach.call($("rInner").querySelectorAll(".ed"), function(el){
+    wireEditor(el, { onRun: function(code, root){
+      busyBtn(root, true);
+      setOut(root, '<div class="run">' + firstRunNote() + "&hellip;</div>");
+      Exec.run(dg.runtime, dg.lang, code, "").then(function(r){
+        busyBtn(root, false);
+        var body = (r.stdout || "").replace(/\s+$/,"");
+        if (r.stderr) setOut(root, '<div class="olabel">Error</div>' + esc(body ? body + "\n" + r.stderr : r.stderr), "err");
+        else setOut(root, '<div class="olabel">Output</div>' + (body ? esc(body) : '<span class="run">(no output)</span>'));
+      });
+    }});
+  });
+  $("lessonDone").onclick = function(){
+    var already = fprog(dg.id, S.floor.n).lesson;
+    setFprog(dg.id, S.floor.n, function(c){ c.lesson = true; });
+    (already ? Promise.resolve() : awardXP(XP_LESSON, "lesson read")).then(function(){
+      if (already) persist();
+      setPhase("practice");
+    });
+  };
+}
+
+/* -------------------------- PRACTICE -------------------------- */
+function renderPractice(){
+  var dg = S.dungeon, f = S.floor, list = f.practice || [];
+  var p = fprog(dg.id, f.n);
+  var ch = list[S.pi];
+  var st = S.practiceState[ch.id] = S.practiceState[ch.id] || {code:ch.starter || "", results:null, hint:false};
+  var solved = p.solved.indexOf(ch.id) >= 0;
+
+  var h = '<div class="chnav">';
+  list.forEach(function(c, i){
+    var cls = i === S.pi ? "on" : (p.solved.indexOf(c.id) >= 0 ? "solved" : "");
+    h += '<button class="d ' + cls + '" data-i="' + i + '">' + (p.solved.indexOf(c.id)>=0 && i!==S.pi ? "&#10003;" : (i+1)) + "</button>";
+  });
+  h += '<span class="label" style="margin-left:auto">' + p.solved.length + "/" + list.length + " solved</span></div>";
+
+  h += '<div class="kind">' + (ch.kind === "bugfix" ? "Fix the bug" : "Challenge " + (S.pi+1)) + "</div>";
+  h += '<div class="prompt">' + md(ch.prompt) + "</div>";
+  h += editorHTML(st.code, ch.lang || dg.lang, {reset:true});
+  h += '<div class="tests" id="testOut"></div>';
+  h += '<div id="extra"></div>';
+  h += '<div class="stickyfoot"><div class="btnrow">' +
+       (ch.hint ? '<button class="btn ghost sm" id="hintBtn">Hint</button>' : "") +
+       '<button class="btn sm" id="nextBtn"' + (solved ? "" : " disabled") + ">" +
+       (S.pi < list.length-1 ? "Next challenge &rarr;" : (p.solved.length === list.length ? "Continue to Exam" : "Solve all to continue")) +
+       "</button></div></div>";
+  $("rInner").innerHTML = h;
+
+  Array.prototype.forEach.call($("rInner").querySelectorAll(".chnav .d"), function(b){
+    b.onclick = function(){ S.pi = parseInt(b.dataset.i,10); renderPractice(); };
+  });
+
+  var edEl = $("rInner").querySelector(".ed");
+  var ed = wireEditor(edEl, {
+    onRun: function(code, root){
+      st.code = code;
+      busyBtn(root, true);
+      setOut(root, '<div class="run">' + firstRunNote() + "&hellip;</div>");
+      $("testOut").innerHTML = "";
+      runAllTests(dg, ch, code).then(function(res){
+        busyBtn(root, false);
+        st.results = res;
+        renderChallengeResult(root, ch, res, function(){
+          if (res.passed && p.solved.indexOf(ch.id) < 0){
+            setFprog(dg.id, f.n, function(c){
+              if (c.practice.solved.indexOf(ch.id) < 0) c.practice.solved.push(ch.id);
+              c.practice.done = c.practice.solved.length >= list.length;
+            });
+            var nowAll = fprog(dg.id, f.n).practiceDone;
+            awardXP(XP_PRACTICE, "challenge solved").then(function(){
+              if (nowAll) toast("&#10022; Practice complete &mdash; the exam is open", 3600);
+              renderRunner();
+            });
+          }
+        });
+      });
+    }
+  });
+  edEl.querySelector(".edta").addEventListener("input", function(){ st.code = ed.get(); });
+
+  if (st.results) renderChallengeResult(edEl, ch, st.results, null);
+  if (st.hint && ch.hint) $("extra").innerHTML = '<div class="hintbox">' + md(ch.hint) + "</div>";
+  if (solved && ch.solution){
+    $("extra").innerHTML += '<div class="explain"><div class="label" style="margin-bottom:6px">One way to write it</div>' +
+      "<pre style=\"margin:0;font-family:var(--mono);font-size:12px;white-space:pre-wrap\">" + esc(ch.solution) + "</pre></div>";
+  }
+  if ($("hintBtn")) $("hintBtn").onclick = function(){
+    st.hint = true;
+    $("extra").innerHTML = '<div class="hintbox">' + md(ch.hint) + "</div>" + $("extra").innerHTML;
+    $("hintBtn").disabled = true;
+  };
+  $("nextBtn").onclick = function(){
+    if (S.pi < list.length - 1){ S.pi++; renderPractice(); }
+    else if (fprog(dg.id, f.n).practiceDone) setPhase("exam");
+  };
+}
+
+function diffHTML(expected, actual){
+  var e = String(expected).split("\n"), a = String(actual).split("\n");
+  var n = Math.max(e.length, a.length), rows = "";
+  for (var i=0; i<n; i++){
+    var ev = e[i], av = a[i];
+    if (ev === av){ rows += '<div class="dl same">  ' + esc(ev) + "</div>"; }
+    else {
+      if (ev !== undefined) rows += '<div class="dl exp">expected  ' + esc(ev) + "</div>";
+      if (av !== undefined) rows += '<div class="dl got">yours     ' + esc(av) + "</div>";
+      if (av === undefined) rows += '<div class="dl got">yours     (nothing)</div>';
+    }
+  }
+  return '<div class="diff"><div class="dh">Output comparison</div>' + rows + "</div>";
+}
+function renderChallengeResult(edRoot, ch, res, onPass){
+  if (res.unavailable){
+    var expected = (ch.tests || []).map(function(t){
+      return t.kind === "stdout" ? t.expect : t.call + " -> " + jsonLit(t.expect);
+    }).join("\n");
+    setOut(edRoot, '<div class="olabel">Runtime unavailable</div>' +
+      esc(res.results.map(function(r){ return r.error; }).filter(Boolean)[0] || "") +
+      "\n\nExpected result:\n" + esc(expected) +
+      "\n\nThis challenge cannot be marked complete until code can actually run.", "err");
+    $("testOut").innerHTML = "";
+    return;
+  }
+  var out = res.results.map(function(r){
+    var body = '<div class="tres ' + (r.ok ? "pass" : "fail") + '">' +
+      '<div class="ti">' + (r.ok ? "&#10003;" : "&#10007;") + "</div>" +
+      '<div class="tl">' + esc(r.label);
+    if (!r.ok){
+      if (r.error) body += '<div style="margin-top:6px;color:#D9967F">' + esc(r.error) + "</div>";
+      else if (r.isOutput) body += diffHTML(r.expected, r.actual);
+      else body += '<div style="margin-top:6px">expected <span style="color:var(--ok)">' + esc(r.expected) +
+                   '</span>, got <span style="color:#D9967F">' + esc(r.actual) + "</span></div>";
+    }
+    return body + "</div></div>";
+  }).join("");
+  $("testOut").innerHTML = out;
+  setOut(edRoot, '<div class="olabel">' + (res.passed ? "All tests passed" : "Tests failed") + "</div>" +
+    (res.passed ? '<span style="color:var(--ok)">&#10022; Correct.</span>' : '<span class="run">See the results below.</span>'),
+    res.passed ? "" : "err");
+  if (res.passed && onPass) onPass();
+}
+
+/* ---------------------------- EXAM ---------------------------- */
+function renderExam(){
+  var dg = S.dungeon, f = S.floor, list = f.exam || [];
+  if (!S.exam) S.exam = { answers:{}, i:0, graded:null };
+  if (S.exam.graded) return renderExamResult();
+
+  var X = S.exam, ch = list[X.i];
+  var ans = X.answers[ch.id];
+
+  var h = '<div class="chnav">';
+  list.forEach(function(c, i){
+    var cls = i === X.i ? "on" : (X.answers[c.id] !== undefined ? "answered" : "");
+    h += '<button class="d ' + cls + '" data-i="' + i + '">' + (i+1) + "</button>";
+  });
+  h += '<span class="label" style="margin-left:auto">' + Object.keys(X.answers).length + "/" + list.length + " answered</span></div>";
+
+  var kindLabel = {code:"Write the code", bugfix:"Fix the bug", predict:"Predict the output", mcq:"Choose one"}[ch.kind];
+  h += '<div class="kind">' + kindLabel + " &middot; " + (X.i+1) + " of " + list.length + "</div>";
+  h += '<div class="prompt">' + md(ch.prompt) + "</div>";
+
+  if (ch.kind === "mcq"){
+    if (ch.code) h += '<div class="ed" style="margin-top:12px"><div class="edwrap"><div class="gutter">' +
+      ch.code.split("\n").map(function(_,i){ return "<span>" + (i+1) + "</span>"; }).join("") +
+      '</div><textarea class="edta" readonly spellcheck="false">' + esc(ch.code) + "</textarea></div></div>";
+    h += '<div class="choices">' + ch.choices.map(function(c, i){
+      return '<button class="choice' + (ans === i ? " on" : "") + '" data-c="' + i + '">' +
+        '<span class="cl">' + String.fromCharCode(65+i) + "</span><span>" + esc(c) + "</span></button>";
+    }).join("") + "</div>";
+  } else if (ch.kind === "predict"){
+    h += '<div class="ed" style="margin-top:12px"><div class="edbar"><span class="lang">' + esc(ch.lang || dg.lang) +
+      '</span></div><div class="edwrap"><div class="gutter">' +
+      ch.code.split("\n").map(function(_,i){ return "<span>" + (i+1) + "</span>"; }).join("") +
+      '</div><textarea class="edta" readonly spellcheck="false">' + esc(ch.code) + "</textarea></div></div>";
+    h += '<div class="field" style="margin-top:12px"><label class="label">Exactly what it prints</label>' +
+      '<textarea class="inp" id="predictIn" spellcheck="false" style="font-family:var(--mono);font-size:13px" ' +
+      'placeholder="one line per line of output">' + esc(ans || "") + "</textarea></div>";
+  } else {
+    h += editorHTML((X.answers[ch.id] !== undefined ? X.answers[ch.id] : (ch.starter || "")), ch.lang || dg.lang, {reset:true});
+    h += '<div class="explain" style="margin-top:12px">Run shows your program\'s output only. ' +
+         "Answers are graded when you submit the exam.</div>";
+  }
+
+  var answeredAll = list.every(function(c){ return X.answers[c.id] !== undefined && X.answers[c.id] !== ""; });
+  h += '<div class="stickyfoot"><div class="btnrow">' +
+    (X.i > 0 ? '<button class="btn ghost sm" id="prevQ">&larr; Back</button>' : "") +
+    (X.i < list.length-1
+      ? '<button class="btn sm" id="nextQ">Next &rarr;</button>'
+      : '<button class="btn sm" id="submitExam"' + (answeredAll ? "" : " disabled") + ">" +
+        (answeredAll ? "Submit exam" : "Answer every question") + "</button>") +
+    "</div>" +
+    (X.i === list.length-1 ? "" :
+      '<div class="label" style="text-align:center;margin-top:10px">' + Object.keys(X.answers).length + " of " + list.length + " answered</div>") +
+    "</div>";
+
+  $("rInner").innerHTML = h;
+
+  Array.prototype.forEach.call($("rInner").querySelectorAll(".chnav .d"), function(b){
+    b.onclick = function(){ captureAnswer(); X.i = parseInt(b.dataset.i,10); renderExam(); };
+  });
+  Array.prototype.forEach.call($("rInner").querySelectorAll(".choice"), function(b){
+    b.onclick = function(){ X.answers[ch.id] = parseInt(b.dataset.c,10); renderExam(); };
+  });
+  var edEl = $("rInner").querySelector(".ed .edbar [data-act='run']") ? $("rInner").querySelector(".ed") : null;
+  if (edEl && (ch.kind === "code" || ch.kind === "bugfix")){
+    var ed = wireEditor(edEl, {
+      onRun: function(code, root){
+        X.answers[ch.id] = code;
+        busyBtn(root, true);
+        setOut(root, '<div class="run">' + firstRunNote() + "&hellip;</div>");
+        var prog = dg.runtime === "pyodide" ? pyProgram(code, [], null)
+                 : dg.runtime === "worker"  ? jsProgram(code, [], null) : code;
+        Exec.run(dg.runtime, dg.lang, prog, "").then(function(r){
+          busyBtn(root, false);
+          var body = (r.stdout || "").replace(/\s+$/,"");
+          if (r.stderr) setOut(root, '<div class="olabel">Error</div>' + esc(body ? body + "\n" + r.stderr : r.stderr), "err");
+          else setOut(root, '<div class="olabel">Your output</div>' + (body ? esc(body) : '<span class="run">(no output)</span>'));
+        });
+      }
+    });
+    edEl.querySelector(".edta").addEventListener("input", function(){ X.answers[ch.id] = ed.get(); });
+    if (X.answers[ch.id] === undefined) X.answers[ch.id] = ch.starter || "";
+  }
+  if ($("predictIn")) $("predictIn").addEventListener("input", function(){ X.answers[ch.id] = this.value; });
+  if ($("prevQ")) $("prevQ").onclick = function(){ captureAnswer(); X.i--; renderExam(); };
+  if ($("nextQ")) $("nextQ").onclick = function(){ captureAnswer(); X.i++; renderExam(); };
+  if ($("submitExam")) $("submitExam").onclick = function(){ captureAnswer(); gradeExam(); };
+
+  function captureAnswer(){
+    if ($("predictIn")) X.answers[ch.id] = $("predictIn").value;
+  }
+}
+
+function gradeExam(){
+  var dg = S.dungeon, f = S.floor, list = f.exam || [], X = S.exam;
+  $("rInner").innerHTML = '<div class="empty"><div class="big">&#10022;</div>Marking your exam&hellip;<br>' +
+    '<span class="label">running your code</span></div>';
+
+  var graded = [];
+  list.reduce(function(chain, ch){
+    return chain.then(function(){
+      var a = X.answers[ch.id];
+      if (ch.kind === "mcq"){
+        graded.push({ ch:ch, ok: a === ch.answer, given: (a === undefined ? "(no answer)" : ch.choices[a]),
+                      want: ch.choices[ch.answer] });
+        return;
+      }
+      if (ch.kind === "predict"){
+        // Execute the snippet for real; the author's expect is a check on the content.
+        var prog = dg.runtime === "pyodide" ? pyProgram(ch.code, [], null)
+                 : dg.runtime === "worker"  ? jsProgram(ch.code, [], null) : ch.code;
+        return Exec.run(dg.runtime, dg.lang, prog, "").then(function(r){
+          if (r.unavailable){
+            graded.push({ ch:ch, unavailable:true, ok:false, given:normOut(a), want:normOut(ch.expect) });
+            return;
+          }
+          var real = normOut(r.stdout);
+          var authored = normOut(ch.expect);
+          var mismatch = real !== authored;
+          graded.push({ ch:ch, ok: normOut(a) === real, given:normOut(a), want:real,
+                        contentError: mismatch ? authored : null, isOutput:true });
+        });
+      }
+      return runAllTests(dg, ch, a || "").then(function(res){
+        graded.push({ ch:ch, ok:res.passed, unavailable:res.unavailable, results:res.results });
+      });
+    });
+  }, Promise.resolve()).then(function(){
+    var unavailable = graded.some(function(g){ return g.unavailable; });
+    if (unavailable){
+      S.exam.graded = null;
+      $("rInner").innerHTML = '<div class="card"><div class="msg err on">' +
+        "Your code could not be executed, so this exam cannot be marked. " +
+        "Check your connection and try again &mdash; progress is never granted without a real run." +
+        "</div><button class=\"btn\" id=\"backEx\">Back to the exam</button></div>";
+      $("backEx").onclick = function(){ renderExam(); };
+      return;
+    }
+    var correct = graded.filter(function(g){ return g.ok; }).length;
+    var score = correct / graded.length;
+    var passed = score >= PASS_MARK;
+    S.exam.graded = { graded:graded, score:score, correct:correct, passed:passed };
+
+    // Capture as a boolean: fprog() hands back the live object, which
+    // setFprog is about to mutate underneath us.
+    var wasPassed = fprog(dg.id, f.n).exam.passed;
+    setFprog(dg.id, f.n, function(c){
+      c.exam.attempts = (c.exam.attempts || 0) + 1;
+      c.exam.best = Math.max(c.exam.best || 0, score);
+      if (passed) c.exam.passed = true;
+    });
+    (passed && !wasPassed ? awardXP(XP_EXAM + Math.round(score * 100), "floor cleared") : persist())
+      .then(renderExamResult);
+  });
+}
+
+function renderExamResult(){
+  var dg = S.dungeon, f = S.floor, G = S.exam.graded;
+  var pct = Math.round(G.score * 100);
+  var h = '<div class="card elev" style="text-align:center">' +
+    '<div class="scorebig">' + pct + "%</div>" +
+    '<div class="label" style="margin-top:10px">' + G.correct + " of " + G.graded.length + " correct &middot; " +
+      Math.round(PASS_MARK*100) + "% to pass</div>" +
+    '<div class="bar tall ' + (G.passed?"ok":"") + '" style="margin-top:16px"><i style="width:' + pct + '%"></i></div>' +
+    '<div style="margin-top:16px;font-family:var(--serif);font-size:18px;color:' + (G.passed ? "var(--ok)" : "var(--warn)") + '">' +
+      (G.passed ? "&#9670; Floor " + f.n + " cleared" : "Not yet &mdash; floor " + f.n + " holds") + "</div>" +
+    (G.passed ? "" : '<div class="hint" style="font-size:13px;color:var(--dim);margin-top:8px;font-family:var(--sans)">' +
+      "Review what you missed below, then retake it. Nothing is lost.</div>") +
+    "</div>";
+
+  h += '<div class="sectionhead"><span class="label">Question by question</span></div>';
+  h += G.graded.map(function(g, i){
+    var ch = g.ch;
+    var body = '<div class="tres ' + (g.ok ? "pass" : "fail") + '" style="display:block">' +
+      '<div style="display:flex;gap:9px"><div class="ti">' + (g.ok ? "&#10003;" : "&#10007;") + "</div>" +
+      '<div class="tl" style="color:var(--text)"><b>' + (i+1) + ".</b> " + mdInline(ch.prompt.split("\n")[0]) + "</div></div>";
+    if (!g.ok){
+      if (ch.kind === "mcq"){
+        body += '<div style="margin-top:9px;font-size:13px;color:var(--dim)">You chose <span style="color:#D9967F">' +
+          esc(g.given) + '</span> &middot; correct is <span style="color:var(--ok)">' + esc(g.want) + "</span></div>";
+      } else if (ch.kind === "predict"){
+        body += diffHTML(g.want, g.given);
+      } else if (g.results){
+        var firstFail = g.results.filter(function(r){ return !r.ok; })[0];
+        if (firstFail){
+          body += '<div style="margin-top:9px;font-size:12.5px;font-family:var(--mono);color:var(--dim)">' + esc(firstFail.label) + "</div>";
+          if (firstFail.error) body += '<div style="margin-top:5px;font-size:12.5px;color:#D9967F">' + esc(firstFail.error) + "</div>";
+          else if (firstFail.isOutput) body += diffHTML(firstFail.expected, firstFail.actual);
+          else body += '<div style="margin-top:5px;font-size:12.5px">expected <span style="color:var(--ok)">' +
+            esc(firstFail.expected) + '</span>, got <span style="color:#D9967F">' + esc(firstFail.actual) + "</span></div>";
+        }
+      }
+    }
+    if (ch.explain) body += '<div class="explain">' + md(ch.explain) + "</div>";
+    if (!g.ok && ch.solution) body += '<div class="explain"><div class="label" style="margin-bottom:6px">One way to write it</div>' +
+      '<pre style="margin:0;font-family:var(--mono);font-size:12px;white-space:pre-wrap">' + esc(ch.solution) + "</pre></div>";
+    if (g.contentError) body += '<div class="hintbox">Content warning: this question is authored as printing<br><code>' +
+      esc(g.contentError) + "</code><br>but it really prints<br><code>" + esc(g.want) +
+      "</code>. You were marked against the real output.</div>";
+    return body + "</div>";
+  }).join("");
+
+  var next = dg.floors.filter(function(x){ return x.n === f.n + 1; })[0];
+  h += '<div class="stickyfoot"><div class="btnrow">' +
+    '<button class="btn ghost sm" id="retryExam">' + (G.passed ? "Retake" : "Try again") + "</button>" +
+    (G.passed && next ? '<button class="btn sm" id="nextFloor">Floor ' + next.n + " &rarr;</button>"
+                      : '<button class="btn sm" id="backToDungeon">Back to the dungeon</button>') +
+    "</div></div>";
+  $("rInner").innerHTML = h;
+  $("rBody").scrollTop = 0;
+
+  $("retryExam").onclick = function(){ S.exam = null; renderExam(); };
+  if ($("nextFloor")) $("nextFloor").onclick = function(){ openFloor(dg, f.n + 1); };
+  if ($("backToDungeon")) $("backToDungeon").onclick = exitRunner;
+  renderPhases();
+}
+
+/* --------------------------- CASTER --------------------------- */
+function renderCaster(){
+  var xp = totalXP(), lvl = casterLevel(xp);
+  var base = xpForLevel(lvl), next = xpForLevel(lvl+1);
+  var pct = Math.max(0, Math.min(100, ((xp-base)/Math.max(1,next-base))*100));
+  var name = (S.profile && S.profile.name) || (S.user ? S.user.email.split("@")[0] : "Scholar");
+
+  var floorsCleared = 0, lessonsRead = 0, solved = 0, inProgress = [];
+  S.catalogue.forEach(function(c){
+    var st = dungeonCleared(c.id);
+    floorsCleared += st.cleared;
+    var d = S.progress[c.id];
+    if (!d) return;
+    Object.keys(d).forEach(function(k){
+      if (d[k].lesson) lessonsRead++;
+      if (d[k].practice && d[k].practice.solved) solved += d[k].practice.solved.length;
+    });
+    if (st.cleared < st.authored) inProgress.push({c:c, st:st});
+  });
+
+  var h = '<div class="card elev">' +
+    '<div style="display:flex;align-items:center;gap:14px">' +
+      '<div style="width:56px;height:56px;border-radius:50%;border:1px solid var(--trim2);display:grid;place-items:center;background:rgba(196,154,60,.08)">' +
+        '<span style="font-family:var(--serif);font-size:22px;color:var(--gold)">' + esc(name.charAt(0).toUpperCase()) + "</span></div>" +
+      '<div style="flex:1;min-width:0"><h2 style="font-size:22px">' + esc(name) + "</h2>" +
+        '<div class="label" style="margin-top:4px">Caster Level ' + lvl + "</div></div>" +
+      '<div style="text-align:right"><div style="font-family:var(--serif);font-size:26px;color:var(--gold);line-height:1">' +
+        xp + '</div><div class="label">Total XP</div></div></div>' +
+    '<div class="bar tall" style="margin-top:16px"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+    '<div class="label" style="margin-top:7px;display:flex;justify-content:space-between"><span>Level ' + lvl +
+      "</span><span>" + Math.max(0, next-xp) + " XP to " + (lvl+1) + "</span></div></div>";
+
+  h += '<div class="stats" style="margin-top:12px">' +
+    '<div class="stat"><div class="v">' + ((S.profile && S.profile.streak) || 0) + '</div><div class="k">Day Streak</div></div>' +
+    '<div class="stat"><div class="v">' + floorsCleared + '</div><div class="k">Floors Cleared</div></div>' +
+    '<div class="stat"><div class="v">' + solved + '</div><div class="k">Challenges Solved</div></div>' +
+  "</div>";
+
+  h += '<div class="sectionhead"><span class="label">In progress</span></div><div class="card">';
+  h += inProgress.length ? inProgress.map(function(x){
+      var pc = x.st.authored ? (x.st.cleared/x.st.authored*100) : 0;
+      return '<button class="floor" data-d="' + x.c.id + '" style="border-bottom:1px solid rgba(196,154,60,.09)">' +
+        '<div class="fn">' + (x.st.cleared+1) + "</div>" +
+        '<div style="flex:1;min-width:0"><div class="ft">' + esc(x.c.name) + "</div>" +
+        '<div class="fs">FLOOR ' + (x.st.cleared+1) + " OF " + x.st.authored + " WRITTEN</div>" +
+        '<div class="bar" style="margin-top:7px"><i style="width:' + pc.toFixed(1) + '%"></i></div></div></button>';
+    }).join("")
+    : '<div class="empty"><div class="big">&#10022;</div>No dungeon entered yet.</div>';
+  h += "</div>";
+
+  h += '<div class="rule"></div>';
+  h += '<div class="label" style="text-align:center;margin-bottom:12px">' + esc(S.user ? S.user.email : "") +
+       " &middot; " + (Store.mode === "cloud" ? "SYNCED" : "LOCAL ONLY") + "</div>";
+  h += '<button class="btn ghost" id="signOut">Leave the Library</button>';
+  $("casterBody").innerHTML = h;
+  $("signOut").onclick = doSignOut;
+  Array.prototype.forEach.call($("casterBody").querySelectorAll("[data-d]"), function(b){
+    b.onclick = function(){ openDungeon(b.dataset.d); };
+  });
+}
+
+/* ----------------------------- AUTH ----------------------------- */
+function authMsg(text, kind){
+  var m = $("authMsg");
+  if (!text){ m.className = "msg"; m.textContent = ""; return; }
+  m.className = "msg on " + (kind || "err"); m.innerHTML = text;
+}
+function setAuthMode(mode){
+  S.authMode = mode;
+  var up = mode === "up";
+  $("aName").style.display = up ? "" : "none";
+  $("nameLbl").style.display = up ? "" : "none";
+  $("aPass").setAttribute("autocomplete", up ? "new-password" : "current-password");
+  $("aGo").textContent = up ? "Inscribe Your Grimoire" : "Enter the Library";
+  $("aSwitch").innerHTML = up ? "Already inscribed? <b>Sign in</b>" : "No tome of your own? <b>Inscribe one</b>";
+  authMsg("");
+}
+function authError(e){
+  var map = {
+    "auth/invalid-email":"That email address is not valid.",
+    "auth/user-not-found":"No caster is inscribed under that email.",
+    "auth/wrong-password":"That passphrase does not match.",
+    "auth/invalid-credential":"Email or passphrase is incorrect.",
+    "auth/email-already-in-use":"That email is already inscribed. Sign in instead.",
+    "auth/weak-password":"Choose a passphrase of at least 6 characters.",
+    "auth/missing-password":"Enter a passphrase.",
+    "auth/too-many-requests":"Too many attempts. Wait a moment and try again.",
+    "auth/network-request-failed":"No connection to the library.",
+    "auth/operation-not-allowed":"Email/password sign-in is not enabled. Firebase console \u2192 Authentication \u2192 Sign-in method.",
+    "auth/configuration-not-found":"Authentication is not set up for this Firebase project. Firebase console \u2192 Authentication \u2192 Get started \u2192 enable Email/Password.",
+    "auth/unauthorized-domain":"This domain is not authorised. Firebase console \u2192 Authentication \u2192 Settings \u2192 Authorised domains."
+  };
+  return map[(e && e.code) || ""] || (e && e.message) || "Something went wrong.";
+}
+function doAuth(){
+  var email = $("aEmail").value.trim(), pass = $("aPass").value, name = $("aName").value.trim();
+  if (!email || !pass) return authMsg("Enter an email and passphrase.");
+  $("aGo").disabled = true; authMsg("");
+  (S.authMode === "up" ? Store.signUp(email, pass) : Store.signIn(email, pass))
+    .then(function(u){
+      if (S.authMode === "up"){
+        return Store.saveProfile(u.uid, { name: name || email.split("@")[0], email:email,
+          xp:0, level:1, streak:0, lastDay:null, createdAt:Date.now() }).then(function(){ return u; });
+      }
+      return u;
+    })
+    .then(function(u){ if (Store.mode === "local") enterApp(u); })
+    .catch(function(e){ authMsg(esc(authError(e))); })
+    .then(function(){ $("aGo").disabled = false; });
+}
+function doSignOut(){
+  Store.signOut().then(function(){
+    S.user = null; S.profile = null; S.progress = {};
+    $("nav").classList.remove("on");
+    Array.prototype.forEach.call(document.querySelectorAll(".screen"), function(s){ s.classList.remove("on"); });
+    $("runner").classList.remove("on"); closeSheet();
+    document.body.style.overflow = "";
+    $("auth").classList.remove("hidden"); $("aPass").value = "";
+    setAuthMode("in");
+  });
+}
+function enterApp(user){
+  S.user = user;
+  $("auth").classList.add("hidden");
+  Promise.all([ Store.loadAll(user.uid), S.catalogue.length ? Promise.resolve() : loadIndex() ])
+    .then(function(r){
+      var d = r[0];
+      S.profile = d.profile || { name:user.email.split("@")[0], email:user.email, xp:0, streak:0, lastDay:null };
+      S.progress = d.progress || {};
+      var today = dayKey(new Date());
+      if (S.profile.lastDay && daysBetween(S.profile.lastDay, today) > 1) S.profile.streak = 0;
+      $("nav").classList.add("on");
+      show("map");
+    })
+    .catch(function(e){
+      console.error("Load failed:", e);
+      S.profile = { name:user.email.split("@")[0], email:user.email, xp:0, streak:0 };
+      S.progress = {};
+      $("nav").classList.add("on"); show("map");
+      toast("Could not read your progress. " + esc(e.message || ""), 4500);
+    });
+}
+
+/* ----------------------------- wiring ----------------------------- */
+function wire(){
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function(b){
+    b.onclick = function(){ show(b.dataset.s); };
+  });
+  $("filters").addEventListener("click", function(e){
+    var b = e.target.closest(".chip"); if (!b) return;
+    S.filter = b.dataset.f; renderMap();
+  });
+  $("dgGrid").addEventListener("click", function(e){
+    var b = e.target.closest(".dg"); if (!b || b.disabled) return;
+    openDungeon(b.dataset.d);
+  });
+  $("sheetBack").onclick = closeSheet;
+  $("rExit").onclick = exitRunner;
+  $("aGo").onclick = doAuth;
+  $("aSwitch").onclick = function(){ setAuthMode(S.authMode === "in" ? "up" : "in"); };
+  $("aPass").addEventListener("keydown", function(e){ if (e.key === "Enter") doAuth(); });
+  $("aEmail").addEventListener("keydown", function(e){ if (e.key === "Enter") $("aPass").focus(); });
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "Escape") return;
+    if ($("runner").classList.contains("on")) exitRunner();
+    else if ($("sheet").classList.contains("on")) closeSheet();
+  });
+}
+function installManifest(){
+  try {
+    var icon = "data:image/svg+xml;base64," + btoa(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">' +
+      '<rect width="512" height="512" fill="#0D0A07"/>' +
+      '<text x="256" y="330" font-family="Georgia,serif" font-size="300" fill="#C49A3C" text-anchor="middle">&#10022;</text></svg>');
+    var manifest = { name:"GRIMOIRE", short_name:"Grimoire",
+      description:"Every language a spell. Every concept a power.",
+      start_url:".", scope:".", display:"standalone", background_color:"#0D0A07",
+      theme_color:"#0D0A07", orientation:"portrait",
+      icons:[{src:icon, sizes:"512x512", type:"image/svg+xml", purpose:"any maskable"}] };
+    var link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:"application/manifest+json"}));
+    document.head.appendChild(link);
+    var fav = document.createElement("link"); fav.rel = "icon"; fav.href = icon;
+    document.head.appendChild(fav);
+  } catch(e){}
+}
+function boot(){
+  installManifest(); wire(); setAuthMode("in");
+  var cloud = initFirebase();
+  Store = cloud ? CloudStore : LocalStore;
+  $("authNotice").innerHTML = cloud ? "SYNCED TO FIRESTORE"
+    : "LOCAL MODE &middot; ADD firebaseConfig IN index.html TO SYNC";
+
+  loadIndex().catch(function(e){
+    console.error(e);
+    toast("Could not load the dungeon catalogue. Serve this over HTTP, not file://", 6000);
+  }).then(function(){
+    Store.onAuth(function(user){
+      var sp = $("splash");
+      if (sp){ sp.style.opacity = "0"; setTimeout(function(){ if (sp.parentNode) sp.remove(); }, 420); }
+      if (user) enterApp(user);
+      else $("auth").classList.remove("hidden");
+    });
+  });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+</script>
+</body>
+</html>

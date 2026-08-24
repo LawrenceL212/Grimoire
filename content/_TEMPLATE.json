@@ -1,0 +1,163 @@
+{
+ "_readme": "Copy this file to content/{id}.json and delete the _readme keys. See _SCHEMA.md. Validate with: python tools/validate_content.py",
+ "id": "example",
+ "name": "Example Subject",
+ "category": "Languages",
+ "lang": "python",
+ "runtime": "pyodide",
+ "blurb": "One sentence shown on the map card.",
+ "totalFloors": 10,
+ "floors": [
+  {
+   "n": 1,
+   "title": "Floor Title",
+   "goal": "One sentence: what the learner can do after finishing this floor.",
+   "lesson": {
+    "title": "Lesson Title",
+    "intro": "Optional short paragraph setting up the floor. Delete if unused.",
+    "sections": [
+     {
+      "title": "First Idea",
+      "body": "Explain one idea. Supports **bold**, `inline code`, blank-line paragraphs, and\n\n- bullet lists\n- like this",
+      "code": "print(\"this runs in the browser\")\nprint(2 + 3)",
+      "lang": "python",
+      "annotations": [
+       {"line": 1, "text": "What line 1 demonstrates."},
+       {"line": 2, "text": "Annotate only the lines that carry the idea."}
+      ]
+     },
+     {
+      "title": "Second Idea",
+      "body": "2 to 4 sections per lesson. One idea each.",
+      "code": "x = 10\nprint(x * 2)",
+      "lang": "python",
+      "annotations": [
+       {"line": 1, "text": "Line numbers are 1-based against this code block."}
+      ]
+     }
+    ]
+   },
+   "practice": [
+    {
+     "_readme": "6 to 10 practice challenges. All must pass to unlock the exam.",
+     "id": "p1",
+     "kind": "code",
+     "prompt": "State the task precisely. If output is checked, show it verbatim: `Hello!`",
+     "lang": "python",
+     "starter": "# starter code sets the shape, never the answer\n",
+     "tests": [
+      {"kind": "stdout", "expect": "Hello!", "label": "prints the greeting"}
+     ],
+     "hint": "Nudges toward the idea without giving the answer.",
+     "solution": "print(\"Hello!\")"
+    },
+    {
+     "id": "p2",
+     "kind": "code",
+     "prompt": "An `expr` test checks a value instead of output. It works on bare variables too, so it is usable before functions are taught.",
+     "lang": "python",
+     "starter": "total = \n",
+     "tests": [
+      {"kind": "expr", "call": "total", "expect": 42, "label": "total is 42"}
+     ],
+     "solution": "total = 42"
+    },
+    {
+     "id": "p3",
+     "kind": "code",
+     "prompt": "Write a function `add(a, b)` that returns the sum.",
+     "lang": "python",
+     "starter": "def add(a, b):\n    ",
+     "tests": [
+      {"kind": "expr", "call": "add(2, 3)", "expect": 5},
+      {"kind": "expr", "call": "add(-4, 4)", "expect": 0, "label": "handles negatives"},
+      {"kind": "expr", "call": "add(0, 0)", "expect": 0, "label": "edge: zeroes"}
+     ],
+     "hint": "return a + b",
+     "solution": "def add(a, b):\n    return a + b"
+    },
+    {
+     "id": "p4",
+     "kind": "code",
+     "prompt": "`stdin` feeds lines to `input()`. One array element per line read.",
+     "lang": "python",
+     "starter": "",
+     "tests": [
+      {"kind": "stdout", "stdin": ["Mira"], "expect": "Hello, Mira!", "label": "input \"Mira\""},
+      {"kind": "stdout", "stdin": ["Ash"], "expect": "Hello, Ash!", "label": "input \"Ash\""}
+     ],
+     "solution": "name = input()\nprint(f\"Hello, {name}!\")"
+    },
+    {
+     "id": "p5",
+     "kind": "bugfix",
+     "prompt": "Ships broken starter code. Otherwise identical to `code`.",
+     "lang": "python",
+     "starter": "print(\"Hello\"",
+     "tests": [
+      {"kind": "stdout", "expect": "Hello"}
+     ],
+     "hint": "Count the brackets.",
+     "solution": "print(\"Hello\")"
+    },
+    {
+     "id": "p6",
+     "kind": "code",
+     "prompt": "The last practice challenge should combine every idea on the floor.",
+     "lang": "python",
+     "starter": "def summarise(numbers):\n    ",
+     "tests": [
+      {"kind": "expr", "call": "summarise([1, 2, 3])", "expect": 6},
+      {"kind": "expr", "call": "summarise([])", "expect": 0, "label": "edge: empty list"}
+     ],
+     "solution": "def summarise(numbers):\n    total = 0\n    for n in numbers:\n        total = total + n\n    return total"
+    }
+   ],
+   "exam": [
+    {
+     "_readme": "8 to 12 exam challenges. 80% or better unlocks the next floor.",
+     "id": "e1",
+     "kind": "mcq",
+     "prompt": "Use MCQ only where code cannot test the idea.",
+     "code": "optional snippet shown above the choices — delete this key if unused",
+     "lang": "python",
+     "choices": ["Wrong", "Right", "Wrong", "Wrong"],
+     "answer": 1,
+     "explain": "Shown after answering, whether right or wrong."
+    },
+    {
+     "id": "e2",
+     "kind": "predict",
+     "prompt": "What does this program print?",
+     "code": "x = 2\nprint(x * 3)",
+     "lang": "python",
+     "expect": "6",
+     "explain": "The engine really executes this and compares against the learner's answer."
+    },
+    {
+     "id": "e3",
+     "kind": "bugfix",
+     "prompt": "This should print `7` but it crashes. Fix it.",
+     "lang": "python",
+     "starter": "n = 7\nprint(\"\" + n)",
+     "tests": [
+      {"kind": "stdout", "expect": "7"}
+     ],
+     "solution": "n = 7\nprint(n)"
+    },
+    {
+     "id": "e4",
+     "kind": "code",
+     "prompt": "Exams mix all four kinds. Keep at least half of them code-writing.",
+     "lang": "python",
+     "starter": "def double(n):\n    ",
+     "tests": [
+      {"kind": "expr", "call": "double(4)", "expect": 8},
+      {"kind": "expr", "call": "double(0)", "expect": 0}
+     ],
+     "solution": "def double(n):\n    return n * 2"
+    }
+   ]
+  }
+ ]
+}
