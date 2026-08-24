@@ -505,19 +505,34 @@ def render_body(blocks, budget=BODY_BUDGET):
     return "\n\n".join(out), truncated, kept
 
 
-def pick_code(blocks):
+def nlines(block):
+    return len([l for l in block["text"].split("\n") if l.strip()])
+
+
+def pick_code(blocks, rest=()):
     """The example for a section: a code-block if the source has one, else the
-    meatiest `::` literal block. Both are verbatim."""
-    directives = [b for b in blocks
-                  if b["type"] == "code" and b["kind"] == "directive"]
-    literals = [b for b in blocks
-                if b["type"] == "code" and b["kind"] == "literal"]
-    if directives:
-        chosen = directives[0]
-    elif literals:
-        chosen = max(literals, key=lambda b: len([l for l in b["text"].split("\n")
-                                                  if l.strip()]))
-    else:
+    meatiest `::` literal block. Both are verbatim.
+
+    `blocks` is the part of the section whose prose was kept, `rest` the whole
+    section. An example the retained prose talks about is preferred, but a
+    real listing further down beats a one-line literal near the top.
+    """
+    def directive(bs):
+        for b in bs:
+            if b["type"] == "code" and b["kind"] == "directive":
+                return b
+        return None
+
+    def literal(bs):
+        cands = [b for b in bs if b["type"] == "code" and b["kind"] == "literal"]
+        return max(cands, key=nlines) if cands else None
+
+    near, far = list(blocks), list(rest)
+    chosen = directive(near) or directive(far)
+    if not chosen:
+        a, b = literal(near), literal(far)
+        chosen = a if (a and nlines(a) >= 2) else (b or a)
+    if not chosen:
         return None
     lines = chosen["text"].split("\n")
     if len(lines) > MAX_CODE_LINES:
@@ -541,8 +556,7 @@ def build_candidates(path, text, chapter_name, stats):
         body, truncated, kept = render_body(blocks)
         if len(body) < MIN_BODY:
             continue
-        # Prefer an example the prose we kept actually talks about.
-        code = pick_code(blocks[:kept]) or pick_code(blocks)
+        code = pick_code(blocks[:kept], blocks)
         figrefs = body.count(FIGURE_PHRASE)
         title = qualify(clean_title(nodes[k]["title"]), file_title, chapter_name)
         cands.append({
@@ -552,7 +566,7 @@ def build_candidates(path, text, chapter_name, stats):
             # teaches with a figure we cannot show.
             "score": (120 if code and code["kind"] == "directive" else
                       70 if code else 0)
-                     + min(len(body), 2200) / 100.0 - 4 * figrefs,
+                     + min(len(body), BODY_BUDGET) / 100.0 - 2 * figrefs,
         })
     stats["units"] += len(cands)
     return cands

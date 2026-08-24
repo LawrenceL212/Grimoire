@@ -477,6 +477,7 @@ def sections_for(md, path, report):
             "lang": code_lang or "text",
             "annotations": [],
             "_source": path,
+            "_doc": title0,
             "_prose": chars,
             "_hasCode": bool(code),
         })
@@ -560,6 +561,18 @@ def build_floor(n, name, concepts, paths, fetcher, tree, report):
     # restore the syllabus/document order for reading
     order = {p: i for i, p in enumerate(paths)}
     chosen.sort(key=lambda s: (order.get(s["_source"], 99), candidates.index(s)))
+
+    # Two files on one floor can both call a section "Security Best Practices".
+    # Qualify the clashes with their document so the floor reads as a sequence
+    # of distinct lessons.
+    seen = {}
+    for s in chosen:
+        seen[s["title"]] = seen.get(s["title"], 0) + 1
+    for s in chosen:
+        if seen.get(s["title"], 0) > 1 and s.get("_doc"):
+            doc = s["_doc"].split(":")[0].strip()
+            if doc and doc.lower() not in s["title"].lower():
+                s["title"] = ("%s: %s" % (doc, s["title"]))[:90]
 
     todo = []
     # rule 2: a floor that could not be filled links out honestly, never fakes

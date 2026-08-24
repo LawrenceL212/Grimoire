@@ -767,25 +767,35 @@ def block_math_of(node, stats):
     return out
 
 
+# A `checkpoint` is a question the book poses with the answer printed in an
+# appendix the archive does not serve, so it would arrive as a dangling
+# "try this" with nowhere to go. The end-of-section exercise bank is the
+# same story at scale. Both are dropped; a worked *example*, which does
+# carry its solution inline, is kept in full.
 SKIP_CLASS = ("os-eos", "os-section-exercises", "os-figure", "os-caption",
-              "os-table", "media")
-SKIP_DATATYPE = ("media", "exercise", "problem", "solution", "footnote-refs",
-                 "glossary", "cnx-media", "table")
+              "os-table", "media", "checkpoint")
+SKIP_DATATYPE = ("media", "footnote-refs", "footnote-ref", "glossary",
+                 "cnx-media", "table", "note-exercise")
 
 
-def skippable(node):
+def skippable(node, in_example=False):
     cls = node.get("class", "")
     dt = node.get("data-type", "")
     if any(c in cls for c in SKIP_CLASS):
         return True
     if dt in SKIP_DATATYPE:
         return True
+    # Examples wrap their statement and solution in the same exercise
+    # markup the question banks use, so the two are told apart by where
+    # they sit rather than by what they are called.
+    if dt in ("exercise", "problem", "solution") and not in_example:
+        return True
     if node.tag in ("figure", "table", "img", "aside"):
         return True
     return False
 
 
-def walk_blocks(node, stats, depth=0):
+def walk_blocks(node, stats, depth=0, in_example=False):
     """Yield body-subset text blocks in document order.
 
     Sections nest, so this recurses; anything that cannot be represented
@@ -796,10 +806,13 @@ def walk_blocks(node, stats, depth=0):
     for k in node.kids:
         if not isinstance(k, Node):
             continue
-        if skippable(k):
+        if skippable(k, in_example):
             if k.tag in ("figure", "table") or "os-table" in k.get("class", ""):
                 stats["blocks_dropped"] += 1
+            elif k.get("data-type") == "exercise" or "checkpoint" in k.get("class", ""):
+                stats["exercises_dropped"] += 1
             continue
+        inside = in_example or k.get("data-type") == "example"
         tag = k.tag
         if tag == "p":
             t = para(k, stats)
@@ -817,8 +830,8 @@ def walk_blocks(node, stats, depth=0):
             for tex in block_math_of(k, stats):
                 blocks.append(tex)
         elif tag in ("section", "div", "span"):
-            if depth < 6:
-                blocks.extend(walk_blocks(k, stats, depth + 1))
+            if depth < 8:
+                blocks.extend(walk_blocks(k, stats, depth + 1, inside))
         elif tag == "math":
             tex = render_math(k, stats)
             if tex:
@@ -894,6 +907,10 @@ def module_section(page_html, module, stats):
             break
         kept.append(b)
         used += len(b) + 2
+    # A heading left dangling at the cut - or one whose whole subtree was a
+    # dropped figure - promises text that is not there.
+    while kept and re.fullmatch(r"\*\*[^*]+\*\*", kept[-1].strip()):
+        kept.pop()
     body = "\n\n".join(x for x in kept if x.strip())
     body = re.sub(r"\n{3,}", "\n\n", body).strip()
 

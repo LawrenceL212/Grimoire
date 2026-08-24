@@ -90,6 +90,26 @@ coverage; all lesson text derived from them is written for Grimoire.
   project spec and acceptance tests and links out to the original tutorial;
   tutorial text is not reproduced.
 
+### SystemsApproach/book - CC BY 4.0
+
+- **Repository:** `github.com/SystemsApproach/book` (branch `master`)
+- **Work:** *Computer Networks: A Systems Approach*, Larry Peterson and
+  Bruce Davie, published at `book.systemsapproach.org`.
+- **Licence:** Creative Commons Attribution 4.0 International (CC BY 4.0)
+- **Imported by:** `scripts/import_systems_approach.py`
+- **Used for:** the Networking dungeon, one floor per chapter.
+
+| From | Used as |
+|---|---|
+| `index.rst` and `{chapter}.rst` toctrees | floor order and each chapter's section list |
+| `{chapter}/{section}.rst` prose | lesson section bodies, converted from RST |
+| `.. code-block::` and `::` literal blocks | lesson code examples, verbatim |
+
+CC BY 4.0 permits adaptation with attribution. The prose is reformatted, not
+rewritten: RST markup is converted to the renderer's subset and long sections
+are cut at a paragraph boundary with a link to the full chapter. Figures are
+not reproduced. Practice and exam questions are not taken from the book.
+
 ---
 
 ## Runtimes and libraries

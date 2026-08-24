@@ -369,7 +369,7 @@
       "annotations": []
      },
      {
-      "title": "Security Best Practices",
+      "title": "PKI Fundamentals: Security Best Practices",
       "body": "**Root CA Protection**\n- **Offline Storage**: Keep Root CA completely offline\n- **Physical Security**: Locked, monitored facility\n- **Hardware Security Module (HSM)**: Store keys in FIPS 140-2 Level 3+ HSM\n- **Ceremony Procedures**: Multi-person control for all Root CA operations\n- **Backup**: Secure, geographically distributed backups\n\n**Key Management**\n\n**Certificate Policy and Practice Statement**\n\n**Certificate Policy (CP)**: High-level requirements and rules\n\n**Certificate Practice Statement (CPS)**: Detailed implementation procedures\n\n**Key sections:**\n- Introduction and overview\n- Identification and authentication\n- Certificate lifecycle\n- Physical, procedural, and personnel security\n- Technical security controls\n- Audit and compliance\n\n**Monitoring and Auditing**\n\n**Certificate Transparency**",
       "code": "# Generate strong keys\nopenssl genpkey -algorithm RSA -pkcs8 -out key.pem \\\n  -aes256 -pass pass:STRONG_PASSWORD\n\n# Set proper permissions\nchmod 600 key.pem\nchown root:root key.pem\n\n# Use HSM for critical keys\npkcs11-tool --module /usr/lib/libCryptoki.so --login --keypairgen \\\n  --key-type RSA:3072 --label \"CA-Key\"",
       "lang": "bash",
@@ -383,7 +383,7 @@
       "annotations": []
      },
      {
-      "title": "Security Best Practices",
+      "title": "Certificate Management with OpenSSL: Security Best Practices",
       "body": "**Key Generation**\n- Use strong random number generators\n- Protect private keys with passphrases\n- Store keys in secure hardware (HSM) when possible\n- Implement proper key rotation policies\n\n**Certificate Lifecycle**\n- Set appropriate validity periods (1-2 years maximum)\n- Implement automated renewal processes\n- Monitor certificate expiration dates\n- Maintain certificate revocation procedures\n\n**Post-Quantum Migration**\n- Plan hybrid implementations during transition\n- Test post-quantum algorithms in non-production environments\n- Monitor NIST standardization updates\n- Prepare for algorithm agility",
       "code": "",
       "lang": "text",
@@ -409,7 +409,7 @@
     "post-quantum"
    ],
    "sources": [
-    "cybersecurity-domains/cryptography-pki/cryptography-and-pki/tutorials/code-signing-guide.md",
+    "cybersecurity-domains/cryptography-pki/cryptography-and-pki/tutorials/tls-ssl-guide.md",
     "cybersecurity-domains/cryptography-pki/cryptography-and-pki/tutorials/code-signing-guide.md",
     "cybersecurity-domains/cryptography-pki/cryptography-and-pki/tutorials/post-quantum-migration.md",
     "cybersecurity-domains/cryptography-pki/cryptography-and-pki/tutorials/post-quantum-migration.md"
@@ -417,17 +417,17 @@
    "lesson": {
     "sections": [
      {
-      "title": "Introduction to Code Signing",
-      "body": "Code signing is the process of digitally signing executables and scripts to confirm the software author and guarantee that the code has not been altered or corrupted since it was signed.\n\n**Why Code Sign?**\n\n**Benefits:**\n- **Authentication**: Verify the publisher's identity\n- **Integrity**: Ensure code hasn't been tampered with\n- **Trust**: Build user confidence in your software\n- **Security**: Reduce malware distribution\n- **Compliance**: Meet app store and platform requirements\n\n**Use Cases:**\n- Desktop applications (Windows, macOS, Linux)\n- Mobile apps (iOS, Android)\n- Browser extensions\n- Scripts and macros\n- Container images\n- Firmware updates\n\n**How Code Signing Works**",
-      "code": "1. Developer generates key pair (private + public)\n2. CA issues code signing certificate\n3. Developer signs code with private key\n4. Signature attached to code\n5. User downloads signed code\n6. OS/Platform verifies signature using public key in certificate\n7. If valid, code executes; if invalid, warning/block",
+      "title": "Introduction to TLS/SSL",
+      "body": "Transport Layer Security (TLS) and its predecessor Secure Sockets Layer (SSL) are cryptographic protocols designed to provide secure communications over a computer network.\n\n**Protocol Evolution**\n\n⚠️ **Security Notice**: Only use TLS 1.2+ in production. TLS 1.3 is strongly recommended.\n\n**TLS 1.3 Improvements**\n- Faster handshake (1-RTT instead of 2-RTT)\n- 0-RTT mode for resumed connections\n- Simplified cipher suite negotiation\n- Forward secrecy required\n- Removed insecure algorithms (RSA key exchange, CBC mode, etc.)\n- Encrypted handshake messages\n\n**TLS Protocol Overview**\n\n**TLS 1.2 Handshake**\n\n**TLS 1.3 Handshake**\n\n**Key Exchange Methods**\n\n**RSA Key Exchange (TLS 1.2 only, deprecated)**\n\n**Diffie-Hellman Ephemeral (DHE)**\n\n**Elliptic Curve Diffie-Hellman Ephemeral (ECDHE)**",
+      "code": "Client                                                Server\n\nClientHello                   -------->\n                                                ServerHello\n                                               Certificate*\n                                         ServerKeyExchange*\n                                        CertificateRequest*\n                              <--------      ServerHelloDone\nCertificate*\nClientKeyExchange\nCertificateVerify*\n[ChangeCipherSpec]\nFinished                      -------->\n                                         [ChangeCipherSpec]\n                              <--------             Finished\nApplication Data              <------->     Application Data\n\n* Optional or situation-dependent messages",
       "lang": "text",
       "annotations": []
      },
      {
-      "title": "Code Signing Certificates",
-      "body": "**Certificate Types**\n\n**Standard Code Signing Certificate**\n- Basic identity validation\n- Suitable for most developers\n- Immediate SmartScreen reputation building required\n\n**Extended Validation (EV) Code Signing Certificate**\n- Rigorous identity validation\n- Hardware token required (USB or HSM)\n- Instant SmartScreen reputation (Windows)\n- Higher trust level\n- Required for kernel-mode drivers (Windows)\n\n**Obtaining Certificates**\n\n**Commercial Certificate Authorities**\n\n**Popular CAs:**\n- DigiCert\n- Sectigo (formerly Comodo)\n- GlobalSign\n- Entrust\n- SSL.com\n\n**Self-Signed Certificates (Testing Only)**\n\n⚠️ **Warning**: Self-signed certificates are only for testing. Users will see security warnings.\n\n**Certificate Storage**\n\n**Hardware Security Module (HSM)**\n\n**USB Token**\n- YubiKey 5 Series\n- SafeNet eToken\n- Thales SafeSign\n- DigiCert ONE",
-      "code": "# Generate private key and CSR\nopenssl req -new -newkey rsa:3072 -nodes \\\n  -keyout codesign.key -out codesign.csr \\\n  -subj \"/C=US/ST=State/L=City/O=Organization/CN=Developer Name\" \\\n  -addext \"keyUsage=digitalSignature\" \\\n  -addext \"extendedKeyUsage=codeSigning\"\n\n# Submit CSR to CA\n# Complete identity verification\n# Receive certificate",
-      "lang": "bash",
+      "title": "Introduction to Code Signing",
+      "body": "Code signing is the process of digitally signing executables and scripts to confirm the software author and guarantee that the code has not been altered or corrupted since it was signed.\n\n**Why Code Sign?**\n\n**Benefits:**\n- **Authentication**: Verify the publisher's identity\n- **Integrity**: Ensure code hasn't been tampered with\n- **Trust**: Build user confidence in your software\n- **Security**: Reduce malware distribution\n- **Compliance**: Meet app store and platform requirements\n\n**Use Cases:**\n- Desktop applications (Windows, macOS, Linux)\n- Mobile apps (iOS, Android)\n- Browser extensions\n- Scripts and macros\n- Container images\n- Firmware updates\n\n**How Code Signing Works**",
+      "code": "1. Developer generates key pair (private + public)\n2. CA issues code signing certificate\n3. Developer signs code with private key\n4. Signature attached to code\n5. User downloads signed code\n6. OS/Platform verifies signature using public key in certificate\n7. If valid, code executes; if invalid, warning/block",
+      "lang": "text",
       "annotations": []
      },
      {
@@ -464,9 +464,9 @@
    ],
    "sources": [
     "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/memory-and-stack.md",
+    "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/memory-and-stack.md",
     "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/registers.md",
-    "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/registers.md",
-    "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/assembly-basics.md"
+    "cybersecurity-domains/offensive-security/buffer-overflow-examples/basics/registers.md"
    ],
    "lesson": {
     "sections": [
@@ -474,6 +474,13 @@
       "title": "The Stack: Where Buffer Overflows Usually Happen",
       "body": "The **stack** is a Last-In-First-Out (LIFO) data structure used for:\n- Storing local variables\n- Managing function calls and returns\n- Passing function arguments\n- Saving CPU register states\n\n**Stack Growth Direction**\n\n**Important:** The stack grows from high memory addresses to low memory addresses (downward), but buffers within the stack grow from low to high addresses (upward).",
       "code": "High Address\n┌──────────────┐\n│   Old Data   │  ⬅ Stack starts here\n├──────────────┤\n│  Function 1  │\n├──────────────┤\n│  Function 2  │  ⬅ Stack grows down\n├──────────────┤\n│  Function 3  │  ⬅ Most recent function\n└──────────────┘\nLow Address",
+      "lang": "text",
+      "annotations": []
+     },
+     {
+      "title": "Stack Frame Anatomy",
+      "body": "Each function call creates a **stack frame** (also called activation record):\n\n**Key Stack Pointers**\n\nTwo CPU registers track the stack:\n\n**ESP/RSP (Stack Pointer)**\n- Points to the current top of the stack\n- Moves as data is pushed/popped\n- Changes frequently during execution\n\n**EBP/RBP (Base/Frame Pointer)**\n- Points to the base of the current stack frame\n- Used as a reference point for accessing local variables and parameters\n- Remains stable during function execution",
+      "code": "High Memory\n┌─────────────────────┐\n│  Function Arguments │ ⬅ Pushed by caller\n├─────────────────────┤\n│  Return Address     │ ⬅ Where to jump back after function completes\n├─────────────────────┤\n│  Saved Frame Ptr    │ ⬅ Previous function's base pointer (EBP/RBP)\n├─────────────────────┤\n│  Local Variable 1   │\n├─────────────────────┤\n│  Local Variable 2   │\n├─────────────────────┤\n│  Buffer[0..N]       │ ⬅ Local arrays/buffers\n├─────────────────────┤\n│  ...more locals...  │\n└─────────────────────┘\nLow Memory",
       "lang": "text",
       "annotations": []
      },
@@ -489,13 +496,6 @@
       "body": "**Challenges:**\n- **Larger addresses** - Harder to fit in exploits\n- **No NULL bytes in middle** - Addresses like `0x00007fffffffe000` contain NULLs\n- **Calling convention** - Must control registers, not just stack\n- **ASLR more effective** - Larger address space\n\n**Advantages:**\n- **More registers** - More ROP gadgets available\n- **Cleaner architecture** - More orthogonal instruction set\n\n**Practical Impact for Buffer Overflows**\n\n**32-bit Exploit:**\n\n**64-bit Exploit:**\n\n**Important Notes:**\n- 64-bit architecture is standard in modern systems\n- Exploitation is more complex but still very possible\n- Understanding both 32-bit and 64-bit is essential\n- The principles remain the same, techniques differ",
       "code": "# Easy: just overflow to return address\npayload = b\"A\" * 76 + p32(0x08048456)",
       "lang": "python",
-      "annotations": []
-     },
-     {
-      "title": "Learning Assembly for the Purpose of Principles of Reverse Engineering: Examples",
-      "body": "Different assemblers might require slightly different syntax, and details like system calls can vary between different operating systems.\n\n**x86 Assembly**\n\nThis is a simple \"Hello, World!\" program in x86 assembly using the NASM assembler:\n\nIn this program, we're using the `int 0x80` instruction to make system calls. The specific system call and its arguments are determined by the values we put in the `eax`, `ebx`, `ecx`, and `edx` registers.\n\n**ARM Assembly**\n\nThis is the same \"Hello, World!\" program in ARM assembly. This example uses the GNU assembler and is for Linux:\n\nThe ARM version is similar to the x86 version. We're using the `swi 0` instruction to make system calls, and the `mov` and `ldr` instructions to put values into registers.",
-      "code": "section .data\n    hello db 'Hello, World!',0   ; null-terminated string to be printed\n\nsection .text\n    global _start\n\n_start:\n    ; syscall to write\n    mov eax, 4  ; syscall number (sys_write)\n    mov ebx, 1  ; file descriptor (stdout)\n    mov ecx, hello  ; pointer to message to write\n    mov edx, 13  ; message length\n    int 0x80  ; call kernel\n\n    ; syscall to exit\n    mov eax, 1  ; syscall number (sys_exit)\n    xor ebx, ebx  ; exit code\n    int 0x80  ; call kernel",
-      "lang": "assembly",
       "annotations": []
      }
     ]

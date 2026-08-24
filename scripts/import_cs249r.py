@@ -32,6 +32,7 @@ The licence permits derivatives with attribution under the same terms.
 See content/attribution.md.
 """
 import argparse
+import html
 import io
 import json
 import os
@@ -83,6 +84,7 @@ MAX_SECTIONS_PER_FLOOR = 4
 MIN_SECTIONS_PER_FLOOR = 2
 BODY_BUDGET = 2600          # characters of prose per lesson section
 MIN_PARAGRAPH = 220         # a paragraph shorter than this is a caption/stub
+MAX_CONCEPTS = 6            # the floor's authoring contract, not its index
 
 
 # --------------------------------------------------------------- fetching
@@ -405,6 +407,8 @@ def clean_inline(text):
     text = re.sub(r"\\(?:textbf|textit|emph|gls|glspl|mbox|text)\{([^{}]*)\}",
                   r"\1", text)
     text = re.sub(r"\\(?:newpage|noindent|clearpage|linebreak|par)\b", "", text)
+    # the book uses `&nbsp;` and friends to control typesetting
+    text = html.unescape(text)
     # pandoc smart dashes: the source writes them as hyphen runs
     text = re.sub(r"(?<=\w)---(?=\w)", "\u2014", text)
     text = re.sub(r"(?<=\w)--(?=\w)", "\u2013", text)
@@ -470,6 +474,7 @@ LINT = [
      re.compile(r"(?<![A-Za-z0-9_])_[^_\n]+_(?![A-Za-z0-9_])")),
     ("block quote",     re.compile(r"^\s*>", re.M)),
     ("triple hyphen",   re.compile(r"---")),
+    ("html entity",     re.compile(r"&(?:[a-zA-Z]+|#\d+);")),
 ]
 
 
@@ -715,7 +720,7 @@ def concepts_for(chapters):
                 continue
             seen.add(key)
             out.append(t)
-    return out[:10]
+    return out[:MAX_CONCEPTS]
 
 
 def build_floor(n, chapters, report):
