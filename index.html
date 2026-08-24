@@ -48,10 +48,10 @@
   --shadow:0 4px 24px rgba(0,0,0,0.55);
   --shadow-lg:0 12px 48px rgba(0,0,0,0.65);
 
-  /* book tints */
-  --codex:#3E5A78;
+  /* wing tints */
+  --spellbook:#3E5A78;
   --arcana:#5B4478;
-  --foundations:#3D6B4F;
+  --athenaeum:#3D6B4F;
 
   /* type */
   --serif:"Playfair Display",Georgia,serif;
@@ -275,19 +275,22 @@ code,kbd{
   background:linear-gradient(160deg,var(--surface),#1E1710);
   color:var(--dim);text-align:left;transition:.18s;
 }
-.book-tab .rn{display:block;font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.16em;color:var(--faint)}
 .book-tab .bn{display:block;font-family:var(--serif);font-size:var(--text-base);color:var(--text)}
-.book-tab .bs{display:block;font-size:var(--text-xs);color:var(--faint)}
+.book-tab .bs{display:block;font-family:var(--mono);font-size:var(--text-xs);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:2px}
 .book-tab[aria-selected="true"]{
   border-color:var(--trim2);
   background:
     linear-gradient(160deg, rgba(255,255,255,.02), transparent),
     linear-gradient(160deg, var(--tint-wash, transparent), #1E1710);
 }
-.book-tab[aria-selected="true"] .rn{color:var(--gold)}
+.book-tab[aria-selected="true"] .bn{color:var(--gold)}
+.book-tab[aria-selected="true"] .bs{color:var(--dim)}
 
-.book-blurb{font-family:var(--serif);font-style:italic;color:var(--faint);
-  font-size:var(--text-sm);margin-bottom:var(--s4)}
+.wing-note{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.08em;
+  color:var(--faint);margin:0 0 var(--s3)}
+.book-blurb{font-family:var(--serif);font-style:italic;color:var(--dim);
+  font-size:var(--text-base);margin-bottom:var(--s4)}
 
 .map-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3)}
 @media (min-width:768px){ .map-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4)} }
@@ -616,9 +619,10 @@ code,kbd{
       <section class="view" id="v-map" aria-labelledby="map-title">
         <div class="page-head">
           <h1 id="map-title">The Library</h1>
-          <p class="sub">Three books. Choose where to descend.</p>
+          <p class="sub">Three wings, all open. Choose where to descend.</p>
         </div>
-        <div class="book-tabs" role="tablist" aria-label="Books" id="book-tabs"></div>
+        <div class="book-tabs" role="tablist" aria-label="Wings of the library" id="book-tabs"></div>
+        <p class="wing-note">Follow the threads. The grimoire remembers where you&rsquo;ve been.</p>
         <p class="book-blurb" id="book-blurb"></p>
         <div class="map-grid" id="map-grid"></div>
       </section>
@@ -685,7 +689,7 @@ code,kbd{
 <script type="module">
 /* ==========================================================================
    GRIMOIRE - Phase 1 shell
-   Auth, the three-book dungeon map, and the state layer that every later
+   Auth, the three-wing dungeon map, and the state layer that every later
    phase writes through. Content is data: the map is built entirely from
    content/index.json and this file knows nothing about any subject.
    ========================================================================== */
@@ -1007,7 +1011,6 @@ function renderBookTabs() {
             aria-selected="${b.id === State.book}" aria-controls="map-grid"
             tabindex="${b.id === State.book ? 0 : -1}"
             data-book="${esc(b.id)}" style="--tint-wash:${washOf(b.tint, 0.34)}">
-      <span class="rn">Book ${esc(b.numeral)}</span>
       <span class="bn">${esc(b.name)}</span>
       <span class="bs">${esc(b.subtitle)}</span>
     </button>`).join("");
@@ -1029,7 +1032,7 @@ function renderBookTabs() {
   });
 }
 
-/* A dungeon may carry an official logo (Book I) or a glyph sigil. The engine
+/* A dungeon may carry an official logo (The Spellbook) or a glyph sigil. The engine
    does not know which languages have logos - that is data in index.json. */
 function sigilHTML(d) {
   const fallback = esc(d.sigil || "\u25C8");

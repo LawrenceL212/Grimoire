@@ -17,20 +17,20 @@ python scripts/validate_content.py --strict   # warnings fail too
 
 ## 1. `content/index.json` — the catalogue
 
-Drives the dungeon map. Three books, and the dungeons that fill them.
+Drives the dungeon map. Three wings, and the dungeons that fill them.
 
 ```json
 {
   "version": 2,
   "books": [
-    { "id": "codex", "numeral": "I", "name": "The Codex",
+    { "id": "spellbook", "numeral": "I", "name": "The Spellbook",
       "subtitle": "Languages", "tint": "#3E5A78", "blurb": "Every language a spell." }
   ],
   "dungeons": [
     {
       "id": "python",
       "name": "Python",
-      "books": ["codex"],
+      "books": ["spellbook"],
       "sigil": "🐍",
       "floors": 10,
       "status": "scaffold",
@@ -48,9 +48,9 @@ Drives the dungeon map. Three books, and the dungeons that fill them.
 
 | field | required | meaning |
 |---|---|---|
-| `id` | yes | `codex` \| `arcana` \| `foundations` |
+| `id` | yes | `spellbook` \| `arcana` \| `athenaeum` |
 | `numeral` | yes | Roman numeral shown above the name |
-| `name` | yes | e.g. "The Codex" |
+| `name` | yes | e.g. "The Spellbook" |
 | `subtitle` | yes | e.g. "Languages" |
 | `tint` | yes | Hex. Applied as a low-alpha wash, never as a text colour |
 | `blurb` | no | One line under the tab row |
@@ -61,7 +61,7 @@ Drives the dungeon map. Three books, and the dungeons that fill them.
 |---|---|---|
 | `id` | yes | Filename stem: `"python"` → `content/python.json`. Lowercase, no spaces |
 | `name` | yes | Display name |
-| `books` | yes | Array. A dungeon may appear in more than one book — `discrete-maths` is in both The Arcana and The Foundations and is **one** dungeon, not two |
+| `books` | yes | Array. A dungeon may appear in more than one book — `discrete-maths` is in both The Arcana and The Athenaeum and is **one** dungeon, not two |
 | `sigil` | no | Single glyph on the node |
 | `floors` | yes | Integer, or `null` when the syllabus has not been derived yet. **Never hardcode 10** — floor count follows the syllabus |
 | `status` | yes | `available` = playable · `scaffold` = imported, not yet authored · `planned` = catalogued only |
