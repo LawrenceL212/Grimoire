@@ -480,6 +480,111 @@ code,kbd{
   @keyframes pop{from{transform:translate(-50%,-48%);opacity:0}to{transform:translate(-50%,-50%);opacity:1}}
 }
 
+#sheet{position:fixed;inset:0;z-index:140;background:var(--bg);overflow-y:auto}
+#sheet[hidden]{display:none}
+.sheet-inner{max-width:var(--content-max);margin:0 auto;
+  padding:0 var(--s4) calc(var(--s16) + env(safe-area-inset-bottom))}
+.sheet-bar{position:sticky;top:0;background:var(--bg);padding:var(--s4) 0 var(--s3);z-index:2}
+.sectionhead{display:flex;align-items:center;gap:var(--s3);margin:var(--s6) 0 var(--s3)}
+.sectionhead::after{content:"";flex:1;height:1px;background:var(--trim)}
+.floor-row{display:flex;align-items:center;gap:var(--s3);width:100%;text-align:left;
+  padding:var(--s3) var(--s1);border-bottom:1px solid rgba(196,154,60,.12);min-height:56px}
+.floor-row:last-child{border-bottom:none}
+.floor-row:hover{background:rgba(196,154,60,.06)}
+.floor-row .fnum{flex:none;width:34px;height:34px;border-radius:50%;display:grid;
+  place-items:center;border:1px solid var(--trim2);font-family:var(--mono);
+  font-size:var(--text-sm);color:var(--gold);background:rgba(0,0,0,.25)}
+.floor-row .fbody{flex:1;min-width:0}
+.floor-row .ftitle{display:block;font-family:var(--serif);font-size:var(--text-base)}
+.floor-row .fmeta{display:block;font-family:var(--mono);font-size:var(--text-xs);
+  color:var(--faint);margin-top:2px}
+.floor-row .fgo{color:var(--faint);font-size:var(--text-lg)}
+
+/* ============================ FLOOR RUNNER ============================ */
+#runner{position:fixed;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column}
+#runner[hidden]{display:none}
+.r-head{flex:none;border-bottom:1px solid var(--trim);background:linear-gradient(180deg,#241D13,#1B150E)}
+.r-top{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4) var(--s2);
+  max-width:var(--content-max);margin:0 auto;width:100%}
+.r-title{flex:1;min-width:0}
+.r-crumb{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint)}
+.r-name{font-family:var(--serif);font-size:var(--text-lg);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.r-phases{display:flex;max-width:var(--content-max);margin:0 auto;width:100%;padding:0 var(--s4)}
+.r-phases button{flex:1;min-height:44px;padding:var(--s2) var(--s1);
+  font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);border-bottom:2px solid transparent}
+.r-phases button[aria-selected="true"]{color:var(--gold);border-bottom-color:var(--gold)}
+.r-phases button[disabled]{opacity:.45}
+.r-progress{max-width:var(--content-max);margin:0 auto;width:100%;
+  padding:var(--s2) var(--s4) var(--s3);display:flex;align-items:center;gap:var(--s3)}
+.r-progress .meter{flex:1}
+.r-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.r-inner{max-width:var(--content-max);margin:0 auto;
+  padding:var(--s6) var(--s4) calc(var(--s24) + env(safe-area-inset-bottom))}
+
+.goal{margin-bottom:var(--s6)}
+.lsec{margin-bottom:var(--s12);scroll-margin-top:var(--s8)}
+.lsec h3{font-size:var(--text-lg);margin-bottom:var(--s3);display:flex;align-items:center;gap:var(--s2)}
+.lsec .tick{color:var(--ok);font-size:var(--text-sm);opacity:0;transition:opacity .3s}
+.lsec[data-read="1"] .tick{opacity:1}
+.lsec .body{font-size:var(--text-base);line-height:1.7;max-width:68ch;color:var(--dim)}
+.lsec .body p{margin:0 0 var(--s3)}
+.lsec .body strong{color:var(--text);font-weight:600}
+.lsec .body ul{margin:0 0 var(--s3);padding-left:var(--s6)}
+.lsec .body li{margin-bottom:var(--s1)}
+.concept-link{color:var(--gold);border-bottom:1px dotted var(--trim2);
+  text-underline-offset:3px}
+.ann{margin-top:var(--s3);border-left:2px solid var(--trim);padding-left:var(--s3)}
+.ann div{font-size:var(--text-sm);color:var(--faint);line-height:1.6;margin-bottom:var(--s1)}
+.ann b{font-family:var(--mono);color:var(--bronze);font-weight:500;margin-right:var(--s2)}
+
+/* editor */
+.ed{border:1px solid var(--trim);border-left:3px solid var(--trim-code);
+  border-radius:var(--radius-sm);background:var(--code);overflow:hidden;margin-top:var(--s3)}
+.ed-bar{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);
+  background:rgba(196,154,60,.06);border-bottom:1px solid var(--trim)}
+.ed-lang{flex:1;font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint)}
+.ed-btn{min-height:36px;padding:var(--s1) var(--s3);border:1px solid var(--trim2);
+  border-radius:var(--radius-sm);background:rgba(196,154,60,.1);color:var(--gold);
+  font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase}
+.ed-btn:hover:not([disabled]){background:rgba(196,154,60,.2)}
+.ed-btn[disabled]{opacity:.4;color:var(--faint);border-color:var(--trim);
+  background:none;cursor:not-allowed}
+.ed-wrap{display:flex;max-height:52vh;overflow:auto}
+.ed-gutter{flex:none;padding:var(--s3) 0 var(--s3) var(--s2);text-align:right;
+  font-family:var(--mono);font-size:var(--text-sm);line-height:1.6;color:#5C4B36;
+  user-select:none;background:rgba(0,0,0,.22)}
+.ed-gutter span{display:block;padding-right:var(--s2)}
+.ed-ta{flex:1;min-width:0;border:none;outline:none;resize:none;background:transparent;
+  color:#EFE2C6;font-family:var(--mono);font-size:var(--text-sm);line-height:1.6;
+  padding:var(--s3) var(--s3) var(--s3) var(--s1);white-space:pre;overflow-x:auto;
+  tab-size:4;-moz-tab-size:4}
+.ed-out{border-top:1px solid var(--trim);background:#100B05;padding:var(--s2) var(--s3);
+  font-family:var(--mono);font-size:var(--text-sm);line-height:1.55;white-space:pre-wrap;
+  word-break:break-word;color:var(--dim);max-height:34vh;overflow:auto}
+.ed-out[hidden]{display:none}
+.ed-out .olabel{font-size:var(--text-xs);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:var(--s1)}
+.ed-out.err{color:var(--danger-ink)}
+.ed-out .muted{color:var(--faint);font-style:italic}
+
+/* the runtime is downloading: say so, in words, and grey the button out */
+.boot-line{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);
+  border-top:1px solid var(--trim);background:rgba(196,154,60,.05);
+  font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.06em;color:var(--dim)}
+.boot-line[hidden]{display:none}
+.boot-line .bar{flex:none;width:36px;height:2px;border-radius:1px;background:var(--gold);
+  animation:conjure 1.6s ease-in-out infinite}
+@keyframes conjure{0%,100%{opacity:.25;transform:scaleX(.5)}50%{opacity:1;transform:scaleX(1)}}
+
+.r-foot{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(26,20,16,0),var(--bg) 38%);
+  padding:var(--s6) 0 calc(var(--s4) + env(safe-area-inset-bottom));margin-top:var(--s8)}
+.r-foot .hint{font-family:var(--mono);font-size:var(--text-xs);color:var(--faint);
+  text-align:center;margin-top:var(--s2);letter-spacing:.06em}
+
 #toast{
   position:fixed;left:50%;top:var(--s4);transform:translateX(-50%) translateY(-24px);
   z-index:250;background:var(--elevated);border:1px solid var(--trim2);
@@ -676,6 +781,94 @@ code,kbd{
   </nav>
 </div>
 
+<script type="text/plain" id="w-python">
+var ready = null;
+function boot(){
+  if (!ready){
+    importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js");
+    ready = loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" })
+      .then(function (py) { self.postMessage({ boot: "ready" }); return py; });
+  }
+  return ready;
+}
+self.onmessage = function (e) {
+  var id = e.data.id, code = e.data.code, out = "";
+  self.postMessage({ boot: ready ? "warm" : "loading" });
+  boot().then(function (py) {
+    py.setStdout({ batched: function (t) { out += t + "\n"; } });
+    py.setStderr({ batched: function (t) { out += t + "\n"; } });
+    return py.runPythonAsync(code).then(function () {
+      self.postMessage({ id: id, ok: true, stdout: out, stderr: "" });
+    });
+  }).catch(function (err) {
+    self.postMessage({ id: id, ok: false, stdout: out,
+                       stderr: (err && err.message) ? err.message : String(err) });
+  });
+};
+</script>
+
+<script type="text/plain" id="w-js">
+self.onmessage = function (e) {
+  var id = e.data.id, out = [];
+  function fmt(v) {
+    if (typeof v === "string") return v;
+    if (v === undefined) return "undefined";
+    try { return JSON.stringify(v); } catch (_) { return String(v); }
+  }
+  function push() { out.push(Array.prototype.map.call(arguments, fmt).join(" ")); }
+  var box = { log: push, info: push, warn: push, error: push, debug: push };
+  try {
+    var fn = new Function("console", "self", "window", "document", "fetch",
+                          "XMLHttpRequest", "importScripts", "WebSocket",
+                          '"use strict";' + e.data.code);
+    fn(box);
+    self.postMessage({ id: id, ok: true, stdout: out.join("\n"), stderr: "" });
+  } catch (err) {
+    self.postMessage({ id: id, ok: false, stdout: out.join("\n"),
+                       stderr: (err && err.name ? err.name + ": " : "") +
+                               ((err && err.message) ? err.message : String(err)) });
+  }
+};
+</script>
+
+<div id="runner" hidden>
+  <header class="r-head">
+    <div class="r-top">
+      <button class="icon-btn" id="r-exit" type="button" aria-label="Leave this floor">
+        <span aria-hidden="true">&larr;</span>
+      </button>
+      <div class="r-title">
+        <div class="r-crumb" id="r-crumb"></div>
+        <div class="r-name" id="r-name"></div>
+      </div>
+    </div>
+    <div class="r-phases" role="tablist" aria-label="Floor phases">
+      <button role="tab" aria-selected="true" id="ph-lesson">Lesson</button>
+      <button role="tab" aria-selected="false" disabled id="ph-practice">&#128274; Practice</button>
+      <button role="tab" aria-selected="false" disabled id="ph-exam">&#128274; Exam</button>
+    </div>
+    <div class="r-progress">
+      <span class="label" id="read-count">0 of 0 sections read</span>
+      <div class="meter" role="progressbar" id="read-meter"
+           aria-label="Sections read" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <i style="width:0%"></i>
+      </div>
+    </div>
+  </header>
+  <div class="r-body" id="r-body"><div class="r-inner" id="r-inner"></div></div>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-bar">
+      <button class="icon-btn" id="sheet-close" type="button" aria-label="Back to the library">
+        <span aria-hidden="true">&larr;</span>
+      </button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
 <div id="modal-root" hidden>
   <div id="modal-backdrop"></div>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" id="modal">
@@ -720,6 +913,32 @@ const LS_KEY = "grimoire.mirror.v1";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* The body markdown subset from content/_SCHEMA.md: **bold**, `code`,
+   blank-line paragraphs, "- " bullets, and {{link:dungeon-id}}.
+   Everything is escaped first, so content can never inject markup. */
+function md(src) {
+  let t = esc(src == null ? "" : src);
+
+  // {{link:id}} -> the dungeon's own name. It becomes a real inline concept
+  // link in the knowledge-graph phase; until then it must never show raw.
+  t = t.replace(/\{\{link:([a-z0-9-]+)\}\}/gi, (_, id) => {
+    const d = (State.index?.dungeons || []).find((x) => x.id === id);
+    return `<span class="concept-link" data-link="${esc(id)}">${esc(d ? d.name : id)}</span>`;
+  });
+
+  t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+  return t.split(/\n{2,}/).map((block) => {
+    const lines = block.split("\n").filter((l) => l.trim());
+    if (lines.length && lines.every((l) => /^\s*[-*]\s+/.test(l))) {
+      return "<ul>" + lines.map((l) =>
+        `<li>${l.replace(/^\s*[-*]\s+/, "")}</li>`).join("") + "</ul>";
+    }
+    return `<p>${block.replace(/\n/g, "<br>")}</p>`;
+  }).join("");
+}
 
 /* Book tints are applied as a low-alpha wash so the palette stays warm. */
 function washOf(hex, alpha) {
@@ -851,6 +1070,12 @@ function closeModal() {
   modalReturnFocus?.focus?.();
   modalReturnFocus = null;
 }
+function closeSheet() {
+  $("sheet").hidden = true;
+  if ($("runner").hidden) document.body.style.overflow = "";
+}
+$("sheet-close").addEventListener("click", closeSheet);
+$("r-exit").addEventListener("click", closeFloor);
 $("modal-close").addEventListener("click", closeModal);
 $("modal-backdrop").addEventListener("click", closeModal);
 
@@ -866,9 +1091,11 @@ function setSidebar(open) {
 $("menu-btn").addEventListener("click", () => setSidebar(!$("sidebar").classList.contains("open")));
 $("scrim").addEventListener("click", () => setSidebar(false));
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && $("sidebar").classList.contains("open")) {
-    setSidebar(false); $("menu-btn").focus();
-  }
+  if (e.key !== "Escape") return;
+  if (!$("modal-root").hidden) return;              // the modal handles its own
+  if ($("sidebar").classList.contains("open")) { setSidebar(false); $("menu-btn").focus(); }
+  else if (!$("runner").hidden) closeFloor();
+  else if (!$("sheet").hidden) closeSheet();
 });
 
 /* ----------------------------------------------------------- navigation */
@@ -908,6 +1135,123 @@ async function loadIndex() {
 }
 
 const dungeonById = (id) => (State.index.dungeons || []).find((d) => d.id === id);
+
+/* ==========================================================================
+   EXECUTION
+   The runtime comes from the dungeon's own content file, never from a
+   hardcoded language check: python -> Pyodide, javascript/typescript ->
+   sandboxed worker, everything else -> Piston.
+   ========================================================================== */
+/* The public Piston API became whitelist-only on 2026-02-15 and now answers
+   401. Point `pistonUrl` in content/index.json at a self-hosted instance to
+   enable the compiled languages. */
+const PISTON_DEFAULT = "https://emkc.org/api/v2/piston/execute";
+const pistonUrl = () => State.index?.pistonUrl || PISTON_DEFAULT;
+
+function runtimeFor(dungeon) {
+  if (dungeon.runtime) return dungeon.runtime;
+  const lang = (dungeon.lang || "").toLowerCase();
+  if (lang === "python") return "pyodide";
+  if (lang === "javascript" || lang === "typescript") return "worker";
+  return "piston";
+}
+
+const Exec = {
+  workers: {},
+  pyReady: false,
+  onBootChange: null,
+
+  src(kind) { return $("w-" + kind).textContent; },
+
+  spawn(kind) {
+    const url = URL.createObjectURL(new Blob([Exec.src(kind)], { type: "application/javascript" }));
+    const w = new Worker(url);
+    Exec.workers[kind] = w;
+    return w;
+  },
+
+  kill(kind) {
+    try { Exec.workers[kind]?.terminate(); } catch {}
+    delete Exec.workers[kind];
+    if (kind === "python") { Exec.pyReady = false; Exec.onBootChange?.(false); }
+  },
+
+  runWorker(kind, code, timeoutMs) {
+    return new Promise((resolve) => {
+      let w;
+      try { w = Exec.workers[kind] || Exec.spawn(kind); }
+      catch (e) {
+        return resolve({ ok: false, stdout: "", stderr:
+          `Cannot start the ${kind} runtime: ${e.message}`, unavailable: true });
+      }
+      const id = Math.random().toString(36).slice(2);
+      let done = false;
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        Exec.kill(kind);   // the only way to stop a runaway loop
+        resolve({ ok: false, stdout: "", timedOut: true,
+                  stderr: `Timed out after ${timeoutMs / 1000}s. Check for an endless loop.` });
+      }, timeoutMs);
+      w.onmessage = (e) => {
+        if (e.data.boot) {
+          if (e.data.boot === "ready") { Exec.pyReady = true; Exec.onBootChange?.(false); }
+          else if (e.data.boot === "loading" && !Exec.pyReady) Exec.onBootChange?.(true);
+          return;
+        }
+        if (done || e.data.id !== id) return;
+        done = true; clearTimeout(timer);
+        if (kind === "python") { Exec.pyReady = true; Exec.onBootChange?.(false); }
+        resolve(e.data);
+      };
+      w.onerror = (e) => {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        Exec.kill(kind);
+        resolve({ ok: false, stdout: "", unavailable: true,
+                  stderr: "Runtime failed to load: " + (e.message || "unknown error") });
+      };
+      w.postMessage({ id, code });
+    });
+  },
+
+  async runPiston(lang, code, stdin) {
+    try {
+      const r = await fetch(pistonUrl(), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang, version: "*", stdin: stdin || "",
+                               files: [{ content: code }] }),
+      });
+      if (r.status === 401 || r.status === 403) {
+        return { ok: false, stdout: "", unavailable: true, stderr:
+          "This language runs on a Piston server, and the public one is now " +
+          "whitelist-only. Set \"pistonUrl\" in content/index.json to your own " +
+          "instance to enable it. Python and JavaScript run in the browser and " +
+          "are unaffected." };
+      }
+      if (!r.ok) throw new Error("Piston returned " + r.status);
+      const j = await r.json();
+      const run = j.run || {};
+      const compileErr = j.compile?.stderr || "";
+      return { ok: !compileErr && run.code === 0, stdout: run.stdout || "",
+               stderr: compileErr || run.stderr || "" };
+    } catch (e) {
+      return { ok: false, stdout: "", unavailable: true,
+               stderr: "Remote runner unreachable: " + e.message };
+    }
+  },
+
+  run(dungeon, code, stdin) {
+    const rt = runtimeFor(dungeon);
+    if (rt === "pyodide") {
+      // the first run downloads the interpreter, so allow it far longer
+      return Exec.runWorker("python", code, Exec.pyReady ? 10000 : 90000);
+    }
+    if (rt === "worker") return Exec.runWorker("js", code, 2000);
+    return Exec.runPiston(dungeon.lang, code, stdin);
+  },
+};
+window.__exec = Exec;
 
 /* ---- progress + requirement evaluation ----------------------------------
    A dungeon is complete when every authored floor is cleared. "Floor n" means
@@ -1188,6 +1532,247 @@ function focusDungeon(id) {
   });
 }
 
+const contentCache = {};
+async function loadDungeonContent(id) {
+  if (contentCache[id]) return contentCache[id];
+  const res = await fetch(`content/${id}.json`, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`content/${id}.json returned ${res.status}`);
+  const j = await res.json();
+  contentCache[id] = j;
+  return j;
+}
+
+/* ==========================================================================
+   FLOOR RUNNER - lesson phase
+   ========================================================================== */
+const Lesson = {
+  dungeon: null, floor: null, sections: [],
+  read: new Set(), timers: new Map(), observer: null, editors: [],
+};
+const DWELL_MS = 3000;   // a section counts as read after this long on screen
+
+async function openFloor(dungeonId, floorNo) {
+  let content;
+  try {
+    content = await loadDungeonContent(dungeonId);
+  } catch (e) {
+    openModal({ title: "Content unavailable",
+      body: `<p>${esc(e.message)}</p><p>Content files are fetched over HTTP -
+             open Grimoire through a web server, not a file:// path.</p>`,
+      actions: [{ label: "Close", primary: true }] });
+    return;
+  }
+  const floor = (content.floors || []).find((f) => f.n === floorNo);
+  if (!floor) { toast("That floor is not written yet."); return; }
+
+  Lesson.dungeon = content;
+  Lesson.floor = floor;
+  Lesson.sections = floor.lesson?.sections || [];
+  Lesson.read = new Set();
+  Lesson.timers = new Map();
+  Lesson.editors = [];
+
+  closeSheet();
+  $("runner").hidden = false;
+  document.body.style.overflow = "hidden";
+  $("r-crumb").textContent = `${content.subject || content.name} \u00b7 Floor ${floor.n}`;
+  $("r-name").textContent = floor.name || floor.title || `Floor ${floor.n}`;
+  renderLesson();
+  $("r-body").scrollTop = 0;
+  $("r-exit").focus();
+}
+
+function closeFloor() {
+  Lesson.observer?.disconnect();
+  Lesson.observer = null;
+  Lesson.timers.forEach(clearTimeout);
+  Lesson.timers.clear();
+  Exec.onBootChange = null;
+  $("runner").hidden = true;
+  document.body.style.overflow = "";
+  if (Lesson.dungeon) openDungeon(Lesson.dungeon.id);
+}
+
+function renderLesson() {
+  const d = Lesson.dungeon, f = Lesson.floor;
+  const lang = d.lang || "text";
+  const rt = runtimeFor(d);
+
+  let html = "";
+  if (f.goal) {
+    html += `<div class="card elevated goal">
+      <div class="label">Goal of this floor</div>
+      <p style="font-family:var(--serif);font-size:var(--text-lg);margin:var(--s2) 0 0">${esc(f.goal)}</p>
+    </div>`;
+  }
+  if (f.lesson?.title) html += `<h2 style="font-size:var(--text-xl);margin-bottom:var(--s3)">${esc(f.lesson.title)}</h2>`;
+  if (f.lesson?.intro) html += `<div class="lsec"><div class="body">${md(f.lesson.intro)}</div></div>`;
+
+  html += Lesson.sections.map((sec, i) => `
+    <section class="lsec" data-sec="${i}" data-read="0" aria-labelledby="sec-h-${i}">
+      <h3 id="sec-h-${i}">${esc(sec.title)}
+        <span class="tick" aria-hidden="true">&#10003;</span>
+        <span class="sr-only" data-readlabel="${i}">not yet read</span>
+      </h3>
+      <div class="body">${md(sec.body)}</div>
+      ${editorHTML(i, sec.code, sec.lang || lang, rt)}
+      ${(sec.annotations || []).length ? `<div class="ann">${sec.annotations.map((a) =>
+        `<div><b>${a.line}</b>${esc(a.text)}</div>`).join("")}</div>` : ""}
+    </section>`).join("");
+
+  html += `<div class="r-foot">
+      <button class="btn" id="to-practice" disabled>Read every section to continue</button>
+      <p class="hint" id="foot-hint"></p>
+    </div>`;
+
+  $("r-inner").innerHTML = html;
+  Lesson.sections.forEach((sec, i) => wireEditor(i, sec.code));
+  wireDwell();
+  updateReadProgress();
+
+  $("to-practice").addEventListener("click", () => {
+    toast("Practice arrives in the next step.");
+  });
+
+  // one boot line per editor, driven by the shared runtime state
+  Exec.onBootChange = (booting) => {
+    document.querySelectorAll(".boot-line").forEach((el) => { el.hidden = !booting; });
+    document.querySelectorAll("[data-run]").forEach((b) => {
+      b.disabled = booting;
+      if (booting) b.textContent = "Conjuring\u2026";
+      else if (!b.dataset.busy) b.textContent = "Run";
+    });
+  };
+}
+
+function editorHTML(i, code, lang, rt) {
+  const lines = String(code || "").split("\n");
+  const gutter = lines.map((_, k) => `<span>${k + 1}</span>`).join("");
+  const note = rt === "pyodide"
+    ? "Conjuring the Python runtime\u2026 (first load only)"
+    : rt === "piston" ? "Sending to the remote runner\u2026" : "Starting the sandbox\u2026";
+  return `<div class="ed" data-ed="${i}">
+    <div class="ed-bar">
+      <span class="ed-lang">${esc(lang)}</span>
+      <button class="ed-btn" type="button" data-run="${i}">Run</button>
+    </div>
+    <div class="ed-wrap">
+      <div class="ed-gutter" data-gutter="${i}" aria-hidden="true">${gutter}</div>
+      <textarea class="ed-ta" data-ta="${i}" spellcheck="false" autocapitalize="off"
+        autocorrect="off" aria-label="Editable code example for ${esc(lang)}">${esc(code)}</textarea>
+    </div>
+    <div class="boot-line" data-boot="${i}" hidden>
+      <span class="bar" aria-hidden="true"></span><span>${note}</span>
+    </div>
+    <div class="ed-out" data-out="${i}" hidden></div>
+  </div>`;
+}
+
+function wireEditor(i, original) {
+  const ta = document.querySelector(`[data-ta="${i}"]`);
+  const gutter = document.querySelector(`[data-gutter="${i}"]`);
+  const out = document.querySelector(`[data-out="${i}"]`);
+  const runBtn = document.querySelector(`[data-run="${i}"]`);
+  if (!ta) return;
+
+  const resize = () => {
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, 48) + "px";
+    gutter.innerHTML = ta.value.split("\n").map((_, k) => `<span>${k + 1}</span>`).join("");
+  };
+  ta.addEventListener("input", resize);
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = ta.value.slice(0, a) + "    " + ta.value.slice(b);
+      ta.selectionStart = ta.selectionEnd = a + 4;
+      resize();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (!runBtn.disabled) runBtn.click();
+    }
+  });
+  setTimeout(resize, 0);
+
+  runBtn.addEventListener("click", async () => {
+    const boot = document.querySelector(`[data-boot="${i}"]`);
+    runBtn.dataset.busy = "1";
+    runBtn.disabled = true;
+    runBtn.textContent = "Running";
+    out.hidden = false;
+    out.className = "ed-out";
+    out.innerHTML = '<span class="muted">Running\u2026</span>';
+    if (runtimeFor(Lesson.dungeon) === "pyodide" && !Exec.pyReady) boot.hidden = false;
+
+    const r = await Exec.run(Lesson.dungeon, ta.value, "");
+
+    boot.hidden = true;
+    delete runBtn.dataset.busy;
+    runBtn.disabled = false;
+    runBtn.textContent = "Run";
+    const body = (r.stdout || "").replace(/\s+$/, "");
+    if (r.stderr) {
+      out.className = "ed-out err";
+      out.innerHTML = `<div class="olabel">Error</div>${esc(body ? body + "\n" + r.stderr : r.stderr)}`;
+    } else {
+      out.className = "ed-out";
+      out.innerHTML = `<div class="olabel">Output</div>${
+        body ? esc(body) : '<span class="muted">(no output)</span>'}`;
+    }
+  });
+}
+
+/* A section counts as read only after it has been on screen for DWELL_MS.
+   Scrolling to the bottom therefore cannot unlock the practice gate. */
+function wireDwell() {
+  Lesson.observer?.disconnect();
+  Lesson.observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const i = Number(entry.target.dataset.sec);
+      if (Lesson.read.has(i)) return;
+      if (entry.isIntersecting) {
+        if (Lesson.timers.has(i)) return;
+        Lesson.timers.set(i, setTimeout(() => {
+          Lesson.read.add(i);
+          Lesson.timers.delete(i);
+          entry.target.dataset.read = "1";
+          const lbl = entry.target.querySelector(`[data-readlabel="${i}"]`);
+          if (lbl) lbl.textContent = "read";
+          updateReadProgress();
+        }, DWELL_MS));
+      } else {
+        clearTimeout(Lesson.timers.get(i));
+        Lesson.timers.delete(i);
+      }
+    });
+  }, { threshold: 0.4, root: $("r-body") });
+  document.querySelectorAll(".lsec[data-sec]").forEach((el) => Lesson.observer.observe(el));
+}
+
+function updateReadProgress() {
+  const total = Lesson.sections.length;
+  const done = Lesson.read.size;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  $("read-count").textContent = `${done} of ${total} section${total === 1 ? "" : "s"} read`;
+  const meter = $("read-meter");
+  meter.setAttribute("aria-valuenow", String(pct));
+  meter.firstElementChild.style.width = pct + "%";
+
+  const btn = $("to-practice");
+  const hint = $("foot-hint");
+  if (!btn) return;
+  if (done >= total && total > 0) {
+    btn.disabled = false;
+    btn.textContent = "Enter the Practice Hall";
+    hint.textContent = "";
+  } else {
+    btn.disabled = true;
+    btn.textContent = "Read every section to continue";
+    hint.textContent = `${total - done} section${total - done === 1 ? "" : "s"} still to read`;
+  }
+}
+
 function openDungeon(id) {
   const d = dungeonById(id);
   if (!d) return;
@@ -1208,14 +1793,42 @@ function openDungeon(id) {
     });
     return;
   }
-  openModal({
-    title: d.name,
-    body: `<p><strong>${d.floors} floors.</strong> The floor runner - lesson, practice
-           and exam - arrives in the next phase.</p>
-           <p>Content for this dungeon is imported but not yet authored, so entering it
-           now would show a scaffold rather than a lesson.</p>${reqLine}`,
-    actions: [{ label: "Understood", primary: true }],
-  });
+  showFloorList(d);
+}
+
+async function showFloorList(d) {
+  $("sheet-body").innerHTML = `<div class="empty"><div class="big" aria-hidden="true">&#10022;</div>Opening ${esc(d.name)}&hellip;</div>`;
+  $("sheet").hidden = false;
+  document.body.style.overflow = "hidden";
+  let content;
+  try {
+    content = await loadDungeonContent(d.id);
+  } catch (e) {
+    $("sheet-body").innerHTML = `<div class="card"><div class="msg err">
+      <span class="ico" aria-hidden="true">&#10007;</span>
+      <span>Could not load this dungeon.<br>${esc(e.message)}</span></div></div>`;
+    return;
+  }
+  const floors = content.floors || [];
+  $("sheet-body").innerHTML = `
+    <div class="card">
+      <div class="label">${esc(content.subject || "")} &middot; ${esc(content.lang || "")} &middot; ${esc(runtimeFor(content))}</div>
+      <h2 style="font-size:var(--text-xl);margin:var(--s2) 0">${esc(content.name || d.name)}</h2>
+      ${content.blurb ? `<p style="color:var(--dim)">${esc(content.blurb)}</p>` : ""}
+    </div>
+    <div class="sectionhead"><span class="label">Floors</span></div>
+    <div class="card">${floors.map((f) => `
+      <button class="floor-row" type="button" data-floor="${f.n}">
+        <span class="fnum">${f.n}</span>
+        <span class="fbody">
+          <span class="ftitle">${esc(f.name || f.title || "Floor " + f.n)}</span>
+          <span class="fmeta">${(f.lesson?.sections || []).length} sections &middot;
+            ${(f.practice || []).length} practice &middot; ${(f.exam || []).length} exam</span>
+        </span>
+        <span class="fgo" aria-hidden="true">&rsaquo;</span>
+      </button>`).join("")}</div>`;
+  $("sheet-body").querySelectorAll("[data-floor]").forEach((b) =>
+    b.addEventListener("click", () => openFloor(d.id, Number(b.dataset.floor))));
 }
 
 function openAssessment(id) {
@@ -1428,7 +2041,8 @@ async function boot() {
 }
 
 /* exposed for the test harness only */
-window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSidebar };
+window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSidebar,
+                     openFloor, closeFloor, Lesson, runtimeFor, Exec, loadDungeonContent };
 
 boot();
 </script>

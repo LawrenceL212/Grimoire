@@ -143,6 +143,24 @@ def topo_order(exercises):
 FENCE = re.compile(r"```([a-zA-Z0-9+#-]*)\n(.*?)```", re.S)
 
 
+def normalise_body(md):
+    """Bring upstream markdown into the subset content/_SCHEMA.md allows.
+
+    The schema permits **bold**, `code`, paragraphs and "- " bullets only, so
+    anything else has to be converted here rather than shown raw to a learner.
+    """
+    # underscore emphasis -> bold, which the renderer does support
+    md = re.sub(r"(?<![A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])", r"**\1**", md)
+    # any heading that survived the section split becomes a bold lead-in line
+    md = re.sub(r"^#{1,6}\s+(.+?)\s*$", r"**\1**", md, flags=re.M)
+    # tables and block quotes have no representation in the subset
+    md = re.sub(r"^\s*\|.*\|\s*$", "", md, flags=re.M)
+    md = re.sub(r"^\s*>\s?", "", md, flags=re.M)
+    # normalise bullet markers
+    md = re.sub(r"^\s*[*+]\s+", "- ", md, flags=re.M)
+    return re.sub(r"\n{3,}", "\n\n", md).strip()
+
+
 def strip_links(md):
     """Exercism uses reference-style links heavily; flatten them for display."""
     md = re.sub(r"\[([^\]]+)\]\[[^\]]*\]", r"\1", md)
@@ -211,7 +229,7 @@ def split_sections(md, lang, max_sections=2):
 
     out = []
     for title, body in chunks:
-        body_text = clean(body)
+        body_text = normalise_body(clean(body))
         if not body_text:
             continue
         out.append({"title": title, "body": body_text,
@@ -650,6 +668,11 @@ def build_dungeon(track, fetcher, per_floor, report, target_floors=None):
     for i, group in enumerate(groups):
         floors.append(build_floor(track, ext, lang_id, i + 1, group, fetcher, report))
 
+    # The engine routes execution from these two fields alone; without them a
+    # Python dungeon would fall through to the remote runner.
+    runtime = ("pyodide" if lang_id == "python"
+               else "worker" if lang_id in ("javascript", "typescript")
+               else "piston")
     flav = FLAVOUR.get(track, {"name": humanise(track) + " Depths", "sigil": "◈"})
     return {
         "id": track,
@@ -658,6 +681,8 @@ def build_dungeon(track, fetcher, per_floor, report, target_floors=None):
         "category": "language",
         "sigil": flav["sigil"],
         "unlock": None,
+        "lang": lang_id,
+        "runtime": runtime,
         "source": "exercism/%s (MIT)" % track,
         "importedBy": "scripts/import_exercism.py",
         "blurb": conf.get("blurb", ""),
@@ -771,8 +796,7 @@ def parse_instructions(md):
             continue
         title, body = parts[i + 1].strip(), parts[i + 2]
         body = FENCE.sub(lambda m: "\n```%s\n%s\n```\n" % (m.group(1), m.group(2).strip("\n")), body)
-        body = re.sub(r"\n{3,}", "\n\n", body).strip()
-        out[n] = (title, body)
+        out[n] = (title, normalise_body(body))
     return out
 
 
