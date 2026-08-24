@@ -1132,6 +1132,15 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
 function md(src) {
   let t = esc(src == null ? "" : src);
 
+  /* Math is masked out before any markdown work. Otherwise `**` inside a
+     formula becomes <strong>, and the <br> conversion splits a multi-line
+     $$...$$ across text nodes so KaTeX can never match the delimiters. */
+  const math = [];
+  const mask = (re) => { t = t.replace(re, (m) => {
+    math.push(m); return `\u0000M${math.length - 1}\u0000`; }); };
+  mask(/\$\$[\s\S]*?\$\$/g);
+  mask(/(?<!\\)\$(?!\s)[^$\n]{1,300}?(?<!\\)\$/g);
+
   // {{link:id}} -> the dungeon's own name. It becomes a real inline concept
   // link in the knowledge-graph phase; until then it must never show raw.
   t = t.replace(/\{\{link:([a-z0-9-]+)\}\}/gi, (_, id) => {
@@ -1142,7 +1151,7 @@ function md(src) {
   t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
   t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
-  return t.split(/\n{2,}/).map((block) => {
+  const out = t.split(/\n{2,}/).map((block) => {
     const lines = block.split("\n").filter((l) => l.trim());
     if (lines.length && lines.every((l) => /^\s*[-*]\s+/.test(l))) {
       return "<ul>" + lines.map((l) =>
@@ -1150,6 +1159,8 @@ function md(src) {
     }
     return `<p>${block.replace(/\n/g, "<br>")}</p>`;
   }).join("");
+
+  return out.replace(/\u0000M(\d+)\u0000/g, (_, i) => math[Number(i)]);
 }
 
 /* Book tints are applied as a low-alpha wash so the palette stays warm. */

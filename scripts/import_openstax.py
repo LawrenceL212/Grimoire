@@ -43,7 +43,6 @@ import io
 import json
 import os
 import re
-import sys
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
@@ -795,6 +794,29 @@ def skippable(node, in_example=False):
     return False
 
 
+HEADING_ONLY = re.compile(r"\*\*[^*]+\*\*")
+
+
+def trim_block(text, room):
+    """As much of an oversized block as ends on a clean boundary.
+
+    A bullet list is cut between items, a paragraph after a full stop.
+    Anything that would leave a fragment mid-sentence is dropped instead.
+    """
+    if room < 160:
+        return ""
+    if len(text) <= room:
+        return text
+    cut = text[:room]
+    if "\n" in text:
+        nl = cut.rfind("\n")
+        return cut[:nl].rstrip() if nl > 120 else ""
+    ends = list(re.finditer(r"(?<=[.!?])\s", cut))
+    if ends and ends[-1].start() > 140:
+        return cut[:ends[-1].start()].rstrip()
+    return ""
+
+
 def walk_blocks(node, stats, depth=0, in_example=False):
     """Yield body-subset text blocks in document order.
 
@@ -831,7 +853,12 @@ def walk_blocks(node, stats, depth=0, in_example=False):
                 blocks.append(tex)
         elif tag in ("section", "div", "span"):
             if depth < 8:
-                blocks.extend(walk_blocks(k, stats, depth + 1, inside))
+                sub = walk_blocks(k, stats, depth + 1, inside)
+                # A container that yields nothing but headings has had its
+                # body dropped (a figure, a question bank), and the heading
+                # on its own would promise text that is not there.
+                if sub and not all(HEADING_ONLY.fullmatch(b.strip()) for b in sub):
+                    blocks.extend(sub)
         elif tag == "math":
             tex = render_math(k, stats)
             if tex:
@@ -878,9 +905,12 @@ def module_section(page_html, module, stats):
     if not title:
         title = module["title_text"]
 
-    objectives = [one_line(s.text()) for s in page.find_all(
+    # Objectives carry inline formulae, so they go through inline_text -
+    # a raw .text() would flatten the MathML and its content-MathML twin
+    # into the same line twice.
+    objectives = [one_line(inline_text(s, stats)) for s in page.find_all(
         lambda n: "os-abstract-content" in n.get("class", ""))]
-    objectives = [escape_prose(o) for o in objectives if o]
+    objectives = [o for o in objectives if o]
 
     abstracts = page.find_all(lambda n: n.get("data-type") == "abstract")
     abstract_ids = {id(a) for a in abstracts}
@@ -902,14 +932,24 @@ def module_section(page_html, module, stats):
 
     kept, used, truncated = list(lead), sum(len(b) for b in lead), False
     for b in blocks:
-        if used and used + len(b) > BODY_BUDGET:
-            truncated = True
-            break
-        kept.append(b)
-        used += len(b) + 2
+        room = BODY_BUDGET - used
+        if used < BODY_BUDGET // 3:
+            # A single oversized block - a long numbered list, usually -
+            # must not be dropped whole, or the section is left with one
+            # dangling lead-in line and nothing under it.
+            room = max(room, 900)
+        if len(b) + 2 <= room:
+            kept.append(b)
+            used += len(b) + 2
+            continue
+        piece = trim_block(b, room)
+        if piece:
+            kept.append(piece)
+        truncated = True
+        break
     # A heading left dangling at the cut - or one whose whole subtree was a
     # dropped figure - promises text that is not there.
-    while kept and re.fullmatch(r"\*\*[^*]+\*\*", kept[-1].strip()):
+    while kept and HEADING_ONLY.fullmatch(kept[-1].strip()):
         kept.pop()
     body = "\n\n".join(x for x in kept if x.strip())
     body = re.sub(r"\n{3,}", "\n\n", body).strip()
@@ -1123,6 +1163,11 @@ def build_dungeon(book, fetcher, report, cap):
                 % (", ".join(m["title_text"] for m in mods), book["webview"]))
             todo.append("exam: author 8-12 questions. Nothing here is imported "
                         "from OpenStax assessment material.")
+            bare = [s["title"] for s in sections if not s["code"].strip()]
+            if bare:
+                todo.append("no formula in the source for %s, so the example "
+                            "box is empty - these modules are prose or lab "
+                            "instructions" % ", ".join(bare))
             for t in missing:
                 todo.append("module %r could not be fetched; no section for it" % t)
 
@@ -1228,7 +1273,7 @@ def write_attribution(books, path):
 def new_stats():
     return {"pages": 0, "pages_missing": 0, "sections": 0, "truncated": 0,
             "math_ok": 0, "math_failed": 0, "blocks_dropped": 0,
-            "no_formula": [], "thin_body": []}
+            "exercises_dropped": 0, "no_formula": [], "thin_body": []}
 
 
 def main():
@@ -1314,6 +1359,7 @@ def summary(dungeons, books, fetcher, report, args):
     thin = sum(len(s["thin_body"]) for s in report["books"].values())
     noform = sum(len(s["no_formula"]) for s in report["books"].values())
     trunc = sum(s["truncated"] for s in report["books"].values())
+    exdropped = sum(s["exercises_dropped"] for s in report["books"].values())
 
     print("")
     print("=" * 74)
@@ -1341,8 +1387,9 @@ def summary(dungeons, books, fetcher, report, args):
     print("    lesson sections             : %d" % n_sec)
     print("    prose imported              : %s characters, all of it the "
           "book's own words" % format(body_chars, ","))
-    print("    formulae MathML -> LaTeX    : %d converted, %d skipped as "
-          "unrenderable" % (math_ok, math_bad))
+    print("    MathML -> LaTeX conversions : %d ok, %d skipped as "
+          "unrenderable (a formula is converted once for the body and "
+          "again for the example box)" % (math_ok, math_bad))
     print("")
     print("  NOT IMPORTED / NEEDS MANUAL WORK")
     print("    practice challenges         : %d  (every floor needs 6-10)" % n_prac)
@@ -1350,6 +1397,8 @@ def summary(dungeons, books, fetcher, report, args):
     print("    total _todo entries         : %d" % n_todo)
     print("    figures and tables dropped  : %d (no representation in the "
           "body subset)" % dropped)
+    print("    source questions dropped    : %d (checkpoints and the "
+          "end-of-section bank, all answer-key-less)" % exdropped)
     print("    sections truncated at budget: %d of %d" % (trunc, n_sec))
     print("    sections with no formula    : %d" % noform)
     print("    sections under 200 chars    : %d" % thin)

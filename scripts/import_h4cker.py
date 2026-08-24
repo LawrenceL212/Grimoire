@@ -373,7 +373,15 @@ def split_chunks(md):
         parts = pat.split(text)
         if len(parts) < 3:
             return None
-        return [(parts[i].strip(), parts[i + 1]) for i in range(1, len(parts) - 1, 2)]
+        out = []
+        # re.split hands back the text before the first heading as parts[0].
+        # Dropping it loses the opening explanation of every document that puts
+        # its lead paragraphs under the H1 and only starts using ## later on.
+        if prose_score(unmask(parts[0]))[0] >= MIN_PROSE_CHARS:
+            out.append((None, parts[0]))
+        out.extend((parts[i].strip(), parts[i + 1])
+                   for i in range(1, len(parts) - 1, 2))
+        return out
 
     chunks = cut(masked, 2) or cut(masked, 3)
     if not chunks:
@@ -388,10 +396,10 @@ def split_chunks(md):
         if len(raw) > MAX_BODY_CHARS * 1.6:
             sub = cut(raw, 3)
             if sub:
-                head = raw.split("###", 1)[0]
-                if prose_score(head)[0] >= MIN_PROSE_CHARS:
-                    out.append((title, head))
-                out.extend((s_title, s_raw) for s_title, s_raw in sub)
+                # cut() already returns the text before the first ### as its
+                # own untitled chunk; it inherits the parent ## heading.
+                out.extend((title if s_title is None else s_title, s_raw)
+                           for s_title, s_raw in sub)
                 continue
         out.append((title, raw))
     return out, blocks

@@ -709,17 +709,31 @@ def distribute(items, target_floors):
     return out
 
 
-def concepts_for(chapters):
-    """Concept list = the chapters' own section headings, deduplicated."""
+def concepts_for(chapters, sections):
+    """What this floor teaches, named in the book's own words.
+
+    The lesson's own section headings come first - they are what the floor
+    actually covers - and the list is then topped up round-robin across the
+    floor's chapters, so a floor pairing a listing-rich chapter with a
+    prose-only one still names concepts from both.
+    """
     seen, out = set(), []
-    for ch in chapters:
-        for s in ch["sections"]:
-            t = s["title"].strip()
-            key = t.lower()
-            if key in SKIP_SECTIONS or key in seen or not t:
-                continue
-            seen.add(key)
-            out.append(t)
+
+    def add(title):
+        t = (title or "").strip()
+        key = t.lower()
+        if not t or key in SKIP_SECTIONS or key in seen:
+            return
+        seen.add(key)
+        out.append(t)
+
+    for s in sections:
+        add(s["title"])
+    pools = [[x["title"] for x in ch["sections"]] for ch in chapters]
+    for i in range(max([len(p) for p in pools] or [0])):
+        for p in pools:
+            if i < len(p):
+                add(p[i])
     return out[:MAX_CONCEPTS]
 
 
@@ -760,7 +774,7 @@ def build_floor(n, chapters, report):
     return {
         "n": n,
         "name": FLOOR_NAMES[n - 1] if n <= len(FLOOR_NAMES) else "Floor %d" % n,
-        "concepts": concepts_for(chapters),
+        "concepts": concepts_for(chapters, sections),
         "chapters": [{"title": ch["title"], "path": ch["path"], "url": ch["url"]}
                      for ch in chapters],
         "lesson": {"sections": sections},

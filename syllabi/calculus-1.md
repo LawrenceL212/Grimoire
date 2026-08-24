@@ -29,3 +29,7 @@ Source: https://openstax.org/books/calculus-volume-1/pages/1-introduction
 - figures, photographs and data tables
 - every assessment: practice and exam are authored for Grimoire
 <!-- GENERATED:END -->
+
+
+
+

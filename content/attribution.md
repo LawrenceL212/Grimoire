@@ -128,3 +128,30 @@ not reproduced. Practice and exam questions are not taken from the book.
 If content here is misattributed, or you are a maintainer of one of these
 projects and want a change to how your work is credited, open an issue on the
 Grimoire repository.
+
+<!-- GENERATED:BEGIN - import_openstax.py rewrites this block -->
+## OpenStax mathematics textbooks
+
+- **Site:** openstax.org
+- **Imported by:** `scripts/import_openstax.py`
+- **Used for:** the Athenaeum mathematics dungeons.
+
+| Dungeon | Book | Licence |
+|---|---|---|
+| `calculus-1` | Calculus Volume 1 | Creative Commons Attribution-NonCommercial-ShareAlike License 4.0 |
+| `calculus-2` | Calculus Volume 2 | Creative Commons Attribution-NonCommercial-ShareAlike License 4.0 |
+| `multivariable-calculus` | Calculus Volume 3 | Creative Commons Attribution-NonCommercial-ShareAlike License 4.0 |
+| `precalculus` | Precalculus 2e | Creative Commons Attribution-NonCommercial-ShareAlike License 4.0 |
+| `probability-stats` | Statistics | Creative Commons Attribution License 4.0 |
+
+What is taken: chapter and module prose, learning objectives and displayed equations, reached through the OpenStax archive API (`/apps/archive/{release}/contents/{uuid}@{version}:{module}.json`).
+
+The books ship presentation MathML with no LaTeX annotation, so every formula is re-encoded as LaTeX element by element by the importer. That is a change of notation, not of content.
+
+Not taken: figures, photographs, data tables and the end-of-section exercise banks. Practice and exam challenges are **not** imported from OpenStax - they are written for Grimoire.
+
+Both licences above permit derivative works with attribution; the CC BY-NC-SA titles additionally require that this material stay non-commercial and be shared alike.
+<!-- GENERATED:END -->
+
+
+
