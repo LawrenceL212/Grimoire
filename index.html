@@ -307,7 +307,23 @@ code,kbd{
 .node:active{transform:scale(.96)}
 .node[aria-disabled="true"]{opacity:.6;cursor:default}
 .node[aria-disabled="true"]:hover{box-shadow:var(--shadow);border-color:rgba(196,154,60,.3)}
-.node .sig{font-size:var(--text-lg);line-height:1;color:var(--gold)}
+.node .sig{
+  width:32px;height:32px;flex:none;display:grid;place-items:center;
+  font-size:var(--text-lg);line-height:1;color:var(--gold);
+}
+.node .sig img{width:32px;height:32px;object-fit:contain;display:block}
+/* languages devicon has no icon for: same slot, styled so they read as
+   deliberate rather than as a broken image */
+.node .sig.is-text{
+  font-family:var(--mono);font-size:var(--text-sm);letter-spacing:.02em;
+  color:var(--gold);border:1px solid var(--trim2);border-radius:var(--radius-sm);
+  background:rgba(196,154,60,.08);
+}
+@media (min-width:768px){
+  .node .sig{width:40px;height:40px;font-size:var(--text-xl)}
+  .node .sig img{width:40px;height:40px}
+  .node .sig.is-text{font-size:var(--text-base)}
+}
 .node .nm{font-family:var(--serif);font-size:var(--text-base);line-height:1.25;color:var(--text)}
 .node .meta{margin-top:auto;display:flex;align-items:center;justify-content:space-between;
   gap:var(--s2);flex-wrap:wrap}
@@ -870,6 +886,30 @@ function renderBookTabs() {
   });
 }
 
+/* A dungeon may carry an official logo (Book I) or a glyph sigil. The engine
+   does not know which languages have logos - that is data in index.json. */
+function sigilHTML(d) {
+  const fallback = esc(d.sigil || "\u25C8");
+  const textClass = d.sigilStyle === "text" ? " is-text" : "";
+  if (!d.logo) {
+    return `<span class="sig${textClass}" aria-hidden="true">${fallback}</span>`;
+  }
+  const src = esc((State.index.logoBase || "") + d.logo);
+  return `<span class="sig" data-fallback="${fallback}" data-textstyle="${d.sigilStyle === "text" ? 1 : 0}">
+    <img src="${src}" alt="${esc(d.name)} logo" width="40" height="40"
+         loading="lazy" decoding="async" onerror="window.__logoFallback(this)">
+  </span>`;
+}
+
+/* Network failure must not leave a broken image: swap in the text sigil. */
+window.__logoFallback = function (img) {
+  const box = img.parentElement;
+  if (!box) return;
+  box.textContent = box.dataset.fallback || "\u25C8";
+  box.setAttribute("aria-hidden", "true");
+  if (box.dataset.textstyle === "1") box.classList.add("is-text");
+};
+
 function nodeLabel(d) {
   const floors = d.floors ? `${d.floors} floors` : "syllabus not yet derived";
   const state = d.status === "planned" ? "not yet written" : `${masteryOf(d.id)} percent mastery`;
@@ -896,7 +936,7 @@ function renderMap() {
       <div class="node" role="button" tabindex="0" data-dungeon="${esc(d.id)}"
            style="--tint:${esc(book.tint)};--tint-wash:${wash(book.tint, 0.20)}"
            aria-label="${esc(nodeLabel(d))}"${planned ? ' aria-disabled="true"' : ""}>
-        <span class="sig" aria-hidden="true">${esc(d.sigil || "◈")}</span>
+        ${sigilHTML(d)}
         <span class="nm">${esc(d.name)}</span>
         <div class="meta">
           <span class="fl">${d.floors ? `${d.floors} floors` : "Syllabus pending"}</span>
