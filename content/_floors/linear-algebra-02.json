@@ -1,0 +1,871 @@
+{
+ "n": 2,
+ "name": "Systems, and the Matrix That Holds Them",
+ "concepts": [
+  "matrix-equation",
+  "augmented-matrix",
+  "elementary-row-operations",
+  "row-echelon-form",
+  "reduced-row-echelon-form",
+  "gaussian-elimination",
+  "pivots-and-free-variables",
+  "solution-set-outcomes"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "elimination-drills",
+  "solution-analysis",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Systems, and the Matrix That Holds Them",
+  "sections": [
+   {
+    "title": "One Equation Instead of Many",
+    "body": "A linear system is usually written as a list of equations, but the list is a poor object to reason about: it has no shape. Collect the coefficients into a matrix $A$, the unknowns into a column $\\mathbf{x}$ and the right-hand sides into a column $\\mathbf{b}$, and the whole list becomes the single statement $A\\mathbf{x} = \\mathbf{b}$.\n\nRead that statement **one row at a time** and you get the row picture: each equation is a line in the plane, a plane in space, a hyperplane in general, and a solution is a point lying on all of them at once.\n\nRead it **one column at a time** and you get the column picture, which is the more useful of the two: $A\\mathbf{x} = x_1\\mathbf{a}_1 + x_2\\mathbf{a}_2 + \\cdots + x_n\\mathbf{a}_n$, a weighted combination of the columns of $A$. Solving then asks a single question - *which recipe of the columns produces $\\mathbf{b}$?* - and the three possible answers (exactly one recipe, no recipe, endlessly many recipes) are already visible as geometry before any arithmetic starts.",
+    "code": "System of two equations:      2x -  y = 1\n                               x +  y = 5\n\nAs one matrix equation  A x = b :\n\n    [ 2  -1 ] [ x ]   [ 1 ]\n    [ 1   1 ] [ y ] = [ 5 ]\n      A          x      b\n\nROW picture - read A x = b one row at a time.\n    Each equation is a line in the plane.\n    The two lines meet at exactly one point: (x, y) = (2, 3).\n    Check:  2(2) - (3) = 1     (2) + (3) = 5\n\nCOLUMN picture - read A x = b one column at a time.\n    A x is a combination of the columns of A, weighted by x and y:\n\n        x * [ 2 ]  +  y * [ -1 ]  =  [ 1 ]\n            [ 1 ]         [  1 ]     [ 5 ]\n\n    The right weights are x = 2, y = 3:\n\n        2 * [ 2 ]  +  3 * [ -1 ]  =  [ 4 - 3 ]  =  [ 1 ]\n            [ 1 ]         [  1 ]     [ 2 + 3 ]     [ 5 ]",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The unknowns sit in a column, not a row. That is what makes A x a legal product: A has two columns and x has two rows."
+     },
+     {
+      "line": 12,
+      "text": "Two lines in the plane either cross once, are parallel and never cross, or are the same line. Those are exactly the three outcomes this floor is about."
+     },
+     {
+      "line": 18,
+      "text": "This is the definition of A x that matters: the entries of x are the weights on the columns of A."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "The system $3x + 5y = 7$, $\\;x - 2y = 4$ is written as $A\\mathbf{x} = \\mathbf{b}$. Fill in the missing entries of $A$ and $\\mathbf{b}$. Type numbers only, with a minus sign where needed.",
+     "template": "A = [ 3   ___ ]        b = [ 7 ]\n    [ 1   ___ ]            [ ___ ]",
+     "blanks": [
+      "5",
+      "-2",
+      "4"
+     ],
+     "xp": 20,
+     "tags": [
+      "matrix-equation"
+     ],
+     "concepts": [
+      "matrix-equation"
+     ],
+     "explain": "The rows of $A$ follow the equations in order and each column belongs to one unknown, so the second column collects the $y$ coefficients $5$ and $-2$. The sign travels with the coefficient: writing $2$ instead of $-2$ silently solves $x + 2y = 4$, a different system with a different answer."
+    }
+   },
+   {
+    "title": "The Augmented Matrix and Its Three Legal Moves",
+    "body": "Once a system is $A\\mathbf{x} = \\mathbf{b}$, the symbols $x$, $y$, $z$ are pure decoration - they only mark which column a number sits in. Strip them out and glue $\\mathbf{b}$ on as one more column and you have the **augmented matrix** $[\\,A \\mid \\mathbf{b}\\,]$, which carries every scrap of information the system had and nothing else.\n\nOnly three moves are ever performed on it, the **elementary row operations**: swap two rows, multiply a row by a non-zero constant, or add a multiple of one row to a different row.\n\nEach of the three is chosen because it is **reversible** by another operation of the same kind - and that is the whole reason they may be trusted. If $\\mathbf{x}$ satisfies the old rows it satisfies the new ones, and because the move can be undone, the converse holds too, so the two systems have exactly the same solution set and are called **equivalent**.\n\nThe insistence that $c \\neq 0$ in the scaling rule is not fussiness: multiplying a row by $0$ throws an equation away and can only enlarge the solution set.",
+    "code": "System                          Augmented matrix  [ A | b ]\n\n  x + 2y +  z =  2                 [ 1  2  1 |  2 ]\n 3x + 8y +  z = 12                 [ 3  8  1 | 12 ]\n      4y +  z =  2                 [ 0  4  1 |  2 ]\n\nNote the 0 in the bottom-left cell: the third equation has no x term,\nso its x coefficient is zero and the cell must be filled in.\n\nThe three elementary row operations, and the undo of each:\n\n  1. SWAP     Ri <-> Rj                        undo: swap them back\n  2. SCALE    Ri <- c * Ri,  c not zero        undo: Ri <- (1/c) * Ri\n  3. REPLACE  Ri <- Ri - k * Rj,  i not j      undo: Ri <- Ri + k * Rj\n\nBecause every operation has an undo of the same kind, any (x, y, z)\nsatisfying the old rows satisfies the new ones and vice versa. The\nmatrix changes; the solution set does not.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Missing variables are not missing entries. Every column of the augmented matrix must be filled, with 0 where a variable does not appear."
+     },
+     {
+      "line": 13,
+      "text": "Scaling by c = 0 has no undo - 1/0 does not exist - which is exactly why the definition forbids it."
+     },
+     {
+      "line": 14,
+      "text": "Ri <- Ri - k*Rj changes only row i. Row j is untouched, and that is what keeps the move reversible."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Name each elementary row operation. Each blank takes exactly one lower-case word: swap, multiply or add.",
+     "template": "___ two rows.\n___ a row by a non-zero constant.\n___ a multiple of one row to a different row.",
+     "blanks": [
+      "swap",
+      "multiply",
+      "add"
+     ],
+     "xp": 20,
+     "tags": [
+      "elementary-row-operations"
+     ],
+     "concepts": [
+      "elementary-row-operations"
+     ],
+     "explain": "There are exactly three because exactly three reversible moves are needed: reordering equations, rescaling one, and combining two. A fourth tempting move - adding a multiple of a row to *itself* - is not on the list, since $R_i \\leftarrow R_i - 1\\cdot R_i$ would destroy the row and could not be undone."
+    }
+   },
+   {
+    "title": "Gaussian Elimination, Start to Finish",
+    "body": "**Gaussian elimination** is the disciplined use of the third row operation to manufacture zeros. Work left to right: take the first non-zero entry of the top row as the **pivot**, use it to clear every entry below it in that column, then move down and right to the next pivot and repeat.\n\nWhen no more can be cleared, the matrix is in **row echelon form**: every pivot lies strictly to the right of the pivot above it, and any all-zero rows have sunk to the bottom. The system now looks triangular, and the bottom equation involves one unknown, so it can be solved and pushed upwards - this is **back substitution**.\n\nPressing on - scaling each pivot to $1$ and clearing *above* it as well - gives the **reduced row echelon form**, which is unique for a given matrix and needs no back substitution at all: the answer is simply sitting in the last column. That extra work is Gauss-Jordan elimination.\n\nElimination is not a trick for small systems; it is the algorithm, costing roughly $n^3/3$ multiplications on an $n \\times n$ system, and every serious solver is a refinement of it.",
+    "code": "Solve   x + 2y +  z =  2\n       3x + 8y +  z = 12\n            4y +  z =  2\n\nFORWARD ELIMINATION\n\n  [ 1  2  1 |  2 ]\n  [ 3  8  1 | 12 ]     R2 <- R2 - 3 R1\n  [ 0  4  1 |  2 ]\n\n  [ 1  2  1 |   2 ]\n  [ 0  2 -2 |   6 ]    R3 <- R3 - 2 R2\n  [ 0  4  1 |   2 ]\n\n  [ 1  2  1 |   2 ]    <- row echelon form U\n  [ 0  2 -2 |   6 ]       pivots 1, 2, 5 sitting in columns 1, 2, 3\n  [ 0  0  5 | -10 ]\n\nBACK SUBSTITUTION, bottom row upwards\n\n  5z = -10                 ->  z = -2\n  2y - 2z = 6  -> 2y + 4 = 6  ->  y = 1\n  x + 2y + z = 2 -> x + 2 - 2 = 2 ->  x = 2\n\nGAUSS-JORDAN: keep going to reduced row echelon form\n\n  [ 1  0  0 |  2 ]\n  [ 0  1  0 |  1 ]     the solution is read straight off\n  [ 0  0  1 | -2 ]\n\nCheck:  1(2) + 2(1) + (-2) = 2      3(2) + 8(1) + (-2) = 12\n                            4(1) + (-2) = 2",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "The pivot is the 1 in the top-left. R2 - 3 R1 is chosen precisely so the 3 beneath it becomes 0."
+     },
+     {
+      "line": 15,
+      "text": "Row echelon form: pivots 1, 2 and 5 step to the right as you go down. That staircase is what 'echelon' means."
+     },
+     {
+      "line": 21,
+      "text": "Back substitution runs upwards, so each equation has exactly one unknown left by the time you reach it."
+     },
+     {
+      "line": 27,
+      "text": "In reduced row echelon form each pivot is 1 and is the only non-zero entry in its column, so the last column IS the solution."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Take one elimination step on $\\begin{bmatrix} 1 & 4 & 3 \\\\ 2 & 9 & 11 \\end{bmatrix}$, using row 1 to clear the $2$. State the operation you used and the resulting second row.",
+     "answer": "R2 <- R2 - 2 R1, giving the new row 2 = [0 1 5]",
+     "rubric": {
+      "required": [
+       "pivot",
+       "row",
+       "multipl"
+      ],
+      "optional": [
+       "echelon",
+       "zero",
+       "elimin"
+      ],
+      "minWords": 15
+     },
+     "xp": 50,
+     "tags": [
+      "gaussian-elimination",
+      "elementary-row-operations"
+     ],
+     "concepts": [
+      "gaussian-elimination"
+     ],
+     "explain": "The multiplier is the entry to be killed divided by the pivot, here $2/1 = 2$, which is why the operation is $R_2 \\leftarrow R_2 - 2R_1$ and the new row is $[\\,0\\;\\;1\\;\\;5\\,]$. Adding rather than subtracting is the usual slip and yields $[\\,4\\;\\;17\\;\\;17\\,]$, which clears nothing."
+    }
+   },
+   {
+    "title": "Unique, None, or Infinitely Many",
+    "body": "A linear system has exactly three possible fates, and echelon form names which one before any answer is written down. Columns carrying a pivot correspond to **pivot variables**; columns with no pivot correspond to **free variables**, which may be set to anything.\n\nIf some row of the echelon form reads $[\\,0\\;0\\;\\cdots\\;0 \\mid c\\,]$ with $c \\neq 0$, that row asserts $0 = c$ and the system is **inconsistent**: no solution at all. Geometrically the columns of $A$ simply cannot combine to reach $\\mathbf{b}$.\n\nOtherwise the system is consistent, and the count decides. Every unknown a pivot variable means a **unique** solution; one or more free variables means **infinitely many**, one for each choice of the free values, and the solution set is a line, a plane or a higher flat rather than a point.\n\nNotice what this rules out: a linear system can never have exactly two or exactly seventeen solutions. If $\\mathbf{u}$ and $\\mathbf{v}$ both solve it, so does every point on the line joining them, so two solutions force infinitely many.",
+    "code": "Same coefficients, two different right-hand sides.\n\n  x + 2y -  z = 3            x + 2y -  z = 3\n 2x + 5y +  z = 8           2x + 5y +  z = 8\n 3x + 7y      = 10          3x + 7y      = 11\n\n  [ 1  2 -1 |  3 ]           [ 1  2 -1 |  3 ]\n  [ 2  5  1 |  8 ]           [ 2  5  1 |  8 ]\n  [ 3  7  0 | 10 ]           [ 3  7  0 | 11 ]\n\nR2 <- R2 - 2R1,  R3 <- R3 - 3R1,  then R3 <- R3 - R2 :\n\n  [ 1  2 -1 |  3 ]           [ 1  2 -1 |  3 ]\n  [ 0  1  3 |  2 ]           [ 0  1  3 |  2 ]\n  [ 0  0  0 | -1 ]           [ 0  0  0 |  0 ]\n\n  last row says 0 = -1       last row says 0 = 0\n  NO SOLUTION                2 pivots, 3 unknowns -> z is free\n\n                             back-substituting with z = t:\n                               y = 2 - 3t\n                               x = 3 - 2y + z = -1 + 7t\n                             INFINITELY MANY: (-1+7t, 2-3t, t)\n\nA third case: if elimination had produced a pivot in every one of the\nthree unknown columns and no 0 = c row, the solution would be UNIQUE.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Only the last entry of the third equation differs: 10 on the left, 11 on the right. The coefficient matrix is identical."
+     },
+     {
+      "line": 15,
+      "text": "0 = -1 is false for every (x, y, z), so no vector can satisfy the system. Nothing about the coefficients caused this - b did."
+     },
+     {
+      "line": 17,
+      "text": "0 = 0 is true and simply says the third equation carried no new information; it was the sum of the other two in disguise."
+     },
+     {
+      "line": 23,
+      "text": "t is the free variable. Each value of t gives a different genuine solution, so the solution set is a line in space."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "retrieval",
+     "prompt": "After elimination an augmented matrix has 4 unknowns, 3 pivots and no row of the form $[\\,0\\;0\\;0\\;0 \\mid c\\,]$ with $c \\neq 0$. How many solutions does the system have, and why?",
+     "rubric": {
+      "required": [
+       "free",
+       "pivot",
+       "infinit",
+       "consisten"
+      ],
+      "optional": [
+       "unknown",
+       "column",
+       "unique"
+      ],
+      "minWords": 25
+     },
+     "xp": 20,
+     "tags": [
+      "solution-set-outcomes",
+      "pivots-and-free-variables"
+     ],
+     "concepts": [
+      "solution-set-outcomes"
+     ],
+     "explain": "No $0 = c$ row means the system is consistent, and $4$ unknowns against $3$ pivots leaves exactly one free variable, so the solution set is a line and there are infinitely many solutions. The tempting answer 'none, because there are fewer pivots than unknowns' confuses a shortage of pivots, which creates freedom, with an inconsistent row, which destroys solutions."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-2-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Write the augmented matrix of the system below. Fill in the missing second row. Type numbers only, using a minus sign where the coefficient is negative.",
+   "template": "3x -  y + 2z =  5\n x      + 4z = -1\n2x +  y -  z =  0\n\n[  3  -1   2 |  5 ]\n[ ___ ___ ___ | ___ ]\n[  2   1  -1 |  0 ]",
+   "blanks": [
+    "1",
+    "0",
+    "4",
+    "-1"
+   ],
+   "xp": 20,
+   "tags": [
+    "augmented-matrix",
+    "matrix-equation"
+   ],
+   "concepts": [
+    "augmented-matrix"
+   ],
+   "explain": "The second equation has no $y$ term, and 'no $y$ term' means the coefficient is $0$, not that the entry is skipped - every column must be filled or the columns stop lining up with the unknowns. The leading $x$ with no written coefficient is $1$, another entry that is easy to leave blank."
+  },
+  {
+   "id": "la-2-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the definitions. Each blank takes exactly one lower-case word: pivot, free, echelon or reduced.",
+   "template": "The first non-zero entry of a row, once elimination has finished, is called a ___ .\nA matrix whose pivots step strictly rightwards as you go down is in row ___ form.\nA column of the coefficient matrix carrying no pivot belongs to a ___ variable.\nIf in addition every pivot is 1 and is alone in its column, the matrix is in ___ row echelon form.",
+   "blanks": [
+    "pivot",
+    "echelon",
+    "free",
+    "reduced"
+   ],
+   "xp": 20,
+   "tags": [
+    "row-echelon-form",
+    "reduced-row-echelon-form",
+    "pivots-and-free-variables"
+   ],
+   "concepts": [
+    "row-echelon-form",
+    "pivots-and-free-variables"
+   ],
+   "explain": "Echelon form asks only for the descending staircase of pivots; reduced form adds two further demands, that each pivot equals $1$ and that its column is otherwise empty. Confusing the two is why learners stop eliminating too early and then wonder why the answer is not readable in the last column."
+  },
+  {
+   "id": "la-2-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into the order Gaussian elimination performs them when solving a $3 \\times 3$ system by hand.",
+   "fragments": [
+    "Write the system as the augmented matrix $[\\,A \\mid \\mathbf{b}\\,]$.",
+    "Take the first non-zero entry of row 1 as the pivot of column 1.",
+    "Clear the entries below that pivot with $R_2 \\leftarrow R_2 - m_{21}R_1$ and $R_3 \\leftarrow R_3 - m_{31}R_1$.",
+    "Move to column 2 and use the new pivot in row 2 to clear the entry below it.",
+    "Read the bottom equation, which now has one unknown, and solve it.",
+    "Back-substitute that value upwards to recover the remaining unknowns."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "xp": 20,
+   "tags": [
+    "gaussian-elimination",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "gaussian-elimination"
+   ],
+   "explain": "Elimination is strictly downward and left to right: column 2 is only touched once column 1 is finished, because clearing column 1 changes rows 2 and 3 and would undo any earlier work on them. Back substitution then runs the other way, upwards, which is why it can only begin after the whole forward sweep is complete."
+  },
+  {
+   "id": "la-2-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Forward-eliminate $\\begin{bmatrix} 2 & 4 & -2 & 2 \\\\ 4 & 9 & -3 & 8 \\\\ -2 & -3 & 7 & 10 \\end{bmatrix}$ using the operations named below, in that order. After each one, give the row that changed as four numbers separated by single spaces, for example: 0 1 1 4",
+   "steps": [
+    {
+     "label": "$R_2 \\leftarrow R_2 - 2R_1$: the new row 2",
+     "expected": "0 1 1 4"
+    },
+    {
+     "label": "$R_3 \\leftarrow R_3 + R_1$: the new row 3",
+     "expected": "0 1 5 12"
+    },
+    {
+     "label": "$R_3 \\leftarrow R_3 - R_2$: the new row 3",
+     "expected": "0 0 4 8"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "gaussian-elimination",
+    "elementary-row-operations",
+    "augmented-matrix"
+   ],
+   "concepts": [
+    "elementary-row-operations"
+   ],
+   "explain": "The multiplier for row 2 is $4/2 = 2$ and for row 3 is $-2/2 = -1$, so row 3 is *added* rather than subtracted - the sign of the multiplier follows the entry being killed. Each operation uses the current row 3, not the original one, which is why the last step starts from $[\\,0\\;\\;1\\;\\;5\\;\\;12\\,]$ and not from $[-2\\;\\;{-3}\\;\\;7\\;\\;10]$."
+  },
+  {
+   "id": "la-2-g-05",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "The augmented matrix $[\\,A \\mid \\mathbf{b}\\,]$ drops the letters $x$, $y$, $z$ and the equals signs entirely. Explain what information it still carries and what has genuinely been discarded.",
+   "rubric": {
+    "required": [
+     "coefficient",
+     "column",
+     "order",
+     "name"
+    ],
+    "optional": [
+     "variable",
+     "constant",
+     "position",
+     "zero"
+    ],
+    "minWords": 30
+   },
+   "xp": 20,
+   "tags": [
+    "augmented-matrix",
+    "matrix-equation"
+   ],
+   "concepts": [
+    "augmented-matrix"
+   ],
+   "explain": "Nothing mathematical is lost: each coefficient is still present and its column records which unknown it multiplies, so position replaces naming. What is discarded is only the labels themselves - the matrix cannot tell you whether column two was called $y$ or $q$, which is exactly why the columns must be kept in a fixed order and zeros written for absent terms."
+  }
+ ],
+ "elimination-drills": [
+  {
+   "id": "la-2-d-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Solve by Gaussian elimination, showing the augmented matrix at each stage:\n$$\\begin{aligned} x + y + z &= 4 \\\\ x + 2y + 3z &= 9 \\\\ 2x + 3y + z &= 4 \\end{aligned}$$",
+   "answer": "x = 2, y = -1, z = 3",
+   "rubric": {
+    "required": [
+     "pivot",
+     "elimin",
+     "back",
+     "row"
+    ],
+    "optional": [
+     "echelon",
+     "augment",
+     "substitut",
+     "multipl"
+    ],
+    "minWords": 30
+   },
+   "xp": 50,
+   "tags": [
+    "gaussian-elimination",
+    "matrix-equation",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "gaussian-elimination",
+    "matrix-equation"
+   ],
+   "explain": "With $R_2 \\leftarrow R_2 - R_1$ and $R_3 \\leftarrow R_3 - 2R_1$ the first column clears to give rows $[\\,0\\;1\\;2\\mid 5\\,]$ and $[\\,0\\;1\\;-1 \\mid -4\\,]$; then $R_3 \\leftarrow R_3 - R_2$ leaves $-3z = -9$, so $z = 3$, $y = 5 - 2(3) = -1$ and $x = 4 - (-1) - 3 = 2$. Three pivots for three unknowns is what guarantees the answer is unique; substituting back into all three original equations is the only check worth trusting."
+  },
+  {
+   "id": "la-2-d-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Reduce the augmented matrix $\\begin{bmatrix} 1 & 3 & 1 & 2 & 5 \\\\ 2 & 6 & 3 & 7 & 14 \\\\ 1 & 3 & 2 & 5 & 9 \\end{bmatrix}$ (four unknowns $x_1,\\dots,x_4$) to **reduced** row echelon form. State which columns hold pivots, which variables are free, and give the general solution.",
+   "answer": "RREF rows [1 3 0 -1 | 1], [0 0 1 3 | 4], [0 0 0 0 | 0]; pivots in columns 1 and 3; x2 and x4 free; x1 = 1 - 3x2 + x4, x3 = 4 - 3x4",
+   "rubric": {
+    "required": [
+     "pivot",
+     "free",
+     "reduced",
+     "column"
+    ],
+    "optional": [
+     "echelon",
+     "infinit",
+     "parameter",
+     "zero"
+    ],
+    "minWords": 35
+   },
+   "xp": 50,
+   "tags": [
+    "reduced-row-echelon-form",
+    "pivots-and-free-variables",
+    "gaussian-elimination"
+   ],
+   "concepts": [
+    "reduced-row-echelon-form",
+    "pivots-and-free-variables"
+   ],
+   "explain": "$R_2 \\leftarrow R_2 - 2R_1$ and $R_3 \\leftarrow R_3 - R_1$ both produce $[\\,0\\;0\\;1\\;3\\mid 4\\,]$, so the third row cancels to zero and the pivots land in columns 1 and 3 only; clearing above the second pivot with $R_1 \\leftarrow R_1 - R_2$ finishes the reduction. Column 2 never receives a pivot because it is three times column 1, and a pivotless column is precisely a free variable - counting pivots by counting rows rather than by locating them is the standard error here."
+  },
+  {
+   "id": "la-2-d-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Eliminate on $\\begin{bmatrix} 1 & 2 & -1 & 3 \\\\ 2 & 5 & 1 & 8 \\\\ 3 & 7 & 0 & 10 \\end{bmatrix}$ and say what the resulting echelon form tells you about the solution set. Justify your conclusion from the echelon form itself, not by guessing.",
+   "answer": "Echelon form has final row [0 0 0 | -1], asserting 0 = -1, so the system is inconsistent and has no solution.",
+   "rubric": {
+    "required": [
+     "echelon",
+     "inconsisten",
+     "row",
+     "zero"
+    ],
+    "optional": [
+     "pivot",
+     "augment",
+     "contradic",
+     "solution"
+    ],
+    "minWords": 30
+   },
+   "xp": 50,
+   "tags": [
+    "solution-set-outcomes",
+    "row-echelon-form",
+    "augmented-matrix"
+   ],
+   "concepts": [
+    "solution-set-outcomes",
+    "augmented-matrix",
+    "row-echelon-form"
+   ],
+   "explain": "$R_2 \\leftarrow R_2 - 2R_1$ and $R_3 \\leftarrow R_3 - 3R_1$ give identical left-hand parts $[\\,0\\;1\\;3\\,]$ but right-hand sides $2$ and $1$, so $R_3 \\leftarrow R_3 - R_2$ produces $[\\,0\\;0\\;0 \\mid -1\\,]$ - the equation $0 = -1$, which no vector satisfies. The trap is reading the row of zeros on the left as 'a free variable, so infinitely many'; the deciding entry is the one after the bar, and $-1 \\neq 0$ makes the system inconsistent instead."
+  },
+  {
+   "id": "la-2-d-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Elimination has produced the row echelon form $\\begin{bmatrix} 1 & 1 & 1 & 4 \\\\ 0 & 1 & 2 & 5 \\\\ 0 & 0 & -3 & -9 \\end{bmatrix}$ for unknowns $x, y, z$. Carry out back substitution, giving each value as a plain number such as -2.",
+   "steps": [
+    {
+     "label": "z, from the third row",
+     "expected": "3"
+    },
+    {
+     "label": "y, from the second row",
+     "expected": "-1"
+    },
+    {
+     "label": "x, from the first row",
+     "expected": "2"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "row-echelon-form",
+    "gaussian-elimination"
+   ],
+   "concepts": [
+    "row-echelon-form"
+   ],
+   "explain": "The bottom row is the only one with a single unknown, which is why substitution must start there: $-3z = -9$ gives $z = 3$, then $y + 2(3) = 5$ gives $y = -1$, then $x + (-1) + 3 = 4$ gives $x = 2$. Working top-down instead leaves three unknowns in the first equation and gets nowhere - echelon form is useful precisely because it is triangular from the bottom."
+  },
+  {
+   "id": "la-2-d-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A single row operation turned $\\begin{bmatrix} 1 & 2 & 5 \\\\ 3 & 7 & 16 \\end{bmatrix}$ into $\\begin{bmatrix} 1 & 2 & 5 \\\\ 0 & 1 & 1 \\end{bmatrix}$. Identify the operation exactly, state the operation that undoes it, and explain why the two augmented matrices describe systems with the same solution set.",
+   "answer": "R2 <- R2 - 3 R1; the undo is R2 <- R2 + 3 R1; both systems have solution x = 3, y = 1",
+   "rubric": {
+    "required": [
+     "revers",
+     "multipl",
+     "row",
+     "equivalen"
+    ],
+    "optional": [
+     "undo",
+     "solution",
+     "pivot",
+     "satisf"
+    ],
+    "minWords": 30
+   },
+   "xp": 50,
+   "tags": [
+    "elementary-row-operations",
+    "augmented-matrix"
+   ],
+   "concepts": [
+    "elementary-row-operations"
+   ],
+   "explain": "The multiplier is read off the entry that vanished, $3/1 = 3$, and the whole row must move together - $16 - 3(5) = 1$ confirms it. Because $R_2 \\leftarrow R_2 + 3R_1$ restores the original exactly, any solution of one system is a solution of the other, and both give $x = 3$, $y = 1$; an irreversible move such as multiplying a row by $0$ would break that argument in one direction only."
+  }
+ ],
+ "solution-analysis": [
+  {
+   "id": "la-2-s-01",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Why is a system obtained by elementary row operations guaranteed to have exactly the same solution set as the original - not merely a solution set that contains it? Argue from the operations themselves.",
+   "rubric": {
+    "required": [
+     "revers",
+     "equivalen",
+     "solution",
+     "satisf",
+     "operation"
+    ],
+    "optional": [
+     "undo",
+     "direction",
+     "scal",
+     "swap",
+     "zero"
+    ],
+    "minWords": 40
+   },
+   "xp": 20,
+   "tags": [
+    "elementary-row-operations",
+    "solution-set-outcomes"
+   ],
+   "concepts": [
+    "elementary-row-operations"
+   ],
+   "explain": "Every operation is easily seen to send solutions forwards - a vector satisfying two equations satisfies any combination of them - but that argument alone only proves containment one way. The second inclusion comes from reversibility: each of the three operations is undone by another of the same kind, so the same forwards argument applied to the undo carries solutions back, and the two sets are equal. Scaling by $0$ is barred for exactly this reason, since it has no undo and can strictly enlarge the solution set."
+  },
+  {
+   "id": "la-2-s-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $S$ be the system with rows $E_1, E_2, \\dots, E_m$ and let $S'$ be identical except that $E_2$ is replaced by $E_2 - kE_1$. Prove that $S$ and $S'$ have the same solution set.",
+   "rubric": {
+    "required": [
+     "satisf",
+     "both",
+     "revers",
+     "solution",
+     "convers"
+    ],
+    "optional": [
+     "inclusion",
+     "equivalen",
+     "linear",
+     "arbitrar",
+     "row"
+    ],
+    "minWords": 50
+   },
+   "xp": 50,
+   "tags": [
+    "elementary-row-operations",
+    "equivalent-systems"
+   ],
+   "concepts": [
+    "elementary-row-operations"
+   ],
+   "explain": "The proof is two inclusions. If $\\mathbf{v}$ satisfies $S$ then it satisfies $E_1$ and $E_2$, hence the combination $E_2 - kE_1$, and every other row is untouched, so $\\mathbf{v}$ satisfies $S'$. Conversely, if $\\mathbf{v}$ satisfies $S'$ it satisfies $E_1$ and $E_2 - kE_1$, so it satisfies $(E_2 - kE_1) + kE_1 = E_2$ - and it is the availability of that undo, not any special property of $k$, that supplies the converse. Proving only the first direction is the usual gap, and it would leave open the possibility that $S'$ had gained solutions."
+  },
+  {
+   "id": "la-2-s-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The systems below share a coefficient matrix and differ only in the last entry of $\\mathbf{b}$. Classify each outcome and give the full solution set of whichever one is consistent.\n$$\\begin{aligned} x + 2y - z &= 3 & x + 2y - z &= 3 \\\\ 2x + 5y + z &= 8 & 2x + 5y + z &= 8 \\\\ 3x + 7y &= 10 & 3x + 7y &= 11 \\end{aligned}$$",
+   "answer": "Left: no solution. Right: infinitely many, (x, y, z) = (-1 + 7t, 2 - 3t, t) for every real t.",
+   "rubric": {
+    "required": [
+     "inconsisten",
+     "free",
+     "infinit",
+     "pivot",
+     "echelon"
+    ],
+    "optional": [
+     "parameter",
+     "line",
+     "consisten",
+     "zero",
+     "unique"
+    ],
+    "minWords": 40
+   },
+   "xp": 50,
+   "tags": [
+    "solution-set-outcomes",
+    "pivots-and-free-variables",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "solution-set-outcomes",
+    "pivots-and-free-variables"
+   ],
+   "explain": "Both eliminate to the same left-hand echelon form with pivots in columns 1 and 2 and a zero third row; the only difference is the final entry, $-1$ on the left and $0$ on the right. So the left system contains $0 = -1$ and is inconsistent, while the right one is consistent with $z$ free, giving $y = 2 - 3t$ and $x = 3 - 2y + z = -1 + 7t$. The lesson is that consistency is a property of $\\mathbf{b}$ relative to the columns of $A$, not of $A$ alone - identical coefficients decided nothing here."
+  },
+  {
+   "id": "la-2-s-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the running time of Gaussian elimination on a dense $n \\times n$ system, as a function of $n$, and justify it by counting the work the algorithm actually does.",
+   "answer": "O(n^3)",
+   "rubric": {
+    "required": [
+     "pivot",
+     "row",
+     "cubic",
+     "column"
+    ],
+    "optional": [
+     "substitut",
+     "nested",
+     "third",
+     "elimin",
+     "square"
+    ],
+    "minWords": 30
+   },
+   "xp": 40,
+   "tags": [
+    "gaussian-elimination",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "gaussian-elimination"
+   ],
+   "explain": "Clearing below the first pivot touches about $n$ rows of about $n$ entries each, costing $n^2$; the next pivot works on an $(n-1) \\times (n-1)$ block, and so on, and $n^2 + (n-1)^2 + \\cdots$ is roughly $n^3/3$, which is cubic. Back substitution is only $O(n^2)$ and so is invisible in the total - a common wrong answer is $O(n^2)$, obtained by counting the entries of the matrix once instead of counting how many times each is rewritten."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-2-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A matrix is in **reduced row echelon form** exactly when:",
+   "choices": [
+    "it is in row echelon form, every pivot equals $1$, and each pivot is the only non-zero entry in its column",
+    "it is square and every entry below the main diagonal is zero",
+    "it is in row echelon form and has no rows of zeros",
+    "every entry is either $0$ or $1$"
+   ],
+   "answer": 0,
+   "xp": 10,
+   "tags": [
+    "reduced-row-echelon-form"
+   ],
+   "concepts": [
+    "reduced-row-echelon-form"
+   ],
+   "explain": "Reduced form adds two requirements to echelon form - pivots normalised to $1$ and their columns cleared above as well as below - and it is these that let the solution be read straight from the last column. The second choice describes an upper-triangular matrix, which need not have its pivots ordered or normalised, and zero rows are perfectly legal in reduced form, where they signal a dependent equation."
+  },
+  {
+   "id": "la-2-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of the following are **elementary row operations**? Select every one that is.",
+   "choices": [
+    "Interchange rows $2$ and $4$",
+    "Replace $R_3$ by $5R_3$",
+    "Replace $R_3$ by $0 \\cdot R_3$",
+    "Replace $R_2$ by $R_2 - 4R_1$",
+    "Interchange columns $1$ and $3$"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "xp": 10,
+   "tags": [
+    "elementary-row-operations"
+   ],
+   "concepts": [
+    "elementary-row-operations"
+   ],
+   "explain": "The three legal moves are swapping rows, scaling a row by a **non-zero** constant, and adding a multiple of one row to a different row; each is reversible, which is what protects the solution set. Scaling by $0$ has no undo and simply deletes an equation, while swapping columns is not a row operation at all - it reorders the unknowns and would leave the answer permuted."
+  },
+  {
+   "id": "la-2-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "The augmented matrix of a system in unknowns $x_1, x_2, x_3, x_4$ has reduced row echelon form $\\begin{bmatrix} 1 & 0 & 4 & 0 & 2 \\\\ 0 & 1 & -3 & 0 & 5 \\\\ 0 & 0 & 0 & 1 & -1 \\end{bmatrix}$. Fill in the blanks with a number, a number, and the name of the free variable written like x3.",
+   "template": "Number of pivots: ___\nNumber of free variables: ___\nThe free variable is ___",
+   "blanks": [
+    "3",
+    "1",
+    "x3"
+   ],
+   "xp": 20,
+   "tags": [
+    "pivots-and-free-variables",
+    "reduced-row-echelon-form"
+   ],
+   "concepts": [
+    "pivots-and-free-variables"
+   ],
+   "explain": "Pivots sit in columns $1$, $2$ and $4$ of the coefficient part, so three unknowns are determined and the pivotless column $3$ gives the single free variable $x_3$. Counting the last column as a fourth pivot is the classic slip: that column holds $\\mathbf{b}$, and a pivot there would mean $0 = c$ and no solutions at all."
+  },
+  {
+   "id": "la-2-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these into the order Gauss-Jordan elimination performs them when producing reduced row echelon form.",
+   "fragments": [
+    "Form the augmented matrix $[\\,A \\mid \\mathbf{b}\\,]$.",
+    "Sweep forwards, clearing all entries below each pivot in turn, to reach row echelon form.",
+    "Scale each pivot row so that every pivot equals $1$.",
+    "Sweep backwards, clearing the entries above each pivot.",
+    "Read the values of the pivot variables from the final column."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 20,
+   "tags": [
+    "reduced-row-echelon-form",
+    "gaussian-elimination"
+   ],
+   "concepts": [
+    "reduced-row-echelon-form"
+   ],
+   "explain": "The upward sweep can only begin once the pivots are known, and the pivots are only known when the forward sweep has finished, so the order of the two sweeps is forced. Reading the last column first is the mistake worth naming: before the columns above the pivots are cleared, the last column still holds partially eliminated constants, not the solution."
+  },
+  {
+   "id": "la-2-e-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Forward-eliminate $\\begin{bmatrix} 1 & 2 & -1 & 3 \\\\ 2 & 5 & 1 & 8 \\\\ 3 & 7 & 0 & 11 \\end{bmatrix}$ with the operations named below, in order. Give each changed row as four numbers separated by single spaces.",
+   "steps": [
+    {
+     "label": "$R_2 \\leftarrow R_2 - 2R_1$: the new row 2",
+     "expected": "0 1 3 2"
+    },
+    {
+     "label": "$R_3 \\leftarrow R_3 - 3R_1$: the new row 3",
+     "expected": "0 1 3 2"
+    },
+    {
+     "label": "$R_3 \\leftarrow R_3 - R_2$: the new row 3",
+     "expected": "0 0 0 0"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "gaussian-elimination",
+    "elementary-row-operations",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "gaussian-elimination"
+   ],
+   "explain": "Rows 2 and 3 reduce to the identical row $[\\,0\\;1\\;3\\mid 2\\,]$, which is what makes the third step annihilate the row completely: the third equation was the sum of the first two and carried no new information. A row of zeros right across, bar included, is harmless - it costs a pivot and creates a free variable rather than destroying the solution set."
+  },
+  {
+   "id": "la-2-e-06",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "During elimination a row becomes $[\\,0\\;\\;0\\;\\;0 \\mid 7\\,]$. State precisely what this says about the original system, and contrast it with a row that becomes $[\\,0\\;\\;0\\;\\;0 \\mid 0\\,]$.",
+   "rubric": {
+    "required": [
+     "inconsisten",
+     "solution",
+     "free",
+     "zero"
+    ],
+    "optional": [
+     "pivot",
+     "contradic",
+     "equivalen",
+     "dependent",
+     "infinit"
+    ],
+    "minWords": 30
+   },
+   "xp": 20,
+   "tags": [
+    "solution-set-outcomes",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "solution-set-outcomes"
+   ],
+   "explain": "$[\\,0\\;0\\;0 \\mid 7\\,]$ is the equation $0 = 7$, false for every vector, so the original system - being equivalent to this one - is inconsistent and has no solution whatever the other rows say. $[\\,0\\;0\\;0\\mid 0\\,]$ is the harmless statement $0 = 0$: the row was redundant, the system loses a pivot, and the usual consequence is a free variable and infinitely many solutions."
+  },
+  {
+   "id": "la-2-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Solve completely, by elimination on the augmented matrix:\n$$\\begin{aligned} x + 3y + 2z &= 5 \\\\ 2x + 7y + 7z &= 9 \\\\ 2x + 5y + 2z &= 10 \\end{aligned}$$",
+   "answer": "x = 1, y = 2, z = -1",
+   "rubric": {
+    "required": [
+     "pivot",
+     "elimin",
+     "back",
+     "unique"
+    ],
+    "optional": [
+     "echelon",
+     "augment",
+     "substitut",
+     "row"
+    ],
+    "minWords": 30
+   },
+   "xp": 50,
+   "tags": [
+    "gaussian-elimination",
+    "matrix-equation",
+    "row-echelon-form"
+   ],
+   "concepts": [
+    "gaussian-elimination",
+    "matrix-equation"
+   ],
+   "explain": "$R_2 \\leftarrow R_2 - 2R_1$ and $R_3 \\leftarrow R_3 - 2R_1$ give $[\\,0\\;1\\;3\\mid -1\\,]$ and $[\\,0\\;-1\\;-2\\mid 0\\,]$, then $R_3 \\leftarrow R_3 + R_2$ leaves $z = -1$, whence $y = -1 - 3(-1) = 2$ and $x = 5 - 3(2) - 2(-1) = 1$. Three pivots in three unknown columns and no $0 = c$ row is exactly the signature of a unique solution, so no free variable and no parameter should appear in the answer."
+  },
+  {
+   "id": "la-2-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A system of $3$ equations in $4$ unknowns is eliminated and no row of the form $[\\,0\\;0\\;0\\;0 \\mid c\\,]$ with $c \\neq 0$ appears. Show that it cannot have exactly one solution, and say what its possible outcomes are.",
+   "answer": "At least one column has no pivot, so there is at least one free variable and the system has infinitely many solutions.",
+   "rubric": {
+    "required": [
+     "pivot",
+     "free",
+     "infinit",
+     "unknown",
+     "consisten"
+    ],
+    "optional": [
+     "row",
+     "echelon",
+     "unique",
+     "column",
+     "parameter"
+    ],
+    "minWords": 35
+   },
+   "xp": 50,
+   "tags": [
+    "pivots-and-free-variables",
+    "solution-set-outcomes",
+    "augmented-matrix"
+   ],
+   "concepts": [
+    "pivots-and-free-variables",
+    "solution-set-outcomes"
+   ],
+   "explain": "Each pivot occupies its own row, so three rows admit at most three pivots among four unknown columns, leaving at least one pivotless column - a free variable. The absence of a $0 = c$ row makes the system consistent, and a consistent system with a free variable has one solution for every value of that variable, hence infinitely many; the only outcomes available to a wide system are therefore none or infinitely many, never exactly one."
+  }
+ ]
+}

@@ -1,0 +1,782 @@
+{
+ "n": 1,
+ "name": "Vectors and the Space They Live In",
+ "concepts": [
+  "vectors-in-rn",
+  "vector-addition",
+  "scalar-multiplication",
+  "linear-combinations",
+  "span",
+  "zero-vector",
+  "vector-space-axioms"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "problem-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Vectors, Combinations, and Span",
+  "sections": [
+   {
+    "title": "A Vector Is a List, and Also an Arrow",
+    "body": "A **vector** in $\\mathbb{R}^n$ is an ordered list of $n$ real numbers, written $\\mathbf{v} = (v_1, v_2, \\dots, v_n)$; the numbers are its **components** and $n$ is fixed once and for all by the space you are working in. That is the whole definition - there is nothing hidden inside a vector beyond its list of components.\n\nThe second picture is geometric: $\\mathbf{v}$ is the arrow from the origin to the point with those coordinates, so a vector carries a direction and a length without being pinned anywhere except the origin. The two readings are the same object, and the skill worth building on this floor is switching between them at will.\n\nWe work in $\\mathbb{R}^n$ because it is the smallest setting in which everything later - matrices, projections, eigenvectors - already makes sense. You lose the picture beyond $n = 3$, but not one line of the algebra.\n\nOrder and length both matter: $(3,-1)$ and $(-1,3)$ are different vectors, and $(3,-1)$ is not $(3,-1,0)$, because those two do not even live in the same set.",
+    "code": "A vector in R^n is an ordered list of n real numbers.\n\n  v = (3, -1, 2)          a vector in R^3\n      ^   ^   ^\n      |   |   +-- third component,  v_3 = 2\n      |   +------ second component, v_2 = -1\n      +---------- first component,  v_1 = 3\n\nSame object, drawn: an arrow from the origin (0,0,0) to the point (3,-1,2).\n\n  R^1   the number line             v = (3)\n  R^2   the plane                   v = (3, -1)\n  R^3   ordinary space              v = (3, -1, 2)\n  R^5   no picture, same algebra    v = (3, -1, 2, 0, 7)\n\nORDER MATTERS.  (3, -1) and (-1, 3) are different vectors: one points\nright-and-down, the other left-and-up.\n\nLENGTH MATTERS.  (3, -1) lives in R^2 and (3, -1, 0) lives in R^3.\nThey are not the same vector; they are not even in the same set.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The components are indexed from 1 and the order is part of the data. Swap two of them and you have a different vector."
+     },
+     {
+      "line": 9,
+      "text": "The arrow starts at the origin. That is a convention, and it is what lets one arrow stand for one list of numbers with no ambiguity."
+     },
+     {
+      "line": 14,
+      "text": "R^5 has no drawing, yet every rule on this floor still applies to it unchanged. This is why we define vectors by components rather than by pictures."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill each blank with a plain integer.",
+     "template": "A vector in R^7 has ___ components.\nThe vector (3, -1, 2) lives in R^___.\nThe second component of (4, 0, -6) is ___.",
+     "blanks": [
+      "7",
+      "3",
+      "0"
+     ],
+     "concepts": [
+      "vectors-in-rn"
+     ],
+     "explain": "The superscript in $\\mathbb{R}^n$ counts components and nothing else, so a vector of $\\mathbb{R}^7$ has exactly seven of them. The tempting slip on the last blank is to read off $-6$: components are numbered left to right starting at $1$, so the second component of $(4,0,-6)$ is the middle entry $0$."
+    }
+   },
+   {
+    "title": "Two Operations, Done One Slot at a Time",
+    "body": "Only two operations are defined on vectors, and both act componentwise: $\\mathbf{u} + \\mathbf{v} = (u_1+v_1, \\dots, u_n+v_n)$ and $c\\mathbf{v} = (cv_1, \\dots, cv_n)$ for a real **scalar** $c$. Nothing couples the slots to each other, which is exactly why $\\mathbb{R}^n$ is so easy to compute in.\n\nGeometrically, addition is tip-to-tail: slide $\\mathbf{v}$ until its tail meets the tip of $\\mathbf{u}$, and $\\mathbf{u}+\\mathbf{v}$ is the arrow closing the path. Equivalently it is the diagonal of the parallelogram spanned by the two arrows, which is the picture that makes $\\mathbf{u}+\\mathbf{v} = \\mathbf{v}+\\mathbf{u}$ obvious.\n\nScalar multiplication stretches: $c > 1$ lengthens, $0 < c < 1$ shortens, a negative $c$ flips the arrow to the opposite side of the origin, and $c = 0$ collapses it to the origin. The direction survives scaling up to that flip, so $c\\mathbf{v}$ never leaves the line through $\\mathbf{v}$ and the origin.\n\nSubtraction is not a third operation: $\\mathbf{u} - \\mathbf{v}$ means $\\mathbf{u} + (-1)\\mathbf{v}$. And a sum of vectors from different $\\mathbb{R}^n$ is undefined rather than false, because there is no slot to pair the extra components with.",
+    "code": "u = (3, -1, 2)      v = (-1, 4, 0)      both in R^3\n\nAddition and scaling work one slot at a time, independently:\n\n  u + v   = (3 + (-1),   -1 + 4,    2 + 0)    = (2, 3, 2)\n  u - v   = (3 - (-1),   -1 - 4,    2 - 0)    = (4, -5, 2)\n  2u      = (2*3,        2*(-1),    2*2)      = (6, -2, 4)\n  -v      = (-1*(-1),    -1*4,      -1*0)     = (1, -4, 0)\n\n  2u - 3v = (6, -2, 4) - (-3, 12, 0)          = (9, -14, 4)\n\nWhat the two operations do to the arrows:\n\n  u + v    slide v until its tail sits on the tip of u; the sum is the\n           arrow from the tail of u to the new tip of v.  (Tip to tail.)\n  2u       same direction, twice as long.\n  -u       same line, opposite direction.\n  0u       collapses to the origin, whatever u was.\n\nAdding a vector of R^3 to a vector of R^2 is not wrong, it is undefined:\nthere is no third slot in the R^2 vector to add anything to.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Slot 1 never talks to slot 2. Every componentwise identity you will meet reduces to ordinary arithmetic repeated n times."
+     },
+     {
+      "line": 10,
+      "text": "2u - 3v is a single linear combination with coefficients 2 and -3, evaluated by scaling first and adding second."
+     },
+     {
+      "line": 18,
+      "text": "Scaling by 0 sends every vector to the same place, the origin. That collapse is where the zero vector comes from."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $\\mathbf{a} = (4, 0, -2)$ and $\\mathbf{b} = (1, -3, 5)$. Give each component as a plain integer.",
+     "template": "a + b = ( ___ , ___ , ___ )\n3a    = ( ___ , ___ , ___ )\na - b = ( ___ , ___ , ___ )",
+     "blanks": [
+      "5",
+      "-3",
+      "3",
+      "12",
+      "0",
+      "-6",
+      "3",
+      "3",
+      "-7"
+     ],
+     "concepts": [
+      "vector-addition",
+      "scalar-multiplication"
+     ],
+     "explain": "Every entry is one line of ordinary arithmetic: $-2 + 5 = 3$ in the third slot of the sum, and $-2 - 5 = -7$ in the third slot of the difference. The usual error is dropping a sign when subtracting a negative component, so read $\\mathbf{a} - \\mathbf{b}$ as $\\mathbf{a} + (-1)\\mathbf{b}$ and the signs take care of themselves."
+    }
+   },
+   {
+    "title": "The Eight Rules, and What They Buy",
+    "body": "The two operations obey eight rules: addition commutes and associates, there is a **zero vector** $\\mathbf{0}$ with $\\mathbf{v} + \\mathbf{0} = \\mathbf{v}$, every $\\mathbf{v}$ has an additive inverse $-\\mathbf{v}$, $1\\mathbf{v} = \\mathbf{v}$, $c(d\\mathbf{v}) = (cd)\\mathbf{v}$, and multiplication distributes both over vector sums and over scalar sums. In $\\mathbb{R}^n$ each of them is just the corresponding rule for real numbers applied in every slot at once.\n\nThey earn their keep because any set obeying all eight is called a **vector space**, and everything proved from the eight alone transfers instantly to polynomials, matrices and functions. The axioms are the interface; $\\mathbb{R}^n$ is only the first implementation of it.\n\nThe zero vector is worth naming carefully. It is the vector all of whose components are $0$, it is unique, and it is the one point every span, every line through the origin and every plane through the origin must contain.\n\nA small but genuine theorem: $0\\mathbf{v} = \\mathbf{0}$ for every $\\mathbf{v}$. It is not an axiom and it is not a definition - it is forced, and the worked example derives it from the rules.",
+    "code": "The eight rules.  u, v, w are vectors in R^n; c, d are real numbers.\n\n  1  u + v = v + u                    addition commutes\n  2  (u + v) + w = u + (v + w)        addition associates\n  3  v + 0 = v                        a zero vector exists\n  4  v + (-v) = 0                     every vector has an inverse\n  5  1 v = v                          the scalar 1 does nothing\n  6  c(d v) = (cd) v                  scalars associate\n  7  c(u + v) = cu + cv               distributes over a vector sum\n  8  (c + d) v = cv + dv              distributes over a scalar sum\n\nThey are not decoration.  Rules 3, 4 and 8 alone force  0v = 0:\n\n  0v = (0 + 0)v            since 0 = 0 + 0 in the reals\n     = 0v + 0v             rule 8\n  now add -(0v) to both sides:\n  0v + (-(0v)) = (0v + 0v) + (-(0v))\n  0            = 0v + 0                 rules 2 and 4\n  0            = 0v                     rule 3\n\nSo the zero vector is not merely \"the arrow of no length\" by decree.  It is\nthe unique vector that leaves every vector unchanged under addition, and it\nis where every scaling by the number 0 is forced to land.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Rules 3 and 4 assert existence. They are what make 0 and -v available at all, rather than being facts about particular components."
+     },
+     {
+      "line": 14,
+      "text": "The trick is rewriting the scalar 0 as 0 + 0 so that rule 8 has something to distribute over. Nothing about components is used."
+     },
+     {
+      "line": 18,
+      "text": "Cancelling by adding an inverse is the only cancellation available: there is no division of vectors anywhere in this subject."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "The identity $0\\mathbf{v} = \\mathbf{0}$ looks like a definition, yet it is proved. Explain why it must be a theorem rather than an axiom, and name the two rules that do the real work in the derivation.",
+     "rubric": {
+      "required": [
+       "axiom",
+       "distribut",
+       "inverse",
+       "zero",
+       "scalar"
+      ],
+      "optional": [
+       "theorem",
+       "forced",
+       "cancel",
+       "unique",
+       "component"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "zero-vector",
+      "vector-space-axioms"
+     ],
+     "explain": "The eight axioms never mention the number $0$ multiplying a vector, so the value of $0\\mathbf{v}$ is not stipulated anywhere - it is squeezed out by rewriting $0$ as $0+0$ and letting the distributive rule for scalar sums turn $0\\mathbf{v}$ into $0\\mathbf{v} + 0\\mathbf{v}$. Adding the additive inverse of $0\\mathbf{v}$ then cancels one copy and leaves $\\mathbf{0}$. Assuming it as an axiom would be harmless but redundant, and it would hide the fact that the result holds in every vector space, not only in $\\mathbb{R}^n$."
+    }
+   },
+   {
+    "title": "Linear Combinations and the Shape of a Span",
+    "body": "A **linear combination** of $\\mathbf{v}_1, \\dots, \\mathbf{v}_k$ is any vector $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k$ with real coefficients $c_i$. It is the only kind of expression the two operations can build, so it is the central construction of the whole subject.\n\nThe **span** of a list of vectors is the set of every linear combination of them: $\\mathrm{span}\\{\\mathbf{v}_1,\\dots,\\mathbf{v}_k\\} = \\{c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k : c_i \\in \\mathbb{R}\\}$. Asking whether $\\mathbf{w}$ lies in a span is therefore always the same question: does a system of equations in the coefficients have a solution?\n\nGeometrically the span of one non-zero vector is the line through the origin along it, and the span of two vectors pointing in different directions is the plane through the origin containing both. If the second vector is a multiple of the first it adds no new direction, and the span stays a line.\n\nTwo facts hold no matter what: every span contains $\\mathbf{0}$, taking all coefficients zero, and $\\mathrm{span}\\{\\mathbf{0}\\}$ is the single point $\\{\\mathbf{0}\\}$. A span is never a line or a plane that misses the origin.",
+    "code": "A linear combination of v1, ..., vk is any vector\n\n  c1 v1 + c2 v2 + ... + ck vk         with c1, ..., ck real numbers.\n\nThe span is the set of ALL of them:  span{v1, ..., vk}.\n\nONE VECTOR.  span{(2,1)} = { t(2,1) : t real }, the line through the origin\nand the point (2,1).  Unless v = 0: span{(0,0)} = {(0,0)}, a single point.\n\nTWO VECTORS, different directions.  span{(1,2),(3,-1)} is all of R^2.\nTest it on (9,4).  Solve  a(1,2) + b(3,-1) = (9,4):\n\n       a + 3b = 9\n      2a -  b = 4      =>   b = 2a - 4,  a + 6a - 12 = 9,  a = 3, b = 2\n\n  check:  3(1,2) + 2(3,-1) = (3,6) + (6,-2) = (9,4).            yes\n\nTWO VECTORS, same direction.  span{(1,2),(2,4)} is still only the line\nthrough (1,2), because (2,4) = 2(1,2) contributes no new direction.\n\nIN R^3.  span{(1,1,0),(0,1,1)} = { (a, a+b, b) } = the plane x - y + z = 0.\n  (3,5,2):  a = 3, b = 2, and a + b = 5.   3 - 5 + 2 = 0.       in span\n  (7,7,7):  a = 7, b = 7 force a + b = 14, not 7.  7 - 7 + 7 = 7.   not in\n\nEvery span contains the zero vector: take every coefficient to be 0.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The parameter t sweeps out the whole line as it runs over the reals, negative values covering the half on the far side of the origin."
+     },
+     {
+      "line": 13,
+      "text": "Membership of a span has become a 2x2 system of linear equations. Every later method in this dungeon is a better way of solving exactly this."
+     },
+     {
+      "line": 20,
+      "text": "Two vectors in R^3 sweep out a plane, never all of R^3: two coefficients cannot reach three independent directions."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Write $(1, 11)$ as a linear combination of $(2,1)$ and $(-1,3)$. Set up the system in the two unknown coefficients, solve it, and verify your answer by substitution.",
+     "answer": "c1 = 2, c2 = 3",
+     "rubric": {
+      "required": [
+       "system",
+       "combination",
+       "2",
+       "3",
+       "check"
+      ],
+      "optional": [
+       "substitut",
+       "coefficient",
+       "unique",
+       "solve",
+       "span"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "linear-combinations",
+      "span"
+     ],
+     "explain": "Matching components gives $2c_1 - c_2 = 1$ and $c_1 + 3c_2 = 11$, whose solution is $c_1 = 2$, $c_2 = 3$; substituting back, $2(2,1) + 3(-1,3) = (4,2) + (-3,9) = (1,11)$. The point of the exercise is not the arithmetic but the translation: a question about membership of a span turned, with no cleverness at all, into a system of linear equations."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-1-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the vocabulary. The first three blanks take one word each; the last takes a plain integer.",
+   "template": "The individual numbers making up a vector are its ___.\nA plain real number multiplying a vector is called a ___.\nThe vector whose every component is 0 is the ___ vector.\nThe number of components of a vector in R^4 is ___.",
+   "blanks": [
+    "components",
+    "scalar",
+    "zero",
+    "4"
+   ],
+   "xp": 20,
+   "tags": [
+    "vectors-in-rn",
+    "zero-vector"
+   ],
+   "concepts": [
+    "vectors-in-rn"
+   ],
+   "explain": "The words matter because the two operations treat scalars and vectors as different kinds of thing: a scalar rescales, a vector translates, and the two are never added to one another. Calling the entries components rather than coordinates also keeps the list reading and the arrow reading of a vector deliberately separate."
+  },
+  {
+   "id": "la-1-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Let $\\mathbf{p} = (2, -3)$ and $\\mathbf{q} = (-1, 5)$ in $\\mathbb{R}^2$. Give each component as a plain integer.",
+   "template": "p + q  = ( ___ , ___ )\n4p     = ( ___ , ___ )\np - 2q = ( ___ , ___ )",
+   "blanks": [
+    "1",
+    "2",
+    "8",
+    "-12",
+    "4",
+    "-13"
+   ],
+   "xp": 20,
+   "tags": [
+    "vector-addition",
+    "scalar-multiplication"
+   ],
+   "concepts": [
+    "vector-addition",
+    "scalar-multiplication"
+   ],
+   "explain": "For the last line, scale before you subtract: $2\\mathbf{q} = (-2, 10)$, so $\\mathbf{p} - 2\\mathbf{q} = (2 - (-2), -3 - 10) = (4, -13)$. The classic wrong answers $(0,-13)$ and $(4,7)$ come from subtracting $\\mathbf{q}$ once and doubling afterwards, or from letting the minus sign reach only one component."
+  },
+  {
+   "id": "la-1-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $\\mathbf{u} = (3,-1,2)$ and $\\mathbf{v} = (-1,4,0)$. Evaluate each expression, writing every answer in the form `(a, b, c)` with plain integers.",
+   "steps": [
+    {
+     "label": "u + v",
+     "expected": "(2, 3, 2)"
+    },
+    {
+     "label": "2u",
+     "expected": "(6, -2, 4)"
+    },
+    {
+     "label": "2u - 3v",
+     "expected": "(9, -14, 4)"
+    },
+    {
+     "label": "0u + 0v",
+     "expected": "(0, 0, 0)"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "vector-addition",
+    "scalar-multiplication",
+    "linear-combinations"
+   ],
+   "concepts": [
+    "vector-addition",
+    "scalar-multiplication",
+    "linear-combinations"
+   ],
+   "explain": "Each line is one linear combination $c_1\\mathbf{u} + c_2\\mathbf{v}$ evaluated slot by slot: for the third, $2(3,-1,2) = (6,-2,4)$ and $3(-1,4,0) = (-3,12,0)$, and subtracting gives $(9,-14,4)$. The last line is the geometry of the floor in miniature - scaling by $0$ destroys all information about $\\mathbf{u}$ and $\\mathbf{v}$, which is why every span, whatever it is built from, contains the origin."
+  },
+  {
+   "id": "la-1-g-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Express $(8,3)$ as a linear combination of $(1,3)$ and $(2,-1)$. Write down the two equations that come from matching components, solve for both coefficients, and verify the result by substituting back.",
+   "answer": "a = 2, b = 3",
+   "rubric": {
+    "required": [
+     "system",
+     "equation",
+     "2",
+     "3",
+     "substitut"
+    ],
+    "optional": [
+     "coefficient",
+     "combination",
+     "eliminat",
+     "unique",
+     "component"
+    ],
+    "minWords": 45
+   },
+   "xp": 50,
+   "tags": [
+    "linear-combinations"
+   ],
+   "concepts": [
+    "linear-combinations"
+   ],
+   "explain": "Matching the first components gives $a + 2b = 8$ and the second gives $3a - b = 3$; eliminating $b$ yields $7a = 14$, so $a = 2$ and $b = 3$, and indeed $2(1,3) + 3(2,-1) = (2,6) + (6,-3) = (8,3)$. Matching components is legal precisely because equality of vectors means equality in every slot - two vectors are equal when their lists are, not when they merely look alike."
+  },
+  {
+   "id": "la-1-g-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Describe the geometry of $\\mathrm{span}\\{(2,1)\\}$, of $\\mathrm{span}\\{(2,1),(1,3)\\}$ and of $\\mathrm{span}\\{(2,1),(4,2)\\}$, all inside $\\mathbb{R}^2$. Say what each set is as a picture, and explain why the third differs from the second.",
+   "rubric": {
+    "required": [
+     "line",
+     "origin",
+     "plane",
+     "multiple",
+     "direction"
+    ],
+    "optional": [
+     "parallel",
+     "coefficient",
+     "point",
+     "new",
+     "collaps"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "tags": [
+    "span",
+    "linear-combinations"
+   ],
+   "concepts": [
+    "span"
+   ],
+   "explain": "One non-zero vector spans the line through the origin along it, so $\\mathrm{span}\\{(2,1)\\}$ is that line and nothing more. Adding $(1,3)$, which points in a genuinely different direction, lets the two coefficients reach every point of the plane, so the span is all of $\\mathbb{R}^2$. Adding $(4,2)$ instead adds nothing, because $(4,2) = 2(2,1)$ already lies on the first line - the count of vectors is never what matters, only the count of distinct directions."
+  }
+ ],
+ "problem-set": [
+  {
+   "id": "la-1-p-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $\\mathbf{u} = (1,1,0)$ and $\\mathbf{v} = (0,1,1)$ in $\\mathbb{R}^3$. Decide whether $(3,5,2)$ lies in $\\mathrm{span}\\{\\mathbf{u},\\mathbf{v}\\}$ and whether $(7,7,7)$ does. In each case set up the system in the two coefficients and say exactly which equation succeeds or fails.",
+   "answer": "(3,5,2) is in the span with a = 3, b = 2; (7,7,7) is not",
+   "rubric": {
+    "required": [
+     "system",
+     "coefficient",
+     "3",
+     "2",
+     "not",
+     "middle"
+    ],
+    "optional": [
+     "inconsist",
+     "contradiction",
+     "plane",
+     "component",
+     "solution"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": [
+    "span",
+    "linear-combinations"
+   ],
+   "concepts": [
+    "span",
+    "linear-combinations"
+   ],
+   "explain": "Writing $a\\mathbf{u} + b\\mathbf{v} = (a, a+b, b)$ makes both questions mechanical: the outer components fix $a$ and $b$ immediately, and the middle component is the only real test. For $(3,5,2)$ we get $a = 3$, $b = 2$ and $a + b = 5$, which holds, so the vector is in the span. For $(7,7,7)$ we get $a = 7$, $b = 7$, forcing $a + b = 14 \\neq 7$, so the system is inconsistent and no combination whatsoever produces it."
+  },
+  {
+   "id": "la-1-p-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Consider $\\mathbf{a} = (2,-1,3)$ and $\\mathbf{b} = (-4,2,-6)$ in $\\mathbb{R}^3$. Describe $\\mathrm{span}\\{\\mathbf{a},\\mathbf{b}\\}$ geometrically, justifying your description. Then decide, with reasons, whether $(6,-3,9)$ and $(2,-1,4)$ belong to it.",
+   "answer": "a line through the origin; (6,-3,9) is in it, (2,-1,4) is not",
+   "rubric": {
+    "required": [
+     "line",
+     "origin",
+     "multiple",
+     "3",
+     "not",
+     "direction"
+    ],
+    "optional": [
+     "parallel",
+     "plane",
+     "scalar",
+     "collaps",
+     "third component"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": [
+    "span",
+    "scalar-multiplication"
+   ],
+   "concepts": [
+    "span",
+    "scalar-multiplication"
+   ],
+   "explain": "Since $\\mathbf{b} = -2\\mathbf{a}$, every combination $c_1\\mathbf{a} + c_2\\mathbf{b} = (c_1 - 2c_2)\\mathbf{a}$ collapses to a single multiple of $\\mathbf{a}$, so the span is the line through the origin along $\\mathbf{a}$ rather than a plane. Then $(6,-3,9) = 3\\mathbf{a}$ is on that line, while $(2,-1,4)$ is not: matching the first two components demands the multiplier $1$, which would give a third component of $3$, not $4$. The trap is counting vectors instead of directions - two listed vectors do not guarantee a two-dimensional span."
+  },
+  {
+   "id": "la-1-p-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $\\mathbf{u}, \\mathbf{v} \\in \\mathbb{R}^n$ and let $S = \\mathrm{span}\\{\\mathbf{u},\\mathbf{v}\\}$. Prove that if $\\mathbf{w}_1, \\mathbf{w}_2 \\in S$ and $k$ is any real number, then $\\mathbf{w}_1 + \\mathbf{w}_2 \\in S$ and $k\\mathbf{w}_1 \\in S$. Name the axioms you use, and say why the argument never inspects a single component.",
+   "rubric": {
+    "required": [
+     "arbitrary",
+     "combination",
+     "distribut",
+     "associat",
+     "closed",
+     "axiom"
+    ],
+    "optional": [
+     "coefficient",
+     "commut",
+     "component",
+     "vector space",
+     "definition"
+    ],
+    "minWords": 80
+   },
+   "xp": 50,
+   "tags": [
+    "span",
+    "linear-combinations",
+    "vector-space-axioms"
+   ],
+   "concepts": [
+    "span",
+    "linear-combinations",
+    "vector-space-axioms"
+   ],
+   "explain": "Write the two arbitrary members as $\\mathbf{w}_1 = a_1\\mathbf{u} + b_1\\mathbf{v}$ and $\\mathbf{w}_2 = a_2\\mathbf{u} + b_2\\mathbf{v}$; commutativity and associativity of addition regroup the sum, and distributivity over scalar sums collects it as $(a_1+a_2)\\mathbf{u} + (b_1+b_2)\\mathbf{v}$, which is again a linear combination. Similarly $k\\mathbf{w}_1 = (ka_1)\\mathbf{u} + (kb_1)\\mathbf{v}$, using distributivity over a vector sum and associativity of scalars. No component is ever touched, which is exactly why the same proof shows spans are closed in any vector space and not only in $\\mathbb{R}^n$."
+  },
+  {
+   "id": "la-1-p-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Prove that $0\\mathbf{v} = \\mathbf{0}$ for every $\\mathbf{v} \\in \\mathbb{R}^n$, using only the eight axioms and never the components of $\\mathbf{v}$. Then use the result to explain why every span, of any list of vectors whatsoever, must contain the zero vector.",
+   "answer": "0v = 0, so taking every coefficient to be 0 puts the zero vector in every span",
+   "rubric": {
+    "required": [
+     "distribut",
+     "inverse",
+     "zero",
+     "axiom",
+     "coefficient",
+     "span"
+    ],
+    "optional": [
+     "cancel",
+     "origin",
+     "component",
+     "unique",
+     "scalar"
+    ],
+    "minWords": 70
+   },
+   "xp": 50,
+   "tags": [
+    "zero-vector",
+    "scalar-multiplication",
+    "vector-space-axioms"
+   ],
+   "concepts": [
+    "zero-vector",
+    "scalar-multiplication"
+   ],
+   "explain": "The derivation rewrites the scalar as $0 = 0 + 0$, applies distributivity over a scalar sum to get $0\\mathbf{v} = 0\\mathbf{v} + 0\\mathbf{v}$, then adds the additive inverse of $0\\mathbf{v}$ to both sides to cancel one copy and leave $\\mathbf{0}$. The consequence is geometric: choosing every coefficient to be $0$ in a linear combination produces $0\\mathbf{v}_1 + \\dots + 0\\mathbf{v}_k = \\mathbf{0}$, so no span can avoid the origin. That is why a span is always a line or plane *through* the origin and never a shifted one."
+  },
+  {
+   "id": "la-1-p-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes $(1,2) + (1,2,0) = (2,4,0)$, reasoning that the missing third component of the first vector must be $0$. Explain precisely why the sum is undefined rather than merely unconventional, and what it would cost to make it legal.",
+   "rubric": {
+    "required": [
+     "undefined",
+     "componentwise",
+     "same",
+     "slot",
+     "different"
+    ],
+    "optional": [
+     "embed",
+     "choice",
+     "convention",
+     "definition",
+     "dimension"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "tags": [
+    "vectors-in-rn",
+    "vector-addition"
+   ],
+   "concepts": [
+    "vectors-in-rn",
+    "vector-addition"
+   ],
+   "explain": "Addition is defined only between two vectors of the same $\\mathbb{R}^n$, because it is defined slot by slot and there is no slot in $(1,2)$ to pair with the third component of $(1,2,0)$ - the two vectors are elements of different sets. To make the expression legal you must first choose an embedding of $\\mathbb{R}^2$ into $\\mathbb{R}^3$, appending a $0$, and that is an extra map you supplied rather than something the definition hands you. The student's answer is what you get after that choice, which is why the reasoning feels harmless and is nevertheless an unstated assumption."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-1-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A **linear combination** of the vectors $\\mathbf{v}_1, \\dots, \\mathbf{v}_k$ is:",
+   "choices": [
+    "any vector $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k$ with real coefficients $c_1, \\dots, c_k$",
+    "any vector of the form $\\mathbf{v}_1 + \\dots + \\mathbf{v}_k$, with no coefficients allowed",
+    "any vector $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k$ whose coefficients are all non-zero",
+    "the list $(c_1, \\dots, c_k)$ of coefficients used to build such a vector"
+   ],
+   "answer": 0,
+   "xp": 10,
+   "tags": [
+    "linear-combinations"
+   ],
+   "concepts": [
+    "linear-combinations"
+   ],
+   "explain": "The coefficients range over all real numbers, zero and negative ones included, which is what makes the set of combinations closed and what puts $\\mathbf{0}$ inside every span. The third choice describes a strictly smaller collection and would break that closure, while the last confuses the combination, which is a vector, with the recipe that built it."
+  },
+  {
+   "id": "la-1-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For vectors $\\mathbf{v}_1, \\dots, \\mathbf{v}_k$ in $\\mathbb{R}^n$, the **span** is:",
+   "choices": [
+    "the number of vectors in the list",
+    "the set of all linear combinations of $\\mathbf{v}_1, \\dots, \\mathbf{v}_k$",
+    "the smallest line containing all of $\\mathbf{v}_1, \\dots, \\mathbf{v}_k$",
+    "the set $\\{\\mathbf{v}_1, \\dots, \\mathbf{v}_k\\}$ itself"
+   ],
+   "answer": 1,
+   "xp": 10,
+   "tags": [
+    "span"
+   ],
+   "concepts": [
+    "span"
+   ],
+   "explain": "A span is a set of vectors, not a count and not the original list, and it is generally far larger than the list it is built from. The third choice fails as soon as two of the vectors point in different directions, since no line can then contain them all - the span may be a point, a line, a plane or the whole space."
+  },
+  {
+   "id": "la-1-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the four axioms. Each blank takes a single symbol: `u`, `v` or `0`.",
+   "template": "For all u, v:  u + v = v + ___\nThere is a vector 0 with v + 0 = ___ for every v.\nEvery v has an inverse -v with v + (-v) = ___.\nFor every v, the scalar 1 satisfies 1 v = ___.",
+   "blanks": [
+    "u",
+    "v",
+    "0",
+    "v"
+   ],
+   "xp": 20,
+   "tags": [
+    "vector-space-axioms",
+    "zero-vector"
+   ],
+   "concepts": [
+    "vector-space-axioms"
+   ],
+   "explain": "The middle two lines are the axioms asserting that something *exists* - a zero vector, and an inverse for each vector - rather than stating an equality between things already in hand. The rule $1\\mathbf{v} = \\mathbf{v}$ looks too trivial to state, but without it nothing forbids a scaling operation that sends every vector to the origin, and the eight rules would no longer pin down what a vector space is."
+  },
+  {
+   "id": "la-1-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Let $\\mathbf{c} = (1,-2,4)$ and $\\mathbf{d} = (3,0,-1)$. Give each component as a plain integer.",
+   "template": "c + d   = ( ___ , ___ , ___ )\n-2c     = ( ___ , ___ , ___ )\n3c + 2d = ( ___ , ___ , ___ )",
+   "blanks": [
+    "4",
+    "-2",
+    "3",
+    "-2",
+    "4",
+    "-8",
+    "9",
+    "-6",
+    "10"
+   ],
+   "xp": 20,
+   "tags": [
+    "vector-addition",
+    "scalar-multiplication"
+   ],
+   "concepts": [
+    "vector-addition",
+    "scalar-multiplication"
+   ],
+   "explain": "The third line is the one worth checking twice: $3\\mathbf{c} = (3,-6,12)$ and $2\\mathbf{d} = (6,0,-2)$, and adding gives $(9,-6,10)$. Scaling must happen before adding, since $3(\\mathbf{c} + \\mathbf{d}) = (12,-6,9)$ is a different vector entirely - a coefficient belongs to one vector, never to the sum."
+  },
+  {
+   "id": "la-1-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a correct solution showing that $(9,4)$ lies in $\\mathrm{span}\\{(1,2),(3,-1)\\}$.",
+   "fragments": [
+    "Seek real numbers $a, b$ with $a(1,2) + b(3,-1) = (9,4)$.",
+    "Matching components gives the system $a + 3b = 9$ and $2a - b = 4$.",
+    "The second equation gives $b = 2a - 4$; substitute it into the first.",
+    "Then $a + 3(2a-4) = 9$, so $7a = 21$ and $a = 3$, hence $b = 2$.",
+    "Check: $3(1,2) + 2(3,-1) = (3,6) + (6,-2) = (9,4)$, so $(9,4)$ lies in the span."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 20,
+   "tags": [
+    "span",
+    "linear-combinations"
+   ],
+   "concepts": [
+    "linear-combinations"
+   ],
+   "explain": "The order encodes the method: name the unknown coefficients, turn vector equality into a system by matching components, solve the system, and only then verify. Jumping straight to a system without declaring what $a$ and $b$ are leaves the equations meaning nothing, and the closing substitution is what converts a solved system back into an answer about membership of the span."
+  },
+  {
+   "id": "la-1-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $\\mathbf{a} = (4,0,-2)$ and $\\mathbf{b} = (1,-3,5)$. Evaluate each expression, writing every answer in the form `(a, b, c)` with plain integers.",
+   "steps": [
+    {
+     "label": "a + b",
+     "expected": "(5, -3, 3)"
+    },
+    {
+     "label": "a - b",
+     "expected": "(3, 3, -7)"
+    },
+    {
+     "label": "3a",
+     "expected": "(12, 0, -6)"
+    },
+    {
+     "label": "1a + 0b",
+     "expected": "(4, 0, -2)"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "vectors-in-rn",
+    "vector-addition",
+    "scalar-multiplication"
+   ],
+   "concepts": [
+    "vectors-in-rn",
+    "vector-addition"
+   ],
+   "explain": "The middle two steps pull on the same pair in different ways: subtraction flips $\\mathbf{b}$ before adding, giving $-2 - 5 = -7$ in the last slot, while scaling touches only $\\mathbf{a}$. The final step combines the axiom $1\\mathbf{a} = \\mathbf{a}$ with the theorem $0\\mathbf{b} = \\mathbf{0}$, and it is the reason each generating vector always sits inside the span it helps to generate."
+  },
+  {
+   "id": "la-1-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $S = \\mathrm{span}\\{(1,1,0),(0,1,1)\\}$ in $\\mathbb{R}^3$. Show that a vector $(x,y,z)$ lies in $S$ exactly when $x - y + z = 0$, and use that test to decide the membership of $(2,5,3)$ and of $(1,0,2)$.",
+   "answer": "x - y + z = 0; (2,5,3) is in S, (1,0,2) is not",
+   "rubric": {
+    "required": [
+     "plane",
+     "origin",
+     "coefficient",
+     "0",
+     "not",
+     "condition"
+    ],
+    "optional": [
+     "system",
+     "consistent",
+     "middle",
+     "test",
+     "component"
+    ],
+    "minWords": 65
+   },
+   "xp": 50,
+   "tags": [
+    "span",
+    "linear-combinations"
+   ],
+   "concepts": [
+    "span"
+   ],
+   "explain": "A general element is $a(1,1,0) + b(0,1,1) = (a, a+b, b)$, so $x = a$ and $z = b$ are forced and the only condition left is $y = a + b = x + z$, which rearranges to $x - y + z = 0$. Testing, $2 - 5 + 3 = 0$ so $(2,5,3) \\in S$ with $a = 2$, $b = 3$, while $1 - 0 + 2 = 3 \\neq 0$ so $(1,0,2) \\notin S$. Turning a span into a single equation is the first glimpse of a theme running through this whole dungeon: a subspace can be described either by what generates it or by what it satisfies."
+  },
+  {
+   "id": "la-1-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Justify each step of this derivation by naming the axiom or result it uses:\n$$\\mathbf{v} + (-1)\\mathbf{v} = 1\\mathbf{v} + (-1)\\mathbf{v} = (1 + (-1))\\mathbf{v} = 0\\mathbf{v} = \\mathbf{0}.$$\nThen state what the derivation proves about $(-1)\\mathbf{v}$, and why that is a result rather than a definition.",
+   "answer": "1v = v, distributivity over scalar sums, arithmetic, then 0v = 0; hence (-1)v is the additive inverse of v",
+   "rubric": {
+    "required": [
+     "identity",
+     "distribut",
+     "inverse",
+     "axiom",
+     "zero"
+    ],
+    "optional": [
+     "scalar",
+     "unique",
+     "theorem",
+     "definition",
+     "negative"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": [
+    "vector-space-axioms",
+    "scalar-multiplication",
+    "zero-vector"
+   ],
+   "concepts": [
+    "vector-space-axioms"
+   ],
+   "explain": "The first step is the identity axiom $1\\mathbf{v} = \\mathbf{v}$ read backwards, the second is distributivity over a sum of scalars, the third is arithmetic in $\\mathbb{R}$, and the last is the theorem $0\\mathbf{v} = \\mathbf{0}$. The conclusion is that $(-1)\\mathbf{v}$ satisfies the defining property of an additive inverse, so $(-1)\\mathbf{v} = -\\mathbf{v}$ - the axioms promise only that *some* inverse exists, and this identifies it as scaling by $-1$ instead of assuming it."
+  },
+  {
+   "id": "la-1-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why no span can be a line that misses the origin, and why $\\mathrm{span}\\{\\mathbf{0}\\}$ is a single point rather than the empty set. Then say what geometric object $\\mathrm{span}\\{(2,1),(4,2)\\}$ is, and why.",
+   "rubric": {
+    "required": [
+     "origin",
+     "zero",
+     "coefficient",
+     "line",
+     "multiple"
+    ],
+    "optional": [
+     "point",
+     "shifted",
+     "direction",
+     "contains",
+     "empty"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "tags": [
+    "zero-vector",
+    "span"
+   ],
+   "concepts": [
+    "zero-vector",
+    "span"
+   ],
+   "explain": "Setting every coefficient to $0$ is always a legal choice, so $\\mathbf{0}$ belongs to every span without exception and a line avoiding the origin cannot be one. For the same reason $\\mathrm{span}\\{\\mathbf{0}\\}$ contains $\\mathbf{0}$ and nothing else, making it the single point at the origin rather than empty. And since $(4,2) = 2(2,1)$ contributes no new direction, $\\mathrm{span}\\{(2,1),(4,2)\\}$ is only the line through the origin along $(2,1)$ - a reminder that a shifted line, the natural home of an inhomogeneous solution set, is never a span."
+  }
+ ]
+}

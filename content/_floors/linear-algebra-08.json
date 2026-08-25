@@ -1,0 +1,933 @@
+{
+ "n": 8,
+ "name": "The Chamber of Right Angles",
+ "concepts": [
+  "dot-product",
+  "length-and-angle",
+  "orthogonality",
+  "orthonormal-sets",
+  "projection-onto-a-line",
+  "projection-onto-a-subspace",
+  "gram-schmidt",
+  "least-squares",
+  "normal-equations",
+  "orthogonal-matrices"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "projection-workshop",
+  "least-squares-lab",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Orthogonality and Projection",
+  "sections": [
+   {
+    "title": "The Dot Product Is Geometry Written in Arithmetic",
+    "body": "The **dot product** $u \\cdot v = u_1v_1 + \\cdots + u_nv_n$ is the one number a vector space carries beyond addition and scaling, and everything geometric on this floor is built from it. Length comes first, because $u \\cdot u$ is a sum of squares, so $|u| = \\sqrt{u \\cdot u}$ is Pythagoras stated in $n$ dimensions rather than two.\n\nAngle comes next: the law of cosines forces $u \\cdot v = |u|\\,|v|\\cos\\theta$, so the dot product is the length of $v$ times the length of the shadow $u$ casts along it. Since $|\\cos\\theta| \\le 1$ this identity immediately gives the **Cauchy-Schwarz inequality** $|u \\cdot v| \\le |u|\\,|v|$, and the triangle inequality falls out of that.\n\nThe case that matters most is $\\cos\\theta = 0$. Two vectors are **orthogonal** exactly when $u \\cdot v = 0$, which is a purely algebraic test that never mentions angles, and it is the definition that survives in spaces where drawing a picture is hopeless.\n\nNote that the zero vector is orthogonal to everything, and that $u \\cdot w = 0$ is precisely the condition making $|u + w|^2 = |u|^2 + |w|^2$ - orthogonality *is* Pythagoras.",
+    "code": "u = (1, 2, 2)      v = (2, -1, 2)      w = (2, 2, -3)\n\n  u . v = 1*2 + 2*(-1) + 2*2 = 2 - 2 + 4 = 4\n  u . u = 1 + 4 + 4 = 9          so  |u| = 3\n  v . v = 4 + 1 + 4 = 9          so  |v| = 3\n\n  cos(theta) = (u . v) / (|u| |v|) = 4 / 9 = 0.444...\n  theta = 63.6 degrees          (an acute angle, because u . v > 0)\n\nNow test u against w:\n\n  u . w = 1*2 + 2*2 + 2*(-3) = 2 + 4 - 6 = 0      =>  u is orthogonal to w\n\nPythagoras is the same statement in disguise:\n\n  |u + w|^2 = (u + w).(u + w) = u.u + 2(u.w) + w.w\n            = |u|^2 + |w|^2   exactly when   u . w = 0\n\n  |u|^2 = 9,  |w|^2 = 17,  u + w = (3, 4, -1),  |u+w|^2 = 9 + 16 + 1 = 26 = 9 + 17",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "u . u is a sum of squares, so it is never negative and vanishes only for the zero vector. That is what lets sqrt(u.u) be called a length."
+     },
+     {
+      "line": 7,
+      "text": "The cosine is a ratio of a dot product to two lengths, so it is unchanged if either vector is rescaled by a positive number. Angle depends on direction only."
+     },
+     {
+      "line": 12,
+      "text": "Nothing here mentions a picture. u . w = 0 is an arithmetic test, which is why orthogonality still means something for 100-dimensional data vectors."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $u = (1,2,2)$ and $w = (2,2,-3)$. Fill in each blank with a plain integer.",
+     "template": "u . w = ___\n|u|^2 = ___\n|w|^2 = ___\n|u + w|^2 = ___",
+     "blanks": [
+      "0",
+      "9",
+      "17",
+      "26"
+     ],
+     "concepts": [
+      "dot-product",
+      "orthogonality"
+     ],
+     "explain": "The cross term in $|u+w|^2 = |u|^2 + 2(u \\cdot w) + |w|^2$ is $2(u \\cdot w) = 0$ here, so the squared lengths simply add: $9 + 17 = 26$. If you expected $|u+w| = |u| + |w|$ you were using the triangle inequality as an equality, which holds only when the vectors point the *same* way, never when they are perpendicular."
+    }
+   },
+   {
+    "title": "Projection Onto a Line",
+    "body": "Given a vector $b$ and a line through $a$, the **projection** $p$ is the point of that line closest to $b$. Rather than minimise a distance with calculus, use the geometry: $p = \\hat{x}a$ is closest exactly when the residual $e = b - p$ is orthogonal to the line, and that single condition $a \\cdot (b - \\hat{x}a) = 0$ determines $\\hat{x} = \\dfrac{a \\cdot b}{a \\cdot a}$.\n\nSo $p = \\dfrac{a \\cdot b}{a \\cdot a}\\,a$. Read the formula rather than memorising it: the fraction is a scalar saying how far along $a$ to travel, and dividing by $a \\cdot a$ rather than by $|a|$ is what makes $p$ independent of how $a$ was scaled.\n\nCollecting $p$ as a matrix acting on $b$ gives the **projection matrix** $P = \\dfrac{aa^{T}}{a^{T}a}$, an $n \\times n$ matrix of rank one, since every column of $aa^{T}$ is a multiple of $a$. Keep the two products apart: $a^{T}a$ is a number, $aa^{T}$ is a matrix.\n\nEvery projection matrix satisfies $P^{2} = P$ and $P^{T} = P$, and the first of those is the algebra of an obvious geometric fact - once you are on the line, projecting again moves you nowhere.",
+    "code": "Project b = (1, 2, 2) onto the line through a = (1, 1, 1).\n\n  p = x*a for some scalar x, and the residual e = b - p must satisfy a . e = 0.\n\n  a . (b - x a) = 0\n  a . b = x (a . a)\n  x = (a . b)/(a . a) = 5/3\n\n  p = (5/3)(1, 1, 1) = (5/3, 5/3, 5/3)\n  e = b - p = (1 - 5/3, 2 - 5/3, 2 - 5/3) = (-2/3, 1/3, 1/3)\n\n  check:  a . e = -2/3 + 1/3 + 1/3 = 0                      as required\n\nWritten as a matrix, p = P b with\n\n  P = a a^T / (a^T a) = (1/3) [ 1 1 1 ]\n                              [ 1 1 1 ]\n                              [ 1 1 1 ]\n\n  P has rank 1 (every column is a multiple of a)\n  P^2 = P     projecting an already-projected vector changes nothing\n  P^T = P     the projection matrix is symmetric\n  P a = a     and  P e = 0",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "This is the whole derivation. Orthogonality of the residual replaces a minimisation problem with one linear equation."
+     },
+     {
+      "line": 7,
+      "text": "Dividing by a . a rather than |a| means replacing a by 2a halves x and leaves p untouched, as it must: the line is the same line."
+     },
+     {
+      "line": 16,
+      "text": "a a^T is 3x3 while a^T a = 3 is a scalar. Swapping them is the single commonest slip in this formula."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Project $b = (4,3)$ onto the line through $a = (1,1)$. Give each step as a plain number, or as a coordinate pair written `(x, y)` with fractions in the form `7/2`.",
+     "steps": [
+      {
+       "label": "a . b",
+       "expected": "7"
+      },
+      {
+       "label": "a . a",
+       "expected": "2"
+      },
+      {
+       "label": "x-hat",
+       "expected": "7/2"
+      },
+      {
+       "label": "p",
+       "expected": "(7/2, 7/2)"
+      },
+      {
+       "label": "a . e where e = b - p",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "projection-onto-a-line"
+     ],
+     "explain": "The line through $(1,1)$ is the $45^\\circ$ diagonal, so the closest point must have equal coordinates, and $(7/2, 7/2)$ is the average of $4$ and $3$ in both slots. The residual $e = (1/2, -1/2)$ is perpendicular to the diagonal, which is the check certifying $p$ is closest - not merely on the line, but the nearest point of it."
+    }
+   },
+   {
+    "title": "Orthonormal Sets, Gram-Schmidt, and Orthogonal Matrices",
+    "body": "A set is **orthonormal** when its vectors are mutually orthogonal and each has length $1$: $q_i \\cdot q_j = 0$ for $i \\neq j$ and $q_i \\cdot q_i = 1$. Such a set is automatically independent - dot any vanishing combination $c_1q_1 + \\cdots + c_kq_k = 0$ with $q_i$ and every term but $c_i$ dies, forcing $c_i = 0$.\n\nOrthonormality is worth the trouble because it dissolves the hardest step of projection. Onto a subspace with orthonormal basis $q_1,\\dots,q_k$ the projection is simply $p = (q_1 \\cdot b)q_1 + \\cdots + (q_k \\cdot b)q_k$, a sum of independent one-dimensional projections with no system to solve.\n\n**Gram-Schmidt** manufactures such a basis from any independent set: take each $a_j$ in turn, subtract off its projection onto everything already built, and normalise what is left. Subtracting the projection is exactly what makes the remainder orthogonal to the earlier vectors, so the algorithm is nothing but the previous section applied repeatedly.\n\nWhen $Q$ is square with orthonormal columns it is called an **orthogonal matrix**, and $Q^{T}Q = I$ then means $Q^{-1} = Q^{T}$ - an inverse for free. Because $|Qx|^2 = x^{T}Q^{T}Qx = |x|^2$, such a matrix moves space without distorting it: a rotation when $\\det Q = 1$, a reflection when $\\det Q = -1$.",
+    "code": "ORTHONORMAL means mutually orthogonal AND each of length 1:\n\n  q_i . q_j = 0 for i != j,       q_i . q_i = 1\n\nWith an orthonormal basis q1,...,qk of a subspace, projection needs no solving:\n\n  p = (q1 . b) q1 + ... + (qk . b) qk\n\nGRAM-SCHMIDT turns any independent set into an orthonormal one.\nTake a1 = (1, 1, 1), a2 = (1, 2, 3).\n\n  q1 = a1/|a1| = (1, 1, 1)/sqrt(3)\n\n  strip from a2 its component along a1:\n      a1 . a2 = 6,  a1 . a1 = 3,  so the coefficient is 6/3 = 2\n      v2 = a2 - 2 a1 = (1, 2, 3) - (2, 2, 2) = (-1, 0, 1)\n      check  a1 . v2 = -1 + 0 + 1 = 0\n      q2 = (-1, 0, 1)/sqrt(2)\n\nStack q1, q2 as the columns of Q.  Then Q^T Q = I, always.\n\nA SQUARE matrix with orthonormal columns is an ORTHOGONAL MATRIX:\n\n  Q^T Q = I  and  Q^-1 = Q^T\n  |Q x| = |x|        lengths are preserved\n  (Qx).(Qy) = x . y  angles are preserved\n  det Q = +1 or -1   rotations and reflections, nothing else",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Each coefficient is read off by a single dot product. Without orthonormality you would have to solve a k-by-k system instead."
+     },
+     {
+      "line": 16,
+      "text": "Subtracting the projection is the entire idea of Gram-Schmidt. What survives is the part of a2 that a1 could never explain."
+     },
+     {
+      "line": 24,
+      "text": "Q^T Q = I needs only orthonormal columns. Q Q^T = I needs Q square as well, which is why 'orthogonal matrix' is reserved for the square case."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $q_1 = \\frac{1}{\\sqrt3}(1,1,1)$ and $q_2 = \\frac{1}{\\sqrt2}(-1,0,1)$, an orthonormal basis of a plane. Project $b = (1,2,2)$ onto that plane using the orthonormal formula, give $p$ and the residual $e = b - p$ exactly, and verify that $e$ is orthogonal to both $q_1$ and $q_2$.",
+     "rubric": {
+      "required": [
+       "orthonorm",
+       "project",
+       "residual",
+       "dot",
+       "zero"
+      ],
+      "optional": [
+       "coefficient",
+       "plane",
+       "perpendicular",
+       "1/6",
+       "closest",
+       "basis"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "orthonormal-sets",
+      "projection-onto-a-subspace"
+     ],
+     "explain": "The coefficients are $q_1 \\cdot b = 5/\\sqrt3$ and $q_2 \\cdot b = 1/\\sqrt2$, giving $p = \\tfrac{5}{3}(1,1,1) + \\tfrac{1}{2}(-1,0,1) = (7/6,\\,5/3,\\,13/6)$ and $e = (-1/6,\\,1/3,\\,-1/6)$, whose dot product with each $q_i$ is $0$. The point to hold on to is that no linear system was solved: with an orthonormal basis each coefficient is one dot product, whereas a general basis would have forced the normal equations of the next section."
+    }
+   },
+   {
+    "title": "Least Squares Is Projection Onto the Column Space",
+    "body": "Most systems $Ax = b$ arising from data have more equations than unknowns and no solution at all, because $b$ simply does not lie in the column space $C(A)$. The honest response is not to give up but to change the question: find the $\\hat{x}$ making $|b - A\\hat{x}|$ as small as possible, which means replacing $b$ by the nearest vector in $C(A)$ - its projection $p$.\n\nThat is the whole of **least squares**, and the earlier sections already contain the answer. The residual $e = b - A\\hat{x}$ must be orthogonal to every column of $A$, and 'orthogonal to every column' is exactly the compact statement $A^{T}(b - A\\hat{x}) = 0$.\n\nRearranged, that is the system of **normal equations** $A^{T}A\\,\\hat{x} = A^{T}b$: square, $n \\times n$, always consistent, and uniquely solvable precisely when the columns of $A$ are independent. Note where the name comes from - *normal* is the old word for perpendicular, and the equations say nothing more than 'the error is perpendicular to everything we can reach'.\n\nMinimising the squared error and forcing perpendicularity are therefore the same act seen from two sides, which is why no calculus appears: $|b - Ax|^{2}$ is smallest at the foot of the perpendicular, and geometry finds that foot in one line.",
+    "code": "Fit a straight line b = C + D t to three points that do not lie on one:\n\n  (t, b) = (1, 1), (2, 2), (3, 2)\n\n  C + 1D = 1          [1 1] [C]   [1]\n  C + 2D = 2    <=>   [1 2] [D] = [2]        A x = b, three equations,\n  C + 3D = 2          [1 3]       [2]        two unknowns, NO solution\n\nb is not in the column space of A, so instead of solving A x = b we solve\nA x = p, where p is the projection of b onto C(A).  The residual must be\northogonal to every column of A, that is A^T (b - A x) = 0:\n\n  THE NORMAL EQUATIONS        A^T A x-hat = A^T b\n\n  A^T A = [ 3  6 ]        A^T b = [ 5 ]\n          [ 6 14 ]                [11 ]\n\n  3C +  6D =  5\n  6C + 14D = 11        =>   C = 2/3,  D = 1/2\n\n  best line:  b = 2/3 + t/2\n  p = A x-hat = (7/6, 5/3, 13/6)\n  e = b - p   = (-1/6, 1/3, -1/6)\n\n  check A^T e = 0:   -1/6 + 1/3 - 1/6 = 0\n                     -1/6 + 2/3 - 1/2 = 0\n  |e|^2 = 1/36 + 1/9 + 1/36 = 1/6      the smallest squared error available",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Three points in general position do not sit on a line, so A x = b is inconsistent. Nothing has gone wrong - this is the normal state of real data."
+     },
+     {
+      "line": 11,
+      "text": "A^T (b - A x) = 0 packs one orthogonality condition per column of A. Multiplying it out gives the normal equations."
+     },
+     {
+      "line": 25,
+      "text": "The first component of A^T e = 0 says the residuals sum to zero, because the first column of A is all ones. The best-fit line always passes through the centre of mass of the data."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "A student says: \"$Ax = b$ has no solution, so multiply both sides by $A^{T}$ and solve $A^{T}Ax = A^{T}b$ instead - it works because $A^{T}A$ is square.\" The recipe is right but the reasoning is not. Explain what $\\hat{x}$ actually solves, why the manoeuvre is legitimate, and what geometric fact makes $A^{T}A\\hat{x} = A^{T}b$ consistent when $Ax = b$ was not.",
+     "rubric": {
+      "required": [
+       "project",
+       "column space",
+       "orthogon",
+       "residual",
+       "consistent"
+      ],
+      "optional": [
+       "closest",
+       "perpendicular",
+       "normal equations",
+       "square",
+       "smallest",
+       "error"
+      ],
+      "minWords": 60
+     },
+     "concepts": [
+      "least-squares",
+      "normal-equations"
+     ],
+     "explain": "Being square buys nothing on its own - a square system can be inconsistent too. The normal equations are consistent because $A^{T}b$ and $A^{T}A\\hat{x}$ agree by construction: $\\hat{x}$ solves $Ax = p$, where $p$ is the projection of $b$ onto $C(A)$, and $b - p$ is orthogonal to every column so $A^{T}(b-p) = 0$. The honest statement is that $\\hat{x}$ is not a solution of $Ax = b$ at all; it is the vector whose image is nearest to $b$."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-8-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Let $u = (3,-1,2)$, $v = (1,4,-2)$ and $w = (1,1,-1)$. Fill in the blanks; the first three are integers and the last is `yes` or `no`.",
+   "template": "u . v = ___\nu . u = ___\nu . w = ___\nIs u orthogonal to w? ___",
+   "blanks": [
+    "-5",
+    "14",
+    "0",
+    "yes"
+   ],
+   "xp": 36,
+   "tags": [
+    "dot-product",
+    "length-and-angle",
+    "orthogonality"
+   ],
+   "concepts": [
+    "dot-product",
+    "length-and-angle",
+    "orthogonality"
+   ],
+   "explain": "$u \\cdot v = 3 - 4 - 4 = -5$, and a negative dot product means an obtuse angle without any lengths being computed. $u \\cdot w = 3 - 1 - 2 = 0$ is the orthogonality test passed exactly, by arithmetic alone. A tempting error is to read $u \\cdot v \\neq 0$ as saying something about $v$ and $w$; the dot product compares one pair at a time and is silent about a third vector."
+  },
+  {
+   "id": "la-8-g-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into the correct order of the Gram-Schmidt process applied to an independent pair $a_1, a_2$.",
+   "fragments": [
+    "Take $q_1 = a_1/|a_1|$, so the first direction is kept and merely rescaled to unit length.",
+    "Compute the coefficient $c = q_1 \\cdot a_2$, the amount of $a_2$ lying along $q_1$.",
+    "Form $v_2 = a_2 - c\\,q_1$, stripping that component away.",
+    "Check $q_1 \\cdot v_2 = 0$; this is guaranteed, since the projection was exactly what was removed.",
+    "Normalise: $q_2 = v_2/|v_2|$, and now $\\{q_1, q_2\\}$ is orthonormal with the same span as $\\{a_1, a_2\\}$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 36,
+   "tags": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "concepts": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "explain": "The subtraction must happen before $v_2$ is normalised, and $q_1$ must exist before anything can be projected onto it - reversing either pair produces a vector that is normalised but not orthogonal, or orthogonal to the wrong thing. The verification step is not decoration: $q_1 \\cdot v_2 = 0$ is the property the whole algorithm exists to create, and checking it catches an arithmetic slip immediately."
+  },
+  {
+   "id": "la-8-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Project $b = (1,2,2)$ onto the line through $a = (1,1,1)$. Answer each step with a plain number, or with a coordinate triple written `(x, y, z)` using fractions such as `5/3`.",
+   "steps": [
+    {
+     "label": "a . b",
+     "expected": "5"
+    },
+    {
+     "label": "a . a",
+     "expected": "3"
+    },
+    {
+     "label": "x-hat",
+     "expected": "5/3"
+    },
+    {
+     "label": "p",
+     "expected": "(5/3, 5/3, 5/3)"
+    },
+    {
+     "label": "e = b - p",
+     "expected": "(-2/3, 1/3, 1/3)"
+    },
+    {
+     "label": "a . e",
+     "expected": "0"
+    }
+   ],
+   "xp": 72,
+   "tags": [
+    "projection-onto-a-line",
+    "dot-product"
+   ],
+   "concepts": [
+    "projection-onto-a-line",
+    "dot-product"
+   ],
+   "explain": "Everything follows from the one condition $a \\cdot e = 0$: it fixes $\\hat{x} = (a \\cdot b)/(a \\cdot a) = 5/3$ and hence $p$. The residual $(-2/3, 1/3, 1/3)$ has components that do not vanish individually but cancel against $a$, which is the point - orthogonality is a statement about a dot product, not about any single coordinate. A common wrong turn is dividing by $|a| = \\sqrt3$ instead of by $a \\cdot a = 3$, which inflates $p$ by a factor of $\\sqrt3$."
+  },
+  {
+   "id": "la-8-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A projection matrix satisfies $P^2 = P$. Explain what that equation says geometrically, explain why $Pe = 0$ for the residual $e = b - Pb$, and say what the column space and the null space of $P$ are when $P = aa^{T}/(a^{T}a)$ for a non-zero $a$.",
+   "rubric": {
+    "required": [
+     "already",
+     "null space",
+     "column space",
+     "orthogon",
+     "line"
+    ],
+    "optional": [
+     "rank",
+     "fixed",
+     "plane",
+     "residual",
+     "perpendicular",
+     "idempot"
+    ],
+    "minWords": 60
+   },
+   "xp": 36,
+   "tags": [
+    "projection-onto-a-line",
+    "projection-onto-a-subspace",
+    "orthogonality"
+   ],
+   "concepts": [
+    "projection-onto-a-line",
+    "projection-onto-a-subspace",
+    "orthogonality"
+   ],
+   "explain": "$P^2 = P$ says the image of $P$ is fixed by $P$: $Pb$ already lies on the line, so projecting it again cannot move it. The residual is the part of $b$ that the line cannot express, so $Pe = P(b - Pb) = Pb - P^2b = 0$ - the algebra and the geometry are the same sentence. For a rank-one projection the column space is the line through $a$ and the null space is the whole plane orthogonal to $a$, so $\\mathbb{R}^3$ splits into line plus perpendicular plane and $P$ keeps one piece while destroying the other."
+  }
+ ],
+ "projection-workshop": [
+  {
+   "id": "la-8-w-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $a = (2,1,-2)$. Build the projection matrix $P = \\dfrac{aa^{T}}{a^{T}a}$ explicitly as a $3 \\times 3$ matrix of fractions, use it to project $b = (1,0,0)$, and then justify - without multiplying out all nine entries - why $P^{2} = P$, why $\\operatorname{rank}P = 1$ and why the trace of $P$ is $1$.",
+   "answer": "P = (1/9)[[4,2,-4],[2,1,-2],[-4,-2,4]] and Pb = (4/9, 2/9, -4/9)",
+   "rubric": {
+    "required": [
+     "9",
+     "rank",
+     "trace",
+     "scalar",
+     "column",
+     "multiple"
+    ],
+    "optional": [
+     "4/9",
+     "associat",
+     "eigenvalue",
+     "symmetric",
+     "cancel",
+     "idempot"
+    ],
+    "minWords": 70
+   },
+   "xp": 90,
+   "tags": [
+    "projection-onto-a-line",
+    "dot-product"
+   ],
+   "concepts": [
+    "projection-onto-a-line",
+    "dot-product"
+   ],
+   "explain": "$a^{T}a = 4 + 1 + 4 = 9$, so $P = \\tfrac{1}{9}\\begin{pmatrix} 4 & 2 & -4 \\\\ 2 & 1 & -2 \\\\ -4 & -2 & 4\\end{pmatrix}$ and $Pb = \\tfrac{1}{9}(4,2,-4)$, which is simply the first column. The clean argument for $P^2 = P$ is associativity rather than arithmetic: $\\frac{aa^{T}}{a^{T}a}\\cdot\\frac{aa^{T}}{a^{T}a} = \\frac{a(a^{T}a)a^{T}}{(a^{T}a)^{2}} = \\frac{aa^{T}}{a^{T}a}$, because the middle $a^{T}a$ is a scalar that cancels. Every column of $aa^{T}$ is a multiple of $a$, giving rank $1$, and the trace is $(a_1^2 + a_2^2 + a_3^2)/(a^{T}a) = 1$ - an eigenvalue count in disguise, since a rank-one projection has eigenvalues $1, 0, 0$."
+  },
+  {
+   "id": "la-8-w-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Apply Gram-Schmidt to $a_1 = (1,1,1)$, $a_2 = (1,3,1)$, $a_3 = (2,-1,1)$, in that order. Give $q_1, q_2, q_3$ exactly, show the intermediate vector produced at each subtraction, and verify that the three results are mutually orthogonal.",
+   "answer": "q1 = (1,1,1)/sqrt(3), q2 = (-1,2,-1)/sqrt(6), q3 = (1,0,-1)/sqrt(2)",
+   "rubric": {
+    "required": [
+     "subtract",
+     "orthonorm",
+     "normalis",
+     "sqrt",
+     "zero",
+     "component"
+    ],
+    "optional": [
+     "independ",
+     "span",
+     "unit",
+     "(-1,2,-1)",
+     "(1,0,-1)",
+     "dot"
+    ],
+    "minWords": 75
+   },
+   "xp": 90,
+   "tags": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "concepts": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "explain": "The subtractions give $v_2 = a_2 - \\tfrac{5}{3}a_1 = (-\\tfrac23, \\tfrac43, -\\tfrac23)$, a multiple of $(-1,2,-1)$, and then $v_3$ comes out as a multiple of $(1,0,-1)$; normalising yields $q_1 = \\tfrac{1}{\\sqrt3}(1,1,1)$, $q_2 = \\tfrac{1}{\\sqrt6}(-1,2,-1)$ and $q_3 = \\tfrac{1}{\\sqrt2}(1,0,-1)$. Two habits save the arithmetic: strip each component using the unnormalised form $(a_1 \\cdot a_2)/(a_1 \\cdot a_1)$ so that no square roots enter until the final step, and rescale each $v_j$ to its smallest integer multiple before continuing. Forgetting to subtract the $q_2$ component when building $v_3$ is the classic failure, and it announces itself at once because $q_2 \\cdot q_3$ then refuses to be zero."
+  },
+  {
+   "id": "la-8-w-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $S$ be the plane spanned by $a_1 = (1,1,1)$ and $a_2 = (1,2,3)$, whose orthonormal basis is $q_1 = \\frac{1}{\\sqrt3}(1,1,1)$, $q_2 = \\frac{1}{\\sqrt2}(-1,0,1)$. Project $b = (6,0,0)$ onto $S$ using the orthonormal formula, give the residual $e$, verify that $e$ is orthogonal to both $a_1$ and $a_2$, and state the distance from $b$ to the plane.",
+   "answer": "p = (5, 2, -1), e = (1, -2, 1), distance = sqrt(6)",
+   "rubric": {
+    "required": [
+     "project",
+     "residual",
+     "orthogon",
+     "distance",
+     "sqrt",
+     "plane"
+    ],
+    "optional": [
+     "closest",
+     "Pythagor",
+     "span",
+     "dot",
+     "perpendicular",
+     "basis"
+    ],
+    "minWords": 70
+   },
+   "xp": 90,
+   "tags": [
+    "projection-onto-a-subspace",
+    "orthonormal-sets",
+    "orthogonality"
+   ],
+   "concepts": [
+    "projection-onto-a-subspace",
+    "orthonormal-sets",
+    "orthogonality"
+   ],
+   "explain": "The coefficients are $q_1 \\cdot b = 6/\\sqrt3$ and $q_2 \\cdot b = -6/\\sqrt2$, so $p = 2(1,1,1) - 3(-1,0,1) = (5,2,-1)$ and $e = b - p = (1,-2,1)$, with $a_1 \\cdot e = 0$ and $a_2 \\cdot e = 1 - 4 + 3 = 0$. The distance from $b$ to the plane is $|e| = \\sqrt6$, and it is a distance to the *whole plane* precisely because $e$ is perpendicular to it - by Pythagoras every other point of $S$ is strictly further away. Checking $e$ against $a_1, a_2$ rather than against $q_1, q_2$ is the stronger test, since the $a_j$ are what define $S$, and orthogonality to a spanning set implies orthogonality to every vector in the span."
+  },
+  {
+   "id": "la-8-w-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $Q = \\dfrac{1}{3}\\begin{pmatrix} 2 & -2 & 1 \\\\ 1 & 2 & 2 \\\\ 2 & 1 & -2 \\end{pmatrix}$. Show that $Q$ is an orthogonal matrix, state $Q^{-1}$ without inverting anything, compute $Qx$ and $|Qx|$ for $x = (1,2,2)$, and say what $\\det Q = -1$ tells you about the geometric action of $Q$.",
+   "answer": "Q^T Q = I, Q^{-1} = Q^T, Qx = (0,3,0), |Qx| = 3, det Q = -1 so Q is a reflection",
+   "rubric": {
+    "required": [
+     "orthonorm",
+     "transpose",
+     "preserv",
+     "length",
+     "determinant",
+     "reflection"
+    ],
+    "optional": [
+     "rotation",
+     "inverse",
+     "angle",
+     "unit",
+     "orientation",
+     "column"
+    ],
+    "minWords": 70
+   },
+   "xp": 90,
+   "tags": [
+    "orthogonal-matrices",
+    "orthonormal-sets",
+    "length-and-angle"
+   ],
+   "concepts": [
+    "orthogonal-matrices",
+    "orthonormal-sets",
+    "length-and-angle"
+   ],
+   "explain": "Each column has squared length $9/9 = 1$ and each pair of distinct columns dots to zero, so $Q^{T}Q = I$ and therefore $Q^{-1} = Q^{T}$ - the inverse of an orthogonal matrix costs a transpose and nothing more. Since $|Qx|^{2} = x^{T}Q^{T}Qx = x^{T}x$, lengths survive untouched: here $Qx = (0,3,0)$ and $|Qx| = 3 = |x|$, even though the direction has changed completely. The determinant is $-1$, so $Q$ is a reflection rather than a rotation - it preserves every length and angle while reversing orientation - and $\\det = \\pm1$ is forced because $\\det(Q^{T}Q) = (\\det Q)^{2} = 1$."
+  }
+ ],
+ "least-squares-lab": [
+  {
+   "id": "la-8-l-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Fit the best straight line $b = C + Dt$ to the points $(1,1)$, $(2,2)$, $(3,2)$. Set up $A$, $x$ and $b$, form the normal equations $A^{T}A\\hat{x} = A^{T}b$, solve them, and report the fitted line, the projection $p = A\\hat{x}$, the residual $e$ and $|e|^{2}$. Then verify $A^{T}e = 0$ and explain what each of its two components asserts about the fit.",
+   "answer": "C = 2/3, D = 1/2, p = (7/6, 5/3, 13/6), e = (-1/6, 1/3, -1/6), |e|^2 = 1/6",
+   "rubric": {
+    "required": [
+     "normal equations",
+     "2/3",
+     "1/2",
+     "residual",
+     "project",
+     "1/6"
+    ],
+    "optional": [
+     "column space",
+     "orthogon",
+     "mean",
+     "trend",
+     "smallest",
+     "fit"
+    ],
+    "minWords": 85
+   },
+   "xp": 90,
+   "tags": [
+    "least-squares",
+    "normal-equations",
+    "projection-onto-a-subspace"
+   ],
+   "concepts": [
+    "least-squares",
+    "normal-equations",
+    "projection-onto-a-subspace"
+   ],
+   "explain": "With $A = \\begin{pmatrix} 1&1 \\\\ 1&2 \\\\ 1&3 \\end{pmatrix}$ the normal equations read $\\begin{pmatrix} 3&6 \\\\ 6&14 \\end{pmatrix}\\hat{x} = \\begin{pmatrix} 5 \\\\ 11 \\end{pmatrix}$, giving $C = 2/3$ and $D = 1/2$, so the line is $b = \\tfrac23 + \\tfrac{t}{2}$ with $p = (7/6, 5/3, 13/6)$, $e = (-1/6, 1/3, -1/6)$ and $|e|^{2} = 1/6$. The two components of $A^{T}e = 0$ are genuinely different statements: the first says $\\sum e_i = 0$, so the line passes through the mean of the data, and the second says $\\sum t_ie_i = 0$, so the errors carry no leftover trend in $t$. If either failed you could shift or tilt the line and reduce the error, which is exactly why the perpendicularity conditions are the optimality conditions."
+  },
+  {
+   "id": "la-8-l-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ be $m \\times n$ with independent columns and let $b \\in \\mathbb{R}^m$. Prove that $\\hat{x}$ minimises $|b - Ax|^{2}$ if and only if $A^{T}A\\hat{x} = A^{T}b$. Argue from the orthogonality of the residual to the column space, and establish the minimising claim by expanding $|b - Ax|^{2}$ for an arbitrary $x$ using Pythagoras rather than calculus.",
+   "rubric": {
+    "required": [
+     "orthogon",
+     "column space",
+     "Pythagor",
+     "residual",
+     "normal equations",
+     "arbitrary"
+    ],
+    "optional": [
+     "minimum",
+     "independ",
+     "equality",
+     "transpose",
+     "decompos",
+     "equality holds"
+    ],
+    "minWords": 110
+   },
+   "xp": 90,
+   "tags": [
+    "normal-equations",
+    "least-squares",
+    "orthogonality"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares",
+    "orthogonality"
+   ],
+   "explain": "The two halves are one idea. Write $b - Ax = (b - A\\hat{x}) + A(\\hat{x} - x)$; if $e = b - A\\hat{x}$ is orthogonal to $C(A)$ then those two pieces are perpendicular, so Pythagoras gives $|b - Ax|^{2} = |e|^{2} + |A(\\hat{x}-x)|^{2} \\ge |e|^{2}$, with equality only when $A(\\hat{x}-x) = 0$, that is when $x = \\hat{x}$ by independence of the columns. Conversely, '$e$ is orthogonal to every column of $A$' is literally $A^{T}e = 0$, which rearranges to the normal equations. Calculus would reach the same place by setting a gradient to zero, but it hides the reason: the minimum is the foot of a perpendicular."
+  },
+  {
+   "id": "la-8-l-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $A^{T}A$ is invertible if and only if the columns of $A$ are linearly independent. For the harder direction, start from $A^{T}Ax = 0$ and take the dot product with $x$. Then state what goes wrong with least squares when the columns are dependent, and what remains true of the projection $p$ even then.",
+   "rubric": {
+    "required": [
+     "null space",
+     "independ",
+     "invertible",
+     "unique",
+     "zero",
+     "singular"
+    ],
+    "optional": [
+     "square",
+     "transpose",
+     "projection",
+     "consistent",
+     "dot",
+     "trivial"
+    ],
+    "minWords": 100
+   },
+   "xp": 90,
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "explain": "The key move is $x^{T}A^{T}Ax = (Ax)^{T}(Ax) = |Ax|^{2}$, so $A^{T}Ax = 0$ forces $|Ax|^2 = 0$ and hence $Ax = 0$; independence then gives $x = 0$, so $A^{T}A$ has trivial null space and, being square, is invertible. The converse is easier: if $Ax = 0$ for some $x \\neq 0$ then $A^{T}Ax = 0$ as well, so $A^{T}A$ is singular - the two matrices always share a null space. When the columns are dependent the normal equations stay consistent but lose uniqueness, since any null-space vector may be added to $\\hat{x}$; the projection $p$ is nevertheless still unique, because it depends on the subspace $C(A)$ and not on the basis chosen to describe it."
+  },
+  {
+   "id": "la-8-l-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You must solve a least-squares problem with $A$ of size $m \\times n$, where $m \\gg n$, by forming $A^{T}A$ and $A^{T}b$ and then solving the resulting $n \\times n$ system by elimination. Give the dominant time cost in big-O terms as a function of $m$ and $n$, and justify it by costing each of the three stages separately.",
+   "answer": "O(mn^2)",
+   "rubric": {
+    "required": [
+     "mn^2",
+     "dot product",
+     "n^3",
+     "form",
+     "dominat",
+     "elimination"
+    ],
+    "optional": [
+     "entries",
+     "tall",
+     "column",
+     "stage",
+     "cubic",
+     "term"
+    ],
+    "minWords": 55
+   },
+   "xp": 72,
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "explain": "Forming $A^{T}A$ dominates: it has $n^{2}$ entries and each is a dot product of two length-$m$ columns, so it costs $\\Theta(mn^{2})$; $A^{T}b$ costs only $\\Theta(mn)$, and eliminating the $n \\times n$ system costs $\\Theta(n^{3})$. With $m \\gg n$ the $mn^{2}$ term swamps the $n^{3}$ term, so the answer is $O(mn^{2})$ - the tall matrix, not the small square one, is where the work lives. The tempting wrong answer is $O(n^{3})$, from remembering that elimination is cubic; that is true of the final solve but ignores the far larger cost of building the matrix being eliminated."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-8-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A set of vectors $\\{q_1,\\dots,q_k\\}$ is **orthonormal** exactly when:",
+   "choices": [
+    "$q_i \\cdot q_j = 0$ for $i \\neq j$ and $q_i \\cdot q_i = 1$ for every $i$",
+    "$q_i \\cdot q_j = 0$ for $i \\neq j$, with no condition on lengths",
+    "the set is linearly independent and spans the space",
+    "$q_i \\cdot q_j = 1$ for every $i$ and $j$"
+   ],
+   "answer": 0,
+   "xp": 18,
+   "tags": [
+    "orthonormal-sets"
+   ],
+   "concepts": [
+    "orthonormal-sets"
+   ],
+   "explain": "Orthonormal packs two conditions into one word: mutual orthogonality, and unit length for each vector. The second choice describes an orthogonal set only, whose vectors may have any lengths; the third states a consequence rather than the definition, since an orthonormal set is always independent but independence alone is far weaker; and $q_i \\cdot q_j = 1$ for every pair would make the vectors coincide rather than be perpendicular."
+  },
+  {
+   "id": "la-8-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A square matrix $Q$ is an **orthogonal matrix** exactly when:",
+   "choices": [
+    "$\\det Q = \\pm 1$",
+    "its columns are mutually orthogonal",
+    "$Q^{T}Q = I$, that is, its columns are orthonormal",
+    "$Q^{2} = Q$"
+   ],
+   "answer": 2,
+   "xp": 18,
+   "tags": [
+    "orthogonal-matrices"
+   ],
+   "concepts": [
+    "orthogonal-matrices"
+   ],
+   "explain": "The definition is $Q^{T}Q = I$, equivalently that the columns form an orthonormal set - and for square $Q$ this also yields $QQ^{T} = I$, so $Q^{-1} = Q^{T}$. Merely orthogonal columns will not do, since scaling one column by $2$ keeps all the right angles but destroys $Q^{T}Q = I$; and $\\det Q = \\pm 1$ is a consequence rather than a characterisation, as $\\begin{pmatrix} 1 & 1 \\\\ 0 & 1\\end{pmatrix}$ has determinant $1$ and is nothing like orthogonal."
+  },
+  {
+   "id": "la-8-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Least squares for the data $(t,b) = (1,6), (2,0), (3,0)$ uses $A = \\begin{pmatrix} 1&1 \\\\ 1&2 \\\\ 1&3 \\end{pmatrix}$ and $b = (6,0,0)$. Fill in each blank with a plain integer.",
+   "template": "A^T A = [[3, ___], [6, ___]]\nA^T b = (___, ___)\nC-hat = ___\nD-hat = ___",
+   "blanks": [
+    "6",
+    "14",
+    "6",
+    "6",
+    "8",
+    "-3"
+   ],
+   "xp": 36,
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "explain": "$A^{T}A = \\begin{pmatrix} 3&6 \\\\ 6&14\\end{pmatrix}$ depends only on the $t$ values and never on $b$, while $A^{T}b = (6,6)$ collects $\\sum b_i$ and $\\sum t_ib_i$. Solving $3C + 6D = 6$ with $6C + 14D = 6$ gives $C = 8$ and $D = -3$, so the fitted values are $(5,2,-1)$ - the very projection met in the workshop, because projecting onto the column space and fitting the line are one computation. The steep negative slope is the honest response to a point at $6$ followed by two at $0$."
+  },
+  {
+   "id": "la-8-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a valid derivation of the normal equations from the geometry of projection.",
+   "fragments": [
+    "$b$ lies outside $C(A)$, so $Ax = b$ has no solution.",
+    "Replace $b$ by the vector of $C(A)$ closest to it, namely its projection $p$, and solve $A\\hat{x} = p$ instead.",
+    "The closest point is characterised by its residual: $e = b - p$ must be orthogonal to every vector of $C(A)$.",
+    "Being orthogonal to every column of $A$ means $A^{T}e = 0$, that is $A^{T}(b - A\\hat{x}) = 0$.",
+    "Expanding gives $A^{T}A\\hat{x} = A^{T}b$, the normal equations."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 36,
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "explain": "The logic runs from the failure of $Ax = b$, through the replacement of $b$ by its projection, to the orthogonality condition, and only then into algebra. Writing $A^{T}(b - A\\hat{x}) = 0$ before saying *why* the residual is orthogonal to the columns inverts the argument and leaves the justification missing - which is exactly the gap that lets a student believe multiplying by $A^{T}$ is a trick that works on any inconsistent system."
+  },
+  {
+   "id": "la-8-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Run Gram-Schmidt on $a_1 = (1,1,0)$ and $a_2 = (1,0,1)$. Answer each step with a plain number, or a coordinate triple written `(x, y, z)` with fractions like `1/2`.",
+   "steps": [
+    {
+     "label": "a1 . a2",
+     "expected": "1"
+    },
+    {
+     "label": "a1 . a1",
+     "expected": "2"
+    },
+    {
+     "label": "coefficient (a1 . a2)/(a1 . a1)",
+     "expected": "1/2"
+    },
+    {
+     "label": "v2 = a2 - coefficient * a1",
+     "expected": "(1/2, -1/2, 1)"
+    },
+    {
+     "label": "a1 . v2",
+     "expected": "0"
+    }
+   ],
+   "xp": 72,
+   "tags": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "concepts": [
+    "gram-schmidt",
+    "orthonormal-sets"
+   ],
+   "explain": "The coefficient is $(a_1 \\cdot a_2)/(a_1 \\cdot a_1) = 1/2$, not $a_1 \\cdot a_2 = 1$ - forgetting to divide by $a_1 \\cdot a_1$ is the standard slip, and it leaves a $v_2$ that is not orthogonal to $a_1$ at all. The surviving vector $(1/2,-1/2,1)$ points along $(1,-1,2)$, and its length $\\sqrt6/2$ is less than $|a_2| = \\sqrt2$ because a component has been removed: Gram-Schmidt can only shorten a vector, never lengthen it."
+  },
+  {
+   "id": "la-8-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $u = (1,2,2)$ and $v = (2,-1,2)$. Compute $u \\cdot v$, $|u|$, $|v|$ and $\\cos\\theta$ exactly, state whether the angle is acute, right or obtuse and how you know, and check the Cauchy-Schwarz inequality on this pair, saying what would have to be true of $u$ and $v$ for it to hold with equality.",
+   "answer": "u . v = 4, |u| = 3, |v| = 3, cos(theta) = 4/9, the angle is acute",
+   "rubric": {
+    "required": [
+     "4/9",
+     "acute",
+     "Cauchy",
+     "length",
+     "parallel",
+     "equality"
+    ],
+    "optional": [
+     "cosine",
+     "sign",
+     "63",
+     "dependent",
+     "inequality",
+     "scalar"
+    ],
+    "minWords": 65
+   },
+   "xp": 90,
+   "tags": [
+    "dot-product",
+    "length-and-angle"
+   ],
+   "concepts": [
+    "dot-product",
+    "length-and-angle"
+   ],
+   "explain": "$u \\cdot v = 2 - 2 + 4 = 4$ with $|u| = |v| = 3$, so $\\cos\\theta = 4/9 \\approx 0.444$ and $\\theta \\approx 63.6^\\circ$ - acute, and the sign of the dot product alone settles that before any length is computed. Cauchy-Schwarz reads $4 \\le 9$, comfortably true, and equality holds only for parallel vectors, $v = cu$ for a scalar $c$, since $|\\cos\\theta| = 1$ is what saturates the bound. The habit worth keeping is reading the sign: positive means acute, zero means perpendicular, negative means obtuse."
+  },
+  {
+   "id": "la-8-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Fit the best straight line $b = C + Dt$ to the points $(0,1)$, $(1,2)$, $(2,4)$. Give $A^{T}A$, $A^{T}b$, the solution $\\hat{x}$, the projection $p$, the residual $e$ and $|e|^{2}$, and confirm that the residual is orthogonal to both columns of $A$.",
+   "answer": "C = 5/6, D = 3/2, p = (5/6, 7/3, 23/6), e = (1/6, -1/3, 1/6), |e|^2 = 1/6",
+   "rubric": {
+    "required": [
+     "5/6",
+     "3/2",
+     "normal equations",
+     "residual",
+     "orthogon",
+     "1/6"
+    ],
+    "optional": [
+     "column space",
+     "project",
+     "sum",
+     "minim",
+     "fit",
+     "column"
+    ],
+    "minWords": 75
+   },
+   "xp": 90,
+   "tags": [
+    "least-squares",
+    "normal-equations",
+    "projection-onto-a-subspace"
+   ],
+   "concepts": [
+    "least-squares",
+    "normal-equations",
+    "projection-onto-a-subspace"
+   ],
+   "explain": "Here $A^{T}A = \\begin{pmatrix} 3&3 \\\\ 3&5\\end{pmatrix}$ and $A^{T}b = (7,10)$, giving $C = 5/6$ and $D = 3/2$, so $p = (5/6, 7/3, 23/6)$, $e = (1/6, -1/3, 1/6)$ and $|e|^{2} = 1/6$. Note that $A^{T}A$ changed from the earlier fit only because the $t$ values changed - it never sees $b$ - and the residual again sums to zero and is uncorrelated with $t$, the two conditions imposed by $A^{T}e = 0$. A tempting shortcut is to draw the line through the first and last points, $b = 1 + \\tfrac32 t$; its squared error is larger, because only the projection attains the minimum."
+  },
+  {
+   "id": "la-8-e-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Suppose $Q$ has orthonormal columns but is $m \\times n$ with $m > n$, so it is not square. Explain why $Q^{T}Q = I_n$ still holds, why $QQ^{T} \\neq I_m$, and what $QQ^{T}$ is instead. Then say what the least-squares solution $\\hat{x}$ becomes when $A = Q$, and why no system needs solving.",
+   "rubric": {
+    "required": [
+     "orthonorm",
+     "rank",
+     "projection",
+     "identity",
+     "column space",
+     "dot"
+    ],
+    "optional": [
+     "square",
+     "normal equations",
+     "idempot",
+     "inverse",
+     "transpose",
+     "subspace"
+    ],
+    "minWords": 70
+   },
+   "xp": 36,
+   "tags": [
+    "orthogonal-matrices",
+    "orthonormal-sets",
+    "projection-onto-a-subspace"
+   ],
+   "concepts": [
+    "orthogonal-matrices",
+    "orthonormal-sets",
+    "projection-onto-a-subspace"
+   ],
+   "explain": "Entry $(i,j)$ of $Q^{T}Q$ is $q_i \\cdot q_j$, so orthonormal columns give $I_n$ whatever the shape. But $QQ^{T}$ is $m \\times m$ of rank $n < m$, so it cannot be $I_m$; it is precisely the projection matrix onto $C(Q)$, and indeed $(QQ^{T})^{2} = Q(Q^{T}Q)Q^{T} = QQ^{T}$. With $A = Q$ the normal equations collapse to $\\hat{x} = Q^{T}b$, a list of dot products, and that is the payoff Gram-Schmidt was buying: the expensive part of least squares is inverting $A^{T}A$, and orthonormal columns make that matrix the identity."
+  },
+  {
+   "id": "la-8-e-09",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that an orthogonal matrix $Q$ preserves dot products, that is $(Qx) \\cdot (Qy) = x \\cdot y$ for all $x,y$, and deduce that it preserves lengths and angles. Then prove that any orthogonal set of non-zero vectors is linearly independent, and say why that makes an 'orthogonal basis' a natural thing to want.",
+   "rubric": {
+    "required": [
+     "dot product",
+     "length",
+     "independ",
+     "zero",
+     "coefficient",
+     "orthogon"
+    ],
+    "optional": [
+     "angle",
+     "transpose",
+     "cross term",
+     "basis",
+     "cosine",
+     "arbitrary"
+    ],
+    "minWords": 100
+   },
+   "xp": 90,
+   "tags": [
+    "orthogonal-matrices",
+    "orthogonality",
+    "orthonormal-sets",
+    "length-and-angle"
+   ],
+   "concepts": [
+    "orthogonal-matrices",
+    "orthogonality",
+    "orthonormal-sets",
+    "length-and-angle"
+   ],
+   "explain": "Both proofs are one line of bookkeeping around $Q^{T}Q = I$: $(Qx)^{T}(Qy) = x^{T}Q^{T}Qy = x^{T}y$, from which lengths follow by taking $y = x$, and angles follow because $\\cos\\theta$ is built only from dot products and lengths. For independence, dot the relation $c_1v_1 + \\cdots + c_kv_k = 0$ with $v_i$: every cross term vanishes by orthogonality, leaving $c_i(v_i \\cdot v_i) = 0$, and $v_i \\neq 0$ forces $c_i = 0$. The non-zero hypothesis is essential rather than decorative, since the zero vector is orthogonal to everything and would wreck independence, and the payoff is that an orthogonal spanning set is automatically a basis whose coefficients are read off by dot products instead of by elimination."
+  }
+ ]
+}

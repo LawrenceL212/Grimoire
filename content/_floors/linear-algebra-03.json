@@ -1,0 +1,867 @@
+{
+ "n": 3,
+ "name": "Independence and the Basis",
+ "concepts": [
+  "linear-independence",
+  "linear-dependence",
+  "independence-test",
+  "basis",
+  "dimension",
+  "coordinates",
+  "standard-basis"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "problem-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Independence, Bases and Coordinates",
+  "sections": [
+   {
+    "title": "The Only Combination That Vanishes",
+    "body": "A list of vectors $\\mathbf{v}_1,\\dots,\\mathbf{v}_k$ is **linearly independent** when the equation $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k = \\mathbf{0}$ has only the trivial solution $c_1 = \\dots = c_k = 0$. Everything hangs on the word *only*: the trivial solution is always available, so the definition is really asking whether the zero vector can be reached in a second, less obvious way.\n\nIf it can, the list is **linearly dependent**, and the offending coefficient list is a **dependence relation**. Solve that relation for any vector carrying a non-zero coefficient and you have written that vector in terms of the others, which is the geometric content: a dependent list repeats a direction it already had.\n\nDependence is a property of the whole list, not of its pairs. Three vectors can be pairwise non-parallel and still dependent, because the redundancy only surfaces when all three are combined - $\\mathbf{u}_3$ may sit in the plane spanned by $\\mathbf{u}_1$ and $\\mathbf{u}_2$ without being a multiple of either.\n\nTwo consequences come for free: any list containing $\\mathbf{0}$ is dependent, since $1 \\cdot \\mathbf{0}$ vanishes on its own, and any list with a repeated vector is dependent too.",
+    "code": "Independence, stated once:\n\n  c1*v1 + c2*v2 + ... + ck*vk = 0   forces   c1 = c2 = ... = ck = 0\n\nThe zero vector is always reachable by taking every ci = 0.  That is the\nTRIVIAL combination and it costs nothing.  The real question is whether any\nOTHER combination also lands on 0.\n\n  v1 = (1, 2, 3)      v2 = (2, 4, 6)\n\n  2*v1 + (-1)*v2 = (2-2, 4-4, 6-6) = (0, 0, 0)\n\n  A non-trivial combination reaches 0, so {v1, v2} is DEPENDENT.\n  Geometrically v2 lies on the line through v1: it adds no new direction.\n\n  u1 = (1, 0, 1)      u2 = (0, 1, 1)      u3 = (1, 1, 2)\n\n  1*u1 + 1*u2 + (-1)*u3 = (0, 0, 0)\n\n  Non-trivial again, so {u1, u2, u3} is DEPENDENT - and here no single\n  vector is a scalar multiple of any other.  Dependence is a statement\n  about the WHOLE set, never about one pair inside it.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Read this as an implication, not as an equation to solve. Independence claims the vanishing combinations are exhausted by the boring one."
+     },
+     {
+      "line": 13,
+      "text": "The coefficients (2, -1) are the dependence relation. Rearranged they say v2 = 2*v1, which is what redundancy looks like in coordinates."
+     },
+     {
+      "line": 22,
+      "text": "Pairwise independence is strictly weaker than independence. Here u3 = u1 + u2 lies in the plane of the first two without being parallel to either."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the definition and the worked dependence. The first two blanks take one word each; the third takes an integer.",
+     "template": "If the only solution of c1*v1 + ... + ck*vk = 0 is c1 = ... = ck = 0, that solution is the ___ one and the list is linearly ___.\nFor v1 = (1,2,3) and v2 = (2,4,6), a vanishing combination is 2*v1 + ___*v2 = 0.",
+     "blanks": [
+      "trivial",
+      "independent",
+      "-1"
+     ],
+     "concepts": [
+      "linear-independence"
+     ],
+     "explain": "The trivial solution is free of charge for any list whatsoever, so it can never distinguish one list from another; independence is the claim that nothing else works. Here $\\mathbf{v}_2 = 2\\mathbf{v}_1$, so $2\\mathbf{v}_1 - \\mathbf{v}_2 = \\mathbf{0}$ is a genuine non-trivial relation and the pair is dependent."
+    }
+   },
+   {
+    "title": "Testing Independence by Elimination",
+    "body": "The definition is a statement about a homogeneous system, so elimination decides it outright. Stack $\\mathbf{v}_1,\\dots,\\mathbf{v}_k$ as the **columns** of a matrix $A$; then $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k = A\\mathbf{c}$, and the list is independent exactly when $A\\mathbf{c} = \\mathbf{0}$ forces $\\mathbf{c} = \\mathbf{0}$.\n\nRow operations rewrite the rows of $A$ but never disturb the solution set of $A\\mathbf{c} = \\mathbf{0}$, so reduce $A$ to echelon form and count pivots. Every pivot column corresponds to a coefficient elimination pins down; every **free** column corresponds to a coefficient you may set to $1$, manufacturing a non-zero solution by back-substitution.\n\nThe test is therefore a count: the list is independent if and only if every column is a pivot column, that is $\\operatorname{rank} A = k$. When a free column exists the reduced form hands you the dependence relation explicitly, rather than merely announcing that one exists.\n\nAnd because a matrix with $n$ rows admits at most $n$ pivots, any $k > n$ vectors in $\\mathbb{R}^n$ are automatically dependent - there are not enough rows to go round.",
+    "code": "Are the columns of A independent?  Solve A x = 0 and look.\n\n        [ 1  2  1 ]\n  A =   [ 2  4  3 ]\n        [ 3  6  5 ]\n\n  R2 <- R2 - 2*R1\n  R3 <- R3 - 3*R1\n        [ 1  2  1 ]\n        [ 0  0  1 ]\n        [ 0  0  2 ]\n\n  R3 <- R3 - 2*R2\n        [ 1  2  1 ]\n        [ 0  0  1 ]\n        [ 0  0  0 ]\n\n  Pivots sit in columns 1 and 3.  Column 2 is FREE.\n  A free column means A x = 0 has a non-zero solution,\n  so the three columns are DEPENDENT.\n\n  Reduced row echelon form:\n        [ 1  2  0 ]\n        [ 0  0  1 ]\n        [ 0  0  0 ]\n\n  The free column reads off x = (-2, 1, 0), that is\n  (-2)*(col 1) + 1*(col 2) + 0*(col 3) = 0.\n\n  Rule: independent  <=>  every column is a pivot column\n                     <=>  rank = number of vectors.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Row operations are reversible, so they preserve the null space exactly. That is the licence for testing the original list on a reduced matrix."
+     },
+     {
+      "line": 18,
+      "text": "Column 2 is free because no pivot lands in it. Setting its coefficient to 1 and back-solving produces a non-zero c, which is precisely a dependence."
+     },
+     {
+      "line": 30,
+      "text": "Independence is thus a rank condition, and rank is something elimination computes. No guessing at combinations is ever required."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "For $A = \\begin{bmatrix} 1 & 2 & 1 \\\\ 2 & 4 & 3 \\\\ 3 & 6 & 5 \\end{bmatrix}$, answer each step. Give integers, or one word for the last step.",
+     "steps": [
+      {
+       "label": "Row 2 after R2 <- R2 - 2*R1, as three integers separated by spaces",
+       "expected": "0 0 1"
+      },
+      {
+       "label": "Number of pivot columns of A",
+       "expected": "2"
+      },
+      {
+       "label": "Number of free columns of A",
+       "expected": "1"
+      },
+      {
+       "label": "Are the columns independent or dependent? One word.",
+       "expected": "dependent"
+      }
+     ],
+     "concepts": [
+      "independence-test"
+     ],
+     "explain": "Subtracting $2R_1$ from $R_2$ clears the leading $2$ and also the $4$, because column 2 is exactly twice column 1, leaving $(0,0,1)$. Two pivots against three columns leaves one free column, and a free column is the signature of a non-zero solution of $A\\mathbf{c} = \\mathbf{0}$ - so the count settles dependence before any relation is written down."
+    }
+   },
+   {
+    "title": "A Basis Is Independent and Spanning",
+    "body": "A **basis** of a vector space $V$ is a list that is linearly independent **and** spans $V$. The two conditions pull in opposite directions: spanning wants the list large enough to reach everything, independence wants it small enough to carry nothing redundant, and a basis is exactly the balance point.\n\nDrop either half and the object stops doing its job. $\\{(1,0,0),(0,1,0)\\}$ is independent but misses most of $\\mathbb{R}^3$; $\\{(1,0),(0,1),(1,1)\\}$ spans $\\mathbb{R}^2$ but carries a passenger. Only a basis reaches every vector, and reaches it in exactly one way.\n\nThe **dimension** of $V$ is the number of vectors in a basis of $V$ - and that is a legitimate definition only because the number cannot depend on which basis you happened to pick. The proof is the pivot count from the previous section: $n$ vectors can never express $m > n$ independent ones, since the coefficient matrix would have a free column and hence a dependence.\n\nSo if two bases have $m$ and $n$ vectors, the argument run both ways gives $m \\le n$ and $n \\le m$, forcing $m = n$. Dimension is therefore an invariant of the space itself, and $\\dim \\mathbb{R}^n = n$ because the standard basis has $n$ members.",
+    "code": "A BASIS of a vector space V is a list that is\n   (1) linearly independent - nothing in it is redundant, and\n   (2) spanning             - every v in V is some combination of it.\n\nIndependence alone is not enough:   {(1,0,0), (0,1,0)}  in R^3\n   independent, but nothing in its span reaches (0,0,1).  Too small.\n\nSpanning alone is not enough:       {(1,0), (0,1), (1,1)}  in R^2\n   spans, but (1,1) = (1,0) + (0,1) is redundant.  Too big.\n\nThree candidate lists in R^3, each tested by elimination:\n\n  list                                 rank   size   verdict\n  ----------------------------------------------------------\n  {(1,0,2), (0,1,3), (1,1,6)}            3      3    BASIS\n  {(1,2,-1), (2,1,3), (0,3,-5)}          2      3    dependent\n  {(1,0,0), (0,1,0)}                     2      2    independent but\n                                                     not spanning\n\nWHY DIMENSION IS WELL DEFINED\n  Suppose one basis has m vectors and another has n.  Each basis can be\n  written in terms of the other, and elimination forbids n vectors from\n  expressing m > n independent ones - the coefficient matrix would have\n  a free column and hence a dependence.  So m <= n, and by symmetry\n  n <= m, giving m = n.  That common number is dim V.  For R^n it is n.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "An independent list that is too short spans only a subspace. It is a basis of that subspace, but not of the space you started in."
+     },
+     {
+      "line": 15,
+      "text": "Rank 3 with 3 vectors in R^3 buys both halves at once: full rank means independent, and 3 pivots across 3 rows means the span is all of R^3."
+     },
+     {
+      "line": 21,
+      "text": "Well-definedness is not a formality. Without it, 'the dimension' would be a property of a chosen list rather than of the space."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Decide whether $\\{(1,0,2),(0,1,3),(1,1,6)\\}$ is a basis of $\\mathbb{R}^3$. Place the vectors in a matrix, reduce it, and justify **both** basis conditions from what the reduction tells you. State the rank and the dimension of the span.",
+     "answer": "Yes - it is a basis of R^3; rank 3, span has dimension 3",
+     "rubric": {
+      "required": [
+       "independ",
+       "span",
+       "pivot",
+       "rank",
+       "basis"
+      ],
+      "optional": [
+       "dimension",
+       "echelon",
+       "free",
+       "elimination",
+       "three"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "basis",
+      "dimension"
+     ],
+     "explain": "The reduction ends at the identity matrix, so all three columns are pivot columns: rank $3$ with $3$ vectors is independence. The same three pivots occupy all three rows, so $A\\mathbf{c} = \\mathbf{b}$ is solvable for every $\\mathbf{b}$, which is spanning. In $\\mathbb{R}^n$ a square full-rank matrix delivers both halves together, which is why $n$ independent vectors in $\\mathbb{R}^n$ never need a separate spanning check."
+    }
+   },
+   {
+    "title": "Coordinates and the Standard Basis",
+    "body": "Once $B = (\\mathbf{b}_1,\\dots,\\mathbf{b}_n)$ is a basis of $V$, spanning says every $\\mathbf{v}$ has an expansion $\\mathbf{v} = c_1\\mathbf{b}_1 + \\dots + c_n\\mathbf{b}_n$, and independence says the $c_i$ are **unique**. Subtract two expansions of the same $\\mathbf{v}$ and the difference is a vanishing combination, which independence forces to be trivial - so the two expansions were one expansion all along.\n\nThat uniqueness is what makes the **coordinate vector** $[\\mathbf{v}]_B = (c_1,\\dots,c_n)$ well defined. A basis is thus a dictionary translating abstract vectors into lists of $n$ numbers, and finding coordinates is nothing more exotic than solving the linear system whose columns are the basis vectors.\n\nThe **standard basis** of $\\mathbb{R}^n$ is $E = (\\mathbf{e}_1,\\dots,\\mathbf{e}_n)$, where $\\mathbf{e}_i$ carries a $1$ in slot $i$ and $0$ elsewhere. It is independent because the combination $c_1\\mathbf{e}_1 + \\dots + c_n\\mathbf{e}_n$ simply *is* the tuple $(c_1,\\dots,c_n)$, so it vanishes only when every $c_i$ does, and spanning for the same reason.\n\nThe same observation gives $[\\mathbf{v}]_E = \\mathbf{v}$: the entries you have been writing all along were already coordinates, in the one basis whose coordinate map is the identity. Change the basis and the same arrow in space acquires a different list of numbers.",
+    "code": "A basis turns vectors into lists of numbers.\n\nIf B = (b1, ..., bn) is a basis of V, every v in V is\n   v = c1*b1 + ... + cn*bn\nand the ci are UNIQUE.  Uniqueness IS independence:\n   subtract two expansions of the same v and you get a\n   vanishing combination, which independence forces to be trivial.\n\nWrite [v]_B = (c1, ..., cn), the COORDINATE VECTOR of v in B.\n\nExample in R^2.   B = ( (1,1), (1,-1) ),   v = (3,5).\n\n  a*(1,1) + b*(1,-1) = (3,5)\n     a + b = 3\n     a - b = 5      =>   a = 4,  b = -1\n\n  Check: 4*(1,1) + (-1)*(1,-1) = (4-1, 4+1) = (3,5).   [v]_B = (4, -1)\n\nTHE STANDARD BASIS of R^n is E = (e1, ..., en), where ei carries a 1 in\nslot i and 0 everywhere else.\n\n  (7, -2, 5) = 7*e1 + (-2)*e2 + 5*e3        so  [(7,-2,5)]_E = (7, -2, 5)\n\nThe entries you have always written ARE coordinates - in E.  Nothing is\nspecial about E beyond the fact that its coordinate map is the identity.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "This is the load-bearing sentence of the section. Without independence a vector would have many coordinate vectors and the notation would name nothing."
+     },
+     {
+      "line": 15,
+      "text": "Finding coordinates is solving a linear system whose coefficient matrix has the basis vectors as its columns. No new machinery is needed."
+     },
+     {
+      "line": 24,
+      "text": "It is easy to mistake the standard basis for something canonical about vectors themselves. It is only the basis in which the translation step is invisible."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the two coordinate vectors as plain integers. $B = ((1,0,0),(1,1,0),(1,1,1))$ and $E$ is the standard basis of $\\mathbb{R}^3$.",
+     "template": "[ (2,3,4) ]_B = ( ___, ___, ___ )\n[ (7,-2,5) ]_E = ( ___, ___, ___ )",
+     "blanks": [
+      "-1",
+      "-1",
+      "4",
+      "7",
+      "-2",
+      "5"
+     ],
+     "concepts": [
+      "coordinates",
+      "standard-basis"
+     ],
+     "explain": "Back-substitution gives $c_3 = 4$, then $c_2 + c_3 = 3$ so $c_2 = -1$, then $c_1 + c_2 + c_3 = 2$ so $c_1 = -1$; the check is $-1(1,0,0) - 1(1,1,0) + 4(1,1,1) = (2,3,4)$. The second line needs no work at all, and that is the point: in $E$ the coordinate map is the identity, so the habit of reading a tuple's entries as 'the' coordinates is correct in that one basis only."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-3-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the four core definitions. Each blank takes exactly one word.",
+   "template": "A list is linearly ___ when the only vanishing combination of it is the trivial one.\nA list is linearly ___ when some combination with a non-zero coefficient equals the zero vector.\nA ___ of V is a list that is both independent and spanning.\nThe number of vectors in any basis of V is the ___ of V.",
+   "blanks": [
+    "independent",
+    "dependent",
+    "basis",
+    "dimension"
+   ],
+   "xp": 24,
+   "tags": [
+    "linear-independence",
+    "linear-dependence",
+    "basis",
+    "dimension"
+   ],
+   "concepts": [
+    "linear-independence",
+    "linear-dependence",
+    "basis",
+    "dimension"
+   ],
+   "explain": "The four words form one chain: independence rules out redundancy, dependence names its failure, a basis adds spanning so nothing is missing either, and dimension is the count a basis certifies. Note the order of dependence between the ideas - dimension is defined through a basis and not the other way round, which is exactly why the well-definedness argument has to be made."
+  },
+  {
+   "id": "la-3-g-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into the correct order for testing whether $\\mathbf{v}_1,\\dots,\\mathbf{v}_k$ in $\\mathbb{R}^n$ are linearly independent.",
+   "fragments": [
+    "Place the $k$ vectors as the columns of a matrix $A$, so that $c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k = A\\mathbf{c}$.",
+    "Row reduce $A$ to echelon form, which alters the rows but leaves the solution set of $A\\mathbf{c} = \\mathbf{0}$ untouched.",
+    "Mark the pivot columns and count them; that count is $\\operatorname{rank} A$.",
+    "If all $k$ columns are pivot columns, the only solution is $\\mathbf{c} = \\mathbf{0}$ and the list is independent.",
+    "If some column is free, set its coefficient to $1$ and back-solve to read off an explicit dependence relation."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 24,
+   "tags": [
+    "independence-test",
+    "linear-independence"
+   ],
+   "concepts": [
+    "independence-test"
+   ],
+   "explain": "Placing the vectors in the columns rather than the rows is the step most often inverted, and inverting it tests a different system entirely. Reduction must precede counting because pivots are a feature of echelon form, and the last two fragments are the two exits from the same count - a full set of pivots proves independence, a free column constructs the counterexample."
+  },
+  {
+   "id": "la-3-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A$ have columns $(1,-1,2)$, $(3,0,1)$ and $(1,2,-3)$, so $A = \\begin{bmatrix} 1 & 3 & 1 \\\\ -1 & 0 & 2 \\\\ 2 & 1 & -3 \\end{bmatrix}$. Carry out the elimination and answer each step. Rows are three integers separated by spaces.",
+   "steps": [
+    {
+     "label": "Row 2 after R2 <- R2 + R1",
+     "expected": "0 3 3"
+    },
+    {
+     "label": "Row 3 after R3 <- R3 - 2*R1",
+     "expected": "0 -5 -5"
+    },
+    {
+     "label": "Number of pivot columns of A",
+     "expected": "2"
+    },
+    {
+     "label": "Independent or dependent? One word.",
+     "expected": "dependent"
+    }
+   ],
+   "xp": 48,
+   "tags": [
+    "independence-test",
+    "linear-dependence"
+   ],
+   "concepts": [
+    "independence-test",
+    "linear-dependence"
+   ],
+   "explain": "After the two clearing operations rows 2 and 3 are $(0,3,3)$ and $(0,-5,-5)$, which are proportional, so the third row dies and only two pivots survive. Three vectors of rank $2$ leave one free column; back-solving gives $2\\mathbf{v}_1 - \\mathbf{v}_2 + \\mathbf{v}_3 = \\mathbf{0}$, which you can check entrywise. The tempting error is to declare independence because no vector is visibly a multiple of another - a test that is simply not the definition."
+  },
+  {
+   "id": "la-3-g-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Show that $\\mathbf{v}_1 = (1,2,3)$, $\\mathbf{v}_2 = (4,5,6)$ and $\\mathbf{v}_3 = (7,8,9)$ are linearly dependent, and give an explicit dependence relation with integer coefficients. Obtain it by elimination rather than by inspection, and say which column of the reduced matrix produced it.",
+   "answer": "1*v1 - 2*v2 + 1*v3 = 0",
+   "rubric": {
+    "required": [
+     "depend",
+     "pivot",
+     "free",
+     "elimination",
+     "relation"
+    ],
+    "optional": [
+     "rank",
+     "echelon",
+     "column",
+     "zero row",
+     "back-solve",
+     "coefficient"
+    ],
+    "minWords": 55
+   },
+   "xp": 60,
+   "tags": [
+    "linear-dependence",
+    "independence-test"
+   ],
+   "concepts": [
+    "linear-dependence",
+    "independence-test"
+   ],
+   "explain": "The reduced form is $\\begin{bmatrix} 1 & 0 & -1 \\\\ 0 & 1 & 2 \\\\ 0 & 0 & 0 \\end{bmatrix}$, so column 3 is free; setting $c_3 = 1$ gives $c_1 = 1$ and $c_2 = -2$, that is $\\mathbf{v}_1 - 2\\mathbf{v}_2 + \\mathbf{v}_3 = \\mathbf{0}$. Entrywise, $1 - 8 + 7 = 0$, $2 - 10 + 8 = 0$ and $3 - 12 + 9 = 0$. Any non-zero multiple of those coefficients works equally well, because the dependence relations form a subspace rather than a single answer."
+  },
+  {
+   "id": "la-3-g-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the dimension of a vector space is **well defined** - that is, why two different bases of the same space must contain the same number of vectors. Build the argument on the pivot count from elimination rather than quoting a theorem by name.",
+   "rubric": {
+    "required": [
+     "basis",
+     "independ",
+     "span",
+     "dimension",
+     "same"
+    ],
+    "optional": [
+     "pivot",
+     "free",
+     "rank",
+     "well defined",
+     "unique",
+     "exchange",
+     "at most"
+    ],
+    "minWords": 60
+   },
+   "xp": 24,
+   "tags": [
+    "dimension",
+    "basis"
+   ],
+   "concepts": [
+    "dimension"
+   ],
+   "explain": "Take bases of sizes $m$ and $n$. Every vector of the first is a combination of the second, so expressing all $m$ of them uses an $n \\times m$ coefficient matrix; if $m > n$ that matrix has more columns than rows, hence a free column, hence a dependence among vectors that were assumed independent. So $m \\le n$, and the symmetric argument gives $n \\le m$. Without this, 'dimension' would describe a chosen list rather than the space, and calling $\\mathbb{R}^3$ three-dimensional would be an accident of bookkeeping."
+  },
+  {
+   "id": "la-3-g-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $B = ((2,1),(1,3))$. First confirm $B$ is a basis of $\\mathbb{R}^2$, then compute $[\\mathbf{v}]_B$ for $\\mathbf{v} = (5,5)$. State the system you solved and say why its solution is unique.",
+   "answer": "(2, 1)",
+   "rubric": {
+    "required": [
+     "coordinate",
+     "basis",
+     "unique",
+     "independ",
+     "system"
+    ],
+    "optional": [
+     "pivot",
+     "span",
+     "solve",
+     "rank",
+     "substitut",
+     "expansion"
+    ],
+    "minWords": 45
+   },
+   "xp": 60,
+   "tags": [
+    "coordinates",
+    "basis"
+   ],
+   "concepts": [
+    "coordinates",
+    "basis"
+   ],
+   "explain": "Neither column is a multiple of the other, so the $2 \\times 2$ matrix has rank $2$ and $B$ is a basis of $\\mathbb{R}^2$. Solving $2a + b = 5$ with $a + 3b = 5$ gives $a = 2$ and $b = 1$, and the check is $2(2,1) + 1(1,3) = (5,5)$. Uniqueness is not a lucky extra but the independence half of 'basis' wearing different clothes: a second expansion would subtract to a non-trivial vanishing combination."
+  }
+ ],
+ "problem-set": [
+  {
+   "id": "la-3-p-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Determine whether $\\{(1,2,-1),(2,1,3),(0,3,-5)\\}$ is linearly independent in $\\mathbb{R}^3$. Reduce the matrix whose columns are these vectors, report the rank and the number of free columns, and if the list is dependent write down an explicit relation with integer coefficients.",
+   "answer": "dependent; -2*v1 + v2 + v3 = 0",
+   "rubric": {
+    "required": [
+     "depend",
+     "pivot",
+     "free",
+     "rank",
+     "relation"
+    ],
+    "optional": [
+     "echelon",
+     "elimination",
+     "column",
+     "back-solve",
+     "plane",
+     "span"
+    ],
+    "minWords": 55
+   },
+   "xp": 60,
+   "tags": [
+    "linear-independence",
+    "linear-dependence",
+    "independence-test"
+   ],
+   "concepts": [
+    "linear-independence",
+    "linear-dependence",
+    "independence-test"
+   ],
+   "explain": "Reduction gives $\\begin{bmatrix} 1 & 0 & 2 \\\\ 0 & 1 & -1 \\\\ 0 & 0 & 0 \\end{bmatrix}$: rank $2$, one free column, therefore dependent. Setting the free coefficient to $1$ yields $\\mathbf{c} = (-2,1,1)$, and $-2(1,2,-1) + (2,1,3) + (0,3,-5) = (0,0,0)$ entrywise. Rank $2$ also reports the geometry - the three vectors lie in one plane through the origin, so their span is two-dimensional rather than all of $\\mathbb{R}^3$."
+  },
+  {
+   "id": "la-3-p-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove both statements directly from the definition. (a) Any list of vectors containing the zero vector is linearly dependent. (b) Any list of $k$ vectors in $\\mathbb{R}^n$ with $k > n$ is linearly dependent. For (b) argue through pivots, and say exactly which step uses the hypothesis $k > n$.",
+   "rubric": {
+    "required": [
+     "zero vector",
+     "trivial",
+     "depend",
+     "pivot",
+     "free"
+    ],
+    "optional": [
+     "coefficient",
+     "rows",
+     "columns",
+     "rank",
+     "at most",
+     "homogeneous",
+     "back-solve"
+    ],
+    "minWords": 90
+   },
+   "xp": 60,
+   "tags": [
+    "linear-dependence",
+    "independence-test"
+   ],
+   "concepts": [
+    "linear-dependence",
+    "independence-test"
+   ],
+   "explain": "For (a) put the coefficient $1$ on the zero vector and $0$ on everything else: the combination equals $\\mathbf{0}$ while the coefficient list is not all zero, so it is a dependence obtained with no computation. For (b) the matrix is $n \\times k$; each pivot claims a distinct row, so there are at most $n$ pivots, and $k > n$ forces at least one column to be free - that is the sole use of the hypothesis. A free column yields a non-zero solution of $A\\mathbf{c} = \\mathbf{0}$, so no list longer than $n$ is ever independent in $\\mathbb{R}^n$."
+  },
+  {
+   "id": "la-3-p-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $B = (\\mathbf{b}_1,\\dots,\\mathbf{b}_n)$ span $V$. Prove that $B$ is linearly independent **if and only if** every $\\mathbf{v} \\in V$ has exactly one expansion $\\mathbf{v} = c_1\\mathbf{b}_1 + \\dots + c_n\\mathbf{b}_n$. Prove both directions, and in the harder direction say what you subtract and why the result is a vanishing combination.",
+   "rubric": {
+    "required": [
+     "unique",
+     "independ",
+     "subtract",
+     "coordinate",
+     "trivial"
+    ],
+    "optional": [
+     "both directions",
+     "expansion",
+     "zero vector",
+     "difference",
+     "converse",
+     "contrapositive"
+    ],
+    "minWords": 90
+   },
+   "xp": 60,
+   "tags": [
+    "coordinates",
+    "linear-independence",
+    "basis"
+   ],
+   "concepts": [
+    "coordinates",
+    "linear-independence"
+   ],
+   "explain": "Forwards: given two expansions of the same $\\mathbf{v}$, subtract to obtain $\\sum_i (c_i - d_i)\\mathbf{b}_i = \\mathbf{0}$; independence makes every $c_i - d_i$ zero, so the expansions coincide. Backwards: apply uniqueness to $\\mathbf{v} = \\mathbf{0}$, which already owns the all-zeros expansion, so no other vanishing combination can exist - and that is independence. The equivalence is why coordinate vectors are legitimate notation at all: without independence $[\\mathbf{v}]_B$ would name several different lists at once."
+  },
+  {
+   "id": "la-3-p-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $B = ((1,1,0),(0,1,1),(1,0,1))$. Prove that $B$ is a basis of $\\mathbb{R}^3$ by giving the rank of the matrix with these columns and drawing both basis conditions from it. Then compute $[(2,4,6)]_B$ and verify your answer by expanding it.",
+   "answer": "(0, 4, 2)",
+   "rubric": {
+    "required": [
+     "basis",
+     "independ",
+     "span",
+     "coordinate",
+     "rank"
+    ],
+    "optional": [
+     "pivot",
+     "dimension",
+     "three",
+     "verify",
+     "solve",
+     "identity"
+    ],
+    "minWords": 60
+   },
+   "xp": 60,
+   "tags": [
+    "basis",
+    "coordinates",
+    "dimension"
+   ],
+   "concepts": [
+    "basis",
+    "coordinates",
+    "dimension"
+   ],
+   "explain": "The matrix reduces to the identity, so rank is $3$: three pivots across three columns is independence, and three pivots across three rows makes $A\\mathbf{c} = \\mathbf{b}$ solvable for every $\\mathbf{b}$, which is spanning. Solving $A\\mathbf{c} = (2,4,6)$ gives $\\mathbf{c} = (0,4,2)$, and indeed $0(1,1,0) + 4(0,1,1) + 2(1,0,1) = (2,4,6)$. A zero coordinate is not a warning sign - it merely says this vector needs none of that basis direction."
+  },
+  {
+   "id": "la-3-p-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Prove that the standard basis $E = (\\mathbf{e}_1,\\mathbf{e}_2,\\mathbf{e}_3)$ really is a basis of $\\mathbb{R}^3$, arguing from the definition rather than from a rank computation. Then state $[(7,-2,5)]_E$ and explain why the coordinate map in $E$ is the identity while in a general basis it is not.",
+   "answer": "(7, -2, 5)",
+   "rubric": {
+    "required": [
+     "standard basis",
+     "independ",
+     "span",
+     "coordinate",
+     "identity"
+    ],
+    "optional": [
+     "entries",
+     "tuple",
+     "unique",
+     "dimension",
+     "trivial",
+     "translat"
+    ],
+    "minWords": 55
+   },
+   "xp": 60,
+   "tags": [
+    "standard-basis",
+    "coordinates",
+    "basis"
+   ],
+   "concepts": [
+    "standard-basis"
+   ],
+   "explain": "The combination $c_1\\mathbf{e}_1 + c_2\\mathbf{e}_2 + c_3\\mathbf{e}_3$ literally equals the tuple $(c_1,c_2,c_3)$, so the list spans - every tuple is reached by choosing its own entries - and it vanishes only when each $c_i = 0$, which is independence. Hence $[(7,-2,5)]_E = (7,-2,5)$. What is special is not the vectors but the bookkeeping: in $E$ the translation step is invisible, whereas in $B = ((1,1,0),(0,1,1),(1,0,1))$ the same arrow $(2,4,6)$ carries the quite different list $(0,4,2)$."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-3-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The vectors $\\mathbf{v}_1,\\dots,\\mathbf{v}_k$ are **linearly independent** exactly when:",
+   "choices": [
+    "no $\\mathbf{v}_i$ is a scalar multiple of any other $\\mathbf{v}_j$",
+    "$c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k = \\mathbf{0}$ has only the solution $c_1 = \\dots = c_k = 0$",
+    "$c_1\\mathbf{v}_1 + \\dots + c_k\\mathbf{v}_k = \\mathbf{0}$ has no solution at all",
+    "the vectors together span the whole of $\\mathbb{R}^k$"
+   ],
+   "answer": 1,
+   "xp": 12,
+   "tags": [
+    "linear-independence"
+   ],
+   "concepts": [
+    "linear-independence"
+   ],
+   "explain": "The third choice is impossible for any list whatsoever, since $\\mathbf{c} = \\mathbf{0}$ always solves a homogeneous system - which is precisely why the definition says *only* and not *no*. The first choice is pairwise independence, strictly weaker: $(1,0,1),(0,1,1),(1,1,2)$ satisfies it yet is dependent. The last confuses independence with spanning, the other half of a basis."
+  },
+  {
+   "id": "la-3-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A **basis** of a vector space $V$ is a list of vectors that is:",
+   "choices": [
+    "spanning, and as large as possible",
+    "linearly independent and spanning",
+    "linearly independent, of size $\\dim V$, and mutually orthogonal",
+    "any collection of $\\dim V$ vectors drawn from $V$"
+   ],
+   "answer": 1,
+   "xp": 12,
+   "tags": [
+    "basis",
+    "dimension"
+   ],
+   "concepts": [
+    "basis"
+   ],
+   "explain": "Orthogonality is a later refinement and no part of the definition - $((1,1,0),(0,1,1),(1,0,1))$ is a perfectly good basis of $\\mathbb{R}^3$ containing no right angles. The last choice fails because the count alone is not enough: $\\{(1,0),(2,0)\\}$ has two members in $\\mathbb{R}^2$ and spans only a line. The first inverts the balance, since a basis is as *small* as a spanning list can be."
+  },
+  {
+   "id": "la-3-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in each blank. Three take an integer and one takes a single word.",
+   "template": "dim(R^7) = ___\nThe largest possible size of a linearly independent list in R^4 is ___\nAny 5 vectors in R^4 must be linearly ___\nThe standard basis of R^3 has ___ vectors.",
+   "blanks": [
+    "7",
+    "4",
+    "dependent",
+    "3"
+   ],
+   "xp": 24,
+   "tags": [
+    "dimension",
+    "standard-basis",
+    "linear-dependence"
+   ],
+   "concepts": [
+    "dimension",
+    "standard-basis"
+   ],
+   "explain": "All four answers descend from one fact: a matrix with $n$ rows admits at most $n$ pivots. That caps an independent list in $\\mathbb{R}^4$ at four vectors and forces any five to be dependent, and since $\\mathbf{e}_1,\\dots,\\mathbf{e}_n$ attains the cap while spanning, the dimension of $\\mathbb{R}^n$ is exactly $n$."
+  },
+  {
+   "id": "la-3-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a valid proof that if $B = (\\mathbf{b}_1,\\dots,\\mathbf{b}_n)$ is independent then each $\\mathbf{v}$ in its span has only one expansion in $B$.",
+   "fragments": [
+    "Suppose $\\mathbf{v} = c_1\\mathbf{b}_1 + \\dots + c_n\\mathbf{b}_n$ and also $\\mathbf{v} = d_1\\mathbf{b}_1 + \\dots + d_n\\mathbf{b}_n$.",
+    "Subtract the second equation from the first, so the left-hand side becomes $\\mathbf{0}$.",
+    "Collecting terms gives $(c_1-d_1)\\mathbf{b}_1 + \\dots + (c_n-d_n)\\mathbf{b}_n = \\mathbf{0}$, a vanishing combination of $B$.",
+    "Independence says the only such combination is the trivial one, so $c_i - d_i = 0$ for every $i$.",
+    "Hence $c_i = d_i$ for all $i$, and the two expansions were one expansion."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 24,
+   "tags": [
+    "coordinates",
+    "linear-independence"
+   ],
+   "concepts": [
+    "coordinates"
+   ],
+   "explain": "This is the standard uniqueness move: assume two objects, subtract, show the difference vanishes. The subtraction has to come before independence is invoked, because independence is a statement about combinations equal to $\\mathbf{0}$, and until you subtract there is no such combination on the page to apply it to."
+  },
+  {
+   "id": "la-3-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A$ have columns $\\mathbf{e}_1 = (1,0,0)$, $\\mathbf{e}_2 = (0,1,0)$, $\\mathbf{e}_3 = (0,0,1)$ and $\\mathbf{v}_4 = (2,3,4)$. Answer each step; give the coefficients as four integers separated by spaces.",
+   "steps": [
+    {
+     "label": "Number of pivot columns of A",
+     "expected": "3"
+    },
+    {
+     "label": "Number of free columns of A",
+     "expected": "1"
+    },
+    {
+     "label": "Coefficients c1 c2 c3 c4 of a dependence relation, taking c4 = -1",
+     "expected": "2 3 4 -1"
+    },
+    {
+     "label": "Independent or dependent? One word.",
+     "expected": "dependent"
+    }
+   ],
+   "xp": 48,
+   "tags": [
+    "independence-test",
+    "linear-dependence",
+    "standard-basis"
+   ],
+   "concepts": [
+    "independence-test"
+   ],
+   "explain": "$A$ is already reduced, with the identity in its first three columns, so the fourth column is free and its entries $(2,3,4)$ are exactly the standard-basis coordinates of $\\mathbf{v}_4$. Hence $2\\mathbf{e}_1 + 3\\mathbf{e}_2 + 4\\mathbf{e}_3 - \\mathbf{v}_4 = \\mathbf{0}$. This is the general theorem in miniature: four vectors in $\\mathbb{R}^3$ can never be independent, because three rows admit at most three pivots."
+  },
+  {
+   "id": "la-3-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Decide whether $\\{(2,1,0),(1,0,1),(0,1,1)\\}$ is a basis of $\\mathbb{R}^3$. Reduce the matrix with these columns, state the rank, and justify each of the two basis conditions from the reduction. Say what the span would be had the rank come out lower.",
+   "answer": "Yes - rank 3, so it is a basis of R^3",
+   "rubric": {
+    "required": [
+     "rank",
+     "pivot",
+     "independ",
+     "span",
+     "basis"
+    ],
+    "optional": [
+     "three",
+     "identity",
+     "row",
+     "echelon",
+     "dimension",
+     "solvable"
+    ],
+    "minWords": 55
+   },
+   "xp": 60,
+   "tags": [
+    "basis",
+    "independence-test",
+    "dimension"
+   ],
+   "concepts": [
+    "basis",
+    "independence-test"
+   ],
+   "explain": "The reduction ends at the identity matrix, so the rank is $3$. Three pivots across three columns leave no free column, giving independence; three pivots across three rows leave no zero row, so $A\\mathbf{c} = \\mathbf{b}$ is solvable for every $\\mathbf{b}$ and the columns span $\\mathbb{R}^3$. Had the rank been $2$ the span would have been a plane through the origin: the list would fail the spanning half while still serving as a basis of that plane."
+  },
+  {
+   "id": "la-3-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A classmate says: \"A basis is just a spanning set, since if it spans you can reach everything and that is all a basis is for.\" Explain what is lost by dropping independence, using $\\{(1,0),(0,1),(1,1)\\}$ in $\\mathbb{R}^2$ as the concrete case, and say what happens to coordinates.",
+   "rubric": {
+    "required": [
+     "independ",
+     "span",
+     "unique",
+     "coordinate",
+     "basis"
+    ],
+    "optional": [
+     "redundant",
+     "many",
+     "expansion",
+     "dimension",
+     "trivial",
+     "relation"
+    ],
+    "minWords": 55
+   },
+   "xp": 24,
+   "tags": [
+    "basis",
+    "coordinates"
+   ],
+   "concepts": [
+    "basis"
+   ],
+   "explain": "Spanning delivers the existence of an expansion but never its uniqueness, so $(1,1)$ can be written as $1 \\cdot (1,1)$ or as $(1,0) + (0,1)$, and the notation $[\\mathbf{v}]_B$ stops naming a single list. Independence is precisely the clause that collapses those alternatives, which is what makes coordinates - and hence the whole dictionary between vectors and tuples - possible. It also rescues dimension, since a merely spanning list can be padded to any size you like."
+  },
+  {
+   "id": "la-3-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $B = ((3,1),(1,2))$ and $\\mathbf{v} = (7,9)$. Verify that $B$ is a basis of $\\mathbb{R}^2$, compute $[\\mathbf{v}]_B$, and state $[\\mathbf{v}]_E$ for the standard basis $E$. Explain in one sentence why the two coordinate vectors differ although the vector does not.",
+   "answer": "[v]_B = (1, 4) and [v]_E = (7, 9)",
+   "rubric": {
+    "required": [
+     "coordinate",
+     "basis",
+     "standard",
+     "independ",
+     "unique"
+    ],
+    "optional": [
+     "solve",
+     "system",
+     "identity",
+     "rank",
+     "same vector",
+     "translat"
+    ],
+    "minWords": 50
+   },
+   "xp": 60,
+   "tags": [
+    "coordinates",
+    "standard-basis",
+    "basis"
+   ],
+   "concepts": [
+    "coordinates",
+    "standard-basis"
+   ],
+   "explain": "Neither column is a multiple of the other, so the rank is $2$ and $B$ is a basis; solving $3a + b = 7$ with $a + 2b = 9$ gives $a = 1$ and $b = 4$, and $1(3,1) + 4(1,2) = (7,9)$ confirms it. In $E$ the same vector reads $(7,9)$. The arrow in the plane never moved - only the dictionary changed, and a coordinate vector is always a statement about a vector *and* a basis, never about the vector alone."
+  },
+  {
+   "id": "la-3-e-09",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that no list of $n+1$ vectors in $\\mathbb{R}^n$ can be linearly independent. Argue through the matrix whose columns are the vectors, identify the exact step where the row count enters, and then say what this implies about the size of every basis of $\\mathbb{R}^n$.",
+   "rubric": {
+    "required": [
+     "pivot",
+     "free",
+     "row",
+     "column",
+     "independ",
+     "dimension"
+    ],
+    "optional": [
+     "rank",
+     "homogeneous",
+     "at most",
+     "non-zero",
+     "echelon",
+     "span",
+     "basis"
+    ],
+    "minWords": 85
+   },
+   "xp": 60,
+   "tags": [
+    "dimension",
+    "independence-test",
+    "linear-dependence"
+   ],
+   "concepts": [
+    "dimension",
+    "independence-test"
+   ],
+   "explain": "Form the $n \\times (n+1)$ matrix $A$ with the vectors as columns. Each pivot claims a distinct row, so there are at most $n$ pivots for $n+1$ columns - the single step where the row count does the work - and at least one column is therefore free. Setting that free coefficient to $1$ and back-solving produces a non-zero $\\mathbf{c}$ with $A\\mathbf{c} = \\mathbf{0}$, a dependence. Since a basis must be independent, no basis of $\\mathbb{R}^n$ exceeds $n$ vectors, and because the standard basis attains $n$ while spanning, every basis has exactly $n$ - that is $\\dim \\mathbb{R}^n = n$."
+  },
+  {
+   "id": "la-3-e-10",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the pivot criterion and then apply it. The first two blanks take one word each; the last two take integers.",
+   "template": "A list of k vectors is independent exactly when every column of the matrix holding them is a ___ column.\nEquivalently, the list is independent exactly when the ___ of that matrix equals k.\nFor the columns (1,2,3), (2,4,6), (1,3,5) that number is ___\nand the number of free columns is ___.",
+   "blanks": [
+    "pivot",
+    "rank",
+    "2",
+    "1"
+   ],
+   "xp": 24,
+   "tags": [
+    "independence-test",
+    "linear-independence"
+   ],
+   "concepts": [
+    "independence-test"
+   ],
+   "explain": "The matrix $\\begin{bmatrix} 1 & 2 & 1 \\\\ 2 & 4 & 3 \\\\ 3 & 6 & 5 \\end{bmatrix}$ reduces to pivots in columns 1 and 3 only, because column 2 is exactly twice column 1; rank $2$ against $3$ columns leaves one free column and therefore a dependence. Counting free columns rather than eyeballing the vectors is what makes the test mechanical, and that count also measures how far the list is from being independent."
+  }
+ ]
+}

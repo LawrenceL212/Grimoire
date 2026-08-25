@@ -1,0 +1,878 @@
+{
+ "n": 5,
+ "name": "The Four Fundamental Subspaces",
+ "concepts": [
+  "column-space",
+  "null-space",
+  "row-space",
+  "left-null-space",
+  "rank",
+  "rank-nullity",
+  "rref-bases",
+  "consistency-of-ax-b"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "subspace-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Four Fundamental Subspaces",
+  "sections": [
+   {
+    "title": "Two Homes, Four Rooms",
+    "body": "Every $m \\times n$ matrix $A$ carries four subspaces, and the first thing to fix is **where each one lives**. The product $Ax$ is a combination of the columns of $A$ with weights $x_1,\\dots,x_n$, so $x$ must have $n$ entries while $Ax$ has $m$: the **column space** $C(A) = \\{Ax : x \\in \\mathbb{R}^n\\}$ is a subspace of $\\mathbb{R}^m$, and the **null space** $N(A) = \\{x : Ax = 0\\}$ is a subspace of $\\mathbb{R}^n$.\n\nThat single sentence - *$Ax$ is a combination of the columns* - is the whole subject in miniature. It makes the column space the set of vectors $A$ can **reach**, and the null space the set of directions $A$ **destroys**.\n\nThe other two rooms belong to $A^{\\mathsf{T}}$: the **row space** $C(A^{\\mathsf{T}}) \\subseteq \\mathbb{R}^n$ is spanned by the rows of $A$ stood up as columns, and the **left null space** $N(A^{\\mathsf{T}}) \\subseteq \\mathbb{R}^m$ collects the $y$ with $y^{\\mathsf{T}}A = 0$ - the combinations of rows that vanish.\n\nAll four really are subspaces: if $Ax = 0$ and $Az = 0$ then $A(\\alpha x + \\beta z) = 0$, and a combination of combinations of the columns is again a combination of the columns.",
+    "code": "A =  [ 1  2  3   5 ]        A is 3 x 4, so x has 4 entries and Ax has 3.\n     [ 2  4  8  12 ]\n     [ 3  6  7  13 ]\n\nAx is ALWAYS a combination of the columns of A:\n\n  A x  =  x1 [1]  +  x2 [2]  +  x3 [3]  +  x4 [ 5]\n             [2]        [4]        [8]        [12]\n             [3]        [6]        [7]        [13]\n\n  C(A) = every combination you can build   = all reachable Ax   in R^3\n  N(A) = every x that builds zero          = all x with Ax = 0  in R^4\n\nTwo of these four columns already give everything:\n\n  col2 = 2*col1                 col4 = 2*col1 + col3\n\nso C(A) = span{ col1, col3 }: a PLANE through the origin in R^3,\nnot all of R^3.  Two columns were redundant, so C(A) is 2-dimensional.\n\nEach redundancy is literally a null-space vector:\n\n  -2*col1 + col2               = 0   ->   x = (-2,  1,  0, 0)\n  -2*col1        - col3 + col4 = 0   ->   x = (-2,  0, -1, 1)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Read this line and nothing else if you read one line today. The x_i are weights on whole columns; A never touches the entries of x individually."
+     },
+     {
+      "line": 11,
+      "text": "C(A) sits in R^3 because each column has 3 entries. N(A) sits in R^4 because x has one entry per column. Different rooms, different ambient dimensions."
+     },
+     {
+      "line": 16,
+      "text": "A dependency among columns is a fact about C(A) being small AND a fact about N(A) being big. The same redundancy shows up in both rooms."
+     },
+     {
+      "line": 23,
+      "text": "Rewrite any dependency with everything on the left, then read the coefficients off: those coefficients are a vector in the null space."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "$A$ is the $3 \\times 4$ matrix above. Give the dimension of the ambient space each subspace sits inside - a plain integer per blank.",
+     "template": "C(A) is a subspace of R^___\nN(A) is a subspace of R^___\nN(A^T) is a subspace of R^___",
+     "blanks": [
+      "3",
+      "4",
+      "3"
+     ],
+     "concepts": [
+      "column-space",
+      "null-space",
+      "left-null-space"
+     ],
+     "explain": "Columns of $A$ have $3$ entries, so everything built from them - every $Ax$, and every $y$ with $y^{\\mathsf{T}}A = 0$ - lives in $\\mathbb{R}^3$. The vector $x$ has one entry per column, so $N(A) \\subseteq \\mathbb{R}^4$. The tempting slip is to read the ambient dimension off the *rank*; rank measures the size of the subspace, never the size of the room it sits in."
+    }
+   },
+   {
+    "title": "Elimination Keeps Two Rooms and Moves One",
+    "body": "Row operations replace each row by a combination of rows and are reversible, so $R = \\mathrm{rref}(A)$ and $A$ have the same row space. They also never change the solution set of $Ax = 0$, so the **null space is unchanged** too. Both facts make $R$ the right place to read those two subspaces from.\n\nThe column space is the exception, and for a symmetric reason: row operations recombine rows, not columns, so each column genuinely moves and $C(R) \\neq C(A)$ in general. What survives is the **pattern of dependence** among columns, because $Rx = 0$ and $Ax = 0$ have identical solutions and each such $x$ records one dependency.\n\nSo the recipe splits. Read the row space and the null space off $R$; read the column space off $A$, using the columns in the pivot positions $R$ identified.\n\nEach free column contributes one null-space basis vector: set that free variable to $1$, the others to $0$, and solve the nonzero rows for the pivot variables. Those $n - r$ vectors are independent, since each carries a $1$ where the others carry $0$, and they span $N(A)$ because a solution is completely determined once its free entries are chosen.",
+    "code": "Row-reduce A all the way to R = rref(A).\n\n  [ 1  2  3   5 ]   R2-2R1   [ 1  2  3   5 ]   R3+R2   [ 1  2  3  5 ]\n  [ 2  4  8  12 ]  ------->  [ 0  0  2   2 ]  ------>  [ 0  0  2  2 ]\n  [ 3  6  7  13 ]   R3-3R1   [ 0  0 -2  -2 ]           [ 0  0  0  0 ]\n\n   (1/2)R2   [ 1  2  3  5 ]   R1-3R2   [ 1  2  0  2 ]\n  -------->  [ 0  0  1  1 ]  ------>   [ 0  0  1  1 ]  = R\n             [ 0  0  0  0 ]            [ 0  0  0  0 ]\n\n  pivot columns of R: 1 and 3        free columns: 2 and 4\n\nREAD STRAIGHT OFF R\n  row space basis    (1, 2, 0, 2),  (0, 0, 1, 1)      the nonzero rows\n  null space basis   (-2, 1, 0, 0), (-2, 0, -1, 1)    one per free column\n\n  free x2 = 1, x4 = 0:  x1 + 2 = 0,  x3 = 0      ->  (-2,  1,  0, 0)\n  free x2 = 0, x4 = 1:  x1 + 2 = 0,  x3 + 1 = 0  ->  (-2,  0, -1, 1)\n\nREAD OFF A, NOT OFF R\n  column space basis  col1 = (1,2,3),  col3 = (3,8,7)\n\n  Elimination CHANGES the column space: (1,2,3) is in C(A), but every\n  column of R has third entry 0, so C(R) is a different plane entirely.\n  What survives is WHICH column numbers are pivotal - carry those numbers\n  back to A and use A's own columns.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "A pivot column holds the leading 1 of some row. Counting them gives the single most useful number on this floor: the rank."
+     },
+     {
+      "line": 14,
+      "text": "The nonzero rows of R are independent by construction - each has a leading 1 in a column where the others are 0 - so they are a basis, not merely a spanning set."
+     },
+     {
+      "line": 17,
+      "text": "One free variable set to 1, the rest to 0. That pattern is what forces independence, whatever the pivot rows happen to say."
+     },
+     {
+      "line": 23,
+      "text": "The classic error is handing back columns of R as a basis for C(A). The column NUMBERS transfer; the column VECTORS do not."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Using $R = \\mathrm{rref}(A)$ above, give the pivot and free column numbers in increasing order, then say which matrix the column-space basis must be taken from - answer `A` or `R`.",
+     "template": "pivot columns: ___ and ___\nfree columns: ___ and ___\ncolumn space basis comes from: ___",
+     "blanks": [
+      "1",
+      "3",
+      "2",
+      "4",
+      "A"
+     ],
+     "concepts": [
+      "rref-bases",
+      "column-space"
+     ],
+     "explain": "$R$ has leading ones in columns $1$ and $3$, leaving $2$ and $4$ free - and in $A$ itself $\\mathrm{col}_2 = 2\\,\\mathrm{col}_1$ and $\\mathrm{col}_4 = 2\\,\\mathrm{col}_1 + \\mathrm{col}_3$, which is the same information. The basis vectors must be $A$'s columns $1$ and $3$: every column of $R$ has a zero third entry, so they could never span a plane containing $(1,2,3)$."
+    }
+   },
+   {
+    "title": "Rank Counts the Pivots, and Everything Follows",
+    "body": "The **rank** $r$ of $A$ is the number of pivots in $\\mathrm{rref}(A)$, and it is simultaneously the number of independent columns and the number of independent rows - which is why $\\dim C(A) = \\dim C(A^{\\mathsf{T}}) = r$ even though those two spaces live in different rooms. That coincidence is the first genuinely surprising theorem in the subject.\n\nEvery column of $A$ is either pivot or free, never both, and the free columns are in exact correspondence with the null-space basis vectors. Reading that partition of the $n$ columns straight off gives the **rank-nullity theorem**: $$\\operatorname{rank}(A) + \\dim N(A) = n.$$ It is an accounting identity about columns rather than a computation, which is why it holds for every matrix with no hypotheses whatsoever.\n\nApplying the same statement to $A^{\\mathsf{T}}$ - an $n \\times m$ matrix of the same rank $r$ - gives $\\dim N(A^{\\mathsf{T}}) = m - r$. So the four dimensions are $r$, $r$, $n-r$ and $m-r$, fixed the instant you know $m$, $n$ and $r$.\n\nGeometrically $A$ squashes $\\mathbb{R}^n$ onto an $r$-dimensional image while flattening an $(n-r)$-dimensional null space to the origin, and the two must add to $n$ because no direction is lost and none is invented.",
+    "code": "For ANY m x n matrix A with rank r = number of pivots:\n\n  dim C(A)   = r        subspace of R^m     column space\n  dim C(A^T) = r        subspace of R^n     row space\n  dim N(A)   = n - r    subspace of R^n     null space\n  dim N(A^T) = m - r    subspace of R^m     left null space\n\n  RANK-NULLITY:   rank(A) + dim N(A) = n\n                  (pivot columns) + (free columns) = (all columns)\n\nOur A is 3 x 4 with r = 2:\n\n  dim C(A)   = 2          a plane in R^3\n  dim C(A^T) = 2          a plane in R^4\n  dim N(A)   = 4 - 2 = 2  a plane in R^4\n  dim N(A^T) = 3 - 2 = 1  a line  in R^3\n\nThe left null space is a null space too - of A^T - so it is found the\nsame way. Here it is one line, spanned by y = (-5, 1, 1):\n\n  -5*row1 + row2 + row3\n   = -5(1, 2, 3, 5) + (2, 4, 8, 12) + (3, 6, 7, 13)\n   = (-5+2+3, -10+4+6, -15+8+7, -25+12+13)\n   = (0, 0, 0, 0)                          so  y^T A = 0\n\nSince r <= min(m, n) = 3 and r = 2, A is rank-deficient: its rows are\ndependent (one wasted row) and its columns are dependent (two wasted).",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Note the n, not m. Rank-nullity counts COLUMNS, so it is the null space - which lives where x lives - that appears on the left."
+     },
+     {
+      "line": 16,
+      "text": "m - r counts the wasted rows: three rows of rank 2 means exactly one independent combination of the rows dies."
+     },
+     {
+      "line": 21,
+      "text": "This is what 'left' means: y multiplies A from the left, so it combines rows. Reading it as a combination of columns is the usual confusion."
+     },
+     {
+      "line": 26,
+      "text": "Rank is bounded by both dimensions at once, so a 3 x 4 matrix can never have rank 4 and its four columns are guaranteed dependent."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $B$ be a $4 \\times 3$ matrix of rank $2$. Give all four subspace dimensions with the ambient space of each, then state what rank-nullity applied to $B$ contributes and which dimension it does **not** give you directly.",
+     "answer": "dim C(B) = 2 in R^4; dim C(B^T) = 2 in R^3; dim N(B) = 3 - 2 = 1 in R^3; dim N(B^T) = 4 - 2 = 2 in R^4. Rank-nullity applied to B gives dim N(B) = n - r = 1; the left null space dimension m - r = 2 requires the same theorem applied to B^T instead.",
+     "rubric": {
+      "required": [
+       "rank",
+       "nullit",
+       "column",
+       "row",
+       "dimension"
+      ],
+      "optional": [
+       "ambient",
+       "transpose",
+       "free",
+       "pivot",
+       "left"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "rank",
+      "rank-nullity"
+     ],
+     "explain": "With $m = 4$, $n = 3$, $r = 2$ the four dimensions are $2$, $2$, $n-r = 1$ and $m-r = 2$. Rank-nullity applied to $B$ itself yields only $\\dim N(B) = 1$, because its right-hand side is $n$, the number of **columns**; the left null space dimension needs the theorem applied to $B^{\\mathsf{T}}$. Mixing up which of $m$ and $n$ appears is by far the commonest error here."
+    }
+   },
+   {
+    "title": "Solvability Is a Question About the Column Space",
+    "body": "Because $Ax$ is a combination of the columns, $Ax = b$ has a solution **exactly when** $b \\in C(A)$ - nothing more and nothing less. Existence is a column-space question; uniqueness is a null-space question, since any two solutions differ by a vector in $N(A)$.\n\nThe left null space turns existence into a finite test. If $Ax = b$ and $y^{\\mathsf{T}}A = 0$ then $y^{\\mathsf{T}}b = y^{\\mathsf{T}}Ax = 0$, so each $y \\in N(A^{\\mathsf{T}})$ imposes one linear condition $y \\cdot b = 0$. Those $m - r$ conditions are precisely the zero rows elimination produces, and they are sufficient as well as necessary: $C(A)$ is exactly the orthogonal complement of $N(A^{\\mathsf{T}})$ inside $\\mathbb{R}^m$.\n\nWhen $b$ passes the test, the full solution set is $x_p + N(A)$ - one particular solution plus everything the matrix destroys. Setting the free variables to $0$ produces $x_p$ cheaply; adding the null-space basis with arbitrary coefficients produces the rest.\n\nSo three numbers $m$, $n$, $r$ decide the shape of every system: solvable for **every** $b$ exactly when $r = m$, and with **at most one** solution exactly when $r = n$.",
+    "code": "Ax = b asks one question:  is b a combination of the columns of A?\n                            that is, is b in C(A)?\n\nC(A) is only a plane in R^3, so most b in R^3 are unreachable.\nThe left null space says exactly which:\n\n  if Ax = b then  y^T b = y^T (A x) = (y^T A) x = 0   for y in N(A^T)\n\n  so  b in C(A)  <=>  y . b = 0 for every y in N(A^T).\n\nHere N(A^T) is the single line through y = (-5, 1, 1), so the whole\ntest is one scalar equation:\n\n  b = (1,  1,  1):   -5(1) + 1 + 1   = -3   =/= 0   ->  NO solution\n  b = (4, 10, 10):   -5(4) + 10 + 10 =  0           ->  solvable\n\nSolve A x = (4, 10, 10).  Augment, then reduce:\n\n  [ 1  2  3   5 |  4 ]        [ 1  2  0  2 | 1 ]\n  [ 2  4  8  12 | 10 ]  --->  [ 0  0  1  1 | 1 ]\n  [ 3  6  7  13 | 10 ]        [ 0  0  0  0 | 0 ]\n\n  particular solution, free vars = 0:  xp = (1, 0, 1, 0)\n  check:  col1 + col3 = (1,2,3) + (3,8,7) = (4,10,10)    correct\n\n  COMPLETE SOLUTION\n    x = (1,0,1,0) + s(-2, 1, 0, 0) + t(-2, 0, -1, 1),   s, t in R\n\nThat is a plane in R^4 - a shifted copy of N(A). It passes through the\norigin, and so is a subspace, only when b = 0.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Three symbols do the whole proof: associativity moves the brackets, and y^T A = 0 collapses the right-hand side to zero."
+     },
+     {
+      "line": 14,
+      "text": "One nonzero dot product is already a complete proof that no solution exists. You never have to run elimination to disprove solvability."
+     },
+     {
+      "line": 23,
+      "text": "Setting free variables to zero is a convenience, not a canonical choice. Any other choice differs from this one by a null-space vector."
+     },
+     {
+      "line": 27,
+      "text": "Uniqueness fails here because N(A) is 2-dimensional. Existence and uniqueness answer to different subspaces and can fail independently."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "For the running $A$, $N(A^{\\mathsf{T}})$ is spanned by $y = (-5,1,1)$. Compute $y \\cdot b$ for each $b$, then answer `yes` or `no` for whether $Ax = b$ is solvable.",
+     "steps": [
+      {
+       "label": "y . b for b = (2, 6, 4)",
+       "expected": "0"
+      },
+      {
+       "label": "solvable for b = (2, 6, 4)?",
+       "expected": "yes"
+      },
+      {
+       "label": "y . b for b = (1, 0, 0)",
+       "expected": "-5"
+      },
+      {
+       "label": "solvable for b = (1, 0, 0)?",
+       "expected": "no"
+      }
+     ],
+     "concepts": [
+      "consistency-of-ax-b",
+      "left-null-space"
+     ],
+     "explain": "$-5(2)+6+4 = 0$, so $(2,6,4)$ lies in the plane $C(A)$ - and indeed $-\\mathrm{col}_1 + \\mathrm{col}_3 = (2,6,4)$. For $(1,0,0)$ the dot product is $-5 \\neq 0$, settling insolvability with no elimination at all. Note $e_1$ is an utterly ordinary vector: being unreachable says $C(A)$ is a plane, not that $b$ is strange."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-5-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "The running matrix $A$ is $3 \\times 4$ with rank $2$. Give the four subspace dimensions as plain integers.",
+   "template": "dim C(A)   = ___\ndim C(A^T) = ___\ndim N(A)   = ___\ndim N(A^T) = ___",
+   "blanks": [
+    "2",
+    "2",
+    "2",
+    "1"
+   ],
+   "concepts": [
+    "rank",
+    "rank-nullity"
+   ],
+   "tags": [
+    "rank",
+    "rank-nullity"
+   ],
+   "xp": 30,
+   "hint": "Column space and row space share the rank. The two null spaces are $n - r$ and $m - r$.",
+   "explain": "Column and row space both have dimension $r = 2$ - the equality of row rank and column rank is exactly why one number $r$ suffices. Then $\\dim N(A) = n - r = 4 - 2 = 2$ and $\\dim N(A^{\\mathsf{T}}) = m - r = 3 - 2 = 1$. Swapping $m$ and $n$ is the standard slip and would wrongly report a $2$-dimensional left null space in $\\mathbb{R}^3$."
+  },
+  {
+   "id": "la-5-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps for producing a basis of $N(A)$ from scratch into the correct order.",
+   "fragments": [
+    "Row-reduce A to R = rref(A).",
+    "Mark the pivot columns of R; the remaining columns are the free ones.",
+    "Choose one free variable, set it to 1 and all other free variables to 0.",
+    "Solve the nonzero rows of R for the pivot variables.",
+    "Record the resulting vector, and repeat once for each free column."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "null-space",
+    "rref-bases"
+   ],
+   "tags": [
+    "null-space",
+    "rref-bases"
+   ],
+   "xp": 30,
+   "explain": "The pivot/free split has to exist before any variable can be called free, so reduction comes first. Setting one free variable to $1$ and the rest to $0$ is what guarantees the $n - r$ vectors are independent, and solving for the pivot variables comes last because the nonzero rows express each pivot variable in terms of the free ones."
+  },
+  {
+   "id": "la-5-gp-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $$E = \\begin{bmatrix} 1 & 2 & 2 & 4 \\\\ 3 & 6 & 7 & 15 \\end{bmatrix}.$$ Row-reduce $E$ to $\\mathrm{rref}(E)$, state the pivot and free columns, and give a basis for $N(E)$.",
+   "answer": "rref(E) = [[1, 2, 0, -2], [0, 0, 1, 3]]. Pivot columns 1 and 3; free columns 2 and 4. A basis for N(E) is (-2, 1, 0, 0) and (2, 0, -3, 1), so dim N(E) = 4 - 2 = 2.",
+   "rubric": {
+    "required": [
+     "pivot",
+     "free",
+     "rref",
+     "basis",
+     "null"
+    ],
+    "optional": [
+     "independ",
+     "dimension",
+     "combinat",
+     "substitut",
+     "rank"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "null-space",
+    "rref-bases"
+   ],
+   "tags": [
+    "null-space",
+    "rref-bases"
+   ],
+   "xp": 75,
+   "hint": "Do $R_2 - 3R_1$ first, then clear column $3$ upwards with $R_1 - 2R_2$.",
+   "explain": "$R_2 - 3R_1$ gives $(0,0,1,3)$, and $R_1 - 2R_2$ then clears the third entry of row one to leave $(1,2,0,-2)$. Free variables $x_2$ and $x_4$ give $(-2,1,0,0)$ and $(2,0,-3,1)$: with $x_4 = 1$ the second row forces $x_3 = -3$ and the first forces $x_1 = 2$. Sign errors here almost always come from forgetting that an $\\mathrm{rref}$ entry changes sign when it crosses to the other side of the equation."
+  },
+  {
+   "id": "la-5-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $$F = \\begin{bmatrix} 2 & 4 & 6 \\\\ 1 & 3 & 5 \\\\ 1 & 1 & 1 \\end{bmatrix}.$$ Find $\\operatorname{rank}(F)$, a basis for $C(F)$ drawn from the columns of $F$, and a basis for $N(F^{\\mathsf{T}})$. Say in one line why those two dimensions must sum to $3$.",
+   "answer": "rref(F) = [[1, 0, -1], [0, 1, 2], [0, 0, 0]], so rank(F) = 2 with pivots in columns 1 and 2. Basis for C(F): F's own columns (2,1,1) and (4,3,1). Basis for N(F^T): (-1,1,1), since -row1 + row2 + row3 = (0,0,0). dim C(F) + dim N(F^T) = 2 + 1 = 3 = m because the two are orthogonal complements filling R^3.",
+   "rubric": {
+    "required": [
+     "rank",
+     "column",
+     "basis",
+     "pivot",
+     "orthogon"
+    ],
+    "optional": [
+     "complement",
+     "left",
+     "row",
+     "dimension",
+     "plane"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "column-space",
+    "left-null-space",
+    "rank"
+   ],
+   "tags": [
+    "column-space",
+    "left-null-space",
+    "rank"
+   ],
+   "xp": 75,
+   "hint": "Row-reduce $F$ for the rank and the pivot positions; find $N(F^{\\mathsf{T}})$ by asking which combination of rows vanishes.",
+   "explain": "The pivots land in columns $1$ and $2$, so $\\operatorname{rank}(F) = 2$ and the basis is $F$'s own columns $(2,1,1)$ and $(4,3,1)$ - never the columns of $\\mathrm{rref}(F)$, whose third entries are both zero. The relation $-\\text{row}_1 + \\text{row}_2 + \\text{row}_3 = 0$ gives $y = (-1,1,1)$, and $\\dim C(F) + \\dim N(F^{\\mathsf{T}}) = r + (m-r) = 3$ because those two spaces are orthogonal complements inside $\\mathbb{R}^3$."
+  },
+  {
+   "id": "la-5-gp-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "For the running $A$ with $N(A^{\\mathsf{T}}) = \\operatorname{span}\\{(-5,1,1)\\}$, decide solvability of $Ax = b$ by the dot-product test. Give the scalar for the first two steps and `yes` or `no` for the last two.",
+   "steps": [
+    {
+     "label": "y . b for b = (1, 2, 3)",
+     "expected": "0"
+    },
+    {
+     "label": "y . b for b = (0, 1, 2)",
+     "expected": "3"
+    },
+    {
+     "label": "Is Ax = (1, 2, 3) solvable?",
+     "expected": "yes"
+    },
+    {
+     "label": "Is Ax = (0, 1, 2) solvable?",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "consistency-of-ax-b",
+    "left-null-space"
+   ],
+   "tags": [
+    "consistency-of-ax-b",
+    "left-null-space"
+   ],
+   "xp": 60,
+   "hint": "$y \\cdot b = -5b_1 + b_2 + b_3$.",
+   "explain": "$(1,2,3)$ is the first column of $A$, so it lies in $C(A)$ trivially and the test agrees by returning $0$. For $(0,1,2)$ the value is $3 \\neq 0$, so no combination of columns can ever reach it. Because $\\dim N(A^{\\mathsf{T}}) = 1$, this one equation is the *complete* description of $C(A)$: a nonzero result is conclusive, and so is a zero one."
+  }
+ ],
+ "subspace-workshop": [
+  {
+   "id": "la-5-ws-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $$D = \\begin{bmatrix} 1 & 0 & 2 \\\\ 0 & 1 & -1 \\\\ 1 & 1 & 1 \\\\ 2 & 1 & 3 \\end{bmatrix}.$$ Give a basis for all four fundamental subspaces of $D$, naming the ambient space of each, and check your dimensions against rank-nullity.",
+   "answer": "rref(D) = [[1,0,2],[0,1,-1],[0,0,0],[0,0,0]], so r = 2. Row space, in R^3: (1,0,2) and (0,1,-1). Null space, in R^3: (-2,1,1), dimension 3 - 2 = 1. Column space, in R^4: columns 1 and 2 of D, namely (1,0,1,2) and (0,1,1,1). Left null space, in R^4: (-1,-1,1,0) and (-2,-1,0,1), dimension 4 - 2 = 2. Checks: 2 + 1 = 3 = n and 2 + 2 = 4 = m.",
+   "rubric": {
+    "required": [
+     "rank",
+     "null",
+     "column",
+     "row",
+     "basis",
+     "dimension"
+    ],
+    "optional": [
+     "pivot",
+     "free",
+     "ambient",
+     "left",
+     "orthogon",
+     "rref"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "column-space",
+    "row-space",
+    "null-space",
+    "left-null-space",
+    "rref-bases",
+    "rank"
+   ],
+   "tags": [
+    "column-space",
+    "row-space",
+    "null-space",
+    "left-null-space",
+    "rref-bases",
+    "rank"
+   ],
+   "xp": 75,
+   "hint": "Row $3$ is row $1$ plus row $2$, and row $4$ is twice row $1$ plus row $2$. Those two facts are the left null space.",
+   "explain": "Rows $3$ and $4$ are combinations of rows $1$ and $2$, so $r = 2$ and elimination kills two rows - producing a $2$-dimensional left null space in $\\mathbb{R}^4$, read off from $-\\text{row}_1-\\text{row}_2+\\text{row}_3 = 0$ and $-2\\,\\text{row}_1-\\text{row}_2+\\text{row}_4 = 0$. The single free column, column $3$, gives $N(D) = \\operatorname{span}\\{(-2,1,1)\\}$, and the column space basis must be $D$'s columns $1$ and $2$, which have four entries each. Reporting the column space inside $\\mathbb{R}^3$ is the usual error: a tall matrix has a small null space and a large left null space, not the reverse."
+  },
+  {
+   "id": "la-5-ws-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove the rank-nullity theorem for an $m \\times n$ matrix $A$: $\\operatorname{rank}(A) + \\dim N(A) = n$. Argue from $\\mathrm{rref}(A)$, and justify both that the vectors you construct span $N(A)$ and that they are independent.",
+   "rubric": {
+    "required": [
+     "pivot",
+     "free",
+     "rref",
+     "independ",
+     "span",
+     "column"
+    ],
+    "optional": [
+     "basis",
+     "solution",
+     "elimination",
+     "zero",
+     "uniqu",
+     "coefficient"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "rank-nullity",
+    "rank"
+   ],
+   "tags": [
+    "rank-nullity",
+    "rank"
+   ],
+   "xp": 75,
+   "hint": "Each of the $n$ columns is pivot or free, and never both. The work is showing the special solutions form a basis.",
+   "explain": "The proof is a partition plus a basis argument. Each of the $n$ columns of $\\mathrm{rref}(A)$ is pivot or free, giving $r + (n-r) = n$ immediately; the content is that the $n-r$ special solutions really are a **basis** of $N(A)$. They span because the nonzero rows determine every pivot variable once the free variables are fixed, so any $x \\in N(A)$ equals the combination of special solutions that uses its own free entries as coefficients. They are independent because the $j$-th one carries a $1$ in free position $j$ where all others carry $0$, so a vanishing combination forces every coefficient to vanish. Row operations preserve $N(A)$, which is what licenses arguing about $\\mathrm{rref}(A)$ and concluding something about $A$."
+  },
+  {
+   "id": "la-5-ws-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $N(A)$ is orthogonal to the row space $C(A^{\\mathsf{T}})$: every $x \\in N(A)$ is orthogonal to every vector in the row space. Then state what $r$ and $n - r$ add up to, and what that says about how the two spaces sit inside $\\mathbb{R}^n$.",
+   "rubric": {
+    "required": [
+     "orthogon",
+     "row",
+     "null",
+     "dot",
+     "combinat",
+     "dimension"
+    ],
+    "optional": [
+     "complement",
+     "zero",
+     "entry",
+     "span",
+     "linear",
+     "perpendic"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "row-space",
+    "null-space"
+   ],
+   "tags": [
+    "row-space",
+    "null-space"
+   ],
+   "xp": 75,
+   "hint": "The $i$-th entry of $Ax$ *is* the dot product of row $i$ with $x$.",
+   "explain": "$Ax = 0$ says every entry of $Ax$ vanishes, and the $i$-th entry is exactly $\\text{row}_i \\cdot x$, so $x$ is orthogonal to each row. Orthogonality then extends to any combination $v = \\sum c_i \\,\\text{row}_i$ because $v \\cdot x = \\sum c_i (\\text{row}_i \\cdot x) = 0$, and every row-space vector is such a combination - which is the step most answers omit. Since $r + (n-r) = n$ and the only vector in both spaces is $0$, the row space and null space are **orthogonal complements** in $\\mathbb{R}^n$, not merely two spaces that happen to be perpendicular."
+  },
+  {
+   "id": "la-5-ws-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Elimination leaves the row space and the null space untouched but generally changes the column space. Explain why each of those three claims holds, and then explain why the pivot **column numbers** can still be carried back to $A$ even though the pivot column **vectors** cannot.",
+   "rubric": {
+    "required": [
+     "row",
+     "combinat",
+     "null",
+     "column",
+     "solution",
+     "independ"
+    ],
+    "optional": [
+     "dependen",
+     "pivot",
+     "elimination",
+     "reversib",
+     "rref",
+     "entry"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "column-space",
+    "rref-bases"
+   ],
+   "tags": [
+    "column-space",
+    "rref-bases"
+   ],
+   "xp": 30,
+   "explain": "A row operation replaces each row by a combination of rows and is reversible, so $R$ and $A$ span the same row space; it also never changes the solution set of $Ax = 0$, so $N(R) = N(A)$. But it recombines *entries within each column*, so columns move and $C(R) \\neq C(A)$ in general - in this floor's example every column of $R$ has third entry $0$ while $(1,2,3) \\in C(A)$. What transfers is the dependency pattern: $Rx = 0$ and $Ax = 0$ have identical solutions, and each such $x$ records a dependency among columns, so exactly the same subsets of column *positions* are independent in both matrices."
+  },
+  {
+   "id": "la-5-ws-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "With $$F = \\begin{bmatrix} 2 & 4 & 6 \\\\ 1 & 3 & 5 \\\\ 1 & 1 & 1 \\end{bmatrix},$$ characterise every $b \\in \\mathbb{R}^3$ for which $Fx = b$ is solvable, as a single linear equation in $b_1, b_2, b_3$. Then give the complete solution set for $b = (4,3,1)$ and name the geometric object it is.",
+   "answer": "N(F^T) = span{(-1,1,1)}, so Fx = b is solvable exactly when -b1 + b2 + b3 = 0. For b = (4,3,1) that holds, since -4 + 3 + 1 = 0. N(F) = span{(1,-2,1)} and a particular solution is (0,1,0) because (4,3,1) is column 2 of F. Complete solution: x = (0,1,0) + t(1,-2,1) for t in R - a line in R^3, parallel to N(F) but not passing through the origin, so not a subspace.",
+   "rubric": {
+    "required": [
+     "column",
+     "solvab",
+     "particular",
+     "null",
+     "line",
+     "consisten"
+    ],
+    "optional": [
+     "left",
+     "orthogon",
+     "plane",
+     "shift",
+     "free",
+     "subspace"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "consistency-of-ax-b",
+    "column-space",
+    "left-null-space"
+   ],
+   "tags": [
+    "consistency-of-ax-b",
+    "column-space",
+    "left-null-space"
+   ],
+   "xp": 75,
+   "hint": "$C(F)$ is a plane, so exactly one equation cuts it out - and the left null space supplies that equation.",
+   "explain": "$C(F)$ is the plane $-b_1 + b_2 + b_3 = 0$, the orthogonal complement of $N(F^{\\mathsf{T}}) = \\operatorname{span}\\{(-1,1,1)\\}$. Since $(4,3,1)$ is the second column of $F$, $x_p = (0,1,0)$ works, and adding $N(F) = \\operatorname{span}\\{(1,-2,1)\\}$ sweeps out the rest. The result is a **line**, not a subspace: it misses the origin, and calling a solution set a subspace whenever $b \\neq 0$ is the standard error."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-5-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "By definition, the left null space $N(A^{\\mathsf{T}})$ of an $m \\times n$ matrix $A$ is:",
+   "choices": [
+    "$\\{x \\in \\mathbb{R}^n : Ax = 0\\}$",
+    "$\\{y \\in \\mathbb{R}^m : y^{\\mathsf{T}}A = 0\\}$",
+    "$\\{b \\in \\mathbb{R}^m : b = Ax \\text{ for some } x\\}$",
+    "the span of the rows of $A$, sitting inside $\\mathbb{R}^n$"
+   ],
+   "answer": 1,
+   "concepts": [
+    "left-null-space"
+   ],
+   "tags": [
+    "left-null-space"
+   ],
+   "xp": 15,
+   "explain": "$y^{\\mathsf{T}}A = 0$ says $y$ weights the *rows* so that they sum to the zero row, and $y$ needs one entry per row, so it lives in $\\mathbb{R}^m$. The first option is $N(A)$ and the third is $C(A)$; the tempting confusion is that $N(A^{\\mathsf{T}})$ shares its ambient space $\\mathbb{R}^m$ with the column space rather than with the null space."
+  },
+  {
+   "id": "la-5-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The rank of a matrix $A$ is best defined as:",
+   "choices": [
+    "the number of rows of $A$ that are not entirely zero",
+    "the number of pivots in $\\mathrm{rref}(A)$, equally the dimension of $C(A)$ and of $C(A^{\\mathsf{T}})$",
+    "the dimension of $N(A)$",
+    "$\\min(m, n)$, for any matrix with no zero rows"
+   ],
+   "answer": 1,
+   "concepts": [
+    "rank"
+   ],
+   "tags": [
+    "rank"
+   ],
+   "xp": 15,
+   "explain": "Rank counts independent rows, equivalently independent columns, and elimination exposes that count as the number of pivots. Counting nonzero rows of $A$ itself fails whenever rows are dependent without being zero - $\\begin{bmatrix}1 & 1\\\\2 & 2\\end{bmatrix}$ has two nonzero rows and rank $1$ - while $\\min(m,n)$ is only an upper bound and $\\dim N(A)$ is the nullity, the complementary number."
+  },
+  {
+   "id": "la-5-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "$M$ is a $5 \\times 7$ matrix of rank $3$. Give the four subspace dimensions as plain integers.",
+   "template": "dim C(M)   = ___\ndim C(M^T) = ___\ndim N(M)   = ___\ndim N(M^T) = ___",
+   "blanks": [
+    "3",
+    "3",
+    "4",
+    "2"
+   ],
+   "concepts": [
+    "rank-nullity",
+    "rank"
+   ],
+   "tags": [
+    "rank-nullity",
+    "rank"
+   ],
+   "xp": 30,
+   "explain": "Both $C(M)$ and $C(M^{\\mathsf{T}})$ have dimension $r = 3$. Rank-nullity on $M$ gives $\\dim N(M) = n - r = 7 - 3 = 4$, and on $M^{\\mathsf{T}}$ gives $\\dim N(M^{\\mathsf{T}}) = m - r = 5 - 3 = 2$. Reversing those last two is the standard slip: the null space always lives where $x$ lives, and $x$ has one entry per column."
+  },
+  {
+   "id": "la-5-ex-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "For a $4 \\times 5$ matrix $A$ with $$\\mathrm{rref}(A) = \\begin{bmatrix} 1 & 0 & 3 & 0 & 2 \\\\ 0 & 1 & -1 & 0 & 4 \\\\ 0 & 0 & 0 & 1 & 5 \\\\ 0 & 0 & 0 & 0 & 0 \\end{bmatrix},$$ give each count as a plain integer.",
+   "template": "rank = ___\nnumber of free columns = ___\ndim N(A^T) = ___\nnumber of nonzero rows forming a row space basis = ___",
+   "blanks": [
+    "3",
+    "2",
+    "1",
+    "3"
+   ],
+   "concepts": [
+    "rref-bases",
+    "row-space"
+   ],
+   "tags": [
+    "rref-bases",
+    "row-space"
+   ],
+   "xp": 30,
+   "explain": "Leading ones sit in columns $1$, $2$ and $4$, so $r = 3$ and columns $3$ and $5$ are free. The row space basis is those same three nonzero rows, and $\\dim N(A^{\\mathsf{T}}) = m - r = 4 - 3 = 1$: the single zero row is the visible trace of exactly one dependency among the rows of $A$."
+  },
+  {
+   "id": "la-5-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the steps of the standard procedure for solving $Ax = b$ completely, from scratch.",
+   "fragments": [
+    "Form the augmented matrix [A | b] and row-reduce it.",
+    "If a row reads 0 ... 0 | c with c nonzero, stop: b is not in C(A) and there is no solution.",
+    "Set every free variable to 0 and solve for the pivot variables, giving one particular solution x_p.",
+    "Find a basis for N(A) by setting one free variable to 1 at a time.",
+    "Report the solution set as x_p plus every combination of that null space basis."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "consistency-of-ax-b",
+    "null-space"
+   ],
+   "tags": [
+    "consistency-of-ax-b",
+    "null-space"
+   ],
+   "xp": 30,
+   "explain": "Existence must be settled before uniqueness: a contradictory row means the solution set is empty and there is nothing left to parametrise. Only once $x_p$ exists does adding $N(A)$ describe a solution set rather than a subspace, which is why the null space step follows the particular solution rather than replacing it."
+  },
+  {
+   "id": "la-5-ex-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Let $$G = \\begin{bmatrix} 1 & 2 & -1 \\\\ 2 & 4 & -2 \\\\ 3 & 6 & -3 \\end{bmatrix}.$$ Every row is a multiple of the first. Give each quantity as a plain integer.",
+   "steps": [
+    {
+     "label": "rank(G)",
+     "expected": "1"
+    },
+    {
+     "label": "dim N(G)",
+     "expected": "2"
+    },
+    {
+     "label": "dim C(G)",
+     "expected": "1"
+    },
+    {
+     "label": "dim N(G^T)",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "rank",
+    "rank-nullity"
+   ],
+   "tags": [
+    "rank",
+    "rank-nullity"
+   ],
+   "xp": 60,
+   "explain": "Every row is a multiple of $(1,2,-1)$, so $r = 1$; here every *column* is also a multiple of $(1,2,3)$, which is what row rank equalling column rank looks like in the extreme case. Rank-nullity then gives $\\dim N(G) = 3 - 1 = 2$ and $\\dim N(G^{\\mathsf{T}}) = 3 - 1 = 2$. A matrix can have no zero entry anywhere and still have rank $1$."
+  },
+  {
+   "id": "la-5-ex-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain, in terms of the four subspaces, why $Ax = b$ has a solution for **every** $b \\in \\mathbb{R}^m$ precisely when $\\operatorname{rank}(A) = m$, and why it has **at most one** solution precisely when $\\operatorname{rank}(A) = n$. Say what each condition forces the relevant null space to be.",
+   "rubric": {
+    "required": [
+     "column",
+     "rank",
+     "null",
+     "uniqu",
+     "dimension",
+     "solution"
+    ],
+    "optional": [
+     "independ",
+     "zero",
+     "left",
+     "free",
+     "pivot",
+     "complement"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "consistency-of-ax-b",
+    "rank",
+    "column-space"
+   ],
+   "tags": [
+    "consistency-of-ax-b",
+    "rank",
+    "column-space"
+   ],
+   "xp": 30,
+   "explain": "Solvability for every $b$ means $C(A) = \\mathbb{R}^m$, and since $\\dim C(A) = r$ that happens exactly when $r = m$ - equivalently $\\dim N(A^{\\mathsf{T}}) = m - r = 0$, so no consistency condition survives to be violated. Uniqueness means the solution set $x_p + N(A)$ is a single point, so $N(A) = \\{0\\}$, and rank-nullity converts that into $n - r = 0$, i.e. $r = n$. The two conditions are independent, which is why a matrix can be solvable for every $b$ and yet never uniquely."
+  },
+  {
+   "id": "la-5-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A $3 \\times 4$ matrix $H$ has $$\\mathrm{rref}(H) = \\begin{bmatrix} 1 & 2 & 0 & 2 \\\\ 0 & 0 & 1 & 1 \\\\ 0 & 0 & 0 & 0 \\end{bmatrix},$$ and the first and third columns of $H$ are $(1,2,3)$ and $(3,8,7)$. Give a basis for each of the four fundamental subspaces of $H$, and state which of them you could **not** have written down from $\\mathrm{rref}(H)$ alone, and why.",
+   "answer": "Row space: (1,2,0,2) and (0,0,1,1). Null space: (-2,1,0,0) and (-2,0,-1,1). Column space: (1,2,3) and (3,8,7) - H's own pivot columns. Left null space: dimension m - r = 1; here it is spanned by (-5,1,1). The column space and the left null space are the two that rref(H) alone cannot give, because elimination moves the columns and consumes the record of which row combination died, keeping only which column positions are pivotal.",
+   "rubric": {
+    "required": [
+     "row",
+     "null",
+     "column",
+     "pivot",
+     "basis",
+     "elimination"
+    ],
+    "optional": [
+     "free",
+     "left",
+     "dimension",
+     "orthogon",
+     "rref",
+     "independ"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "rref-bases",
+    "column-space",
+    "row-space",
+    "null-space",
+    "left-null-space"
+   ],
+   "tags": [
+    "rref-bases",
+    "column-space",
+    "row-space",
+    "null-space",
+    "left-null-space"
+   ],
+   "xp": 75,
+   "hint": "Two of the four are readable from $\\mathrm{rref}(H)$ alone; two need $H$ itself.",
+   "explain": "Row space and null space are invariants of elimination, so both come straight off $\\mathrm{rref}(H)$: the nonzero rows for one, one special solution per free column for the other. The column space needs $H$'s own pivot columns $(1,2,3)$ and $(3,8,7)$, since every column of $\\mathrm{rref}(H)$ has third entry $0$ and so spans a different plane. The left null space needs $H$ too, because it records *which* combination of $H$'s rows was annihilated - information elimination uses up rather than displays."
+  },
+  {
+   "id": "la-5-ex-09",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "$A$ is $6 \\times 4$, and $Ax = b$ has **exactly one** solution for one particular $b$. Determine $\\operatorname{rank}(A)$ and all four subspace dimensions, and say whether $Ax = c$ is solvable for every $c \\in \\mathbb{R}^6$. Justify each answer from rank-nullity.",
+   "answer": "Exactly one solution forces N(A) = {0}, so dim N(A) = 0 and rank-nullity gives r = n - 0 = 4. Then dim C(A) = 4 in R^6, dim C(A^T) = 4 in R^4, dim N(A) = 0 in R^4, and dim N(A^T) = m - r = 6 - 4 = 2 in R^6. Ax = c is NOT solvable for every c: C(A) is only 4-dimensional inside R^6, and the 2-dimensional left null space imposes two independent conditions y . c = 0 that a general c fails.",
+   "rubric": {
+    "required": [
+     "rank",
+     "null",
+     "uniqu",
+     "dimension",
+     "column",
+     "not"
+    ],
+    "optional": [
+     "nullit",
+     "left",
+     "condition",
+     "orthogon",
+     "free",
+     "independ"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "rank-nullity",
+    "rank",
+    "consistency-of-ax-b"
+   ],
+   "tags": [
+    "rank-nullity",
+    "rank",
+    "consistency-of-ax-b"
+   ],
+   "xp": 75,
+   "hint": "Uniqueness is a statement about $N(A)$ alone, so it holds for every $b$ or for none.",
+   "explain": "Two distinct solutions would differ by a nonzero null-space vector, so uniqueness for a single $b$ already forces $N(A) = \\{0\\}$ and hence $r = n = 4$ by rank-nullity. Full column rank makes the columns independent but cannot make four of them span $\\mathbb{R}^6$: $\\dim C(A) = 4 < 6$, and $\\dim N(A^{\\mathsf{T}}) = 2$ supplies two equations that most $c$ fail. The trap is reading 'unique solution' as 'invertible matrix' - only a square matrix of full rank earns that."
+  },
+  {
+   "id": "la-5-ex-10",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that if $A$ is $m \\times n$ with $n > m$, then $Ax = 0$ has a non-zero solution. Then use the same identity to prove that the $n$ columns of such a matrix can never be linearly independent.",
+   "rubric": {
+    "required": [
+     "rank",
+     "nullit",
+     "pivot",
+     "independ",
+     "nonzero",
+     "column"
+    ],
+    "optional": [
+     "row",
+     "free",
+     "dimension",
+     "trivial",
+     "bound",
+     "basis"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "rank-nullity",
+    "null-space"
+   ],
+   "tags": [
+    "rank-nullity",
+    "null-space"
+   ],
+   "xp": 75,
+   "hint": "Each pivot occupies a distinct row, so $r \\le m$.",
+   "explain": "Every pivot occupies its own row, so $r \\le m < n$; rank-nullity then gives $\\dim N(A) = n - r \\ge n - m > 0$, and a subspace of positive dimension contains a nonzero vector. That vector $x$ satisfies $\\sum_j x_j \\,\\mathrm{col}_j = 0$ with some $x_j \\neq 0$, which is precisely a non-trivial dependence among the columns. The intuition worth keeping is that more unknowns than equations always leaves at least $n - m$ free variables, whatever the entries happen to be."
+  }
+ ]
+}

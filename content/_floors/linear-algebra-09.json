@@ -1,0 +1,885 @@
+{
+ "n": 9,
+ "name": "The Modelling Floor",
+ "concepts": [
+  "matrix-formulation",
+  "column-picture",
+  "rank-and-consistency",
+  "least-squares",
+  "normal-equations",
+  "residual-interpretation",
+  "eigen-models",
+  "model-choice"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "build-the-model",
+  "read-the-diagnostics",
+  "defend-the-choice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Choosing, Defending and Reading a Linear Model",
+  "sections": [
+   {
+    "title": "A Model Is a Choice of Columns",
+    "body": "Every linear model starts with a decision that is not algebraic at all: what does one unknown *mean*, and what does one column *do*. In $A\\mathbf{x} = \\mathbf{b}$ the vector $\\mathbf{x}$ is a recipe, each column of $A$ is the effect of using one unit of one ingredient, and $\\mathbf{b}$ is the effect you want; solving asks whether $\\mathbf{b}$ lies in the span of the columns and, if so, with what weights.\n\nThis is the **column picture**, and on a modelling floor it is the more useful of the two pictures, because it turns \"solve the system\" into the concrete question *can these ingredients, combined, produce that outcome*.\n\nChoosing columns fixes your units too. If one column is measured in kilograms and another in tonnes the model is still correct but its numbers span three orders of magnitude, and a badly scaled model is far harder to trust than a badly written one.\n\nThe part no matrix can defend is **linearity itself**: writing $A\\mathbf{x}$ asserts that effects add and that doubling an input doubles its contribution. That assertion belongs to the domain, not to the mathematics, and defending it is the first thing a modeller owes a reader.",
+    "code": "A blending problem, stated in words:\n\n  Three ores are on hand. One kilogram of each yields this many\n  hundred-gram units of metal.\n\n              ore A   ore B   ore C      wanted\n    copper      5       2       1          42\n    zinc        3       6       1          58\n    iron        2       2       8         100\n\nDecide what the unknowns ARE:\n\n    x1, x2, x3  =  kilograms of ore A, B, C put into the batch.\n\nNow the model writes itself, one row per metal, one column per ore:\n\n    [ 5  2  1 ] [ x1 ]   [  42 ]\n    [ 3  6  1 ] [ x2 ] = [  58 ]\n    [ 2  2  8 ] [ x3 ]   [ 100 ]\n\ndet A = 180, so the three columns are independent and the target is\nreachable in exactly one way:\n\n    x = (4, 6, 10)      5(4) + 2(6) + 1(10) =  42\n                        3(4) + 6(6) + 1(10) =  58\n                        2(4) + 2(6) + 8(10) = 100\n\nWhat the model ASSUMED, and algebra will never tell you:\n\n    additivity   mixing two ores adds their metal contents\n    scaling      twice the ore contributes twice the metal\n    no loss      nothing is consumed, oxidised or left behind\n\nThose three claims are chemistry. The matrix is only bookkeeping\nfor them.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "Name the unknowns in sentences with units before writing a single bracket. Half of all modelling errors are really an unstated unit."
+     },
+     {
+      "line": 21,
+      "text": "A non-zero determinant says the ingredients are genuinely distinct. Had one ore been a mixture of the other two, the columns would be dependent and some targets unreachable."
+     },
+     {
+      "line": 30,
+      "text": "This is the linearity assumption in plain words. It is an empirical claim about mixing, and it is the assumption a critic will attack first."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A fourth ore, D, becomes available; one kilogram of it yields $(1, 1, 1)$ hundred-gram units of copper, zinc and iron. The target $(42, 58, 100)$ is unchanged. State the new matrix equation, give its shape, and say what happens to the *number* of ways the target can be hit and why a modeller might welcome that rather than regret it.",
+     "answer": "A 3x4 system A x = b with x = (x1, x2, x3, x4); the columns still span R^3, so the target is still reachable, but the solution set is now a one-parameter family rather than a single point, and the free parameter can be spent minimising cost.",
+     "rubric": {
+      "required": [
+       "column",
+       "underdetermin",
+       "free",
+       "span",
+       "unique"
+      ],
+      "optional": [
+       "3 by 4",
+       "cost",
+       "nullspace",
+       "parameter",
+       "infinitely"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "matrix-formulation",
+      "column-picture"
+     ],
+     "explain": "Adding an ore adds a **column**, not a row: the equation count is fixed by the metals you care about, while the unknown count is fixed by the ingredients available. With four columns spanning $\\mathbb{R}^3$ the target is still reachable, but uniqueness is gone and the solutions form a line, one free parameter wide. That is a gain, not a loss - a modeller who has a free parameter can go on to choose the cheapest blend, which is precisely how a linear system becomes a linear programme."
+    }
+   },
+   {
+    "title": "Rank Is the Model's Self-Diagnosis",
+    "body": "Once a model is written down, two numbers decide what it can do: $\\operatorname{rank} A$ and $\\operatorname{rank} [A \\mid \\mathbf{b}]$. If they differ the system is **inconsistent** - the data cannot be explained by any choice of unknowns, which is a statement about your data or your assumptions and never about your arithmetic.\n\nIf they agree, the solution set is a shifted copy of the null space, so its dimension is $n - \\operatorname{rank} A$, and every extra dimension is a direction in which your measurements are simply blind.\n\nRank deficiency is almost never an accident of the numbers. It is usually a **structural** redundancy: a conservation law that makes one equation follow from the others, a sensor that reports a fixed combination of two others, or a variable that only ever appears alongside another.\n\nThat is why the diagnosis matters more than the fix. A rank-deficient model is telling you exactly which further measurement would earn its keep, and reading that message is worth more than any pseudo-inverse.",
+    "code": "Four junctions on a one-way ring road. x1..x4 are the unknown\nflows on the four connecting roads, in cars per hour.\n\n  conservation at each junction:  flow in = flow out\n\n    x1 - x2            =  100     (junction 1: 100 cars/h enter here)\n         x2 - x3       =  -50\n              x3 - x4  =   30\n   -x1           + x4  =  -80\n\n  T = [  1 -1  0  0 ]        b = ( 100, -50, 30, -80 )\n      [  0  1 -1  0 ]\n      [  0  0  1 -1 ]\n      [ -1  0  0  1 ]\n\n  rank T = 3,  not 4.  The four rows sum to the zero row.\n\nTwo consequences, and they are different in kind.\n\n  CONSISTENCY   the same sum applies to b: 100 - 50 + 30 - 80 = 0.\n                Had the counts summed to anything else, no flows\n                whatever would explain them - the counters disagree.\n\n  UNIQUENESS    null(T) is spanned by (1, 1, 1, 1), so\n\n                  x = (80, -20, 30, 0) + t(1, 1, 1, 1)\n\n                every solution differs by a constant circulation\n                around the ring. The junction counts cannot see it.\n\nThe fix is not algebraic. Measure ONE road.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 16,
+      "text": "The rows sum to zero because every road is counted once as an inflow and once as an outflow. Conservation laws produce this dependency in almost every network model."
+     },
+     {
+      "line": 20,
+      "text": "Consistency here is a data-quality test with real teeth: it says the traffic counters are mutually compatible, and a non-zero sum means somebody miscounted."
+     },
+     {
+      "line": 31,
+      "text": "A one-dimensional null space is a shopping list. One measurement on any single road collapses the family to a point."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "For the ring road above, explain in modelling terms what the null-space vector $(1,1,1,1)$ *is*, why no amount of extra junction counting will remove it, and what single measurement would.",
+     "rubric": {
+      "required": [
+       "circulat",
+       "null",
+       "junction",
+       "measur",
+       "unique"
+      ],
+      "optional": [
+       "conservation",
+       "invisible",
+       "one road",
+       "rank",
+       "family"
+      ],
+      "minWords": 50
+     },
+     "concepts": [
+      "rank-and-consistency"
+     ],
+     "explain": "The vector $(1,1,1,1)$ is a uniform circulation: add $t$ cars per hour to every road and every junction still balances, because each junction gains $t$ on its inbound road and loses $t$ on its outbound one. More junction counts cannot help, since every junction equation is already blind to that circulation by construction - the blindness is structural, not statistical. Measuring the actual flow on one road fixes $t$ immediately, which is why reading a null space as a list of missing observations is the most practical use rank has."
+    }
+   },
+   {
+    "title": "No Solution Is Also an Answer: Least Squares",
+    "body": "Real models are overdetermined: more measurements than unknowns, and $\\mathbf{b}$ almost never lands in the column space. The wrong response is to discard equations until the system is square, because that silently declares some measurements worthless; the right response is to keep them all and accept the nearest reachable target.\n\nLeast squares replaces $\\mathbf{b}$ by its orthogonal projection onto $C(A)$, and $\\hat{\\mathbf{x}}$ is the recipe for that projection. The residual $\\mathbf{r} = \\mathbf{b} - A\\hat{\\mathbf{x}}$ is then perpendicular to every column, which is the whole content of the **normal equations** $A^{\\mathsf{T}}A\\hat{\\mathbf{x}} = A^{\\mathsf{T}}\\mathbf{b}$, since $A^{\\mathsf{T}}\\mathbf{r} = \\mathbf{0}$ says exactly that.\n\nThe residual is the most informative object the fit produces. Its *size* reports how well the model does; its *pattern* reports whether the model is the right shape at all, because a run of same-signed residuals is curvature that a straight line cannot follow.\n\nAnd $A^{\\mathsf{T}}A$ is invertible precisely when the columns of $A$ are independent, so a near-singular $A^{\\mathsf{T}}A$ is the algebraic face of collinear predictors rather than a numerical nuisance.",
+    "code": "Four measurements, two unknowns. A straight line y = c + m t\nthrough data that will not sit on any line.\n\n     t      0     1     2     3\n     y      1     3     4     4\n\n  A = [ 1  0 ]        b = ( 1, 3, 4, 4 )\n      [ 1  1 ]\n      [ 1  2 ]\n      [ 1  3 ]\n\nb is NOT in the column space of A, so A x = b has no solution.\nDo not delete two rows to force a square system - that throws away\nmeasurements you paid for. Project instead.\n\n  Normal equations:  (A^T A) xhat = A^T b\n\n    A^T A = [  4   6 ]      A^T b = ( 12, 23 )\n            [  6  14 ]\n\n    det = 20,  xhat = (3/2, 1)      so   yhat = 1.5 + t\n\n  fitted   1.5   2.5   3.5   4.5\n  r        -0.5  +0.5  +0.5  -0.5\n\n  Check the geometry, not the arithmetic:\n\n    sum of r            = 0        r is orthogonal to column 1\n    sum of t * r        = 0        r is orthogonal to column 2\n    so A^T r = 0, which is the normal equations restated.\n\n  SSE = r.r = 1        SST = 6        R^2 = 1 - 1/6 = 5/6",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "Squaring the system by deletion is the commonest modelling sin on this floor. It produces an exact answer to a question nobody asked."
+     },
+     {
+      "line": 21,
+      "text": "A^T A is 2x2 whatever the number of measurements. Least squares compresses m equations into n, and n is the count of things you are actually estimating."
+     },
+     {
+      "line": 29,
+      "text": "Orthogonality to each column is a free correctness check on any fit you compute, and it holds exactly, so a non-zero value means an arithmetic slip."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A second data set, $t = (1,2,3,4)$ with $y = (1,2,4,7)$, gives the least-squares line $\\hat{y} = -1.5 + 2t$ with residuals $(+0.5, -0.5, -0.5, +0.5)$ and $\\mathrm{SSE} = 1$, the same SSE as the worked example above. Argue which of the two fits should worry a modeller more, using the pattern of the residuals rather than their size, and say what you would change about the model.",
+     "answer": "The second fit is the more worrying one: its residuals run +,-,-,+, a systematic U shape showing curvature the straight line cannot capture, so the model is mis-specified and a quadratic term should be added; the first fit's residuals alternate in sign and show no such structure.",
+     "rubric": {
+      "required": [
+       "pattern",
+       "curvat",
+       "sign",
+       "quadratic",
+       "residual"
+      ],
+      "optional": [
+       "systematic",
+       "alternat",
+       "mis-specif",
+       "structure",
+       "SSE"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "residual-interpretation",
+      "least-squares"
+     ],
+     "explain": "Equal SSE says nothing about whether the model is the right shape, because SSE throws away the ordering of the residuals and keeps only their lengths. A $+,-,-,+$ run is a systematic U: the data curve upwards and the line cuts through them, so the residuals *must* be positive at both ends and negative in the middle - the signature of a missing $t^2$ term. Alternating signs, by contrast, are what scatter around a correct model looks like, so the first fit shows a small residual and the second shows a wrong model."
+    }
+   },
+   {
+    "title": "When the Model Is a Process, Read the Eigenvalues",
+    "body": "A second family of models never solves anything: it iterates, $\\mathbf{x}_{k+1} = M\\mathbf{x}_k$, and the question is what happens in the long run. Decompose the starting state along eigenvectors and each component is simply multiplied by its own $\\lambda$ every step, so the eigenvalues *are* the per-step growth factors and everything else is bookkeeping.\n\nThe reading is then mechanical. $|\\lambda| > 1$ is unbounded growth, $|\\lambda| < 1$ is decay, and $\\lambda = 1$ is a steady state - a distribution the process leaves alone, which is why a column-stochastic matrix always has one.\n\nThe **second** largest modulus is the one modellers under-use: it sets the speed of convergence, since the distance from the steady state shrinks by roughly $|\\lambda_2|$ per step, and it answers \"how long until this settles\" without simulating anything.\n\nAll of that describes the model, not the world. A steady state is a prediction of the assumption that the transition rates are constant, and a growth factor above one is a prediction of the assumption that nothing ever limits growth - both are worth stating out loud before quoting a forecast.",
+    "code": "Not every model is 'solve once'. Some are 'apply repeatedly':\n\n    x_{k+1} = M x_k\n\nSubscriber churn between two networks, per month:\n\n        M = [ 0.8   0.3 ]      columns sum to 1, so the total\n            [ 0.2   0.7 ]      population is conserved\n\n  trace = 1.5,  det = 0.5  ->  lambda^2 - 1.5 lambda + 0.5 = 0\n                           ->  lambda = 1  and  lambda = 0.5\n\n  lambda = 1    eigenvector (3, 2), normalised (0.6, 0.4)\n                the steady state: shares that stop moving\n  lambda = 0.5  eigenvector (-1, 1)\n                the departure from steady state, halving monthly\n\nStart everyone on network A, x0 = (1, 0):\n\n    k=1   (0.800, 0.200)\n    k=2   (0.700, 0.300)\n    k=5   (0.6125, 0.3875)\n    k=10  (0.60039, 0.39961)\n\n  x_k = (0.6, 0.4) + 0.4 * (0.5)^k * (-1, 1)\n\n  0.5^7 < 0.01, so seven months brings it within one point of\n  the steady state, whatever the starting split.\n\nThe MODELLING claim is that the switching rates are constant and\ndepend only on today's network. Both halves of that are testable,\nand if either fails no eigenvalue will rescue the forecast.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Column sums of one encode conservation of people. It is also what guarantees an eigenvalue of exactly 1, so the steady state exists by construction rather than by luck."
+     },
+     {
+      "line": 15,
+      "text": "The second eigenvalue is a clock. Halving each month means the memory of the starting split is gone in well under a year."
+     },
+     {
+      "line": 30,
+      "text": "Constant rates and dependence on today's state only - the Markov assumption. A subscriber who churns more often the longer they stay breaks it, and the eigenvalues then describe a process that is not happening."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Using $M$ above, a colleague reports that starting from $\\mathbf{x}_0 = (0.4, 0.6)$ the model still converges to $(0.6, 0.4)$, and concludes that the starting split is irrelevant to the business. State precisely what is and is not true in that conclusion, and quantify how long the starting split does matter using $\\lambda_2$.",
+     "answer": "The limit is independent of x0 because the lambda = 1 component is fixed by conservation of the total, but the path is not: the deviation decays like 0.5^k, so after about seven months it is under one percentage point and only before then does the starting split matter.",
+     "rubric": {
+      "required": [
+       "steady",
+       "eigenvalue",
+       "decay",
+       "path",
+       "limit"
+      ],
+      "optional": [
+       "0.5",
+       "seven",
+       "transient",
+       "converge",
+       "months"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "eigen-models"
+     ],
+     "explain": "The colleague is right about the limit and wrong about relevance. Every starting vector with the same total splits as (steady state) plus (a multiple of the $\\lambda_2$ eigenvector), and only the second part remembers where you began, so the limit is forced while the *path* is not. Since that part is multiplied by $0.5$ each month, the starting split governs roughly the first seven months of revenue - which for a business deciding whether to buy subscribers is exactly the interval that matters."
+    }
+   }
+  ]
+ },
+ "build-the-model": [
+  {
+   "id": "la-9-b-01",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "A bakery has three flour blends. One kilogram of blend 1 contains $0.12$ kg protein and $0.02$ kg bran; blend 2 contains $0.09$ kg protein and $0.05$ kg bran; blend 3 contains $0.15$ kg protein and $0.01$ kg bran. A recipe needs a $50$ kg mix containing exactly $6$ kg protein and $1.4$ kg bran. Set the problem up as a matrix equation: define the unknowns with units, write the three rows and say what each one enforces, give the shape of $A$, and state - without solving - what the shape alone tells you about the number of solutions.",
+   "answer": "x = (x1, x2, x3) kilograms of each blend; A is 3x3 with rows total mass (1,1,1)=50, protein (0.12,0.09,0.15)=6 and bran (0.02,0.05,0.01)=1.4; being square it has a unique solution exactly when the three rows are independent, which shape alone cannot guarantee.",
+   "rubric": {
+    "required": [
+     "kilogram",
+     "row",
+     "column",
+     "square",
+     "independ"
+    ],
+    "optional": [
+     "protein",
+     "bran",
+     "total mass",
+     "unique",
+     "3 by 3"
+    ],
+    "minWords": 70
+   },
+   "tags": [
+    "matrix-formulation",
+    "column-picture"
+   ],
+   "concepts": [
+    "matrix-formulation"
+   ],
+   "explain": "The trap is forgetting the total-mass row: with only the protein and bran constraints the system is $2 \\times 3$ and underdetermined, and the $50$ kg is a genuine third equation, not a footnote. Each row is one quantity being constrained and each column is one kilogram of one blend, so the shape reads off directly as three constraints against three ingredients. Squareness is necessary for a unique solution but never sufficient - independence of the rows is the real condition, and no amount of staring at the shape settles it."
+  },
+  {
+   "id": "la-9-b-02",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "Five water-quality sensors report on three unknown discharge rates $x_1, x_2, x_3$. Sensor 4 is documented as reporting the sum of what sensors 1 and 2 report, and sensor 5 the sum of sensors 2 and 3. Before any data arrives, state what $\\operatorname{rank} A$ can be at most, what that implies about the solution set, and what condition the five readings must satisfy for the system to be consistent. Then say what the network operator should do about it.",
+   "answer": "rank A is at most 3 and the two documented sensors add no rank at all, so the effective system is the first three rows; consistency requires b4 = b1 + b2 and b5 = b2 + b3 exactly, and those two identities are a data-integrity test rather than extra information, so the operator should use sensors 4 and 5 to detect faults, not to reduce uncertainty.",
+   "rubric": {
+    "required": [
+     "rank",
+     "consisten",
+     "redundan",
+     "depend",
+     "unknown"
+    ],
+    "optional": [
+     "fault",
+     "check",
+     "3",
+     "row space",
+     "noise"
+    ],
+    "minWords": 70
+   },
+   "tags": [
+    "rank-and-consistency",
+    "matrix-formulation"
+   ],
+   "concepts": [
+    "rank-and-consistency",
+    "matrix-formulation"
+   ],
+   "explain": "Rows 4 and 5 are exact linear combinations of earlier rows, so they lie in the row space already and the rank cannot exceed $3$ - five sensors, three unknowns' worth of information. The correct reading is that the redundancy buys **validation** rather than precision: $b_4 = b_1 + b_2$ must hold on the nose, and any violation localises a faulty sensor. The tempting wrong answer is that five equations in three unknowns must be overdetermined and therefore call for least squares, but with exactly dependent rows and exactly consistent data the extra rows contribute nothing to the fit at all."
+  },
+  {
+   "id": "la-9-b-03",
+   "type": "explain",
+   "layer": "application",
+   "xp": 44,
+   "prompt": "An analyst models compound interest across three accounts by writing the end-of-year balances as $A\\mathbf{x} = \\mathbf{b}$, where $\\mathbf{x}$ holds the annual growth *rates* and $\\mathbf{b}$ the observed balances. Explain why a linear system is the wrong tool as stated, identify the exact step at which linearity fails, and describe the transformation that would make a linear model legitimate.",
+   "rubric": {
+    "required": [
+     "multiplicat",
+     "linear",
+     "logarithm",
+     "product",
+     "additiv"
+    ],
+    "optional": [
+     "compound",
+     "exponent",
+     "transform",
+     "rate",
+     "years"
+    ],
+    "minWords": 55
+   },
+   "tags": [
+    "model-choice"
+   ],
+   "concepts": [
+    "model-choice"
+   ],
+   "explain": "Compounding multiplies: a balance after $n$ years is $P(1+r)^n$, so the unknown rate appears inside a power and the map from $\\mathbf{x}$ to $\\mathbf{b}$ is neither additive nor scale-preserving. Taking logarithms converts the product into a sum, $\\log B = \\log P + n \\log(1+r)$, and it is $\\log(1+r)$ - not $r$ - that then behaves as a linear unknown. The seductive error is that the equations *look* linear because each account contributes one tidy equation; linearity is a property of how the unknowns enter, never of how the page is laid out."
+  },
+  {
+   "id": "la-9-b-04",
+   "type": "complexity",
+   "layer": "application",
+   "xp": 88,
+   "prompt": "A structural model reuses one fixed $n \\times n$ matrix $A$ with $k$ different load vectors $\\mathbf{b}_1, \\ldots, \\mathbf{b}_k$, all known in advance. Give the total cost of solving all $k$ systems using a single LU factorisation of $A$, and justify the split between the one-off and the per-vector work. State also the cost of the naive approach of running Gaussian elimination separately for every load.",
+   "answer": "O(n^3 + k n^2)",
+   "rubric": {
+    "required": [
+     "factoris",
+     "n^3",
+     "n^2",
+     "substitut",
+     "reuse"
+    ],
+    "optional": [
+     "triangular",
+     "forward",
+     "back",
+     "k n^3",
+     "once"
+    ],
+    "minWords": 55
+   },
+   "tags": [
+    "matrix-formulation",
+    "model-choice"
+   ],
+   "concepts": [
+    "model-choice"
+   ],
+   "explain": "Elimination is a property of $A$ alone, so the $\\Theta(n^3)$ work is paid once and stored as $L$ and $U$; each load then costs only a forward and a back substitution, $\\Theta(n^2)$ each. The naive route repeats the elimination per load for $\\Theta(kn^3)$, which is a factor of $n$ worse and is the usual reason a modelling script that looked fine on $n = 50$ dies on $n = 5000$. Note that the tempting answer $O(kn^3)$ is not wrong about the naive method - it is wrong about which method a modeller should have chosen."
+  }
+ ],
+ "read-the-diagnostics": [
+  {
+   "id": "la-9-d-01",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "A calibration model $D\\mathbf{x} = \\mathbf{b}$ uses $D = \\begin{bmatrix} 1 & 2 & 3 \\\\ 2 & 4 & 6 \\\\ 1 & 1 & 1 \\end{bmatrix}$. The technician records $\\mathbf{b} = (6, 13, 3)$ and reports that the solver failed. Diagnose the model: give $\\operatorname{rank} D$ and $\\operatorname{rank}[D \\mid \\mathbf{b}]$, say precisely why no solution exists, and state the corrected reading of $b_2$ that would make the system solvable together with the solution set that then results.",
+   "answer": "rank D = 2 and rank [D|b] = 3, so the system is inconsistent; row 2 of D is exactly twice row 1, so consistency forces b2 = 2 b1 = 12, and with b = (6,12,3) the solutions are the line x = (t, 3 - 2t, t).",
+   "rubric": {
+    "required": [
+     "rank",
+     "inconsist",
+     "twice",
+     "12",
+     "line"
+    ],
+    "optional": [
+     "augmented",
+     "row 2",
+     "free variable",
+     "null",
+     "2"
+    ],
+    "minWords": 65
+   },
+   "tags": [
+    "rank-and-consistency"
+   ],
+   "concepts": [
+    "rank-and-consistency"
+   ],
+   "explain": "Row 2 is $2 \\times$ row 1, so whatever $\\mathbf{x}$ is, the second reading is forced to be double the first; $13 \\neq 12$ makes the data itself impossible and lifts the augmented rank to $3$. Repairing $b_2$ to $12$ restores consistency but not uniqueness: rank $2$ against three unknowns leaves one free variable, giving the line $(t,\\, 3 - 2t,\\, t)$. The tempting diagnosis is a numerical failure of the solver, but nothing here is numerical - an exact row dependency in $D$ turned a one-unit measurement error into a hard contradiction."
+  },
+  {
+   "id": "la-9-d-02",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "A sensor is calibrated against a reference at $t = (1,2,3,4)$, giving readings $y = (2,3,5,6)$, and a straight line $y = c + mt$ is fitted by least squares. Set up and solve the normal equations, report $\\hat{c}$ and $\\hat{m}$, the four residuals, and $\\mathrm{SSE}$. Then interpret the fit for the calibration: what does $\\hat{m}$ mean physically, and does the residual pattern support the straight-line model?",
+   "answer": "A^T A = [[4,10],[10,30]], A^T b = (16,47); chat = 1/2 and mhat = 7/5; residuals (0.1, -0.3, 0.3, -0.1) with SSE = 0.2; mhat is the sensor's gain, 1.4 reading units per reference unit, and the alternating residual signs show no systematic curvature, so the straight-line model is supported.",
+   "rubric": {
+    "required": [
+     "normal equation",
+     "residual",
+     "gain",
+     "altern",
+     "0.2"
+    ],
+    "optional": [
+     "1.4",
+     "0.5",
+     "orthogon",
+     "offset",
+     "SSE"
+    ],
+    "minWords": 70
+   },
+   "tags": [
+    "least-squares",
+    "normal-equations",
+    "residual-interpretation"
+   ],
+   "concepts": [
+    "least-squares",
+    "residual-interpretation"
+   ],
+   "explain": "The normal equations give $4\\hat{c} + 10\\hat{m} = 16$ and $10\\hat{c} + 30\\hat{m} = 47$, whose determinant is $20$ and whose solution is $\\hat{c} = 0.5$, $\\hat{m} = 1.4$ - so the sensor has a gain of $1.4$ and a zero-offset of $0.5$, both of which a calibration table must record. The residuals $(0.1, -0.3, 0.3, -0.1)$ sum to zero and satisfy $\\sum t_i r_i = 0$, which is $A^{\\mathsf{T}}\\mathbf{r} = \\mathbf{0}$ and a free check on the arithmetic. Their signs alternate rather than running in blocks, so there is no curvature for a quadratic term to capture and the linear calibration stands."
+  },
+  {
+   "id": "la-9-d-03",
+   "type": "explain",
+   "layer": "application",
+   "xp": 44,
+   "prompt": "Faced with six measurements and two unknowns, a colleague picks the two measurements he trusts most, solves the resulting $2 \\times 2$ system exactly, and reports a perfect fit with zero residual. Explain what is wrong with this as a modelling decision, what the zero residual actually demonstrates, and why least squares over all six is the better answer even though its residual is not zero.",
+   "rubric": {
+    "required": [
+     "discard",
+     "residual",
+     "zero",
+     "least squares",
+     "noise"
+    ],
+    "optional": [
+     "overdetermin",
+     "average",
+     "information",
+     "projection",
+     "variance"
+    ],
+    "minWords": 60
+   },
+   "tags": [
+    "model-choice",
+    "least-squares",
+    "residual-interpretation"
+   ],
+   "concepts": [
+    "model-choice"
+   ],
+   "explain": "A zero residual on a square system is guaranteed by the shape, not earned by the model: any two independent equations in two unknowns have an exact solution, so the report demonstrates only that a $2 \\times 2$ system was solved. Throwing away four measurements throws away their noise-averaging, and the estimate now inherits the full error of the two survivors rather than roughly $1/\\sqrt{6}$ of the typical error. Least squares keeps every equation and returns the point closest to *all* of them; its non-zero residual is the honest report that measurements disagree, which is information the square solve destroyed."
+  },
+  {
+   "id": "la-9-d-04",
+   "type": "complexity",
+   "layer": "application",
+   "xp": 88,
+   "prompt": "In a regression model $A$ is $m \\times n$ with $m \\gg n$. Give the cost of fitting by forming $A^{\\mathsf{T}}A$ and $A^{\\mathsf{T}}\\mathbf{b}$ and then solving the $n \\times n$ normal equations, splitting the total between the two phases. Say which phase dominates when $m \\gg n$, and name the accuracy objection to this route.",
+   "answer": "O(m n^2 + n^3)",
+   "rubric": {
+    "required": [
+     "m n^2",
+     "n^3",
+     "form",
+     "solv",
+     "condition"
+    ],
+    "optional": [
+     "dominat",
+     "QR",
+     "squar",
+     "Cholesky",
+     "accuracy"
+    ],
+    "minWords": 60
+   },
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations"
+   ],
+   "explain": "Each of the $n^2$ entries of $A^{\\mathsf{T}}A$ is a dot product of length $m$, so forming it costs $\\Theta(mn^2)$, while solving the resulting small symmetric system costs $\\Theta(n^3)$ by Cholesky; with $m \\gg n$ the forming phase dominates and the fit is essentially linear in the number of measurements. The accuracy objection is that $A^{\\mathsf{T}}A$ **squares** the conditioning of $A$, so nearly collinear columns that $A$ merely strained become a disaster after the product, which is why QR factorisation is preferred in practice at the same asymptotic cost."
+  }
+ ],
+ "defend-the-choice": [
+  {
+   "id": "la-9-f-01",
+   "type": "proof",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "Let $A$ be $m \\times n$ and $\\mathbf{b} \\in \\mathbb{R}^m$. Prove that $\\hat{\\mathbf{x}}$ minimises $\\lVert A\\mathbf{x} - \\mathbf{b} \\rVert$ if and only if $A^{\\mathsf{T}}(A\\hat{\\mathbf{x}} - \\mathbf{b}) = \\mathbf{0}$. Argue geometrically via the residual and the column space, use Pythagoras rather than calculus, and say in one sentence what the theorem licences a modeller to do.",
+   "rubric": {
+    "required": [
+     "orthogon",
+     "column space",
+     "residual",
+     "Pythagor",
+     "minim"
+    ],
+    "optional": [
+     "projection",
+     "cross term",
+     "arbitrary",
+     "normal equations",
+     "decompos"
+    ],
+    "minWords": 110
+   },
+   "tags": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "concepts": [
+    "normal-equations",
+    "least-squares"
+   ],
+   "explain": "Write any competitor as $A\\mathbf{x} = A\\hat{\\mathbf{x}} + A\\mathbf{v}$ and split $A\\mathbf{x} - \\mathbf{b} = (A\\hat{\\mathbf{x}} - \\mathbf{b}) + A\\mathbf{v}$; if the residual is orthogonal to the column space the cross term vanishes and Pythagoras gives $\\lVert A\\mathbf{x} - \\mathbf{b} \\rVert^2 = \\lVert A\\hat{\\mathbf{x}} - \\mathbf{b} \\rVert^2 + \\lVert A\\mathbf{v} \\rVert^2 \\ge \\lVert A\\hat{\\mathbf{x}} - \\mathbf{b} \\rVert^2$. Conversely, if $A^{\\mathsf{T}}\\mathbf{r} \\neq \\mathbf{0}$ then moving a small step along $A^{\\mathsf{T}}\\mathbf{r}$ strictly decreases the norm, so $\\hat{\\mathbf{x}}$ was not minimal. The licence is the useful part: the normal equations are not an approximation or a heuristic but an exact characterisation of the best fit, so a modeller may quote $\\hat{\\mathbf{x}}$ as *the* answer to a well-posed minimisation."
+  },
+  {
+   "id": "la-9-f-02",
+   "type": "proof",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "Prove that $\\mathcal{N}(A^{\\mathsf{T}}A) = \\mathcal{N}(A)$ for any real $m \\times n$ matrix $A$, and deduce that $A^{\\mathsf{T}}A$ is invertible exactly when the columns of $A$ are linearly independent. Then state, in modelling language, what a singular $A^{\\mathsf{T}}A$ is telling you about the predictors you chose.",
+   "rubric": {
+    "required": [
+     "null",
+     "independ",
+     "invert",
+     "inclusion",
+     "norm"
+    ],
+    "optional": [
+     "collinear",
+     "transpose",
+     "zero",
+     "rank",
+     "square"
+    ],
+    "minWords": 110
+   },
+   "tags": [
+    "normal-equations",
+    "column-picture"
+   ],
+   "concepts": [
+    "normal-equations",
+    "column-picture"
+   ],
+   "explain": "One inclusion is free: $A\\mathbf{x} = \\mathbf{0}$ gives $A^{\\mathsf{T}}A\\mathbf{x} = \\mathbf{0}$. The other is the clever half - from $A^{\\mathsf{T}}A\\mathbf{x} = \\mathbf{0}$, multiply on the left by $\\mathbf{x}^{\\mathsf{T}}$ to get $\\lVert A\\mathbf{x} \\rVert^2 = 0$, and a real vector of zero length is zero, so $A\\mathbf{x} = \\mathbf{0}$. Since $A^{\\mathsf{T}}A$ is square, invertibility is exactly a trivial null space, which by the equality is exactly independence of the columns. In modelling terms a singular $A^{\\mathsf{T}}A$ never means bad luck with numbers: it means one predictor is an exact combination of the others, the model as posed cannot separate their effects, and the fix is to drop or redefine a predictor rather than to perturb the matrix."
+  },
+  {
+   "id": "la-9-f-03",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "A city models its housing stock as occupied or vacant, with monthly transitions $\\mathbf{x}_{k+1} = M\\mathbf{x}_k$ and $M = \\begin{bmatrix} 0.9 & 0.2 \\\\ 0.1 & 0.8 \\end{bmatrix}$, whose columns are the probabilities of leaving each state. Justify from the structure of $M$ alone that $\\lambda = 1$ must be an eigenvalue, compute both eigenvalues and the steady state, and use the second eigenvalue to say how many whole months are needed for any starting split to come within one percentage point of the steady state. Finish by naming one assumption that would invalidate the forecast.",
+   "answer": "Columns sum to 1 so (1,1) is a left eigenvector for lambda = 1; trace 1.7 and det 0.7 give lambda = 1 and lambda = 0.7; the steady state is (2/3, 1/3); since 0.7^13 < 0.01 <= 0.7^12, thirteen months suffice; the forecast dies if the transition probabilities are not constant over time or depend on how long a unit has been vacant.",
+   "rubric": {
+    "required": [
+     "columns sum",
+     "steady",
+     "0.7",
+     "13",
+     "assumption"
+    ],
+    "optional": [
+     "trace",
+     "determinant",
+     "2/3",
+     "eigenvector",
+     "constant"
+    ],
+    "minWords": 75
+   },
+   "tags": [
+    "eigen-models",
+    "model-choice"
+   ],
+   "concepts": [
+    "eigen-models"
+   ],
+   "explain": "Column sums of $1$ mean $\\mathbf{1}^{\\mathsf{T}}M = \\mathbf{1}^{\\mathsf{T}}$, so $1$ is an eigenvalue of $M^{\\mathsf{T}}$ and hence of $M$ - the steady state exists because housing units are conserved, not because the numbers were kind. Trace $1.7$ and determinant $0.7$ then force the pair $\\{1, 0.7\\}$, and solving $0.1x = 0.2y$ gives the steady split $(2/3, 1/3)$. The deviation shrinks by $0.7$ per month and $0.7^{12} \\approx 0.0138$ while $0.7^{13} \\approx 0.0097$, so thirteen months is the honest answer; a modeller who quotes it must also say that constant, memoryless transition rates are an assumption the housing market may well refuse to honour."
+  },
+  {
+   "id": "la-9-f-04",
+   "type": "explain",
+   "layer": "application",
+   "xp": 44,
+   "prompt": "A population model $\\mathbf{x}_{k+1} = G\\mathbf{x}_k$ has $G = \\begin{bmatrix} 0.8 & 0.4 \\\\ 0.4 & 0.8 \\end{bmatrix}$, with eigenvalues $1.2$ and $0.4$ and dominant eigenvector $(1,1)$. Explain what the model predicts about the long run, what the dominant eigenvector says about the composition of the population, and why a modeller should refuse to quote this forecast beyond a few decades.",
+   "rubric": {
+    "required": [
+     "dominant",
+     "growth",
+     "exponential",
+     "unbounded",
+     "assumption"
+    ],
+    "optional": [
+     "1.2",
+     "eigenvector",
+     "equal",
+     "carrying capacity",
+     "resource"
+    ],
+    "minWords": 60
+   },
+   "tags": [
+    "eigen-models",
+    "model-choice"
+   ],
+   "concepts": [
+    "eigen-models",
+    "model-choice"
+   ],
+   "explain": "The dominant eigenvalue $1.2$ says the total grows by twenty per cent per step forever, and because the other eigenvalue is $0.4$ the composition converges to the dominant eigenvector: the two groups end up equal in size regardless of the starting mix. Growth of $1.2^k$ is exponential and unbounded, which is a prediction of the model's linearity rather than of biology - real populations meet food, space and disease, all of which make the transition entries depend on the current population. So the honest statement is that the model is a good local description and a guaranteed liar in the limit, and quoting a century of $1.2^k$ is quoting an assumption, not a forecast."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-9-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 22,
+   "prompt": "For an overdetermined system $A\\mathbf{x} = \\mathbf{b}$, the least-squares solution $\\hat{\\mathbf{x}}$ is **defined** as the vector that:",
+   "choices": [
+    "makes the residual $\\mathbf{b} - A\\hat{\\mathbf{x}}$ orthogonal to the column space of $A$",
+    "satisfies as many of the individual equations exactly as possible",
+    "makes $\\det(A^{\\mathsf{T}}A)$ as small as possible",
+    "solves the subsystem formed by the first $n$ equations of $A\\mathbf{x} = \\mathbf{b}$"
+   ],
+   "answer": 0,
+   "tags": [
+    "least-squares",
+    "normal-equations"
+   ],
+   "concepts": [
+    "least-squares"
+   ],
+   "explain": "Orthogonality of the residual to $C(A)$ is exactly $A^{\\mathsf{T}}(\\mathbf{b} - A\\hat{\\mathbf{x}}) = \\mathbf{0}$, the normal equations, and it is equivalent to minimising $\\lVert A\\mathbf{x} - \\mathbf{b} \\rVert$. Choice two describes a different and much harder combinatorial criterion that least squares does not use - it spreads error over every equation rather than satisfying a favoured subset - and choice four is the discard-rows error dressed up as a definition."
+  },
+  {
+   "id": "la-9-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 22,
+   "prompt": "A system $A\\mathbf{x} = \\mathbf{b}$ is **consistent** if and only if:",
+   "choices": [
+    "$A$ is square",
+    "$\\operatorname{rank} A = \\operatorname{rank} [A \\mid \\mathbf{b}]$",
+    "$\\operatorname{rank} A$ equals the number of unknowns",
+    "$\\mathcal{N}(A) = \\{\\mathbf{0}\\}$"
+   ],
+   "answer": 1,
+   "tags": [
+    "rank-and-consistency"
+   ],
+   "concepts": [
+    "rank-and-consistency"
+   ],
+   "explain": "Appending $\\mathbf{b}$ raises the rank precisely when $\\mathbf{b}$ lies outside the column space, so equal ranks *is* the statement that $\\mathbf{b}$ is reachable. The two rank conditions are easy to confuse: equality with the number of unknowns governs **uniqueness**, not existence, and a trivial null space likewise says only that solutions cannot be multiple."
+  },
+  {
+   "id": "la-9-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 44,
+   "prompt": "For the least-squares fit of $y = c + mt$ to $t = (0,1,2,3)$ and $y = (1,3,4,4)$, fill in the three quantities. Give each as a plain decimal number.",
+   "template": "intercept c-hat = ___\nslope m-hat = ___\nSSE = r . r = ___",
+   "blanks": [
+    "1.5",
+    "1",
+    "1"
+   ],
+   "tags": [
+    "least-squares",
+    "normal-equations"
+   ],
+   "concepts": [
+    "least-squares"
+   ],
+   "explain": "The normal equations here are $4c + 6m = 12$ and $6c + 14m = 23$ with determinant $20$, giving $\\hat{c} = 1.5$ and $\\hat{m} = 1$. The residuals are $(-0.5, +0.5, +0.5, -0.5)$, so $\\mathrm{SSE} = 4 \\times 0.25 = 1$ - and note that the residual entries are not zero even though the slope came out to a whole number, which is the ordinary state of affairs for real data."
+  },
+  {
+   "id": "la-9-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 44,
+   "prompt": "Put these modelling steps into the order a careful analyst performs them when fitting an overdetermined linear model.",
+   "fragments": [
+    "Define the unknowns in words, with units, and decide what one column of $A$ represents.",
+    "Write one row per measurement, giving the overdetermined system $A\\mathbf{x} = \\mathbf{b}$.",
+    "Check whether the columns of $A$ are independent, since that is what makes $A^{\\mathsf{T}}A$ invertible.",
+    "Solve the normal equations $A^{\\mathsf{T}}A\\hat{\\mathbf{x}} = A^{\\mathsf{T}}\\mathbf{b}$ for the best fit.",
+    "Compute the residual $\\mathbf{r} = \\mathbf{b} - A\\hat{\\mathbf{x}}$ and confirm $A^{\\mathsf{T}}\\mathbf{r} = \\mathbf{0}$.",
+    "Inspect the pattern of signs in $\\mathbf{r}$ to judge whether the model has the right shape."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "tags": [
+    "least-squares",
+    "model-choice",
+    "residual-interpretation"
+   ],
+   "concepts": [
+    "least-squares"
+   ],
+   "explain": "The independence check belongs *before* the solve, because a singular $A^{\\mathsf{T}}A$ means the question has no unique answer and no amount of solving will produce one. The two residual steps are also genuinely ordered: $A^{\\mathsf{T}}\\mathbf{r} = \\mathbf{0}$ is an arithmetic check that must pass for any correct fit, whereas the sign pattern is a modelling judgement that only makes sense once the arithmetic is known to be right."
+  },
+  {
+   "id": "la-9-e-05",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "A model has $A$ of size $4 \\times 3$ with $\\operatorname{rank} A = 2$, and the data vector $\\mathbf{b}$ satisfies $\\operatorname{rank}[A \\mid \\mathbf{b}] = 2$. Describe the solution set exactly - its dimension and its geometric shape in $\\mathbb{R}^3$ - explain what the two rank facts say about the four measurements and the three unknowns respectively, and state what the modeller must obtain to pin down a single answer.",
+   "answer": "Consistent with a one-dimensional solution set: a line in R^3, a particular solution plus the span of a single null-space vector; rank 2 out of 4 rows means two measurements are redundant combinations of the others, rank 2 out of 3 columns means one direction of the unknowns is invisible to every measurement, and only a genuinely new, independent measurement can pin the answer down.",
+   "rubric": {
+    "required": [
+     "line",
+     "one",
+     "null",
+     "redundan",
+     "independ"
+    ],
+    "optional": [
+     "particular",
+     "consistent",
+     "dimension",
+     "3 - 2",
+     "measurement"
+    ],
+    "minWords": 70
+   },
+   "tags": [
+    "rank-and-consistency",
+    "column-picture"
+   ],
+   "concepts": [
+    "rank-and-consistency",
+    "column-picture"
+   ],
+   "explain": "Equal ranks give consistency, and the solution set is then a shifted copy of the null space of dimension $n - \\operatorname{rank} A = 3 - 2 = 1$, so it is a line in $\\mathbb{R}^3$ rather than a point. The two shortfalls mean different things and are easy to blur: $2 < 4$ says rows are dependent, so two of the readings tell you nothing new, while $2 < 3$ says a whole direction of unknown-space leaves every reading unchanged. The tempting wrong answer is that four equations in three unknowns must over-determine the problem, but rank, not shape, counts the information."
+  },
+  {
+   "id": "la-9-e-06",
+   "type": "problem",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "Two teams model the same process. Team A writes a square $3 \\times 3$ system from three chosen measurements and reports an exact solution with zero residual. Team B writes a $30 \\times 3$ system from all thirty measurements and reports a least-squares fit with $\\mathrm{SSE} = 0.4$. Decide which report a reviewer should prefer and defend the decision. Say what, if anything, could make Team A's approach the correct one, and name one diagnostic you would demand from Team B before accepting the fit.",
+   "answer": "Prefer Team B: a square system's zero residual is forced by its shape and carries no evidence, whereas B's non-zero SSE is a measured disagreement across all thirty readings and averages down noise; A is right only if the three chosen equations are exact constraints rather than noisy measurements, and B should be asked for the residual pattern and the conditioning or independence of the columns.",
+   "rubric": {
+    "required": [
+     "zero residual",
+     "shape",
+     "noise",
+     "least squares",
+     "pattern"
+    ],
+    "optional": [
+     "exact constraint",
+     "condition",
+     "collinear",
+     "discard",
+     "evidence"
+    ],
+    "minWords": 80
+   },
+   "tags": [
+    "model-choice",
+    "least-squares",
+    "residual-interpretation"
+   ],
+   "concepts": [
+    "model-choice",
+    "least-squares",
+    "residual-interpretation"
+   ],
+   "explain": "Three independent equations in three unknowns always have an exact solution, so Team A's zero residual is a fact about $3 \\times 3$ systems and not evidence of a good model - it is unfalsifiable by construction. Team B's fit uses every reading, so random errors partially cancel and $\\mathrm{SSE} = 0.4$ is an honest measurement of how much the data disagree with a linear description. The one situation that vindicates Team A is measurements that are **exact constraints** - conservation laws, known geometry - because averaging exact facts against noisy ones only contaminates them; short of that, demand the residual pattern and evidence that the three columns are not near-collinear."
+  },
+  {
+   "id": "la-9-e-07",
+   "type": "proof",
+   "layer": "application",
+   "xp": 110,
+   "prompt": "Let $A$ be $m \\times n$ with independent columns and let $P = A(A^{\\mathsf{T}}A)^{-1}A^{\\mathsf{T}}$. Prove that $P^2 = P$ and $P^{\\mathsf{T}} = P$, and explain what each of the two identities means about the modelling operation $\\mathbf{b} \\mapsto P\\mathbf{b}$.",
+   "rubric": {
+    "required": [
+     "projection",
+     "idempot",
+     "symmetr",
+     "column space",
+     "transpose"
+    ],
+    "optional": [
+     "already",
+     "orthogonal",
+     "inverse",
+     "cancel",
+     "fitted"
+    ],
+    "minWords": 90
+   },
+   "tags": [
+    "least-squares",
+    "normal-equations",
+    "column-picture"
+   ],
+   "concepts": [
+    "least-squares",
+    "column-picture"
+   ],
+   "explain": "Both proofs are cancellation: $P^2 = A(A^{\\mathsf{T}}A)^{-1}(A^{\\mathsf{T}}A)(A^{\\mathsf{T}}A)^{-1}A^{\\mathsf{T}} = P$, and $P^{\\mathsf{T}} = A((A^{\\mathsf{T}}A)^{-1})^{\\mathsf{T}}A^{\\mathsf{T}} = P$ because $A^{\\mathsf{T}}A$ is symmetric and so is its inverse. Idempotence says that projecting an already-fitted vector changes nothing, which is why refitting a model to its own fitted values returns the same coefficients; symmetry is what makes the projection **orthogonal** rather than skew, and hence what makes $P\\mathbf{b}$ the *nearest* point of $C(A)$ rather than merely a point of it. A non-symmetric idempotent matrix would still be a projection, but it would minimise nothing, so symmetry is the property that connects the algebra to least squares."
+  },
+  {
+   "id": "la-9-e-08",
+   "type": "explain",
+   "layer": "application",
+   "xp": 44,
+   "prompt": "A report states: \"$R^2 = 5/6$, so the linear model explains most of the variation and is therefore the right model.\" The residuals behind that figure are $(-0.5, +0.5, +0.5, -0.5)$ against $t = (0,1,2,3)$. Explain what $R^2$ does and does not certify here, what the residual signs suggest, and why a high $R^2$ can coexist with a mis-specified model.",
+   "rubric": {
+    "required": [
+     "pattern",
+     "variation",
+     "curvat",
+     "sign",
+     "size"
+    ],
+    "optional": [
+     "systematic",
+     "mis-specif",
+     "quadratic",
+     "structure",
+     "order"
+    ],
+    "minWords": 60
+   },
+   "tags": [
+    "residual-interpretation",
+    "model-choice"
+   ],
+   "concepts": [
+    "residual-interpretation"
+   ],
+   "explain": "$R^2 = 1 - \\mathrm{SSE}/\\mathrm{SST}$ compares the fit against the flat model $\\bar{y}$, so $5/6$ certifies only that a sloping line beats a horizontal one - a low bar whenever the data trend at all. The signs here run $-,+,+,-$, an inverted U in which the line falls below the data at both ends and above them in the middle, which is systematic curvature rather than scatter. That is precisely how a high $R^2$ and a wrong model coexist: $R^2$ measures the *size* of the residuals while the mis-specification lives in their *order*, and only a plot or a sign test can see it."
+  },
+  {
+   "id": "la-9-e-09",
+   "type": "complexity",
+   "layer": "application",
+   "xp": 88,
+   "prompt": "A ranking model finds the dominant eigenvector of a dense $n \\times n$ matrix $M$ by power iteration, repeating $\\mathbf{v} \\leftarrow M\\mathbf{v} / \\lVert M\\mathbf{v} \\rVert$. Give the cost of one iteration, justify it, and explain what governs the number of iterations needed and how the cost changes when $M$ is sparse with $\\Theta(n)$ non-zeros.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "matrix-vector",
+     "n^2",
+     "ratio",
+     "iterat",
+     "sparse"
+    ],
+    "optional": [
+     "second",
+     "non-zero",
+     "dominant",
+     "converg",
+     "gap"
+    ],
+    "minWords": 65
+   },
+   "tags": [
+    "eigen-models",
+    "model-choice"
+   ],
+   "concepts": [
+    "eigen-models"
+   ],
+   "explain": "One iteration is a single dense matrix-vector product plus a normalisation, so $\\Theta(n^2)$ and $\\Theta(n)$ respectively, giving $O(n^2)$ - decisively cheaper than the $\\Theta(n^3)$ of computing the whole spectrum, which is why enormous ranking models are feasible at all. The iteration count is governed not by $n$ but by the **ratio** $|\\lambda_2| / |\\lambda_1|$, since the unwanted component decays by that factor each step, so a spectral gap near zero is far more damaging than a large $n$. With $\\Theta(n)$ non-zeros the product costs $\\Theta(n)$ per step, which is the whole reason web-scale power iteration is possible."
+  }
+ ]
+}

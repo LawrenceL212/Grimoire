@@ -1,0 +1,823 @@
+{
+ "n": 4,
+ "name": "The Matrix as a Machine",
+ "concepts": [
+  "matrix-multiplication",
+  "composition-of-maps",
+  "row-column-rule",
+  "non-commutativity",
+  "identity-matrix",
+  "matrix-inverse",
+  "invertibility",
+  "elementary-matrices",
+  "transpose"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "problem-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Matrix as a Machine",
+  "sections": [
+   {
+    "title": "Multiplication Is Composition",
+    "body": "A matrix is not a table of numbers that happens to support an odd rule; it is a **linear map**, a machine that eats a vector and returns a vector, and the numbers are only the record of where the machine sends $e_1, \\dots, e_n$. Once you have two machines $A : \\mathbb{R}^n \\to \\mathbb{R}^m$ and $B : \\mathbb{R}^m \\to \\mathbb{R}^p$, the natural question is whether running one after the other is *also* a linear map - it is - and $BA$ is **defined** to be its matrix.\n\nThat definition fixes everything. Column $j$ of any matrix is its action on $e_j$, so column $j$ of $BA$ must be $B(A e_j)$, which is $B$ applied to column $j$ of $A$.\n\nWriting that out coordinate by coordinate gives $(BA)_{ij} = \\sum_k b_{ik} a_{kj}$ - row of the left factor dotted with column of the right. The famous rule is a **consequence**, never an axiom.\n\nThe shape law falls out of the same picture: $A$'s outputs must be legal inputs for $B$, so the inner dimensions have to match, and the product inherits $B$'s row count and $A$'s column count.",
+    "code": "A matrix is a machine.  Feed it a vector, it returns a vector.\n\n    A = [ 1  0  2 ]        A : R^3 -> R^2\n        [ 0  1  1 ]\n\n    B = [ 0 -1 ]           B : R^2 -> R^2   (rotate a quarter turn)\n        [ 1  0 ]\n\nRun x = (3, 1, 2) through A, then through B:\n\n    A x    = (1*3 + 0*1 + 2*2,  0*3 + 1*1 + 1*2)  = (7, 3)\n    B(A x) = (0*7 + (-1)*3,     1*7 + 0*3)        = (-3, 7)\n\nNow build the ONE machine that does both.  Column j of the composite is\nwhatever the composite does to e_j, and the composite sends e_j to B(A e_j),\nwhich is B applied to column j of A:\n\n    B * col_1(A) = B (1,0) = ( 0, 1)\n    B * col_2(A) = B (0,1) = (-1, 0)\n    B * col_3(A) = B (2,1) = (-1, 2)\n\n    BA = [ 0 -1 -1 ]       and     (BA) x = (-3, 7)\n         [ 1  0  2 ]\n\nSame answer.  BA was DEFINED to make that true; the arithmetic rule follows.\nEntry (i,j) of BA is row i of B dotted with column j of A.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A is 2x3 because it eats 3 numbers and returns 2. Shape is not decoration: it records the domain and codomain of the map."
+     },
+     {
+      "line": 12,
+      "text": "Two separate machine runs, left to right. Nothing here mentions matrix multiplication yet - this is just A then B."
+     },
+     {
+      "line": 15,
+      "text": "e_j is the j-th standard basis vector. A linear map is completely determined by where it sends e_1, ..., e_n, so this is the whole map."
+     },
+     {
+      "line": 22,
+      "text": "Inner dimensions must agree because the output of A must be a legal input to B. (2x2)(2x3) = 2x3."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "With $A = \\begin{bmatrix} 1 & 0 & 2 \\\\ 0 & 1 & 1 \\end{bmatrix}$, $B = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$ and $x = (3,1,2)$, evaluate each step. Write each vector as an ordered pair in the form `(a, b)`.",
+     "steps": [
+      {
+       "label": "A x",
+       "expected": "(7, 3)"
+      },
+      {
+       "label": "B(A x)",
+       "expected": "(-3, 7)"
+      },
+      {
+       "label": "column 3 of BA",
+       "expected": "(-1, 2)"
+      },
+      {
+       "label": "(BA) x",
+       "expected": "(-3, 7)"
+      }
+     ],
+     "concepts": [
+      "composition-of-maps"
+     ],
+     "explain": "Steps 2 and 4 agree because $BA$ was constructed precisely so that $(BA)x = B(Ax)$ for every $x$; if they ever disagreed the definition would be worthless. Column 3 of $BA$ is $B$ applied to column 3 of $A$, that is $B(2,1) = (-1,2)$ - the tempting error is to dot row 3 of $B$ with something, but $B$ has only two rows, which is the shape law protesting."
+    }
+   },
+   {
+    "title": "The Row-Times-Column Rule, Three Ways",
+    "body": "The arithmetic rule is one line: for $A$ of size $m \\times n$ and $B$ of size $n \\times p$, $$ (AB)_{ij} = \\sum_{k=1}^{n} a_{ik} b_{kj}, $$ and $AB$ is $m \\times p$. The shared index $k$ is summed away, which is why the inner dimensions vanish from the answer.\n\nThe same product reads three ways, and fluent people switch between them constantly. **Entry**: $(AB)_{ij}$ is row $i$ of $A$ dotted with column $j$ of $B$. **Column**: $\\text{col}_j(AB) = A\\,\\text{col}_j(B)$, so $AB$ is $A$ applied to each column of $B$ in turn. **Row**: row $i$ of $AB$ is a combination of the rows of $B$, with weights from row $i$ of $A$.\n\nThe column reading is the machine reading and is usually the one worth having in your head; the entry reading is merely how you would tell a computer to do it.\n\nCost follows immediately: $m p$ entries at $n$ multiplications each, so $mnp$ multiplications for the whole product.",
+    "code": "The rule, once and for all.  A is m x n, B is n x p, AB is m x p.\n\n    (AB)_ij = sum over k of  a_ik * b_kj      k runs 1 .. n\n\nConcretely, with A (2x3) and B (3x2):\n\n    A = [ 2  0  1 ]        B = [ 1  4 ]\n        [ 1  3  2 ]            [ 0  2 ]\n                               [ 5  1 ]\n\n    (AB)_11 = 2*1 + 0*0 + 1*5 =  7\n    (AB)_12 = 2*4 + 0*2 + 1*1 =  9\n    (AB)_21 = 1*1 + 3*0 + 2*5 = 11\n    (AB)_22 = 1*4 + 3*2 + 2*1 = 12\n\n    AB = [  7   9 ]        2x2\n         [ 11  12 ]\n\nThree ways to read the same product:\n\n  ENTRY   (AB)_ij  = row i of A  .  column j of B\n  COLUMN  col_j(AB) = A * col_j(B)      A (1,0,5) = (7,11)   A (4,2,1) = (9,12)\n  ROW     row_i(AB) = row_i(A) * B      each row of AB is a combination\n                                        of the rows of B\n\nThe COLUMN reading is the machine reading: AB acts on each column of B.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "m x n times n x p. The shared n vanishes; it is summed over. The surviving m and p are the shape of the answer."
+     },
+     {
+      "line": 13,
+      "text": "One entry costs n multiplications, and there are m*p entries, so a full product costs m*n*p multiplications."
+     },
+     {
+      "line": 22,
+      "text": "Columns of AB are A applied to columns of B. This is the composition picture wearing arithmetic clothes."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $A = \\begin{bmatrix} 2 & 0 & 1 \\\\ 1 & 3 & 2 \\end{bmatrix}$ and $B = \\begin{bmatrix} 1 & 4 \\\\ 0 & 2 \\\\ 5 & 1 \\end{bmatrix}$. Give the four entries of $AB$ as plain integers.",
+     "template": "(AB)_11 = ___\n(AB)_12 = ___\n(AB)_21 = ___\n(AB)_22 = ___",
+     "blanks": [
+      "7",
+      "9",
+      "11",
+      "12"
+     ],
+     "concepts": [
+      "row-column-rule"
+     ],
+     "explain": "Each entry is a dot product of length $3$, the shared inner dimension: $(AB)_{21} = 1\\cdot 1 + 3 \\cdot 0 + 2 \\cdot 5 = 11$. The classic slip is to pair row $2$ of $A$ with row $1$ of $B$, which is a length mismatch as well as the wrong idea - the second index of the left factor must always meet the first index of the right."
+    }
+   },
+   {
+    "title": "Order Matters",
+    "body": "Multiplication of numbers commutes; composition of machines does not, and the failure is not an inconvenience but the content of the subject. If $R$ rotates a quarter turn and $S$ shears, then \"shear then rotate\" and \"rotate then shear\" move points to genuinely different places, so $RS \\neq SR$.\n\nOne test vector is enough to see it: $(RS)e_1 = (0,1)$ while $(SR)e_1 = (1,1)$, because the shear fixes the $x$-axis but not the $y$-axis, and rotating first decides which of the two $e_1$ has become.\n\nTwo related surprises come from the same source. $AB$ can be the zero matrix with neither factor zero, when $A$ annihilates exactly the subspace that $B$ produces. And $AB$ may be defined while $BA$ is nonsense, since a $2 \\times 3$ times a $3 \\times 4$ has no legal reverse.\n\nWhat *does* survive is associativity, $(AB)C = A(BC)$, which is obvious in the machine picture: both sides mean \"run $C$, then $B$, then $A$\".",
+    "code": "Rotation R (quarter turn anticlockwise) and shear S (slide x by y):\n\n    R = [ 0 -1 ]           S = [ 1  1 ]\n        [ 1  0 ]               [ 0  1 ]\n\n    RS = [ 0 -1 ]          SR = [ 1 -1 ]\n         [ 1  1 ]               [ 1  0 ]\n\nDifferent matrices.  Watch them disagree on the single vector e_1 = (1,0):\n\n    (RS) e_1 :  shear first, e_1 is on the x-axis so the shear misses it,\n                then rotate  ->  (0, 1)\n    (SR) e_1 :  rotate first, e_1 becomes (0,1), which the shear DOES move,\n                ->  (1, 1)\n\nOrder changed the answer.  Nothing has gone wrong; \"rotate then shear\" and\n\"shear then rotate\" are simply different journeys.\n\nTwo further shocks, both real:\n\n    A = [ 1 -1 ]   B = [ 1  1 ]     AB = [ 0  0 ]   BA = [ 2 -2 ]\n        [ 1 -1 ]       [ 1  1 ]          [ 0  0 ]        [ 2 -2 ]\n\n  AB = 0 with neither factor zero: A crushes everything B produces.\n  And AB may be legal while BA is not - a 2x3 times a 3x4 has no reverse.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Compute both and compare entry by entry. RS and SR agree only in the (1,1) slot, which is exactly why one test vector is enough to separate them."
+     },
+     {
+      "line": 11,
+      "text": "Reading right to left is the habit to build: in (RS)x the machine nearest x runs first."
+     },
+     {
+      "line": 21,
+      "text": "B sends every vector onto the line spanned by (1,1), and A annihilates that line. Composition can destroy information that neither factor destroys alone."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Let $R = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$ and $S = \\begin{bmatrix} 1 & 1 \\\\ 0 & 1 \\end{bmatrix}$. Give vectors as `(a, b)` and single entries as plain integers.",
+     "steps": [
+      {
+       "label": "(RS) e_1",
+       "expected": "(0, 1)"
+      },
+      {
+       "label": "(SR) e_1",
+       "expected": "(1, 1)"
+      },
+      {
+       "label": "entry (2,2) of RS",
+       "expected": "1"
+      },
+      {
+       "label": "entry (2,2) of SR",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "non-commutativity"
+     ],
+     "explain": "In $(RS)e_1$ the right-hand machine runs first, so $S$ acts on $e_1$; it lies along the $x$-axis, which a shear fixes, and $R$ then lifts it to $(0,1)$. Reversing the order lets $R$ move $e_1$ off the $x$-axis first, where the shear can bite, giving $(1,1)$ - the same two machines, a different journey, and therefore a different matrix."
+    }
+   },
+   {
+    "title": "Identity, Inverse, Elementary Matrices, Transpose",
+    "body": "The identity $I$ is the machine that does nothing, and $IA = A = AI$ makes it the unit of this multiplication. An **inverse** $A^{-1}$ is a machine that runs $A$ backwards, satisfying $A^{-1}A = I = AA^{-1}$; only square matrices can have one, and when it exists it is unique.\n\nExistence is a single condition wearing many costumes. For square $A$: $\\det A \\neq 0$, the columns are independent, $Ax = 0$ forces $x = 0$, and elimination reaches $I$ with no zero pivot - these are four descriptions of one fact, that the machine loses no information. A singular matrix such as $\\begin{bmatrix} 6 & 4 \\\\ 3 & 2 \\end{bmatrix}$ crushes $(-2,3)$ to zero, and no machine can undo a collapse.\n\n**Elementary matrices** are the one-step machines elimination uses: each differs from $I$ in a single entry and each is trivially invertible. Multiplying them together is Gauss-Jordan, since the row operations carrying $A$ to $I$ compose to $A^{-1}$ itself.\n\nThe **transpose** flips a matrix across its diagonal, $(A^{T})_{ij} = A_{ji}$, and the two rules worth memorising both reverse the order: $(AB)^{T} = B^{T}A^{T}$ and $(AB)^{-1} = B^{-1}A^{-1}$. Undo the last thing first.",
+    "code": "The identity does nothing, and is the unit of multiplication:\n\n    I = [ 1  0 ]       I A = A = A I    for every 2x2 A\n        [ 0  1 ]\n\nAn inverse is a machine that runs the first one backwards:\n\n    A^-1 A = I = A A^-1        (two-sided, and only for square A)\n\n    A = [ 1  3 ]     det A = 1*7 - 3*2 = 1     A^-1 = [  7 -3 ]\n        [ 2  7 ]                                      [ -2  1 ]\n\n    check:  A A^-1 = [ 1  0 ]     and solving A x = (5, 11):\n                     [ 0  1 ]     x = A^-1 (5,11) = (2, 1)\n\nWHEN does an inverse exist?  All of these say the same thing about square A:\n\n    det A is not 0    <=>    the columns are independent\n                      <=>    A x = 0 only for x = 0\n                      <=>    elimination reaches I with no zero pivot\n\n    Singular: [ 6  4 ]   det = 6*2 - 4*3 = 0,  and (-2,3) is crushed to 0.\n              [ 3  2 ]   No machine can undo that: 0 has many preimages.\n\nELEMENTARY MATRICES are the one-step machines elimination uses.\n\n    E1 = [  1  0 ]  (row2 -= 2*row1)      E1 A  = [ 1  3 ]\n         [ -2  1 ]                                [ 0  1 ]\n\n    E2 = [ 1 -3 ]   (row1 -= 3*row2)      E2 E1 A = I\n         [ 0  1 ]\n\n    So  E2 E1 = A^-1 = [  7 -3 ].  Gauss-Jordan is exactly this: the row\n                       [ -2  1 ]   operations that carry A to I, collected.\n\nTRANSPOSE flips the machine across its diagonal: (A^T)_ij = A_ji.\n\n    A = [ 2  0  1 ]   A^T = [ 2  1 ]     A A^T = [  5  4 ]  symmetric\n        [ 1  3  2 ]         [ 0  3 ]             [  4 14 ]\n                            [ 1  2 ]\n\n    (A B)^T = B^T A^T        (A^-1)^T = (A^T)^-1        (A^T)^T = A\n\nReversal is the pattern: (AB)^-1 = B^-1 A^-1 too.  Undo the last thing first.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "One-sided is not enough in general, but for SQUARE matrices over a field a one-sided inverse is automatically two-sided - a theorem, not a definition."
+     },
+     {
+      "line": 18,
+      "text": "Four equivalent statements, not four tests. Prove any one and you own the rest."
+     },
+     {
+      "line": 27,
+      "text": "Each E differs from I in a single off-diagonal entry, and each is invertible: undo 'row2 -= 2*row1' with 'row2 += 2*row1'."
+     },
+     {
+      "line": 42,
+      "text": "Reversal is forced. To undo 'socks then shoes' you remove shoes then socks; (AB)^-1 = B^-1 A^-1 says exactly that."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "For $A = \\begin{bmatrix} 1 & 3 \\\\ 2 & 7 \\end{bmatrix}$, compute $\\det A$ and $A^{-1}$, verify $AA^{-1} = I$, and then solve $Ax = \\begin{bmatrix} 5 \\\\ 11 \\end{bmatrix}$ using the inverse. State the general $2 \\times 2$ inverse formula you used.",
+     "rubric": {
+      "required": [
+       "determinant",
+       "invers",
+       "identity",
+       "formula",
+       "solve"
+      ],
+      "optional": [
+       "ad - bc",
+       "swap",
+       "singular",
+       "unique",
+       "solve"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "matrix-inverse",
+      "identity-matrix"
+     ],
+     "explain": "Here $\\det A = 1\\cdot 7 - 3 \\cdot 2 = 1$, so the formula $\\frac{1}{ad-bc}\\begin{bmatrix} d & -b \\\\ -c & a \\end{bmatrix}$ gives $A^{-1} = \\begin{bmatrix} 7 & -3 \\\\ -2 & 1 \\end{bmatrix}$ with no fractions, and $x = A^{-1}(5,11) = (2,1)$. The formula swaps the diagonal and negates the off-diagonal; the standard error is to negate the diagonal instead, which produces a matrix that fails the $AA^{-1} = I$ check immediately - which is why the check is part of the exercise."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-4-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "$A$ is $3 \\times 5$ and $B$ is $5 \\times 2$. Fill in the shape rules. The first two blanks take plain integers, the third takes exactly `defined` or `undefined`, and the last two take exactly `A` or `B`.",
+   "template": "AB has ___ rows and ___ columns.\nBA is ___.\nEntry (i,j) of AB is row i of ___ dotted with column j of ___.",
+   "blanks": [
+    "3",
+    "2",
+    "undefined",
+    "A",
+    "B"
+   ],
+   "xp": 24,
+   "tags": [
+    "row-column-rule",
+    "matrix-multiplication"
+   ],
+   "concepts": [
+    "row-column-rule"
+   ],
+   "explain": "The inner dimensions must agree because $A$'s outputs have to be legal inputs to the next machine, and the surviving outer dimensions give $3 \\times 2$. $BA$ would ask a $3 \\times 5$ machine to consume $2$-vectors, so it is undefined - and this asymmetry alone is enough to show multiplication cannot commute in general, before any arithmetic is done."
+  },
+  {
+   "id": "la-4-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Let $P = \\begin{bmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\end{bmatrix}$ and $Q = \\begin{bmatrix} 1 & 0 \\\\ 0 & 1 \\\\ 2 & 1 \\end{bmatrix}$. Give each entry of $PQ$ as a plain integer.",
+   "steps": [
+    {
+     "label": "(PQ)_11",
+     "expected": "7"
+    },
+    {
+     "label": "(PQ)_12",
+     "expected": "5"
+    },
+    {
+     "label": "(PQ)_21",
+     "expected": "16"
+    },
+    {
+     "label": "(PQ)_22",
+     "expected": "11"
+    }
+   ],
+   "xp": 48,
+   "tags": [
+    "row-column-rule",
+    "matrix-multiplication"
+   ],
+   "concepts": [
+    "row-column-rule"
+   ],
+   "explain": "Each entry is a length-$3$ dot product: $(PQ)_{21} = 4\\cdot 1 + 5\\cdot 0 + 6 \\cdot 2 = 16$. Reading it by columns is faster here, since column 1 of $Q$ is $(1,0,2)$ and $P(1,0,2) = (7,16)$ picks off a whole column of the answer in one stroke - the same numbers, half the bookkeeping."
+  },
+  {
+   "id": "la-4-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A = \\begin{bmatrix} 1 & 0 & 2 \\\\ 0 & 1 & 1 \\end{bmatrix}$, $B = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$ and $y = (1,2,3)$. Give vectors as `(a, b)` and shapes in the form `2x3`.",
+   "steps": [
+    {
+     "label": "the shape of BA",
+     "expected": "2x3"
+    },
+    {
+     "label": "A y",
+     "expected": "(7, 5)"
+    },
+    {
+     "label": "B(A y)",
+     "expected": "(-5, 7)"
+    },
+    {
+     "label": "(BA) y",
+     "expected": "(-5, 7)"
+    }
+   ],
+   "xp": 48,
+   "tags": [
+    "composition-of-maps",
+    "matrix-multiplication"
+   ],
+   "concepts": [
+    "composition-of-maps"
+   ],
+   "explain": "$Ay = (1 + 6,\\; 2 + 3) = (7,5)$ and rotating gives $(-5,7)$, which is exactly what $(BA)y$ returns because $BA$ is *defined* to be the matrix of the composite. The shape is $2\\times 3$ and not $3 \\times 2$: the composite still eats $3$-vectors and still returns $2$-vectors, so the outer dimensions of the factors survive untouched."
+  },
+  {
+   "id": "la-4-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Using the rotation $R = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$ and the shear $S = \\begin{bmatrix} 1 & 1 \\\\ 0 & 1 \\end{bmatrix}$, explain geometrically why $RS \\neq SR$. Compute both products, name a single vector on which they disagree, and say what property of numbers fails to carry over to matrices.",
+   "rubric": {
+    "required": [
+     "commut",
+     "rotat",
+     "shear",
+     "order",
+     "geometr"
+    ],
+    "optional": [
+     "composition",
+     "e_1",
+     "x-axis",
+     "journey",
+     "different"
+    ],
+    "minWords": 60
+   },
+   "xp": 24,
+   "tags": [
+    "non-commutativity"
+   ],
+   "concepts": [
+    "non-commutativity"
+   ],
+   "explain": "$RS = \\begin{bmatrix} 0 & -1 \\\\ 1 & 1 \\end{bmatrix}$ and $SR = \\begin{bmatrix} 1 & -1 \\\\ 1 & 0 \\end{bmatrix}$, and $e_1$ separates them: $(RS)e_1 = (0,1)$ but $(SR)e_1 = (1,1)$. The reason is that a shear fixes the $x$-axis and moves the $y$-axis, so whether $e_1$ has already been rotated decides whether the shear touches it at all. Commutativity of numbers has no analogue here because matrix multiplication is composition of maps, and doing two things in the other order is a different act."
+  },
+  {
+   "id": "la-4-g-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $A = \\begin{bmatrix} 4 & 7 \\\\ 2 & 6 \\end{bmatrix}$. Compute $\\det A$ and $A^{-1}$, and check your answer by multiplying out $AA^{-1}$ and $A^{-1}A$. Explain why both products must be checked in principle, and why the identity is the right thing to land on.",
+   "rubric": {
+    "required": [
+     "determinant",
+     "invers",
+     "identity",
+     "10",
+     "both"
+    ],
+    "optional": [
+     "two-sided",
+     "ad - bc",
+     "check",
+     "square",
+     "unique"
+    ],
+    "minWords": 55
+   },
+   "xp": 60,
+   "tags": [
+    "matrix-inverse",
+    "identity-matrix"
+   ],
+   "concepts": [
+    "matrix-inverse",
+    "identity-matrix"
+   ],
+   "explain": "$\\det A = 4\\cdot 6 - 7 \\cdot 2 = 10$, so $A^{-1} = \\frac{1}{10}\\begin{bmatrix} 6 & -7 \\\\ -2 & 4 \\end{bmatrix} = \\begin{bmatrix} 3/5 & -7/10 \\\\ -1/5 & 2/5 \\end{bmatrix}$. The definition of an inverse is two-sided, $A^{-1}A = I = AA^{-1}$, and since multiplication does not commute you cannot assume one side from the other in general - for square matrices over a field it happens to be a theorem that one side suffices, but that is a result to be proved, not an assumption to be smuggled in."
+  }
+ ],
+ "problem-set": [
+  {
+   "id": "la-4-p-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $P = \\begin{bmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\end{bmatrix}$ and $Q = \\begin{bmatrix} 1 & 0 \\\\ 0 & 1 \\\\ 2 & 1 \\end{bmatrix}$. Compute $PQ$ and $QP$ in full. State the shape of each, and explain why comparing them is not even a fair question, using the shape rule for products.",
+   "rubric": {
+    "required": [
+     "shape",
+     "commut",
+     "inner",
+     "2x2",
+     "3x3"
+    ],
+    "optional": [
+     "rows",
+     "columns",
+     "defined",
+     "composition",
+     "different"
+    ],
+    "minWords": 65
+   },
+   "xp": 60,
+   "tags": [
+    "matrix-multiplication",
+    "row-column-rule",
+    "non-commutativity"
+   ],
+   "concepts": [
+    "matrix-multiplication",
+    "row-column-rule",
+    "non-commutativity"
+   ],
+   "explain": "$PQ = \\begin{bmatrix} 7 & 5 \\\\ 16 & 11 \\end{bmatrix}$ is $2 \\times 2$ while $QP = \\begin{bmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 6 & 9 & 12 \\end{bmatrix}$ is $3 \\times 3$, so $PQ = QP$ is not false here so much as meaningless. Both products exist only because the inner dimensions happen to match in both orders; the surviving outer dimensions differ, which is the shape rule telling you that the two composites are maps between different spaces."
+  },
+  {
+   "id": "la-4-p-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Decide which of $A = \\begin{bmatrix} 1 & 3 \\\\ 2 & 7 \\end{bmatrix}$, $B = \\begin{bmatrix} 6 & 4 \\\\ 3 & 2 \\end{bmatrix}$ and $C = \\begin{bmatrix} 1 & 0 \\\\ 0 & 0 \\end{bmatrix}$ is invertible. For each singular one, exhibit a nonzero vector it sends to $\\mathbf{0}$ and explain why that single vector already proves no inverse can exist.",
+   "rubric": {
+    "required": [
+     "determinant",
+     "singular",
+     "independ",
+     "nonzero",
+     "invers"
+    ],
+    "optional": [
+     "null",
+     "collapse",
+     "columns",
+     "multiple",
+     "0"
+    ],
+    "minWords": 70
+   },
+   "xp": 60,
+   "tags": [
+    "invertibility",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "invertibility"
+   ],
+   "explain": "$\\det A = 1$, so $A$ is invertible; $\\det B = 6\\cdot 2 - 4\\cdot 3 = 0$ and $B(-2,3) = (0,0)$; $\\det C = 0$ and $C(0,1) = (0,0)$. One nonzero vector in the null space settles it: if $Av = 0$ with $v \\neq 0$ then $A$ sends both $v$ and $\\mathbf{0}$ to $\\mathbf{0}$, so an inverse would have to send $\\mathbf{0}$ to two different places, and a function cannot. The tempting error is to look for a zero row or column - $B$ has neither, yet its second column is $\\tfrac{2}{3}$ of the first, and dependence, not zeroness, is what kills invertibility."
+  },
+  {
+   "id": "la-4-p-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $A = \\begin{bmatrix} 1 & 3 \\\\ 2 & 7 \\end{bmatrix}$, $E_1 = \\begin{bmatrix} 1 & 0 \\\\ -2 & 1 \\end{bmatrix}$ and $E_2 = \\begin{bmatrix} 1 & -3 \\\\ 0 & 1 \\end{bmatrix}$. Compute $E_1A$, then $E_2E_1A$, then the product $E_2E_1$ itself. Say in words which row operation each $E$ performs, and explain what you have just discovered about $E_2E_1$.",
+   "rubric": {
+    "required": [
+     "elementary",
+     "row operation",
+     "identity",
+     "invers",
+     "Gauss"
+    ],
+    "optional": [
+     "pivot",
+     "elimination",
+     "product",
+     "augmented",
+     "reverse"
+    ],
+    "minWords": 70
+   },
+   "xp": 60,
+   "tags": [
+    "elementary-matrices",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "elementary-matrices"
+   ],
+   "explain": "$E_1$ subtracts twice row 1 from row 2, giving $\\begin{bmatrix} 1 & 3 \\\\ 0 & 1 \\end{bmatrix}$; $E_2$ subtracts three times row 2 from row 1, giving $I$. Therefore $E_2E_1A = I$, so $E_2E_1 = A^{-1} = \\begin{bmatrix} 7 & -3 \\\\ -2 & 1 \\end{bmatrix}$ - the elimination steps that carry $A$ to $I$, multiplied together, *are* the inverse. That is precisely why Gauss-Jordan works: running the same operations on an adjacent copy of $I$ silently accumulates $E_2E_1$, and note the order, with the later step on the left."
+  },
+  {
+   "id": "la-4-p-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ and $B$ be invertible $n \\times n$ matrices. Prove that $AB$ is invertible with $(AB)^{-1} = B^{-1}A^{-1}$, by verifying the two-sided identity directly and using associativity. Then prove $(AB)^{T} = B^{T}A^{T}$ from the entry definition of the transpose, and say why both rules reverse the order.",
+   "rubric": {
+    "required": [
+     "associat",
+     "identity",
+     "transpose",
+     "revers",
+     "invers",
+     "entry"
+    ],
+    "optional": [
+     "order",
+     "two-sided",
+     "sum",
+     "definition",
+     "index",
+     "arbitrary"
+    ],
+    "minWords": 100
+   },
+   "xp": 60,
+   "tags": [
+    "matrix-inverse",
+    "transpose"
+   ],
+   "concepts": [
+    "matrix-inverse",
+    "transpose"
+   ],
+   "explain": "For the inverse, $(AB)(B^{-1}A^{-1}) = A(BB^{-1})A^{-1} = AIA^{-1} = I$ by associativity, and the other side is symmetric; note the proof needs no commutativity anywhere, only regrouping. For the transpose, $((AB)^{T})_{ij} = (AB)_{ji} = \\sum_k a_{jk}b_{ki} = \\sum_k (B^{T})_{ik}(A^{T})_{kj}$, which is $(B^{T}A^{T})_{ij}$. Both reverse because both undo or re-index a composition, and the last operation applied must be the first one addressed - socks then shoes come off shoes then socks."
+  },
+  {
+   "id": "la-4-p-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ be an $n \\times n$ matrix. Prove that if $Av = \\mathbf{0}$ for some $v \\neq \\mathbf{0}$ then $A$ has no inverse. Prove also that if an inverse exists it is unique, by supposing $BA = I = AC$ and deducing $B = C$. Say exactly where the identity and associativity are used.",
+   "rubric": {
+    "required": [
+     "unique",
+     "identity",
+     "associat",
+     "nonzero",
+     "contradiction",
+     "invers"
+    ],
+    "optional": [
+     "suppose",
+     "null",
+     "arbitrary",
+     "both",
+     "two-sided",
+     "left"
+    ],
+    "minWords": 95
+   },
+   "xp": 60,
+   "tags": [
+    "invertibility",
+    "identity-matrix",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "invertibility",
+    "identity-matrix"
+   ],
+   "explain": "If $A^{-1}$ existed then $v = Iv = A^{-1}(Av) = A^{-1}\\mathbf{0} = \\mathbf{0}$, contradicting $v \\neq \\mathbf{0}$ - the identity supplies the harmless first step and associativity licenses the regrouping. Uniqueness is the classic sandwich: $B = BI = B(AC) = (BA)C = IC = C$, so a left inverse and a right inverse are forced to coincide, and there can be at most one of either. Neither argument computes anything, which is the point: invertibility is about information not being lost, not about the size of the entries."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-4-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For $A$ of size $m \\times n$ and $B$ of size $n \\times p$, the entry $(AB)_{ij}$ is defined as:",
+   "choices": [
+    "$a_{ij} b_{ij}$",
+    "$\\sum_{k=1}^{n} a_{ik} b_{kj}$",
+    "$\\sum_{k=1}^{m} a_{ki} b_{jk}$",
+    "$\\sum_{k=1}^{p} a_{ij} b_{kk}$"
+   ],
+   "answer": 1,
+   "xp": 12,
+   "tags": [
+    "row-column-rule"
+   ],
+   "concepts": [
+    "row-column-rule"
+   ],
+   "explain": "The summed index $k$ must run over the shared dimension $n$, pairing the second index of $A$ with the first index of $B$ - that is what makes the composite well defined. The first choice is entrywise multiplication, a perfectly good operation but not composition of maps, and it would not even respect the shape rule for non-square factors."
+  },
+  {
+   "id": "la-4-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A square matrix $A$ is **invertible** exactly when:",
+   "choices": [
+    "no entry of $A$ is zero",
+    "there is a matrix $A^{-1}$ with $A^{-1}A = I = AA^{-1}$",
+    "$A$ has at least as many rows as columns",
+    "$A^{T} = A$"
+   ],
+   "answer": 1,
+   "xp": 12,
+   "tags": [
+    "matrix-inverse",
+    "invertibility"
+   ],
+   "concepts": [
+    "matrix-inverse"
+   ],
+   "explain": "Invertibility is the existence of a two-sided undo, nothing to do with the individual entries: $\\begin{bmatrix} 1 & 1 \\\\ 1 & 1 \\end{bmatrix}$ has no zero entry and is singular, while $I$ is stuffed with zeros and is its own inverse. The last choice defines a symmetric matrix, which may perfectly well be singular."
+  },
+  {
+   "id": "la-4-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete these facts about the identity and inverses. The first two blanks take a single matrix expression written as `A`, `I` or a product like `B^-1 A^-1`; the third takes a plain integer.",
+   "template": "For every n x n matrix A:  I A = ___ .\nFor invertible A and B:  (AB)^-1 = ___ .\nThe number of nonzero entries in the 5x5 identity matrix is ___ .",
+   "blanks": [
+    "A",
+    "B^-1 A^-1",
+    "5"
+   ],
+   "xp": 24,
+   "tags": [
+    "identity-matrix",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "identity-matrix"
+   ],
+   "explain": "$I$ is the unit of multiplication, so it acts trivially from either side, and the identity of size $n$ carries exactly $n$ ones on its diagonal. The inverse of a product reverses the factors because undoing a composite means undoing the last step first; writing $A^{-1}B^{-1}$ is the standard slip, and it fails at once because $ABA^{-1}B^{-1}$ does not collapse when the factors do not commute."
+  },
+  {
+   "id": "la-4-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete these facts about the transpose. The first two blanks take plain integers, the third takes one word, and the last takes a plain integer.",
+   "template": "If A is 3x5 then A^T is ___ x ___ .\nA square matrix with A^T = A is called ___ .\nFor A = [[2, 0, 1], [1, 3, 2]], entry (1,2) of A A^T is ___ .",
+   "blanks": [
+    "5",
+    "3",
+    "symmetric",
+    "4"
+   ],
+   "xp": 24,
+   "tags": [
+    "transpose"
+   ],
+   "concepts": [
+    "transpose"
+   ],
+   "explain": "Transposing swaps the roles of rows and columns, so a $3 \\times 5$ becomes $5 \\times 3$. The product $AA^{T} = \\begin{bmatrix} 5 & 4 \\\\ 4 & 14 \\end{bmatrix}$, whose $(1,2)$ entry is row 1 of $A$ dotted with row 2 of $A$, namely $2\\cdot 1 + 0 \\cdot 3 + 1 \\cdot 2 = 4$. That $AA^{T}$ is always symmetric is no accident: $(AA^{T})^{T} = (A^{T})^{T}A^{T} = AA^{T}$ by the reversal rule."
+  },
+  {
+   "id": "la-4-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these steps into the correct Gauss-Jordan procedure for computing $A^{-1}$ for an invertible $n \\times n$ matrix $A$.",
+   "fragments": [
+    "Form the augmented block $[\\,A \\mid I\\,]$ by writing the identity beside $A$.",
+    "Use row operations to clear the entries below each pivot, reaching an upper triangular left block.",
+    "Scale each pivot row so that every pivot equals $1$.",
+    "Clear the entries above each pivot as well, so the left block becomes $I$.",
+    "Read off the right block, which now holds $A^{-1}$, since the operations applied compose to $A^{-1}$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 24,
+   "tags": [
+    "elementary-matrices",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "elementary-matrices"
+   ],
+   "explain": "Every row operation is left multiplication by an elementary matrix, so the whole sweep multiplies both blocks by the same product $E_k \\cdots E_1$; when the left block reaches $I$ that product must be $A^{-1}$, and the right block, which started as $I$, has become $A^{-1}I = A^{-1}$. Reading the right block before the left block is fully reduced is the usual mistake - the answer is only valid at the moment the left block is exactly $I$."
+  },
+  {
+   "id": "la-4-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A = \\begin{bmatrix} 2 & 1 & 1 \\\\ 4 & -6 & 0 \\\\ -2 & 7 & 2 \\end{bmatrix}$ and $E = \\begin{bmatrix} 1 & 0 & 0 \\\\ -2 & 1 & 0 \\\\ 0 & 0 & 1 \\end{bmatrix}$. Give each requested entry of $EA$ as a plain integer, and the last step as a row written `(a, b, c)`.",
+   "steps": [
+    {
+     "label": "entry (2,1) of EA",
+     "expected": "0"
+    },
+    {
+     "label": "entry (2,2) of EA",
+     "expected": "-8"
+    },
+    {
+     "label": "entry (2,3) of EA",
+     "expected": "-2"
+    },
+    {
+     "label": "row 3 of EA",
+     "expected": "(-2, 7, 2)"
+    }
+   ],
+   "xp": 48,
+   "tags": [
+    "elementary-matrices",
+    "matrix-multiplication"
+   ],
+   "concepts": [
+    "elementary-matrices",
+    "matrix-multiplication"
+   ],
+   "explain": "$E$ performs the single operation \"row 2 minus twice row 1\", so row 2 becomes $(4-4,\\, -6-2,\\, 0-2) = (0,-8,-2)$ and every other row is copied unchanged because those rows of $E$ are rows of $I$. The temptation is to expect all three rows to move; an elementary matrix is deliberately as close to the identity as possible, differing in exactly one entry, which is what makes its inverse obvious."
+  },
+  {
+   "id": "la-4-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute the inverse of $M = \\begin{bmatrix} 1 & 2 & 0 \\\\ 0 & 1 & 3 \\\\ 0 & 0 & 1 \\end{bmatrix}$ by Gauss-Jordan, showing the row operations you use. Verify $MM^{-1} = I$, and explain why the $(1,3)$ entry of the inverse is not simply $0$.",
+   "rubric": {
+    "required": [
+     "row operation",
+     "identity",
+     "invers",
+     "6",
+     "triangular"
+    ],
+    "optional": [
+     "back",
+     "pivot",
+     "augmented",
+     "clear",
+     "verify"
+    ],
+    "minWords": 65
+   },
+   "xp": 60,
+   "tags": [
+    "matrix-inverse",
+    "elementary-matrices"
+   ],
+   "concepts": [
+    "matrix-inverse"
+   ],
+   "explain": "$M^{-1} = \\begin{bmatrix} 1 & -2 & 6 \\\\ 0 & 1 & -3 \\\\ 0 & 0 & 1 \\end{bmatrix}$: clearing the $3$ costs a $-3$, and then clearing the $2$ drags that $-3$ upward, contributing $(-2)(-3) = 6$. The $(1,3)$ entry is the classic trap - $M$ has a zero there, but inversion is not entrywise, and the $6$ records the two-step path from column 3 back to row 1 through the middle row. Upper triangular matrices do have upper triangular inverses, which is the structural fact worth keeping."
+  },
+  {
+   "id": "la-4-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Give two $2 \\times 2$ matrices $A$ and $B$, both nonzero, with $AB = 0$ but $BA \\neq 0$. Compute both products, and explain in terms of maps what $A$ must do to the outputs of $B$ for $AB = 0$ to happen. Conclude what this says about cancelling a factor in a matrix equation.",
+   "rubric": {
+    "required": [
+     "nonzero",
+     "cancel",
+     "zero",
+     "invers",
+     "column"
+    ],
+    "optional": [
+     "null",
+     "line",
+     "crush",
+     "image",
+     "singular",
+     "collapse"
+    ],
+    "minWords": 70
+   },
+   "xp": 60,
+   "tags": [
+    "non-commutativity",
+    "matrix-multiplication"
+   ],
+   "concepts": [
+    "non-commutativity"
+   ],
+   "explain": "With $A = \\begin{bmatrix} 1 & -1 \\\\ 1 & -1 \\end{bmatrix}$ and $B = \\begin{bmatrix} 1 & 1 \\\\ 1 & 1 \\end{bmatrix}$ we get $AB = 0$ while $BA = \\begin{bmatrix} 2 & -2 \\\\ 2 & -2 \\end{bmatrix}$. Every output of $B$ lies on the line spanned by $(1,1)$, and that line is exactly what $A$ sends to zero, so the composite destroys everything. The consequence is that $AB = AC$ does **not** give $B = C$ unless $A$ is invertible - cancellation is a privilege of invertible factors, and both matrices here are singular."
+  },
+  {
+   "id": "la-4-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student complains that the row-times-column rule is an arbitrary convention and that entrywise multiplication would be simpler. Explain why the rule is forced once $AB$ is required to be the matrix of the composite map $x \\mapsto A(Bx)$, deriving the formula for column $j$ of $AB$. Say what entrywise multiplication would fail to do.",
+   "rubric": {
+    "required": [
+     "composit",
+     "column",
+     "basis",
+     "forced",
+     "linear"
+    ],
+    "optional": [
+     "e_j",
+     "entrywise",
+     "convention",
+     "determined",
+     "shape",
+     "derive"
+    ],
+    "minWords": 75
+   },
+   "xp": 24,
+   "tags": [
+    "composition-of-maps",
+    "row-column-rule"
+   ],
+   "concepts": [
+    "composition-of-maps",
+    "row-column-rule"
+   ],
+   "explain": "A linear map is completely determined by its values on the basis, so column $j$ of $AB$ must be $(AB)e_j = A(Be_j) = A\\,\\text{col}_j(B)$, and expanding that matrix-vector product coordinate by coordinate produces $\\sum_k a_{ik}b_{kj}$ with no freedom left. Entrywise multiplication is a genuine operation (the Hadamard product) but it does not represent composition, it demands identical shapes, and its identity element is the all-ones matrix rather than $I$ - so the whole apparatus of solving $Ax = b$ by inverses would collapse."
+  },
+  {
+   "id": "la-4-e-10",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ be an invertible $n \\times n$ matrix and suppose $AB = 0$ for some $n \\times n$ matrix $B$. Prove that $B = 0$. Then explain why the same conclusion fails when $A$ is singular, referring to a concrete counterexample, and state the cancellation law that this establishes.",
+   "rubric": {
+    "required": [
+     "invers",
+     "associat",
+     "zero",
+     "singular",
+     "cancel",
+     "counterexample"
+    ],
+    "optional": [
+     "identity",
+     "multiply",
+     "left",
+     "both sides",
+     "null",
+     "arbitrary"
+    ],
+    "minWords": 90
+   },
+   "xp": 60,
+   "tags": [
+    "invertibility",
+    "matrix-inverse"
+   ],
+   "concepts": [
+    "invertibility",
+    "matrix-inverse"
+   ],
+   "explain": "Multiply on the left by $A^{-1}$: $B = IB = (A^{-1}A)B = A^{-1}(AB) = A^{-1}0 = 0$, where associativity does the real work and left multiplication is essential because $BA^{-1}$ would not regroup usefully. When $A$ is singular the argument has nothing to multiply by, and $A = \\begin{bmatrix} 1 & -1 \\\\ 1 & -1 \\end{bmatrix}$ with $B = \\begin{bmatrix} 1 & 1 \\\\ 1 & 1 \\end{bmatrix}$ gives $AB = 0$ with $B \\neq 0$. The law established is that an invertible factor may be cancelled - from $AB = AC$ we get $B = C$ - and no other factor may."
+  }
+ ]
+}

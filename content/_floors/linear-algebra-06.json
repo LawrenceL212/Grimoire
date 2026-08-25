@@ -1,0 +1,955 @@
+{
+ "n": 6,
+ "name": "Determinants and What They Measure",
+ "concepts": [
+  "determinant-as-volume",
+  "determinant-2x2-3x3",
+  "cofactor-expansion",
+  "determinant-properties",
+  "det-and-invertibility",
+  "product-rule"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "property-work",
+  "unseen-problems",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Determinants and What They Measure",
+  "sections": [
+   {
+    "title": "One Number, and It Measures Volume",
+    "body": "A square matrix $A$ is a map of space onto itself, and it does something very simple to size: it multiplies **every** area (in the plane) or **every** volume (in space) by one fixed factor. That factor, with a sign attached, is the **determinant** $\\det A$. It is not a property of some particular shape - the unit square, a triangle and a disc are all scaled by the same number - which is exactly why one number suffices.\n\nThe sign records **orientation**. A positive determinant means space came through the map the right way round; a negative one means it was turned over, the way a mirror swaps your left and right hands.\n\nFor a $2\\times2$ matrix the number is $\\det \\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} = ad - bc$, which is precisely the signed area of the parallelogram spanned by the columns $(a,c)$ and $(b,d)$.\n\nAnd if $\\det A = 0$ the scaling factor is zero: every region is flattened onto something of lower dimension, and flattening cannot be undone. That one sentence is the whole of the invertibility story; the rest of this floor is machinery for computing the number.",
+    "code": "The 2x2 determinant as signed area.\n\n  A = | 3  1 |        det A = (3)(2) - (1)(1) = 6 - 1 = 5\n      | 1  2 |\n\nThe unit square has corners (0,0), (1,0), (0,1), (1,1).\nA sends the two edge vectors to the columns of A:\n\n  (1,0)  ->  (3,1)        the first column\n  (0,1)  ->  (1,2)        the second column\n\nSo the square becomes the parallelogram with corners\n\n  (0,0)   (3,1)   (1,2)   (4,3)\n\nand its area works out at |6 - 1| = 5.\n\nEvery region, not only the square, has its area multiplied by 5.\nA speck of area 0.01 lands on a speck of area 0.05.\n\nSign, and what it records:\n\n  | 1  0 |   det = +1    orientation kept\n  | 0  1 |\n\n  | 0  1 |   det = -1    the two axes have traded places, so the\n  | 1  0 |               plane has been turned over\n\n  | 2  6 |   det = 0     both columns lie on the line y = x/2, so\n  | 1  3 |               the whole plane is crushed onto that line",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "$ad - bc$ with $a=3$, $b=1$, $c=1$, $d=2$. The subtracted term is the product of the off-diagonal entries, never of the diagonal ones."
+     },
+     {
+      "line": 9,
+      "text": "The columns of $A$ are the images of the standard basis vectors, which is why the columns rather than the rows are the sides of the parallelogram you are measuring."
+     },
+     {
+      "line": 19,
+      "text": "One factor for every region at once. This is what makes the determinant a property of the matrix rather than of a chosen shape."
+     },
+     {
+      "line": 27,
+      "text": "Swapping the two columns swaps the axes, so the plane is reflected. Reflection is the reason a sign appears at all."
+     },
+     {
+      "line": 30,
+      "text": "Zero area out means information was lost: many input points now share one output, so no inverse map can exist."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $A = \\begin{pmatrix} 2 & 3 \\\\ 1 & 4 \\end{pmatrix}$ and $B = \\begin{pmatrix} 2 & 3 \\\\ 4 & 6 \\end{pmatrix}$. Compute both determinants, and say in one sentence what each tells you about the area of the image of the unit square under that matrix.",
+     "answer": "det A = 5, det B = 0",
+     "rubric": {
+      "required": [
+       "det",
+       "5",
+       "0",
+       "area"
+      ],
+      "optional": [
+       "parallelogram",
+       "unit square",
+       "flatten",
+       "collaps",
+       "line",
+       "invert"
+      ],
+      "minWords": 30
+     },
+     "explain": "$\\det A = (2)(4) - (3)(1) = 8 - 3 = 5$, so the unit square becomes a parallelogram of area $5$. $\\det B = (2)(6) - (3)(4) = 12 - 12 = 0$, because the second row is twice the first: both columns lie on one line, the square is crushed flat, and the image has area $0$. The tempting slip is computing $ad + bc$, or subtracting the products the other way round - the order in $ad - bc$ is what carries the orientation.",
+     "tags": [
+      "determinant-as-volume",
+      "determinant-2x2-3x3"
+     ],
+     "concepts": [
+      "determinant-as-volume"
+     ]
+    }
+   },
+   {
+    "title": "Cofactor Expansion: Reducing n by One",
+    "body": "Beyond $2\\times2$ we compute by **reduction**. Delete row $i$ and column $j$ from $A$ and take the determinant of what is left: that is the **minor** $M_{ij}$. Attach the chequerboard sign $(-1)^{i+j}$ and you have the **cofactor** $C_{ij} = (-1)^{i+j} M_{ij}$.\n\nExpanding along any single row $i$ then gives $\\det A = \\sum_{j} a_{ij} C_{ij}$, and expanding down any column works just as well - every one of the $2n$ choices returns the same number.\n\nBecause a term with $a_{ij} = 0$ contributes nothing whatever its minor, the whole craft is picking the row or column with the most zeros before you start. That, and nothing else, is what makes a $4\\times4$ bearable by hand.\n\nThe sign pattern is worth holding as a picture rather than a formula: a $+$ in the top-left corner, alternating in both directions like the squares of a chessboard.",
+    "code": "Cofactor expansion. The sign board for a 3x3:\n\n  | +  -  + |\n  | -  +  - |\n  | +  -  + |\n\n  B = |  2   0   1 |\n      |  3  -1   2 |\n      |  1   4   0 |\n\nExpand along row 1, because it already carries a zero.\n\n  det B = +2 * | -1  2 |  - 0 * | 3  2 |  + 1 * | 3  -1 |\n               |  4  0 |        | 1  0 |        | 1   4 |\n\n        = 2 * ((-1)(0) - (2)(4))  -  0  +  1 * ((3)(4) - (-1)(1))\n\n        = 2 * (0 - 8) + (12 + 1)\n\n        = -16 + 13\n\n        = -3\n\nThe middle term died before its minor was ever computed.\n\nThe same matrix, expanded down column 2 instead. Signs -, +, - :\n\n  det B = -0 * | 3  2 |  + (-1) * | 2  1 |  - 4 * | 2  1 |\n               | 1  0 |           | 1  0 |        | 3  2 |\n\n        = 0 + (-1)(0 - 1) - 4(4 - 3)\n\n        = 1 - 4\n\n        = -3\n\nAny row, any column, the same number. That is a theorem, not a fluke.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "$(-1)^{i+j}$ drawn out. The sign depends only on the position, never on the entry sitting there."
+     },
+     {
+      "line": 11,
+      "text": "A zero entry kills its whole term. Choosing the line with the most zeros is the only real optimisation available by hand."
+     },
+     {
+      "line": 22,
+      "text": "$2(0-8) = -16$ and $1(12+1) = 13$, so $-16 + 13 = -3$. The minus sign in $(3)(4) - (-1)(1)$ turns into $12 + 1$; dropping that double negative is the classic error."
+     },
+     {
+      "line": 37,
+      "text": "Row and column expansions agree because $\\det A^{\\mathsf{T}} = \\det A$, which itself follows from the defining properties."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Compute $\\det \\begin{pmatrix} 2 & 1 & 0 \\\\ 0 & 3 & -1 \\\\ 5 & 0 & 2 \\end{pmatrix}$ by cofactor expansion, and say which row or column you chose and why.",
+     "answer": "7",
+     "rubric": {
+      "required": [
+       "cofactor",
+       "minor",
+       "7",
+       "zero"
+      ],
+      "optional": [
+       "sign",
+       "expan",
+       "row",
+       "column",
+       "chequerboard"
+      ],
+      "minWords": 30
+     },
+     "explain": "Expanding along row 1: $2\\big((3)(2) - (-1)(0)\\big) - 1\\big((0)(2) - (-1)(5)\\big) + 0 = 12 - 5 = 7$. Column 3 is just as good, since it also holds a zero. The usual error is dropping the minus in front of the $(1,2)$ term: $(-1)^{1+2} = -1$, so that entry is subtracted even though the entry itself is positive.",
+     "tags": [
+      "cofactor-expansion",
+      "determinant-2x2-3x3"
+     ],
+     "concepts": [
+      "cofactor-expansion"
+     ]
+    }
+   },
+   {
+    "title": "The Properties Are the Definition",
+    "body": "Cofactor expansion computes the determinant, but three properties **define** it: $\\det I = 1$; swapping two rows multiplies the determinant by $-1$; and $\\det$ is linear in each row separately, the other rows held fixed. Exactly one function of a square matrix satisfies all three, and it is the determinant.\n\nFrom the swap rule alone, a matrix with two equal rows has $\\det = 0$: swapping those rows leaves the matrix untouched yet must flip the sign, so $d = -d$. Combine that with linearity in one row and you get the workhorse - adding a multiple of one row to another leaves the determinant completely unchanged.\n\nSo elimination, the operation you already use to solve systems, is free of charge, and it drives $A$ to an upper-triangular matrix whose determinant is simply the product of the pivots. That is how determinants are actually computed on a machine.\n\nOne warning that costs marks every year: linearity is **per row**. Multiplying a single row of a $3\\times3$ by $5$ multiplies the determinant by $5$, but multiplying the whole matrix by $5$ scales three rows and so multiplies the determinant by $5^3 = 125$.",
+    "code": "Three properties pin the determinant down completely.\n\n  1. det I = 1\n  2. swapping two rows flips the sign\n  3. det is linear in each row separately, the other rows held fixed\n\nTwo consequences do all the daily work:\n\n  two equal rows  =>  det = 0\n      swap them: the matrix is unchanged yet d = -d, so d = 0\n\n  add a multiple of one row to another  =>  det unchanged\n      linearity splits it into det A + c * det(matrix with a repeated row)\n\nSo elimination is free. Take\n\n  N = | 1  2   3 |\n      | 2  5   7 |\n      | 3  7  12 |\n\n  R2 <- R2 - 2*R1,   R3 <- R3 - 3*R1\n\n      | 1  2  3 |\n      | 0  1  1 |\n      | 0  1  3 |\n\n  R3 <- R3 - R2\n\n      | 1  2  3 |\n      | 0  1  1 |\n      | 0  0  2 |\n\nUpper triangular, and not one determinant was harmed on the way:\n\n  det N = 1 * 1 * 2 = 2\n\nTwo traps. Multiplying ONE row of a 3x3 by 5 multiplies det by 5, so\nmultiplying the WHOLE matrix by 5 multiplies det by 5^3 = 125. And\ndet(A + B) is not det A + det B: the linearity is per row, never per matrix.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "The argument uses only the swap rule, so it holds at every size at once and needs no computation."
+     },
+     {
+      "line": 13,
+      "text": "The second piece has row $i$ repeated, so it is $0$ and $\\det A$ survives alone. This is why elimination preserves the determinant exactly."
+     },
+     {
+      "line": 35,
+      "text": "Only row additions were used, never a swap or a scaling, so no correction factor is owed here."
+     },
+     {
+      "line": 38,
+      "text": "$\\det(cA) = c^n \\det A$ for an $n \\times n$ matrix. Answering $5 \\det A$ is the single most common slip on this topic."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A $3\\times3$ matrix $A$ has $\\det A = 4$. Form $B$ by swapping two rows of $A$ and then multiplying one row of the result by $3$. What is $\\det B$? Justify each step by naming the property you used.",
+     "answer": "-12",
+     "rubric": {
+      "required": [
+       "swap",
+       "-12",
+       "sign",
+       "linear"
+      ],
+      "optional": [
+       "row",
+       "3",
+       "scal",
+       "property",
+       "multipl"
+      ],
+      "minWords": 25
+     },
+     "explain": "The swap sends $4$ to $-4$, and scaling a single row by $3$ scales the determinant by $3$, giving $-12$. The trap is treating the scaling as though it hit the whole matrix, which would give $3^3(-4) = -108$; linearity is stated one row at a time, so only the row you touched contributes a factor.",
+     "tags": [
+      "determinant-properties"
+     ],
+     "concepts": [
+      "determinant-properties"
+     ]
+    }
+   },
+   {
+    "title": "det(AB), and Why Invertibility Is a Determinant Question",
+    "body": "Determinants multiply: $\\det(AB) = \\det(A)\\det(B)$. Geometrically this is almost a tautology - do $B$, which scales volume by $\\det B$, then do $A$, which scales it again by $\\det A$ - and the signs compose too, since two flips restore the original orientation.\n\nSet $B = A^{-1}$ and the rule pays out at once: $\\det(A)\\det(A^{-1}) = \\det I = 1$, so an invertible matrix cannot have determinant $0$, and $\\det(A^{-1}) = 1/\\det A$.\n\nThe converse holds as well. If $\\det A \\neq 0$ then elimination never meets a zero pivot, because the determinant equals $\\pm$ the product of the pivots, so $A$ reduces all the way to $I$ and an inverse exists. Together: **$A$ is invertible if and only if $\\det A \\neq 0$**, which is the same as saying $Ax = 0$ has only the zero solution, and the same again as saying the columns of $A$ are linearly independent.\n\nNote what the rule does *not* say. Determinants respect products and never sums: $\\det(A + B)$ has no formula in terms of $\\det A$ and $\\det B$, as $A = I$ and $B = -I$ in two dimensions shows at once.",
+    "code": "det(AB) = det(A) det(B). Check it once by hand.\n\n  P = | 3  1 |    det P = 12 - 2 = 10\n      | 2  4 |\n\n  Q = | 1  -2 |   det Q = 0 - (-10) = 10\n      | 5   0 |\n\n  PQ = | 3*1 + 1*5   3*(-2) + 1*0 |  =  |  8  -6 |\n       | 2*1 + 4*5   2*(-2) + 4*0 |     | 22  -4 |\n\n  det(PQ) = (8)(-4) - (-6)(22) = -32 + 132 = 100 = 10 * 10\n\nThree one-line consequences:\n\n  det(A^-1) = 1 / det A     because det(A) det(A^-1) = det I = 1\n  det(A^T)  = det A         so every row rule is also a column rule\n  det(A^k)  = (det A)^k\n\nAnd the reason anyone cares about the determinant at all:\n\n  A is invertible  <=>  det A is not 0\n\n  (=>) if A^-1 exists then det A * det(A^-1) = 1, so det A cannot be 0\n  (<=) if det A is not 0 then elimination never meets a zero pivot,\n       since det = +/- (product of the pivots), so A reduces to I",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "$ad - bc$ with $b = -2$ and $c = 5$: the subtracted term is $-10$, so it adds. Sign slips here are what make the product check appear to fail."
+     },
+     {
+      "line": 12,
+      "text": "The product rule verified on one case. That is not evidence for the theorem, but it does catch arithmetic errors in $PQ$ instantly."
+     },
+     {
+      "line": 16,
+      "text": "Read straight off the product rule with $B = A^{-1}$. No inverse is ever computed."
+     },
+     {
+      "line": 26,
+      "text": "This is the direction that makes the determinant a genuine invertibility test rather than a curiosity."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "Using the product rule, explain why no matrix with $\\det A = 0$ can have an inverse. Then say what that means geometrically about what $A$ does to volume.",
+     "rubric": {
+      "required": [
+       "product",
+       "invers",
+       "zero",
+       "volume",
+       "det"
+      ],
+      "optional": [
+       "identity",
+       "1",
+       "collaps",
+       "flatten",
+       "contradiction",
+       "singular"
+      ],
+      "minWords": 35
+     },
+     "explain": "If $A^{-1}$ existed then $\\det(A)\\det(A^{-1}) = \\det I = 1$, and $0$ times anything is $0$, never $1$ - so the assumption collapses. Geometrically $\\det A = 0$ means $A$ crushes space into a lower dimension, and no map can restore volume that has already been destroyed. The tempting wrong turn is to say 'you cannot divide by zero in the formula for $A^{-1}$'; that is a symptom of the obstruction, not the reason for it.",
+     "tags": [
+      "product-rule",
+      "det-and-invertibility"
+     ],
+     "concepts": [
+      "det-and-invertibility"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "la-6-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the four gaps. Write a product with no symbol between the letters (for example `bc`), write the word `product`, write `plus` or `minus` for a sign, and write one word for the last blank.",
+   "template": "det of [[a, b], [c, d]] equals ad minus ___\nThe determinant of a triangular matrix is the ___ of its diagonal entries.\nThe cofactor in position (1,2) of a 3x3 matrix carries the sign ___\ndet A = 0 exactly when the columns of A are linearly ___",
+   "blanks": [
+    "bc",
+    "product",
+    "minus",
+    "dependent"
+   ],
+   "xp": 30,
+   "tags": [
+    "determinant-2x2-3x3",
+    "cofactor-expansion",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-2x2-3x3"
+   ],
+   "explain": "Each line is a different handle on the same object: $ad - bc$ is the closed form in two dimensions, the triangular rule is what elimination delivers, $(-1)^{1+2} = -1$ is the chequerboard sign, and linear dependence is what a zero determinant means. Only the last line is about meaning rather than mechanics, and it is the one worth keeping."
+  },
+  {
+   "id": "la-6-g-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute all three determinants: $\\begin{pmatrix} 5 & 2 \\\\ -3 & 4 \\end{pmatrix}$, $\\begin{pmatrix} 2 & 6 \\\\ 1 & 3 \\end{pmatrix}$ and $\\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix}$. For each, state what it says about the area and the orientation of the image of the unit square.",
+   "answer": "26, 0, -1",
+   "rubric": {
+    "required": [
+     "26",
+     "0",
+     "-1",
+     "area",
+     "orient"
+    ],
+    "optional": [
+     "parallelogram",
+     "flip",
+     "reflect",
+     "collaps",
+     "dependen",
+     "sign"
+    ],
+    "minWords": 45
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-2x2-3x3",
+    "determinant-as-volume"
+   ],
+   "concepts": [
+    "determinant-2x2-3x3",
+    "determinant-as-volume"
+   ],
+   "explain": "$(5)(4) - (2)(-3) = 20 + 6 = 26$: areas grow by a factor of $26$ with orientation preserved. $(2)(3) - (6)(1) = 0$: the columns $(2,1)$ and $(6,3)$ are proportional, so the square is flattened onto a line. $(0)(0) - (1)(1) = -1$: area is preserved exactly, but the two axes have swapped, so the plane is reflected. The tempting error in the first is $20 - 6 = 14$, from forgetting that subtracting $bc = -6$ adds."
+  },
+  {
+   "id": "la-6-g-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute $\\det \\begin{pmatrix} 4 & 0 & 0 \\\\ 7 & 2 & -1 \\\\ 3 & 5 & 6 \\end{pmatrix}$ by cofactor expansion. Choose the expansion that costs least, and say explicitly why that choice is cheaper than expanding along the last row.",
+   "answer": "68",
+   "rubric": {
+    "required": [
+     "68",
+     "cofactor",
+     "zero",
+     "minor",
+     "row"
+    ],
+    "optional": [
+     "17",
+     "expan",
+     "sign",
+     "column",
+     "cheap",
+     "term"
+    ],
+    "minWords": 40
+   },
+   "xp": 75,
+   "tags": [
+    "cofactor-expansion",
+    "determinant-2x2-3x3"
+   ],
+   "concepts": [
+    "cofactor-expansion"
+   ],
+   "explain": "Row 1 holds two zeros, so only one term survives: $4 \\cdot \\det \\begin{pmatrix} 2 & -1 \\\\ 5 & 6 \\end{pmatrix} = 4(12 + 5) = 4 \\cdot 17 = 68$. Expanding along row 3 would need all three minors and three sign decisions for the same answer. Note the minor is $12 - (-5) = 17$, not $12 - 5 = 7$; that missed double negative is where nearly all the lost marks live."
+  },
+  {
+   "id": "la-6-g-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Run elimination on $N = \\begin{pmatrix} 1 & 2 & 3 \\\\ 2 & 5 & 7 \\\\ 3 & 7 & 12 \\end{pmatrix}$ using row additions only. Give the stated row after each operation as a list such as `[0, 1, 1]`, then the determinant as the product of the pivots.",
+   "steps": [
+    {
+     "label": "R2 after R2 - 2*R1",
+     "expected": "[0, 1, 1]"
+    },
+    {
+     "label": "R3 after R3 - 3*R1",
+     "expected": "[0, 1, 3]"
+    },
+    {
+     "label": "R3 after R3 - R2",
+     "expected": "[0, 0, 2]"
+    },
+    {
+     "label": "det N, as the product of the pivots",
+     "expected": "2"
+    }
+   ],
+   "xp": 60,
+   "tags": [
+    "determinant-properties",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "Adding a multiple of one row to another never changes the determinant, so the triangular matrix at the end still has $\\det N$. Its pivots are $1, 1, 2$, giving $\\det N = 2$. Had you swapped rows along the way you would owe a factor of $-1$ per swap, and had you scaled a row by $c$ you would owe a $1/c$ - which is exactly why elimination by addition alone is the clean route."
+  },
+  {
+   "id": "la-6-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these five steps into the order you would actually carry out to evaluate a $4\\times4$ determinant by cofactor expansion.",
+   "fragments": [
+    "Evaluate each surviving 3x3 minor.",
+    "Scan the matrix for the row or column holding the most zeros.",
+    "Add the signed terms together to get det A.",
+    "Discard every term whose entry is 0, before computing its minor.",
+    "Expand along that line: each term is (sign) x (entry) x (its 3x3 minor)."
+   ],
+   "answer": [
+    1,
+    4,
+    3,
+    0,
+    2
+   ],
+   "xp": 30,
+   "tags": [
+    "cofactor-expansion"
+   ],
+   "concepts": [
+    "cofactor-expansion"
+   ],
+   "explain": "The scan comes first because it is what makes everything after it cheap, and the discard comes before the minors because a term with entry $0$ vanishes whatever its minor is, so computing it is wasted work. Expanding before scanning is the common habit, and it is the habit that turns a two-minute $4\\times4$ into a ten-minute one."
+  }
+ ],
+ "property-work": [
+  {
+   "id": "la-6-p-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A $3\\times3$ matrix $A$ has $\\det A = 7$. Give, with a one-line reason each, the values of $\\det(2A)$, $\\det(A^{\\mathsf{T}})$, $\\det(A^{-1})$, $\\det(A^3)$, and $\\det B$ where $B$ is $A$ with rows $1$ and $3$ swapped and then row $2$ multiplied by $3$.",
+   "answer": "56, 7, 1/7, 343, -21",
+   "rubric": {
+    "required": [
+     "56",
+     "343",
+     "swap",
+     "transpose",
+     "1/7",
+     "-21"
+    ],
+    "optional": [
+     "8",
+     "product",
+     "row",
+     "sign",
+     "linear",
+     "invers"
+    ],
+    "minWords": 55
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-properties",
+    "product-rule",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-properties",
+    "product-rule"
+   ],
+   "explain": "$\\det(2A) = 2^3 \\cdot 7 = 56$ because all three rows are scaled; $\\det(A^{\\mathsf{T}}) = 7$; $\\det(A^{-1}) = 1/7$ from the product rule; $\\det(A^3) = 7^3 = 343$ for the same reason; and $B$ costs one sign from the swap and one factor of $3$ from the single scaled row, giving $-21$. The two classic errors are $\\det(2A) = 14$, which scales one row instead of three, and letting the swap's $-1$ get lost behind the later scaling."
+  },
+  {
+   "id": "la-6-p-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that if two rows of a square matrix $A$ are identical then $\\det A = 0$. Use only the property that swapping two rows multiplies the determinant by $-1$, and say where your argument would fail if the scalars satisfied $1 + 1 = 0$.",
+   "rubric": {
+    "required": [
+     "swap",
+     "sign",
+     "unchanged",
+     "zero",
+     "characteristic"
+    ],
+    "optional": [
+     "identical",
+     "equal rows",
+     "2d",
+     "divide",
+     "contradiction",
+     "arbitrary"
+    ],
+    "minWords": 60
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-properties",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "Swap the two identical rows. The matrix that comes out is literally the same matrix, so its determinant is still $d$; but the swap rule says it must be $-d$. Hence $d = -d$, so $2d = 0$ and $d = 0$. That last step is the only one making any assumption about the scalars: dividing by $2$ needs $2 \\neq 0$, which fails in characteristic $2$. Arguing instead by expanding cofactors is possible but far longer, and it hides the fact that the result is forced by the swap axiom alone."
+  },
+  {
+   "id": "la-6-p-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "State precisely what 'the determinant is linear in each row' means, then explain why it does **not** give $\\det(A + B) = \\det A + \\det B$. Give a concrete $2\\times2$ counterexample.",
+   "rubric": {
+    "required": [
+     "row",
+     "linear",
+     "fixed",
+     "counterexample",
+     "det"
+    ],
+    "optional": [
+     "multilinear",
+     "identity",
+     "other rows",
+     "sum",
+     "scal",
+     "4"
+    ],
+    "minWords": 45
+   },
+   "xp": 30,
+   "tags": [
+    "determinant-properties"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "Linearity in row $i$ means: with every other row held fixed, replacing row $i$ by $u + v$ splits the determinant into the two matrices carrying $u$ and $v$ there, and scaling row $i$ by $c$ scales the determinant by $c$. Adding $A$ and $B$ changes every row at once, so the hypothesis never applies. Take $A = B = I_2$: $\\det(A + B) = \\det(2I_2) = 4$ while $\\det A + \\det B = 2$. The mistake is reading 'linear' as a claim about the map $A \\mapsto \\det A$, which is not linear at all."
+  },
+  {
+   "id": "la-6-p-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Full cofactor expansion of an $n \\times n$ determinant with no zero entries reduces one determinant to $n$ determinants of size $n-1$. Give the resulting count of multiplications in big-O, and contrast it with computing the determinant by elimination. Justify both.",
+   "answer": "O(n!)",
+   "rubric": {
+    "required": [
+     "factorial",
+     "recur",
+     "elimination",
+     "cubic",
+     "pivot"
+    ],
+    "optional": [
+     "minor",
+     "triangular",
+     "product",
+     "infeasible",
+     "operations",
+     "machine"
+    ],
+    "minWords": 45
+   },
+   "xp": 60,
+   "tags": [
+    "cofactor-expansion",
+    "determinant-properties"
+   ],
+   "concepts": [
+    "cofactor-expansion"
+   ],
+   "explain": "The recurrence $T(n) = n\\,T(n-1) + n$ unfolds to roughly $n!$ multiplications, so a $20\\times20$ determinant is already beyond any machine. Elimination instead drives $A$ to triangular form in about $n^3/3$ operations and reads the determinant off the pivots, which is cubic. Cofactor expansion is a definition and a hand tool for small or sparse matrices; it is not an algorithm. The usual wrong answer is $O(n^2)$, from counting the $n$ terms at only the first level of the recursion."
+  }
+ ],
+ "unseen-problems": [
+  {
+   "id": "la-6-u-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $M(t) = \\begin{pmatrix} t & 1 & 0 \\\\ 1 & t & 1 \\\\ 0 & 1 & t \\end{pmatrix}$. Find every real $t$ for which $M(t)$ fails to be invertible, showing the determinant as a polynomial in $t$ first.",
+   "answer": "t = 0, t = sqrt(2), t = -sqrt(2)",
+   "rubric": {
+    "required": [
+     "t^3",
+     "2t",
+     "factor",
+     "invert",
+     "sqrt",
+     "0"
+    ],
+    "optional": [
+     "singular",
+     "cofactor",
+     "expan",
+     "root",
+     "determinant",
+     "zero"
+    ],
+    "minWords": 45
+   },
+   "xp": 75,
+   "tags": [
+    "det-and-invertibility",
+    "cofactor-expansion",
+    "determinant-2x2-3x3"
+   ],
+   "concepts": [
+    "det-and-invertibility"
+   ],
+   "explain": "Expanding along row 1: $t(t^2 - 1) - 1(t - 0) + 0 = t^3 - 2t = t(t^2 - 2)$, which vanishes at $t = 0$ and $t = \\pm\\sqrt{2}$. At those three values and nowhere else the matrix is singular, so at every other real $t$ an inverse exists. The frequent slip is mis-signing the second term to get $t^3 - t + t = t^3$, which loses two of the three roots - and the third term really is $0$, because the entry $a_{13}$ is zero and kills its minor outright."
+  },
+  {
+   "id": "la-6-u-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Assume only $\\det(AB) = \\det(A)\\det(B)$ and $\\det I = 1$. Prove that if $A$ is invertible then $\\det A \\neq 0$ and $\\det(A^{-1}) = 1/\\det A$. Then explain why this argument alone does not establish the converse.",
+   "rubric": {
+    "required": [
+     "product",
+     "invers",
+     "identity",
+     "zero",
+     "convers",
+     "assume"
+    ],
+    "optional": [
+     "reciprocal",
+     "exists",
+     "elimination",
+     "pivot",
+     "singular",
+     "implication"
+    ],
+    "minWords": 70
+   },
+   "xp": 75,
+   "tags": [
+    "product-rule",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "product-rule",
+    "det-and-invertibility"
+   ],
+   "explain": "If $A^{-1}$ exists then $AA^{-1} = I$, so $\\det(A)\\det(A^{-1}) = \\det I = 1$. Two numbers with product $1$ are both non-zero, giving $\\det A \\neq 0$ and $\\det(A^{-1}) = 1/\\det A$ immediately. The argument begins by assuming an inverse exists, so it says nothing whatever about a matrix whose invertibility is unknown; the converse needs a construction - elimination reaching $n$ non-zero pivots, or the adjugate formula - that manufactures an inverse out of $\\det A \\neq 0$. Treating an implication as its own converse is the error this question exists to catch."
+  },
+  {
+   "id": "la-6-u-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The vectors $u = (1,2,3)$, $v = (2,-1,0)$ and $w = (0,3,1)$ span a parallelepiped. Compute its volume using a determinant, state whether $(u, v, w)$ in that order is positively oriented, and say what a determinant of $0$ would have told you about the three vectors.",
+   "answer": "13",
+   "rubric": {
+    "required": [
+     "13",
+     "volume",
+     "orient",
+     "coplanar",
+     "det"
+    ],
+    "optional": [
+     "positive",
+     "right-hand",
+     "parallelepiped",
+     "dependen",
+     "absolute",
+     "sign"
+    ],
+    "minWords": 45
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-as-volume",
+    "determinant-2x2-3x3",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-as-volume"
+   ],
+   "explain": "Putting the vectors in the rows, $\\det = 1(-1 \\cdot 1 - 0 \\cdot 3) - 2(2 \\cdot 1 - 0 \\cdot 0) + 3(2 \\cdot 3 - (-1) \\cdot 0) = -1 - 4 + 18 = 13$. Volume is the absolute value, so $13$; the sign is positive, so the ordered triple is positively oriented, right-handed like the standard axes. A determinant of $0$ would mean the parallelepiped is flat - the three vectors coplanar, hence linearly dependent. Reporting a signed volume is the common slip: volume is never signed, only the determinant is."
+  },
+  {
+   "id": "la-6-u-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $A$ and $B$ be $4\\times4$ with $\\det A = -3$ and $\\det B = 5$. Decide whether each of $AB$, $A + B$, $2A$ and $A^{\\mathsf{T}}B^{-1}$ is guaranteed invertible, giving the determinant wherever it is determined and explaining precisely why one of the four cannot be decided.",
+   "answer": "det(AB) = -15, det(2A) = -48, det(A^T B^-1) = -3/5; A + B is not determined",
+   "rubric": {
+    "required": [
+     "-15",
+     "-48",
+     "-3/5",
+     "sum",
+     "invert",
+     "determined"
+    ],
+    "optional": [
+     "16",
+     "product",
+     "transpose",
+     "reciprocal",
+     "no formula",
+     "counterexample"
+    ],
+    "minWords": 60
+   },
+   "xp": 75,
+   "tags": [
+    "product-rule",
+    "det-and-invertibility",
+    "determinant-properties"
+   ],
+   "concepts": [
+    "product-rule"
+   ],
+   "explain": "$\\det(AB) = (-3)(5) = -15$, $\\det(2A) = 2^4(-3) = -48$ since all four rows scale, and $\\det(A^{\\mathsf{T}}B^{-1}) = (-3)(1/5) = -3/5$; all three are non-zero, so all three are invertible. $A + B$ is the odd one out: determinants respect products and never sums, and no function of $\\det A$ and $\\det B$ can give $\\det(A + B)$. The standard trap in the third part is $\\det(2A) = 2\\det A = -6$, which forgets that scaling a $4\\times4$ scales four rows."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-6-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For a real $3\\times3$ matrix $A$, the quantity $|\\det A|$ is best described as:",
+   "choices": [
+    "the sum of the lengths of the three column vectors of $A$",
+    "the factor by which $A$ multiplies every volume",
+    "the length of the longest column of $A$",
+    "the number of non-zero pivots elimination produces"
+   ],
+   "answer": 1,
+   "xp": 15,
+   "tags": [
+    "determinant-as-volume"
+   ],
+   "concepts": [
+    "determinant-as-volume"
+   ],
+   "explain": "The determinant is a scaling factor for volume, one number applying to every region at once, and its absolute value strips off the orientation sign. Column lengths measure the sides of the parallelepiped, not its volume - a very long but very thin box has tiny volume. The pivot count is the rank, a related but coarser invariant: it can tell you whether the determinant is zero, never what it equals."
+  },
+  {
+   "id": "la-6-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "For a square real matrix $A$, which of these are **equivalent** to $\\det A = 0$? Select every one that is.",
+   "choices": [
+    "the rows of $A$ are linearly dependent",
+    "$A$ has no inverse",
+    "$A$ has a zero entry somewhere",
+    "$Ax = 0$ has a solution other than $x = 0$",
+    "$A$ has a row consisting entirely of zeros",
+    "elimination on $A$ produces at least one zero pivot"
+   ],
+   "answer": [
+    0,
+    1,
+    3,
+    5
+   ],
+   "xp": 15,
+   "tags": [
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "det-and-invertibility"
+   ],
+   "explain": "Zero determinant, dependent rows, no inverse, a non-trivial null space and a zero pivot are five names for one condition. A zero entry is neither necessary nor sufficient - the identity is riddled with zeros and has determinant $1$. A zero row does force $\\det A = 0$, but the implication runs one way only, so it is not an equivalence: $\\begin{pmatrix} 1 & 1 \\\\ 1 & 1 \\end{pmatrix}$ is singular with no zero row at all."
+  },
+  {
+   "id": "la-6-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Each blank takes a single number. $A$ is a $3\\times3$ matrix.",
+   "template": "Swapping two rows of A multiplies det A by ___\nMultiplying one row of A by 5 multiplies det A by ___\nMultiplying the whole matrix A by 5 multiplies det A by ___\nIf two rows of A are equal then det A = ___",
+   "blanks": [
+    "-1",
+    "5",
+    "125",
+    "0"
+   ],
+   "xp": 30,
+   "tags": [
+    "determinant-properties"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "The third blank is what separates understanding from memory: $cA$ scales all $n$ rows, so $\\det(cA) = c^n \\det A$ and here $5^3 = 125$. The fourth follows from the first, since swapping the equal rows leaves the matrix alone yet must flip the sign, forcing $d = -d$."
+  },
+  {
+   "id": "la-6-e-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute $\\det \\begin{pmatrix} -2 & 7 \\\\ 3 & -5 \\end{pmatrix}$ and state whether the matrix is invertible.",
+   "answer": "-11",
+   "rubric": {
+    "required": [
+     "-11",
+     "invert",
+     "10",
+     "21"
+    ],
+    "optional": [
+     "nonzero",
+     "not zero",
+     "orientation",
+     "singular"
+    ],
+    "minWords": 25
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-2x2-3x3",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-2x2-3x3"
+   ],
+   "explain": "$(-2)(-5) - (7)(3) = 10 - 21 = -11$, which is non-zero, so the matrix is invertible. Two sign errors compete here: reading $(-2)(-5)$ as $-10$, and subtracting in the wrong direction to get $11$. Only the magnitude settles invertibility, but the sign tells you the map reverses orientation."
+  },
+  {
+   "id": "la-6-e-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute $\\det \\begin{pmatrix} 1 & -2 & 3 \\\\ 2 & 0 & 1 \\\\ -1 & 4 & 2 \\end{pmatrix}$ by cofactor expansion along the row or column of your choice, naming your choice and the sign attached to each term you keep.",
+   "answer": "30",
+   "rubric": {
+    "required": [
+     "30",
+     "cofactor",
+     "sign",
+     "minor",
+     "expan"
+    ],
+    "optional": [
+     "row",
+     "column",
+     "zero",
+     "16",
+     "chequer"
+    ],
+    "minWords": 40
+   },
+   "xp": 75,
+   "tags": [
+    "cofactor-expansion",
+    "determinant-2x2-3x3"
+   ],
+   "concepts": [
+    "cofactor-expansion"
+   ],
+   "explain": "Row 2 carries a zero, so expand there with signs $-, +, -$: $-2\\big((-2)(2) - (3)(4)\\big) + 0 - 1\\big((1)(4) - (-2)(-1)\\big) = -2(-16) - 1(2) = 32 - 2 = 30$. Expanding along row 1 gives the same $30$ with one more minor to compute. The commonest failure is taking the row-2 signs as $+, -, +$; the sign board depends on position, so row 2 starts on a minus."
+  },
+  {
+   "id": "la-6-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "$A$ and $B$ are $4\\times4$ with $\\det A = -3$ and $\\det B = 5$. Compute $\\det(AB)$, $\\det(2A)$ and $\\det(B^2 A)$, justifying each with the rule you used.",
+   "answer": "-15, -48, -75",
+   "rubric": {
+    "required": [
+     "-15",
+     "-48",
+     "-75",
+     "product"
+    ],
+    "optional": [
+     "16",
+     "25",
+     "row",
+     "scal",
+     "power"
+    ],
+    "minWords": 40
+   },
+   "xp": 75,
+   "tags": [
+    "product-rule",
+    "determinant-properties"
+   ],
+   "concepts": [
+    "product-rule"
+   ],
+   "explain": "The product rule gives $\\det(AB) = (-3)(5) = -15$ and $\\det(B^2A) = 5^2(-3) = -75$. Scaling is different in kind: $2A$ multiplies all four rows, so $\\det(2A) = 2^4(-3) = -48$, not $-6$. Confusing these two rules - applying the product rule to a scalar multiple - is precisely what the middle part is testing."
+  },
+  {
+   "id": "la-6-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A $3\\times3$ matrix $A$ has $\\det A = 0$. Describe, in geometric terms, what $A$ does to three-dimensional space, and explain why that picture makes an inverse impossible.",
+   "rubric": {
+    "required": [
+     "volume",
+     "collaps",
+     "dependen",
+     "invert",
+     "zero"
+    ],
+    "optional": [
+     "plane",
+     "line",
+     "flatten",
+     "lower dimension",
+     "column",
+     "singular"
+    ],
+    "minWords": 45
+   },
+   "xp": 30,
+   "tags": [
+    "determinant-as-volume",
+    "det-and-invertibility"
+   ],
+   "concepts": [
+    "determinant-as-volume",
+    "det-and-invertibility"
+   ],
+   "explain": "Zero volume scaling means the image of the unit cube is flat: the columns are linearly dependent, so the whole of space is squashed onto a plane, a line or the origin. Distinct points are forced to share an image, so no map can send each output back to a unique input and the inverse cannot exist. The weak answer stops at 'the determinant is zero so it is singular', which restates the definition instead of giving the reason."
+  },
+  {
+   "id": "la-6-e-08",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A $3\\times3$ matrix $A$ has $\\det A = 6$. Each operation below is applied to the result of the previous one. Give the determinant after each.",
+   "steps": [
+    {
+     "label": "after swapping rows 1 and 2",
+     "expected": "-6"
+    },
+    {
+     "label": "after multiplying row 3 by 4",
+     "expected": "-24"
+    },
+    {
+     "label": "after adding 5 times row 1 to row 2",
+     "expected": "-24"
+    },
+    {
+     "label": "after transposing the matrix",
+     "expected": "-24"
+    },
+    {
+     "label": "after negating every entry of the matrix",
+     "expected": "24"
+    }
+   ],
+   "xp": 60,
+   "tags": [
+    "determinant-properties"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "A swap flips the sign, scaling one row multiplies by that scalar, a row addition changes nothing at all, and transposing leaves the determinant fixed. The last step scales all three rows by $-1$, so it multiplies by $(-1)^3 = -1$ - in an even dimension it would have changed nothing, which is why the size of the matrix has to be part of your reasoning."
+  },
+  {
+   "id": "la-6-e-09",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that adding $c$ times row $1$ to row $2$ leaves the determinant of a square matrix unchanged. You may use linearity in a single row and the fact that a matrix with two equal rows has determinant $0$.",
+   "rubric": {
+    "required": [
+     "linear",
+     "row",
+     "split",
+     "equal",
+     "zero",
+     "unchanged"
+    ],
+    "optional": [
+     "multiple",
+     "fixed",
+     "second term",
+     "vanish",
+     "scal",
+     "elimination"
+    ],
+    "minWords": 60
+   },
+   "xp": 75,
+   "tags": [
+    "determinant-properties",
+    "cofactor-expansion"
+   ],
+   "concepts": [
+    "determinant-properties"
+   ],
+   "explain": "Row $2$ becomes $r_2 + c\\,r_1$ while every other row is untouched, so linearity in that one row splits the determinant into $\\det A$ plus $c$ times the determinant of the matrix whose second row is $r_1$. That second matrix has $r_1$ in both row $1$ and row $2$, so its determinant is $0$ and the correction term disappears, leaving $\\det A$ exactly. This result is what licenses elimination as a determinant-preserving procedure, and it is why only swaps and scalings ever incur a correction factor."
+  }
+ ]
+}

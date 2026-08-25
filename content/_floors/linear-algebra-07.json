@@ -1,0 +1,851 @@
+{
+ "n": 7,
+ "name": "Eigenvalues and Eigenvectors",
+ "concepts": [
+  "eigenvector-equation",
+  "characteristic-polynomial",
+  "eigenspaces",
+  "algebraic-geometric-multiplicity",
+  "diagonalisation",
+  "matrix-powers"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-computation",
+  "eigenstructure",
+  "diagonalisation-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Directions a Matrix Cannot Turn",
+  "sections": [
+   {
+    "title": "Invariant Directions",
+    "body": "A matrix $A$ normally does two things to a vector at once: it stretches it and it turns it. An **eigenvector** is a non-zero $v$ on which the turning part simply does not happen, so that $Av$ lands back on the same line through the origin: $$A v = \\lambda v, \\qquad v \\neq 0.$$ The scalar $\\lambda$ is the **eigenvalue**, and it records what happened along that line - stretch when $\\lambda > 1$, shrink when $0 < \\lambda < 1$, flip when $\\lambda < 0$, and collapse to the origin when $\\lambda = 0$.\n\nGeometrically the eigenvectors are the axes the transformation respects. Off those axes a vector is dragged towards whichever eigendirection has the largest $|\\lambda|$, which is why eigenvalues govern the long-run behaviour of anything driven by repeated multiplication.\n\nThe exclusion $v \\neq 0$ is not fussiness: $A0 = \\lambda 0$ holds for every $\\lambda$ whatsoever, so admitting $0$ would make every scalar an eigenvalue and destroy the definition. The eigen*value* $0$, by contrast, is perfectly respectable - it says $A$ crushes a whole direction, which is exactly what a singular matrix does.\n\nNotice too that eigenvectors come in lines, never as isolated arrows: if $Av = \\lambda v$ then $A(cv) = \\lambda(cv)$ for every $c \\neq 0$, so a reported eigenvector is only a representative of its line.",
+    "code": "A = ( 2  1 )      test three vectors\n    ( 1  2 )\n\n  v = (1, 1)     A v = (2*1 + 1*1, 1*1 + 2*1) = (3, 3) = 3 * (1,1)\n                 same line, stretched by 3          EIGENVECTOR, lambda = 3\n\n  v = (1, -1)    A v = (2*1 + 1*(-1), 1*1 + 2*(-1)) = (1, -1) = 1 * (1,-1)\n                 same line, untouched               EIGENVECTOR, lambda = 1\n\n  v = (1, 0)     A v = (2, 1)\n                 (2,1) is not c*(1,0) for any c     NOT an eigenvector\n\nWhat the transformation does to the whole plane:\n\n        the line through (1,1)      stretched by 3\n        the line through (1,-1)     left exactly where it was\n        everything else             swung towards the (1,1) line\n\n  Scaling changes nothing:  A(5,5) = (15,15) = 3*(5,5).\n  An eigenvector is a LINE, and (1,1) is only its label.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Both coordinates tripled together. That is what 'the output is a scalar multiple of the input' looks like in numbers."
+     },
+     {
+      "line": 10,
+      "text": "(2,1) points somewhere new, so (1,0) is an ordinary vector. Most vectors are ordinary; the eigendirections are rare."
+     },
+     {
+      "line": 19,
+      "text": "The eigenvalue equation is homogeneous in v, so any non-zero multiple of an eigenvector is another eigenvector with the same eigenvalue."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "With $A = \\begin{pmatrix} 2 & 1 \\\\ 1 & 2 \\end{pmatrix}$, compute each product and answer the last step with `yes` or `no`. Write vectors as `(a,b)` with no spaces.",
+     "steps": [
+      {
+       "label": "A(1,1)",
+       "expected": "(3,3)"
+      },
+      {
+       "label": "A(2,-2)",
+       "expected": "(2,-2)"
+      },
+      {
+       "label": "A(1,0)",
+       "expected": "(2,1)"
+      },
+      {
+       "label": "Is (1,0) an eigenvector of A?",
+       "expected": "no"
+      }
+     ],
+     "concepts": [
+      "eigenvector-equation"
+     ],
+     "explain": "$A(2,-2) = (2,-2)$ shows the eigenvalue $1$ acting on a rescaled copy of $(1,-1)$: the line, not the particular arrow, is what carries the eigenvalue. $(1,0)$ maps to $(2,1)$, which lies off the horizontal axis, so no scalar $\\lambda$ can satisfy $A(1,0) = \\lambda(1,0)$ and the vector is not an eigenvector."
+    }
+   },
+   {
+    "title": "The Characteristic Polynomial",
+    "body": "Rewriting $Av = \\lambda v$ as $(A - \\lambda I)v = 0$ turns an equation about a mysterious pair $(\\lambda, v)$ into a question about a single matrix: for which $\\lambda$ does $A - \\lambda I$ have a non-zero null vector? A square matrix kills a non-zero vector precisely when it is singular, so the eigenvalues are exactly the roots of $$\\det(A - \\lambda I) = 0,$$ the **characteristic equation**; its left-hand side is the **characteristic polynomial** $p(\\lambda)$.\n\nFor an $n \\times n$ matrix $p$ has degree $n$ with leading term $(-1)^n\\lambda^n$, so such a matrix has at most $n$ eigenvalues, and exactly $n$ when they are counted with multiplicity over $\\mathbb{C}$.\n\nIn the $2 \\times 2$ case the polynomial takes a form worth memorising, $p(\\lambda) = \\lambda^2 - (\\operatorname{tr} A)\\lambda + \\det A$, which gives the two running checks $\\lambda_1 + \\lambda_2 = \\operatorname{tr} A$ and $\\lambda_1\\lambda_2 = \\det A$.\n\nThose identities hold in every dimension - the sum of the eigenvalues is the trace and their product is the determinant - and they catch arithmetic slips far faster than re-solving the polynomial does.",
+    "code": "B = ( 4  1 )\n    ( 2  3 )\n\n  B - lambda*I = ( 4-lambda      1     )\n                 (    2       3-lambda )\n\n  det = (4-lambda)(3-lambda) - (1)(2)\n      = 12 - 7*lambda + lambda^2 - 2\n      = lambda^2 - 7*lambda + 10\n      = (lambda - 5)(lambda - 2)\n\n  eigenvalues:  lambda = 5  and  lambda = 2\n\nCross-checks, both instant:\n\n  trace B = 4 + 3 = 7        and   5 + 2 = 7    OK\n  det B   = 4*3 - 1*2 = 10   and   5 * 2 = 10   OK\n\nThe shortcut for any 2x2:\n\n  p(lambda) = lambda^2 - (trace)*lambda + (det)\n\nA triangular matrix needs no work at all - the determinant of a\ntriangular matrix is the product of its diagonal, so\n\n  ( 1  2  2 )\n  ( 0  3  2 )   has p(lambda) = (1-lambda)(3-lambda)(5-lambda),\n  ( 0  0  5 )   eigenvalues 1, 3, 5 read straight off the diagonal.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Subtracting lambda*I touches only the diagonal. Subtracting it from every entry is the classic slip and produces a polynomial of the wrong shape."
+     },
+     {
+      "line": 9,
+      "text": "The coefficient -7 is minus the trace and the constant 10 is the determinant. That pattern is a free check on all your 2x2 work."
+     },
+     {
+      "line": 27,
+      "text": "The same holds for lower-triangular and diagonal matrices, which is why diagonalising a matrix makes its eigenvalues visible."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For $C = \\begin{pmatrix} 6 & -2 \\\\ -2 & 9 \\end{pmatrix}$, fill in the trace, the determinant and the two eigenvalues. Give plain integers, smaller eigenvalue first.",
+     "template": "trace C = ___\ndet C = ___\nlambda_1 = ___\nlambda_2 = ___",
+     "blanks": [
+      "15",
+      "50",
+      "5",
+      "10"
+     ],
+     "concepts": [
+      "characteristic-polynomial"
+     ],
+     "explain": "$p(\\lambda) = \\lambda^2 - 15\\lambda + 50 = (\\lambda-5)(\\lambda-10)$, and the checks confirm it: $5 + 10 = 15 = \\operatorname{tr} C$ and $5 \\times 10 = 50 = \\det C$. The determinant is $6 \\times 9 - (-2)(-2) = 54 - 4 = 50$; forgetting that the product of the two off-diagonal entries is positive here is the usual route to the wrong polynomial."
+    }
+   },
+   {
+    "title": "Eigenspaces and Two Kinds of Multiplicity",
+    "body": "Once $\\lambda$ is known the eigenvectors are found by solving the homogeneous system $(A - \\lambda I)v = 0$, so the eigenvectors for $\\lambda$, together with $0$, form the null space of $A - \\lambda I$. That subspace is the **eigenspace** $E_\\lambda$, and calling it a space is the useful part: eigenvectors for one eigenvalue can be added and scaled freely without leaving the set.\n\nAn eigenvalue therefore carries two counts. Its **algebraic multiplicity** is its multiplicity as a root of $p(\\lambda)$; its **geometric multiplicity** is $\\dim E_\\lambda = n - \\operatorname{rank}(A - \\lambda I)$.\n\nThey need not agree. The inequality $1 \\le \\text{geometric} \\le \\text{algebraic}$ always holds, and an eigenvalue whose geometric multiplicity falls strictly below its algebraic multiplicity is called **defective** - the polynomial promised more independent directions than the null space can supply.\n\nA shear is the standard offender: it repeats an eigenvalue while fixing only a single line, and no amount of algebra can conjure a second independent eigenvector out of a rank that refuses to drop.",
+    "code": "DEFECTIVE.   S = ( 1  1 )       p(lambda) = (1-lambda)^2\n                 ( 0  1 )       lambda = 1, algebraic multiplicity 2\n\n  S - 1*I = ( 0  1 )   rank 1   =>  dim E_1 = 2 - 1 = 1\n            ( 0  0 )\n\n  E_1 = span{ (1,0) }   geometric 1 < algebraic 2   DEFECTIVE\n  Geometry: the shear pins the x-axis and slides every other line.\n\nHEALTHY REPEAT.   M = (  5  -1  -1 )   p(lambda) = -(lambda-6)(lambda-4)^2\n                      (  0   4   0 )   lambda = 4 has algebraic 2\n                      ( -1   1   5 )\n\n  M - 4I = (  1  -1  -1 )   rank 1  =>  dim E_4 = 3 - 1 = 2\n           (  0   0   0 )\n           ( -1   1   1 )\n\n  E_4 = span{ (1,1,0), (1,0,1) }   geometric 2 = algebraic 2   FINE\n  E_6 = span{ (-1,0,1) }           geometric 1 = algebraic 1\n\nSo a repeated eigenvalue is not itself the problem.  The question is\nalways how much rank A - lambda*I actually loses:\n\n  1 <= geometric <= algebraic,  and equality everywhere is what matters.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "S - I has one non-zero row, so its rank is 1 and its null space is one-dimensional. Rank is the whole story for the geometric count."
+     },
+     {
+      "line": 15,
+      "text": "The three rows of M - 4I are multiples of one another, so rank 1 and a two-dimensional eigenplane. Every vector in that plane is scaled by 4."
+     },
+     {
+      "line": 23,
+      "text": "Geometric multiplicity is at least 1 because lambda being a root forces A - lambda*I singular, hence some non-zero null vector exists."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $N = \\begin{pmatrix} 2 & 1 & 0 \\\\ 0 & 2 & 0 \\\\ 0 & 0 & 3 \\end{pmatrix}$. State the characteristic polynomial, give the algebraic and geometric multiplicity of $\\lambda = 2$, and say what the rank of $N - 2I$ has to do with your answer.",
+     "answer": "p(lambda) = -(lambda-2)^2(lambda-3); lambda = 2 has algebraic multiplicity 2 and geometric multiplicity 1, since rank(N - 2I) = 2 gives dim E_2 = 3 - 2 = 1; E_2 = span{(1,0,0)}.",
+     "rubric": {
+      "required": [
+       "algebraic",
+       "geometric",
+       "rank",
+       "defect",
+       "null"
+      ],
+      "optional": [
+       "triangular",
+       "eigenspace",
+       "dimension",
+       "span",
+       "repeated"
+      ],
+      "minWords": 50
+     },
+     "concepts": [
+      "algebraic-geometric-multiplicity",
+      "eigenspaces"
+     ],
+     "explain": "$N$ is triangular, so $p(\\lambda) = (2-\\lambda)^2(3-\\lambda)$ and $\\lambda = 2$ is a double root. But $N - 2I$ has the two independent rows $(0,1,0)$ and $(0,0,1)$, so its rank is $2$ and the null space is only $\\operatorname{span}\\{(1,0,0)\\}$: geometric $1$ against algebraic $2$, a defect of one. The tempting error is to read the repeated root as a promise of a two-dimensional eigenspace, but only the rank of $N - \\lambda I$ can deliver that."
+    }
+   },
+   {
+    "title": "Diagonalisation and the Payoff in Powers",
+    "body": "Suppose an $n \\times n$ matrix $A$ has $n$ linearly independent eigenvectors. Place them as the columns of $P$ and the matching eigenvalues down the diagonal of $D$; then $AP = PD$, and since independent columns make $P$ invertible we may write $$A = PDP^{-1}, \\qquad D = P^{-1}AP.$$ This is **diagonalisation**, and it says the confusing matrix $A$ is really the simple matrix $D$ seen through a change of basis: $P^{-1}$ rewrites a vector in eigencoordinates, $D$ scales each coordinate independently, and $P$ translates back.\n\nA matrix is diagonalisable exactly when every eigenvalue has geometric multiplicity equal to its algebraic multiplicity, which is another way of saying the eigenvectors span the whole space. Having $n$ distinct eigenvalues is a convenient sufficient condition, never a necessary one.\n\nThe payoff arrives with powers. Since the inner factors cancel in pairs, $A^k = PD^kP^{-1}$, and $D^k$ costs only $n$ scalar powers, so a $k$-step evolution becomes one formula rather than $k$ matrix multiplications.\n\nThat formula is also why eigenvalues predict long-run behaviour: as $k$ grows, $\\lambda^k$ for the largest $|\\lambda|$ swamps the rest, so the state lines up with its eigenvector - decaying when every $|\\lambda| < 1$, settling when the largest is exactly $1$.",
+    "code": "A = ( 2  1 )     eigenpairs:  3 with (1,1),   1 with (1,-1)\n    ( 1  2 )\n\n  P = ( 1   1 )     D = ( 3  0 )     P^-1 = ( 1/2   1/2 )\n      ( 1  -1 )         ( 0  1 )            ( 1/2  -1/2 )\n\n  Multiplying P D P^-1 out returns A exactly.\n\nPowers, because the middles cancel:\n\n  A^k = (P D P^-1)(P D P^-1)...(P D P^-1) = P D^k P^-1\n\n  A^k = ( (3^k + 1)/2   (3^k - 1)/2 )\n        ( (3^k - 1)/2   (3^k + 1)/2 )\n\n  k = 5:   3^5 = 243   =>   A^5 = ( 122  121 )\n                                  ( 121  122 )\n\nLong-run behaviour of a state matrix:\n\n  M = ( 0.8  0.3 )   eigenvalues 1 and 0.5\n      ( 0.2  0.7 )   lambda = 1 -> (3,2),  lambda = 0.5 -> (-1,1)\n\n  Write x0 = a(3,2) + b(-1,1).  Then\n\n     M^k x0 = a * 1^k * (3,2) + b * 0.5^k * (-1,1)\n\n  The second term dies, so every start drifts to the (3,2) line:\n  normalised to a probability vector, (0.6, 0.4).",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The order of the columns of P must match the order of the eigenvalues in D. Swap one and the identity A = PDP^-1 breaks."
+     },
+     {
+      "line": 10,
+      "text": "Every interior P^-1 P collapses to the identity, which is the entire trick: only the outermost P and P^-1 survive."
+     },
+     {
+      "line": 25,
+      "text": "Expanding the start state in the eigenbasis is what makes the k-th step a sum of pure scalings, each with its own lambda^k."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Using $A = \\begin{pmatrix} 2 & 1 \\\\ 1 & 2 \\end{pmatrix}$ with $A^k = PD^kP^{-1}$, compute $A^3$ explicitly and explain why the interior factors of the product cancel.",
+     "answer": "A^3 = [[14, 13], [13, 14]], since (3^3+1)/2 = 14 and (3^3-1)/2 = 13.",
+     "rubric": {
+      "required": [
+       "cancel",
+       "inverse",
+       "diagonal",
+       "14",
+       "13"
+      ],
+      "optional": [
+       "identity",
+       "eigenvalue",
+       "27",
+       "power",
+       "basis"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "diagonalisation",
+      "matrix-powers"
+     ],
+     "explain": "Writing $A^3 = PDP^{-1}PDP^{-1}PDP^{-1}$, each interior $P^{-1}P$ is the identity, leaving $PD^3P^{-1}$ with $D^3 = \\operatorname{diag}(27,1)$. That gives entries $(27+1)/2 = 14$ on the diagonal and $(27-1)/2 = 13$ off it. Multiplying $A$ by itself three times gives the same matrix, of course - the point is that the eigen-formula costs one cube instead of $k-1$ matrix products, and it keeps working when $k$ is left as a symbol."
+    }
+   }
+  ]
+ },
+ "guided-computation": [
+  {
+   "id": "la-7-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "For $B = \\begin{pmatrix} 4 & 1 \\\\ 2 & 3 \\end{pmatrix}$, complete the characteristic polynomial and its roots. Give plain integers, larger eigenvalue first.",
+   "template": "p(lambda) = lambda^2 - ___ lambda + ___\nlambda_1 = ___\nlambda_2 = ___",
+   "blanks": [
+    "7",
+    "10",
+    "5",
+    "2"
+   ],
+   "xp": 36,
+   "tags": [
+    "characteristic-polynomial",
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "characteristic-polynomial"
+   ],
+   "explain": "$\\det(B - \\lambda I) = (4-\\lambda)(3-\\lambda) - 2 = \\lambda^2 - 7\\lambda + 10 = (\\lambda-5)(\\lambda-2)$. The coefficient of $\\lambda$ is minus the trace and the constant is the determinant, so $5+2 = 7$ and $5 \\times 2 = 10$ both check out. The commonest slip is dropping the $-2$ from the off-diagonal product, which would leave the roots $4$ and $3$ - the diagonal entries, which are the eigenvalues only for a triangular matrix."
+  },
+  {
+   "id": "la-7-g-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Still with $B = \\begin{pmatrix} 4 & 1 \\\\ 2 & 3 \\end{pmatrix}$, evaluate each quantity. Give a single integer for each step.",
+   "steps": [
+    {
+     "label": "det(B - 5I)",
+     "expected": "0"
+    },
+    {
+     "label": "det(B - 2I)",
+     "expected": "0"
+    },
+    {
+     "label": "det(B - 3I)",
+     "expected": "-2"
+    },
+    {
+     "label": "rank(B - 5I)",
+     "expected": "1"
+    }
+   ],
+   "xp": 72,
+   "tags": [
+    "characteristic-polynomial",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "eigenvector-equation"
+   ],
+   "explain": "The determinant vanishes exactly at the eigenvalues, which is the whole content of the characteristic equation: $B - 5I$ and $B - 2I$ are singular, while $B - 3I = \\begin{pmatrix} 1 & 1 \\\\ 2 & 0 \\end{pmatrix}$ has determinant $-2 \\neq 0$ and so kills nothing but the zero vector. The rank of $B - 5I = \\begin{pmatrix} -1 & 1 \\\\ 2 & -2 \\end{pmatrix}$ is $1$ because its rows are proportional, leaving a one-dimensional eigenspace - the drop in rank, not the drop to zero, is what counts how many eigenvectors you get."
+  },
+  {
+   "id": "la-7-g-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find both eigenvalues of $H = \\begin{pmatrix} 6 & -2 \\\\ -2 & 9 \\end{pmatrix}$ and a basis eigenvector for each. Verify one of your eigenpairs by computing $Hv$ directly, and say what is special about the angle between the two eigenvectors.",
+   "answer": "lambda = 5 with v = (2,1); lambda = 10 with w = (-1,2). H(2,1) = (10,5) = 5(2,1). The eigenvectors are orthogonal: (2,1).(-1,2) = 0.",
+   "rubric": {
+    "required": [
+     "eigenvalue",
+     "eigenvector",
+     "orthogon",
+     "5",
+     "10"
+    ],
+    "optional": [
+     "symmetric",
+     "null space",
+     "trace",
+     "determinant",
+     "perpendicular",
+     "dot"
+    ],
+    "minWords": 60
+   },
+   "xp": 90,
+   "tags": [
+    "eigenvector-equation",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "eigenvector-equation",
+    "eigenspaces"
+   ],
+   "explain": "$p(\\lambda) = \\lambda^2 - 15\\lambda + 50$ gives $\\lambda = 5, 10$. For $\\lambda = 5$, $(H-5I)v = 0$ reads $x - 2y = 0$, so $v = (2,1)$ and indeed $Hv = (12-2, -4+9) = (10,5) = 5v$; for $\\lambda = 10$ the equation is $-4x - 2y = 0$, giving $w = (-1,2)$. Their dot product is $-2 + 2 = 0$: $H$ is symmetric, and a symmetric matrix always has orthogonal eigenvectors for distinct eigenvalues - a structural fact, not a coincidence of these numbers."
+  },
+  {
+   "id": "la-7-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these steps into the standard procedure for finding all eigenvalues and eigenvectors of a square matrix $A$.",
+   "fragments": [
+    "Form $A - \\lambda I$ by subtracting $\\lambda$ from each diagonal entry.",
+    "Compute $p(\\lambda) = \\det(A - \\lambda I)$ and set it equal to zero.",
+    "Solve the characteristic equation for its roots $\\lambda_1, \\lambda_2, \\ldots$, recording the multiplicity of each root.",
+    "For one fixed root $\\lambda_i$, substitute it back and row-reduce $A - \\lambda_i I$.",
+    "Read off a basis of the null space of $A - \\lambda_i I$; those vectors span the eigenspace $E_{\\lambda_i}$.",
+    "Repeat for every remaining root, then check each pair against $Av = \\lambda v$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "xp": 36,
+   "tags": [
+    "characteristic-polynomial",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "characteristic-polynomial"
+   ],
+   "explain": "The eigenvalues must be found before any eigenvector can be, because the system $(A - \\lambda I)v = 0$ has no content until $\\lambda$ is a specific number - with $\\lambda$ still symbolic, row reduction would divide by expressions that may be zero. Note also that the eigenvectors are read off as a null-space **basis**, one substitution at a time, which is why a repeated root is handled at exactly the same point in the procedure as a simple one."
+  }
+ ],
+ "eigenstructure": [
+  {
+   "id": "la-7-s-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $C = \\begin{pmatrix} 4 & 0 & 1 \\\\ -2 & 1 & 0 \\\\ -2 & 0 & 1 \\end{pmatrix}$, whose characteristic polynomial factors as $-(\\lambda-1)(\\lambda-2)(\\lambda-3)$. Find a basis eigenvector for $\\lambda = 3$ by row-reducing $C - 3I$, confirm your vector satisfies $Cv = 3v$, and state $\\dim E_3$ with a justification from the rank.",
+   "answer": "v = (-1,1,1) or any non-zero multiple. C(-1,1,1) = (-3,3,3) = 3(-1,1,1). rank(C - 3I) = 2, so dim E_3 = 3 - 2 = 1.",
+   "rubric": {
+    "required": [
+     "rank",
+     "null",
+     "eigenspace",
+     "dimension",
+     "row"
+    ],
+    "optional": [
+     "basis",
+     "free variable",
+     "multiple",
+     "substitut",
+     "reduce",
+     "3"
+    ],
+    "minWords": 60
+   },
+   "xp": 90,
+   "tags": [
+    "eigenspaces",
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "eigenspaces"
+   ],
+   "explain": "$C - 3I = \\begin{pmatrix} 1 & 0 & 1 \\\\ -2 & -2 & 0 \\\\ -2 & 0 & -2 \\end{pmatrix}$ row-reduces to two independent rows, so its rank is $2$ and $\\dim E_3 = 3 - 2 = 1$; solving leaves $z$ free with $x = -z$ and $y = z$, hence $v = (-1,1,1)$. The check $Cv = (-4+1, 2+1, 2+1) = (-3,3,3) = 3v$ is worth doing every time, because a sign error inside the row reduction produces a plausible-looking vector that fails it at once. A simple root can never give more than a one-dimensional eigenspace, so a two-dimensional answer here would be a signal that you had reduced the wrong matrix."
+  },
+  {
+   "id": "la-7-s-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compare $N = \\begin{pmatrix} 2 & 1 & 0 \\\\ 0 & 2 & 0 \\\\ 0 & 0 & 3 \\end{pmatrix}$ with $M = \\begin{pmatrix} 5 & -1 & -1 \\\\ 0 & 4 & 0 \\\\ -1 & 1 & 5 \\end{pmatrix}$, whose characteristic polynomial is $-(\\lambda-6)(\\lambda-4)^2$. For the repeated eigenvalue of each matrix give the algebraic multiplicity, the rank of $A - \\lambda I$ and the geometric multiplicity, then say which matrix is defective and why a repeated root alone does not decide it.",
+   "answer": "N: lambda = 2 has algebraic multiplicity 2, rank(N-2I) = 2, geometric multiplicity 1, so N is defective. M: lambda = 4 has algebraic multiplicity 2, rank(M-4I) = 1, geometric multiplicity 2, so M is not defective. A repeated root only bounds the geometric multiplicity from above; the rank decides it.",
+   "rubric": {
+    "required": [
+     "algebraic",
+     "geometric",
+     "rank",
+     "defect",
+     "repeated"
+    ],
+    "optional": [
+     "eigenspace",
+     "null space",
+     "dimension",
+     "inequality",
+     "shear",
+     "independ"
+    ],
+    "minWords": 80
+   },
+   "xp": 90,
+   "tags": [
+    "algebraic-geometric-multiplicity",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "algebraic-geometric-multiplicity"
+   ],
+   "explain": "Both matrices have a double root, yet they behave oppositely: $N - 2I$ keeps rank $2$, so $\\dim E_2 = 1$ and $N$ is defective, while the rows of $M - 4I$ are all multiples of $(1,-1,-1)$, giving rank $1$, $\\dim E_4 = 2$ and no defect. This is the point of keeping the two counts separate - the polynomial can only promise $\\text{geometric} \\le \\text{algebraic}$, and only the rank of $A - \\lambda I$ reports how many independent directions actually exist. Concluding 'repeated root, therefore not diagonalisable' is the standard error, and $M$ is the counterexample."
+  },
+  {
+   "id": "la-7-s-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The projection matrix $Q = \\begin{pmatrix} 1/2 & 1/2 \\\\ 1/2 & 1/2 \\end{pmatrix}$ has eigenvalues $1$ and $0$. Explain what each eigenvalue means geometrically for this map, why $\\lambda = 0$ is a legitimate eigenvalue while $v = 0$ is not a legitimate eigenvector, and what an eigenvalue of $0$ tells you about invertibility.",
+   "rubric": {
+    "required": [
+     "singular",
+     "null",
+     "zero vector",
+     "project",
+     "invertib"
+    ],
+    "optional": [
+     "collapse",
+     "fixed",
+     "line",
+     "determinant",
+     "every scalar",
+     "definition"
+    ],
+    "minWords": 65
+   },
+   "xp": 36,
+   "tags": [
+    "eigenvector-equation",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "eigenvector-equation"
+   ],
+   "explain": "$Q$ projects the plane onto the line through $(1,1)$: vectors already on that line are fixed, giving $\\lambda = 1$, and vectors along $(1,-1)$ are flattened to the origin, giving $\\lambda = 0$ with $E_0 = \\operatorname{span}\\{(1,-1)\\}$. The eigenvalue $0$ is both legal and informative - it says $A$ has a non-trivial null space, hence $\\det A = 0$ and $A$ is not invertible - whereas admitting $v = 0$ would be fatal, since $A0 = \\lambda 0$ holds for every $\\lambda$ and every scalar would become an eigenvalue. Confusing the harmless zero eigenvalue with the forbidden zero eigenvector is the usual muddle here."
+  },
+  {
+   "id": "la-7-s-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ be square with eigenpairs $(\\lambda_1, v_1)$ and $(\\lambda_2, v_2)$ where $\\lambda_1 \\neq \\lambda_2$. Prove that $v_1$ and $v_2$ are linearly independent. Start from $c_1v_1 + c_2v_2 = 0$, apply $A$ to it, and eliminate one term.",
+   "rubric": {
+    "required": [
+     "independ",
+     "apply",
+     "eliminat",
+     "distinct",
+     "nonzero",
+     "combination"
+    ],
+    "optional": [
+     "subtract",
+     "scalar",
+     "contradiction",
+     "multiply",
+     "definition",
+     "zero"
+    ],
+    "minWords": 90
+   },
+   "xp": 90,
+   "tags": [
+    "eigenvector-equation",
+    "algebraic-geometric-multiplicity"
+   ],
+   "concepts": [
+    "eigenvector-equation",
+    "algebraic-geometric-multiplicity"
+   ],
+   "explain": "Apply $A$ to $c_1v_1 + c_2v_2 = 0$ to get $c_1\\lambda_1v_1 + c_2\\lambda_2v_2 = 0$, then subtract $\\lambda_2$ times the original relation: the $v_2$ term cancels and $c_1(\\lambda_1 - \\lambda_2)v_1 = 0$ remains. Since $\\lambda_1 \\neq \\lambda_2$ and $v_1 \\neq 0$, this forces $c_1 = 0$, and then $c_2v_2 = 0$ forces $c_2 = 0$. Both hypotheses do real work - distinctness makes the scalar factor non-zero, and the definition's insistence that an eigenvector is non-zero is what stops the argument collapsing. This result is exactly why $n$ distinct eigenvalues guarantee a full eigenbasis."
+  }
+ ],
+ "diagonalisation-workshop": [
+  {
+   "id": "la-7-d-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Diagonalise $B = \\begin{pmatrix} 4 & 1 \\\\ 2 & 3 \\end{pmatrix}$: give $P$, $D$ and $P^{-1}$ explicitly, say why $P$ is invertible, and use $B^3 = PD^3P^{-1}$ to compute $B^3$ as a matrix of integers.",
+   "answer": "P = [[1,1],[1,-2]], D = diag(5,2), P^-1 = [[2/3,1/3],[1/3,-1/3]]; B^3 = [[86,39],[78,47]].",
+   "rubric": {
+    "required": [
+     "eigenvector",
+     "invertib",
+     "independ",
+     "diagonal",
+     "86",
+     "47"
+    ],
+    "optional": [
+     "column",
+     "order",
+     "125",
+     "cancel",
+     "basis",
+     "trace"
+    ],
+    "minWords": 70
+   },
+   "xp": 90,
+   "tags": [
+    "diagonalisation",
+    "matrix-powers"
+   ],
+   "concepts": [
+    "diagonalisation"
+   ],
+   "explain": "The eigenpairs are $5$ with $(1,1)$ and $2$ with $(1,-2)$, so $P = \\begin{pmatrix} 1 & 1 \\\\ 1 & -2 \\end{pmatrix}$ and $D = \\operatorname{diag}(5,2)$; $P$ is invertible because its columns are eigenvectors for distinct eigenvalues and hence independent, giving $\\det P = -3 \\neq 0$. With $D^3 = \\operatorname{diag}(125, 8)$ the product $PD^3P^{-1}$ evaluates to $\\begin{pmatrix} 86 & 39 \\\\ 78 & 47 \\end{pmatrix}$, whose trace $133 = 125 + 8$ is a free check. Listing $D$ in an order that does not match the columns of $P$ is the classic wrecking move, and it shows up immediately as a wrong $B^3$."
+  },
+  {
+   "id": "la-7-d-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Suppose $A = PDP^{-1}$ with $D$ diagonal. Prove by induction on $k \\ge 1$ that $A^k = PD^kP^{-1}$, and state what $D^k$ is in terms of the eigenvalues. Then explain in one sentence why this makes the behaviour of $A^k$ for large $k$ depend on the eigenvalue of largest absolute value.",
+   "rubric": {
+    "required": [
+     "induction",
+     "base case",
+     "inverse",
+     "cancel",
+     "diagonal",
+     "largest"
+    ],
+    "optional": [
+     "identity",
+     "entries",
+     "lambda",
+     "dominant",
+     "hypothesis",
+     "power"
+    ],
+    "minWords": 90
+   },
+   "xp": 90,
+   "tags": [
+    "matrix-powers",
+    "diagonalisation"
+   ],
+   "concepts": [
+    "matrix-powers",
+    "diagonalisation"
+   ],
+   "explain": "The base case $k=1$ is the hypothesis itself; assuming $A^k = PD^kP^{-1}$, we get $A^{k+1} = A^kA = PD^kP^{-1}PDP^{-1} = PD^kDP^{-1} = PD^{k+1}P^{-1}$, the single $P^{-1}P$ in the middle collapsing to $I$. Because $D$ is diagonal, $D^k = \\operatorname{diag}(\\lambda_1^k, \\ldots, \\lambda_n^k)$ - diagonal matrices raise entrywise, which is precisely why the change of basis is worth making. For large $k$ the largest $|\\lambda_i|$ dominates the others in ratio, so after rescaling $A^kx$ aligns with that eigenvector; note the proof never assumes the $\\lambda_i$ are distinct, only that some diagonalisation exists."
+  },
+  {
+   "id": "la-7-d-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A population moves between two towns each year according to $M = \\begin{pmatrix} 0.8 & 0.3 \\\\ 0.2 & 0.7 \\end{pmatrix}$, whose eigenvalues are $1$ and $0.5$ with eigenvectors $(3,2)$ and $(-1,1)$. Starting from $x_0 = (1,0)$, write $x_0$ in the eigenbasis, give a closed form for $x_k = M^kx_0$, and state the limiting distribution with a reason drawn from the eigenvalues.",
+   "answer": "x_0 = (1/5)(3,2) - (2/5)(-1,1), so x_k = (1/5)(3,2) - (2/5)(0.5)^k(-1,1), and x_k -> (0.6, 0.4) because 0.5^k -> 0 while 1^k stays 1.",
+   "rubric": {
+    "required": [
+     "eigenbasis",
+     "0.6",
+     "0.4",
+     "decay",
+     "lambda",
+     "steady"
+    ],
+    "optional": [
+     "coefficient",
+     "combination",
+     "dominant",
+     "converge",
+     "column",
+     "rate"
+    ],
+    "minWords": 75
+   },
+   "xp": 90,
+   "tags": [
+    "matrix-powers",
+    "diagonalisation",
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "matrix-powers"
+   ],
+   "explain": "Solving $a(3,2) + b(-1,1) = (1,0)$ gives $a = 1/5$ and $b = -2/5$, so $x_k = \\tfrac{1}{5}(3,2) - \\tfrac{2}{5}(0.5)^k(-1,1)$; the second term decays geometrically while the first is untouched because $1^k = 1$, leaving the steady state $(0.6, 0.4)$. The eigenvalue $1$ is what makes a limit exist at all - it is forced here because each column of $M$ sums to $1$, so no population is created or destroyed - and the size of the subdominant eigenvalue $0.5$ sets the speed of convergence, halving the error each year. Iterating the matrix numerically would produce the same numbers but would explain neither the limit nor the rate."
+  }
+ ],
+ "exam": [
+  {
+   "id": "la-7-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A vector $v$ is an **eigenvector** of the square matrix $A$ exactly when:",
+   "choices": [
+    "$Av = \\lambda v$ for some scalar $\\lambda$, with $v \\neq 0$",
+    "$Av = \\lambda v$ for some scalar $\\lambda$, with $\\lambda \\neq 0$",
+    "$Av = 0$ and $v \\neq 0$",
+    "$\\det(A - vI) = 0$"
+   ],
+   "answer": 0,
+   "xp": 18,
+   "tags": [
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "eigenvector-equation"
+   ],
+   "explain": "The exclusion belongs to the vector, not the scalar: $v = 0$ satisfies $Av = \\lambda v$ for every $\\lambda$ and would make the definition vacuous, while $\\lambda = 0$ is a genuine eigenvalue signalling a non-trivial null space. The third option describes only that $\\lambda = 0$ case, and the fourth substitutes a vector into the characteristic equation, where a scalar is required."
+  },
+  {
+   "id": "la-7-e-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about an $n \\times n$ matrix $A$ are true by definition or by theorem? Select all that apply.",
+   "choices": [
+    "$A$ is diagonalisable if and only if it has $n$ linearly independent eigenvectors",
+    "Having $n$ distinct eigenvalues is sufficient for diagonalisability",
+    "Having $n$ distinct eigenvalues is necessary for diagonalisability",
+    "The geometric multiplicity of an eigenvalue never exceeds its algebraic multiplicity",
+    "The eigenspace $E_\\lambda$ is the null space of $A - \\lambda I$"
+   ],
+   "answer": [
+    0,
+    1,
+    3,
+    4
+   ],
+   "xp": 18,
+   "tags": [
+    "diagonalisation",
+    "algebraic-geometric-multiplicity"
+   ],
+   "concepts": [
+    "diagonalisation"
+   ],
+   "explain": "Diagonalisability is precisely the existence of an eigenbasis, and distinct eigenvalues force independence, so they are sufficient - but the identity matrix is already diagonal with one eigenvalue repeated $n$ times, which settles that they are not necessary. The multiplicity inequality and the description of $E_\\lambda$ as $\\operatorname{null}(A - \\lambda I)$ are both standard, and together they say a matrix fails to be diagonalisable exactly when some eigenvalue is defective."
+  },
+  {
+   "id": "la-7-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "For the shear $S = \\begin{pmatrix} 1 & 1 \\\\ 0 & 1 \\end{pmatrix}$, fill in the four quantities. Give plain integers, and write `yes` or `no` for the last.",
+   "template": "the only eigenvalue of S is ___\nits algebraic multiplicity is ___\nits geometric multiplicity is ___\nis S diagonalisable? ___",
+   "blanks": [
+    "1",
+    "2",
+    "1",
+    "no"
+   ],
+   "xp": 36,
+   "tags": [
+    "algebraic-geometric-multiplicity",
+    "diagonalisation"
+   ],
+   "concepts": [
+    "algebraic-geometric-multiplicity"
+   ],
+   "explain": "$p(\\lambda) = (1-\\lambda)^2$ makes $\\lambda = 1$ a double root, but $S - I = \\begin{pmatrix} 0 & 1 \\\\ 0 & 0 \\end{pmatrix}$ has rank $1$, so $\\dim E_1 = 2 - 1 = 1$ and only the $x$-axis is fixed. With one independent eigenvector in a two-dimensional space there is no invertible $P$ of eigenvectors, so $S$ is not diagonalisable - the defect is visible geometrically as the shear sliding every line except one."
+  },
+  {
+   "id": "la-7-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a valid derivation of the characteristic equation from the eigenvalue equation.",
+   "fragments": [
+    "Start from $Av = \\lambda v$ with $v \\neq 0$.",
+    "Rewrite the right-hand side as $\\lambda I v$, so that both sides are matrices acting on $v$.",
+    "Collect the terms: $(A - \\lambda I)v = 0$.",
+    "So the matrix $A - \\lambda I$ sends a non-zero vector to $0$, that is, it has a non-trivial null space.",
+    "A square matrix with a non-trivial null space is singular, so $\\det(A - \\lambda I) = 0$.",
+    "Hence the eigenvalues of $A$ are exactly the roots of the polynomial $p(\\lambda) = \\det(A - \\lambda I)$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "xp": 36,
+   "tags": [
+    "characteristic-polynomial",
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "characteristic-polynomial"
+   ],
+   "explain": "Inserting $I$ is the step that makes the subtraction legal, since $A - \\lambda$ is not defined - a matrix and a scalar cannot be subtracted. Everything after it is a chain of equivalences about singularity, and the requirement $v \\neq 0$ carried down from the first line is exactly what forces the determinant to vanish rather than merely permitting it."
+  },
+  {
+   "id": "la-7-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A = \\begin{pmatrix} 2 & 1 \\\\ 1 & 2 \\end{pmatrix}$, with eigenvalues $3$ and $1$, so that $A^k$ has diagonal entries $(3^k+1)/2$ and off-diagonal entries $(3^k-1)/2$. Give each answer as a single integer.",
+   "steps": [
+    {
+     "label": "the (1,1) entry of A^2",
+     "expected": "5"
+    },
+    {
+     "label": "the (1,2) entry of A^3",
+     "expected": "13"
+    },
+    {
+     "label": "the (1,1) entry of A^5",
+     "expected": "122"
+    },
+    {
+     "label": "the trace of A^5",
+     "expected": "244"
+    }
+   ],
+   "xp": 72,
+   "tags": [
+    "matrix-powers",
+    "diagonalisation"
+   ],
+   "concepts": [
+    "matrix-powers"
+   ],
+   "explain": "With $3^2 = 9$, $3^3 = 27$ and $3^5 = 243$ the formula gives $5$, $13$ and $122$ directly, and the trace of $A^5$ is $122 + 122 = 244 = 3^5 + 1^5$. That last identity is not a coincidence: the trace of $A^k$ is always the sum of the $k$-th powers of the eigenvalues, because $A^k$ and $D^k$ are similar and similar matrices share a trace."
+  },
+  {
+   "id": "la-7-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $G = \\begin{pmatrix} 3 & 4 \\\\ 4 & -3 \\end{pmatrix}$. Find its eigenvalues, compute $G^2$, and use the eigenvalues to explain the result. What kind of geometric transformation does $G$ perform?",
+   "answer": "Eigenvalues 5 and -5; G^2 = 25I. G is a reflection scaled by 5: it fixes the eigenline for +5 and flips the eigenline for -5, so applying it twice restores every direction.",
+   "rubric": {
+    "required": [
+     "reflect",
+     "eigenvalue",
+     "25",
+     "twice",
+     "square"
+    ],
+    "optional": [
+     "trace",
+     "determinant",
+     "identity",
+     "flip",
+     "line",
+     "sign"
+    ],
+    "minWords": 65
+   },
+   "xp": 90,
+   "tags": [
+    "eigenvector-equation",
+    "matrix-powers",
+    "characteristic-polynomial"
+   ],
+   "concepts": [
+    "eigenvector-equation",
+    "matrix-powers"
+   ],
+   "explain": "$\\operatorname{tr} G = 0$ and $\\det G = -25$ give $p(\\lambda) = \\lambda^2 - 25$, so $\\lambda = \\pm 5$, and squaring sends both to $25$: $G^2 = 25I$, as direct multiplication confirms. Geometrically $G$ scales by $5$ and reflects across the eigenline for $+5$ - the eigenline for $-5$ is turned through half a turn - so two applications undo the flip and leave a pure scaling by $25$. The eigenvalue view explains the identity in one line, whereas multiplying the matrices out only verifies it."
+  },
+  {
+   "id": "la-7-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $R = \\begin{pmatrix} 0 & -1 \\\\ 1 & 0 \\end{pmatrix}$, the quarter-turn anticlockwise. Compute its characteristic polynomial and show it has no real roots. Explain geometrically why that had to happen, and say what changes if complex scalars are allowed.",
+   "answer": "p(lambda) = lambda^2 + 1, whose discriminant is negative, so there is no real eigenvalue; over the complex numbers the eigenvalues are i and -i. Geometrically a quarter turn maps no real line to itself, so no real vector can satisfy Rv = lambda v.",
+   "rubric": {
+    "required": [
+     "no real",
+     "rotat",
+     "line",
+     "complex",
+     "characteristic"
+    ],
+    "optional": [
+     "discriminant",
+     "trace",
+     "determinant",
+     "imaginary",
+     "invariant",
+     "defect"
+    ],
+    "minWords": 70
+   },
+   "xp": 90,
+   "tags": [
+    "characteristic-polynomial",
+    "eigenvector-equation"
+   ],
+   "concepts": [
+    "characteristic-polynomial",
+    "eigenvector-equation"
+   ],
+   "explain": "$\\operatorname{tr} R = 0$ and $\\det R = 1$ give $p(\\lambda) = \\lambda^2 + 1$, with no real root. That is exactly what the geometry demands: an eigenvector spans a line the map sends back to itself, and a rotation by $90^\\circ$ moves every line in the plane, so there is nothing for a real eigenvalue to describe. Over $\\mathbb{C}$ the roots are $\\pm i$ and $R$ is diagonalisable there - failing to be diagonalisable over $\\mathbb{R}$ for want of roots is a different failure from being defective, where the roots exist but the eigenvectors run short."
+  },
+  {
+   "id": "la-7-e-08",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $A$ be an $n \\times n$ matrix. Prove that $A$ is invertible if and only if $0$ is not an eigenvalue of $A$. Then prove that if $Av = \\lambda v$ with $v \\neq 0$ and $A$ is invertible, then $A^{-1}v = \\lambda^{-1}v$, and say why the assumption of invertibility is needed for that second claim to make sense.",
+   "rubric": {
+    "required": [
+     "invertib",
+     "null",
+     "singular",
+     "determinant",
+     "both directions",
+     "nonzero"
+    ],
+    "optional": [
+     "definition",
+     "multiply",
+     "divide",
+     "eigenvalue",
+     "trivial",
+     "reciprocal"
+    ],
+    "minWords": 95
+   },
+   "xp": 90,
+   "tags": [
+    "eigenvector-equation",
+    "eigenspaces"
+   ],
+   "concepts": [
+    "eigenvector-equation",
+    "eigenspaces"
+   ],
+   "explain": "$0$ is an eigenvalue exactly when $Av = 0$ for some $v \\neq 0$, that is, when the null space is non-trivial, which for a square matrix is equivalent to $\\det A = 0$ and so to non-invertibility; running that chain in both directions is the whole proof. For the second part, multiply $Av = \\lambda v$ by $A^{-1}$ to get $v = \\lambda A^{-1}v$, then divide by $\\lambda$ - legal precisely because invertibility has already ruled out $\\lambda = 0$. So $A$ and $A^{-1}$ share eigenvectors while their eigenvalues are reciprocals, which is why $A^{-1}$ magnifies exactly the directions $A$ shrinks."
+  },
+  {
+   "id": "la-7-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes: \"Every $n \\times n$ matrix has $n$ eigenvalues counted with multiplicity, so every matrix has $n$ eigenvectors and is therefore diagonalisable.\" Identify the exact step that fails, name a $2 \\times 2$ counterexample, and explain what diagonalisability really requires in terms of the two multiplicities.",
+   "rubric": {
+    "required": [
+     "geometric",
+     "algebraic",
+     "independ",
+     "counterexample",
+     "shear",
+     "defect"
+    ],
+    "optional": [
+     "rank",
+     "null space",
+     "basis",
+     "repeated",
+     "span",
+     "eigenspace"
+    ],
+    "minWords": 70
+   },
+   "xp": 36,
+   "tags": [
+    "diagonalisation",
+    "algebraic-geometric-multiplicity"
+   ],
+   "concepts": [
+    "diagonalisation",
+    "algebraic-geometric-multiplicity"
+   ],
+   "explain": "The failure is the leap from roots to independent eigenvectors: the characteristic polynomial counts algebraic multiplicity, but the columns of $P$ must be geometrically independent, and $\\dim E_\\lambda = n - \\operatorname{rank}(A - \\lambda I)$ can fall short. The shear $\\begin{pmatrix} 1 & 1 \\\\ 0 & 1 \\end{pmatrix}$ has $\\lambda = 1$ twice yet only the single eigenline $\\operatorname{span}\\{(1,0)\\}$, so no eigenbasis of $\\mathbb{R}^2$ exists. Diagonalisability requires geometric multiplicity to equal algebraic multiplicity for **every** eigenvalue; one defective eigenvalue is enough to sink the whole matrix."
+  }
+ ]
+}
