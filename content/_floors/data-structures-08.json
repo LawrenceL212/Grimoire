@@ -1,0 +1,489 @@
+{
+ "n": 8,
+ "name": "The Prefix Halls",
+ "cognitiveLevel": "transfer",
+ "concepts": [
+  "trie-structure",
+  "prefix-search",
+  "terminal-marker",
+  "trie-vs-hash",
+  "disjoint-sets",
+  "find-and-union",
+  "path-compression",
+  "union-by-rank"
+ ],
+ "sequence": ["lesson", "guided-practice", "implementation", "exam"],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A tree whose edges are letters",
+    "body": "Every structure so far has treated a key as an indivisible thing to be compared or hashed. A **trie** does the opposite: it takes the key apart and spends its structure on the *shared* parts.\n\nEach edge is labelled with one character, and a path from the root spells a prefix. Two words with a common prefix share the nodes for that prefix and diverge only where they differ, so `car`, `cart` and `card` cost seven nodes between them rather than eleven. The node itself stores nothing but its children and one flag.\n\nThat flag is essential and easy to forget. A node's existence proves only that some word passes *through* here, not that the path so far is itself a word. Storing `cart` creates nodes for `c`, `a`, `r` and `t`, but `car` is a word only if something says so - hence the **terminal marker**, a boolean on each node meaning \"a stored word ends here\". Without it, a trie holding only `cart` reports that `c`, `ca` and `car` are all stored.\n\nLookup costs O(m) in the length of the key and, remarkably, does not depend on how many words the trie holds at all. A hash table's lookup is also about O(m), since it must hash the whole key - so the trie's real advantage is not raw lookup. It is that the trie can answer questions a hash table cannot: every word starting with a given prefix is a subtree, reachable by walking to that prefix and collecting what lies below. A hash table would have to examine every key it holds.",
+    "code": "function makeNode() {\n  return { children: Object.create(null), terminal: false };\n}\n\nfunction insert(root, word) {\n  let node = root;\n  for (const ch of word) {\n    if (!node.children[ch]) node.children[ch] = makeNode();\n    node = node.children[ch];\n  }\n  node.terminal = true;\n}\n\nfunction has(root, word) {\n  let node = root;\n  for (const ch of word) {\n    node = node.children[ch];\n    if (!node) return false;\n  }\n  return node.terminal;\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 2, "text": "`Object.create(null)` rather than `{}`, for the reason the hash table floor gave: a plain object already has inherited keys, so a word containing the substring `constructor` would find a child node that was never created." },
+     { "line": 18, "text": "Returning `node.terminal`, not `true`. Reaching the end of the path only proves the prefix exists; the flag is what distinguishes a stored word from a path through one." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "trieHas",
+     "prompt": "Write `trieHas(words, query)` which inserts every word of `words` into a trie and then reports whether `query` is one of the stored words. A prefix of a stored word is not itself a stored word unless it was inserted too.",
+     "starterCode": "function trieHas(words, query) {\n  const root = { children: Object.create(null), terminal: false };\n  // build the trie, then walk the query - and check the flag at the end\n  return false;\n}\n",
+     "tests": [
+      { "input": "['cart'], 'cart'", "expected": true },
+      { "input": "['cart'], 'car'", "expected": false },
+      { "input": "['car', 'cart'], 'car'", "expected": true },
+      { "input": "[], 'a'", "expected": false },
+      { "input": "['a'], ''", "expected": false }
+     ],
+     "solution": "function trieHas(words, query) {\n  const root = { children: Object.create(null), terminal: false };\n  for (const w of words) {\n    let node = root;\n    for (const ch of w) {\n      if (!node.children[ch]) node.children[ch] = { children: Object.create(null), terminal: false };\n      node = node.children[ch];\n    }\n    node.terminal = true;\n  }\n  let node = root;\n  for (const ch of query) {\n    node = node.children[ch];\n    if (!node) return false;\n  }\n  return node.terminal;\n}\n",
+     "hint": "The walk and the flag are two separate questions. Falling off the trie means no, but arriving successfully only means the prefix exists.",
+     "concepts": ["trie-structure", "terminal-marker"],
+     "tags": ["terminal-marker"],
+     "explain": "Tests 1 and 2 are the same trie and differ only in the flag: `car` is a path through `cart` and not a word. Test 5 is the empty query, which lands on the root - whose terminal flag is false because the empty string was never inserted, so the answer is correctly no rather than an accident.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "What a trie is worth, and what it costs",
+    "body": "The operation that justifies a trie is **prefix search**: given `ca`, produce every stored word beginning with it. Walk to the node for `ca` - O(m) - and then everything in that subtree is an answer. Collecting them is proportional to the number of matches, not to the size of the dictionary. That is why tries sit underneath autocomplete, command-line completion, and routing tables.\n\nA hash table cannot do this at any price short of a full scan. Hashing deliberately destroys the relationship between similar keys: `ca` and `cat` land in unrelated buckets by design, and there is no way to ask a hash table for \"keys near this one\" because it has thrown that information away. This is the same trade the BST floor described from the other side - structure that relates keys to one another buys ordered and neighbourhood queries; hashing buys constant-time lookup by giving them up.\n\nThe cost is memory, and it is real. Every node carries a child map, and for a large alphabet stored as a fixed array that is mostly empty space. A dictionary of long words with few shared prefixes is close to the worst case: you pay for a node per character and share almost nothing. Tries reward dense, overlapping key sets - which is exactly what natural-language dictionaries and URL paths are.\n\nThere are two more useful facts. A trie's iteration order is lexicographic if children are visited in sorted order, so it sorts for free. And lookup time depends on the key length, never on how many keys are stored - so unlike a hash table it has no load factor, no resize, and no adversarial worst case.",
+    "code": "function collect(node, prefix, out) {\n  if (node.terminal) out.push(prefix);\n  for (const ch of Object.keys(node.children).sort()) {\n    collect(node.children[ch], prefix + ch, out);\n  }\n  return out;\n}\n\nfunction startingWith(root, prefix) {\n  let node = root;\n  for (const ch of prefix) {\n    node = node.children[ch];\n    if (!node) return [];        // no word has this prefix\n  }\n  return collect(node, prefix, []);\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 2, "text": "The prefix itself is a result when it is also a stored word - so searching for `car` must return `car` as well as `card` and `cart`, and checking the flag before descending is what puts it first." },
+     { "line": 3, "text": "Sorting the child keys makes the whole traversal lexicographic, so a trie yields its contents already ordered without any sort at the end." }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const node = { children: Object.create(null), terminal: false };\nnode.children['a'] = { children: Object.create(null), terminal: true };\nconsole.log(Object.keys(node.children).length);\nconsole.log(node.terminal);\nconsole.log(node.children['a'].terminal);",
+     "lang": "javascript",
+     "answer": "1\nfalse\ntrue",
+     "concepts": ["terminal-marker", "trie-structure"],
+     "tags": ["terminal-marker"],
+     "explain": "The parent has a child and is not itself a word; the child is. That separation is the whole reason the flag exists - having children and being a word are independent, and a node can be either, both, or neither.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Disjoint sets: the structure for \"are these connected?\"",
+    "body": "A different problem entirely. You have n items and a stream of statements that two of them belong together. At any moment you must answer whether two items are in the same group. Groups merge and never split.\n\nRebuilding the groups after each statement is far too slow. **Union-Find**, or the disjoint-set structure, keeps them implicitly instead. Every element points at a parent, and following parents leads to a **representative** - the element that points at itself. Two elements are in the same set exactly when their walks end at the same representative. There are only two operations: `find(x)` returns x's representative, and `union(a, b)` makes one representative point at the other, merging two sets in O(1) once both have been found.\n\nNote what this structure deliberately cannot do. It cannot list a set's members, and it cannot split one. It answers exactly one question - same set or not - and that narrowness is what makes it nearly free.\n\nWritten naively it degrades exactly as an unbalanced BST does: repeated unions can build a long chain, and `find` walks it in O(n). Two refinements fix this and are worth stating separately, because each solves a different half.\n\n**Union by rank** attaches the shorter tree under the taller one, so the height grows only when two equally tall trees merge - which bounds the height at O(log n) on its own. **Path compression** makes `find` do repair work as it goes: having walked to the representative, point every node on that path directly at it, so the next walk is one step. Each is good; together the amortised cost per operation is the inverse Ackermann function, which is below 5 for any n that could exist. Effectively constant, though not actually constant.",
+    "code": "function makeSets(n) {\n  return { parent: Array.from({ length: n }, (_, i) => i),\n           rank: new Array(n).fill(0) };\n}\n\nfunction find(ds, x) {\n  while (ds.parent[x] !== x) {\n    ds.parent[x] = ds.parent[ds.parent[x]];   // path halving\n    x = ds.parent[x];\n  }\n  return x;\n}\n\nfunction union(ds, a, b) {\n  const ra = find(ds, a), rb = find(ds, b);\n  if (ra === rb) return false;                // already together\n  if (ds.rank[ra] < ds.rank[rb]) { ds.parent[ra] = rb; return true; }\n  if (ds.rank[rb] < ds.rank[ra]) { ds.parent[rb] = ra; return true; }\n  ds.parent[rb] = ra;\n  ds.rank[ra]++;                              // equal heights: one grows\n  return true;\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 8, "text": "Path halving - point each node at its grandparent while walking up. It flattens the tree almost as well as full path compression and needs no second pass or recursion." },
+     { "line": 20, "text": "The rank increases only when two trees of equal height merge. That is what keeps the height logarithmic, and it is why rank is an upper bound on height rather than an exact measure once compression has flattened things." }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the loop that walks to an element's representative.",
+     "template": "function find(parent, x) {\n  while (parent[x] ___ x) {\n    x = parent[___];\n  }\n  return x;\n}\n",
+     "blanks": ["!==", "x"],
+     "concepts": ["find-and-union", "disjoint-sets"],
+     "tags": ["find-and-union"],
+     "explain": "The representative is defined as the element that is its own parent, so the walk continues exactly while that is not yet true. Any other stopping rule - a fixed number of steps, or a null parent - either stops early in the middle of a chain or never stops at all, since a representative's self-loop is what terminates the walk.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Where connectivity questions actually come from",
+    "body": "Union-Find looks abstract until you notice how many problems are connectivity questions wearing other clothes.\n\n**Cycle detection in an undirected graph.** Process the edges one at a time. For edge `(a, b)`, if `find(a)` already equals `find(b)` then a path between them existed before this edge, so this edge closes a cycle. Otherwise union them. One pass, no traversal, no visited set.\n\n**Kruskal's minimum spanning tree.** Sort the edges by weight and add each one unless it would form a cycle - which is the test above. Union-Find is what makes Kruskal practical; without it, checking each candidate edge for a cycle would need a graph search.\n\n**Counting connected components.** Start with n components and decrement each time a union actually merges two distinct sets. That is what the boolean return from `union` is for: it distinguishes a real merge from a statement you already knew.\n\n**Percolation, image segmentation, network reachability, type unification** - all the same shape. The recognisable signature is: things merge, never split, and you only ever ask whether two are together.\n\nThe honest limitation is worth repeating, because it decides whether the structure fits. Union-Find cannot undo a union, cannot enumerate a set's members without scanning everything, and cannot answer *how* two elements are connected - only that they are. When you need the path, you need a graph traversal, not this.",
+    "code": "function countComponents(n, edges) {\n  const ds = makeSets(n);\n  let components = n;\n  for (const [a, b] of edges) {\n    if (union(ds, a, b)) components--;   // only a real merge counts\n  }\n  return components;\n}\n\nfunction hasCycle(n, edges) {\n  const ds = makeSets(n);\n  for (const [a, b] of edges) {\n    if (!union(ds, a, b)) return true;   // already connected: this edge closes a cycle\n  }\n  return false;\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 5, "text": "The boolean is doing real work. A duplicate edge, or one between vertices already connected by another route, must not reduce the count - so `union` reporting whether it actually merged anything is what keeps this correct." },
+     { "line": 13, "text": "The same boolean, read the other way round. A union that changes nothing means the two endpoints were already connected, so this edge is the one that closes a cycle." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "countComponents",
+     "prompt": "Write `countComponents(n, edges)` returning how many connected components exist among vertices `0` to `n - 1` given the list of undirected `edges`, each `[a, b]`. Duplicate edges and self-loops must not change the count.",
+     "starterCode": "function countComponents(n, edges) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  // start at n components, and count down only on a real merge\n  return n;\n}\n",
+     "tests": [
+      { "input": "5, []", "expected": 5 },
+      { "input": "5, [[0, 1], [1, 2]]", "expected": 3 },
+      { "input": "3, [[0, 1], [0, 1], [1, 0]]", "expected": 2 },
+      { "input": "0, []", "expected": 0 },
+      { "input": "4, [[0, 0], [1, 1]]", "expected": 4 }
+     ],
+     "solution": "function countComponents(n, edges) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const find = (x) => {\n    while (parent[x] !== x) {\n      parent[x] = parent[parent[x]];\n      x = parent[x];\n    }\n    return x;\n  };\n  let components = n;\n  for (const [a, b] of edges) {\n    const ra = find(a), rb = find(b);\n    if (ra !== rb) { parent[rb] = ra; components--; }\n  }\n  return components;\n}\n",
+   "hint": "Decrement only when the two representatives actually differ - that single check handles duplicate edges and self-loops without any special case for either.",
+     "concepts": ["disjoint-sets", "find-and-union"],
+     "tags": ["disjoint-sets"],
+     "explain": "Tests 3 and 5 are the whole point. A repeated edge and a self-loop both produce two equal representatives, so the merge check rejects them automatically and no special-casing is needed. Decrementing on every edge instead would report 0 components for test 3 and 2 for test 5 - both nonsense, and both invisible on the simple test 2.",
+     "xp": 35
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-8-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const root = { children: Object.create(null), terminal: false };\nlet n = root;\nfor (const ch of 'cart') {\n  n.children[ch] = { children: Object.create(null), terminal: false };\n  n = n.children[ch];\n}\nn.terminal = true;\nconsole.log(root.children['c'].children['a'].terminal);\nconsole.log(root.children['c'].children['a'].children['r'].children['t'].terminal);",
+   "lang": "javascript",
+   "answer": "false\ntrue",
+   "concepts": ["terminal-marker", "trie-structure"],
+   "tags": ["terminal-marker"],
+   "explain": "Only the final node of the inserted word is marked. Every node along the way exists - the path `ca` is real - but existing and being a stored word are different claims, which is exactly what the flag separates.",
+   "xp": 20
+  },
+  {
+   "id": "ds-8-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A trie holds `car`, `card` and `cat`. Give the number of children each node has, walking down from the root along `c`, then `a`, then `r`.",
+   "steps": [
+    { "label": "the root", "expected": "1" },
+    { "label": "the node reached by 'c'", "expected": "1" },
+    { "label": "the node reached by 'ca'", "expected": "2" },
+    { "label": "the node reached by 'car'", "expected": "1" }
+   ],
+   "concepts": ["trie-structure", "prefix-search"],
+   "tags": ["trie-structure"],
+   "explain": "The branching happens exactly where the words stop agreeing: `ca` is shared by all three, then `r` and `t` split off, and `card` extends `car` by one more child. Three words of three and four letters cost six nodes instead of ten, and that saving is the whole economic case for a trie.",
+   "xp": 30
+  },
+  {
+   "id": "ds-8-g-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague proposes replacing an autocomplete trie with a hash set of the same words, arguing that hash lookup is O(1) and therefore faster. Explain what breaks.",
+   "rubric": {
+    "required": ["prefix", "scan", "hash", "subtree", "bucket"],
+    "optional": ["autocomplete", "unrelated", "every key", "O(n)", "order", "neighbour"],
+    "minWords": 60
+   },
+   "concepts": ["trie-vs-hash", "prefix-search"],
+   "tags": ["trie-vs-hash"],
+   "explain": "Autocomplete never asks the question a hash set answers. It asks for every word starting with a prefix, and hashing deliberately scatters similar keys into unrelated buckets - so `ca` tells you nothing about where `cat` is stored, and the only way to find the matches is to examine every key in the set. In a trie the prefix is a node and the answers are its subtree, so the cost is proportional to the number of matches rather than the size of the dictionary. The O(1) claim is also about the wrong operation: both structures must look at the whole key, so exact lookup is comparable, and the difference is entirely in what else each can answer.",
+   "xp": 35
+  },
+  {
+   "id": "ds-8-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Six elements 0 to 5, each its own set. Apply `union(0,1)`, then `union(2,3)`, then `union(1,2)`, then `union(4,5)`. After each, give the number of disjoint sets remaining.",
+   "steps": [
+    { "label": "after union(0,1)", "expected": "5" },
+    { "label": "after union(2,3)", "expected": "4" },
+    { "label": "after union(1,2)", "expected": "3" },
+    { "label": "after union(4,5)", "expected": "2" }
+   ],
+   "concepts": ["disjoint-sets", "find-and-union"],
+   "tags": ["disjoint-sets"],
+   "explain": "Each successful union reduces the count by exactly one, because it replaces two sets with one. The third is the interesting one: 1 and 2 are in different sets already containing 0 and 3, so a single union merges four elements at once - the operation is on representatives, not on elements, which is why it costs the same regardless of set size.",
+   "xp": 30
+  },
+  {
+   "id": "ds-8-g-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the union-by-rank tie-break, taken when both trees have equal rank.",
+   "template": "if (rank[ra] === rank[rb]) {\n  parent[rb] = ra;\n  rank[ra]___;\n}\n",
+   "blanks": ["++"],
+   "concepts": ["union-by-rank"],
+   "tags": ["union-by-rank"],
+   "explain": "Attaching a tree under a root of equal rank is the only case that makes the result taller, so it is the only case that increments. Incrementing on every union would inflate the rank until it stopped reflecting height and the balancing decisions became arbitrary.",
+   "xp": 25
+  },
+  {
+   "id": "ds-8-g-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of detecting a cycle in an undirected graph with Union-Find into the order they must happen.",
+   "fragments": [
+    "put every vertex in its own set",
+    "take the next edge (a, b)",
+    "find the representative of a and the representative of b",
+    "if the two representatives are equal, report a cycle",
+    "otherwise union the two sets and continue"
+   ],
+   "answer": [0, 1, 2, 3, 4],
+   "concepts": ["find-and-union", "disjoint-sets"],
+   "tags": ["find-and-union"],
+   "explain": "The equality test must come before the union, not after - once the sets are merged the representatives are equal regardless, so the evidence of a cycle is destroyed by the very operation that follows it. This is the whole of Kruskal's cycle check, and it needs no graph traversal or visited set at all.",
+   "xp": 25
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-8-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "startingWith",
+   "prompt": "Write `startingWith(words, prefix)` returning every stored word beginning with `prefix`, in lexicographic order, by building a trie and collecting the subtree at the prefix. A word that equals the prefix counts. An empty prefix returns every word.",
+   "starterCode": "function startingWith(words, prefix) {\n  const root = { children: Object.create(null), terminal: false };\n  // build, walk to the prefix, then collect everything below it\n  return [];\n}\n",
+   "tests": [
+    { "input": "['car', 'card', 'cat', 'dog'], 'ca'", "expected": ["car", "card", "cat"] },
+    { "input": "['car', 'card'], 'car'", "expected": ["car", "card"] },
+    { "input": "['car'], 'z'", "expected": [] },
+    { "input": "['b', 'a'], ''", "expected": ["a", "b"] },
+    { "input": "[], 'a'", "expected": [] }
+   ],
+   "solution": "function startingWith(words, prefix) {\n  const make = () => ({ children: Object.create(null), terminal: false });\n  const root = make();\n  for (const w of words) {\n    let node = root;\n    for (const ch of w) {\n      if (!node.children[ch]) node.children[ch] = make();\n      node = node.children[ch];\n    }\n    node.terminal = true;\n  }\n  let node = root;\n  for (const ch of prefix) {\n    node = node.children[ch];\n    if (!node) return [];\n  }\n  const out = [];\n  const collect = (n, acc) => {\n    if (n.terminal) out.push(acc);\n    for (const ch of Object.keys(n.children).sort()) collect(n.children[ch], acc + ch);\n  };\n  collect(node, prefix);\n  return out;\n}\n",
+   "hint": "Check the terminal flag before descending, so a word equal to the prefix comes out first, and sort the child keys to get lexicographic order for free.",
+   "concepts": ["prefix-search", "trie-structure"],
+   "tags": ["prefix-search"],
+   "explain": "Test 2 is the case people miss: `car` is both the prefix and a stored word, so it must appear in its own results. Test 4 shows the trie sorting for nothing - visiting children in sorted key order makes the whole traversal lexicographic, which a hash set could only match by sorting afterwards.",
+   "xp": 45
+  },
+  {
+   "id": "ds-8-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "countPrefixNodes",
+   "prompt": "Write `countPrefixNodes(words)` returning how many nodes a trie holding all of `words` contains, **excluding** the root. This is the number of distinct prefixes across the whole word list.",
+   "starterCode": "function countPrefixNodes(words) {\n  // a node exists once per distinct prefix, however many words share it\n  return 0;\n}\n",
+   "tests": [
+    { "input": "[]", "expected": 0 },
+    { "input": "['a']", "expected": 1 },
+    { "input": "['car', 'cart']", "expected": 4 },
+    { "input": "['car', 'dog']", "expected": 6 },
+    { "input": "['a', 'a']", "expected": 1 }
+   ],
+   "solution": "function countPrefixNodes(words) {\n  const root = { children: Object.create(null) };\n  let count = 0;\n  for (const w of words) {\n    let node = root;\n    for (const ch of w) {\n      if (!node.children[ch]) {\n        node.children[ch] = { children: Object.create(null) };\n        count++;\n      }\n      node = node.children[ch];\n    }\n  }\n  return count;\n}\n",
+   "hint": "Count only when you actually create a node. Counting every character instead measures the total length of the words, which is what the trie exists to beat.",
+   "concepts": ["trie-structure", "trie-vs-hash"],
+   "tags": ["trie-structure"],
+   "explain": "`car` and `cart` are seven characters and cost four nodes, because `car` is entirely shared; `car` and `dog` are six characters and cost six, because they share nothing. That gap is the trie's whole economics - it rewards dense overlapping key sets and punishes long unrelated ones, which is why it suits dictionaries and URL paths and suits random identifiers badly.",
+   "xp": 40
+  },
+  {
+   "id": "ds-8-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "longestCommonPrefix",
+   "prompt": "Write `longestCommonPrefix(words)` returning the longest prefix shared by every word. Build a trie and walk down from the root while there is exactly one child and no word has ended. Return `''` when there is no common prefix or the list is empty.",
+   "starterCode": "function longestCommonPrefix(words) {\n  // descend while the path does not branch and no word terminates\n  return '';\n}\n",
+   "tests": [
+    { "input": "['flower', 'flow', 'flight']", "expected": "fl" },
+    { "input": "['dog', 'racecar']", "expected": "" },
+    { "input": "[]", "expected": "" },
+    { "input": "['same', 'same']", "expected": "same" },
+    { "input": "['ab', 'abc']", "expected": "ab" }
+   ],
+   "solution": "function longestCommonPrefix(words) {\n  if (words.length === 0) return '';\n  const make = () => ({ children: Object.create(null), terminal: false });\n  const root = make();\n  for (const w of words) {\n    let node = root;\n    for (const ch of w) {\n      if (!node.children[ch]) node.children[ch] = make();\n      node = node.children[ch];\n    }\n    node.terminal = true;\n  }\n  let node = root, out = '';\n  for (;;) {\n    const keys = Object.keys(node.children);\n    if (keys.length !== 1 || node.terminal) return out;\n    out += keys[0];\n    node = node.children[keys[0]];\n  }\n}\n",
+   "hint": "Two things stop the descent: the path branching, and a word ending here. Missing the second walks past a word that is itself the answer.",
+   "concepts": ["prefix-search", "terminal-marker"],
+   "tags": ["prefix-search"],
+   "explain": "Test 5 is why the terminal check matters. After `ab` the trie has one child `c`, so a descent that only watches for branching keeps going and returns `abc` - a string that is not a prefix of `ab` at all. A word ending is as much a stopping condition as a fork, and forgetting it is invisible until one word is a prefix of another.",
+   "xp": 45
+  },
+  {
+   "id": "ds-8-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "unionFindOps",
+   "prompt": "Write `unionFindOps(n, ops)` over elements `0` to `n - 1`. `ops` is an array of strings: `'union A B'` merges two sets, `'same A B'` asks whether two elements are in the same set. Return an array of the booleans produced by the `'same'` operations.",
+   "starterCode": "function unionFindOps(n, ops) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const out = [];\n  // find walks to the representative; union links one to the other\n  return out;\n}\n",
+   "tests": [
+    { "input": "3, ['same 0 1']", "expected": [false] },
+    { "input": "3, ['union 0 1', 'same 0 1']", "expected": [true] },
+    { "input": "4, ['union 0 1', 'union 2 3', 'same 0 3', 'union 1 2', 'same 0 3']", "expected": [false, true] },
+    { "input": "2, ['same 0 0']", "expected": [true] },
+    { "input": "3, ['union 0 1', 'union 0 1', 'same 1 0']", "expected": [true] }
+   ],
+   "solution": "function unionFindOps(n, ops) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const find = (x) => {\n    while (parent[x] !== x) {\n      parent[x] = parent[parent[x]];\n      x = parent[x];\n    }\n    return x;\n  };\n  const out = [];\n  for (const op of ops) {\n    const parts = op.split(' ');\n    const a = Number(parts[1]), b = Number(parts[2]);\n    const ra = find(a), rb = find(b);\n    if (parts[0] === 'union') {\n      if (ra !== rb) parent[rb] = ra;\n    } else {\n      out.push(ra === rb);\n    }\n  }\n  return out;\n}\n",
+   "hint": "Never compare the elements themselves - always compare their representatives, because two elements in the same set almost never point at each other directly.",
+   "concepts": ["find-and-union", "disjoint-sets", "path-compression"],
+   "tags": ["find-and-union"],
+   "explain": "Test 3 is transitivity emerging from the structure rather than being programmed: 0 and 3 are unrelated until `union(1,2)` joins the two pairs, after which one `find` from each end reaches the same representative. Test 4 is the reflexive case - an element is always in its own set - which falls out for free because `find(0)` equals `find(0)` without any special case.",
+   "xp": 45
+  },
+  {
+   "id": "ds-8-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "hasCycle",
+   "prompt": "Write `hasCycle(n, edges)` returning `true` if the undirected graph on vertices `0` to `n - 1` contains a cycle. Use Union-Find rather than a traversal. A self-loop is a cycle, and a repeated edge between the same two vertices is also a cycle.",
+   "starterCode": "function hasCycle(n, edges) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  // an edge whose endpoints already share a representative closes a cycle\n  return false;\n}\n",
+   "tests": [
+    { "input": "3, [[0, 1], [1, 2]]", "expected": false },
+    { "input": "3, [[0, 1], [1, 2], [2, 0]]", "expected": true },
+    { "input": "3, []", "expected": false },
+    { "input": "2, [[0, 0]]", "expected": true },
+    { "input": "3, [[0, 1], [0, 1]]", "expected": true }
+   ],
+   "solution": "function hasCycle(n, edges) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const find = (x) => {\n    while (parent[x] !== x) {\n      parent[x] = parent[parent[x]];\n      x = parent[x];\n    }\n    return x;\n  };\n  for (const [a, b] of edges) {\n    const ra = find(a), rb = find(b);\n    if (ra === rb) return true;\n    parent[rb] = ra;\n  }\n  return false;\n}\n",
+   "hint": "Test the two representatives for equality before merging them - after the union they are equal no matter what, so the evidence is gone.",
+   "concepts": ["find-and-union", "disjoint-sets"],
+   "tags": ["find-and-union"],
+   "explain": "Tests 4 and 5 both fall out of the same check with no special handling: a self-loop has one vertex whose representative trivially equals itself, and a repeated edge finds the two endpoints already merged by the first copy. This is Kruskal's cycle test in full, and it is why Kruskal is practical - checking each candidate edge with a graph search instead would cost O(V + E) every time.",
+   "xp": 45
+  },
+  {
+   "id": "ds-8-i-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "sameSet",
+   "prompt": "This Union-Find compares the elements' parents instead of their representatives, so it gets transitive cases wrong. Fix it, keeping the name `sameSet`. It takes `n` and an array of ops as in the previous challenges, and returns the booleans from the `'same'` operations.",
+   "starterCode": "function sameSet(n, ops) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const out = [];\n  for (const op of ops) {\n    const parts = op.split(' ');\n    const a = Number(parts[1]), b = Number(parts[2]);\n    if (parts[0] === 'union') {\n      parent[b] = a;                       // link b under a\n    } else {\n      out.push(parent[a] === parent[b]);   // BUG: compares parents, not roots\n    }\n  }\n  return out;\n}\n",
+   "tests": [
+    { "input": "3, ['union 0 1', 'same 0 1']", "expected": [true] },
+    { "input": "4, ['union 0 1', 'union 1 2', 'same 0 2']", "expected": [true] },
+    { "input": "3, ['same 0 1']", "expected": [false] },
+    { "input": "4, ['union 0 1', 'union 2 3', 'same 0 3']", "expected": [false] },
+    { "input": "5, ['union 0 1', 'union 1 2', 'union 2 3', 'same 0 3']", "expected": [true] }
+   ],
+   "solution": "function sameSet(n, ops) {\n  const parent = Array.from({ length: n }, (_, i) => i);\n  const find = (x) => {\n    while (parent[x] !== x) {\n      parent[x] = parent[parent[x]];\n      x = parent[x];\n    }\n    return x;\n  };\n  const out = [];\n  for (const op of ops) {\n    const parts = op.split(' ');\n    const a = Number(parts[1]), b = Number(parts[2]);\n    const ra = find(a), rb = find(b);\n    if (parts[0] === 'union') {\n      if (ra !== rb) parent[rb] = ra;\n    } else {\n      out.push(ra === rb);\n    }\n  }\n  return out;\n}\n",
+   "hint": "One step up the chain is not enough - membership is decided by where the whole walk ends, and unions must link representatives rather than raw elements.",
+   "concepts": ["find-and-union", "path-compression", "disjoint-sets"],
+   "tags": ["path-compression"],
+   "explain": "Looking one level up works only while every chain is one link long, so the bug survives test 1 and dies on test 2, where 0 and 2 are in the same set through 1 but have different immediate parents. Test 5 makes it worse by building a chain of four. Two things must change: `find` has to walk to the representative, and `union` has to link representatives rather than elements - linking `b` directly under `a` can otherwise detach an entire subtree from the set it was already in.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-8-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Why does a trie node need a terminal marker?",
+   "choices": [
+    "Because a node's existence only proves some word passes through it, not that the path so far is a word",
+    "Because leaves cannot store characters",
+    "Because it records how many words share the prefix",
+    "Because it marks where the alphabet ends"
+   ],
+   "answer": 0,
+   "concepts": ["terminal-marker"],
+   "tags": ["terminal-marker"],
+   "explain": "Storing `cart` creates nodes for `c`, `ca` and `car`, none of which is a stored word. Without the flag the trie reports every prefix of every word as stored - and note the flag is not the same as being a leaf, since `car` can be a word with `card` continuing below it.",
+   "xp": 15
+  },
+  {
+   "id": "ds-8-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these can a trie do that a hash set of the same strings cannot? Select all that apply.",
+   "choices": [
+    "List every stored word beginning with a given prefix without examining unrelated words",
+    "Produce its contents in lexicographic order without a separate sort",
+    "Find the longest prefix shared by all stored words by descending from the root",
+    "Report whether an exact string is stored"
+   ],
+   "answer": [0, 1, 2],
+   "concepts": ["trie-vs-hash", "prefix-search"],
+   "tags": ["trie-vs-hash"],
+   "explain": "The first three all exploit the fact that a trie's structure mirrors the keys' shared structure. Exact membership is the one thing both do comparably - each must look at the whole key - which is why quoting O(1) for the hash set misses the point: the difference is in the questions the trie can answer at all.",
+   "xp": 25
+  },
+  {
+   "id": "ds-8-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const parent = [0, 1, 2, 3];\nfunction find(x) {\n  while (parent[x] !== x) x = parent[x];\n  return x;\n}\nparent[1] = 0;\nparent[2] = 1;\nconsole.log(find(2));\nconsole.log(parent[2]);",
+   "lang": "javascript",
+   "answer": "0\n1",
+   "concepts": ["find-and-union", "path-compression"],
+   "tags": ["find-and-union"],
+   "explain": "`find(2)` walks 2 to 1 to 0 and reports the representative correctly, but this version does no compression, so `parent[2]` is still 1 and the next walk costs the same again. Path compression is exactly the missing step: point every node on the walk directly at the representative so the second lookup is one hop.",
+   "xp": 25
+  },
+  {
+   "id": "ds-8-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the descent that collects every word under a prefix node.",
+   "template": "function collect(node, prefix, out) {\n  if (node.___) out.push(prefix);\n  for (const ch of Object.keys(node.children).___()) {\n    collect(node.children[ch], prefix + ch, out);\n  }\n  return out;\n}\n",
+   "blanks": ["terminal", "sort"],
+   "concepts": ["prefix-search", "terminal-marker"],
+   "tags": ["prefix-search"],
+   "explain": "The flag is checked before descending so that a word equal to the prefix is reported first, and sorting the child keys makes the entire traversal lexicographic without any sort at the end. Object key order is insertion order for string keys, which is not alphabetical, so the sort is doing real work.",
+   "xp": 25
+  },
+  {
+   "id": "ds-8-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of Kruskal's minimum spanning tree algorithm into the order they must happen.",
+   "fragments": [
+    "put every vertex in its own disjoint set",
+    "sort all the edges by weight, lightest first",
+    "take the next lightest edge",
+    "if its endpoints are already in the same set, discard it as a cycle",
+    "otherwise union the sets and add the edge to the tree"
+   ],
+   "answer": [0, 1, 2, 3, 4],
+   "concepts": ["find-and-union", "disjoint-sets"],
+   "tags": ["disjoint-sets"],
+   "explain": "The sort is what makes the greedy choice correct, and Union-Find is what makes the cycle test cheap enough for the greed to be practical - without it each candidate edge would need a graph search to decide whether it closes a cycle. Adding the edge before testing would build the cycle you are trying to avoid.",
+   "xp": 25
+  },
+  {
+   "id": "ds-8-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Five elements 0 to 4, each its own set, using union by rank with ties linking the second argument under the first. Apply `union(0,1)`, `union(2,3)`, `union(0,2)`. Give the rank of element 0 after each.",
+   "steps": [
+    { "label": "after union(0,1)", "expected": "1" },
+    { "label": "after union(2,3)", "expected": "1" },
+    { "label": "after union(0,2)", "expected": "2" }
+   ],
+   "concepts": ["union-by-rank"],
+   "tags": ["union-by-rank"],
+   "explain": "Rank rises only when two trees of equal rank merge. The first union joins two rank-0 elements and lifts 0 to rank 1; the second does not touch 0 at all; the third merges two rank-1 trees and lifts it to 2. Three unions and a rank of 2 for four elements is the logarithmic growth that keeps `find` short.",
+   "xp": 30
+  },
+  {
+   "id": "ds-8-x-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the time complexity of looking a word of length m up in a trie holding n words, and explain what is notable about it compared with a hash table.",
+   "answer": "O(m)",
+   "rubric": {
+    "required": ["length", "n", "independent", "hash"],
+    "optional": ["collision", "load factor", "resize", "worst", "adversar", "key"],
+    "minWords": 50
+   },
+   "concepts": ["trie-vs-hash", "trie-structure"],
+   "tags": ["trie-vs-hash"],
+   "explain": "One step per character, so O(m) in the key length and completely independent of n - the trie can hold ten words or ten million and the lookup costs the same. A hash table is also about O(m), since it must hash the whole key, but its guarantee is weaker: it is an average that assumes a well-behaved hash and a bounded load factor, it has a worst case of O(n) when keys collide, and it needs periodic O(n) resizes. The trie has no load factor, no resize, and no adversarial input - which is worth more than it first appears.",
+   "xp": 40
+  },
+  {
+   "id": "ds-8-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "wordBreakable",
+   "prompt": "Write `wordBreakable(dict, text)` returning `true` if `text` can be split into a sequence of one or more words all present in `dict`. Use a trie so that each attempted split walks characters rather than re-testing whole substrings. The empty text is not breakable.",
+   "starterCode": "function wordBreakable(dict, text) {\n  // from each position, walk the trie forward and recurse where a word ends\n  return false;\n}\n",
+   "tests": [
+    { "input": "['cat', 'cats', 'and', 'sand', 'dog'], 'catsanddog'", "expected": true },
+    { "input": "['cat', 'dog'], 'catfish'", "expected": false },
+    { "input": "['a'], ''", "expected": false },
+    { "input": "['a', 'aa'], 'aaa'", "expected": true },
+    { "input": "['ab'], 'ab'", "expected": true }
+   ],
+   "solution": "function wordBreakable(dict, text) {\n  if (text.length === 0) return false;\n  const make = () => ({ children: Object.create(null), terminal: false });\n  const root = make();\n  for (const w of dict) {\n    let node = root;\n    for (const ch of w) {\n      if (!node.children[ch]) node.children[ch] = make();\n      node = node.children[ch];\n    }\n    node.terminal = true;\n  }\n  const memo = new Array(text.length + 1).fill(null);\n  const from = (i) => {\n    if (i === text.length) return true;\n    if (memo[i] !== null) return memo[i];\n    let node = root;\n    memo[i] = false;\n    for (let j = i; j < text.length; j++) {\n      node = node.children[text[j]];\n      if (!node) break;\n      if (node.terminal && from(j + 1)) { memo[i] = true; break; }\n    }\n    return memo[i];\n  };\n  return from(0);\n}\n",
+   "hint": "Walking the trie from a position gives you every dictionary word starting there in one pass. Memoise by position, or the same suffix is re-solved exponentially often.",
+   "concepts": ["prefix-search", "trie-structure", "terminal-marker"],
+   "tags": ["prefix-search"],
+   "explain": "The trie turns 'which dictionary words start here?' into a single forward walk that stops the moment no word can continue - test 2 abandons `catf` after four characters instead of testing every substring. Test 1 needs the backtracking: `cats` is a word and leads nowhere, so the split at `cat` has to be tried too. The memo is what keeps this polynomial rather than exponential, since without it every failed split re-solves the same suffix.",
+   "xp": 55
+  },
+  {
+   "id": "ds-8-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Union-Find answers connectivity questions in near-constant time. Name two questions about connectivity it deliberately cannot answer, and explain what you would use instead.",
+   "rubric": {
+    "required": ["path", "split", "traversal", "member", "undo"],
+    "optional": ["BFS", "DFS", "enumerate", "route", "graph", "merge", "scan"],
+    "minWords": 65
+   },
+   "concepts": ["disjoint-sets", "path-compression", "union-by-rank"],
+   "tags": ["disjoint-sets"],
+   "explain": "It cannot tell you *how* two elements are connected - only that they are - because it stores a representative rather than any route, so a shortest or actual path needs a graph traversal such as BFS or DFS. It also cannot undo a union or split a set, since merging is one-way, and it cannot enumerate a set's members without scanning every element and calling find on each. That narrowness is the point: answering exactly one question is what allows the near-constant amortised bound that path compression and union by rank deliver. When you need paths, membership lists, or removal, you need an adjacency structure and a traversal instead.",
+   "xp": 45
+  }
+ ]
+}
