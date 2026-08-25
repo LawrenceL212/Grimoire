@@ -1,0 +1,910 @@
+{
+ "n": 3,
+ "name": "Ends and Openings",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "stack-lifo",
+  "push-pop-peek",
+  "balanced-brackets",
+  "queue-fifo",
+  "enqueue-dequeue",
+  "circular-buffer",
+  "deque",
+  "amortised-analysis"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The stack: one end, three operations",
+    "body": "A **stack** is a list you are only allowed to touch at one end. Three operations, and no others: `push` puts a value on the top, `pop` takes the top value off and returns it, and `peek` looks at the top without removing it. Nothing reaches into the middle. That restriction is not a limitation the designer failed to remove - it is the entire point, because it is what makes every operation O(1).\n\nThe discipline this enforces is **LIFO**: last in, first out. The most recently pushed value is the first one you get back. If you push `1`, `2`, `3` and then pop three times, you get `3`, `2`, `1` - the reverse of the order you put them in. A stack is therefore a reversing machine, which is why so many uses of it are really \"undo the most recent thing first\".\n\nIn JavaScript an array is already a perfectly good stack, because `push` and `pop` both operate on the **end** of the array. That matters: the end is the cheap end. Adding or removing at the end shifts nothing, so it is O(1). Adding or removing at the front with `unshift` or `shift` has to move every other element along by one, so it is O(n). A stack is fast precisely because it never asks for the expensive end.",
+    "code": "const stack = [];\n\nstack.push(1);\nstack.push(2);\nstack.push(3);\n\nconsole.log(stack.length);        // 3\nconsole.log(stack[stack.length - 1]);  // 3 - peek, without removing\nconsole.log(stack.pop());         // 3\nconsole.log(stack.pop());         // 2\nconsole.log(stack.length);        // 1",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Peek is just an index read. There is no built-in `peek`, so you index the last slot - and you must guard the empty case, because `stack[-1]` is `undefined`, not an error."
+     },
+     {
+      "line": 8,
+      "text": "`pop` returns the value it removed. Popping an empty array also returns `undefined` rather than throwing, which is a common source of silent bugs."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete `peek`, which returns the top of the stack without removing it, and `null` if the stack is empty.",
+     "template": "function peek(stack) {\n  if (stack.length === ___) return null;\n  return stack[stack.length - ___];\n}\n",
+     "blanks": [
+      "0",
+      "1"
+     ],
+     "concepts": [
+      "push-pop-peek",
+      "stack-lifo"
+     ],
+     "tags": [
+      "push-pop-peek"
+     ],
+     "explain": "The top of a stack backed by an array is the LAST slot, and the last index is `length - 1`, not `length` - indexing at `length` is one past the end and yields `undefined`. The empty guard matters because `stack[-1]` is also `undefined`, so without it a caller cannot tell an empty stack from a stack whose top really is `undefined`.",
+     "xp": 15
+    }
+   },
+   {
+    "title": "What a stack is actually for",
+    "body": "The reversing behaviour is useful, but the deeper use is **matching**: whenever something opens and must later close in the opposite order, a stack is the structure that remembers what is still open.\n\nBracket matching is the clearest case. Read left to right; every opening bracket gets pushed, and every closing bracket must match whatever is on top. If it does not match, or the stack is empty when a closer arrives, the string is unbalanced. If anything is left on the stack at the end, something was opened and never closed. Note what this catches that mere counting does not: `([)]` has exactly one of each bracket, so any count-based check passes it, but it is plainly wrong. Order is the thing being checked, and a stack is what holds order.\n\nThe same shape is everywhere once you see it. Your language's **call stack** pushes a frame per call and pops it on return, which is why the most recent call is the one that returns first. Undo history pops the most recent edit. Depth-first search pushes the frontier and pops the deepest node. Expression evaluation in reverse Polish notation pushes operands and pops them in pairs as operators arrive.",
+    "code": "function isBalanced(s) {\n  const stack = [];\n  const closerFor = { ')': '(', ']': '[', '}': '{' };\n\n  for (const ch of s) {\n    if (ch === '(' || ch === '[' || ch === '{') {\n      stack.push(ch);\n    } else if (ch in closerFor) {\n      if (stack.pop() !== closerFor[ch]) return false;\n    }\n  }\n  return stack.length === 0;\n}\n\nconsole.log(isBalanced('a(b[c]{d})e'));  // true\nconsole.log(isBalanced('([)]'));         // false",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 9,
+      "text": "One line does two jobs: it rejects a mismatched closer, AND it rejects a closer arriving at an empty stack, because `pop()` on an empty array returns `undefined`, which never equals a bracket character."
+     },
+     {
+      "line": 12,
+      "text": "The final check is what catches `'((('`. Every character was legal on its own; the string is still unbalanced because something was opened and never closed."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const stack = [];\nfor (const ch of 'ab(cd') {\n  if (ch === '(') stack.push(ch);\n}\nconsole.log(stack.length === 0);",
+     "lang": "javascript",
+     "answer": "false",
+     "concepts": [
+      "balanced-brackets",
+      "stack-lifo"
+     ],
+     "tags": [
+      "balanced-brackets"
+     ],
+     "explain": "Only `(` is ever pushed, and the string contains one, so the stack ends with a single item and `length === 0` is `false`. This is the leftover-opener case: nothing in the string was illegal as it was read, yet the string is unbalanced, which is exactly why the final emptiness check cannot be dropped.",
+     "xp": 15
+    }
+   },
+   {
+    "title": "The queue: two ends, and one of them is expensive",
+    "body": "A **queue** is the other restriction: you add at one end and remove from the other. `enqueue` puts a value at the back, `dequeue` takes one from the front. That gives **FIFO** - first in, first out, the discipline of an actual queue of people. Where a stack reverses, a queue preserves order.\n\nThe obvious JavaScript implementation is an array with `push` to enqueue and `shift` to dequeue, and it is a trap. `push` is O(1), but `shift` removes the element at index 0 and then moves every remaining element down one slot to close the gap - that is O(n). Draining a queue of n items that way costs O(n²) overall. It is fine for ten items and quietly ruinous for a hundred thousand.\n\nThe fix is a **circular buffer**: a fixed array plus two indices, `head` and `tail`, that chase each other around it. Dequeuing does not move any data; it just advances `head`, wrapping to 0 when it runs off the end via `(head + 1) % capacity`. Nothing is shifted, so both ends are O(1). The cost is that you must track how many items are live, because `head === tail` is ambiguous on its own - it means both empty and completely full.",
+    "code": "function makeQueue(capacity) {\n  return { buf: new Array(capacity), head: 0, tail: 0, size: 0, capacity };\n}\n\nfunction enqueue(q, value) {\n  if (q.size === q.capacity) return false;   // full\n  q.buf[q.tail] = value;\n  q.tail = (q.tail + 1) % q.capacity;\n  q.size++;\n  return true;\n}\n\nfunction dequeue(q) {\n  if (q.size === 0) return null;             // empty\n  const value = q.buf[q.head];\n  q.head = (q.head + 1) % q.capacity;\n  q.size--;\n  return value;\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "The modulo IS the circle. When `tail` reaches `capacity` it wraps to 0 and reuses slots that have already been dequeued, which is what stops the buffer walking off the end of the array."
+     },
+     {
+      "line": 16,
+      "text": "Dequeue moves an index, not data. This single line is the whole reason a circular buffer is O(1) where `Array.shift` is O(n)."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "drainQueue",
+     "prompt": "Write `drainQueue(items)` which enqueues every value in the array `items` and then dequeues them all, returning an array of the values in the order they came out. Use FIFO order. An empty input returns an empty array.",
+     "starterCode": "function drainQueue(items) {\n  const q = [];\n  // enqueue each item at the back, then take them from the front\n  return [];\n}\n",
+     "tests": [
+      {
+       "input": "[1, 2, 3]",
+       "expected": [
+        1,
+        2,
+        3
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": []
+      },
+      {
+       "input": "['a']",
+       "expected": [
+        "a"
+       ]
+      },
+      {
+       "input": "[5, 5, 7, 5]",
+       "expected": [
+        5,
+        5,
+        7,
+        5
+       ]
+      }
+     ],
+     "concepts": [
+      "queue-fifo",
+      "enqueue-dequeue"
+     ],
+     "tags": [
+      "queue-fifo"
+     ],
+     "explain": "A queue preserves order, so what comes out is exactly what went in - which is why this looks like it does nothing. That is the point: the test that distinguishes a queue from a stack is precisely whether the output is the input or its reverse. Had you used `pop` instead of `shift`, `[1, 2, 3]` would have come back as `[3, 2, 1]`.",
+     "xp": 20,
+     "solution": "function drainQueue(items) {\n  const q = [];\n  for (const it of items) q.push(it);\n  const out = [];\n  while (q.length > 0) out.push(q.shift());\n  return out;\n}\n",
+     "hint": "Enqueue with `push` at the back; dequeue with `shift` from the front. If you reach for `pop` you have built a stack."
+    }
+   },
+   {
+    "title": "Deques, and a queue built from two stacks",
+    "body": "A **deque** - double-ended queue - drops the restriction entirely and allows push and pop at both ends. It subsumes both structures: use one end and it is a stack, use both and it is a queue. Implemented over a circular buffer, all four operations are O(1). The trade is that the restriction was doing useful work: a stack's API makes it impossible to write the bug where you accidentally read from the wrong end.\n\nThere is one more construction worth knowing, because of what it teaches about cost. You can build a FIFO queue out of two LIFO stacks. Everything enqueued is pushed onto an `inbox` stack. To dequeue, if the `outbox` stack is empty, pour the entire inbox into it - popping each item and pushing it - which reverses the order, so the oldest item ends up on top of the outbox. Then pop the outbox.\n\nThat pour is O(n), so a single dequeue can be expensive. But each element is moved from inbox to outbox **exactly once** in its whole lifetime, and is then popped once. Over any sequence of operations the total work is proportional to the number of elements, so the cost per operation **averaged over the sequence** is O(1). This is **amortised** analysis, and it is a different claim from \"every operation is fast\". It says the expensive steps are rare enough that they are paid for by the cheap ones - the same argument that justifies a dynamic array's doubling.",
+    "code": "const inbox = [];\nconst outbox = [];\n\nfunction enqueue(value) {\n  inbox.push(value);\n}\n\nfunction dequeue() {\n  if (outbox.length === 0) {\n    while (inbox.length > 0) outbox.push(inbox.pop());\n  }\n  return outbox.length > 0 ? outbox.pop() : null;\n}\n\nenqueue(1); enqueue(2); enqueue(3);\nconsole.log(dequeue());  // 1\nconsole.log(dequeue());  // 2",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "Popping from one stack while pushing to another reverses the order. Two reversals - once in, once out - restore the original order, which is how two LIFO structures compose into a FIFO one."
+     },
+     {
+      "line": 9,
+      "text": "The guard is what makes the amortised argument work. Pouring only when the outbox is EMPTY guarantees each element is moved at most once; pouring every time would move elements repeatedly and the bound would collapse."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "dequeAlternate",
+     "prompt": "Write `dequeAlternate(items)`. Push every value of `items` onto the **back** of a deque, then repeatedly remove from the front and the back alternately - front first - collecting the removed values into an array. For `[1, 2, 3, 4]` that yields `[1, 4, 2, 3]`. An empty input returns an empty array.",
+     "starterCode": "function dequeAlternate(items) {\n  const d = items.slice();\n  const out = [];\n  // alternate: take from the front, then from the back, until empty\n  return out;\n}\n",
+     "tests": [
+      {
+       "input": "[1, 2, 3, 4]",
+       "expected": [
+        1,
+        4,
+        2,
+        3
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": []
+      },
+      {
+       "input": "[7]",
+       "expected": [
+        7
+       ]
+      },
+      {
+       "input": "[1, 2, 3]",
+       "expected": [
+        1,
+        3,
+        2
+       ]
+      }
+     ],
+     "concepts": [
+      "deque",
+      "circular-buffer"
+     ],
+     "tags": [
+      "deque"
+     ],
+     "explain": "The odd-length case is the one that catches people: with `[1, 2, 3]` the front takes 1, the back takes 3, and then a single element remains, which the front takes. If you do not re-check emptiness between the two removals in a single pass, that last element gets taken twice or the loop runs off the end.",
+     "xp": 20,
+     "solution": "function dequeAlternate(items) {\n  const d = items.slice();\n  const out = [];\n  while (d.length > 0) {\n    out.push(d.shift());\n    if (d.length > 0) out.push(d.pop());\n  }\n  return out;\n}\n",
+     "hint": "Re-check that the deque is non-empty between the front removal and the back removal, or an odd-length input takes its last element twice."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-3-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const s = [];\ns.push(1);\ns.push(2);\ns.pop();\ns.push(3);\ns.push(4);\ns.pop();\nconsole.log(s.join(','));",
+   "lang": "javascript",
+   "answer": "1,3",
+   "concepts": [
+    "stack-lifo",
+    "push-pop-peek"
+   ],
+   "tags": [
+    "stack-lifo"
+   ],
+   "explain": "Track the top, not the whole history. After push 1, 2 the stack is `[1,2]`; the pop removes 2 leaving `[1]`; push 3, 4 gives `[1,3,4]`; the final pop removes 4, the most recent, leaving `[1,3]`. The tempting wrong answer is `1,4` - it comes from imagining that a pop removes the OLDEST item, which is what a queue would do.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const q = [];\nq.push('a');\nq.push('b');\nq.shift();\nq.push('c');\nconsole.log(q.shift());",
+   "lang": "javascript",
+   "answer": "b",
+   "concepts": [
+    "queue-fifo",
+    "enqueue-dequeue"
+   ],
+   "tags": [
+    "queue-fifo"
+   ],
+   "explain": "`push` adds at the back and `shift` removes from the front, so this is a queue. The first `shift` removes 'a'; 'c' joins the back behind 'b'; the second `shift` therefore returns 'b'. Answering 'c' means reading `shift` as `pop` - the exact confusion the two structures exist to keep apart.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Trace `isBalanced('([{}])')` from the lesson. After each character is read, what does the stack contain, written top-last (so `([` means `(` at the bottom and `[` on top)? Give the empty stack as an empty string.",
+   "steps": [
+    {
+     "label": "after reading '('",
+     "expected": "("
+    },
+    {
+     "label": "after reading '['",
+     "expected": "(["
+    },
+    {
+     "label": "after reading '{'",
+     "expected": "([{"
+    },
+    {
+     "label": "after reading '}'",
+     "expected": "(["
+    },
+    {
+     "label": "after reading ']'",
+     "expected": "("
+    },
+    {
+     "label": "after reading ')'",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "balanced-brackets",
+    "stack-lifo"
+   ],
+   "tags": [
+    "balanced-brackets"
+   ],
+   "explain": "The stack grows to its full depth at the innermost point and then unwinds symmetrically. That symmetry is the visible shape of nesting: the stack height at any moment is exactly the current nesting depth, and a balanced string is one whose height returns to zero having never gone below it.",
+   "xp": 25
+  },
+  {
+   "id": "ds-3-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a circular-buffer `dequeue` into the order they must happen.",
+   "fragments": [
+    "if the buffer is empty, return null",
+    "read the value at index `head`",
+    "advance `head` to `(head + 1) % capacity`",
+    "decrement `size`",
+    "return the value that was read"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "circular-buffer",
+    "enqueue-dequeue"
+   ],
+   "tags": [
+    "circular-buffer"
+   ],
+   "explain": "The value must be read BEFORE `head` moves, because once `head` has advanced it points at the next item and the one you wanted is no longer addressable. Advancing first and reading after is the single most common way to write this wrong, and it fails silently by returning the wrong element rather than crashing.",
+   "xp": 25
+  },
+  {
+   "id": "ds-3-g-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the wrap-around arithmetic for a circular buffer's `enqueue`.",
+   "template": "q.buf[q.tail] = value;\nq.tail = (q.tail + 1) % q.___;\nq.___++;\n",
+   "blanks": [
+    "capacity",
+    "size"
+   ],
+   "concepts": [
+    "circular-buffer"
+   ],
+   "tags": [
+    "circular-buffer"
+   ],
+   "explain": "The modulus is the buffer's fixed `capacity`, never its current `size` - taking the modulus by `size` would make the wrap point move as the queue filled and drained, and slots would be overwritten while still holding live data. `size` is tracked separately precisely because `head === tail` cannot by itself distinguish an empty buffer from a full one.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague implements a queue as a JavaScript array using `push` to enqueue and `shift` to dequeue. It passes every test. Explain what is wrong with it, what the cost is, and what you would change.",
+   "rubric": {
+    "required": [
+     "shift",
+     "O(n)",
+     "front",
+     "element",
+     "circular"
+    ],
+    "optional": [
+     "amortis",
+     "quadratic",
+     "index",
+     "head",
+     "tail",
+     "linked"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "queue-fifo",
+    "circular-buffer",
+    "amortised-analysis"
+   ],
+   "tags": [
+    "queue-fifo",
+    "amortised-analysis"
+   ],
+   "explain": "It is correct but not fast. `Array.shift` removes the element at index 0 and then relocates every remaining element down one slot, so it is O(n) rather than O(1), and draining n items costs O(n²). Tests do not catch it because the behaviour is right - only the cost is wrong, and cost is invisible until the input grows. The fix is to stop moving data: a circular buffer with `head` and `tail` indices, or a linked list with a tail pointer, makes both ends O(1).",
+   "xp": 30
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-3-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "isBalanced",
+   "prompt": "Write `isBalanced(s)` returning `true` if every bracket in the string `s` is closed by the matching kind in the correct order. Handle `()`, `[]` and `{}`. Non-bracket characters are ignored. The empty string is balanced.",
+   "starterCode": "function isBalanced(s) {\n  const stack = [];\n  // push openers; on a closer, check it against the top\n  return false;\n}\n",
+   "tests": [
+    {
+     "input": "'a(b[c]{d})e'",
+     "expected": true
+    },
+    {
+     "input": "'([)]'",
+     "expected": false
+    },
+    {
+     "input": "''",
+     "expected": true
+    },
+    {
+     "input": "'((('",
+     "expected": false
+    },
+    {
+     "input": "')('",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "balanced-brackets",
+    "stack-lifo"
+   ],
+   "tags": [
+    "balanced-brackets"
+   ],
+   "explain": "Three distinct failures have to be caught and they are easy to conflate: a wrong-kind closer (`([)]`), a leftover opener (`(((`), and a closer with nothing open (`)(`). The last is the one people miss, because `[].pop()` returns `undefined` rather than throwing - so comparing the popped value against the expected opener handles it for free, whereas checking `stack.length` first and popping after does not.",
+   "xp": 35,
+   "solution": "function isBalanced(s) {\n  const stack = [];\n  const closerFor = { ')': '(', ']': '[', '}': '{' };\n  for (const ch of s) {\n    if (ch === '(' || ch === '[' || ch === '{') {\n      stack.push(ch);\n    } else if (ch in closerFor) {\n      if (stack.pop() !== closerFor[ch]) return false;\n    }\n  }\n  return stack.length === 0;\n}\n",
+   "hint": "Comparing `stack.pop()` against the expected opener handles the empty-stack case for free, because popping an empty array gives `undefined`."
+  },
+  {
+   "id": "ds-3-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "evalRPN",
+   "prompt": "Write `evalRPN(tokens)` evaluating an array of reverse-Polish tokens. Each token is either an integer as a string or one of `'+'`, `'-'`, `'*'`, `'/'`. Push operands; on an operator, pop two and push the result. Division truncates towards zero. Return the final value.",
+   "starterCode": "function evalRPN(tokens) {\n  const stack = [];\n  // operands push; operators pop two - mind the order\n  return 0;\n}\n",
+   "tests": [
+    {
+     "input": "['2', '3', '+']",
+     "expected": 5
+    },
+    {
+     "input": "['5', '1', '2', '+', '4', '*', '+', '3', '-']",
+     "expected": 14
+    },
+    {
+     "input": "['42']",
+     "expected": 42
+    },
+    {
+     "input": "['7', '2', '-']",
+     "expected": 5
+    },
+    {
+     "input": "['7', '2', '/']",
+     "expected": 3
+    }
+   ],
+   "concepts": [
+    "stack-lifo",
+    "push-pop-peek"
+   ],
+   "tags": [
+    "stack-lifo"
+   ],
+   "explain": "The order of the two pops is the whole exercise. The FIRST value popped is the RIGHT-hand operand, because it was pushed most recently - so subtraction must be `a - b` where `b` came off first. Getting it backwards still passes `['2','3','+']`, since addition commutes, and fails only on `-` and `/`; that is why the test set includes both.",
+   "xp": 35,
+   "solution": "function evalRPN(tokens) {\n  const stack = [];\n  for (const t of tokens) {\n    if (t === '+' || t === '-' || t === '*' || t === '/') {\n      const b = stack.pop();\n      const a = stack.pop();\n      stack.push(t === '+' ? a + b\n               : t === '-' ? a - b\n               : t === '*' ? a * b\n               : Math.trunc(a / b));\n    } else {\n      stack.push(Number(t));\n    }\n  }\n  return stack.pop();\n}\n",
+   "hint": "The first value you pop is the right-hand operand. Name the two pops `b` then `a` and the subtraction writes itself."
+  },
+  {
+   "id": "ds-3-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "firstUnique",
+   "prompt": "Write `firstUnique(s)` returning the first character of the string `s` that appears exactly once, or `null` if there is no such character. Use a queue of candidates: discard from the front while the front is known to be repeated.",
+   "starterCode": "function firstUnique(s) {\n  const count = {};\n  // count every character first, then queue them and drop repeats from the front\n  return null;\n}\n",
+   "tests": [
+    {
+     "input": "'leetcode'",
+     "expected": "l"
+    },
+    {
+     "input": "'aabb'",
+     "expected": null
+    },
+    {
+     "input": "''",
+     "expected": null
+    },
+    {
+     "input": "'aabbc'",
+     "expected": "c"
+    },
+    {
+     "input": "'z'",
+     "expected": "z"
+    }
+   ],
+   "concepts": [
+    "queue-fifo",
+    "enqueue-dequeue"
+   ],
+   "tags": [
+    "queue-fifo"
+   ],
+   "explain": "A queue is the right structure because the answer must be the EARLIEST such character, and a queue is the structure that preserves arrival order. The two edge cases pull in opposite directions: `'aabb'` drains the queue completely and must yield `null`, while `'z'` must not be discarded despite never being compared against anything else.",
+   "xp": 35,
+   "solution": "function firstUnique(s) {\n  const count = Object.create(null);\n  for (const c of s) count[c] = (count[c] || 0) + 1;\n  const q = [];\n  for (const c of s) q.push(c);\n  while (q.length > 0 && count[q[0]] > 1) q.shift();\n  return q.length > 0 ? q[0] : null;\n}\n",
+   "hint": "Count every character before you queue anything - you cannot know whether the first character is unique until you have seen the last."
+  },
+  {
+   "id": "ds-3-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "twoStackQueue",
+   "prompt": "Write `twoStackQueue(ops)` implementing a FIFO queue using only two arrays as stacks - `push` and `pop` only, never `shift` or `unshift`. `ops` is an array of strings: `'push N'` enqueues the integer N, and `'pop'` dequeues. Return an array of the values produced by the `'pop'` operations, using `null` when the queue is empty.",
+   "starterCode": "function twoStackQueue(ops) {\n  const inbox = [], outbox = [], out = [];\n  // pour inbox into outbox only when outbox is empty\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "['push 1', 'push 2', 'pop', 'pop']",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "['pop']",
+     "expected": [
+      null
+     ]
+    },
+    {
+     "input": "['push 1', 'pop', 'push 2', 'push 3', 'pop', 'pop']",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['push 1', 'push 2', 'pop', 'push 3', 'pop', 'pop', 'pop']",
+     "expected": [
+      1,
+      2,
+      3,
+      null
+     ]
+    }
+   ],
+   "concepts": [
+    "amortised-analysis",
+    "queue-fifo",
+    "stack-lifo"
+   ],
+   "tags": [
+    "amortised-analysis"
+   ],
+   "explain": "The condition on the pour is what makes this correct AND fast. Pouring only when the outbox is empty keeps the interleaved case right - in test 3, item 1 is dequeued before 2 and 3 are ever enqueued, and they must still come out in order - and it guarantees each element moves between stacks exactly once, which is the amortised O(1) argument. Pouring unconditionally on every dequeue would reverse a partially-drained outbox and produce LIFO output.",
+   "xp": 40,
+   "solution": "function twoStackQueue(ops) {\n  const inbox = [], outbox = [], out = [];\n  for (const op of ops) {\n    if (op === 'pop') {\n      if (outbox.length === 0) {\n        while (inbox.length > 0) outbox.push(inbox.pop());\n      }\n      out.push(outbox.length > 0 ? outbox.pop() : null);\n    } else {\n      inbox.push(Number(op.slice(5)));\n    }\n  }\n  return out;\n}\n",
+   "hint": "Pour only when the outbox is empty. Pouring on every dequeue buries older items under newer ones and breaks FIFO order."
+  },
+  {
+   "id": "ds-3-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "minStack",
+   "prompt": "Write `minStack(ops)` supporting `'push N'`, `'pop'` and `'min'`, where `'min'` reports the smallest value currently on the stack in O(1) - without scanning. Return an array of the values reported by the `'min'` operations, using `null` if the stack is empty.",
+   "starterCode": "function minStack(ops) {\n  const stack = [], out = [];\n  // keep a parallel stack whose top is always the current minimum\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "['push 5', 'push 3', 'min', 'pop', 'min']",
+     "expected": [
+      3,
+      5
+     ]
+    },
+    {
+     "input": "['min']",
+     "expected": [
+      null
+     ]
+    },
+    {
+     "input": "['push 2', 'push 2', 'min', 'pop', 'min']",
+     "expected": [
+      2,
+      2
+     ]
+    },
+    {
+     "input": "['push 4', 'push 9', 'push 1', 'min']",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "['push 3', 'pop', 'min']",
+     "expected": [
+      null
+     ]
+    }
+   ],
+   "concepts": [
+    "push-pop-peek",
+    "stack-lifo"
+   ],
+   "tags": [
+    "push-pop-peek"
+   ],
+   "explain": "The trick is a second stack pushed in lockstep, each entry holding the minimum of everything at or below it - so popping the value stack and the minimum stack together restores the previous minimum for free. The duplicate case `['push 2','push 2', ...]` is why you push the minimum on EVERY push rather than only when a new record is set: with only-on-record, popping one of the two 2s would wrongly discard the minimum still in force.",
+   "xp": 40,
+   "solution": "function minStack(ops) {\n  const stack = [], mins = [], out = [];\n  for (const op of ops) {\n    if (op === 'pop') {\n      stack.pop();\n      mins.pop();\n    } else if (op === 'min') {\n      out.push(mins.length > 0 ? mins[mins.length - 1] : null);\n    } else {\n      const n = Number(op.slice(5));\n      stack.push(n);\n      mins.push(mins.length > 0 ? Math.min(n, mins[mins.length - 1]) : n);\n    }\n  }\n  return out;\n}\n",
+   "hint": "Push onto the minimum stack on every push, even when the value is not a new minimum - otherwise popping a duplicate discards a minimum that is still in force."
+  },
+  {
+   "id": "ds-3-i-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "isBalancedCount",
+   "prompt": "This checker counts brackets instead of stacking them, so it accepts strings it should reject. Fix it so it checks order as well as count, keeping the name `isBalancedCount`.",
+   "starterCode": "function isBalancedCount(s) {\n  let round = 0, square = 0;\n  for (const ch of s) {\n    if (ch === '(') round++;\n    if (ch === ')') round--;\n    if (ch === '[') square++;\n    if (ch === ']') square--;\n  }\n  return round === 0 && square === 0;\n}\n",
+   "tests": [
+    {
+     "input": "'([)]'",
+     "expected": false
+    },
+    {
+     "input": "'([])'",
+     "expected": true
+    },
+    {
+     "input": "'()[]'",
+     "expected": true
+    },
+    {
+     "input": "''",
+     "expected": true
+    },
+    {
+     "input": "')('",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "balanced-brackets",
+    "stack-lifo"
+   ],
+   "tags": [
+    "balanced-brackets"
+   ],
+   "explain": "Counters record how many are open but not which is innermost, and nesting is a question about order. `([)]` has one of each bracket so both counters return to zero; `)(` does too, which is why a counter-based check also accepts a string that closes before it opens. Only a stack retains the sequence, and replacing the two counters with one stack fixes both failures at once.",
+   "xp": 40,
+   "solution": "function isBalancedCount(s) {\n  const stack = [];\n  const closerFor = { ')': '(', ']': '[' };\n  for (const ch of s) {\n    if (ch === '(' || ch === '[') {\n      stack.push(ch);\n    } else if (ch in closerFor) {\n      if (stack.pop() !== closerFor[ch]) return false;\n    }\n  }\n  return stack.length === 0;\n}\n",
+   "hint": "The two counters cannot be repaired - they record how many are open, never which is innermost. Replace them with one stack."
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-3-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which discipline does a stack enforce?",
+   "choices": [
+    "LIFO - the most recently added item is removed first",
+    "FIFO - the earliest added item is removed first",
+    "Sorted order - the smallest item is removed first",
+    "Random access - any item may be removed by index"
+   ],
+   "answer": 0,
+   "concepts": [
+    "stack-lifo"
+   ],
+   "tags": [
+    "stack-lifo"
+   ],
+   "explain": "LIFO is the defining property. FIFO describes a queue, smallest-first describes a priority queue or heap, and indexed access describes an array - each is a different contract, and the whole value of naming the structure is that the name tells a reader which one holds.",
+   "xp": 15
+  },
+  {
+   "id": "ds-3-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is the time complexity of `Array.prototype.shift` on an array of n elements?",
+   "choices": [
+    "O(n), because every remaining element moves down one slot",
+    "O(1), because it only changes the length",
+    "O(log n), because the array is indexed",
+    "O(n log n), because the array is re-sorted"
+   ],
+   "answer": 0,
+   "concepts": [
+    "queue-fifo"
+   ],
+   "tags": [
+    "queue-fifo"
+   ],
+   "explain": "Removing the element at index 0 leaves a hole that has to be closed, so every later element is relocated - linear work. This is the trap in the naive array queue: `push` really is O(1), so the structure looks cheap until you notice that only one of its two operations is.",
+   "xp": 15
+  },
+  {
+   "id": "ds-3-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const s = [];\nfor (const c of 'abc') s.push(c);\nlet out = '';\nwhile (s.length) out += s.pop();\nconsole.log(out);",
+   "lang": "javascript",
+   "answer": "cba",
+   "concepts": [
+    "stack-lifo",
+    "push-pop-peek"
+   ],
+   "tags": [
+    "stack-lifo"
+   ],
+   "explain": "Pushing then popping everything reverses the sequence, because the last thing in is the first thing out. This is the shortest demonstration that a stack is a reversing machine - and it is why two stacks in series, each reversing once, compose into a FIFO queue.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the pour step of a queue built from two stacks.",
+   "template": "function dequeue() {\n  if (outbox.length === ___) {\n    while (inbox.length > 0) outbox.___(inbox.pop());\n  }\n  return outbox.length > 0 ? outbox.pop() : null;\n}\n",
+   "blanks": [
+    "0",
+    "push"
+   ],
+   "concepts": [
+    "amortised-analysis",
+    "queue-fifo"
+   ],
+   "tags": [
+    "amortised-analysis"
+   ],
+   "explain": "The guard must be emptiness, not a count or a flag: pouring into a non-empty outbox would bury older items beneath newer ones and break FIFO order. Popping the inbox while pushing the outbox is what performs the reversal that turns two LIFO stacks into one FIFO queue.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these operations so that the final value returned is `1`, starting from an empty stack-based structure that reverses its input twice.",
+   "fragments": [
+    "enqueue 1",
+    "enqueue 2",
+    "pour the inbox into the empty outbox, reversing it",
+    "pop the outbox"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "amortised-analysis",
+    "stack-lifo"
+   ],
+   "tags": [
+    "amortised-analysis"
+   ],
+   "explain": "Both values must be enqueued before the pour, because the pour reverses whatever the inbox holds at that moment. With 1 and 2 in the inbox as `[1,2]`, pouring produces an outbox of `[2,1]` whose top is 1 - the oldest item, exactly as FIFO requires.",
+   "xp": 20
+  },
+  {
+   "id": "ds-3-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A circular buffer has `capacity` 3, and starts with `head` 0, `tail` 0, `size` 0. Give `head`, `tail` and `size` as three comma-separated numbers after each operation.",
+   "steps": [
+    {
+     "label": "enqueue 'a'",
+     "expected": "0,1,1"
+    },
+    {
+     "label": "enqueue 'b'",
+     "expected": "0,2,2"
+    },
+    {
+     "label": "dequeue",
+     "expected": "1,2,1"
+    },
+    {
+     "label": "enqueue 'c'",
+     "expected": "1,0,2"
+    },
+    {
+     "label": "enqueue 'd'",
+     "expected": "1,1,3"
+    }
+   ],
+   "concepts": [
+    "circular-buffer",
+    "enqueue-dequeue"
+   ],
+   "tags": [
+    "circular-buffer"
+   ],
+   "explain": "The fourth step is the one that shows the structure working: `tail` reaches 3, wraps to 0 via the modulus, and reuses the slot that the dequeue freed. Note that after the last step `head` and `tail` are both 1 while `size` is 3 - the buffer is full, and `head === tail` here means full rather than empty, which is exactly why `size` must be tracked separately.",
+   "xp": 25
+  },
+  {
+   "id": "ds-3-x-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "A queue is built from two stacks, as in the lesson. Over a sequence of n enqueues followed by n dequeues, what is the amortised cost per operation? Give the complexity, then justify it.",
+   "answer": "O(1)",
+   "rubric": {
+    "required": [
+     "amortis",
+     "once",
+     "outbox",
+     "total"
+    ],
+    "optional": [
+     "O(n)",
+     "worst",
+     "pour",
+     "linear",
+     "average",
+     "sequence"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "amortised-analysis"
+   ],
+   "tags": [
+    "amortised-analysis"
+   ],
+   "explain": "A single dequeue can cost O(n) when it triggers the pour, so the worst-case-per-operation answer is O(n) - but that is not what was asked. Each element is pushed to the inbox once, moved to the outbox once, and popped once: three constant-time steps per element, so 2n operations do O(n) total work and the amortised cost is O(1). The distinction matters in practice: this is fine for throughput and unacceptable for a hard real-time deadline, where one unlucky dequeue blows the budget.",
+   "xp": 35
+  },
+  {
+   "id": "ds-3-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "decodeUndo",
+   "prompt": "Write `decodeUndo(ops)` where `ops` is an array of strings: `'type X'` appends the character X to a document, and `'undo'` removes the most recent still-standing `type`. Return the final document as a string. An `'undo'` on an empty document does nothing.",
+   "starterCode": "function decodeUndo(ops) {\n  const doc = [];\n  // which structure gives you 'the most recent thing' in O(1)?\n  return doc.join('');\n}\n",
+   "tests": [
+    {
+     "input": "['type a', 'type b', 'undo', 'type c']",
+     "expected": "ac"
+    },
+    {
+     "input": "['undo']",
+     "expected": ""
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "['type a', 'undo', 'undo']",
+     "expected": ""
+    },
+    {
+     "input": "['type x', 'type y', 'type z']",
+     "expected": "xyz"
+    }
+   ],
+   "concepts": [
+    "stack-lifo",
+    "push-pop-peek"
+   ],
+   "tags": [
+    "stack-lifo"
+   ],
+   "explain": "Undo is the canonical stack application because 'most recent' and 'top of stack' are the same idea. The edge case that matters is undoing past the beginning - `['type a','undo','undo']` - where popping an already-empty array returns `undefined` rather than throwing, so a careless implementation appends the string 'undefined' to the document instead of doing nothing.",
+   "xp": 35,
+   "solution": "function decodeUndo(ops) {\n  const doc = [];\n  for (const op of ops) {\n    if (op === 'undo') doc.pop();\n    else doc.push(op.slice(5));\n  }\n  return doc.join('');\n}\n",
+   "hint": "`pop` on an empty array is already a no-op that returns `undefined`, so undoing past the start needs no special case - but appending that `undefined` would."
+  },
+  {
+   "id": "ds-3-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A stack and a queue can both be implemented over the same array. Explain what actually distinguishes them, and why the restricted interface is a feature rather than a missing capability.",
+   "rubric": {
+    "required": [
+     "end",
+     "LIFO",
+     "FIFO",
+     "order",
+     "restrict"
+    ],
+    "optional": [
+     "invariant",
+     "O(1)",
+     "deque",
+     "interface",
+     "bug",
+     "reverse"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "stack-lifo",
+    "queue-fifo",
+    "deque"
+   ],
+   "tags": [
+    "stack-lifo",
+    "deque"
+   ],
+   "explain": "What distinguishes them is not the storage - both can be an array - but which end each operation is allowed to touch, and therefore the order in which items come back out. The restriction is the feature: because a stack exposes only one end, whole classes of bug become unwritable, and because neither structure permits access to the middle, every operation can be O(1). A deque removes the restriction and gains flexibility at exactly that cost - it is once again possible to read from the wrong end by mistake.",
+   "xp": 35
+  }
+ ]
+}
