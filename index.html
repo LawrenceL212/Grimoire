@@ -1145,7 +1145,11 @@ function md(src) {
   const mask = (re) => { t = t.replace(re, (m) => {
     math.push(m); return `\u0000M${math.length - 1}\u0000`; }); };
   mask(/\$\$[\s\S]*?\$\$/g);
-  mask(/(?<!\\)\$(?!\s)[^$\n]{1,300}?(?<!\\)\$/g);
+  // The body may contain an escaped dollar inside a formula, as OpenStax does
+  // for currency: $\text{\$}2500$. A character class that simply excludes $
+  // stops at that escape, leaves the span unmasked, and markdown then mangles
+  // it before KaTeX ever sees it - so allow \\. inside the span.
+  mask(/(?<!\\)\$(?!\s)(?:\\.|[^$\n\\])+?(?<!\\)\$/g);
 
   // {{link:id}} -> the dungeon's own name. It becomes a real inline concept
   // link in the knowledge-graph phase; until then it must never show raw.
@@ -1156,6 +1160,12 @@ function md(src) {
 
   t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
   t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+  // A literal dollar in prose is written \$ (OpenStax uses it for currency).
+  // KaTeX's auto-render does not honour that escape: it would treat a pair of
+  // them as delimiters and render the sentence between them as maths. Hand it
+  // a span that auto-render is configured to skip instead.
+  t = t.replace(/\\\$/g, '<span class="nomath">$</span>');
 
   const out = t.split(/\n{2,}/).map((block) => {
     const lines = block.split("\n").filter((l) => l.trim());
@@ -2674,6 +2684,7 @@ function renderMath(el) {
       throwOnError: false,
       errorColor: "#CE8347",
       ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+      ignoredClasses: ["nomath"],
     });
   } catch (e) { console.warn("KaTeX render failed:", e.message); }
 }

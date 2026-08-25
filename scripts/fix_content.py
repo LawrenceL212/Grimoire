@@ -48,6 +48,18 @@ def neutralise_dollars(text):
     """
     if "$" not in text:
         return text, 0
+
+    # A $ inside a backtick code span is code, not maths - a JavaScript
+    # template literal `${ }` must not be escaped. Mask code spans out, pair
+    # the dollars over the prose only, then restore them untouched.
+    spans = []
+
+    def hide(m):
+        spans.append(m.group(0))
+        return "@@CODESPAN%d@@" % (len(spans) - 1)
+
+    text = re.sub(r"`[^`]*`", hide, text)
+
     # leave $$ ... $$ blocks alone; they are unambiguous
     parts = text.split("$$")
     fixed_total = 0
@@ -72,7 +84,10 @@ def neutralise_dollars(text):
                 i += 1
         parts[idx] = "".join(out)
         fixed_total += fixed
-    return "$$".join(parts), fixed_total
+    out_text = "$$".join(parts)
+    out_text = re.sub(r"@@CODESPAN(\d+)@@",
+                      lambda m: spans[int(m.group(1))], out_text)
+    return out_text, fixed_total
 
 
 def trim_to_sentence(text):
