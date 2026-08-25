@@ -126,9 +126,17 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
 
     if ctype in NEEDS_TESTS:
         tests = ch.get("tests")
-        if not isinstance(tests, list) or not tests:
-            res.err(where, "type %r needs a non-empty `tests` array" % ctype)
-        else:
+        rubric = ch.get("rubric")
+        graded_by_rubric = (
+            ctype in ("design", "project")
+            and not tests
+            and isinstance(rubric, dict) and rubric.get("required"))
+        if graded_by_rubric:
+            tests = None
+        elif not isinstance(tests, list) or not tests:
+            res.err(where, "type %r needs a non-empty `tests` array, or - for a "
+                           "design/project we cannot execute - a `rubric`" % ctype)
+        elif tests:
             # a checkpoint is a small gate between lesson sections, not a
             # graded challenge, so it is not held to the edge-case minimum
             if len(tests) < MIN_TESTS and stage != "checkpoint":
@@ -189,8 +197,8 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
             res.err(where, "%r needs a rubric with a non-empty `required` list" % ctype)
     if ctype in ANSWER_AND_RUBRIC and not str(ch.get("answer", "")).strip():
         res.err(where, "%r needs an `answer`" % ctype)
-    if ctype == "project" and not is_last_floor:
-        res.warn(where, "project challenges belong on the boss floor")
+    if (ctype == "project" or ch.get("capstone")) and not is_last_floor:
+        res.warn(where, "capstones belong on the boss floor")
 
     return cid, ctype
 
@@ -276,10 +284,23 @@ def check_floor(fl, i, total, dungeon_id, discipline, res):
             for c in (ch.get("concepts") or ch.get("tags") or []):
                 tagged.setdefault(c, []).append(ctype)
 
-    has_project = any(
-        ch.get("type") == "project"
-        for stage in sequence if stage != "lesson"
-        for ch in (fl.get(stage) or []))
+    # Every dungeon ends on a capstone: one un-scaffolded, whole-dungeon
+    # application. `project` is the capstone where a project is legal; a
+    # mathematics or theory dungeon marks its final proof or problem with
+    # `capstone: true` instead. Both mean the same thing to the runner.
+    capstones = [
+        ch for stage in sequence if stage != "lesson"
+        for ch in (fl.get(stage) or [])
+        if ch.get("type") == "project" or ch.get("capstone") is True]
+    has_project = bool(capstones)
+    for ch in capstones:
+        cw = "%s capstone %r" % (where, ch.get("id"))
+        if ch.get("layer") != "application":
+            res.err(cw, "a capstone is Application layer by definition")
+        if ch.get("type") not in APPLICATION_TYPES:
+            res.err(cw, "type %r cannot carry a capstone" % ch.get("type"))
+    if len(capstones) > 1 and is_last:
+        res.warn(where, "%d capstones - the boss floor should have one" % len(capstones))
 
     exam = fl.get("exam")
     if not isinstance(exam, list):
@@ -306,7 +327,8 @@ def check_floor(fl, i, total, dungeon_id, discipline, res):
             res.err(where, "concept %r has no challenge tagged to it" % c)
 
     if is_last and not has_project:
-        res.err(where, "the last floor is the boss and needs a `project` challenge")
+        res.err(where, "the last floor is the boss and needs a capstone - a "
+                       "`project`, or a challenge marked `capstone: true`")
 
     return {"n": n, "level": level, "sections": len(sections),
             "challenges": len(seen), "app": len(app_layer_ids)}

@@ -1649,7 +1649,15 @@ const codeLike = (allowStarter) => ({
   wire(ch, root, ctx) { wireCodeEditor(ch, root, ctx); },
   async grade(ch, root, ctx) {
     const ta = root.querySelector("[data-ta]");
-    const res = await runTests(ctx.dungeon, ch, ta ? ta.value : "", ctx.carry);
+    const text = ta ? ta.value : "";
+    // A capstone in a dungeon we cannot execute - Rust, C, the maths wings -
+    // is still a capstone. It carries a rubric instead of tests and is graded
+    // against that, with the same caveat the free-text types carry.
+    if (!ch.tests && ch.rubric) {
+      const r = gradeRubric(text, ch.rubric);
+      return { ...r, html: rubricFeedback(r.detail, ch, true, {}) };
+    }
+    const res = await runTests(ctx.dungeon, ch, text, ctx.carry);
     return {
       correct: res.passed, score: res.score,
       unavailable: res.unavailable,
