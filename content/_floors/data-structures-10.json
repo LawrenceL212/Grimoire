@@ -1,0 +1,461 @@
+{
+ "n": 10,
+ "name": "The Trial of Forms",
+ "concepts": [
+  "structure-composition",
+  "binary-heap",
+  "lazy-deletion",
+  "hash-index",
+  "doubly-linked-list",
+  "lru-eviction"
+ ],
+ "cognitiveLevel": "boss",
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "title": "One System, Four Shapes",
+  "sections": [
+   {
+    "title": "No Single Shape Answers Two Questions",
+    "body": "A working system almost never rests on one structure, because a structure is an answer to **one** question asked cheaply, and everything else it does it does badly. A plain array of jobs answers *give me the job called `deploy`* in $O(n)$ and *give me the most urgent job* in $O(n)$ as well - both by walking the whole thing.\n\nAdd a second question and the array does not degrade gracefully; it simply scans again. Keeping the array sorted by priority makes the second question $O(1)$ and the first still $O(n)$, and now every insertion costs $O(n)$ to shift the elements after it.\n\nThe way out is not a cleverer array. It is **composition**: one structure per question, all of them describing the same jobs, all of them maintained on every write. You pay in bookkeeping - the update paths get longer and the structures can disagree - and you buy the ability to answer everything in logarithmic time or better.\n\nThe rest of this floor builds the three shapes your Trial needs, and then hands you the specification.",
+    "code": "const jobs = [\n  { id: \"build\", priority: 2 },\n  { id: \"deploy\", priority: 1 },\n  { id: \"test\", priority: 2 }\n];\n\nfunction findById(jobs, id) {\n  for (const j of jobs) if (j.id === id) return j;\n  return null;\n}\n\nfunction findSmallest(jobs) {\n  let best = null;\n  for (const j of jobs) if (best === null || j.priority < best.priority) best = j;\n  return best;\n}\n\nconsole.log(findById(jobs, \"test\"));\nconsole.log(findSmallest(jobs));\nconsole.log(\"both walked all\", jobs.length, \"jobs to answer one question\");",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Lookup by id: a linear scan, because nothing in the array records where an id lives."
+     },
+     {
+      "line": 12,
+      "text": "Smallest priority: a second linear scan over exactly the same elements, answering a different question."
+     },
+     {
+      "line": 20,
+      "text": "Three jobs hides the cost. At a million jobs each question is a million reads - and that is per call, not once."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "bestByPriority",
+     "prompt": "Design `bestByPriority(jobs)`: `jobs` is an array of `{ id, priority }` objects where a **smaller** priority is more urgent. Return the `id` of the most urgent job, breaking ties towards the earlier position in the array, or `null` for an empty array. This is the linear baseline a heap will replace. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[{id:'a',priority:3},{id:'b',priority:1},{id:'c',priority:2}]",
+       "expected": "b"
+      },
+      {
+       "input": "[]",
+       "expected": null
+      },
+      {
+       "input": "[{id:'solo',priority:9}]",
+       "expected": "solo"
+      },
+      {
+       "input": "[{id:'a',priority:2},{id:'b',priority:2}]",
+       "expected": "a"
+      }
+     ],
+     "solution": "function bestByPriority(jobs) {\n  var best = null;\n  for (var i = 0; i < jobs.length; i++) {\n    if (best === null || jobs[i].priority < best.priority) best = jobs[i];\n  }\n  return best === null ? null : best.id;\n}",
+     "concepts": [
+      "structure-composition"
+     ],
+     "explain": "The strict `<` is what makes an earlier job win a tie; `<=` would silently prefer the last one, which is the sort of detail that turns a deterministic scheduler into a flaky one. Note the cost too: every call reads every job, so asking this question a thousand times over a thousand jobs is a million reads that a heap reduces to a few thousand."
+    }
+   },
+   {
+    "title": "A Heap Keeps Only The Next Answer",
+    "body": "A **binary min-heap** is a complete binary tree flattened into an array: the children of index $i$ sit at $2i+1$ and $2i+2$, so no pointers are stored at all. Its single invariant is that every node is no larger than its children, which puts the smallest element at index $0$ and says nothing whatsoever about the order of the rest.\n\nThat weak invariant is exactly why it is cheap. Pushing appends and **sifts up**, swapping with the parent while the parent is larger; popping moves the last element to the root and **sifts down**, swapping with the smaller child while that child is smaller. Each walks one root-to-leaf path, and a complete tree of $n$ nodes has height $\\lfloor\\log_2 n\\rfloor$, so both cost $O(\\log n)$ while reading the minimum costs $O(1)$.\n\nWhat a heap will not do is find an arbitrary element. There is no index and no ordering to binary-search, so locating a given value means scanning all $n$ slots - which is the awkward fact the next section is about.",
+    "code": "function push(heap, x) {\n  heap.push(x);\n  let i = heap.length - 1;\n  while (i > 0) {\n    const p = (i - 1) >> 1;\n    if (heap[p] <= heap[i]) break;\n    [heap[i], heap[p]] = [heap[p], heap[i]];\n    i = p;\n  }\n  return heap;\n}\n\nfunction pop(heap) {\n  const top = heap[0];\n  const last = heap.pop();\n  if (heap.length) {\n    heap[0] = last;\n    let i = 0;\n    for (;;) {\n      const l = 2 * i + 1, r = l + 1;\n      let m = i;\n      if (l < heap.length && heap[l] < heap[m]) m = l;\n      if (r < heap.length && heap[r] < heap[m]) m = r;\n      if (m === i) break;\n      [heap[i], heap[m]] = [heap[m], heap[i]];\n      i = m;\n    }\n  }\n  return top;\n}\n\nconst h = [];\nfor (const x of [5, 3, 8, 1, 9, 2]) push(h, x);\nconsole.log(h);\nconsole.log(pop(h), pop(h), pop(h));\nconsole.log(h);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Sift up stops the moment the parent is no larger; the invariant only ever concerned this one path."
+     },
+     {
+      "line": 17,
+      "text": "Popping promotes the last element, not the second smallest - which is why the new root must then sift down."
+     },
+     {
+      "line": 22,
+      "text": "Swap with the SMALLER child. Swapping with the larger one restores nothing and quietly corrupts the heap."
+     },
+     {
+      "line": 34,
+      "text": "Prints [1, 3, 2, 5, 9, 8]: ordered at the root and nowhere else. A heap is not a sorted array."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "heapPush",
+     "prompt": "Design `heapPush(heap, value)`: `heap` is an array of numbers already satisfying the min-heap invariant. Append `value`, sift it up until its parent is no larger, and return the resulting array. Do not sort. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[], 5",
+       "expected": [
+        5
+       ]
+      },
+      {
+       "input": "[1,3,2], 0",
+       "expected": [
+        0,
+        1,
+        2,
+        3
+       ]
+      },
+      {
+       "input": "[1,2,3], 4",
+       "expected": [
+        1,
+        2,
+        3,
+        4
+       ]
+      },
+      {
+       "input": "[2,4,3], 1",
+       "expected": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     ],
+     "solution": "function heapPush(heap, value) {\n  heap.push(value);\n  var i = heap.length - 1;\n  while (i > 0) {\n    var parent = (i - 1) >> 1;\n    if (heap[parent] <= heap[i]) break;\n    var t = heap[i]; heap[i] = heap[parent]; heap[parent] = t;\n    i = parent;\n  }\n  return heap;\n}",
+     "concepts": [
+      "binary-heap"
+     ],
+     "explain": "Sifting up compares only against the parent chain, so a value belonging near the root climbs $\\log n$ levels while one belonging at the bottom stops immediately. The `[1,3,2], 0` case catches a single-swap attempt: the new value has to keep climbing past 3 all the way to the root rather than stopping after one exchange."
+    }
+   },
+   {
+    "title": "Cancelled Is Not The Same As Removed",
+    "body": "Jobs get cancelled, and a heap has no way to delete one by name - finding it is precisely the $O(n)$ scan the heap was chosen to avoid. The standard answer is **lazy deletion**: record the cancellation somewhere that *can* be searched cheaply, leave the heap entry where it is, and discard it when it surfaces at the top.\n\nThat somewhere is a **hash index**, a map from job id to its record, giving $O(1)$ average lookup, insertion and deletion. The heap now holds entries that may be stale and the index is the authority on which are real, so the heap's size is an upper bound on the number of live jobs and never the count itself.\n\nThe cost is amortised rather than removed. Each entry is pushed once and discarded at most once, so $m$ operations still cost $O(m \\log n)$ in total, even though a single `run` may throw away many corpses before it finds a live job. What you give up is a tight bound on any *individual* call, and a memory footprint that tracks cancellations rather than outstanding work.",
+    "code": "const heap = [\n  { seq: 0, id: \"p\" },\n  { seq: 1, id: \"q\" },\n  { seq: 2, id: \"r\" }\n];\nconst cancelled = { p: true };\n\nfunction nextRunnable(heap, cancelled) {\n  let discarded = 0;\n  while (heap.length) {\n    const entry = heap.shift();\n    if (cancelled[entry.id]) { discarded++; continue; }\n    return { id: entry.id, discarded };\n  }\n  return { id: null, discarded };\n}\n\nconsole.log(\"entries held:\", heap.length, \"runnable jobs:\", heap.length - 1);\nconsole.log(nextRunnable(heap, cancelled));\nconsole.log(\"entries held now:\", heap.length);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The index is the authority. Cancelling writes here in O(1) and never touches the heap at all."
+     },
+     {
+      "line": 12,
+      "text": "A stale entry is discarded at the moment it reaches the front, and only then - this is the lazy part."
+     },
+     {
+      "line": 18,
+      "text": "Prints 3 and 2: the structure is holding one more entry than there are jobs left to run."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "nextLive",
+     "prompt": "Design `nextLive(queue, cancelled)`: `queue` is an array of job ids in the order a heap would surface them, and `cancelled` is an array of ids that have been cancelled. Return `{ id, discarded }` - the first id in `queue` that is not cancelled, and how many stale entries were thrown away before reaching it. When every entry is stale, return `id` as `null` with `discarded` counting them all. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "['a','b','c'], ['a']",
+       "expected": {
+        "id": "b",
+        "discarded": 1
+       }
+      },
+      {
+       "input": "['a'], ['a']",
+       "expected": {
+        "id": null,
+        "discarded": 1
+       }
+      },
+      {
+       "input": "[], []",
+       "expected": {
+        "id": null,
+        "discarded": 0
+       }
+      },
+      {
+       "input": "['a','b'], []",
+       "expected": {
+        "id": "a",
+        "discarded": 0
+       }
+      }
+     ],
+     "solution": "function nextLive(queue, cancelled) {\n  var dead = Object.create(null);\n  for (var i = 0; i < cancelled.length; i++) dead[cancelled[i]] = true;\n  var discarded = 0;\n  for (var j = 0; j < queue.length; j++) {\n    if (!dead[queue[j]]) return { id: queue[j], discarded: discarded };\n    discarded++;\n  }\n  return { id: null, discarded: discarded };\n}",
+     "concepts": [
+      "lazy-deletion",
+      "hash-index"
+     ],
+     "explain": "Building a lookup from `cancelled` before the loop is the whole exercise: testing membership with `indexOf` inside the loop makes the scan quadratic and reintroduces exactly the linear search lazy deletion exists to avoid. The all-stale case matters because it is the only one where the caller must tell an empty queue apart from a queue full of corpses."
+    }
+   },
+   {
+    "title": "Recency Is A List; Lookup Is Still A Map",
+    "body": "The last shape records what ran recently, most recent first, keeping at most `capacity` entries. Held in an array, promoting an id to the front costs $O(n)$ because every element before it shifts - and that sits on the hot path of every single run.\n\nA **doubly linked list** makes it $O(1)$: unlinking a node needs only its two neighbours, and both are one pointer away. On its own the list still cannot find the node for a given id without walking it, so it is paired with a hash index from id to node - the map finds the node, the list moves it. That pairing is the classic **LRU** structure, and both halves are load-bearing.\n\nEviction falls out of the same shape. Once the list is over `capacity` the least recently used entry is the tail, already located, so dropping it is one unlink and one key deletion with no search. Note that a repeat visit must **move** the existing node rather than insert a second one; a duplicate would leave the map pointing at a node the list has forgotten.",
+    "code": "function makeHistory(capacity) {\n  return { capacity, head: null, tail: null, nodes: Object.create(null), size: 0 };\n}\n\nfunction detach(h, node) {\n  if (node.prev) node.prev.next = node.next; else h.head = node.next;\n  if (node.next) node.next.prev = node.prev; else h.tail = node.prev;\n  node.prev = null; node.next = null;\n}\n\nfunction touch(h, id) {\n  let node = h.nodes[id];\n  if (node) detach(h, node);\n  else { node = { id, prev: null, next: null }; h.nodes[id] = node; h.size++; }\n  node.next = h.head;\n  if (h.head) h.head.prev = node;\n  h.head = node;\n  if (!h.tail) h.tail = node;\n  if (h.size > h.capacity) {\n    const drop = h.tail;\n    detach(h, drop);\n    delete h.nodes[drop.id];\n    h.size--;\n  }\n  return h;\n}\n\nfunction list(h) {\n  const out = [];\n  for (let n = h.head; n; n = n.next) out.push(n.id);\n  return out;\n}\n\nconst h = makeHistory(3);\nfor (const id of [\"a\", \"b\", \"c\", \"a\", \"d\"]) { touch(h, id); console.log(id, \"->\", list(h)); }",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Unlinking touches only the neighbours - no shifting, no search. This is what the array could not do."
+     },
+     {
+      "line": 13,
+      "text": "An id already present is detached and re-linked at the front: size is unchanged and no duplicate appears."
+     },
+     {
+      "line": 20,
+      "text": "Over capacity: the tail is by construction the least recently used, so eviction needs no scan."
+     },
+     {
+      "line": 35,
+      "text": "Watch 'a' return - it moves to the front and 'b' becomes the tail, so the next insert evicts b rather than a."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "touch",
+     "prompt": "Design `touch(history, id, capacity)`: `history` is an array of ids, most recently used first, holding at most `capacity` of them. Return the new history after using `id` - it goes to the front, any earlier occurrence of it disappears, and the result is trimmed to `capacity` by dropping from the end. Do not modify the array you were given. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "['b','a'], 'a', 3",
+       "expected": [
+        "a",
+        "b"
+       ]
+      },
+      {
+       "input": "['b','a'], 'c', 2",
+       "expected": [
+        "c",
+        "b"
+       ]
+      },
+      {
+       "input": "[], 'x', 1",
+       "expected": [
+        "x"
+       ]
+      },
+      {
+       "input": "['c','b','a'], 'c', 3",
+       "expected": [
+        "c",
+        "b",
+        "a"
+       ]
+      }
+     ],
+     "solution": "function touch(history, id, capacity) {\n  var out = [id];\n  for (var i = 0; i < history.length; i++) {\n    if (history[i] !== id) out.push(history[i]);\n  }\n  return out.slice(0, capacity);\n}",
+     "concepts": [
+      "doubly-linked-list",
+      "lru-eviction"
+     ],
+     "explain": "Removing the old occurrence before trimming is what stops one id occupying two slots, and trimming last is what makes an eviction happen only when a genuinely new id arrives. The array here is the semantics, not the implementation - the Trial demands the same rules at $O(1)$ per use, which is what forces the list-plus-map pairing."
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "ds-10-t-01",
+   "type": "project",
+   "layer": "application",
+   "harness": "function",
+   "prompt": "**The Trial.** Build the job vault: a scheduler that answers three different questions about the same jobs, each of them cheaply. Write `runVault(capacity, commands)`. `capacity` is a positive integer, `commands` is an array of command arrays, and the return value is an array holding **one result per command, in order**. Nothing survives between calls to `runVault`; the acceptance tests are the whole specification.\n\nA job has an `id` and an integer `priority`, where a **smaller** priority is more urgent. A job is **pending** from the moment it is submitted until it is run or cancelled.\n\n- `[\"submit\", id, priority]` - make the job pending and return `true`. If a job with that id is already pending, change nothing and return `false`. An id that has already been run or cancelled may be submitted again, at any priority.\n- `[\"cancel\", id]` - return `true` if that id was pending and is now cancelled, and `false` otherwise. The cancelled entry is **not** removed from the priority structure; it is discarded when it reaches the top.\n- `[\"run\"]` - run the pending job with the smallest priority, breaking ties towards the **earlier submission**, and return its id. Running it makes it no longer pending and records it in the history. Return `null` when nothing is pending.\n- `[\"history\"]` - return an array of the ids in the history, **most recently run first**. An id run again moves to the front rather than appearing twice, and when the history would exceed `capacity` the least recently run id is dropped.\n- `[\"stats\"]` - return `{ pending, heapSize, historySize }`: the number of pending jobs, the number of entries still held in the priority structure - **cancelled ones included, since they are only discarded on reaching the top** - and the number of ids in the history.\n\n`heapSize` is what makes the lazy deletion observable, so it must report the real contents of your priority structure rather than a recomputed count of live jobs. Every rule above is exercised by the tests below, and nothing is hidden from you.",
+   "fn": "runVault",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "3, [[\"submit\",\"build\",2],[\"submit\",\"deploy\",1],[\"submit\",\"test\",2],[\"run\"],[\"run\"],[\"run\"],[\"run\"]]",
+     "expected": [
+      true,
+      true,
+      true,
+      "deploy",
+      "build",
+      "test",
+      null
+     ],
+     "label": "priority order first, then an empty vault returns null"
+    },
+    {
+     "input": "3, [[\"submit\",\"a\",1],[\"submit\",\"a\",5],[\"cancel\",\"a\"],[\"cancel\",\"a\"],[\"run\"]]",
+     "expected": [
+      true,
+      false,
+      true,
+      false,
+      null
+     ],
+     "label": "a duplicate submit is refused, and cancelling twice is not a second cancellation"
+    },
+    {
+     "input": "3, [[\"submit\",\"a\",1],[\"submit\",\"b\",2],[\"cancel\",\"a\"],[\"stats\"],[\"run\"],[\"stats\"]]",
+     "expected": [
+      true,
+      true,
+      true,
+      {
+       "pending": 1,
+       "heapSize": 2,
+       "historySize": 0
+      },
+      "b",
+      {
+       "pending": 0,
+       "heapSize": 0,
+       "historySize": 1
+      }
+     ],
+     "label": "stats sees the corpse: heapSize 2 against pending 1"
+    },
+    {
+     "input": "2, [[\"submit\",\"a\",1],[\"submit\",\"b\",2],[\"submit\",\"c\",3],[\"run\"],[\"run\"],[\"run\"],[\"submit\",\"a\",1],[\"run\"],[\"history\"]]",
+     "expected": [
+      true,
+      true,
+      true,
+      "a",
+      "b",
+      "c",
+      true,
+      "a",
+      [
+       "a",
+       "c"
+      ]
+     ],
+     "label": "capacity 2 evicts the least recently run, and an id may be submitted again"
+    },
+    {
+     "input": "3, [[\"submit\",\"x\",1],[\"run\"],[\"submit\",\"y\",1],[\"run\"],[\"submit\",\"x\",1],[\"run\"],[\"history\"],[\"stats\"]]",
+     "expected": [
+      true,
+      "x",
+      true,
+      "y",
+      true,
+      "x",
+      [
+       "x",
+       "y"
+      ],
+      {
+       "pending": 0,
+       "heapSize": 0,
+       "historySize": 2
+      }
+     ],
+     "label": "an id run twice moves to the front of the history instead of duplicating"
+    },
+    {
+     "input": "1, []",
+     "expected": [],
+     "label": "no commands at all"
+    },
+    {
+     "input": "1, [[\"run\"],[\"history\"],[\"stats\"]]",
+     "expected": [
+      null,
+      [],
+      {
+       "pending": 0,
+       "heapSize": 0,
+       "historySize": 0
+      }
+     ],
+     "label": "run on an empty vault, with an empty history and empty stats"
+    },
+    {
+     "input": "1, [[\"submit\",\"a\",1],[\"submit\",\"b\",1],[\"run\"],[\"run\"],[\"history\"]]",
+     "expected": [
+      true,
+      true,
+      "a",
+      "b",
+      [
+       "b"
+      ]
+     ],
+     "label": "capacity 1 keeps only the most recent"
+    },
+    {
+     "input": "5, [[\"submit\",\"d\",5],[\"submit\",\"c\",5],[\"run\"],[\"submit\",\"e\",1],[\"submit\",\"f\",5],[\"run\"],[\"run\"],[\"run\"],[\"history\"]]",
+     "expected": [
+      true,
+      true,
+      "d",
+      true,
+      true,
+      "e",
+      "c",
+      "f",
+      [
+       "f",
+       "c",
+       "e",
+       "d"
+      ]
+     ],
+     "label": "equal priorities break on submission order, including jobs submitted later"
+    },
+    {
+     "input": "3, [[\"submit\",\"p\",1],[\"submit\",\"q\",2],[\"cancel\",\"p\"],[\"submit\",\"p\",9],[\"stats\"],[\"run\"],[\"run\"],[\"stats\"]]",
+     "expected": [
+      true,
+      true,
+      true,
+      true,
+      {
+       "pending": 2,
+       "heapSize": 3,
+       "historySize": 0
+      },
+      "q",
+      "p",
+      {
+       "pending": 0,
+       "heapSize": 0,
+       "historySize": 2
+      }
+     ],
+     "label": "a cancelled id resubmitted at a new priority: three entries held, two pending"
+    }
+   ],
+   "solution": "function runVault(capacity, commands) {\n  var index = Object.create(null);\n  var records = [];\n  var heap = [];\n  var pending = 0;\n\n  function before(x, y) {\n    var a = records[x], b = records[y];\n    if (a.priority !== b.priority) return a.priority < b.priority;\n    return x < y;\n  }\n  function heapPush(seq) {\n    heap.push(seq);\n    var i = heap.length - 1;\n    while (i > 0) {\n      var p = (i - 1) >> 1;\n      if (!before(heap[i], heap[p])) break;\n      var t = heap[i]; heap[i] = heap[p]; heap[p] = t;\n      i = p;\n    }\n  }\n  function heapPop() {\n    var top = heap[0];\n    var last = heap.pop();\n    if (heap.length) {\n      heap[0] = last;\n      var i = 0;\n      for (;;) {\n        var l = 2 * i + 1, r = l + 1, m = i;\n        if (l < heap.length && before(heap[l], heap[m])) m = l;\n        if (r < heap.length && before(heap[r], heap[m])) m = r;\n        if (m === i) break;\n        var t = heap[i]; heap[i] = heap[m]; heap[m] = t;\n        i = m;\n      }\n    }\n    return top;\n  }\n\n  var head = null, tail = null, nodes = Object.create(null), listSize = 0;\n  function detach(node) {\n    if (node.prev) node.prev.next = node.next; else head = node.next;\n    if (node.next) node.next.prev = node.prev; else tail = node.prev;\n    node.prev = null; node.next = null;\n  }\n  function touch(id) {\n    var node = nodes[id];\n    if (node) detach(node);\n    else { node = { id: id, prev: null, next: null }; nodes[id] = node; listSize++; }\n    node.next = head;\n    if (head) head.prev = node;\n    head = node;\n    if (!tail) tail = node;\n    if (listSize > capacity) {\n      var drop = tail;\n      detach(drop);\n      delete nodes[drop.id];\n      listSize--;\n    }\n  }\n\n  var out = [];\n  for (var k = 0; k < commands.length; k++) {\n    var cmd = commands[k], op = cmd[0];\n    if (op === \"submit\") {\n      var sid = cmd[1];\n      if (index[sid] !== undefined) { out.push(false); continue; }\n      var seq = records.length;\n      records.push({ id: sid, priority: cmd[2], cancelled: false });\n      index[sid] = seq;\n      heapPush(seq);\n      pending++;\n      out.push(true);\n    } else if (op === \"cancel\") {\n      var cid = cmd[1];\n      if (index[cid] === undefined) { out.push(false); continue; }\n      records[index[cid]].cancelled = true;\n      delete index[cid];\n      pending--;\n      out.push(true);\n    } else if (op === \"run\") {\n      var ran = null;\n      while (heap.length) {\n        var s = heapPop();\n        if (records[s].cancelled) continue;\n        ran = records[s].id;\n        delete index[ran];\n        pending--;\n        touch(ran);\n        break;\n      }\n      out.push(ran);\n    } else if (op === \"history\") {\n      var ids = [];\n      for (var n = head; n; n = n.next) ids.push(n.id);\n      out.push(ids);\n    } else if (op === \"stats\") {\n      out.push({ pending: pending, heapSize: heap.length, historySize: listSize });\n    }\n  }\n  return out;\n}",
+   "concepts": [
+    "structure-composition",
+    "binary-heap",
+    "lazy-deletion",
+    "hash-index",
+    "doubly-linked-list",
+    "lru-eviction"
+   ],
+   "tags": [
+    "structure-composition",
+    "binary-heap",
+    "lazy-deletion",
+    "hash-index",
+    "doubly-linked-list",
+    "lru-eviction"
+   ],
+   "xp": 300,
+   "explain": "Three questions, three shapes, one set of jobs. The heap answers *what is most urgent* in $O(\\log n)$, the hash index answers *is this id pending* in $O(1)$, and the linked list with its own map answers *what ran recently* in $O(1)$ per use - and none of the three can answer another's question without a linear scan. That is the entire argument for composing them instead of picking a favourite.\n\nThe joint carrying the most weight is the one between the heap and the index. Cancelling cannot reach into the heap, so it writes to the index and leaves a corpse behind, and `run` pops until it finds an entry the index still vouches for. `stats` exposes that on purpose: after cancelling one of two jobs, `heapSize` is 2 while `pending` is 1, so an implementation that deletes eagerly - or that recomputes `heapSize` from the live jobs - reports 1 and fails. The accounting is amortised rather than free: each entry is pushed once and discarded at most once, so $m$ commands still cost $O(m \\log n)$ overall even when one `run` throws away many entries.\n\nTwo details decide whether the vault is deterministic at all. Ties on priority must break on submission order, which means the heap compares a `(priority, sequence)` pair rather than the priority alone - without the sequence, `submit d 5` then `submit c 5` may run either job and the same input gives different output on different days. And an id run twice must **move** within the history rather than be inserted again; a duplicate leaves the map pointing at a node the list has forgotten, and the next eviction drops the wrong entry. Resubmission after a run is the case that ties everything together: the id is gone from the index, absent from the heap, and present in the history, so all three structures have to agree about a job that has lived twice."
+  }
+ ]
+}

@@ -1,0 +1,1126 @@
+{
+ "n": 7,
+ "name": "The Web of Edges",
+ "concepts": [
+  "adjacency-list",
+  "adjacency-matrix",
+  "directed-graphs",
+  "weighted-edges",
+  "bfs",
+  "dfs",
+  "cycle-detection",
+  "topological-sort",
+  "connected-components"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "traversal-lab",
+  "graph-problems",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Vertices, Edges, and the Two Ways to Walk Them",
+  "sections": [
+   {
+    "title": "A Graph Is a Relation, Not a Container",
+    "body": "Every structure so far has held elements in a shape you chose - a line, a stack, a tree. A **graph** holds no shape at all: it is a set of **vertices** plus a set of **edges**, each edge asserting that two vertices are related. Anything that is a set of things and a set of connections between them - roads, imports, followers, task dependencies - is a graph, and nothing else about it is fixed.\n\nThree choices split the whole family. An edge may be **undirected** (`a` and `b` are mutually related) or **directed** (`a` points at `b` and says nothing about the reverse); it may carry a **weight**, a number standing for distance, cost or capacity; and the graph as a whole may contain a **cycle** - a path leaving a vertex and returning to it - or may not.\n\nThose choices decide which algorithms are even meaningful. A directed graph with no cycle at all is a **DAG**, and only a DAG can be put in dependency order. In the code below one edge list is read twice: pushing both directions builds an undirected graph, pushing one builds a directed one, and vertex `3` ends up with degree $2$ in the first and out-degree $0$ in the second from exactly the same input.",
+    "code": "const edges = [[0, 1], [0, 2], [1, 3], [2, 3]];\nconst n = 4;\n\nfunction build(n, edges, directed) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) {\n    adj[e[0]].push(e[1]);\n    if (!directed) adj[e[1]].push(e[0]);\n  }\n  return adj;\n}\n\nconst undirected = build(n, edges, false);\nconst directed = build(n, edges, true);\nconsole.log(\"undirected\", JSON.stringify(undirected));\nconsole.log(\"directed  \", JSON.stringify(directed));\nconsole.log(\"degree of 3 undirected:\", undirected[3].length);\nconsole.log(\"out-degree of 3 directed:\", directed[3].length);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Vertices are 0..n-1, so an array of arrays is the whole structure - no dictionary, no vertex objects."
+     },
+     {
+      "line": 9,
+      "text": "This single line is the entire difference between undirected and directed. An undirected edge is stored twice, once from each end."
+     },
+     {
+      "line": 18,
+      "text": "Same edge list, same vertex: degree 2 one way, out-degree 0 the other. Direction is not a detail."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "degreeOf",
+     "prompt": "Write `degreeOf(n, edges, v)` returning the **degree** of vertex `v` in an undirected graph on vertices `0..n-1`, where `edges` is an array of `[a, b]` pairs. The degree is the number of edges touching `v`. There are no self-loops and no repeated edges.",
+     "starterCode": "function degreeOf(n, edges, v) {\n  // an undirected edge touches v when either of its endpoints is v\n  return 0;\n}\n",
+     "tests": [
+      {
+       "input": "4, [[0, 1], [0, 2], [1, 3], [2, 3]], 3",
+       "expected": 2
+      },
+      {
+       "input": "4, [[0, 1], [0, 2], [1, 3], [2, 3]], 0",
+       "expected": 2
+      },
+      {
+       "input": "3, [], 1",
+       "expected": 0
+      }
+     ],
+     "solution": "function degreeOf(n, edges, v) {\n  let d = 0;\n  for (const e of edges) {\n    if (e[0] === v || e[1] === v) d++;\n  }\n  return d;\n}",
+     "concepts": [
+      "adjacency-list"
+     ],
+     "explain": "Both endpoints have to be tested, because an edge list records each undirected edge once and in an arbitrary orientation - `[0, 1]` and `[1, 0]` mean the same thing. Checking only `e[0]` is the classic slip, and it silently under-counts every vertex that happens to be written second."
+    }
+   },
+   {
+    "title": "List or Matrix: What You Pay to Ask a Question",
+    "body": "There are two standard representations and they are not interchangeable. An **adjacency list** stores, for each vertex, an array of its neighbours: $\\Theta(V + E)$ space, and answering *is `a` joined to `b`?* means scanning `a`'s list, which costs $O(\\deg(a))$. An **adjacency matrix** stores an $V \\times V$ grid of 0s and 1s: $\\Theta(V^2)$ space regardless of how few edges there are, but *is `a` joined to `b`?* is one array lookup, $O(1)$.\n\nThe trade is decided by **density**. A graph is sparse when $E$ is closer to $V$ than to $V^2$ - road networks, dependency graphs and social follows all are - and there the matrix wastes almost everything it allocates: 25 cells below for 5 edges. A dense graph, or one you interrogate edge-by-edge far more often than you traverse, favours the matrix.\n\nTraversal is the other half of the argument, and it is the half that usually wins. Visiting every neighbour of every vertex costs $\\Theta(V + E)$ with lists but $\\Theta(V^2)$ with a matrix, because each vertex's row must be scanned in full to find the few 1s in it. That is why almost every algorithm in this floor assumes a list.",
+    "code": "const n = 5;\nconst edges = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]];\n\nconst list = [];\nfor (let i = 0; i < n; i++) list.push([]);\nconst matrix = [];\nfor (let i = 0; i < n; i++) matrix.push(new Array(n).fill(0));\n\nfor (const e of edges) {\n  list[e[0]].push(e[1]);\n  list[e[1]].push(e[0]);\n  matrix[e[0]][e[1]] = 1;\n  matrix[e[1]][e[0]] = 1;\n}\n\nconsole.log(\"list  \", JSON.stringify(list));\nfor (const row of matrix) console.log(\"matrix\", JSON.stringify(row));\nconsole.log(\"hasEdge(0,4) by matrix:\", matrix[0][4] === 1);\nconsole.log(\"hasEdge(0,4) by list:  \", list[0].indexOf(4) !== -1);\nconsole.log(\"hasEdge(0,3) either way:\", matrix[0][3] === 1, list[0].indexOf(3) !== -1);\nconsole.log(\"cells stored:\", n * n, \"vs list entries:\", 2 * edges.length);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "The matrix is symmetric for an undirected graph, so half of it is redundant - a directed graph fills only one of the two cells."
+     },
+     {
+      "line": 19,
+      "text": "One indexed lookup against a linear scan. On a vertex with a million neighbours that gap is the whole reason matrices exist."
+     },
+     {
+      "line": 21,
+      "text": "25 cells to record 5 edges. The waste grows as V squared while the information grows as E."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "toMatrix",
+     "prompt": "Write `toMatrix(n, edges)` returning the `n` by `n` adjacency matrix of an **undirected** graph as an array of `n` arrays of numbers, where entry `[a][b]` is `1` when `a` and `b` are joined and `0` otherwise. `edges` is an array of `[a, b]` pairs.",
+     "starterCode": "function toMatrix(n, edges) {\n  const m = [];\n  // n rows of n zeroes, then set both cells for each edge\n  return m;\n}\n",
+     "tests": [
+      {
+       "input": "3, [[0, 1], [1, 2]]",
+       "expected": [
+        [
+         0,
+         1,
+         0
+        ],
+        [
+         1,
+         0,
+         1
+        ],
+        [
+         0,
+         1,
+         0
+        ]
+       ]
+      },
+      {
+       "input": "2, []",
+       "expected": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         0
+        ]
+       ]
+      },
+      {
+       "input": "1, []",
+       "expected": [
+        [
+         0
+        ]
+       ]
+      }
+     ],
+     "solution": "function toMatrix(n, edges) {\n  const m = [];\n  for (let i = 0; i < n; i++) m.push(new Array(n).fill(0));\n  for (const e of edges) {\n    m[e[0]][e[1]] = 1;\n    m[e[1]][e[0]] = 1;\n  }\n  return m;\n}",
+     "concepts": [
+      "adjacency-matrix"
+     ],
+     "explain": "The edgeless cases are the point of this checkpoint: a matrix for a graph with no edges is still fully allocated, so `toMatrix(2, [])` must be two rows of zeroes rather than an empty array. That allocation happening before a single edge is read is exactly the $\\Theta(V^2)$ cost the representation charges you up front."
+    }
+   },
+   {
+    "title": "Breadth First: a Queue Buys You Shortest Paths",
+    "body": "**Breadth-first search** keeps a queue of discovered-but-unexplored vertices. Take one from the front, mark every undiscovered neighbour as discovered, push those on the back, repeat. Because the queue is FIFO, every vertex at distance $d$ is dequeued before any vertex at distance $d+1$, so the search sweeps outward in complete rings.\n\nThat ring structure is what makes BFS a **shortest-path** algorithm on an **unweighted** graph: the first time a vertex is reached, it is reached by a fewest-edges path, so the distance can be recorded once and never revised. Setting `dist[w]` at discovery - when it is pushed, not when it is popped - is what stops a later, longer route from overwriting it.\n\nBFS touches each vertex once and each edge at most twice (once from each end), so with an adjacency list it runs in $\\Theta(V + E)$. Vertices in another component are never discovered at all, which is why `5` and `6` below finish on $-1$ - and why running BFS repeatedly from every still-undiscovered vertex enumerates the **connected components**.",
+    "code": "const n = 7;\nconst edges = [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [5, 6]];\nconst adj = [];\nfor (let i = 0; i < n; i++) adj.push([]);\nfor (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n\nconst dist = new Array(n).fill(-1);\nconst queue = [0];\ndist[0] = 0;\nlet head = 0;\nwhile (head < queue.length) {\n  const v = queue[head++];\n  for (const w of adj[v]) {\n    if (dist[w] === -1) {\n      dist[w] = dist[v] + 1;\n      queue.push(w);\n      console.log(\"first reached\", w, \"at distance\", dist[w], \"from\", v);\n    }\n  }\n}\nconsole.log(\"distances\", JSON.stringify(dist));\nconsole.log(\"visit order\", JSON.stringify(queue));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "A moving head index instead of shift(): shift() is O(n) in an array, which would quietly turn a linear BFS into a quadratic one."
+     },
+     {
+      "line": 14,
+      "text": "dist[w] doubles as the discovered flag. Assigning it here, at discovery, is what guarantees the first path found is kept."
+     },
+     {
+      "line": 21,
+      "text": "Vertices 5 and 6 stay at -1: unreachable is not the same as far away, and a single sentinel must say so."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "shortestPathLength",
+     "prompt": "Write `shortestPathLength(n, edges, a, b)` returning the number of edges on a shortest path from `a` to `b` in an **undirected, unweighted** graph on vertices `0..n-1`. Return `0` when `a` and `b` are the same vertex, and `-1` when no path exists.",
+     "starterCode": "function shortestPathLength(n, edges, a, b) {\n  // build the adjacency list, then BFS out from a recording distances\n  return -1;\n}\n",
+     "tests": [
+      {
+       "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 0, 5",
+       "expected": 3
+      },
+      {
+       "input": "5, [[0, 1], [2, 3]], 0, 3",
+       "expected": -1
+      },
+      {
+       "input": "3, [], 1, 1",
+       "expected": 0
+      }
+     ],
+     "solution": "function shortestPathLength(n, edges, a, b) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  const dist = new Array(n).fill(-1);\n  dist[a] = 0;\n  const queue = [a];\n  let head = 0;\n  while (head < queue.length) {\n    const v = queue[head++];\n    for (const w of adj[v]) {\n      if (dist[w] === -1) { dist[w] = dist[v] + 1; queue.push(w); }\n    }\n  }\n  return dist[b];\n}",
+     "concepts": [
+      "bfs"
+     ],
+     "explain": "Returning `dist[b]` handles all three cases with no special-casing: it is 0 for the start vertex because that is what the search seeded, and it is still -1 for anything the sweep never discovered. Code that returns early on finding `b` needs the `a === b` case written out by hand, which is where the off-by-one appears."
+    }
+   },
+   {
+    "title": "Depth First: a Stack, a Cycle, and an Order",
+    "body": "**Depth-first search** replaces the queue with a stack - usually the call stack. It follows one edge as far as it can go, and only when a vertex has no undiscovered neighbours left does it retreat. The traversal costs the same $\\Theta(V + E)$ as BFS; what differs is the *shape* of the walk, and that shape is what makes DFS the tool for structural questions rather than distance ones.\n\nDFS knows something BFS does not: which vertices are on the path currently being explored. Colour a vertex **grey** when the visit begins and **black** when it returns. An edge into a grey vertex reaches an ancestor of where you stand, so it closes a **cycle**; an edge into a black vertex only reaches a finished region and proves nothing. In an undirected graph the same test needs one guard, since the edge back to the vertex you just came from is not a cycle.\n\nThe order in which vertices turn black is the other prize. A vertex goes black only after everything reachable from it has, so reversing the finishing order puts every vertex before all of its dependants: that reversed list is a **topological sort**, and it exists exactly when the DFS found no grey edge - that is, when the graph is a DAG.",
+    "code": "const n = 6;\nconst edges = [[5, 2], [5, 0], [4, 0], [4, 1], [2, 3], [3, 1]];\nconst adj = [];\nfor (let i = 0; i < n; i++) adj.push([]);\nfor (const e of edges) adj[e[0]].push(e[1]);\n\nconst colour = new Array(n).fill(0);\nconst finished = [];\nlet cycle = false;\n\nfunction visit(v) {\n  colour[v] = 1;\n  for (const w of adj[v]) {\n    if (colour[w] === 1) cycle = true;\n    else if (colour[w] === 0) visit(w);\n  }\n  colour[v] = 2;\n  finished.push(v);\n}\n\nfor (let v = 0; v < n; v++) if (colour[v] === 0) visit(v);\n\nconsole.log(\"finish order\", JSON.stringify(finished));\nconsole.log(\"topological order\", JSON.stringify(finished.slice().reverse()));\nconsole.log(\"cycle found?\", cycle);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 14,
+      "text": "Grey means still on the current path, so this edge points back at an ancestor: that is a cycle, and the only test needed to find one."
+     },
+     {
+      "line": 18,
+      "text": "Pushed on the way out, not on the way in. A pre-order push would give the visit order, which is not a topological order."
+     },
+     {
+      "line": 21,
+      "text": "The outer loop is not optional: a DAG can have several roots, and a single visit(0) would miss 4 and 5 entirely."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This three-colour DFS runs on a directed graph. What does it print? Colours are `0` white, `1` grey, `2` black, and the two values print separated by a space.",
+     "code": "const n = 4;\nconst edges = [[0, 1], [1, 2], [2, 3], [3, 1]];\nconst adj = [];\nfor (let i = 0; i < n; i++) adj.push([]);\nfor (const e of edges) adj[e[0]].push(e[1]);\n\nconst colour = new Array(n).fill(0);\nlet cycle = false;\n\nfunction visit(v) {\n  colour[v] = 1;\n  for (const w of adj[v]) {\n    if (colour[w] === 1) cycle = true;\n    else if (colour[w] === 0) visit(w);\n  }\n  colour[v] = 2;\n}\n\nvisit(0);\nconsole.log(cycle, JSON.stringify(colour));",
+     "lang": "javascript",
+     "answer": "true [2,2,2,2]",
+     "concepts": [
+      "cycle-detection"
+     ],
+     "explain": "The edge `3 -> 1` is followed while 1 is still grey - the visit to 1 has not returned, because 2 and 3 are being explored inside it - so the cycle is detected. Every vertex still ends black: grey is a transient state describing the current path, not a mark left behind on the vertices of the cycle."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-7-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? The edges are read in the order given.",
+   "code": "const n = 4;\nconst edges = [[0, 1], [1, 2], [2, 0], [2, 3]];\nconst adj = [];\nfor (let i = 0; i < n; i++) adj.push([]);\nfor (const e of edges) {\n  adj[e[0]].push(e[1]);\n  adj[e[1]].push(e[0]);\n}\nconsole.log(JSON.stringify(adj));",
+   "lang": "javascript",
+   "answer": "[[1,2],[0,2],[1,0,3],[2]]",
+   "concepts": [
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-list",
+    "graph-representation"
+   ],
+   "explain": "Nothing sorts these lists - a neighbour list holds vertices in the order the edges happened to be read, which is why `adj[2]` comes out `[1,0,3]` rather than `[0,1,3]`. Any algorithm whose output depends on neighbour order (DFS especially) therefore depends on the edge list's order too, unless you sort deliberately.",
+   "xp": 36
+  },
+  {
+   "id": "ds-7-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the adjacency-matrix builder for an **undirected** graph. The blanks are, in order: the value every cell starts at, and the two indices of the mirrored cell.",
+   "template": "function toMatrix(n, edges) {\n  const m = [];\n  for (let i = 0; i < n; i++) m.push(new Array(n).fill(___));\n  for (const e of edges) {\n    m[e[0]][e[1]] = 1;\n    m[___][___] = 1;\n  }\n  return m;\n}",
+   "blanks": [
+    "0",
+    "e[1]",
+    "e[0]"
+   ],
+   "concepts": [
+    "adjacency-matrix"
+   ],
+   "tags": [
+    "adjacency-matrix",
+    "graph-representation"
+   ],
+   "explain": "The mirrored write is what makes the matrix symmetric, and it is the only line that would be deleted to make the graph directed. Leaving it out gives a structure that answers `hasEdge(1, 0)` with `false` while answering `hasEdge(0, 1)` with `true` - a directed graph pretending to be undirected, and a bug that hides until a traversal starts from the wrong end.",
+   "xp": 36
+  },
+  {
+   "id": "ds-7-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `buildGraph(n, edges, directed)` returning the adjacency list of a graph on vertices `0..n-1` as an array of `n` arrays. `edges` is an array of `[a, b]` pairs. Push `b` onto `a`'s list for every edge, in edge order; when `directed` is `false`, also push `a` onto `b`'s list. Vertices with no edges get an empty array.",
+   "fn": "buildGraph",
+   "starterCode": "function buildGraph(n, edges, directed) {\n  const adj = [];\n  // n empty lists first, then one pass over the edges\n  return adj;\n}\n",
+   "tests": [
+    {
+     "input": "4, [[0, 1], [0, 2], [1, 2]], false",
+     "expected": [
+      [
+       1,
+       2
+      ],
+      [
+       0,
+       2
+      ],
+      [
+       0,
+       1
+      ],
+      []
+     ]
+    },
+    {
+     "input": "4, [[0, 1], [0, 2], [1, 2]], true",
+     "expected": [
+      [
+       1,
+       2
+      ],
+      [
+       2
+      ],
+      [],
+      []
+     ]
+    },
+    {
+     "input": "3, [], false",
+     "expected": [
+      [],
+      [],
+      []
+     ]
+    },
+    {
+     "input": "0, [], false",
+     "expected": []
+    },
+    {
+     "input": "2, [[0, 1]], true",
+     "expected": [
+      [
+       1
+      ],
+      []
+     ]
+    }
+   ],
+   "solution": "function buildGraph(n, edges, directed) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) {\n    adj[e[0]].push(e[1]);\n    if (!directed) adj[e[1]].push(e[0]);\n  }\n  return adj;\n}",
+   "hint": "Allocate all `n` lists before reading any edge, otherwise vertex 3 in the first test - which appears in no edge at all - never gets a list.",
+   "concepts": [
+    "adjacency-list",
+    "directed-graphs"
+   ],
+   "tags": [
+    "adjacency-list",
+    "directed-graphs"
+   ],
+   "explain": "The isolated vertex is the case that separates a correct builder from one that grows lists lazily as edges arrive: a vertex with degree 0 is still a vertex, and code that only creates entries for endpoints it sees returns a graph of the wrong size. Note also that the number of stored entries is $2E$ undirected and $E$ directed, which is why an undirected adjacency list costs twice a directed one on the same edge set.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-g-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "BFS runs on the undirected graph with `n = 6` and edges `[[0,1],[0,2],[1,3],[2,4],[3,5],[4,5]]`, starting at `0`, with every neighbour list sorted ascending. A vertex is marked seen and pushed the moment it is discovered. Starting from the queue `[0]`, give the contents of the queue **after** each vertex is dequeued and its undiscovered neighbours pushed. Write queues as `[1,2]` and the empty queue as `[]`.",
+   "steps": [
+    {
+     "label": "after dequeuing 0",
+     "expected": "[1,2]"
+    },
+    {
+     "label": "after dequeuing 1",
+     "expected": "[2,3]"
+    },
+    {
+     "label": "after dequeuing 2",
+     "expected": "[3,4]"
+    },
+    {
+     "label": "after dequeuing 3",
+     "expected": "[4,5]"
+    },
+    {
+     "label": "after dequeuing 4",
+     "expected": "[5]"
+    },
+    {
+     "label": "after dequeuing 5",
+     "expected": "[]"
+    }
+   ],
+   "concepts": [
+    "bfs"
+   ],
+   "tags": [
+    "bfs",
+    "queue"
+   ],
+   "explain": "Watch the queue's contents: it never holds vertices more than one distance apart, which is the invariant that makes BFS a shortest-path algorithm. The step that catches people is dequeuing 4, which pushes nothing - 5 was already discovered from 3 one step earlier, and the whole point of marking at discovery is that 4 must not push it a second time.",
+   "xp": 72
+  },
+  {
+   "id": "ds-7-g-05",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the space an **adjacency matrix** occupies for a graph with $V$ vertices and $E$ edges, and justify it against the adjacency list's cost. Say which representation you would choose for a road network of 10 million junctions where each junction meets about four roads, and why.",
+   "answer": "O(V^2)",
+   "rubric": {
+    "required": [
+     "matrix",
+     "list",
+     "sparse"
+    ],
+    "optional": [
+     "dense",
+     "edges",
+     "row",
+     "lookup",
+     "traversal",
+     "waste"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "adjacency-matrix",
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-matrix",
+    "adjacency-list",
+    "complexity"
+   ],
+   "explain": "A matrix allocates a cell for every ordered pair whether or not an edge exists, so its size is fixed at $\\Theta(V^2)$ before a single edge is read; the list stores only what exists, $\\Theta(V + E)$. At 10 million junctions the matrix would need $10^{14}$ cells to record roughly $2 \\times 10^7$ edges, which no machine holds - the graph is extremely sparse and the list is the only option. The matrix earns its keep only on dense graphs, or when constant-time edge queries outweigh traversal, since scanning a row to find a vertex's neighbours costs $\\Theta(V)$ rather than $\\Theta(\\deg(v))$.",
+   "xp": 72
+  }
+ ],
+ "traversal-lab": [
+  {
+   "id": "ds-7-t-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bfsOrder(n, edges, start)` returning the vertices of an **undirected** graph in breadth-first visit order from `start`, as an array. Sort each neighbour list ascending before traversing, so ties break towards the smaller vertex. Vertices in other components are not visited.",
+   "fn": "bfsOrder",
+   "starterCode": "function bfsOrder(n, edges, start) {\n  // build the adjacency list, sort each neighbour list,\n  // then walk a FIFO queue marking vertices seen as they are discovered\n  return [];\n}\n",
+   "tests": [
+    {
+     "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 0",
+     "expected": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 5",
+     "expected": [
+      5,
+      3,
+      4,
+      1,
+      2,
+      0
+     ]
+    },
+    {
+     "input": "5, [[0, 1], [2, 3]], 0",
+     "expected": [
+      0,
+      1
+     ]
+    },
+    {
+     "input": "1, [], 0",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "solution": "function bfsOrder(n, edges, start) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  for (const l of adj) l.sort(function (a, b) { return a - b; });\n  const seen = new Array(n).fill(false);\n  const order = [];\n  const queue = [start];\n  seen[start] = true;\n  let head = 0;\n  while (head < queue.length) {\n    const v = queue[head++];\n    order.push(v);\n    for (const w of adj[v]) if (!seen[w]) { seen[w] = true; queue.push(w); }\n  }\n  return order;\n}",
+   "hint": "Mark `start` as seen before the loop begins. If you only mark on dequeue, a vertex reached by two different neighbours in the same round enters the queue twice.",
+   "concepts": [
+    "bfs",
+    "adjacency-list"
+   ],
+   "tags": [
+    "bfs",
+    "queue",
+    "adjacency-list"
+   ],
+   "explain": "Marking at discovery rather than at dequeue is the whole correctness argument: in the first test both 3 and 4 reach 5, and a search that defers marking pushes 5 twice and reports it twice. The disconnected test then checks the other half - BFS explores a component, not a graph, so vertices 2, 3 and 4 must simply be absent rather than appended at the end.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-t-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bfsDistances(n, edges, start)` returning an array of length `n` where entry `v` is the fewest edges on a path from `start` to `v` in an **undirected, unweighted** graph. The start vertex is at distance `0`, and any vertex with no path from `start` is `-1`.",
+   "fn": "bfsDistances",
+   "starterCode": "function bfsDistances(n, edges, start) {\n  const dist = new Array(n).fill(-1);\n  // seed dist[start], then let the queue fill the rest in one sweep\n  return dist;\n}\n",
+   "tests": [
+    {
+     "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 0",
+     "expected": [
+      0,
+      1,
+      1,
+      2,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "5, [[0, 1], [2, 3]], 0",
+     "expected": [
+      0,
+      1,
+      -1,
+      -1,
+      -1
+     ]
+    },
+    {
+     "input": "1, [], 0",
+     "expected": [
+      0
+     ]
+    },
+    {
+     "input": "4, [[0, 1], [0, 2], [0, 3]], 2",
+     "expected": [
+      1,
+      2,
+      0,
+      2
+     ]
+    }
+   ],
+   "solution": "function bfsDistances(n, edges, start) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  const dist = new Array(n).fill(-1);\n  dist[start] = 0;\n  const queue = [start];\n  let head = 0;\n  while (head < queue.length) {\n    const v = queue[head++];\n    for (const w of adj[v]) {\n      if (dist[w] === -1) { dist[w] = dist[v] + 1; queue.push(w); }\n    }\n  }\n  return dist;\n}",
+   "hint": "`dist[w] === -1` is both the unreached test and the not-yet-discovered test. One array does both jobs, so no separate `seen` array is needed.",
+   "concepts": [
+    "bfs"
+   ],
+   "tags": [
+    "bfs",
+    "shortest-path"
+   ],
+   "explain": "The distance is written once, at discovery, and never revisited - correct only because the FIFO queue guarantees vertices leave it in non-decreasing distance order, so the first route found is a shortest one. The star graph started from a leaf is the check that you did not assume `start` is 0: distances there are 1, 2, 0, 2, and the vertex furthest from 2 is not the one furthest from the centre.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-t-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `dfsOrder(n, edges, start)` returning the vertices of an **undirected** graph in depth-first **pre-order** from `start` - each vertex recorded when it is first visited, before its neighbours are explored. Sort each neighbour list ascending before traversing. Vertices in other components are not visited.",
+   "fn": "dfsOrder",
+   "starterCode": "function dfsOrder(n, edges, start) {\n  // build and sort the adjacency list, then recurse:\n  // mark, record, and descend into each unseen neighbour in turn\n  return [];\n}\n",
+   "tests": [
+    {
+     "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 0",
+     "expected": [
+      0,
+      1,
+      3,
+      5,
+      4,
+      2
+     ]
+    },
+    {
+     "input": "4, [[0, 1], [1, 2], [2, 0], [2, 3]], 0",
+     "expected": [
+      0,
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "5, [[0, 1], [2, 3]], 0",
+     "expected": [
+      0,
+      1
+     ]
+    },
+    {
+     "input": "1, [], 0",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "solution": "function dfsOrder(n, edges, start) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  for (const l of adj) l.sort(function (a, b) { return a - b; });\n  const seen = new Array(n).fill(false);\n  const order = [];\n  function go(v) {\n    seen[v] = true;\n    order.push(v);\n    for (const w of adj[v]) if (!seen[w]) go(w);\n  }\n  go(start);\n  return order;\n}",
+   "hint": "Re-test `seen[w]` inside the loop, not only before the call: a neighbour that was unseen when the loop began may have been reached by a deeper recursive call before its turn arrives.",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs",
+    "recursion"
+   ],
+   "explain": "The first test is the same graph as the BFS exercise and gives `[0,1,3,5,4,2]` instead of `[0,1,2,3,4,5]`: DFS reaches 5 in three steps down one side and arrives at 2 last, even though 2 is a direct neighbour of the start. That is why DFS says nothing about distance - the order records how the walk happened to descend, not how far anything is.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-t-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This iterative DFS should return the same pre-order as the recursive version, but on the six-vertex graph below it returns `[0,1,3,5,4,2,2]` - vertex 2 appears twice. One line is missing. Restore it so `dfsIterative(n, edges, start)` is correct.",
+   "fn": "dfsIterative",
+   "starterCode": "function dfsIterative(n, edges, start) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  for (const l of adj) l.sort(function (a, b) { return a - b; });\n  const seen = new Array(n).fill(false);\n  const order = [];\n  const stack = [start];\n  while (stack.length) {\n    const v = stack.pop();\n    seen[v] = true;\n    order.push(v);\n    for (let i = adj[v].length - 1; i >= 0; i--) {\n      if (!seen[adj[v][i]]) stack.push(adj[v][i]);\n    }\n  }\n  return order;\n}\n",
+   "tests": [
+    {
+     "input": "6, [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]], 0",
+     "expected": [
+      0,
+      1,
+      3,
+      5,
+      4,
+      2
+     ]
+    },
+    {
+     "input": "4, [[0, 1], [1, 2], [2, 0], [2, 3]], 0",
+     "expected": [
+      0,
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "5, [[0, 1], [2, 3]], 0",
+     "expected": [
+      0,
+      1
+     ]
+    },
+    {
+     "input": "1, [], 0",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "solution": "function dfsIterative(n, edges, start) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  for (const l of adj) l.sort(function (a, b) { return a - b; });\n  const seen = new Array(n).fill(false);\n  const order = [];\n  const stack = [start];\n  while (stack.length) {\n    const v = stack.pop();\n    if (seen[v]) continue;\n    seen[v] = true;\n    order.push(v);\n    for (let i = adj[v].length - 1; i >= 0; i--) {\n      if (!seen[adj[v][i]]) stack.push(adj[v][i]);\n    }\n  }\n  return order;\n}",
+   "hint": "The check before pushing is not enough. A vertex can already be sitting on the stack when something else discovers it, so it must be checked again the moment it is popped.",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs",
+    "stack",
+    "debugging"
+   ],
+   "explain": "Unlike BFS, an iterative DFS cannot mark a vertex seen when it is pushed - doing so would fix the duplicate but change the order, because the mark must reflect *visited*, not *scheduled*. So the same vertex may legitimately be pushed by two different neighbours and appear on the stack twice; the `if (seen[v]) continue;` at pop time is what discards the stale copy. Here 2 is pushed by 0 at the very start and again by 4 much later, so the copy from 0 surfaces after 2 has already been visited. The reverse-order push loop is what makes this match the recursive pre-order rather than mirror it.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-t-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `connectedComponents(n, edges)` returning the connected components of an **undirected** graph as an array of arrays. Each component lists its vertices ascending, and the components themselves come in ascending order of their smallest vertex. A vertex with no edges is a component on its own.",
+   "fn": "connectedComponents",
+   "starterCode": "function connectedComponents(n, edges) {\n  const out = [];\n  // one traversal per vertex that no earlier traversal reached\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "7, [[0, 1], [1, 2], [3, 4]]",
+     "expected": [
+      [
+       0,
+       1,
+       2
+      ],
+      [
+       3,
+       4
+      ],
+      [
+       5
+      ],
+      [
+       6
+      ]
+     ]
+    },
+    {
+     "input": "3, []",
+     "expected": [
+      [
+       0
+      ],
+      [
+       1
+      ],
+      [
+       2
+      ]
+     ]
+    },
+    {
+     "input": "0, []",
+     "expected": []
+    },
+    {
+     "input": "4, [[0, 1], [1, 2], [2, 3]]",
+     "expected": [
+      [
+       0,
+       1,
+       2,
+       3
+      ]
+     ]
+    }
+   ],
+   "solution": "function connectedComponents(n, edges) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  const seen = new Array(n).fill(false);\n  const out = [];\n  for (let s = 0; s < n; s++) {\n    if (seen[s]) continue;\n    const comp = [];\n    const queue = [s];\n    seen[s] = true;\n    let head = 0;\n    while (head < queue.length) {\n      const v = queue[head++];\n      comp.push(v);\n      for (const w of adj[v]) if (!seen[w]) { seen[w] = true; queue.push(w); }\n    }\n    comp.sort(function (a, b) { return a - b; });\n    out.push(comp);\n  }\n  return out;\n}",
+   "hint": "One `seen` array shared by every traversal, not a fresh one per component - that shared array is what stops the same component being emitted once per vertex.",
+   "concepts": [
+    "connected-components",
+    "bfs",
+    "adjacency-list"
+   ],
+   "tags": [
+    "connected-components",
+    "bfs"
+   ],
+   "explain": "Sweeping `s` from 0 upward and skipping anything already seen gives the required ordering for free: the first unseen vertex is by construction the smallest in its component, so components come out sorted by their minimum with no extra sort. The total cost is still $\\Theta(V + E)$ and not $\\Theta(V \\cdot (V+E))$, because the shared `seen` array means every vertex and edge is examined a constant number of times across all the traversals put together. BFS or DFS both work here - components care only about reachability, not the shape of the walk.",
+   "xp": 90
+  }
+ ],
+ "graph-problems": [
+  {
+   "id": "ds-7-p-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `hasCycleUndirected(n, edges)` returning `true` when an **undirected** graph on vertices `0..n-1` contains a cycle, and `false` otherwise. The graph may be disconnected, so every component must be examined. There are no self-loops and no repeated edges.",
+   "fn": "hasCycleUndirected",
+   "starterCode": "function hasCycleUndirected(n, edges) {\n  // traverse each unvisited component, carrying the vertex you arrived from\n  return false;\n}\n",
+   "tests": [
+    {
+     "input": "5, [[0, 1], [0, 2], [1, 3], [1, 4]]",
+     "expected": false
+    },
+    {
+     "input": "4, [[0, 1], [1, 2], [2, 0]]",
+     "expected": true
+    },
+    {
+     "input": "3, []",
+     "expected": false
+    },
+    {
+     "input": "6, [[0, 1], [2, 3], [3, 4], [4, 2]]",
+     "expected": true
+    },
+    {
+     "input": "0, []",
+     "expected": false
+    }
+   ],
+   "solution": "function hasCycleUndirected(n, edges) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); }\n  const seen = new Array(n).fill(false);\n  for (let s = 0; s < n; s++) {\n    if (seen[s]) continue;\n    const stack = [[s, -1]];\n    seen[s] = true;\n    while (stack.length) {\n      const top = stack.pop();\n      const v = top[0], parent = top[1];\n      for (const w of adj[v]) {\n        if (w === parent) continue;\n        if (seen[w]) return true;\n        seen[w] = true;\n        stack.push([w, v]);\n      }\n    }\n  }\n  return false;\n}",
+   "hint": "Every undirected edge is stored in both directions, so from `v` you will always see the vertex you just came from. Carry that parent along and skip it.",
+   "concepts": [
+    "cycle-detection",
+    "dfs"
+   ],
+   "tags": [
+    "cycle-detection",
+    "dfs"
+   ],
+   "explain": "Without the parent guard every single edge looks like a cycle, because the traversal walks `a -> b` and immediately finds `b -> a` in `b`'s list. With it, reaching an already-seen vertex by any other route means two distinct paths lead there, which is exactly a cycle. The disconnected test matters because the cycle hides in the second component: a search started only from vertex 0 would explore `{0, 1}`, find nothing, and report `false`.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-p-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `hasCycleDirected(n, edges)` returning `true` when a **directed** graph on vertices `0..n-1` contains a directed cycle. `edges` holds `[from, to]` pairs. Self-loops count as cycles, and the graph may be disconnected. Use the three-colour scheme: an edge into a vertex still being explored closes a cycle.",
+   "fn": "hasCycleDirected",
+   "starterCode": "function hasCycleDirected(n, edges) {\n  // colour: 0 unvisited, 1 on the current path, 2 finished\n  return false;\n}\n",
+   "tests": [
+    {
+     "input": "4, [[0, 1], [0, 2], [1, 3], [2, 3]]",
+     "expected": false
+    },
+    {
+     "input": "3, [[0, 1], [1, 2], [2, 0]]",
+     "expected": true
+    },
+    {
+     "input": "2, [[0, 1], [1, 0]]",
+     "expected": true
+    },
+    {
+     "input": "2, [[0, 0]]",
+     "expected": true
+    },
+    {
+     "input": "3, []",
+     "expected": false
+    }
+   ],
+   "solution": "function hasCycleDirected(n, edges) {\n  const adj = [];\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) adj[e[0]].push(e[1]);\n  const colour = new Array(n).fill(0);\n  let found = false;\n  function go(v) {\n    colour[v] = 1;\n    for (const w of adj[v]) {\n      if (colour[w] === 1) { found = true; return; }\n      if (colour[w] === 0) { go(w); if (found) return; }\n    }\n    colour[v] = 2;\n  }\n  for (let s = 0; s < n && !found; s++) if (colour[s] === 0) go(s);\n  return found;\n}",
+   "hint": "Grey is not the same as seen. A black vertex has been visited and is finished, and an edge into it is harmless - only an edge into a grey vertex points back along the path you are standing on.",
+   "concepts": [
+    "cycle-detection",
+    "directed-graphs",
+    "dfs"
+   ],
+   "tags": [
+    "cycle-detection",
+    "directed-graphs"
+   ],
+   "explain": "The first test is the trap: `0 -> 1 -> 3` and `0 -> 2 -> 3` both reach 3, so a two-state visited flag reports a cycle where there is none. Three states fix it because by the time 2 looks at 3, vertex 3 is black - finished, off the current path - and an edge into a finished region is a shortcut, not a loop. Note also that no parent guard appears here: in a directed graph `0 -> 1` and `1 -> 0` really are a cycle, which is the mirror image of the undirected case.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-p-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `topoSort(n, edges)` returning a topological order of a **directed** graph on vertices `0..n-1` as an array - every vertex placed before all the vertices its edges point to. When several vertices are available at once, always take the **smallest-numbered** one, so the answer is unique. Return `null` when the graph has a cycle and no such order exists.",
+   "fn": "topoSort",
+   "starterCode": "function topoSort(n, edges) {\n  // count how many edges point into each vertex,\n  // repeatedly take a vertex with none left, and decrement its targets\n  return null;\n}\n",
+   "tests": [
+    {
+     "input": "6, [[5, 2], [5, 0], [4, 0], [4, 1], [2, 3], [3, 1]]",
+     "expected": [
+      4,
+      5,
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "input": "3, [[0, 1], [1, 2], [2, 0]]",
+     "expected": null
+    },
+    {
+     "input": "3, []",
+     "expected": [
+      0,
+      1,
+      2
+     ]
+    },
+    {
+     "input": "4, [[3, 2], [2, 1], [1, 0]]",
+     "expected": [
+      3,
+      2,
+      1,
+      0
+     ]
+    },
+    {
+     "input": "0, []",
+     "expected": []
+    }
+   ],
+   "solution": "function topoSort(n, edges) {\n  const adj = [];\n  const indeg = new Array(n).fill(0);\n  for (let i = 0; i < n; i++) adj.push([]);\n  for (const e of edges) { adj[e[0]].push(e[1]); indeg[e[1]]++; }\n  const ready = [];\n  for (let i = 0; i < n; i++) if (indeg[i] === 0) ready.push(i);\n  const order = [];\n  while (ready.length) {\n    ready.sort(function (a, b) { return a - b; });\n    const v = ready.shift();\n    order.push(v);\n    for (const w of adj[v]) { indeg[w]--; if (indeg[w] === 0) ready.push(w); }\n  }\n  return order.length === n ? order : null;\n}",
+   "hint": "You never need to detect the cycle separately. If the loop stops with fewer than `n` vertices emitted, everything left has an incoming edge from something else left - which is only possible inside a cycle.",
+   "concepts": [
+    "topological-sort",
+    "directed-graphs"
+   ],
+   "tags": [
+    "topological-sort",
+    "directed-graphs"
+   ],
+   "explain": "A vertex is safe to emit exactly when nothing unemitted points at it, which is what in-degree zero means; removing it can only lower other in-degrees, so the invariant is maintained by decrementing rather than rescanning. The cycle case falls out of the count for free: three mutually dependent vertices never reach in-degree zero, the ready set empties after 0 emissions, and `order.length !== n` is the proof. The all-isolated test shows the other extreme - with no constraints at all, every ordering is valid and the smallest-first rule picks `[0,1,2]`.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-p-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `pathCost(n, edges, path)` for a **weighted undirected** graph. `edges` holds `[a, b, w]` triples with `w` the weight of the edge between `a` and `b`; `path` is an array of vertices to walk in order. Return the total weight of the steps taken, or `-1` if any consecutive pair in `path` is not joined by an edge. A path of fewer than two vertices costs `0`.",
+   "fn": "pathCost",
+   "starterCode": "function pathCost(n, edges, path) {\n  // an edge is usable from either end, so record both orientations\n  return 0;\n}\n",
+   "tests": [
+    {
+     "input": "4, [[0, 1, 4], [0, 2, 1], [1, 3, 2], [2, 3, 7]], [0, 1, 3]",
+     "expected": 6
+    },
+    {
+     "input": "4, [[0, 1, 4], [0, 2, 1], [1, 3, 2], [2, 3, 7]], [0, 2, 3]",
+     "expected": 8
+    },
+    {
+     "input": "4, [[0, 1, 4], [0, 2, 1], [1, 3, 2], [2, 3, 7]], [0, 3]",
+     "expected": -1
+    },
+    {
+     "input": "4, [[0, 1, 4], [0, 2, 1], [1, 3, 2], [2, 3, 7]], [2]",
+     "expected": 0
+    },
+    {
+     "input": "4, [[0, 1, 4], [0, 2, 1], [1, 3, 2], [2, 3, 7]], []",
+     "expected": 0
+    }
+   ],
+   "solution": "function pathCost(n, edges, path) {\n  const w = [];\n  for (let i = 0; i < n; i++) w.push(new Map());\n  for (const e of edges) {\n    w[e[0]].set(e[1], e[2]);\n    w[e[1]].set(e[0], e[2]);\n  }\n  let total = 0;\n  for (let i = 1; i < path.length; i++) {\n    const from = path[i - 1], to = path[i];\n    if (!w[from].has(to)) return -1;\n    total += w[from].get(to);\n  }\n  return total;\n}",
+   "hint": "Start the loop at `i = 1` and look back at `path[i - 1]`. A path of `k` vertices has `k - 1` steps, which makes the one-vertex and empty cases fall out with no special test.",
+   "concepts": [
+    "weighted-edges",
+    "adjacency-list"
+   ],
+   "tags": [
+    "weighted-edges",
+    "adjacency-list"
+   ],
+   "explain": "Weights turn the neighbour list from a list of vertices into a map from neighbour to cost, which is the only structural change weighting forces - the traversals are unaffected. The first two tests are the reason weighted graphs need their own shortest-path algorithms: `[0,1,3]` is two edges costing 6 while `[0,2,3]` is also two edges but costs 8, so *fewest edges* and *cheapest* have parted company and BFS can no longer answer the question. Returning `-1` rather than skipping an absent edge matters because silently ignoring a missing step would report a cost for a journey nobody can make.",
+   "xp": 90
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-7-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "You need the fewest-edges path between two vertices of a large **unweighted** undirected graph. Which traversal answers it directly, and why?",
+   "choices": [
+    "Breadth-first search, because the queue dequeues every vertex at distance $d$ before any at distance $d+1$",
+    "Depth-first search, because it reaches distant vertices in fewer steps",
+    "Either one, because both visit every reachable vertex exactly once",
+    "Neither, because shortest paths always require edge weights"
+   ],
+   "answer": 0,
+   "concepts": [
+    "bfs"
+   ],
+   "tags": [
+    "bfs",
+    "shortest-path"
+   ],
+   "explain": "The FIFO queue is doing the work: it forces the search outward in complete rings, so the first time a vertex is discovered it is discovered along a fewest-edges path. Option 3 is the tempting one - both traversals do visit every reachable vertex in $\\Theta(V+E)$ - but DFS records the order its walk happened to descend, which says nothing about distance and typically reaches a near neighbour last.",
+   "xp": 18
+  },
+  {
+   "id": "ds-7-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A social graph has 2 million users, each following about 100 others. Which representation should store it, and what is the deciding figure?",
+   "choices": [
+    "An adjacency matrix, because a single lookup answers whether one user follows another",
+    "An adjacency list, because $4 \\times 10^{12}$ matrix cells would be needed to record $2 \\times 10^8$ edges",
+    "An adjacency matrix, because the graph is directed and lists cannot store direction",
+    "An adjacency list, because matrices cannot store more than a few thousand vertices"
+   ],
+   "answer": 1,
+   "concepts": [
+    "adjacency-matrix",
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-matrix",
+    "adjacency-list",
+    "graph-representation"
+   ],
+   "explain": "Density decides it, and the arithmetic is the argument: $V^2$ is twenty thousand times larger than $E$ here, so the matrix would be almost entirely zeroes. The first option is not wrong about the matrix's strength - $O(1)$ edge queries are real - it is simply outweighed, and the other two options are false claims: lists store direction perfectly well by pushing one way only, and a matrix has no size limit beyond the memory its $V^2$ cells demand.",
+   "xp": 18
+  },
+  {
+   "id": "ds-7-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? Note that the neighbour lists are **not** sorted.",
+   "code": "const adj = [[2, 1], [0, 3], [0, 3], [1, 2]];\nconst seen = new Array(adj.length).fill(false);\nconst order = [];\nfunction go(v) {\n  seen[v] = true;\n  order.push(v);\n  for (const w of adj[v]) if (!seen[w]) go(w);\n}\ngo(0);\nconsole.log(JSON.stringify(order));",
+   "lang": "javascript",
+   "answer": "[0,2,3,1]",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs",
+    "adjacency-list"
+   ],
+   "explain": "`adj[0]` is `[2, 1]`, so the descent goes to 2 first and not to 1, and from 2 it reaches 3 and then 1 - by which time 1 has been visited from below and the outer loop's second neighbour does nothing. The tempting answer `[0,1,3,2]` assumes neighbours arrive in ascending order; DFS output is entirely at the mercy of the order the edges were inserted.",
+   "xp": 36
+  },
+  {
+   "id": "ds-7-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the breadth-first traversal. The blanks are, in order: the value marking the start vertex discovered, the operator that advances the head past the vertex just taken, and the array method that adds a newly discovered vertex to the back of the queue.",
+   "template": "function bfs(adj, start) {\n  const seen = new Array(adj.length).fill(false);\n  const queue = [start];\n  seen[start] = ___;\n  const order = [];\n  let head = 0;\n  while (head < queue.length) {\n    const v = queue[head___];\n    order.push(v);\n    for (const w of adj[v]) {\n      if (!seen[w]) { seen[w] = true; queue.push(w); }\n    }\n  }\n  return order;\n}",
+   "blanks": [
+    "true",
+    "++",
+    "push"
+   ],
+   "concepts": [
+    "bfs"
+   ],
+   "tags": [
+    "bfs",
+    "queue"
+   ],
+   "explain": "Taking from the front with `head++` and adding at the back with `push` is what makes this a queue rather than a stack - swap `push` for `unshift` and you have depth-first behaviour with none of the code changed. Marking `start` before the loop is not tidiness either: without it, the start vertex is rediscovered by its own neighbours and enters the queue a second time.",
+   "xp": 36
+  },
+  {
+   "id": "ds-7-e-05",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the running time of a breadth-first search over a whole graph stored as an **adjacency list**, in terms of $V$ and $E$, and justify it by saying how many times each vertex and each edge is examined. Then say how the answer changes if the graph is stored as an adjacency matrix instead.",
+   "answer": "O(V + E)",
+   "rubric": {
+    "required": [
+     "vertex",
+     "edge",
+     "once"
+    ],
+    "optional": [
+     "queue",
+     "matrix",
+     "row",
+     "twice",
+     "marked",
+     "neighbour"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "bfs",
+    "adjacency-list"
+   ],
+   "tags": [
+    "bfs",
+    "complexity",
+    "adjacency-list"
+   ],
+   "explain": "Each vertex is enqueued at most once, because it is marked at discovery, and is therefore dequeued and expanded at most once; expanding it scans its neighbour list, so each undirected edge is examined exactly twice - once from each endpoint - giving $\\Theta(V + 2E) = \\Theta(V + E)$. Writing $O(E)$ alone is the common slip and it is wrong on a graph with many isolated vertices, where the $V$ term dominates. With a matrix the traversal logic is identical but finding the neighbours of a vertex means scanning a whole row of $V$ cells, so the total becomes $\\Theta(V^2)$ no matter how few edges exist.",
+   "xp": 72
+  },
+  {
+   "id": "ds-7-e-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `isValidTopoOrder(n, edges, order)` returning `true` when `order` is a valid topological order of the directed graph with `[from, to]` edges on vertices `0..n-1`. To be valid, `order` must list every vertex `0..n-1` exactly once, and for every edge the source must appear before the target. Return `false` otherwise.",
+   "fn": "isValidTopoOrder",
+   "starterCode": "function isValidTopoOrder(n, edges, order) {\n  // record where each vertex sits, checking it is a permutation as you go,\n  // then test every edge against those positions\n  return false;\n}\n",
+   "tests": [
+    {
+     "input": "4, [[0, 1], [1, 2], [0, 3]], [0, 1, 3, 2]",
+     "expected": true
+    },
+    {
+     "input": "4, [[0, 1], [1, 2], [0, 3]], [0, 2, 1, 3]",
+     "expected": false
+    },
+    {
+     "input": "4, [[0, 1]], [0, 1, 2]",
+     "expected": false
+    },
+    {
+     "input": "3, [], [0, 0, 1]",
+     "expected": false
+    },
+    {
+     "input": "3, [], [2, 1, 0]",
+     "expected": true
+    }
+   ],
+   "solution": "function isValidTopoOrder(n, edges, order) {\n  if (order.length !== n) return false;\n  const pos = new Array(n).fill(-1);\n  for (let i = 0; i < order.length; i++) {\n    const v = order[i];\n    if (v < 0 || v >= n || pos[v] !== -1) return false;\n    pos[v] = i;\n  }\n  for (const e of edges) if (pos[e[0]] >= pos[e[1]]) return false;\n  return true;\n}",
+   "hint": "Build a `pos` array mapping vertex to index first. With it, the edge test is a single comparison per edge instead of a search through `order`.",
+   "concepts": [
+    "topological-sort",
+    "directed-graphs"
+   ],
+   "tags": [
+    "topological-sort",
+    "directed-graphs"
+   ],
+   "explain": "A topological order is not unique, so the check must be against the constraints and never against one particular sorted answer - `[2,1,0]` is perfectly valid for a graph with no edges at all. The permutation half is the part usually skipped: without it, `[0,0,1]` satisfies every edge test vacuously while omitting a vertex entirely. Inverting `order` into `pos` also turns the whole check from $O(V \\cdot E)$ searching into $\\Theta(V + E)$.",
+   "xp": 90
+  },
+  {
+   "id": "ds-7-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A delivery network is a graph whose edges carry driving times. A colleague runs BFS from the depot and reports the result as the quickest route to each address. Explain precisely why that is wrong, and what property of BFS the weights destroy.",
+   "rubric": {
+    "required": [
+     "weight",
+     "edges",
+     "shortest"
+    ],
+    "optional": [
+     "unweighted",
+     "queue",
+     "fewest",
+     "cheaper",
+     "dijkstra",
+     "revisit"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "bfs",
+    "weighted-edges"
+   ],
+   "tags": [
+    "bfs",
+    "weighted-edges",
+    "shortest-path"
+   ],
+   "explain": "BFS minimises the *number of edges*, which equals cost only when every edge costs the same. Once weights differ, a three-hop route of 5 minutes beats a one-hop route of 40, so the fewest-edges answer can be arbitrarily worse than the quickest. The mechanism that breaks is the discovery invariant: BFS writes a vertex's distance the first time it is reached and never revisits it, which is sound only because the FIFO queue guarantees vertices leave in non-decreasing distance order - a guarantee weights void. Fixing it means replacing the queue with a priority queue that always expands the cheapest-so-far vertex, which is Dijkstra's algorithm.",
+   "xp": 36
+  },
+  {
+   "id": "ds-7-e-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one round of the in-degree (Kahn) topological sort in the order its steps execute, from the start of the algorithm through emitting one vertex.",
+   "fragments": [
+    "Decrement the in-degree of every vertex that vertex points to, adding any that reach zero to the ready set",
+    "Take a vertex out of the ready set and append it to the output order",
+    "Count, for each vertex, how many edges point into it",
+    "Put every vertex whose in-degree is zero into the ready set"
+   ],
+   "answer": [
+    2,
+    3,
+    1,
+    0
+   ],
+   "concepts": [
+    "topological-sort"
+   ],
+   "tags": [
+    "topological-sort",
+    "directed-graphs"
+   ],
+   "explain": "The in-degrees must all be counted before anything is emitted, or a vertex could be declared ready while an edge into it has not yet been tallied. Emitting comes before decrementing because removing the vertex is what licenses the decrement - the counts always describe edges from vertices still waiting. If the ready set empties while vertices remain, those survivors all still have incoming edges from one another, which is precisely a cycle.",
+   "xp": 36
+  }
+ ]
+}

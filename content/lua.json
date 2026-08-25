@@ -29,32 +29,385 @@
      {
       "title": "Basics",
       "body": "Lua is a simple yet powerful, efficient, lightweight, embeddable scripting language. It is designed, implemented, and maintained at PUC-RIO in Brazil since 1993 by the team of Roberto Ierusalimschy, Waldemar Celes and Luiz Henrique de Figueiredo.\n\n**Comments**\nSingle line comments in Lua start with `--` and multiline comments start with `--[[` and end with `]]`.\n\n**Variables**\nThere are three types of variables in Lua: global variables, local variables and table fields. To keep things simple only local variables are explained here. By default all variables are global so we have to declare local variables as such with the keyword `local`.\n\nA value can be assigned to a variable by using the `=` operator.\n\nThe scope of a `local` variable is limited to the block where it is declared. A block can be the body of a control structure, the body of a function or a file or string where the variable is declared.\n\n**Functions**\nA function is declared with the keyword `function` and, like variables, is global by default. A function definition has a name, a list of parameters and a body. The functions exits when the keyword `return` is reached and returns all values listed after it. Without a specified `return`, the function will return `nil`.\n\n**Tables**\nTables are the only data structuring mechanism in Lua and very powerful. They are used to represent arrays, sets, object, modules and many more. Essentially a table in Lua is an associative array.\n\nThis is just a tiny insight which is needed for the next section. We come back to this topic in detail later.\n\n**Modules**\nA module is a collection of code which is stored in a `.lua` source file. Everything that the modules exports is stored in a table and this table is returned at the end of the file. So the table basically acts as a kind of namespace.\n\nThat module can then be loaded into another file through the function `require`, that returns the table.\n\nWhen we see `say.hello` we would think of \"the function `hello` from the module `say`\". But knowing our `say-hello.lua` returns a table and looking back at the table section, we notice in Lua the expression means \"indexing the table `say` using the string `hello` as key\".  \n\nAlthough it is good practice for a module to return a table, it is just as possible to return any other type, such as a function.",
-      "code": "-- This is a single line comment.\n\n--[[This is\na multiline\ncomment\n]]",
-      "lang": "lua"
+      "code": "-- This is a single line comment.\n\n--[[This is\na multiline\ncomment\n]]\n\nlocal say = {}\n\nfunction say.hello(name)\n  return \"Hello, \" .. name .. \"!\"\nend\n\nprint(say.hello(\"world\"))\n",
+      "lang": "lua",
+      "annotations": [
+       {
+        "line": 8,
+        "text": "`say` is a local table. Without `local` it would be a global, which is the default in Lua."
+       },
+       {
+        "line": 10,
+        "text": "This stores a function in the table under the key \"hello\"; `say.hello` is a table lookup, not special syntax."
+       },
+       {
+        "line": 11,
+        "text": "`..` concatenates strings. Reaching `return` ends the function; without one it would return `nil`."
+       }
+      ],
+      "checkpoint": {
+       "type": "fill",
+       "layer": "retrieval",
+       "prompt": "Complete the module so that `print(shout(greeting))` prints `olá!`. One keyword keeps `greeting` out of the global namespace; the other hands the built string back to the caller.",
+       "template": "___ greeting = \"olá\"\n\nlocal function shout(word)\n  ___ word .. \"!\"\nend\n\nprint(shout(greeting))",
+       "blanks": [
+        "local",
+        "return"
+       ],
+       "concepts": [
+        "basics"
+       ],
+       "tags": [
+        "basics",
+        "variables",
+        "functions"
+       ],
+       "explain": "Variables in Lua are global unless declared `local`, so leaving the first blank empty would still run — it would just leak `greeting` into the global table, which is the habit this floor is trying to break. The second blank must be `return`: a function without one returns `nil`, so `shout` would hand back nothing at all and `print` would show `nil`.",
+       "xp": 15
+      }
      },
      {
       "title": "Numbers",
       "body": "Lua uses two representations for numbers: 64-bit integer numbers and double-precision floating-point numbers. It supports the usual set of arithmetic operators: addition, subtraction, multiplication, division and negation. Additionally it supports floor division, modulo and exponentiation.",
-      "code": "local cars = {}\n\nfunction cars.calculate_working_cars_per_hour(production_rate, success_rate)\n  return production_rate * success_rate / 100\nend\n\nfunction cars.calculate_working_cars_per_minute(production_rate, success_rate)\n  return cars.calculate_working_cars_per_hour(production_rate, success_rate) // 60\nend\n\nfunction cars.calculate_cost(cars_count)\n  return (cars_count // 10) * 95000 + (cars_cou",
-      "lang": "lua"
+      "code": "local cars = {}\n\nfunction cars.working_per_hour(production_rate, success_rate)\n  return production_rate * success_rate / 100\nend\n\nfunction cars.working_per_minute(production_rate, success_rate)\n  return cars.working_per_hour(production_rate, success_rate) // 60\nend\n\nprint(cars.working_per_hour(1105, 90))    --> 994.5\nprint(cars.working_per_minute(1105, 90))  --> 16.0\nprint(2 ^ 3)                              --> 8.0\nprint(7 // 2)                             --> 3\nprint(7 % 2)                              --> 1\n",
+      "lang": "lua",
+      "annotations": [
+       {
+        "line": 4,
+        "text": "`/` is always float division, so this returns 994.5 rather than an integer, even when the division comes out exact."
+       },
+       {
+        "line": 8,
+        "text": "Floor division rounds towards negative infinity. Its result is a float here because 994.5 is a float, so it prints 16.0."
+       },
+       {
+        "line": 13,
+        "text": "Exponentiation always produces a float in Lua 5.3 and later, which is why 8.0 appears and not 8."
+       }
+      ],
+      "checkpoint": {
+       "type": "output",
+       "layer": "retrieval",
+       "prompt": "What does this Lua program print? Give both lines, in order.",
+       "code": "print(7 // 2)\nprint(7 / 2)",
+       "lang": "lua",
+       "answer": "3\n3.5",
+       "concepts": [
+        "numbers"
+       ],
+       "tags": [
+        "numbers",
+        "operators"
+       ],
+       "explain": "`//` is floor division on two integers, so it yields the integer 3 and prints without a decimal point. `/` is *always* float division in Lua 5.3 and later, so 7 / 2 is 3.5 — the tempting wrong answer is `3` on both lines, which is what C or Python 2 would give you.",
+       "xp": 15
+      }
      },
      {
       "title": "Booleans",
       "body": "The boolean type in Lua has the two traditional boolean values: `true` and `false`. These values can be assigned to a variable, combined with logical operators (`and`, `or`, `not`) and used in conditional tests (e.g. in control structures).\n\nConditional tests and the logical operators consider both the boolean `false` and `nil` as false and anything else as true.\n\nBoth `and` and `or` uses *short-circuit evaluation*, which means they evaluate their second operand only when necessary. All operations are evaluated according to the operator precedence, where `not` is evaluated before `and` and `or`.",
-      "code": "local is_true = true\nlocal is_false = false\n\ntrue and true  --> true\ntrue and false --> false\nfalse or true  --> true\nfalse or false --> false\nnot false      --> true\nnot true       --> false\n\n-- prints 0\nif is_true == true then\n  print(0)\nelse\n  print(1)\nend",
-      "lang": "lua"
+      "code": "local is_true = true\nlocal is_false = false\n\nprint(is_true and is_false)  --> false\nprint(is_false or is_true)   --> true\nprint(not is_false)          --> true\n\n-- only false and nil are falsy; 0 and the empty string are not\nif 0 then\n  print(\"zero is truthy in Lua\")\nend\n",
+      "lang": "lua",
+      "annotations": [
+       {
+        "line": 4,
+        "text": "`and` returns its second operand when the first is truthy, so the value here is the boolean false itself."
+       },
+       {
+        "line": 9,
+        "text": "This branch runs. Lua treats only `false` and `nil` as false; 0 and the empty string are both truthy."
+       }
+      ],
+      "checkpoint": {
+       "type": "output",
+       "layer": "retrieval",
+       "prompt": "What does this Lua program print?",
+       "code": "print(0 and \"zero is truthy\")",
+       "lang": "lua",
+       "answer": "zero is truthy",
+       "concepts": [
+        "booleans"
+       ],
+       "tags": [
+        "booleans",
+        "truthiness"
+       ],
+       "explain": "`and` returns its *first* operand when that operand is falsy, and its second otherwise. In Lua only `false` and `nil` are falsy, so 0 is truthy and the expression evaluates to the string. The tempting answer is `false`, or `0`, which is what C, Python or JavaScript would print, because in those languages zero is falsy.",
+       "xp": 15
+      }
      }
     ]
    },
-   "practice": [],
-   "exam": [],
-   "_todo": [
-    "practice needs 6 more challenge(s)",
-    "exam: author 8-12 questions",
-    "lasagna: tests not parsed (no extractor for 'lua')",
-    "cars-assemble: tests not parsed (no extractor for 'lua')",
-    "pacman-rules: tests not parsed (no extractor for 'lua')"
+   "practice": [
+    {
+     "id": "lua-1-p-01",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this Lua program print? Give both lines, in order.",
+     "concepts": [
+      "numbers"
+     ],
+     "tags": [
+      "numbers",
+      "operators"
+     ],
+     "xp": 30,
+     "explain": "Exponentiation in Lua 5.3 and later always produces a float, even for whole-number operands, so `2 ^ 3` is 8.0 and prints with the decimal point. Multiplication of two integers stays an integer, so `2 * 3` prints 6. The tempting answer is `8` on the first line — the right number in the wrong subtype.",
+     "code": "print(2 ^ 3)\nprint(2 * 3)",
+     "lang": "lua",
+     "answer": "8.0\n6"
+    },
+    {
+     "id": "lua-1-p-02",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this Lua program print? Give both lines, in order.",
+     "concepts": [
+      "numbers"
+     ],
+     "tags": [
+      "numbers",
+      "operators",
+      "floor-division"
+     ],
+     "xp": 30,
+     "explain": "Lua's `//` floors rather than truncates, so -7 / 2 = -3.5 rounds down to -4, not -3. Modulo is defined to agree with it — `a % b == a - (a // b) * b` — giving -7 - (-4 * 2) = 1, so the remainder carries the sign of the divisor. The tempting pair is `-3` and `-1`, which is what truncating languages such as C and Java produce.",
+     "code": "print(-7 // 2)\nprint(-7 % 2)",
+     "lang": "lua",
+     "answer": "-4\n1"
+    },
+    {
+     "id": "lua-1-p-03",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "The variable `name` is declared but never assigned. What does this Lua program print? Give both lines, in order.",
+     "concepts": [
+      "booleans",
+      "basics"
+     ],
+     "tags": [
+      "booleans",
+      "short-circuit",
+      "nil"
+     ],
+     "xp": 30,
+     "explain": "A `local` declared without a value is `nil`, so `or` skips its falsy first operand and yields the string — the idiomatic Lua default-value pattern. `and` short-circuits on a falsy first operand and returns it unevaluated, so `name.length` is never indexed and the second line prints `nil` rather than raising \"attempt to index a nil value\". Expecting a crash on that line is the natural wrong answer, and short-circuiting is exactly what prevents it.",
+     "code": "local name\nprint(name or \"stranger\")\nprint(name and name.length)",
+     "lang": "lua",
+     "answer": "stranger\nnil"
+    },
+    {
+     "id": "lua-1-p-04",
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the guard runs its body only when `ready` is false **and** `count` is above zero. As written, the program should print `waiting`.",
+     "concepts": [
+      "booleans"
+     ],
+     "tags": [
+      "booleans",
+      "logical-operators",
+      "precedence"
+     ],
+     "xp": 30,
+     "explain": "`not` binds tighter than `and`, so `not ready and count > 0` parses as `(not ready) and (count > 0)`; no brackets are needed and adding them changes nothing. Reaching for `or` in the second blank is the common slip — it would make the condition true whenever the count were positive, whatever `ready` held.",
+     "template": "local ready = false\nlocal count = 3\n\nif ___ ready ___ count > 0 then\n  print(\"waiting\")\nend",
+     "lang": "lua",
+     "blanks": [
+      "not",
+      "and"
+     ]
+    },
+    {
+     "id": "lua-1-p-05",
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put these fragments in order to form a complete Lua module file that another file could load with `require(\"say\")` and then call as `say.hello(\"world\")`.",
+     "concepts": [
+      "basics"
+     ],
+     "tags": [
+      "basics",
+      "modules",
+      "tables"
+     ],
+     "xp": 30,
+     "explain": "A module is an ordinary table built at the top of the file, filled with functions, and handed back by a `return` at the very bottom — that returned table is what `require` gives the caller. Returning before the functions are attached, or omitting the final `return` altogether, leaves `require` holding `true` instead of the module, which is the usual first-module mistake.",
+     "fragments": [
+      "local say = {}",
+      "function say.hello(name)",
+      "  return \"Hello, \" .. name",
+      "end",
+      "return say"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "id": "lua-1-p-06",
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Trace this program. After each pass of the loop, give the value held in `total`.",
+     "concepts": [
+      "numbers",
+      "basics"
+     ],
+     "tags": [
+      "numbers",
+      "control-flow",
+      "loops"
+     ],
+     "xp": 60,
+     "explain": "Lua's numeric `for` is inclusive at both ends, so `i` takes 1, 2, 3 and 4 — stopping at 3 is the classic off-by-one imported from languages with exclusive bounds. Only even values pass the `%` guard, so `total` changes on the second and fourth passes and holds 0, 2, 2, 6 in turn.",
+     "code": "local total = 0\nfor i = 1, 4 do\n  if i % 2 == 0 then\n    total = total + i\n  end\nend\nprint(total)",
+     "lang": "lua",
+     "steps": [
+      {
+       "label": "after the pass with i = 1",
+       "expected": "0"
+      },
+      {
+       "label": "after the pass with i = 2",
+       "expected": "2"
+      },
+      {
+       "label": "after the pass with i = 3",
+       "expected": "2"
+      },
+      {
+       "label": "after the pass with i = 4",
+       "expected": "6"
+      }
+     ]
+    },
+    {
+     "id": "lua-1-p-07",
+     "type": "explain",
+     "layer": "application",
+     "prompt": "In Lua 5.4, `print(3 == 3.0)` prints `true`, yet `print(math.type(3))` prints `integer` and `print(math.type(3.0))` prints `float`. Explain how both can hold at once, and say what it means for a function whose body is `return production_rate * success_rate / 100`.",
+     "concepts": [
+      "numbers"
+     ],
+     "tags": [
+      "numbers",
+      "types",
+      "coercion"
+     ],
+     "xp": 30,
+     "explain": "Lua has a single `number` type with two internal subtypes, integer and float. Equality compares mathematical value, so an integer and a float standing for the same quantity are equal; `math.type` looks past the value at the representation. It matters because `/` always yields a float, so that rate function returns 994.5 — or 900.0 for an exact division — rather than an integer, and `//` is needed when a whole count is wanted. Assuming equality implies an identical representation is what makes the printed `900.0` come as a surprise.",
+     "rubric": {
+      "required": [
+       "integer",
+       "float",
+       "value"
+      ],
+      "optional": [
+       "subtype",
+       "representation",
+       "division",
+       "math.type"
+      ],
+      "forbidden": [],
+      "minWords": 30
+     }
+    },
+    {
+     "id": "lua-1-p-08",
+     "type": "explain",
+     "layer": "application",
+     "prompt": "A programmer arriving from C writes `if count then` meaning \"if `count` is non-zero\", and the branch always runs. Explain which values Lua treats as false, why their code misbehaves, and how `and` and `or` returning operands rather than booleans lets you write `local n = count or 0`.",
+     "concepts": [
+      "booleans"
+     ],
+     "tags": [
+      "booleans",
+      "truthiness",
+      "short-circuit"
+     ],
+     "xp": 30,
+     "explain": "Lua's falsy set is exactly `false` and `nil`: zero, the empty string and an empty table are all truthy, so the C idiom silently becomes \"if `count` exists\". Because `and` and `or` return one of their operands instead of a boolean, `count or 0` yields `count` when it is present and 0 when it is `nil`, which is Lua's default-argument idiom — and the same mechanism means `x and y` can evaluate to `false`, to `nil`, or to any value `y` happens to hold.",
+     "rubric": {
+      "required": [
+       "nil",
+       "false",
+       "truthy"
+      ],
+      "optional": [
+       "short-circuit",
+       "operand",
+       "default",
+       "zero"
+      ],
+      "forbidden": [],
+      "minWords": 30
+     }
+    }
+   ],
+   "cognitiveLevel": "application",
+   "sequence": [
+    "lesson",
+    "practice",
+    "capstone"
+   ],
+   "capstone": [
+    {
+     "id": "lua-1-boss-01",
+     "type": "design",
+     "layer": "application",
+     "capstone": true,
+     "prompt": "Write the complete `pacman` rules module in Lua, in one file, exactly as it would be saved to `pacman.lua`.\n\nIt must build a local table, attach four functions to it, and return that table:\n\n- `pacman.eat_ghost(power_pellet_active, touching_ghost)` — true only when a power pellet is active **and** Pac-Man is touching a ghost.\n- `pacman.score(touching_power_pellet, touching_dot)` — true when either is touched.\n- `pacman.lose(power_pellet_active, touching_ghost)` — true when a ghost is touched **without** an active power pellet.\n- `pacman.win(has_eaten_all_dots, power_pellet_active, touching_ghost)` — true when every dot has been eaten and Pac-Man has not lost.\n\nWrite each body as a single returned expression built from `and`, `or` and `not`: no `if` statements, and no comparisons against `true`. Reuse `pacman.lose` inside `pacman.win` rather than restating its logic.\n\nThis track runs on a remote interpreter Grimoire cannot reach, so your module is **graded against a keyword rubric, not executed**. Write it as though it were going to be run, then read the rubric feedback as a checklist to compare your file against rather than as a verdict on whether it works.",
+     "concepts": [
+      "basics",
+      "booleans",
+      "numbers"
+     ],
+     "tags": [
+      "basics",
+      "booleans",
+      "modules",
+      "logical-operators"
+     ],
+     "xp": 150,
+     "rubric": {
+      "required": [
+       "local",
+       "return",
+       "pacman",
+       "eat_ghost",
+       "score",
+       "lose",
+       "win"
+      ],
+      "optional": [
+       "not",
+       "function",
+       "power_pellet_active",
+       "touching_ghost",
+       "has_eaten_all_dots",
+       "touching_dot"
+      ],
+      "forbidden": [
+       "elseif"
+      ],
+      "minWords": 40
+     },
+     "explain": "Every rule here is already a boolean expression, so the whole module is four one-line returns: `power_pellet_active and touching_ghost`, `touching_power_pellet or touching_dot`, `touching_ghost and not power_pellet_active`, and `has_eaten_all_dots and not pacman.lose(power_pellet_active, touching_ghost)`. Writing `if cond then return true else return false end` gives the same answers while saying the same thing twice — the condition already *is* the value. Calling `pacman.lose` from inside `pacman.win` works because `pacman` is an upvalue resolved at call time, so `lose` need not be defined yet when `win` is written; and the local table returned on the last line is exactly what `require(\"pacman\")` hands back."
+    }
    ]
   }
- ]
+ ],
+ "disciplineType": "language",
+ "totalFloors": 1,
+ "relic": {
+  "id": "moonlit-thread",
+  "name": "The Moonlit Thread",
+  "effect": "hint-discount",
+  "value": 1,
+  "flavour": "A single strand of Lua: light enough to embed anywhere. Hints cost one less mana."
+ }
 }

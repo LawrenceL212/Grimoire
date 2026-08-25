@@ -1,0 +1,951 @@
+{
+ "n": 1,
+ "name": "Arrays and the Cost of a Slot",
+ "concepts": [
+  "contiguous-memory",
+  "random-access",
+  "dynamic-array",
+  "capacity-growth",
+  "amortised-cost",
+  "shifting-cost",
+  "two-pointers"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "exam"
+ ],
+ "lesson": {
+  "title": "One Block, Many Slots",
+  "sections": [
+   {
+    "title": "One Block, One Multiplication",
+    "body": "An array is not a collection of values that happen to be related. It is **one unbroken block of memory** divided into slots of identical width, plus the address where that block begins. Nothing else is stored - there is no table of where each element lives, because there does not need to be one.\n\nThat single design decision buys the whole structure: the address of element `i` is $\\text{base} + i \\times \\text{slot}$, one multiplication and one addition regardless of how large `i` is. Reaching element 1,000,000 costs exactly what reaching element 0 costs, which is what **$O(1)$ random access** means.\n\nThe price is paid up front and it is real. Every slot must be the same width, so an array of variable-length things stores fixed-width **references** instead of the things themselves. And the block must be unbroken, so the memory has to be found in one piece.",
+    "code": "const BASE = 0x1000;   // where the block starts\nconst SLOT = 8;        // bytes per slot - the same for every slot\nconst addressOf = (i) => BASE + i * SLOT;\n\nconsole.log(addressOf(0), addressOf(1), addressOf(2));\nconsole.log(addressOf(999999));\n\nconst a = [10, 20, 30, 40];\nconsole.log(a[0], a[3], a.length);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "One multiply, one add. There is no loop and no lookup table, and that is the entire reason indexing is O(1)."
+     },
+     {
+      "line": 6,
+      "text": "Index 999999 costs the same arithmetic as index 0. Distance into the array is not work."
+     },
+     {
+      "line": 9,
+      "text": "JavaScript hides the arithmetic behind a[i], but the engine is doing exactly this for a packed array of numbers."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "A block starts at address 100 and every slot is 4 bytes wide. What does this print?",
+     "code": "const BASE = 100, SLOT = 4;\nconst addressOf = (i) => BASE + i * SLOT;\nconsole.log(addressOf(0));\nconsole.log(addressOf(5));\nconsole.log(addressOf(5) - addressOf(2));",
+     "lang": "javascript",
+     "answer": "100\n120\n12",
+     "concepts": [
+      "contiguous-memory",
+      "random-access"
+     ],
+     "explain": "The base cancels out of any difference of two addresses, so the gap between slot 5 and slot 2 is just 3 slots of 4 bytes. That cancellation is why an array only ever needs to remember one address: everything else is arithmetic on the index."
+    }
+   },
+   {
+    "title": "Capacity Is Not Length",
+    "body": "A real block of memory has a fixed size, because the bytes on either side of it belong to somebody else. A **dynamic array** is that fixed block wrapped in two numbers: **capacity**, the slots it owns, and **length**, the slots it is using.\n\n`push` is then trivial while `length < capacity`: write into slot `length`, increment `length`. Both are $O(1)$.\n\nWhen `length === capacity` there is no free slot and the block cannot simply be extended where it sits, so a larger block is allocated, every existing element is copied across, and the old block is released. That push costs $\\Theta(n)$ - and it is the only push that does.",
+    "code": "function makeArray() {\n  return { store: new Array(0), length: 0, capacity: 0 };\n}\n\nfunction push(da, value) {\n  if (da.length === da.capacity) {\n    const bigger = da.capacity === 0 ? 1 : da.capacity * 2;\n    const moved = new Array(bigger);\n    for (let i = 0; i < da.length; i++) moved[i] = da.store[i];\n    da.store = moved;\n    da.capacity = bigger;\n  }\n  da.store[da.length] = value;\n  da.length++;\n  return da;\n}\n\nconst da = makeArray();\nfor (let i = 1; i <= 9; i++) {\n  push(da, i);\n  console.log(\"length\", da.length, \"capacity\", da.capacity);\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The only test that matters. Full means length has caught up with capacity - not that the array is somehow large."
+     },
+     {
+      "line": 9,
+      "text": "This loop is the expensive push. It touches every element already stored, so it is Theta(length)."
+     },
+     {
+      "line": 13,
+      "text": "The cheap path: one write at slot length, then one increment. Nothing else moves."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete `push`. In order the blanks are: the field `length` is compared against, the factor the capacity is multiplied by, the index the new value is written to, and the operator that advances the count of used slots.",
+     "template": "function push(da, value) {\n  if (da.length === da.___) {\n    grow(da, da.capacity === 0 ? 1 : da.capacity * ___);\n  }\n  da.store[da.___] = value;\n  da.length___;\n}",
+     "blanks": [
+      "capacity",
+      "2",
+      "length",
+      "++"
+     ],
+     "concepts": [
+      "dynamic-array",
+      "capacity-growth"
+     ],
+     "explain": "The new value goes at index `length`, not at index `capacity`: `length` is the first unused slot, while `capacity` is one past the last slot the array even owns. Confusing the two writes outside the block, which in a language without bounds checking corrupts whatever lives next door."
+    }
+   },
+   {
+    "title": "Amortised $O(1)$, and the $\\Theta(n)$ Hiding Inside It",
+    "body": "Doubling makes the expensive push rare, and rare in a very specific way. Growing from capacity $c$ copies $c$ elements, and growths happen at capacities $1, 2, 4, \\dots$, so the total copying done on the way to $n$ elements is $1 + 2 + 4 + \\dots < 2n$. All $n$ pushes together cost $\\Theta(n)$, which is $O(1)$ **amortised** - averaged over the sequence, not over any distribution of inputs.\n\nGrowing by a constant instead destroys this. Adding one slot at a time copies $1 + 2 + \\dots + n = \\Theta(n^2)$ elements in total, so each push costs $\\Theta(n)$ amortised. **Geometric** growth is the whole trick, and the factor barely matters: 1.5 and 2 are both constants.\n\nAmortised is not a synonym for worst case. One individual push still copies every element, so a system that must answer within a fixed deadline cannot quote the average and call it a bound. The run below shows the two growth rules diverging.",
+    "code": "function copiesForDoubling(n) {\n  let capacity = 0, length = 0, copies = 0;\n  for (let i = 0; i < n; i++) {\n    if (length === capacity) {\n      capacity = capacity === 0 ? 1 : capacity * 2;\n      copies += length;\n    }\n    length++;\n  }\n  return copies;\n}\n\nfunction copiesForPlusOne(n) {\n  let capacity = 0, length = 0, copies = 0;\n  for (let i = 0; i < n; i++) {\n    if (length === capacity) {\n      capacity = capacity + 1;\n      copies += length;\n    }\n    length++;\n  }\n  return copies;\n}\n\nfor (const n of [8, 64, 1024]) {\n  console.log(n, \"doubling:\", copiesForDoubling(n), \"  plus-one:\", copiesForPlusOne(n));\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Only the elements already present are copied, so an early growth is cheap and a late one is expensive - but late ones are exponentially rarer."
+     },
+     {
+      "line": 17,
+      "text": "Change the growth from geometric to additive and every single push reallocates. This one line is the whole difference."
+     },
+     {
+      "line": 26,
+      "text": "1023 copies against 523776 at n = 1024. Same code otherwise; the growth rule alone decides the asymptotics."
+     }
+    ],
+    "checkpoint": {
+     "type": "complexity",
+     "layer": "application",
+     "prompt": "A dynamic array doubles its capacity whenever it fills. Give the **amortised** cost of a single `push`, and justify it by totalling the copying done across $n$ pushes.",
+     "answer": "O(1)",
+     "rubric": {
+      "required": [
+       "capacity",
+       "copies",
+       "total"
+      ],
+      "optional": [
+       "doubling",
+       "geometric",
+       "sum",
+       "rare",
+       "worst",
+       "average"
+      ],
+      "minWords": 30
+     },
+     "concepts": [
+      "amortised-cost",
+      "capacity-growth"
+     ],
+     "explain": "The copying total is a geometric series, 1 + 2 + 4 + ... + n/2, which is under 2n - so n pushes cost Theta(n) altogether and each push costs O(1) on average. The tempting wrong answer is O(n), taken from the worst single push; that push is real, but it can only happen once the array has doubled, so its cost is spread over exponentially many cheap pushes."
+    }
+   },
+   {
+    "title": "The Middle Is Expensive, and Two Pointers Are the Answer",
+    "body": "The contiguity that makes indexing free is the same contiguity that makes the middle expensive. To insert at index `i` there must be a hole at `i`, so every one of the $n - i$ elements after it moves one slot right; to delete, they all move one slot left. Both are $\\Theta(n - i)$, which is $\\Theta(n)$ at the front and $\\Theta(1)$ at the back.\n\nThe direction of the shift is not a matter of taste. Shifting right must run from the last element **downwards**, or each write lands on the element you were about to read and one value smears across the tail.\n\nThat cost compounds. Deleting $k$ elements with $k$ separate deletions shifts the tail $k$ times, at $\\Theta(nk)$. A **two-pointer** pass does it once: a `read` index sweeps forward while a `write` index trails behind it, and because a slot `read` has already passed is a slot nobody needs again, `write` may overwrite it freely. One pass, $\\Theta(n)$ time, no extra memory.",
+    "code": "function insertAt(arr, index, value) {\n  arr.push(arr[arr.length - 1]);\n  for (let i = arr.length - 2; i > index; i--) arr[i] = arr[i - 1];\n  arr[index] = value;\n  return arr;\n}\n\nconsole.log(insertAt([1, 2, 4, 5], 2, 3));\n\nfunction removeAll(arr, value) {\n  let write = 0;\n  for (let read = 0; read < arr.length; read++) {\n    if (arr[read] !== value) arr[write++] = arr[read];\n  }\n  arr.length = write;\n  return arr;\n}\n\nconsole.log(removeAll([0, 3, 0, 7, 0, 9], 0));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "i counts down. Run this loop upwards and arr[i + 1] is overwritten before it is read, smearing one value across the tail."
+     },
+     {
+      "line": 13,
+      "text": "write only advances on a keeper, so it can never overtake read - which is exactly why overwriting arr[write] is safe."
+     },
+     {
+      "line": 15,
+      "text": "Shortening by assigning to length is the array equivalent of decrementing a count: the discarded slots simply stop being part of the array."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "isPalindrome",
+     "prompt": "Write `isPalindrome(a)` returning `true` when the array reads the same forwards and backwards. Use one index starting at each end and walk them towards each other; do not reverse or copy the array.",
+     "starterCode": "function isPalindrome(a) {\n  let left = 0, right = a.length - 1;\n  // walk the two indices towards each other\n  return true;\n}\n",
+     "tests": [
+      {
+       "input": "[1, 2, 1]",
+       "expected": true
+      },
+      {
+       "input": "[]",
+       "expected": true
+      },
+      {
+       "input": "[1, 2]",
+       "expected": false
+      },
+      {
+       "input": "[1, 2, 2, 1]",
+       "expected": true
+      }
+     ],
+     "solution": "function isPalindrome(a) {\n  let left = 0, right = a.length - 1;\n  while (left < right) {\n    if (a[left] !== a[right]) return false;\n    left++;\n    right--;\n  }\n  return true;\n}",
+     "concepts": [
+      "two-pointers"
+     ],
+     "explain": "Two pointers work here only because indexing is O(1): a[right] is as cheap to read as a[left] no matter how far apart they are. On a linked list the same algorithm would be quadratic. The empty array is true vacuously - the loop never runs - which is the behaviour the `left < right` guard gives you for free."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-1-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const a = [5, 3, 9, 1];\nconsole.log(a[2]);\nconsole.log(a.length);\na[a.length] = 7;\nconsole.log(a.length, a[4]);",
+   "lang": "javascript",
+   "answer": "9\n4\n5 7",
+   "concepts": [
+    "random-access",
+    "dynamic-array"
+   ],
+   "tags": [
+    "random-access",
+    "dynamic-array"
+   ],
+   "explain": "Writing at index `a.length` is exactly what `push` does: the first unused slot is always at index `length`, and storing there is what makes `length` become 5. The tempting answer for the last line is `4 7`, from assuming the write happened without extending the array - but a dynamic array's length is defined by how many slots are in use, and one more now is.",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-g-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `addressOf(base, slotSize, index)` returning the memory address of slot `index` in a contiguous block that begins at `base` with slots of `slotSize` bytes. A negative index addresses memory the block does not own, so throw an `Error` whose message contains `index` instead of returning anything.",
+   "fn": "addressOf",
+   "starterCode": "function addressOf(base, slotSize, index) {\n  // reject an index the block does not own, then do the arithmetic\n}\n",
+   "tests": [
+    {
+     "input": "1000, 8, 0",
+     "expected": 1000
+    },
+    {
+     "input": "1000, 8, 3",
+     "expected": 1024
+    },
+    {
+     "input": "0, 4, 1000000",
+     "expected": 4000000
+    },
+    {
+     "input": "1000, 8, -1",
+     "throws": "index"
+    }
+   ],
+   "solution": "function addressOf(base, slotSize, index) {\n  if (index < 0) throw new Error(\"index is outside the block\");\n  return base + index * slotSize;\n}",
+   "hint": "Slot 0 sits at `base` itself, so the offset is `index * slotSize` and not `(index + 1) * slotSize`.",
+   "concepts": [
+    "contiguous-memory",
+    "random-access"
+   ],
+   "tags": [
+    "contiguous-memory",
+    "random-access"
+   ],
+   "explain": "The whole function is one multiply and one add, and that is the point: no branch depends on how big `index` is, so the work is identical for index 0 and index 1,000,000. The negative case is not pedantry - the arithmetic happily produces an address below the block, and in a language without bounds checking that address is somebody else's data.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete `grow`, which replaces a full block with a larger one. In order the blanks are: the factor the capacity is multiplied by, the field that says how many elements actually need copying, and the field that must be updated to the new size.",
+   "template": "function grow(da) {\n  const bigger = da.capacity === 0 ? 1 : da.capacity * ___;\n  const moved = new Array(bigger);\n  for (let i = 0; i < da.___; i++) moved[i] = da.store[i];\n  da.store = moved;\n  da.___ = bigger;\n}",
+   "blanks": [
+    "2",
+    "length",
+    "capacity"
+   ],
+   "concepts": [
+    "capacity-growth",
+    "dynamic-array"
+   ],
+   "tags": [
+    "capacity-growth",
+    "dynamic-array"
+   ],
+   "explain": "The copy loop runs to `length`, not to `capacity`: slots between the two hold nothing worth moving, and copying them would make growth cost the new capacity instead of the old length. Multiplying rather than adding is what turns the total copying into a geometric series instead of a quadratic one.",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A dynamic array is asked to `push` a value at the moment it is completely full. Put the steps in the order they happen.",
+   "fragments": [
+    "Write the new value into slot `length` of the new block",
+    "Allocate a new block with twice the capacity",
+    "Notice that `length` equals `capacity`, so there is no free slot",
+    "Increment `length`",
+    "Copy every element already stored into the new block"
+   ],
+   "answer": [
+    2,
+    1,
+    4,
+    0,
+    3
+   ],
+   "concepts": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "tags": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "explain": "The copy has to finish before the new value is written, because the new value belongs at index `length`, which only exists inside the new block. A common wrong ordering writes the value first and then reallocates, which would either overflow the old block or copy the new element twice.",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "This records the capacity after each of six pushes into an array that starts empty and doubles when full. What does it print?",
+   "code": "let length = 0, capacity = 0;\nconst out = [];\nfor (let i = 0; i < 6; i++) {\n  if (length === capacity) capacity = capacity === 0 ? 1 : capacity * 2;\n  length++;\n  out.push(capacity);\n}\nconsole.log(out.join(\" \"));",
+   "lang": "javascript",
+   "answer": "1 2 4 4 8 8",
+   "concepts": [
+    "capacity-growth",
+    "amortised-cost"
+   ],
+   "tags": [
+    "capacity-growth",
+    "amortised-cost"
+   ],
+   "explain": "Capacity changes on pushes 1, 2, 3 and 5 and stays put on 4 and 6, and the gaps between changes double every time. That widening gap is the amortised argument made visible: the expensive pushes thin out exactly as fast as they grow costly.",
+   "xp": 20
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-1-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `capacityAfter(n)` returning the capacity of a dynamic array after `n` pushes. It starts with capacity 0 and length 0; whenever a push finds `length === capacity` the capacity becomes 1 if it was 0, and otherwise doubles.",
+   "fn": "capacityAfter",
+   "starterCode": "function capacityAfter(n) {\n  let capacity = 0, length = 0;\n  // simulate n pushes, growing only when there is no free slot\n  return capacity;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "5",
+     "expected": 8
+    },
+    {
+     "input": "8",
+     "expected": 8
+    },
+    {
+     "input": "9",
+     "expected": 16
+    }
+   ],
+   "solution": "function capacityAfter(n) {\n  let capacity = 0, length = 0;\n  for (let i = 0; i < n; i++) {\n    if (length === capacity) capacity = capacity === 0 ? 1 : capacity * 2;\n    length++;\n  }\n  return capacity;\n}",
+   "hint": "Grow first, then write: the check `length === capacity` happens before the value is stored, so pushing a 9th element into a capacity of 8 doubles it to 16.",
+   "concepts": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "tags": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "explain": "`n = 8` and `n = 9` are the pair that decides whether you understood the rule. Eight pushes exactly fill a capacity of 8 and trigger no growth, because the array only grows when asked for a slot it does not have. Rounding `n` up to the next power of two gives the right answer for every `n` except 0, which is why the zero case is worth a test of its own.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-i-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `totalCopies(n)` returning how many individual element copies a doubling dynamic array performs across `n` pushes, starting empty. Growing copies exactly the elements currently stored - the `length` at that moment, not the capacity.",
+   "fn": "totalCopies",
+   "starterCode": "function totalCopies(n) {\n  let capacity = 0, length = 0, copies = 0;\n  // add the number of elements moved each time the array grows\n  return copies;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 0
+    },
+    {
+     "input": "5",
+     "expected": 7
+    },
+    {
+     "input": "16",
+     "expected": 15
+    },
+    {
+     "input": "1000",
+     "expected": 1023
+    }
+   ],
+   "solution": "function totalCopies(n) {\n  let capacity = 0, length = 0, copies = 0;\n  for (let i = 0; i < n; i++) {\n    if (length === capacity) {\n      capacity = capacity === 0 ? 1 : capacity * 2;\n      copies += length;\n    }\n    length++;\n  }\n  return copies;\n}",
+   "hint": "The very first growth moves nothing, because the array is empty when it happens. Add `length` before you increment it.",
+   "concepts": [
+    "amortised-cost",
+    "capacity-growth"
+   ],
+   "tags": [
+    "amortised-cost",
+    "capacity-growth"
+   ],
+   "explain": "Look at the answers: 1000 pushes cost 1023 copies and 16 pushes cost 15. The total is always below `2n`, because the copies form the geometric series 1 + 2 + 4 + ... whose sum is under twice its largest term. That bound - not the behaviour of any single push - is what licenses calling push O(1) amortised. The tempting error is `copies += capacity`, which charges for slots holding nothing.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-i-03",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the **worst-case** cost of a single `push` on a doubling dynamic array holding $n$ elements, and explain why quoting the amortised $O(1)$ would be the wrong answer to this particular question.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "copy",
+     "capacity",
+     "amortised"
+    ],
+    "optional": [
+     "full",
+     "average",
+     "allocate",
+     "sequence",
+     "latency",
+     "guarantee"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "amortised-cost",
+    "capacity-growth"
+   ],
+   "tags": [
+    "amortised-cost",
+    "complexity"
+   ],
+   "explain": "The push that finds the array full allocates a new block and copies all n elements, so its own cost is Theta(n). Amortised O(1) is a statement about a whole sequence of pushes, not a bound on any one of them, and the two answers are each correct to a different question. This matters in practice: a real-time system that must respond within a fixed deadline cannot spend an average, so it pre-sizes the array instead.",
+   "xp": 40
+  },
+  {
+   "id": "ds-1-i-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insertAt(arr, index, value)` returning a **new** array one element longer, with `value` at `index` and everything from `index` onwards moved one slot right. Leave `arr` untouched and do not use `splice`, `slice` or the spread operator - move the elements yourself. An `index` below 0 or above `arr.length` must throw an `Error` whose message contains `range`.",
+   "fn": "insertAt",
+   "starterCode": "function insertAt(arr, index, value) {\n  // reject an out-of-range index, then build the new block:\n  // the part before index, the new value, then the shifted tail\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 4, 5], 2, 3",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[], 0, 9",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[1, 2], 2, 3",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[1, 2], 0, 0",
+     "expected": [
+      0,
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[1, 2], 3, 9",
+     "throws": "range"
+    }
+   ],
+   "solution": "function insertAt(arr, index, value) {\n  if (index < 0 || index > arr.length) throw new Error(\"index out of range\");\n  const out = new Array(arr.length + 1);\n  for (let i = 0; i < index; i++) out[i] = arr[i];\n  out[index] = value;\n  for (let i = index; i < arr.length; i++) out[i + 1] = arr[i];\n  return out;\n}",
+   "hint": "`index === arr.length` is legal - that is an append, and the tail loop simply runs zero times.",
+   "concepts": [
+    "shifting-cost",
+    "contiguous-memory"
+   ],
+   "tags": [
+    "shifting-cost",
+    "contiguous-memory"
+   ],
+   "explain": "Inserting at index 0 moves every single element while inserting at the end moves none: the cost is Theta(n - index), which is why an array is a fine queue at the back and a terrible one at the front. Note that `index === arr.length` is valid but `index === arr.length + 1` is not - the legal positions are the gaps between elements, and there are n + 1 of them, not n.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-i-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `removeAll(arr, value)` deleting every occurrence of `value` from `arr` **in place** and returning `arr` itself, using a single forward pass with a read index and a write index. Do not allocate another array, and do not call `splice`, `filter` or `indexOf`. Shorten the array by assigning to `arr.length`.",
+   "fn": "removeAll",
+   "starterCode": "function removeAll(arr, value) {\n  let write = 0;\n  // sweep read forward; copy back only the elements that survive\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[0, 3, 0, 7, 0, 9], 0",
+     "expected": [
+      3,
+      7,
+      9
+     ]
+    },
+    {
+     "input": "[], 5",
+     "expected": []
+    },
+    {
+     "input": "[2, 2, 2], 2",
+     "expected": []
+    },
+    {
+     "input": "[1, 2, 3], 9",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[4, 0], 0",
+     "expected": [
+      4
+     ]
+    }
+   ],
+   "solution": "function removeAll(arr, value) {\n  let write = 0;\n  for (let read = 0; read < arr.length; read++) {\n    if (arr[read] !== value) {\n      arr[write] = arr[read];\n      write++;\n    }\n  }\n  arr.length = write;\n  return arr;\n}",
+   "hint": "`write` only advances when an element survives, so `write <= read` always holds and the slot you write to has already been read.",
+   "concepts": [
+    "two-pointers",
+    "shifting-cost"
+   ],
+   "tags": [
+    "two-pointers",
+    "shifting-cost"
+   ],
+   "explain": "Deleting the k matching elements one at a time shifts the tail k times, at Theta(nk); this pass shifts it once, at Theta(n), and uses no extra memory at all. The invariant that makes overwriting safe is `write <= read`: `write` advances only on a survivor, so it can never outrun the read head and never clobbers a slot still waiting to be examined. The `[2,2,2]` case is the one that catches people, because it exercises the final truncation with nothing surviving.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-i-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This `insertAt` should return a new array with `value` inserted at `index`. `insertAt([1, 2, 4, 5], 2, 3)` should give `[1,2,3,4,5]` but gives `[1,2,3,4,4]`. One line is wrong. Fix it.",
+   "fn": "insertAt",
+   "starterCode": "function insertAt(arr, index, value) {\n  const out = arr.slice();\n  out.push(null);\n  for (let i = index; i < out.length - 1; i++) out[i + 1] = out[i];\n  out[index] = value;\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 4, 5], 2, 3",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[], 0, 9",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[1, 2, 3], 0, 0",
+     "expected": [
+      0,
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[1, 2, 3], 3, 4",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   ],
+   "solution": "function insertAt(arr, index, value) {\n  const out = arr.slice();\n  out.push(null);\n  for (let i = out.length - 1; i > index; i--) out[i] = out[i - 1];\n  out[index] = value;\n  return out;\n}",
+   "hint": "Each iteration writes to a slot the next iteration still needs to read. Run the loop the other way and that stops being true.",
+   "concepts": [
+    "shifting-cost",
+    "two-pointers"
+   ],
+   "tags": [
+    "shifting-cost",
+    "debugging"
+   ],
+   "explain": "Shifting right must run from the far end downwards. Going upwards, `out[i + 1] = out[i]` destroys `out[i + 1]` before the next iteration reads it, so one value smears across the whole tail. Notice the two append-shaped tests still pass while it is broken: when nothing has to move, direction cannot matter, which is exactly why a single happy-path test would have shipped this bug.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-1-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "An array of $n$ numbers is stored as one contiguous block of equal-width slots, with only its base address recorded. Which operation is $O(1)$?",
+   "choices": [
+    "Reading the element at index $n - 1$",
+    "Finding the index at which a given value is stored",
+    "Inserting a new element at index 0",
+    "Deleting the element at index 0"
+   ],
+   "answer": 0,
+   "concepts": [
+    "random-access",
+    "contiguous-memory"
+   ],
+   "tags": [
+    "random-access",
+    "contiguous-memory"
+   ],
+   "explain": "Only the read is arithmetic: base plus index times slot width, done once. Searching must inspect elements until it finds a match, and both edits at index 0 move every remaining element by one slot. The distinction to hold on to is that an array gives you O(1) access *by index* and nothing at all *by value*.",
+   "xp": 10
+  },
+  {
+   "id": "ds-1-e-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const da = { store: [10, 20, 30], length: 3, capacity: 4 };\nconsole.log(da.length, da.capacity);\nda.store[da.length] = 40;\nda.length++;\nconsole.log(da.length, da.capacity, da.length === da.capacity);",
+   "lang": "javascript",
+   "answer": "3 4\n4 4 true",
+   "concepts": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "tags": [
+    "dynamic-array",
+    "capacity-growth"
+   ],
+   "explain": "This push was the cheap kind: there was a spare slot, so it cost one write and one increment. What it also did was leave `length === capacity`, which means the very next push is the expensive one. Capacity does not change when an array fills - only when it is asked to exceed itself.",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-e-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `reverseInPlace(arr)` reversing `arr` in place and returning `arr` itself, by swapping the outermost pair and walking both indices inward. Do not call `reverse`, and do not build a second array.",
+   "fn": "reverseInPlace",
+   "starterCode": "function reverseInPlace(arr) {\n  let left = 0, right = arr.length - 1;\n  // swap and step both indices inward until they meet\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      3,
+      2,
+      1
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[1]",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "[1, 2]",
+     "expected": [
+      2,
+      1
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      4,
+      3,
+      2,
+      1
+     ]
+    }
+   ],
+   "solution": "function reverseInPlace(arr) {\n  let left = 0, right = arr.length - 1;\n  while (left < right) {\n    const t = arr[left];\n    arr[left] = arr[right];\n    arr[right] = t;\n    left++;\n    right--;\n  }\n  return arr;\n}",
+   "hint": "`left < right` rather than `left !== right`: on an even length the two indices cross without ever being equal.",
+   "concepts": [
+    "two-pointers",
+    "random-access"
+   ],
+   "tags": [
+    "two-pointers",
+    "random-access"
+   ],
+   "explain": "Exactly floor(n/2) swaps happen, one per pair, so the pass is Theta(n) with Theta(1) extra space. The guard must be `left < right`: with `left !== right` an even-length array steps straight past equality and the indices run off both ends, and with `left <= right` the middle element of an odd-length array is swapped with itself - harmless here, but the habit is not.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-e-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case running time of inserting one element at index 0 of an array holding $n$ elements, and justify it from what the contiguous layout forces to happen.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "every",
+     "element",
+     "right"
+    ],
+    "optional": [
+     "shift",
+     "contiguous",
+     "slot",
+     "copy",
+     "overwrite",
+     "index",
+     "hole"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "shifting-cost",
+    "contiguous-memory"
+   ],
+   "tags": [
+    "shifting-cost",
+    "complexity"
+   ],
+   "explain": "Index 0 must be free before the new value can go there, and the only way to free it in a contiguous block is to move all n existing elements one slot right - Theta(n). The tempting answer is O(1), by analogy with reading a[0]; reading needs no slot to be emptied, which is the whole difference. Inserting at the end is the mirror image and costs Theta(1) amortised, because no element has to move at all.",
+   "xp": 40
+  },
+  {
+   "id": "ds-1-e-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain the mechanism by which storing elements contiguously buys $O(1)$ access by index, and then name two distinct costs the same layout forces on you. Be specific about what the machine actually does.",
+   "rubric": {
+    "required": [
+     "address",
+     "index",
+     "insert"
+    ],
+    "optional": [
+     "contiguous",
+     "block",
+     "offset",
+     "width",
+     "same",
+     "copy",
+     "capacity",
+     "grow",
+     "resize"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "contiguous-memory",
+    "shifting-cost"
+   ],
+   "tags": [
+    "contiguous-memory",
+    "shifting-cost"
+   ],
+   "explain": "The mechanism is address arithmetic: base plus index times a fixed slot width, computed once, with no search and no bookkeeping. The costs follow from the same two assumptions. Uniform slot width means anything of variable size must sit behind a reference rather than inline; one unbroken block means the array cannot be extended where it lies, so growing means allocating elsewhere and copying, and inserting or deleting in the middle means shifting the tail. A good answer names the mechanism and at least two of those consequences, not just the phrase O(1).",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-e-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the two-pointer reversal. In order the blanks are: the amount subtracted from the length to get the last index, the comparison that stops the walk when the indices meet or cross, and the operator that advances the left index.",
+   "template": "function reverseInPlace(a) {\n  let left = 0, right = a.length - ___;\n  while (left ___ right) {\n    const t = a[left]; a[left] = a[right]; a[right] = t;\n    left___;\n    right--;\n  }\n  return a;\n}",
+   "blanks": [
+    "1",
+    "<",
+    "++"
+   ],
+   "concepts": [
+    "two-pointers"
+   ],
+   "tags": [
+    "two-pointers"
+   ],
+   "explain": "`a.length - 1` is the last valid index because slot numbering starts at 0, and `<` is the only safe comparison: on an even length the two indices cross from `left < right` straight to `left > right` without ever being equal, so `!==` would never terminate.",
+   "xp": 20
+  },
+  {
+   "id": "ds-1-e-07",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An empty dynamic array starts with length 0 and capacity 0. Each push writes into slot `length` if one is free, and otherwise first grows the capacity to 1 (if it was 0) or to double its current value. Give `length/capacity` after each push named below, written exactly like `3/4`.",
+   "steps": [
+    {
+     "label": "after push 1",
+     "expected": "1/1"
+    },
+    {
+     "label": "after push 2",
+     "expected": "2/2"
+    },
+    {
+     "label": "after push 3",
+     "expected": "3/4"
+    },
+    {
+     "label": "after push 4",
+     "expected": "4/4"
+    },
+    {
+     "label": "after push 5",
+     "expected": "5/8"
+    },
+    {
+     "label": "after push 8",
+     "expected": "8/8"
+    },
+    {
+     "label": "after push 9",
+     "expected": "9/16"
+    }
+   ],
+   "concepts": [
+    "capacity-growth",
+    "dynamic-array"
+   ],
+   "tags": [
+    "capacity-growth",
+    "dynamic-array"
+   ],
+   "explain": "Growth happens on pushes 1, 2, 3, 5 and 9 and nowhere else, and those are exactly the pushes numbered one more than a power of two. Notice that pushes 4 and 8 both fill the block completely without growing it: an array grows when it is asked for a slot it does not own, not when it runs out of spare ones.",
+   "xp": 40
+  },
+  {
+   "id": "ds-1-e-08",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A dynamic array grows by exactly **one** slot each time it fills, copying every stored element into the new block. What is the amortised cost of a single `push`?",
+   "choices": [
+    "$\\Theta(1)$",
+    "$\\Theta(\\log n)$",
+    "$\\Theta(n)$",
+    "$\\Theta(n \\log n)$"
+   ],
+   "answer": 2,
+   "concepts": [
+    "capacity-growth",
+    "amortised-cost"
+   ],
+   "tags": [
+    "capacity-growth",
+    "amortised-cost"
+   ],
+   "explain": "Every push reallocates, copying 0, then 1, then 2, ... elements, so n pushes cost 1 + 2 + ... + (n-1) = Theta(n^2) in total and Theta(n) each on average. The tempting answer is Theta(1), carried over from the doubling case - but doubling earns that bound precisely because the growths become exponentially rarer, and additive growth makes them universal instead.",
+   "xp": 10
+  },
+  {
+   "id": "ds-1-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `moveZeroesToEnd(arr)` moving every `0` to the back of `arr` **in place**, returning `arr` itself, with the non-zero elements keeping their original relative order. Use one read index and one write index; do not allocate another array and do not use `filter`, `sort` or `splice`.",
+   "fn": "moveZeroesToEnd",
+   "starterCode": "function moveZeroesToEnd(arr) {\n  let write = 0;\n  // first pass: compact the non-zeroes to the front\n  // then fill what is left with zeroes\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[0, 1, 0, 3, 12]",
+     "expected": [
+      1,
+      3,
+      12,
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[0, 0]",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[1, 2]",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[0, 0, 1]",
+     "expected": [
+      1,
+      0,
+      0
+     ]
+    }
+   ],
+   "solution": "function moveZeroesToEnd(arr) {\n  let write = 0;\n  for (let read = 0; read < arr.length; read++) {\n    if (arr[read] !== 0) {\n      arr[write] = arr[read];\n      write++;\n    }\n  }\n  while (write < arr.length) {\n    arr[write] = 0;\n    write++;\n  }\n  return arr;\n}",
+   "hint": "After the compacting pass, `write` is the count of non-zeroes - which is also the first index that still needs a zero written into it.",
+   "concepts": [
+    "two-pointers",
+    "shifting-cost"
+   ],
+   "tags": [
+    "two-pointers",
+    "shifting-cost"
+   ],
+   "explain": "This is the compaction pass from `removeAll` with a second loop that refills the tail instead of truncating it, and the same `write <= read` invariant is what makes overwriting safe. Order preservation is not a bonus: it comes from `read` sweeping strictly forward, so survivors are written in the order they were met. Swapping each zero with the last element would also move every zero to the back, in the same Theta(n), but would scramble the rest - a reminder that the same big-O can hide entirely different behaviour.",
+   "xp": 50
+  },
+  {
+   "id": "ds-1-e-10",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "An array of `length` elements is asked to delete the element at index `i` and hand it back. Put the steps in the order they happen.",
+   "fragments": [
+    "Decrement `length`, so the last slot is no longer part of the array",
+    "Copy `a[j]` into `a[j - 1]` for every `j` from `i + 1` up to `length - 1`",
+    "Check that `i` is a valid index, and stop if it is not",
+    "Read the value stored at index `i` so it can be returned"
+   ],
+   "answer": [
+    2,
+    3,
+    1,
+    0
+   ],
+   "concepts": [
+    "shifting-cost",
+    "dynamic-array"
+   ],
+   "tags": [
+    "shifting-cost",
+    "dynamic-array"
+   ],
+   "explain": "The value has to be read before the shift, because the shift is what overwrites slot `i` - reading afterwards returns its replacement. Decrementing `length` must come last, since the loop's upper bound is expressed in terms of the old length. Note that nothing is erased: the duplicate left in the final slot simply stops being addressable, which is why deleting from an array frees no memory at all.",
+   "xp": 20
+  }
+ ]
+}

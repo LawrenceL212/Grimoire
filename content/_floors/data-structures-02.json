@@ -1,0 +1,1014 @@
+{
+ "n": 2,
+ "name": "The Chain of Nodes",
+ "concepts": [
+  "node",
+  "head-pointer",
+  "traversal",
+  "insert-at-head",
+  "insert-at-tail",
+  "deletion",
+  "doubly-linked",
+  "tail-pointer",
+  "list-reversal",
+  "list-vs-array"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Chains, Not Blocks",
+  "sections": [
+   {
+    "title": "A Node, a Head, and the Null at the End",
+    "body": "An array is one contiguous block of memory, so element $i$ is found by arithmetic: base address plus $i$ times the element size. A **linked list** gives that up. It stores each value in its own separately allocated **node**, and each node holds a `next` reference to the following node, so the elements can sit anywhere in memory at all.\n\nThat buys one thing and costs another. You no longer need a single block big enough for everything, and you can splice a node in without shifting anything - but the only way to reach the $i$th element is to start at the **head**, the reference to the first node, and follow `next` $i$ times.\n\nThe chain has to end somewhere, and the marker is `null`: the last node's `next` is `null`, and an empty list is a head that is `null`. Every traversal you will ever write is the same three lines - start at the head, do something, step to `next` - and it stops precisely when it meets that `null`.",
+    "code": "const c = { value: 3, next: null };\nconst b = { value: 2, next: c };\nconst a = { value: 1, next: b };\n\nlet node = a;\nwhile (node !== null) {\n  console.log(node.value);\n  node = node.next;\n}\nconsole.log(\"fell off the end:\", node);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The chain is built back to front, because b cannot point at c until c exists. c.next is null: this is the last node."
+     },
+     {
+      "line": 6,
+      "text": "The loop condition IS the null terminator. Nothing else tells you where the list stops - there is no length to compare against."
+     },
+     {
+      "line": 8,
+      "text": "The only move available is forward, one link at a time. There is no node.prev here and no node[i] anywhere."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "listLength",
+     "prompt": "Write `listLength(head)` returning how many nodes the list contains. `head` is a node `{ value, next }` or `null` for an empty list.",
+     "starterCode": "function listLength(head) {\n  let count = 0;\n  // start at head, follow next until you hit null\n  return count;\n}\n",
+     "tests": [
+      {
+       "input": "{ value: 1, next: { value: 2, next: null } }",
+       "expected": 2
+      },
+      {
+       "input": "null",
+       "expected": 0
+      },
+      {
+       "input": "{ value: 7, next: null }",
+       "expected": 1
+      }
+     ],
+     "solution": "function listLength(head) {\n  let count = 0;\n  let node = head;\n  while (node !== null) {\n    count++;\n    node = node.next;\n  }\n  return count;\n}",
+     "concepts": [
+      "traversal"
+     ],
+     "explain": "Counting is $O(n)$ here, not $O(1)$ - unless the list separately caches a length, the only way to know how long it is, is to walk it. An array knows its own length because it was allocated as one block; a chain of nodes knows nothing but its own first link."
+    }
+   },
+   {
+    "title": "Free at the Head, Dear at the Tail",
+    "body": "Inserting at the head is the operation linked lists exist for. Make a node, point its `next` at the current head, and call the new node the head: three assignments, no walking, no shifting, $O(1)$ regardless of how long the list already is.\n\nInserting at the **tail** is the opposite. With only a head reference you cannot get to the last node without walking every link to find it, so a single append is $\\Theta(n)$ and building an $n$-element list by repeated appending costs $0 + 1 + \\dots + (n-1) = \\Theta(n^2)$.\n\nThe fix is to keep a second reference, a **tail** pointer, alongside the head. Then appending is $O(1)$ too, at the price of one more variable to keep correct on every single insert and delete - and a stale tail pointer is a far nastier bug than a slow append.\n\nNotice in the run below that pushing $1..5$ onto the head produces the list in reverse. Head insertion is not just cheap, it is order-reversing, which is exactly why it is the natural way to build a stack.",
+    "code": "function push(head, value) {\n  return { value: value, next: head };\n}\n\nfunction append(head, value) {\n  const node = { value: value, next: null };\n  if (head === null) return node;\n  let cur = head;\n  while (cur.next !== null) { cur = cur.next; steps++; }\n  cur.next = node;\n  return head;\n}\n\nfunction toArray(head) {\n  const out = [];\n  for (let n = head; n !== null; n = n.next) out.push(n.value);\n  return out;\n}\n\nlet steps = 0;\nlet front = null;\nfor (let i = 1; i <= 5; i++) front = push(front, i);\nconsole.log(\"push  \", toArray(front), \"walk steps:\", steps);\n\nsteps = 0;\nlet back = null;\nfor (let i = 1; i <= 5; i++) back = append(back, i);\nconsole.log(\"append\", toArray(back), \"walk steps:\", steps);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The whole of head insertion. The old head is not modified at all - it simply becomes the second node."
+     },
+     {
+      "line": 9,
+      "text": "This walk is the entire cost of appending. It touches every existing node just to find the one whose next is null."
+     },
+     {
+      "line": 28,
+      "text": "Six walk steps to append five values, and the count grows quadratically. A tail pointer would make it zero."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "push",
+     "prompt": "Write `push(head, value)` returning the head of a list with a new node holding `value` in front of the existing list. Do not modify any existing node.",
+     "starterCode": "function push(head, value) {\n  // build the new node and make it the head\n}\n",
+     "tests": [
+      {
+       "input": "null, 1",
+       "expected": {
+        "value": 1,
+        "next": null
+       }
+      },
+      {
+       "input": "{ value: 2, next: null }, 1",
+       "expected": {
+        "value": 1,
+        "next": {
+         "value": 2,
+         "next": null
+        }
+       }
+      },
+      {
+       "input": "{ value: 3, next: { value: 4, next: null } }, 9",
+       "expected": {
+        "value": 9,
+        "next": {
+         "value": 3,
+         "next": {
+          "value": 4,
+          "next": null
+         }
+        }
+       }
+      }
+     ],
+     "solution": "function push(head, value) {\n  return { value: value, next: head };\n}",
+     "concepts": [
+      "insert-at-head",
+      "head-pointer"
+     ],
+     "explain": "The `null` case needs no special handling, and that is the point: an empty list is just a head of `null`, so `{ value: 1, next: null }` falls out of the same expression that handles a list of a million nodes. Code that tests `if (head === null)` here is doing work the representation already did."
+    }
+   },
+   {
+    "title": "To Delete a Node You Need the One Before It",
+    "body": "Deleting node $x$ means making the node **before** $x$ point past it - `prev.next = x.next`. Nothing frees $x$ explicitly; once no `next` refers to it, it is unreachable and the garbage collector takes it.\n\nIn a singly linked list that predecessor is not obtainable from $x$ itself. Even if somebody hands you a direct reference to the node you want gone, you must start at the head and walk until you find the node whose `next` is $x$ - so deletion costs $\\Theta(n)$ even when you already know exactly what to remove.\n\nThe head is the exception and the classic bug: it has no predecessor, so removing it means returning `head.next` as the new head rather than re-pointing anything. Forget that case and your function silently refuses to delete the first element.\n\nA **doubly linked** list gives every node a `prev` as well as a `next`. Now the predecessor is one dereference away and unlinking a known node is $O(1)$ - paid for with an extra reference per node and two pointers to fix, in both directions, on every insert and delete.",
+    "code": "function toArray(head) {\n  const out = [];\n  for (let n = head; n !== null; n = n.next) out.push(n.value);\n  return out;\n}\n\nfunction remove(head, value) {\n  if (head === null) return null;\n  if (head.value === value) return head.next;\n  let prev = head;\n  while (prev.next !== null && prev.next.value !== value) prev = prev.next;\n  if (prev.next !== null) prev.next = prev.next.next;\n  return head;\n}\n\nconst singly = { value: 1, next: { value: 2, next: { value: 3, next: null } } };\nconsole.log(toArray(remove(singly, 2)));\n\nconst a = { value: \"a\", prev: null, next: null };\nconst b = { value: \"b\", prev: a, next: null };\nconst c = { value: \"c\", prev: b, next: null };\na.next = b;\nb.next = c;\n\nb.prev.next = b.next;\nb.next.prev = b.prev;\nconsole.log(toArray(a));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 9,
+      "text": "The head case. It cannot be handled by the loop below, because there is no node whose next points at the head."
+     },
+     {
+      "line": 11,
+      "text": "The search for the predecessor. This walk, not the unlinking, is what makes singly linked deletion linear."
+     },
+     {
+      "line": 25,
+      "text": "With a prev reference the predecessor is simply b.prev - no search at all. That is the whole of what doubly linked buys."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "Three nodes are chained `1 -> 2 -> 3`, then one line changes a link. What does this print?",
+     "code": "const a = { value: 1, next: null };\nconst b = { value: 2, next: null };\nconst c = { value: 3, next: null };\na.next = b;\nb.next = c;\n\na.next = a.next.next;\n\nconst out = [];\nfor (let n = a; n !== null; n = n.next) out.push(n.value);\nconsole.log(out.join(\",\"));",
+     "lang": "javascript",
+     "answer": "1,3",
+     "concepts": [
+      "deletion"
+     ],
+     "explain": "Node `b` is untouched - it still holds 2 and still points at `c`. Deletion in a linked list never edits the deleted node; it edits the node in front of it, and `b` disappears only because nothing reachable refers to it any more."
+    }
+   },
+   {
+    "title": "Reversing in Place, and What a Chain Is Actually Good At",
+    "body": "Reversal is the exercise that proves you understand links. Walk the list once carrying two references, `prev` and `cur`, and flip each `cur.next` to point backwards at `prev`. The one line everybody forgets is saving `cur.next` into a temporary **before** overwriting it - overwrite first and you have just destroyed the only route to the rest of the list.\n\nIt is $\\Theta(n)$ time and $O(1)$ extra space: no new nodes, no copying, just $n$ pointer flips. When the loop ends `cur` is `null` and `prev` is sitting on the old last node, which is the new head - so you return `prev`, not `cur` and not `head`.\n\nSo when is a chain actually better than a block? When you insert and delete at known positions in a long sequence and rarely index into it - a queue, a stack, an LRU eviction list, the free list in an allocator. Splicing costs $O(1)$ once you hold the right node, while an array insert shifts everything after it.\n\nAnd when is it worse? Almost everywhere else. There is no random access, so `list[i]` becomes an $O(i)$ walk. Every node is a separate allocation, so the elements are scattered and each hop is a potential cache miss, whereas an array walk pulls in whole cache lines of useful data at once. In practice an array often wins even at the theoretical tasks, because a constant factor of ten or more from **cache locality** beats a better exponent at any size you are likely to have.",
+    "code": "function toArray(head) {\n  const out = [];\n  for (let n = head; n !== null; n = n.next) out.push(n.value);\n  return out;\n}\n\nfunction reverse(head) {\n  let prev = null;\n  let cur = head;\n  while (cur !== null) {\n    const next = cur.next;\n    cur.next = prev;\n    prev = cur;\n    cur = next;\n  }\n  return prev;\n}\n\nconst list = { value: 1, next: { value: 2, next: { value: 3, next: null } } };\nconsole.log(toArray(reverse(list)));\n\nconst arr = [1, 2, 3];\nconsole.log(\"arr[2] =\", arr[2], \"- found from one address calculation\");\nlet node = { value: 1, next: { value: 2, next: { value: 3, next: null } } };\nlet hops = 0;\nfor (let i = 0; i < 2; i++) { node = node.next; hops++; }\nconsole.log(\"list index 2 =\", node.value, \"- found after\", hops, \"hops\");",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Save the forward link before you destroy it. Without this line the next iteration has nowhere to go."
+     },
+     {
+      "line": 12,
+      "text": "The flip itself. Every other line exists only to keep this one from stranding the rest of the list."
+     },
+     {
+      "line": 26,
+      "text": "Two hops to reach index 2, and it would be a million hops for index 1000000. No arithmetic can shortcut a chain."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the in-place reversal. In order the blanks are: what `prev` starts as, the field saved into `next` before it is overwritten, what `cur.next` is flipped to point at, and the reference returned as the new head.",
+     "template": "function reverse(head) {\n  let prev = ___;\n  let cur = head;\n  while (cur !== null) {\n    const next = cur.___;\n    cur.next = ___;\n    prev = cur;\n    cur = next;\n  }\n  return ___;\n}",
+     "blanks": [
+      "null",
+      "next",
+      "prev",
+      "prev"
+     ],
+     "concepts": [
+      "list-reversal"
+     ],
+     "explain": "`prev` starts at `null` because the old head becomes the new tail, and a tail's `next` must be `null` - the terminator is created by that initial value, not by a special case at the end. Returning `head` instead of `prev` is the other stock mistake: `head` is by then the last node, so you get a one-element list."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-2-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const list = { value: 4, next: { value: 8, next: { value: 15, next: null } } };\nlet sum = 0;\nfor (let n = list; n !== null; n = n.next) sum += n.value;\nconsole.log(sum);",
+   "lang": "javascript",
+   "answer": "27",
+   "concepts": [
+    "traversal"
+   ],
+   "tags": [
+    "traversal",
+    "node"
+   ],
+   "explain": "The `for` loop is an ordinary traversal in disguise: the initialiser is the head, the test is the null terminator, and the update step is the link. It visits every node exactly once and stops the instant `n` becomes `null`, which is why 4 + 8 + 15 = 27 and not an infinite loop.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the traversal that collects every value into an array. In order the blanks are: where the walk starts, the value the walk stops at, and the field holding the payload.",
+   "template": "function toArray(head) {\n  const out = [];\n  let node = ___;\n  while (node !== ___) {\n    out.push(node.___);\n    node = node.next;\n  }\n  return out;\n}",
+   "blanks": [
+    "head",
+    "null",
+    "value"
+   ],
+   "concepts": [
+    "traversal"
+   ],
+   "tags": [
+    "traversal",
+    "node"
+   ],
+   "explain": "Walking with a separate `node` variable rather than reassigning `head` matters: reassigning the parameter loses the caller's grip on the front of the list, and in a longer function you then have no way back to the start. The `null` test is the only stopping condition available, because nothing in the list records its own length.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-g-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "toArray",
+   "prompt": "Write `toArray(head)` returning a plain array of every value in the list, front to back. `head` is a node `{ value, next }` or `null`.",
+   "starterCode": "function toArray(head) {\n  const out = [];\n  // walk from head to the null terminator, collecting values\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "null",
+     "expected": []
+    },
+    {
+     "input": "{ value: 42, next: null }",
+     "expected": [
+      42
+     ]
+    }
+   ],
+   "solution": "function toArray(head) {\n  const out = [];\n  for (let n = head; n !== null; n = n.next) out.push(n.value);\n  return out;\n}",
+   "hint": "One loop variable, starting at `head`, advancing with `n = n.next`, stopping at `null`.",
+   "concepts": [
+    "traversal",
+    "node"
+   ],
+   "tags": [
+    "traversal",
+    "node"
+   ],
+   "explain": "The empty case is the one to get right, and it needs no branch: a head of `null` fails the loop test immediately and the empty `out` is returned. Any solution that reads `head.value` before testing for `null` throws on exactly that input.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-g-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "pushAll",
+   "prompt": "Write `pushAll(values)` that starts from an empty list and pushes each element of the array `values` onto the **head** in turn, returning the resulting head. `pushAll([1, 2, 3])` therefore returns the list `3 -> 2 -> 1`. Return `null` for an empty array.",
+   "starterCode": "function pushAll(values) {\n  let head = null;\n  // push each value onto the front in turn\n  return head;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": {
+      "value": 3,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 1,
+        "next": null
+       }
+      }
+     }
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[7]",
+     "expected": {
+      "value": 7,
+      "next": null
+     }
+    },
+    {
+     "input": "[1, 1]",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 1,
+       "next": null
+      }
+     }
+    }
+   ],
+   "solution": "function pushAll(values) {\n  let head = null;\n  for (const v of values) {\n    head = { value: v, next: head };\n  }\n  return head;\n}",
+   "hint": "`head = { value: v, next: head };` - the old head becomes the second node, and the variable is rebound to the new one.",
+   "concepts": [
+    "insert-at-head",
+    "head-pointer"
+   ],
+   "tags": [
+    "insert-at-head",
+    "head-pointer"
+   ],
+   "explain": "The output comes out reversed, and that is not a bug to fix but the defining behaviour of head insertion: each new node is placed in front of everything already there. It is also why the head must be a variable you rebind - the head of a linked list is not a fixed node, it is whichever node currently happens to be first.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-g-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of appending a value to the **tail** of a singly linked list, given only a head reference, into the order they execute.",
+   "fragments": [
+    "Walk `cur` forward while `cur.next` is not null",
+    "Return the original head, which still points at the same first node",
+    "Build a new node holding the value, with `next` set to null",
+    "If the head is null, return the new node as the whole list",
+    "Point `cur.next` at the new node"
+   ],
+   "answer": [
+    2,
+    3,
+    0,
+    4,
+    1
+   ],
+   "concepts": [
+    "insert-at-tail"
+   ],
+   "tags": [
+    "insert-at-tail",
+    "traversal"
+   ],
+   "explain": "The empty-list test has to come before the walk, because there is no `cur` to start walking from - that check is what stops a null dereference rather than being defensive decoration. The head is returned unchanged because appending never touches the front of the list, which is the asymmetry that makes tail insertion the expensive end.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-g-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "This builds a six-element list by appending one value at a time, counting every link it has to follow. What does it print?",
+   "code": "let steps = 0;\nfunction append(head, value) {\n  const node = { value: value, next: null };\n  if (head === null) return node;\n  let cur = head;\n  while (cur.next !== null) { cur = cur.next; steps++; }\n  cur.next = node;\n  return head;\n}\nlet head = null;\nfor (let i = 1; i <= 6; i++) head = append(head, i);\nconsole.log(steps);",
+   "lang": "javascript",
+   "answer": "10",
+   "concepts": [
+    "insert-at-tail",
+    "tail-pointer"
+   ],
+   "tags": [
+    "insert-at-tail",
+    "tail-pointer",
+    "complexity"
+   ],
+   "explain": "The appends walk 0, 0, 1, 2, 3 and 4 links, summing to 10 - the arithmetic series $0 + 1 + \\dots + (n-2)$, which is $\\Theta(n^2)$ for $n$ appends. The tempting answer 6 comes from counting appends instead of links; the whole point is that the cost of one append depends on how much list is already there.",
+   "xp": 20
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-2-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "append",
+   "prompt": "Write `append(head, value)` adding a new node holding `value` at the **end** of the list and returning the head of the resulting list. Appending to an empty list (`null`) returns the new node.",
+   "starterCode": "function append(head, value) {\n  const node = { value: value, next: null };\n  // empty list? otherwise walk to the last node and link it on\n}\n",
+   "tests": [
+    {
+     "input": "null, 5",
+     "expected": {
+      "value": 5,
+      "next": null
+     }
+    },
+    {
+     "input": "{ value: 1, next: null }, 2",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 4",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 3,
+        "next": {
+         "value": 4,
+         "next": null
+        }
+       }
+      }
+     }
+    },
+    {
+     "input": "{ value: 9, next: { value: 9, next: null } }, 9",
+     "expected": {
+      "value": 9,
+      "next": {
+       "value": 9,
+       "next": {
+        "value": 9,
+        "next": null
+       }
+      }
+     }
+    }
+   ],
+   "solution": "function append(head, value) {\n  const node = { value: value, next: null };\n  if (head === null) return node;\n  let cur = head;\n  while (cur.next !== null) cur = cur.next;\n  cur.next = node;\n  return head;\n}",
+   "hint": "Stop the walk at the node whose `next` is null - that is the last node. Stopping when `cur` itself is null overshoots and leaves you nothing to attach to.",
+   "concepts": [
+    "insert-at-tail",
+    "traversal"
+   ],
+   "tags": [
+    "insert-at-tail",
+    "traversal"
+   ],
+   "explain": "The loop condition must be `cur.next !== null`, not `cur !== null`: you need to stop **on** the last node, not one past it, because a null `cur` has no `next` to assign to. That off-by-one is the append bug, and the empty-list branch exists because there is no last node to stop on at all.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "removeAt",
+   "prompt": "Write `removeAt(head, index)` removing the node at the zero-based `index` and returning the head of the resulting list. If `index` is negative or past the end, return the list unchanged. Removing index 0 returns the second node as the new head.",
+   "starterCode": "function removeAt(head, index) {\n  // index 0 has no predecessor - handle it separately\n  // otherwise walk to the node just before index\n}\n",
+   "tests": [
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 0",
+     "expected": {
+      "value": 2,
+      "next": {
+       "value": 3,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 1",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 3,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 2",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 5",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 3,
+        "next": null
+       }
+      }
+     }
+    },
+    {
+     "input": "null, 0",
+     "expected": null
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, -1",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 3,
+        "next": null
+       }
+      }
+     }
+    }
+   ],
+   "solution": "function removeAt(head, index) {\n  if (head === null || index < 0) return head;\n  if (index === 0) return head.next;\n  let prev = head;\n  for (let i = 0; i < index - 1; i++) {\n    if (prev.next === null) return head;\n    prev = prev.next;\n  }\n  if (prev.next === null) return head;\n  prev.next = prev.next.next;\n  return head;\n}",
+   "hint": "Walk `prev` forward `index - 1` times so it lands on the node **before** the target, then splice with `prev.next = prev.next.next`.",
+   "concepts": [
+    "deletion",
+    "traversal"
+   ],
+   "tags": [
+    "deletion",
+    "traversal"
+   ],
+   "explain": "Index 0 cannot go through the splice at all, because the head has no predecessor to re-point - it is removed by returning a different head. The out-of-range tests matter for the same reason the walk needs a guard: run off the end and `prev` becomes `null`, and `prev.next` then throws rather than quietly doing nothing.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-i-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "removeValue",
+   "prompt": "`removeValue(head, value)` should remove the first node holding `value` and return the head of the resulting list. It works for values in the middle, but `removeValue({ value: 1, next: { value: 2, next: null } }, 1)` returns the list still containing 1, and calling it on an empty list throws. Fix it.",
+   "starterCode": "function removeValue(head, value) {\n  let prev = head;\n  while (prev.next !== null && prev.next.value !== value) prev = prev.next;\n  if (prev.next !== null) prev.next = prev.next.next;\n  return head;\n}\n",
+   "tests": [
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 2",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 3,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 1",
+     "expected": {
+      "value": 2,
+      "next": {
+       "value": 3,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 3",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 9",
+     "expected": {
+      "value": 1,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 3,
+        "next": null
+       }
+      }
+     }
+    },
+    {
+     "input": "null, 1",
+     "expected": null
+    },
+    {
+     "input": "{ value: 5, next: { value: 5, next: null } }, 5",
+     "expected": {
+      "value": 5,
+      "next": null
+     }
+    }
+   ],
+   "solution": "function removeValue(head, value) {\n  if (head === null) return null;\n  if (head.value === value) return head.next;\n  let prev = head;\n  while (prev.next !== null && prev.next.value !== value) prev = prev.next;\n  if (prev.next !== null) prev.next = prev.next.next;\n  return head;\n}",
+   "hint": "The loop can only ever look at `prev.next`, so the head is the one node it can never inspect. Two guards before the loop fix both symptoms.",
+   "concepts": [
+    "deletion",
+    "head-pointer"
+   ],
+   "tags": [
+    "deletion",
+    "head-pointer",
+    "debugging"
+   ],
+   "explain": "The loop starts at the head and only ever examines `prev.next`, so the head itself is never a candidate for removal - the function is structurally blind to the first element. The null case throws for the same underlying reason: the code assumes a predecessor exists before it has checked that any node exists at all.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "reverse",
+   "prompt": "Write `reverse(head)` reversing the list **in place** - reusing the existing nodes, allocating no new ones - and returning the head of the reversed list. `reverse(null)` returns `null`.",
+   "starterCode": "function reverse(head) {\n  let prev = null;\n  let cur = head;\n  // flip each link backwards, one node at a time\n  return prev;\n}\n",
+   "tests": [
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }",
+     "expected": {
+      "value": 3,
+      "next": {
+       "value": 2,
+       "next": {
+        "value": 1,
+        "next": null
+       }
+      }
+     }
+    },
+    {
+     "input": "null",
+     "expected": null
+    },
+    {
+     "input": "{ value: 1, next: null }",
+     "expected": {
+      "value": 1,
+      "next": null
+     }
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: null } }",
+     "expected": {
+      "value": 2,
+      "next": {
+       "value": 1,
+       "next": null
+      }
+     }
+    }
+   ],
+   "solution": "function reverse(head) {\n  let prev = null;\n  let cur = head;\n  while (cur !== null) {\n    const next = cur.next;\n    cur.next = prev;\n    prev = cur;\n    cur = next;\n  }\n  return prev;\n}",
+   "hint": "Four lines inside the loop, and the first must save `cur.next` before the second overwrites it.",
+   "concepts": [
+    "list-reversal"
+   ],
+   "tags": [
+    "list-reversal",
+    "traversal"
+   ],
+   "explain": "Starting `prev` at `null` is what gives the old head its new terminator, and returning `prev` rather than `cur` is what gives you the old tail - when the loop exits `cur` is always `null`, so returning it always yields an empty list. The single-node case is the cheap check that your loop does not depend on there being a second node.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "doublyBothWays",
+   "prompt": "Build a **doubly linked** list from the array `values`, where every node is `{ value, prev, next }`, then read it back twice: forwards from the head and backwards from the tail. Write `doublyBothWays(values)` returning `{ forwards, backwards }`, two plain arrays. For `[1, 2, 3]` that is `{ forwards: [1, 2, 3], backwards: [3, 2, 1] }`. An empty array gives two empty arrays.",
+   "starterCode": "function doublyBothWays(values) {\n  let head = null, tail = null;\n  // link each new node to the current tail in BOTH directions\n  const forwards = [], backwards = [];\n  return { forwards: forwards, backwards: backwards };\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": {
+      "forwards": [
+       1,
+       2,
+       3
+      ],
+      "backwards": [
+       3,
+       2,
+       1
+      ]
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {
+      "forwards": [],
+      "backwards": []
+     }
+    },
+    {
+     "input": "[7]",
+     "expected": {
+      "forwards": [
+       7
+      ],
+      "backwards": [
+       7
+      ]
+     }
+    },
+    {
+     "input": "[1, 2]",
+     "expected": {
+      "forwards": [
+       1,
+       2
+      ],
+      "backwards": [
+       2,
+       1
+      ]
+     }
+    }
+   ],
+   "solution": "function doublyBothWays(values) {\n  let head = null, tail = null;\n  for (const v of values) {\n    const node = { value: v, prev: tail, next: null };\n    if (tail === null) head = node;\n    else tail.next = node;\n    tail = node;\n  }\n  const forwards = [], backwards = [];\n  for (let n = head; n !== null; n = n.next) forwards.push(n.value);\n  for (let n = tail; n !== null; n = n.prev) backwards.push(n.value);\n  return { forwards: forwards, backwards: backwards };\n}",
+   "hint": "Keeping `tail` as you build is what makes each append $O(1)$; the new node's `prev` is the old tail, and the old tail's `next` is the new node.",
+   "concepts": [
+    "doubly-linked",
+    "tail-pointer"
+   ],
+   "tags": [
+    "doubly-linked",
+    "tail-pointer"
+   ],
+   "explain": "Every insert now maintains two links instead of one, and both must be set or the backwards walk quietly returns a shorter list than the forwards one - a doubly linked list that disagrees with itself is the characteristic failure here. Note that the backwards read is only possible because a tail reference was kept: `prev` links alone are useless if you cannot reach the last node.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-i-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You build an $n$-element list by calling `append` once per value on a singly linked list that keeps only a head reference. Give the total running time of all $n$ appends, justify it from the cost of a single append, and say what keeping a tail reference changes.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "tail",
+     "pointer",
+     "last"
+    ],
+    "optional": [
+     "quadratic",
+     "walk",
+     "traverse",
+     "constant",
+     "sum",
+     "head",
+     "series"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "tail-pointer",
+    "insert-at-tail"
+   ],
+   "tags": [
+    "tail-pointer",
+    "insert-at-tail",
+    "complexity"
+   ],
+   "explain": "One append must walk from the head to the last node, so the $k$th append costs $\\Theta(k)$, and summing $0 + 1 + \\dots + (n-1)$ gives $\\Theta(n^2)$. A tail pointer removes the walk entirely and each append becomes $O(1)$, giving $\\Theta(n)$ overall - the same asymptotic total as pushing at the head, which is the honest comparison. The tempting answer is $O(n)$, from reading 'append is one operation' rather than pricing the search it hides.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-2-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? Both lines of output, in order.",
+   "code": "function toArray(head) {\n  const out = [];\n  for (let n = head; n !== null; n = n.next) out.push(n.value);\n  return out;\n}\n\nconst list = { value: 1, next: { value: 2, next: { value: 3, next: null } } };\nlet head = list;\nhead = head.next;\nconsole.log(toArray(head).join(\",\"));\nconsole.log(toArray(list).join(\",\"));",
+   "lang": "javascript",
+   "answer": "2,3\n1,2,3",
+   "concepts": [
+    "head-pointer"
+   ],
+   "tags": [
+    "head-pointer",
+    "traversal"
+   ],
+   "explain": "Moving a head variable moves only that variable - no node was modified, so `list` still reaches all three values. This is why deletion has to re-point the predecessor's `next` and not merely advance some local reference: a reference is a way in, not the list itself.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In a singly linked list, what marks the end of the chain?",
+   "choices": [
+    "A node whose `value` is null",
+    "A node whose `next` is null",
+    "A length field stored on the head node",
+    "A node whose `next` points back at the head"
+   ],
+   "answer": 1,
+   "concepts": [
+    "node"
+   ],
+   "tags": [
+    "node",
+    "traversal"
+   ],
+   "explain": "The terminator is a property of the link, not of the payload: `next === null` says there is nothing after this node, while a null `value` is a perfectly legal element in the middle of a list. The last option describes a circular list, where a traversal that tests for `null` never terminates at all.",
+   "xp": 10
+  },
+  {
+   "id": "ds-2-e-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "nodeAt",
+   "prompt": "Write `nodeAt(head, index)` returning the **value** stored at the zero-based `index`, or `null` if the index is negative or beyond the end of the list.",
+   "starterCode": "function nodeAt(head, index) {\n  // no arithmetic will find it - hop index times, carefully\n}\n",
+   "tests": [
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 0",
+     "expected": 1
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 2",
+     "expected": 3
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, 3",
+     "expected": null
+    },
+    {
+     "input": "null, 0",
+     "expected": null
+    },
+    {
+     "input": "{ value: 1, next: { value: 2, next: { value: 3, next: null } } }, -1",
+     "expected": null
+    }
+   ],
+   "solution": "function nodeAt(head, index) {\n  if (index < 0) return null;\n  let n = head;\n  for (let i = 0; i < index; i++) {\n    if (n === null) return null;\n    n = n.next;\n  }\n  return n === null ? null : n.value;\n}",
+   "hint": "Check for `null` inside the hop loop as well as after it, or an index one past the end throws instead of returning null.",
+   "concepts": [
+    "list-vs-array",
+    "traversal",
+    "node"
+   ],
+   "tags": [
+    "list-vs-array",
+    "traversal",
+    "node"
+   ],
+   "explain": "This function is $\\Theta(index)$ where the array equivalent `arr[i]` is $O(1)$, and no cleverness removes the gap: an array computes an address, a list must follow links it cannot predict. That difference is what makes an innocent-looking `for (let i = 0; i < len; i++) nodeAt(head, i)` a quadratic loop over a structure a single traversal would cover in linear time.",
+   "xp": 50
+  },
+  {
+   "id": "ds-2-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the removal of the first node holding `value`. In order the blanks are: what is returned for an empty list, what is returned when the head itself matches, the field compared against `value` during the search, and the link `prev.next` is re-pointed at.",
+   "template": "function removeValue(head, value) {\n  if (head === null) return ___;\n  if (head.value === value) return ___;\n  let prev = head;\n  while (prev.next !== null && prev.next.___ !== value) prev = prev.next;\n  if (prev.next !== null) prev.next = ___;\n  return head;\n}",
+   "blanks": [
+    "null",
+    "head.next",
+    "value",
+    "prev.next.next"
+   ],
+   "concepts": [
+    "deletion"
+   ],
+   "tags": [
+    "deletion",
+    "head-pointer"
+   ],
+   "explain": "The search inspects `prev.next.value` rather than `prev.value` because you must stop on the node **before** the match - stopping on the match itself leaves you holding a node you cannot unlink. `prev.next = prev.next.next` is the splice, and it is the only line that actually deletes anything.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the in-place reversal of `1 -> 2 -> 3`. `prev` starts as `null` and `cur` at the head; each iteration saves `cur.next`, sets `cur.next = prev`, then moves `prev` to `cur` and `cur` to the saved node. After each iteration give the list you get by following `next` from `prev` (written as `[3,2,1]`), and the value at `cur` (write `null` if `cur` is null).",
+   "steps": [
+    {
+     "label": "list from prev after iteration 1",
+     "expected": "[1]"
+    },
+    {
+     "label": "cur.value after iteration 1",
+     "expected": "2"
+    },
+    {
+     "label": "list from prev after iteration 2",
+     "expected": "[2,1]"
+    },
+    {
+     "label": "cur.value after iteration 2",
+     "expected": "3"
+    },
+    {
+     "label": "list from prev after iteration 3",
+     "expected": "[3,2,1]"
+    },
+    {
+     "label": "cur after iteration 3",
+     "expected": "null"
+    }
+   ],
+   "concepts": [
+    "list-reversal"
+   ],
+   "tags": [
+    "list-reversal",
+    "traversal"
+   ],
+   "explain": "`prev` grows into the finished reversed list one node per iteration while `cur` marches down what is left of the original, so at every moment the list is split into a reversed prefix and an untouched suffix. That invariant is why the loop is correct, and why `cur` reaching `null` - not `prev` - is the stopping condition.",
+   "xp": 40
+  },
+  {
+   "id": "ds-2-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Inserting at the front of an array is $\\Theta(n)$ because every later element shifts, while inserting at the front of a linked list is $O(1)$. Explain why, despite this, iterating over a large linked list is routinely slower in practice than iterating over an array of the same values.",
+   "rubric": {
+    "required": [
+     "cache",
+     "contiguous",
+     "pointer"
+    ],
+    "optional": [
+     "locality",
+     "miss",
+     "prefetch",
+     "allocation",
+     "scattered",
+     "memory",
+     "line"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "list-vs-array",
+    "traversal"
+   ],
+   "tags": [
+    "list-vs-array",
+    "traversal"
+   ],
+   "explain": "Asymptotics count operations and assume each costs the same, and that assumption is wrong on real hardware. An array is contiguous, so one cache line fetch delivers several elements and the prefetcher can predict the next one; a linked list's nodes are separate allocations scattered across memory, and each hop must load the pointer before it knows which address to fetch next - a dependency chain of potential cache misses. The lesson is not that big-O lies, but that it prices operations, not memory traffic.",
+   "xp": 20
+  },
+  {
+   "id": "ds-2-e-07",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which job does a singly linked list genuinely do better than a JavaScript array?",
+   "choices": [
+    "Reading the 500000th element",
+    "Repeatedly adding and removing at the front of a long sequence",
+    "Summing every element as quickly as possible",
+    "Sorting the elements without allocating extra memory"
+   ],
+   "answer": 1,
+   "concepts": [
+    "list-vs-array",
+    "insert-at-head"
+   ],
+   "tags": [
+    "list-vs-array",
+    "insert-at-head"
+   ],
+   "explain": "Front insertion and removal are $O(1)$ on a list and $\\Theta(n)$ on an array, because an array must shift every remaining element. The other three all favour the array: indexing is $O(1)$ against $\\Theta(i)$, and summing or sorting both walk memory, where contiguity and cache locality win even though the operation counts match.",
+   "xp": 10
+  },
+  {
+   "id": "ds-2-e-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of removing the first node holding a given value from a singly linked list into the order they execute.",
+   "fragments": [
+    "Set `prev.next` to `prev.next.next`, unlinking the matched node",
+    "If the head itself holds the value, return `head.next` as the new head",
+    "Return the head, unchanged unless it was the node removed",
+    "Walk `prev` forward while `prev.next` exists and does not hold the value",
+    "Return null immediately if the list is empty"
+   ],
+   "answer": [
+    4,
+    1,
+    3,
+    0,
+    2
+   ],
+   "concepts": [
+    "deletion"
+   ],
+   "tags": [
+    "deletion",
+    "traversal"
+   ],
+   "explain": "Both guards must precede the walk: the empty test because there is no node to start from, and the head test because the walk can only ever inspect `prev.next` and so can never see the first node. Leave either out and you get the two classic deletion bugs - a crash on the empty list, and a first element that refuses to be removed.",
+   "xp": 20
+  }
+ ]
+}

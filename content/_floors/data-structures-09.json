@@ -1,0 +1,873 @@
+{
+ "n": 9,
+ "name": "The Architect's Floor",
+ "concepts": [
+  "structure-selection",
+  "composite-structures",
+  "doubly-linked-list",
+  "lru-cache",
+  "inverted-index",
+  "space-time-tradeoff"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "compose-the-structure",
+  "defend-the-choice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Choosing, and Composing, the Shape",
+  "sections": [
+   {
+    "title": "Read the Access Pattern First",
+    "body": "A structure is never chosen because it is elegant. It is chosen because the operation you perform a million times a second is the one it makes cheap, and the operation it makes expensive is one you almost never perform.\n\nSo the design starts by writing the **access pattern** down: which operations, at what frequency, in what ratio of reads to writes. An array gives $O(1)$ indexed reads and $O(n)$ membership tests; a hash set inverts both, at the price of losing order and of storing buckets it never fills. Neither is better - they are answers to different questions.\n\nThe run below asks the same four membership questions two ways. The array pays a scan per question because it has no idea where anything lives; the set pays one hash per question, because that is precisely what it bought with its extra memory.",
+    "code": "function countScans(haystack, needles) {\n  let steps = 0;\n  for (const n of needles) {\n    for (const h of haystack) { steps++; if (h === n) break; }\n  }\n  return steps;\n}\n\nconst data = [];\nfor (let i = 0; i < 200; i++) data.push(i);\nconst queries = [199, 198, 197, 196];\n\nconsole.log(\"array scan steps:\", countScans(data, queries));\n\nconst seen = new Set(data);\nlet hits = 0;\nfor (const q of queries) if (seen.has(q)) hits++;\nconsole.log(\"set lookups:\", queries.length, \"hits:\", hits);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The scan is the whole cost. Nothing about an array narrows the search, so a query near the end always costs close to the full length."
+     },
+     {
+      "line": 15,
+      "text": "Building the set is one O(n) pass and extra memory - a fixed price paid once so that every later question costs O(1)."
+     },
+     {
+      "line": 18,
+      "text": "Four lookups, four hashes, no matter how large data grew. That flatness is the thing being bought."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "dedupePreserveOrder",
+     "prompt": "Design `dedupePreserveOrder(items)`: return a new array holding each distinct value of `items` exactly once, in the order of its first appearance. Choose the structure that makes the repeated question cheap. Nothing is given to you.",
+     "tests": [
+      {
+       "input": "['a', 'b', 'a', 'c', 'b']",
+       "expected": ["a", "b", "c"]
+      },
+      {
+       "input": "[]",
+       "expected": []
+      },
+      {
+       "input": "[1, 1, 1]",
+       "expected": [1]
+      }
+     ],
+     "solution": "function dedupePreserveOrder(items) {\n  const seen = new Set();\n  const out = [];\n  for (const x of items) {\n    if (!seen.has(x)) { seen.add(x); out.push(x); }\n  }\n  return out;\n}",
+     "concepts": [
+      "structure-selection"
+     ],
+     "explain": "The output array preserves order and the set answers 'have I seen this?' - two structures because there are two questions. Calling `out.indexOf(x)` instead is the tempting single-structure answer, and it turns an O(n) pass into O(n^2) by re-scanning everything already emitted."
+    }
+   },
+   {
+    "title": "When No Single Structure Will Do",
+    "body": "Some access patterns name two operations that no one structure makes cheap at once. Fast lookup by key wants a hash map, which has no notion of order; cheap removal from an arbitrary position wants a linked list, which has no notion of lookup.\n\nThe answer is **composition**: run both over the same keys and let each one answer what it is good at. A hash map from key to node, plus a doubly linked list of those nodes, gives $O(1)$ find *and* $O(1)$ unlink - because the map hands you the node directly, and that node's `prev` and `next` pointers let it leave the list without anyone walking it.\n\nThe cost is real and worth naming: two structures over the same keys means roughly twice the bookkeeping memory, and every mutation must update both or they drift apart. Consistency across the pair becomes your invariant, not the language's.\n\nThe list below stores its links as two flat maps, `nextOf` and `prevOf`, so it can be printed and reasoned about without chasing object references.",
+    "code": "function makeList() {\n  return { nextOf: {}, prevOf: {}, head: null, tail: null };\n}\n\nfunction unlink(list, key) {\n  const p = list.prevOf[key], n = list.nextOf[key];\n  if (p === null) list.head = n; else list.nextOf[p] = n;\n  if (n === null) list.tail = p; else list.prevOf[n] = p;\n  delete list.nextOf[key];\n  delete list.prevOf[key];\n}\n\nfunction pushFront(list, key) {\n  list.prevOf[key] = null;\n  list.nextOf[key] = list.head;\n  if (list.head !== null) list.prevOf[list.head] = key;\n  list.head = key;\n  if (list.tail === null) list.tail = key;\n}\n\nfunction order(list) {\n  const out = [];\n  let at = list.head;\n  while (at !== null) { out.push(at); at = list.nextOf[at]; }\n  return out;\n}\n\nconst L = makeList();\npushFront(L, \"c\"); pushFront(L, \"b\"); pushFront(L, \"a\");\nconsole.log(order(L).join(\",\"));\nunlink(L, \"b\");\npushFront(L, \"b\");\nconsole.log(order(L).join(\",\"), \"tail:\", L.tail);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Both neighbours are known in O(1). This single line is what the prev pointer exists to make possible."
+     },
+     {
+      "line": 7,
+      "text": "A null predecessor means the key was the head, so the head moves rather than some next pointer being rewritten."
+     },
+     {
+      "line": 32,
+      "text": "Unlink then push front is a move-to-front in O(1), with no traversal anywhere - the property the LRU cache is built on."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "unlinkKey",
+     "prompt": "Design `unlinkKey(nextOf, prevOf, key)`. `nextOf` maps each key to its successor (`null` at the tail) and `prevOf` maps each key to its predecessor (`null` at the head). Return a **new** successor map with `key` removed and its neighbours joined; if `key` is not in the list, return an unchanged copy. Do not mutate the arguments. Nothing is given to you.",
+     "tests": [
+      {
+       "input": "{A: 'B', B: 'C', C: null}, {A: null, B: 'A', C: 'B'}, 'B'",
+       "expected": {"A": "C", "C": null}
+      },
+      {
+       "input": "{A: 'B', B: 'C', C: null}, {A: null, B: 'A', C: 'B'}, 'A'",
+       "expected": {"B": "C", "C": null}
+      },
+      {
+       "input": "{A: 'B', B: 'C', C: null}, {A: null, B: 'A', C: 'B'}, 'C'",
+       "expected": {"A": "B", "B": null}
+      },
+      {
+       "input": "{A: null}, {A: null}, 'Z'",
+       "expected": {"A": null}
+      }
+     ],
+     "solution": "function unlinkKey(nextOf, prevOf, key) {\n  const out = {};\n  for (const k of Object.keys(nextOf)) {\n    if (k !== key) out[k] = nextOf[k];\n  }\n  if (!(key in nextOf)) return out;\n  const p = prevOf[key], n = nextOf[key];\n  if (p !== null && p !== undefined) out[p] = n;\n  return out;\n}",
+     "concepts": [
+      "doubly-linked-list",
+      "composite-structures"
+     ],
+     "explain": "Removing the head is the case that separates a real answer from a sketch: there is no predecessor to repoint, so the only correct action is to leave every remaining entry alone. The tempting bug is writing `out[prevOf[key]] = nextOf[key]` unconditionally, which invents an entry under the key `null` whenever the head is removed."
+    }
+   },
+   {
+    "title": "The LRU Cache, Assembled",
+    "body": "An **LRU cache** holds at most `capacity` entries and, when it overflows, discards the one least recently used. Its access pattern is exactly the pair from the last section: look a key up by name, and move or remove an entry sitting at an arbitrary position in a recency order.\n\nSo it is built as a hash map from key to list node plus a doubly linked list ordered most-recent-first. `get` hashes to the node, unlinks it and pushes it to the front: $O(1)$. `put` does the same and, if the size now exceeds capacity, drops the tail - which the list already points at, so eviction is $O(1)$ rather than a search for the oldest.\n\nJavaScript's `Map` iterates in insertion order, which is itself a hash table with a linked list threaded through it, so `delete` then `set` re-seats a key at the back and `map.keys().next().value` is the oldest key. In a language whose hash table gives no such guarantee you build the pair by hand, exactly as above.",
+    "code": "function makeLRU(capacity) {\n  const map = new Map();\n  return {\n    get(key) {\n      if (!map.has(key)) return null;\n      const value = map.get(key);\n      map.delete(key);\n      map.set(key, value);\n      return value;\n    },\n    put(key, value) {\n      if (map.has(key)) map.delete(key);\n      map.set(key, value);\n      if (map.size > capacity) map.delete(map.keys().next().value);\n    },\n    keys() { return Array.from(map.keys()); }\n  };\n}\n\nconst cache = makeLRU(2);\ncache.put(\"a\", 1);\ncache.put(\"b\", 2);\nconsole.log(cache.get(\"a\"), cache.keys().join(\",\"));\ncache.put(\"c\", 3);\nconsole.log(cache.get(\"b\"), cache.keys().join(\",\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Delete then set is the move-to-front. A read mutates the structure, which is why an LRU cache is never safe to share without a lock."
+     },
+     {
+      "line": 12,
+      "text": "Overwriting an existing key must re-seat it, not leave it where it was, or a hot key can be evicted while it is still in use."
+     },
+     {
+      "line": 14,
+      "text": "The oldest key is the front of the iteration order - the list tail. Finding it costs nothing, which is the whole reason for keeping the order."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "recencyOrder",
+     "prompt": "Design `recencyOrder(accesses)`: given an array of keys in the order they were touched, return the distinct keys ordered most recently used first. Nothing is given to you.",
+     "tests": [
+      {
+       "input": "['a', 'b', 'a', 'c']",
+       "expected": ["c", "a", "b"]
+      },
+      {
+       "input": "[]",
+       "expected": []
+      },
+      {
+       "input": "['x', 'x', 'x']",
+       "expected": ["x"]
+      },
+      {
+       "input": "['a', 'b', 'c']",
+       "expected": ["c", "b", "a"]
+      }
+     ],
+     "solution": "function recencyOrder(accesses) {\n  const seen = new Set();\n  const out = [];\n  for (let i = accesses.length - 1; i >= 0; i--) {\n    const k = accesses[i];\n    if (!seen.has(k)) { seen.add(k); out.push(k); }\n  }\n  return out;\n}",
+     "concepts": [
+      "lru-cache"
+     ],
+     "explain": "Recency is defined by the **last** touch, not the first, so the array has to be read backwards; walking forwards keeping first appearances and reversing gives `['c','b','a']` for the first case instead of `['c','a','b']`. That asymmetry is exactly what the cache encodes by moving a key to the front on every hit rather than only on insertion."
+    }
+   },
+   {
+    "title": "Turning an Index Inside Out",
+    "body": "A corpus is naturally stored **forward**: document id to the list of terms it contains. Ask that structure 'which documents contain *kite*?' and there is no answer but to open every document, so the query costs $\\Theta(D)$ in the number of documents however rare the word is.\n\n**Inverting** the index stores the transpose: term to the sorted list of document ids containing it, its **posting list**. The query becomes one hash lookup and a read of exactly the documents that match. An AND of two terms walks both posting lists in sorted order, advancing whichever holds the smaller id, for $O(p+q)$ in the two lengths - the same merge step merge sort uses.\n\nThe price is paid on the other side. The index holds one posting per distinct term-document pair, so its size is proportional to the total distinct term occurrences, and every new or edited document must touch one posting list per distinct term it contains. This is the archetypal **read-optimised** structure: a bargain for a corpus queried far more often than it is written, and a liability for one rewritten constantly.",
+    "code": "function invert(docs) {\n  const index = {};\n  for (const entry of docs) {\n    const id = entry[0];\n    for (const t of new Set(entry[1])) {\n      if (!index[t]) index[t] = [];\n      index[t].push(id);\n    }\n  }\n  for (const t of Object.keys(index)) index[t].sort((a, b) => a - b);\n  return index;\n}\n\nfunction andQuery(index, a, b) {\n  const x = index[a] || [], y = index[b] || [];\n  const out = [];\n  let i = 0, j = 0;\n  while (i < x.length && j < y.length) {\n    if (x[i] === y[j]) { out.push(x[i]); i++; j++; }\n    else if (x[i] < y[j]) i++;\n    else j++;\n  }\n  return out;\n}\n\nconst docs = [[1, [\"red\", \"kite\"]], [2, [\"red\", \"boat\"]], [3, [\"kite\", \"boat\", \"red\"]]];\nconst index = invert(docs);\nconsole.log(index.red.join(\",\"), index.kite.join(\",\"));\nconsole.log(andQuery(index, \"red\", \"kite\").join(\",\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The Set collapses repeats within one document: a posting records that a term occurs, not how often, so a word used twice earns one entry."
+     },
+     {
+      "line": 10,
+      "text": "Sorting the posting lists is what makes queries cheap later - the merge below depends on it and would otherwise need a fresh hash set per query."
+     },
+     {
+      "line": 20,
+      "text": "Advance only the side holding the smaller id. Neither list is ever restarted, so the whole intersection costs one pass over each."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "invertDocs",
+     "prompt": "Design `invertDocs(docs)`: `docs` is an object mapping a document id string to an array of terms. Return an object mapping each term to the array of document ids containing it, each list sorted ascending as strings and free of repeats. Nothing is given to you.",
+     "tests": [
+      {
+       "input": "{d1: ['a', 'b'], d2: ['b']}",
+       "expected": {"a": ["d1"], "b": ["d1", "d2"]}
+      },
+      {
+       "input": "{}",
+       "expected": {}
+      },
+      {
+       "input": "{d1: ['a', 'a']}",
+       "expected": {"a": ["d1"]}
+      },
+      {
+       "input": "{d2: ['x'], d1: ['x']}",
+       "expected": {"x": ["d1", "d2"]}
+      }
+     ],
+     "solution": "function invertDocs(docs) {\n  const index = {};\n  for (const id of Object.keys(docs)) {\n    for (const t of new Set(docs[id])) {\n      if (!index[t]) index[t] = [];\n      index[t].push(id);\n    }\n  }\n  for (const t of Object.keys(index)) index[t].sort();\n  return index;\n}",
+     "concepts": [
+      "inverted-index"
+     ],
+     "explain": "Two things are easy to skip and both are load-bearing: de-duplicating terms within a document, so a repeated word does not push the same id twice, and sorting each posting list, which is what lets later queries merge two lists in a single pass instead of building a hash set every time."
+    }
+   }
+  ]
+ },
+ "compose-the-structure": [
+  {
+   "id": "ds-9-c-01",
+   "type": "design",
+   "layer": "application",
+   "fn": "lruRun",
+   "prompt": "Design `lruRun(capacity, ops)`. `ops` is an array of operations: `['put', key, value]` stores a value, `['get', key]` reads one. The cache holds at most `capacity` entries and evicts the least recently used when it overflows; both `get` and `put` count as a use, and re-putting an existing key updates it and counts as a use. Return an array holding the result of each `get` in order - the stored value, or `null` if the key is not cached. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "2, [['put','a',1],['put','b',2],['get','a'],['put','c',3],['get','b'],['get','a'],['get','c']]",
+     "expected": [1, null, 1, 3]
+    },
+    {
+     "input": "1, [['put','a',1],['put','b',2],['get','a'],['get','b']]",
+     "expected": [null, 2]
+    },
+    {
+     "input": "2, [['get','x']]",
+     "expected": [null]
+    },
+    {
+     "input": "2, [['put','a',1],['put','a',2],['put','b',3],['put','c',4],['get','a'],['get','b'],['get','c']]",
+     "expected": [null, 3, 4]
+    }
+   ],
+   "solution": "function lruRun(capacity, ops) {\n  const map = new Map();\n  const out = [];\n  for (const op of ops) {\n    if (op[0] === 'get') {\n      const k = op[1];\n      if (!map.has(k)) { out.push(null); continue; }\n      const v = map.get(k);\n      map.delete(k);\n      map.set(k, v);\n      out.push(v);\n    } else {\n      const k = op[1], v = op[2];\n      if (map.has(k)) map.delete(k);\n      map.set(k, v);\n      if (map.size > capacity) map.delete(map.keys().next().value);\n    }\n  }\n  return out;\n}",
+   "concepts": [
+    "lru-cache",
+    "composite-structures"
+   ],
+   "tags": [
+    "lru-cache",
+    "composite-structures"
+   ],
+   "xp": 100,
+   "explain": "The first case turns on `get('a')` promoting `a`, so the eviction that follows takes `b` and not `a`; a design that reorders only on `put` returns `[1, 2, null, 3]` and looks entirely plausible. The last case punishes the other common slip - re-putting `a` without re-seating it leaves `a` at the old end of the order, so it survives when it should have been the entry evicted."
+  },
+  {
+   "id": "ds-9-c-02",
+   "type": "design",
+   "layer": "application",
+   "fn": "buildIndex",
+   "prompt": "Design `buildIndex(docs)`. `docs` is an array of `[docId, terms]` pairs where `docId` is a number and `terms` is an array of strings. Return an object mapping each term to the ascending-sorted array of distinct document ids containing it. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "[[1, ['red','blue']], [2, ['blue']]]",
+     "expected": {"red": [1], "blue": [1, 2]}
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[[3, ['a','a','a']]]",
+     "expected": {"a": [3]}
+    },
+    {
+     "input": "[[2, ['x']], [1, ['x']]]",
+     "expected": {"x": [1, 2]}
+    }
+   ],
+   "solution": "function buildIndex(docs) {\n  const index = {};\n  for (const entry of docs) {\n    const id = entry[0];\n    for (const t of new Set(entry[1])) {\n      if (!index[t]) index[t] = [];\n      index[t].push(id);\n    }\n  }\n  for (const t of Object.keys(index)) index[t].sort((a, b) => a - b);\n  return index;\n}",
+   "concepts": [
+    "inverted-index",
+    "structure-selection"
+   ],
+   "tags": [
+    "inverted-index",
+    "structure-selection"
+   ],
+   "xp": 100,
+   "explain": "The last case catches an implementation that assumes documents arrive in id order: they may arrive in any order, and a posting list is only useful sorted, so the sort is part of the contract rather than a tidy-up. Note too that JavaScript's default `sort` compares as strings, which would put 10 before 2 - numeric ids need an explicit comparator."
+  },
+  {
+   "id": "ds-9-c-03",
+   "type": "design",
+   "layer": "application",
+   "fn": "searchAll",
+   "prompt": "Design `searchAll(index, terms)`. `index` maps each term to an ascending-sorted array of document ids. Return the ascending-sorted array of ids containing **every** term in `terms`. A term absent from the index matches nothing. Return `[]` when `terms` is empty. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "{red: [1,2,3], blue: [2,3], green: [3]}, ['red','blue']",
+     "expected": [2, 3]
+    },
+    {
+     "input": "{red: [1,2,3], blue: [2,3], green: [3]}, ['red','blue','green']",
+     "expected": [3]
+    },
+    {
+     "input": "{red: [1,2,3]}, ['red','yellow']",
+     "expected": []
+    },
+    {
+     "input": "{red: [1,2,3]}, []",
+     "expected": []
+    },
+    {
+     "input": "{blue: [2,3]}, ['blue']",
+     "expected": [2, 3]
+    }
+   ],
+   "solution": "function searchAll(index, terms) {\n  if (terms.length === 0) return [];\n  let acc = index[terms[0]] ? index[terms[0]].slice() : [];\n  for (let i = 1; i < terms.length; i++) {\n    const list = index[terms[i]] || [];\n    const keep = new Set(list);\n    acc = acc.filter(function (id) { return keep.has(id); });\n  }\n  return acc.slice().sort((a, b) => a - b);\n}",
+   "concepts": [
+    "inverted-index",
+    "composite-structures"
+   ],
+   "tags": [
+    "inverted-index",
+    "composite-structures"
+   ],
+   "xp": 100,
+   "explain": "An empty `terms` list is the case worth arguing about: strictly, every document contains all of no terms, but a search box that returns the whole corpus for an empty query is a bug, so the contract fixes it at `[]`. The missing-term case must also collapse the result to nothing rather than being skipped, or `['red','yellow']` wrongly returns everything red."
+  },
+  {
+   "id": "ds-9-c-04",
+   "type": "design",
+   "layer": "application",
+   "fn": "minStackRun",
+   "prompt": "Design `minStackRun(ops)`. `ops` is an array of `['push', n]`, `['pop']` and `['min']` operations on a stack of numbers. Return an array holding the answer to each `['min']` in order - the smallest value currently on the stack, or `null` when it is empty. Every operation must cost $O(1)$; scanning the stack on each `min` is not acceptable. `pop` on an empty stack is a no-op. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "[['push',3],['min'],['push',1],['min'],['pop'],['min']]",
+     "expected": [3, 1, 3]
+    },
+    {
+     "input": "[['min']]",
+     "expected": [null]
+    },
+    {
+     "input": "[['push',2],['push',2],['pop'],['min']]",
+     "expected": [2]
+    },
+    {
+     "input": "[['push',5],['pop'],['min']]",
+     "expected": [null]
+    }
+   ],
+   "solution": "function minStackRun(ops) {\n  const main = [], mins = [], out = [];\n  for (const op of ops) {\n    if (op[0] === 'push') {\n      const v = op[1];\n      main.push(v);\n      if (mins.length === 0 || v <= mins[mins.length - 1]) mins.push(v);\n      else mins.push(mins[mins.length - 1]);\n    } else if (op[0] === 'pop') {\n      if (main.length > 0) { main.pop(); mins.pop(); }\n    } else {\n      out.push(mins.length === 0 ? null : mins[mins.length - 1]);\n    }\n  }\n  return out;\n}",
+   "concepts": [
+    "composite-structures",
+    "space-time-tradeoff"
+   ],
+   "tags": [
+    "composite-structures",
+    "space-time-tradeoff"
+   ],
+   "xp": 100,
+   "explain": "The composition is a second stack recording the minimum *as of* each push, so a pop restores the previous minimum for free - $O(n)$ extra space bought $O(1)$ queries. Pushing 2 twice is the case that kills the thriftier variant that records a value only when it strictly improves the minimum: after one pop its bookkeeping stack is empty while the data stack still holds a 2."
+  },
+  {
+   "id": "ds-9-c-05",
+   "type": "design",
+   "layer": "application",
+   "fn": "topKFrequent",
+   "prompt": "Design `topKFrequent(items, k)`: return the `k` most frequently occurring values in `items`, most frequent first, breaking ties towards the value that appears earliest in `items`. Return every distinct value if `k` exceeds how many there are. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "['a','b','a','c','b','a'], 2",
+     "expected": ["a", "b"]
+    },
+    {
+     "input": "[], 3",
+     "expected": []
+    },
+    {
+     "input": "['a','b'], 5",
+     "expected": ["a", "b"]
+    },
+    {
+     "input": "['x','y','y','x','z'], 2",
+     "expected": ["x", "y"]
+    }
+   ],
+   "solution": "function topKFrequent(items, k) {\n  const counts = new Map();\n  const firstAt = new Map();\n  for (let i = 0; i < items.length; i++) {\n    const v = items[i];\n    counts.set(v, (counts.get(v) || 0) + 1);\n    if (!firstAt.has(v)) firstAt.set(v, i);\n  }\n  const distinct = Array.from(counts.keys());\n  distinct.sort(function (a, b) {\n    if (counts.get(b) !== counts.get(a)) return counts.get(b) - counts.get(a);\n    return firstAt.get(a) - firstAt.get(b);\n  });\n  return distinct.slice(0, k);\n}",
+   "concepts": [
+    "structure-selection",
+    "space-time-tradeoff"
+   ],
+   "tags": [
+    "structure-selection",
+    "space-time-tradeoff"
+   ],
+   "xp": 100,
+   "explain": "Counting needs a hash map because the question asked of every item is 'how many so far', and the ordering needs something the map cannot supply, so the two are composed. The `['x','y','y','x','z']` case is the tie-break: both reach 2, and only a recorded first-appearance index - not the map's iteration order, which you should never rely on across languages - resolves it deterministically."
+  }
+ ],
+ "defend-the-choice": [
+  {
+   "id": "ds-9-d-01",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "State the worst-case cost of a single `get` and a single `put` on an LRU cache built as a hash map from key to node plus a doubly linked list in recency order. Justify it by naming what each half of the composition contributes, eviction included.",
+   "answer": "O(1)",
+   "rubric": {
+    "required": [
+     "hash",
+     "list",
+     "constant"
+    ],
+    "optional": [
+     "node",
+     "pointer",
+     "unlink",
+     "splice",
+     "head",
+     "tail",
+     "evict",
+     "map"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "lru-cache",
+    "composite-structures"
+   ],
+   "tags": [
+    "lru-cache",
+    "complexity"
+   ],
+   "xp": 40,
+   "explain": "The hash map turns a key into a node with no search, and holding the node means its `prev` and `next` let it be unlinked and re-inserted at the head without walking anything; eviction takes the list's tail, which is already known. The tempting wrong answer is linear time for eviction, which is what you would pay if the map alone stored timestamps and the oldest entry had to be found by scanning every one of them."
+  },
+  {
+   "id": "ds-9-d-02",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague proposes replacing the doubly linked list in the LRU cache with a singly linked list, to save one pointer per entry. Explain precisely what breaks, and say what that extra pointer was buying.",
+   "rubric": {
+    "required": [
+     "predecessor",
+     "walk",
+     "unlink"
+    ],
+    "optional": [
+     "singly",
+     "prev",
+     "pointer",
+     "scan",
+     "linear",
+     "constant",
+     "head",
+     "tail",
+     "memory"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "doubly-linked-list",
+    "lru-cache"
+   ],
+   "tags": [
+    "doubly-linked-list",
+    "composite-structures"
+   ],
+   "xp": 20,
+   "explain": "Removing a node means rewriting its predecessor's `next` pointer, and a singly linked list can only find a predecessor by walking from the head - so every cache hit degrades from constant to linear time and the hash map's instant lookup is wasted. The saving is one machine word per entry, set against a linear factor on the hottest operation in the structure, which is the shape of trade that space almost always wins."
+  },
+  {
+   "id": "ds-9-d-03",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Two terms have posting lists of lengths $p$ and $q$, each an ascending-sorted array of document ids. Give the cost of answering the AND of the two terms, and justify why a single pass over each list suffices.",
+   "answer": "O(p + q)",
+   "rubric": {
+    "required": [
+     "sorted",
+     "merge",
+     "posting"
+    ],
+    "optional": [
+     "advance",
+     "smaller",
+     "intersection",
+     "pointer",
+     "pass",
+     "index",
+     "restart"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "inverted-index"
+   ],
+   "tags": [
+    "inverted-index",
+    "complexity"
+   ],
+   "xp": 40,
+   "explain": "Because both lists are sorted, comparing the two front elements and advancing whichever holds the smaller id can never skip a match, so each index moves forward at most once per element and the whole intersection is one merge pass. The tempting answer is $O(pq)$, which is what you pay by checking each id of one list against all of the other - correct, and needlessly quadratic given the ordering the index already maintains for free."
+  },
+  {
+   "id": "ds-9-d-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A service must answer one question: has user `u` been seen today? Ten million distinct users are recorded per day, and a thousand membership queries arrive per second. Choose a structure, and defend it specifically against a sorted array searched by binary search.",
+   "rubric": {
+    "required": [
+     "hash",
+     "binary",
+     "insert"
+    ],
+    "optional": [
+     "set",
+     "membership",
+     "shift",
+     "constant",
+     "logarithmic",
+     "collision",
+     "memory",
+     "order",
+     "sorted"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "structure-selection"
+   ],
+   "tags": [
+    "structure-selection"
+   ],
+   "xp": 20,
+   "explain": "A hash set wins because the workload is insert-heavy: binary search makes the query logarithmic, which is perfectly fine, but keeping the array sorted costs $O(n)$ element moves per insertion, and ten million of those is quadratic work no query saving can repay. The defence has to be about the insert path - answering only that hash lookup beats binary search picks the right structure for the wrong reason, since at ten million entries $\\log_2 n$ is about 23, a constant that decides nothing on its own."
+  },
+  {
+   "id": "ds-9-d-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "State the space and write-time price of maintaining an inverted index over a corpus, and say exactly which query cost it removes. Then describe a workload on which paying that price would be a mistake.",
+   "rubric": {
+    "required": [
+     "space",
+     "query",
+     "scan"
+    ],
+    "optional": [
+     "write",
+     "update",
+     "posting",
+     "term",
+     "corpus",
+     "rebuild",
+     "read",
+     "memory",
+     "document"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "space-time-tradeoff",
+    "inverted-index"
+   ],
+   "tags": [
+    "space-time-tradeoff",
+    "inverted-index"
+   ],
+   "xp": 20,
+   "explain": "The index stores one posting per distinct term-document pair, so it can rival the text it describes in size, and every write must touch one posting list per distinct term in the changed document; in exchange, a term query stops being a $\\Theta(D)$ scan over every document and becomes a hash lookup plus a read of only the matching ids. It is a mistake wherever writes outnumber reads, or the corpus is small enough that the scan was already fast - a per-user notes store rewritten constantly and searched rarely pays the whole price and collects almost none of the benefit."
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-9-e-01",
+   "type": "design",
+   "layer": "application",
+   "fn": "lruEvictions",
+   "prompt": "Design `lruEvictions(capacity, keys)`: each entry of `keys` is an access, which inserts the key if it is absent and marks it most recently used either way. Return the array of keys evicted, in the order they were evicted. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "2, ['a','b','c','a','d']",
+     "expected": ["a", "b", "c"]
+    },
+    {
+     "input": "3, ['a','b','c']",
+     "expected": []
+    },
+    {
+     "input": "1, ['a','a','a']",
+     "expected": []
+    },
+    {
+     "input": "1, ['a','b']",
+     "expected": ["a"]
+    },
+    {
+     "input": "2, []",
+     "expected": []
+    }
+   ],
+   "solution": "function lruEvictions(capacity, keys) {\n  const map = new Map();\n  const evicted = [];\n  for (const k of keys) {\n    if (map.has(k)) map.delete(k);\n    map.set(k, true);\n    if (map.size > capacity) {\n      const oldest = map.keys().next().value;\n      map.delete(oldest);\n      evicted.push(oldest);\n    }\n  }\n  return evicted;\n}",
+   "concepts": [
+    "lru-cache"
+   ],
+   "tags": [
+    "lru-cache"
+   ],
+   "xp": 100,
+   "explain": "The first case is deliberately circular: `a` is evicted, then accessed again and re-inserted, which costs `b`, whose slot then costs `c`. A design that treats an evicted key as permanently gone, or that fails to promote on a repeat access, diverges here; the capacity-1 case with a repeated key checks that a re-access is not mistaken for an insertion that overflows."
+  },
+  {
+   "id": "ds-9-e-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You compute the $k$ most frequent of $n$ items by counting into a hash map and then placing each distinct value into a bucket indexed by its count, reading the buckets from the highest downwards. Give the total cost in $n$ and justify why no sort appears in it.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "count",
+     "bucket",
+     "sort"
+    ],
+    "optional": [
+     "distinct",
+     "linear",
+     "heap",
+     "frequency",
+     "pass",
+     "index",
+     "comparison"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "space-time-tradeoff",
+    "structure-selection"
+   ],
+   "tags": [
+    "space-time-tradeoff",
+    "complexity"
+   ],
+   "xp": 40,
+   "explain": "Counting is one pass, there are at most $n$ distinct values and no count exceeds $n$, so an array of $n+1$ buckets holds everything and sweeping it downwards is another pass - three linear passes, hence $O(n)$. The comparison sort disappears because the sort key is a small bounded integer used directly as an index; the price is the $O(n)$ bucket array, most of which is typically empty."
+  },
+  {
+   "id": "ds-9-e-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A job queue takes thousands of appends per second at one end and removals from the other end by a single consumer. Nothing else is ever asked of it. Choose between a growable array with head and tail indices and a doubly linked list of heap-allocated nodes, and defend the winner.",
+   "rubric": {
+    "required": [
+     "array",
+     "linked",
+     "allocation"
+    ],
+    "optional": [
+     "contiguous",
+     "node",
+     "pointer",
+     "amortised",
+     "resize",
+     "locality",
+     "cache",
+     "memory",
+     "circular",
+     "constant"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "structure-selection"
+   ],
+   "tags": [
+    "structure-selection"
+   ],
+   "xp": 20,
+   "explain": "Both give $O(1)$ per operation on paper, so the asymptotics decide nothing and the constants decide everything: the array stores elements contiguously with no per-element allocation and no pointer overhead, while the linked list allocates and frees a node per job and scatters them across memory, defeating the prefetcher. The array's cost is amortised resizing, which a ring buffer removes entirely, and it is the wrong choice only when elements must be removed from the middle - which this access pattern never does."
+  },
+  {
+   "id": "ds-9-e-04",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In an LRU cache built from a hash map plus a linked list, why must the list be doubly linked?",
+   "choices": [
+    "A singly linked list cannot be traversed from head to tail",
+    "Unlinking a node on a cache hit needs its predecessor, which a singly linked list can only find by walking from the head",
+    "The hash map cannot store a reference to a node in a singly linked list",
+    "Eviction needs the last node, and a singly linked list cannot keep a tail pointer"
+   ],
+   "answer": 1,
+   "concepts": [
+    "doubly-linked-list",
+    "lru-cache"
+   ],
+   "tags": [
+    "doubly-linked-list"
+   ],
+   "xp": 10,
+   "explain": "Everything the cache does on a hit ends in a removal from the middle of the order, and removal rewrites the predecessor's `next` pointer, so the predecessor must be reachable in constant time. The last option is the tempting one - a singly linked list keeps a tail pointer perfectly well for appends; what it cannot do is find the node *before* an arbitrary node."
+  },
+  {
+   "id": "ds-9-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a successful `get` on a hash-map-plus-doubly-linked-list LRU cache into the order they must happen.",
+   "fragments": [
+    "hash the key to find its node in the map, in O(1)",
+    "rewrite the node's neighbours' pointers so it leaves the list",
+    "splice the node back in immediately after the head",
+    "return the value stored on the node"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "lru-cache",
+    "doubly-linked-list"
+   ],
+   "tags": [
+    "lru-cache"
+   ],
+   "xp": 20,
+   "explain": "The map lookup must come first because every later step needs the node it yields, and the unlink must precede the re-insertion because splicing a node that is still linked in its old position corrupts the list. Note the map itself is never rewritten - the key still points at the same node, only the node's position changed, which is why a hit costs no hashing beyond that first step."
+  },
+  {
+   "id": "ds-9-e-06",
+   "type": "design",
+   "layer": "application",
+   "fn": "searchAny",
+   "prompt": "Design `searchAny(index, terms)`. `index` maps each term to an ascending-sorted array of document ids. Return the ascending-sorted array of ids containing **at least one** of `terms`, with no repeats. A term absent from the index contributes nothing, and an empty `terms` gives `[]`. Nothing is given to you.",
+   "tests": [
+    {
+     "input": "{a: [1,2], b: [2,3]}, ['a','b']",
+     "expected": [1, 2, 3]
+    },
+    {
+     "input": "{a: [1]}, []",
+     "expected": []
+    },
+    {
+     "input": "{a: [1]}, ['zz']",
+     "expected": []
+    },
+    {
+     "input": "{a: [5,1]}, ['a']",
+     "expected": [1, 5]
+    }
+   ],
+   "solution": "function searchAny(index, terms) {\n  const seen = new Set();\n  for (const t of terms) {\n    const list = index[t] || [];\n    for (const id of list) seen.add(id);\n  }\n  return Array.from(seen).sort((a, b) => a - b);\n}",
+   "concepts": [
+    "inverted-index"
+   ],
+   "tags": [
+    "inverted-index"
+   ],
+   "xp": 100,
+   "explain": "An OR query is a union, so the structure that matters is the set suppressing a document that appears under two different terms - concatenating the posting lists returns `2` twice in the first case. The last test forces the output sort to be genuine rather than inherited: that posting list arrives unsorted, and the contract promises the caller ascending order regardless of what the index contained."
+  },
+  {
+   "id": "ds-9-e-07",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every true statement about an inverted index over a corpus of documents.",
+   "choices": [
+    "Its size is roughly proportional to the number of distinct term-document pairs in the corpus",
+    "An AND of two posting lists of lengths p and q can be answered in O(p + q) because both are kept sorted",
+    "It makes adding a new document cheaper than the forward document-to-terms map does",
+    "It answers 'which terms does document 7 contain?' faster than the forward map does",
+    "It trades extra space and write cost for a term query that no longer scans every document"
+   ],
+   "answer": [
+    0,
+    1,
+    4
+   ],
+   "concepts": [
+    "inverted-index",
+    "space-time-tradeoff"
+   ],
+   "tags": [
+    "inverted-index"
+   ],
+   "xp": 10,
+   "explain": "The two false options describe the direction the index gave up: a write must now touch one posting list per distinct term instead of appending a single record, and the document-to-terms question is precisely what the forward map answers in one lookup. Inverting is a transpose, so whatever becomes cheap in one direction becomes expensive in the other."
+  },
+  {
+   "id": "ds-9-e-08",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the body of `put` for a `Map`-backed LRU cache, so that overwriting an existing key also re-seats it as most recently used.",
+   "template": "if (map.has(key)) map.___(key);\nmap.___(key, value);\nif (map.size > capacity) map.delete(map.keys().next().value);",
+   "blanks": [
+    "delete",
+    "set"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "lru-cache"
+   ],
+   "tags": [
+    "lru-cache"
+   ],
+   "xp": 20,
+   "explain": "`map.set` on a key already present updates the value but leaves the key where it was in the iteration order, so without the preceding `delete` a hot key that is written repeatedly still ages out and gets evicted. Deleting and re-setting is the `Map` equivalent of unlink-then-push-front on the doubly linked list."
+  },
+  {
+   "id": "ds-9-e-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function makeLRU(capacity) {\n  const map = new Map();\n  return {\n    get(key) {\n      if (!map.has(key)) return null;\n      const value = map.get(key);\n      map.delete(key);\n      map.set(key, value);\n      return value;\n    },\n    put(key, value) {\n      if (map.has(key)) map.delete(key);\n      map.set(key, value);\n      if (map.size > capacity) map.delete(map.keys().next().value);\n    },\n    keys() { return Array.from(map.keys()); }\n  };\n}\n\nconst c = makeLRU(2);\nc.put(\"a\", 1);\nc.put(\"b\", 2);\nconsole.log(c.get(\"a\"));\nc.put(\"c\", 3);\nconsole.log(c.get(\"b\"));\nconsole.log(c.keys().join(\",\"));",
+   "lang": "javascript",
+   "answer": "1\nnull\na,c",
+   "concepts": [
+    "lru-cache",
+    "composite-structures"
+   ],
+   "tags": [
+    "lru-cache"
+   ],
+   "xp": 20,
+   "explain": "Reading `a` moves it behind `b`, so when `c` arrives the oldest key is `b` and it is `b` that disappears - the third line would read `b,c` and `b` would have survived if a read did not count as a use. That one mutation on the read path is the entire difference between LRU and first-in-first-out eviction."
+  },
+  {
+   "id": "ds-9-e-10",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the sorted-merge AND query over the posting lists `x = [1, 4, 7, 9]` and `y = [2, 4, 9]`. The algorithm compares `x[i]` with `y[j]`, emits on equality and advances both, and otherwise advances the index holding the smaller id. Write a pair as `a, b` and a list as comma-separated ids.",
+   "steps": [
+    {
+     "label": "the first pair compared",
+     "expected": "1, 2"
+    },
+    {
+     "label": "which index advances after that first comparison, i or j",
+     "expected": "i"
+    },
+    {
+     "label": "the second pair compared",
+     "expected": "4, 2"
+    },
+    {
+     "label": "the first id emitted",
+     "expected": "4"
+    },
+    {
+     "label": "the pair compared immediately after that emission",
+     "expected": "7, 9"
+    },
+    {
+     "label": "the complete result",
+     "expected": "4, 9"
+    }
+   ],
+   "concepts": [
+    "inverted-index",
+    "composite-structures"
+   ],
+   "tags": [
+    "inverted-index"
+   ],
+   "xp": 40,
+   "explain": "Neither index ever moves backwards, which is why the pass is $O(p+q)$ rather than $O(pq)$: `1` and `2` are each discarded permanently the moment a larger id appears on the other side. Watch the emission at `4` - both indices advance, because a document already matched cannot match again, and advancing only one would compare `4` against `9` and stall."
+  }
+ ]
+}

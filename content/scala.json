@@ -3,10 +3,12 @@
  "name": "Scala Depths",
  "subject": "Scala",
  "category": "language",
+ "disciplineType": "language",
  "sigil": "◈",
  "unlock": null,
  "lang": "scala",
  "runtime": "piston",
+ "totalFloors": 1,
  "source": "exercism/scala (MIT)",
  "importedBy": "scripts/import_exercism.py",
  "blurb": "Scala combines object-oriented and functional programming in one concise, high-level language. Scala's static types help avoid bugs in complex applications, and its JVM and JavaScript runtimes let you build high-performance systems with easy access to huge ecosystems of libraries.",
@@ -20,28 +22,205 @@
    "exercises": [
     "basics"
    ],
+   "cognitiveLevel": "application",
+   "sequence": [
+    "lesson",
+    "practice",
+    "capstone"
+   ],
    "lesson": {
     "sections": [
      {
       "title": "Defining Variables",
-      "body": "Defining a variable means assigning a value to a name. In Scala there are two kinds of variables, vals and vars.\n\nA `val` is immutable, so it's value cannot be changed anymore after the first assignment:\n\nA `var`, in contrast, can be reassigned to a new value of same type:\n\nScala is a statically-typed language, which means that everything has a type at compile-time. A variable can be defined either by explicitly specifying its type, or by letting the Scala compiler infer its type based on the assigned value (known as type inference). Therefore, the following two variable definitions are equivalent:\n\nOnce defined, a variable's type can never change.",
-      "code": "val numberTen = 10\n\nnumberTen = 11\n// --> raises a compile error \"reassignment to val\"",
-      "lang": "scala"
+      "body": "Defining a variable means assigning a value to a name. In Scala there are two kinds of variable, `val` and `var`: a `val` is immutable, so its value cannot be changed after the first assignment, while a `var` can be reassigned to a new value of the same type.\n\nScala is a **statically-typed language**, which means that everything has a type at compile time. A variable can be defined either by explicitly specifying its type, as `numberTen` does below, or by letting the compiler infer its type from the assigned value, as `counter` does - the two forms are equivalent.\n\nOnce defined, a variable's type can never change. Reassigning a `val`, or assigning a `String` to an `Int` variable, is a compile error rather than something you discover at run time.",
+      "code": "object Variables {\n  def main(args: Array[String]): Unit = {\n    val numberTen: Int = 10\n    var counter = 0\n\n    counter = counter + 1\n    // numberTen = 11  would not compile: reassignment to val\n\n    println(numberTen)\n    println(counter)\n  }\n}",
+      "lang": "scala",
+      "annotations": [
+       {
+        "line": 3,
+        "text": "The type is written after the name, following a colon - `numberTen: Int`, never `Int numberTen`."
+       },
+       {
+        "line": 4,
+        "text": "No type is written here, but `counter` is still an `Int` forever: the compiler infers it from the 0."
+       }
+      ],
+      "checkpoint": {
+       "type": "output",
+       "layer": "retrieval",
+       "prompt": "What does this program print?",
+       "code": "object Main {\n  def main(args: Array[String]): Unit = {\n    var x = 5\n    val y = 2\n    x = x * y\n    println(x)\n  }\n}",
+       "lang": "scala",
+       "answer": "10",
+       "xp": 10,
+       "concepts": ["basics"],
+       "tags": ["basics"],
+       "explain": "Only `x` is a `var`, so only `x` may be reassigned, and `x * y` is evaluated before the assignment happens. The tempting answer is 5: it comes from reading `x = x * y` as a mathematical equation rather than as \"compute the right-hand side, then rebind the name\"."
+      }
      },
      {
       "title": "Defining Methods within Classes",
-      "body": "Scala is an **object-oriented language** and requires all methods to be defined in a **class**. The `class` keyword is used to define a class.\n\nInside a class, methods can be defined starting with keyword `def` followed by a name. Each method can have zero or more parameters, which are listed comma-separated within round brackets. All parameters must be explicitly typed, there is no type inference for parameters. After the list of parameters, the method's return type is defined separated by another colon.\n\nThe method definition is followed by an `=` sign to start with the method body. In the following example the method body consists of two statements, which are surrounded by curly braces.\n\nThe method will return the value of the last expression, in this case the `add` method returns the value of variable `sum`:\n\nThere are a few improvements, which can be done to shorten that method in order to improve readability:\n\n- since the variable `sum` is accessed only once to return the value, it can be omitted\n- methods consisting of only one statement do not need curly braces\n- the method's return type can be inferred the same as for variable types\n\nThis leads to the following one-line method with same functionality:",
-      "code": "class Calculator {\n  // ...\n}",
-      "lang": "scala"
+      "body": "Scala is an **object-oriented language** and requires all methods to be defined in a **class** or an object. The `class` keyword defines a class, and inside it methods are defined with the keyword `def` followed by a name.\n\nEach method can have zero or more parameters, listed comma-separated in round brackets. All parameters must be explicitly typed - there is no type inference for parameters. After the parameter list the method's return type is given after another colon, then an `=` sign starts the method body. The method returns the value of the last expression in that body, so `add` below returns the value of `sum`.\n\nA method can usually be shortened: a variable read only once in order to return it can be dropped, a body of a single expression needs no curly braces, and the return type can be inferred just as a variable's can. That is how `multiply` is written.",
+      "code": "class Calculator {\n  def add(a: Int, b: Int): Int = {\n    val sum = a + b\n    sum\n  }\n\n  def multiply(a: Int, b: Int) = a * b\n}\n\nobject Main {\n  def main(args: Array[String]): Unit = {\n    val calc = new Calculator\n    println(calc.add(2, 3))\n    println(calc.multiply(4, 5))\n  }\n}",
+      "lang": "scala",
+      "annotations": [
+       {
+        "line": 4,
+        "text": "There is no `return` keyword: the last expression of the body is the result."
+       },
+       {
+        "line": 7,
+        "text": "One expression, so no braces and no declared return type - the compiler works out `Int`."
+       }
+      ],
+      "checkpoint": {
+       "type": "fill",
+       "layer": "retrieval",
+       "prompt": "Complete this method so that `subtract(9, 4)` evaluates to 5.",
+       "template": "class Calculator {\n  ___ subtract(a: Int, b: Int): ___ = a - b\n}",
+       "blanks": ["def", "Int"],
+       "lang": "scala",
+       "xp": 10,
+       "concepts": ["basics"],
+       "tags": ["basics"],
+       "explain": "`def` introduces every method, and the type after the colon is the **return** type, not a parameter type - the parameters carry their own annotations inside the brackets. Writing `Int subtract(...)` is the C or Java habit that Scala's colon syntax deliberately breaks."
+      }
+     },
+     {
+      "title": "Creating Objects and Building Strings",
+      "body": "A class is only a blueprint; `new Calculator` builds an actual object from it, and methods are then called on that object with a dot, as in `g.greeting(\"Ada\")`. A method may call another method of the same object by name alone, which is what `shout` does.\n\nScala builds strings by **interpolation** rather than concatenation. Prefixing a literal with `s` makes it an interpolated string, where `$name` splices in the value of the variable `name` and `${expr}` splices in the value of any expression - the braces are what let you call a method or do arithmetic inside the literal.\n\nInterpolation is checked at compile time like everything else, so a name that does not exist is an error before the program ever runs. Without the `s` prefix nothing is spliced and the dollar signs are printed as ordinary characters.",
+      "code": "class Greeter {\n  def greeting(name: String): String = s\"Hello, $name!\"\n\n  def shout(name: String): String = greeting(name).toUpperCase\n}\n\nobject Main {\n  def main(args: Array[String]): Unit = {\n    val g = new Greeter\n    println(g.greeting(\"Ada\"))\n    println(g.shout(\"Ada\"))\n    println(s\"${2 + 3} letters\")\n  }\n}",
+      "lang": "scala",
+      "annotations": [
+       {
+        "line": 2,
+        "text": "The leading `s` is what makes the literal interpolated; without it the characters $name are printed as they stand."
+       },
+       {
+        "line": 12,
+        "text": "Braces are required around an expression - only a bare name may follow the dollar sign on its own."
+       }
+      ],
+      "checkpoint": {
+       "type": "output",
+       "layer": "retrieval",
+       "prompt": "What does this program print? Give both lines.",
+       "code": "object Main {\n  def main(args: Array[String]): Unit = {\n    val name = \"Scala\"\n    println(s\"I use $name\")\n    println(s\"${name.length} letters\")\n  }\n}",
+       "lang": "scala",
+       "answer": "I use Scala\n5 letters",
+       "xp": 10,
+       "concepts": ["basics"],
+       "tags": ["basics"],
+       "explain": "`$name` splices the value in place, and `${name.length}` evaluates the whole expression first - `\"Scala\"` has five characters. The tempting second line is the literal text with the dollar sign left in, which is exactly what you would get by forgetting the `s` prefix, because then nothing is interpolated at all."
+      }
      }
     ]
    },
-   "practice": [],
-   "exam": [],
-   "_todo": [
-    "practice needs 6 more challenge(s)",
-    "exam: author 8-12 questions",
-    "basics: tests not parsed (no extractor for 'scala')"
+   "practice": [
+    {
+     "id": "scala-1-p-01",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? Give both lines.",
+     "code": "object Main {\n  def main(args: Array[String]): Unit = {\n    val a = 7\n    val b = 2\n    println(a / b)\n    println(a % b)\n  }\n}",
+     "lang": "scala",
+     "answer": "3\n1",
+     "xp": 30,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "Both operands are inferred as `Int`, so `/` is integer division and the fractional part is discarded rather than rounded - 3, not 3.5 and not 4. `%` gives back precisely what that division threw away. Had either value been written `7.0`, the inferred type would be `Double` and the first line would read 3.5."
+    },
+    {
+     "id": "scala-1-p-02",
+     "type": "output",
+     "layer": "application",
+     "prompt": "What does this program print? Give all three lines.",
+     "code": "class Counter {\n  var total = 0\n\n  def add(n: Int): Int = {\n    total = total + n\n    total\n  }\n}\n\nobject Main {\n  def main(args: Array[String]): Unit = {\n    val c = new Counter\n    println(c.add(3))\n    println(c.add(4))\n    println(c.total)\n  }\n}",
+     "lang": "scala",
+     "answer": "3\n7\n7",
+     "xp": 30,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "`val c` fixes which object `c` names, not what is inside that object: `total` is a `var`, so each call mutates it and the calls accumulate. The tempting answer is 3, 4, 0 - it treats `add` as a pure function of its argument and forgets both that the field survives between calls and that the method's last expression is the running `total`."
+    },
+    {
+     "id": "scala-1-p-03",
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete this class so that `area(3, 4)` evaluates to 12 and `describe(3, 4)` produces the string `3 by 4`.",
+     "template": "class Rectangle {\n  ___ area(width: Int, height: Int): Int = width * height\n\n  def describe(width: Int, height: Int): String = ___\"$width by $height\"\n}",
+     "blanks": ["def", "s"],
+     "lang": "scala",
+     "xp": 30,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "Every method needs `def`, and a literal only interpolates when it carries the `s` prefix - without it the program still compiles and still prints, but it prints the dollar signs and the variable names instead of the numbers. That silent success is exactly why a missing `s` is such a common bug."
+    },
+    {
+     "id": "scala-1-p-04",
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put these fragments in the order that makes a valid `Doubler` class whose `twice` method returns its argument multiplied by two.",
+     "fragments": [
+      "  def twice(n: Int): Int =",
+      "class Doubler {",
+      "}",
+      "    n * 2"
+     ],
+     "answer": [1, 0, 3, 2],
+     "xp": 30,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "The class header opens the block the method lives in, and the body follows the `=` that ends the signature - a method definition binds a name to an expression, so nothing may come between the `=` and that expression. Closing the class first would leave `twice` at the top level, which Scala does not allow."
+    },
+    {
+     "id": "scala-1-p-05",
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Trace the value of the field `total` in this program, giving it as it stands after each numbered step.\n\n`class Counter { var total = 0; def add(n: Int): Int = { total = total + n; total } }`\n\n- step 1: `val c = new Counter`\n- step 2: `c.add(5)`\n- step 3: `c.add(5)`",
+     "steps": [
+      { "label": "after step 1 (the object is built)", "expected": "0" },
+      { "label": "after step 2 (c.add(5))", "expected": "5" },
+      { "label": "after step 3 (c.add(5) again)", "expected": "10" }
+     ],
+     "xp": 60,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "The initialiser `var total = 0` runs once, when the object is constructed, not once per call - so the second identical call does not reset anything and the two fives accumulate. Had `total` been declared inside `add` instead, every call would start from zero and the trace would read 0, 5, 5."
+    },
+    {
+     "id": "scala-1-p-06",
+     "type": "explain",
+     "layer": "application",
+     "prompt": "In the `Counter` program above, `c` is declared with `val`, yet `c.total` still ends up at 7. Explain what `val` actually fixes and what it leaves free to change, and say what you would have to alter in `Counter` to make the whole thing genuinely unchangeable.",
+     "rubric": {
+      "required": ["reference", "immutable", "var", "field"],
+      "optional": ["object", "state", "binding", "reassign", "val"],
+      "minWords": 35
+     },
+     "xp": 30,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "`val` makes the binding immutable: `c` names this one `Counter` object forever, and `c = new Counter` would not compile. It says nothing about the object's interior, and `total` is declared `var`, so that field is free to change beneath a stable name. Making the value genuinely unchangeable means declaring the field a `val` and having `add` return a new `Counter` rather than mutate this one - which is the functional half of Scala, and the reason `val` is the default you should reach for first."
+    }
+   ],
+   "capstone": [
+    {
+     "id": "scala-1-boss",
+     "type": "design",
+     "layer": "application",
+     "capstone": true,
+     "prompt": "Design and write a Scala `BankAccount` class in the editor, using everything on this floor.\n\nIt must have:\n\n- a mutable `balance` field starting at 0\n- a `deposit` method taking an `Int` and returning the new balance\n- a `withdraw` method taking an `Int` and returning the new balance\n- a `summary` method returning an interpolated string of the form `Balance: 120`\n\nBelow the class, write a short note saying which of your names are `val` and which are `var`, and why each had to be that way.\n\n**How this is graded:** Scala cannot be executed inside Grimoire, so this capstone is not run against tests. It is read against a rubric of the elements the design must contain, and the note is where you do the real work.",
+     "rubric": {
+      "required": ["class", "def", "var", "balance", "deposit", "withdraw", "summary"],
+      "optional": ["val", "Int", "String", "interpolation", "immutable", "mutable"],
+      "minWords": 45
+     },
+     "xp": 150,
+     "concepts": ["basics"],
+     "tags": ["basics"],
+     "explain": "Every piece of the floor has to appear at once: a `class` to hold the methods, `def` with explicitly typed parameters and a declared or inferred return type, a `var` for the one thing that genuinely changes, and an `s`-prefixed literal for `summary`. The design judgement being assessed is the choice between `val` and `var` - `balance` must be a `var` because withdrawal changes it, while every parameter and every account reference should be a `val`, because the moment you can no longer say why a name is mutable, it should not be."
+    }
    ]
   }
  ]
