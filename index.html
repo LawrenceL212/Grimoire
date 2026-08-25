@@ -79,6 +79,16 @@
   --tabbar-h:56px;
   --topbar-h:56px;
   --content-max:860px;
+
+  /* The page is served with viewport-fit=cover, so on a notched phone the
+     layout viewport extends UNDER the status bar and the camera cutout.
+     Every surface that reaches the top of the screen has to pay this back
+     or its first row of controls sits under the notch, where taps land on
+     the system UI instead. The bottom inset was already honoured
+     everywhere; the top one was not, which is why the floor runner's back
+     button was unreachable on a phone. */
+  --safe-top:env(safe-area-inset-top, 0px);
+  --safe-bottom:env(safe-area-inset-bottom, 0px);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -159,7 +169,8 @@ code,kbd{
   border-right:1px solid var(--trim2);
   transform:translateX(-100%);transition:transform .26s ease;
   display:flex;flex-direction:column;overflow:hidden;
-  padding-bottom:env(safe-area-inset-bottom);
+  padding-top:var(--safe-top);
+  padding-bottom:var(--safe-bottom);
 }
 #sidebar.open{transform:translateX(0);overscroll-behavior:contain}
 #scrim{
@@ -200,7 +211,7 @@ code,kbd{
 #main{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 #topbar{
   position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:var(--s3);
-  height:var(--topbar-h);padding:0 var(--s4);
+  height:calc(var(--topbar-h) + var(--safe-top));padding:var(--safe-top) var(--s4) 0;
   background:rgba(26,20,16,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   border-bottom:1px solid var(--trim);
 }
@@ -465,7 +476,7 @@ code,kbd{
   border-radius:var(--radius) var(--radius) 0 0;
   padding:var(--s6) var(--s4) calc(var(--s6) + env(safe-area-inset-bottom));
   box-shadow:var(--shadow-lg);animation:sheet-up .24s ease;
-  max-height:88vh;overflow-y:auto;
+  max-height:calc(88vh - var(--safe-top));overflow-y:auto;
 }
 @keyframes sheet-up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
 .modal h2{font-size:var(--text-lg);margin-bottom:var(--s3);padding-right:var(--s8)}
@@ -487,7 +498,8 @@ code,kbd{
 #sheet[hidden]{display:none}
 .sheet-inner{max-width:var(--content-max);margin:0 auto;
   padding:0 var(--s4) calc(var(--s16) + env(safe-area-inset-bottom))}
-.sheet-bar{position:sticky;top:0;background:var(--bg);padding:var(--s4) 0 var(--s3);z-index:2}
+.sheet-bar{position:sticky;top:0;background:var(--bg);
+  padding:calc(var(--s4) + var(--safe-top)) 0 var(--s3);z-index:2}
 .sectionhead{display:flex;align-items:center;gap:var(--s3);margin:var(--s6) 0 var(--s3)}
 .sectionhead::after{content:"";flex:1;height:1px;background:var(--trim)}
 .floor-row{display:flex;align-items:center;gap:var(--s3);width:100%;text-align:left;
@@ -616,7 +628,8 @@ code,kbd{
 #runner{position:fixed;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column}
 #runner[hidden]{display:none}
 .r-head{flex:none;border-bottom:1px solid var(--trim);background:linear-gradient(180deg,#241D13,#1B150E)}
-.r-top{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4) var(--s2);
+.r-top{display:flex;align-items:center;gap:var(--s3);
+  padding:calc(var(--s3) + var(--safe-top)) var(--s4) var(--s2);
   max-width:var(--content-max);margin:0 auto;width:100%}
 .r-title{flex:1;min-width:0}
 .r-crumb{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.14em;
@@ -698,7 +711,8 @@ code,kbd{
   text-align:center;margin-top:var(--s2);letter-spacing:.06em}
 
 #toast{
-  position:fixed;left:50%;top:var(--s4);transform:translateX(-50%) translateY(-24px);
+  position:fixed;left:50%;top:calc(var(--s4) + var(--safe-top));
+  transform:translateX(-50%) translateY(-24px);
   z-index:250;background:var(--elevated);border:1px solid var(--trim2);
   color:var(--text);padding:var(--s3) var(--s4);border-radius:var(--radius-sm);
   box-shadow:var(--shadow-lg);font-size:var(--text-sm);opacity:0;pointer-events:none;
@@ -2551,10 +2565,83 @@ const Progress = {
     if (ev.isApplication && ev.correct) Profile.markApplicationDay();
 
     dg.mastery = Progress.mastery(dungeonId);
+    if (ev.floor != null) Progress.reviewFloor(dungeonId, ev.floor);
     queueSave();
     renderStats();
     if (State.view === "map") renderMap();
     return dg.mastery;
+  },
+
+  /* Which challenge ids a floor expects to be solved before it is cleared:
+     every section checkpoint plus every challenge in every declared stage. */
+  gradedIds(floor) {
+    const out = [];
+    (floor.lesson?.sections || []).forEach((s, i) => {
+      if (s.checkpoint) out.push(s.checkpoint.id || checkpointId(floor.n, i));
+    });
+    const seq = Array.isArray(floor.sequence) && floor.sequence.length
+      ? floor.sequence
+      : ["lesson", ...(floor.practice?.length ? ["practice"] : []),
+                   ...(floor.exam?.length ? ["exam"] : [])];
+    seq.forEach((stage) => {
+      if (stage === "lesson") return;
+      (floor[stage] || []).forEach((ch) => { if (ch && ch.id) out.push(ch.id); });
+    });
+    return out;
+  },
+
+  /* Re-decide whether a floor is cleared, and record it if so.
+     `cleared` was read by progressOf() to drive floor numbering, dungeon
+     completion and every prerequisite gate - but nothing ever wrote it, so no
+     floor was ever cleared and no gate could ever open.
+
+     A floor is cleared when every challenge it declares has been solved at
+     least once. A floor that declares NO graded work - the imported
+     lesson-only scaffolds, where the first floor is often just prose - is
+     cleared when every one of its sections has been read, because otherwise
+     it could never be cleared at all and would wall off everything behind
+     it. That is a weaker claim than the rest of the platform makes, so the
+     runner says so on the floor itself rather than pretending otherwise. */
+  reviewFloor(dungeonId, floorNo) {
+    const content = contentCache[dungeonId];
+    const floor = (content?.floors || []).find((f) => f.n === floorNo);
+    if (!floor) return false;
+
+    const dg = (State.progress[dungeonId] = State.progress[dungeonId] || {});
+    dg.floors = dg.floors || {};
+    const rec = dg.floors[String(floorNo)] || { solved: [] };
+    const graded = Progress.gradedIds(floor);
+
+    let done;
+    if (graded.length) {
+      const solved = new Set(rec.solved || []);
+      done = graded.every((id) => solved.has(id));
+    } else {
+      const sections = (floor.lesson?.sections || []).length;
+      done = sections > 0 && (rec.read || []).length >= sections;
+    }
+    if (!done) return false;
+
+    dg.cleared = Array.isArray(dg.cleared) ? dg.cleared : [];
+    if (dg.cleared.includes(floorNo)) return true;
+    dg.cleared.push(floorNo);
+    dg.cleared.sort((a, b) => a - b);
+    queueSave();
+    return true;
+  },
+
+  /* A lesson section counts as read once it has actually been scrolled
+     through. It is only ever the gate on a floor with nothing to grade. */
+  markRead(dungeonId, floorNo, sectionIndex) {
+    const dg = (State.progress[dungeonId] = State.progress[dungeonId] || {});
+    dg.floors = dg.floors || {};
+    const rec = (dg.floors[String(floorNo)] = dg.floors[String(floorNo)] || { solved: [] });
+    rec.read = rec.read || [];
+    if (rec.read.includes(sectionIndex)) return false;
+    rec.read.push(sectionIndex);
+    Progress.reviewFloor(dungeonId, floorNo);
+    queueSave();
+    return true;
   },
 
   /* The four components. Each is 0-1 before weighting. */
@@ -2900,6 +2987,8 @@ function onChallengeGraded(ch, res, ctx, hintsUsed) {
     hintsUsed, xp: res.correct ? xpFor(ch, ctx.level) : 0,
     isApplication: layer === "application" && APPLICATION_TYPES.has(ch.type),
   });
+  // the floor may have just been cleared by this attempt
+  updateReadProgress();
 }
 
 /* ==========================================================================
@@ -2909,7 +2998,7 @@ const Lesson = {
   dungeon: null, floor: null, sections: [],
   read: new Set(), timers: new Map(), observer: null, editors: [],
 };
-const DWELL_MS = 3000;   // a section counts as read after this long on screen
+const checkpointId = (floorNo, sectionIndex) => `f${floorNo}-cp-${sectionIndex}`;
 
 async function openFloor(dungeonId, floorNo) {
   let content;
@@ -2924,6 +3013,14 @@ async function openFloor(dungeonId, floorNo) {
   }
   const floor = (content.floors || []).find((f) => f.n === floorNo);
   if (!floor) { toast("That floor is not written yet."); return; }
+
+  // Section checkpoints are authored without ids - the schema does not ask
+  // for one - so a solved checkpoint recorded `undefined` and never counted
+  // towards clearing the floor. Give each a stable id derived from its
+  // position; doing it here keeps the authored files unchanged.
+  (floor.lesson?.sections || []).forEach((sec, i) => {
+    if (sec.checkpoint && !sec.checkpoint.id) sec.checkpoint.id = checkpointId(floor.n, i);
+  });
 
   Lesson.dungeon = content;
   Lesson.floor = floor;
@@ -2943,6 +3040,8 @@ async function openFloor(dungeonId, floorNo) {
 
 function closeFloor() {
   Exec.onBootChange = null;
+  Lesson.observer?.disconnect();
+  Lesson.observer = null;
   $("runner").hidden = true;
   document.body.style.overflow = "";
   if (Lesson.dungeon) openDungeon(Lesson.dungeon.id);
@@ -3047,8 +3146,59 @@ function renderLesson() {
   cards.forEach((card, i) => { if (all[i]) wireChallenge(all[i], card, ctx); });
 
   $("floor-done").addEventListener("click", closeFloor);
+  watchSectionsRead();
+  Progress.reviewFloor(d.id, f.n);
   updateReadProgress();
   renderMath($("r-inner"));
+}
+
+/* A section is read once it has been scrolled through - its foot has passed
+   up out of the viewport, which cannot happen by accident. On a floor with
+   graded work this is only a visual tick; on a lesson-only floor it is the
+   sole evidence the floor was completed at all. */
+function watchSectionsRead() {
+  Lesson.observer?.disconnect();
+  const secs = [...$("r-inner").querySelectorAll(".lsec[data-sec]")];
+  if (!secs.length) { Lesson.observer = null; return; }
+
+  const d = Lesson.dungeon, f = Lesson.floor;
+  const already = new Set(
+    (State.progress[d.id]?.floors?.[String(f.n)]?.read) || []);
+  secs.forEach((el) => {
+    if (already.has(Number(el.dataset.sec))) el.setAttribute("data-read", "1");
+  });
+
+  // A section counts as read once its FOOT has risen above the bottom of the
+  // viewport - that is, the whole of it has been on screen. Keying off the
+  // top edge instead never fires for the last section, because there is
+  // rarely enough below it to push its top off the top of the screen.
+  const body = $("r-body");
+  const pending = new Set(secs.filter((el) => !already.has(Number(el.dataset.sec))));
+  let queued = false;
+
+  const check = () => {
+    queued = false;
+    const floorBottom = body.getBoundingClientRect().bottom;
+    let changed = false;
+    for (const el of [...pending]) {
+      if (el.getBoundingClientRect().bottom > floorBottom) continue;
+      pending.delete(el);
+      el.setAttribute("data-read", "1");
+      if (Progress.markRead(d.id, f.n, Number(el.dataset.sec))) changed = true;
+    }
+    if (changed) updateReadProgress();
+    if (!pending.size) teardown();
+  };
+  const onScroll = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(check);
+  };
+  const teardown = () => body.removeEventListener("scroll", onScroll);
+
+  Lesson.observer = { disconnect: teardown };
+  body.addEventListener("scroll", onScroll, { passive: true });
+  check();   // a short floor may already be fully visible
 }
 
 const LEVEL_NOTE = {
@@ -3164,13 +3314,37 @@ function wireEditor(i, original) {
 function updateReadProgress() {
   const cards = document.querySelectorAll(".ch[data-ch]").length;
   const done = document.querySelectorAll(".ch [data-result].pass, .ch [data-result].fail").length;
-  const pct = cards ? Math.round((done / cards) * 100) : 0;
-  $("read-count").textContent = cards
-    ? `${done} of ${cards} challenge${cards === 1 ? "" : "s"} attempted`
-    : "no challenges on this floor yet";
+
+  // A floor with nothing to grade still has to be able to report progress and
+  // to finish, or it reads as permanently incomplete and blocks what follows.
+  // There, sections read is the measure.
+  let label, pct;
+  if (cards) {
+    pct = Math.round((done / cards) * 100);
+    label = `${done} of ${cards} challenge${cards === 1 ? "" : "s"} attempted`;
+  } else {
+    const secs = document.querySelectorAll(".lsec[data-sec]").length;
+    const read = document.querySelectorAll('.lsec[data-sec][data-read="1"]').length;
+    pct = secs ? Math.round((read / secs) * 100) : 0;
+    label = secs
+      ? `${read} of ${secs} section${secs === 1 ? "" : "s"} read`
+      : "this floor has no content yet";
+  }
+
+  $("read-count").textContent = label;
   const meter = $("read-meter");
   meter.setAttribute("aria-valuenow", String(pct));
   meter.firstElementChild.style.width = pct + "%";
+
+  const hint = $("foot-hint");
+  if (hint) {
+    const cleared = (State.progress[Lesson.dungeon?.id]?.cleared || []).includes(Lesson.floor?.n);
+    hint.textContent = cleared
+      ? "Floor cleared."
+      : cards
+        ? "Solve every challenge on this floor to clear it."
+        : "Read every section to clear this floor — it has nothing to grade yet.";
+  }
 }
 
 function openDungeon(id) {
@@ -3456,7 +3630,8 @@ async function boot() {
 window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSidebar,
                      openFloor, closeFloor, Lesson, runtimeFor, canExecute, Exec,
                      loadDungeonContent, Progress, Reviews, Profile, Content,
-                     bandFor, renderMath, TYPES, gradeRubric, sm2, rankFor };
+                     bandFor, renderMath, TYPES, gradeRubric, sm2, rankFor,
+                     progressOf, openDungeon, updateReadProgress };
 
 boot();
 </script>
