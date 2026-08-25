@@ -1,0 +1,743 @@
+{
+ "n": 9,
+ "name": "The Clockmaker's Vault",
+ "concepts": [
+  "division-algorithm",
+  "divisibility",
+  "congruence",
+  "euclidean-algorithm",
+  "bezout-identity",
+  "modular-inverse",
+  "prime-factorisation",
+  "euclid-infinitude"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "unseen-problems",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Number Theory: Divisibility, Congruence, Primes",
+  "sections": [
+   {
+    "title": "Divisibility and the Division Algorithm",
+    "body": "For integers $a$ and $b$ with $a \\neq 0$ we write $a \\mid b$ - read **$a$ divides $b$** - when there is an integer $k$ with $b = ak$. Everything on this floor rests on that one existential: to prove $a \\mid b$ you must exhibit the integer $k$, and once you know $a \\mid b$ you may name it.\n\nThe **division algorithm** says that for any integer $a$ and any $n > 0$ there are unique integers $q$ and $r$ with $a = nq + r$ and $0 \\le r < n$. Uniqueness is exactly what makes $a \\bmod n$ a well-defined value rather than a choice.\n\nThe remainder is never negative, even when $a$ is: $-47 = 8 \\cdot (-6) + 1$, so $-47 \\bmod 8 = 1$, not $-7$. The lemma you will reach for most often is **linearity**: if $d \\mid a$ and $d \\mid b$ then $d \\mid ax + by$ for every choice of integers $x$ and $y$.",
+    "code": "Divisibility:   a | b   means   b = a*k  for some integer k\n\n  3 | 12      because  12 = 3*4         (k = 4)\n  7 | 0       because   0 = 7*0         (k = 0)\n  3 does not divide 10:  10 = 3*3 + 1,  remainder 1\n\nDivision algorithm:  a = n*q + r   with   0 <= r < n\n\n  a =   47, n = 8 :   47 = 8*(  5) + 7      q =   5,  r = 7\n  a =  -47, n = 8 :  -47 = 8*( -6) + 1      q =  -6,  r = 1\n  a = -100, n = 7 : -100 = 7*(-15) + 5      q = -15,  r = 5\n  a =   24, n = 8 :   24 = 8*(  3) + 0      q =   3,  r = 0   so 8 | 24\n\nWhy q = -6 and not -5 when a = -47:\n  8*(-5) = -40  ->  r = -47 - (-40) = -7    rejected: r < 0\n  8*(-6) = -48  ->  r = -47 - (-48) =  1    accepted: 0 <= 1 < 8\n\nLinearity, the workhorse lemma:\n  if d | a and d | b then d | (a*x + b*y) for all integers x, y\n\n  d | a  gives  a = d*s\n  d | b  gives  b = d*t\n  a*x + b*y = d*s*x + d*t*y = d*(s*x + t*y)     an integer multiple of d",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "The quotient is pushed down rather than truncated toward zero, precisely so the remainder can stay in the range from 0 up to n."
+     },
+     {
+      "line": 23,
+      "text": "Every later result - Bezout, inverses, Euclid's proof - is this one lemma applied to a cleverly chosen x and y."
+     }
+    ],
+    "checkpoint": {
+     "type": "proof",
+     "layer": "application",
+     "prompt": "Prove, working only from the definition of divisibility, that if $d \\mid a$ and $d \\mid a + b$ then $d \\mid b$. Your argument must end by exhibiting the integer $k$ for which $b = dk$.",
+     "rubric": {
+      "required": [
+       "divides",
+       "integer",
+       "definition"
+      ],
+      "optional": [
+       "exhibit",
+       "difference",
+       "subtract",
+       "hypothesis",
+       "multiple"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "divisibility"
+     ],
+     "explain": "The content of the argument is that divisibility survives subtraction as well as addition: $b = (a+b) - a = dm - ds = d(m-s)$, and $m - s$ is an integer because the integers are closed under subtraction. That closure is the only reason the Euclidean algorithm will later be allowed to replace a pair by a smaller one."
+    }
+   },
+   {
+    "title": "Congruence and Its Arithmetic",
+    "body": "$a \\equiv b \\pmod n$ means $n \\mid a - b$, equivalently that $a$ and $b$ leave the same remainder on division by $n$. It is an equivalence relation, and better than that it is **compatible with addition and multiplication**: if $a \\equiv b$ and $c \\equiv d \\pmod n$ then $a + c \\equiv b + d$ and $ac \\equiv bd \\pmod n$.\n\nThat compatibility is a licence to replace any number by its remainder at any point in a calculation, which is what keeps the numbers small. Powers therefore cycle: modulo $7$ the powers of $3$ run $3, 2, 6, 4, 5, 1$ and then repeat, so from $1000 = 6 \\cdot 166 + 4$ we get $3^{1000} \\equiv 3^4 \\equiv 4 \\pmod 7$.\n\n**Division is the operation that does not come free.** From $2 \\cdot 3 \\equiv 2 \\cdot 6 \\pmod 6$ you may not conclude $3 \\equiv 6 \\pmod 6$, because $\\gcd(2,6) \\neq 1$.",
+    "code": "a = b (mod n)   means   n | (a - b)\n\n  17 =  5 (mod 6)   because  6 | 12\n  -4 =  3 (mod 7)   because  7 | -7\n 100 =  0 (mod 4)   because  4 | 100\n\nWhat survives:  if a = b and c = d (mod n) then\n  a + c = b + d (mod n)        a * c = b * d (mod n)\n\nSo reduce as you go - 17 * 23 (mod 6):\n  17 = 5 (mod 6),  23 = 5 (mod 6)\n  17*23 = 5*5 = 25 = 1 (mod 6)          check: 391 = 6*65 + 1\n\nPowers cycle. Powers of 3 modulo 7:\n  k      1   2   3   4   5   6   7   8\n  3^k    3   2   6   4   5   1   3   2      cycle length 6\n\n  1000 = 6*166 + 4    so   3^1000 = 3^4 = 4 (mod 7)\n\nWhat does NOT survive - cancellation:\n  2*3 = 0 (mod 6)  and  2*6 = 0 (mod 6),  so 2*3 = 2*6 (mod 6)\n  but 3 is not congruent to 6 (mod 6).  The culprit: gcd(2,6) = 2, not 1.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 12,
+      "text": "Reducing the factors before multiplying is legal only because congruence respects multiplication - it is the whole reason modular exponentiation is cheap."
+     },
+     {
+      "line": 18,
+      "text": "The exponent is reduced modulo the cycle length, not modulo the modulus. Reducing 1000 modulo 7 here would be a different and wrong calculation."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Find the remainder when $2^{50}$ is divided by $7$. Show the cycle of powers you used and how you located $50$ inside it.",
+     "rubric": {
+      "required": [
+       "4",
+       "cycle",
+       "remainder"
+      ],
+      "optional": [
+       "powers",
+       "congruent",
+       "repeat",
+       "position",
+       "divide"
+      ],
+      "minWords": 35
+     },
+     "concepts": [
+      "congruence"
+     ],
+     "explain": "The powers of $2$ modulo $7$ are $2, 4, 1$ repeating with period $3$, and $50 = 3 \\cdot 16 + 2$ lands on the second entry, so the remainder is $4$. Note that $2^{50}$ itself is never computed - the cycle comes from the first few powers and the position inside it comes from the division algorithm."
+    }
+   },
+   {
+    "title": "The Euclidean Algorithm, Bezout, and Inverses",
+    "body": "$\\gcd(a,b)$ is the largest integer dividing both. The **Euclidean algorithm** computes it from a single fact - $\\gcd(a,b) = \\gcd(b, a \\bmod b)$ - which holds because linearity makes the common divisors of $a$ and $b$ exactly the common divisors of $b$ and $a - qb$. Each step strictly shrinks the second entry, so the process reaches $0$, and $\\gcd(g, 0) = g$.\n\nRunning those divisions backwards writes the gcd as an integer combination of the two inputs. That is **Bezout's identity**: there exist integers $x$ and $y$ with $ax + by = \\gcd(a,b)$.\n\nThe payoff is inversion. If $\\gcd(a,n) = 1$ then $ax + ny = 1$ for some integers $x, y$, so $ax \\equiv 1 \\pmod n$ and $x$ is the **modular inverse** of $a$. More generally $ax \\equiv b \\pmod n$ has a solution exactly when $\\gcd(a,n) \\mid b$.",
+    "code": "Euclid on gcd(803, 154):\n  803 = 5*154 + 33\n  154 = 4* 33 + 22\n   33 = 1* 22 + 11\n   22 = 2* 11 +  0        remainder 0, so gcd(803, 154) = 11\n\nBack-substitute to get Bezout coefficients:\n  11 = 33 - 1*22\n     = 33 - 1*(154 - 4*33)       = 5*33 - 1*154\n     = 5*(803 - 5*154) - 1*154   = 5*803 - 26*154\n  check: 5*803 = 4015,  26*154 = 4004,  4015 - 4004 = 11\n\nInverse of 17 modulo 43.  gcd(17,43) = 1, so one exists:\n  43 = 2*17 + 9\n  17 = 1* 9 + 8\n   9 = 1* 8 + 1\n   8 = 8* 1 + 0\n\n   1 = 9 - 8\n     = 9 - (17 - 9)         = 2*9 - 17\n     = 2*(43 - 2*17) - 17   = 2*43 - 5*17\n\n  so (-5)*17 = 1 (mod 43), and -5 = 38 (mod 43)\n  check: 17*38 = 646 = 43*15 + 1\n\nSolvability of a*x = b (mod n):  solutions exist  <=>  gcd(a,n) | b\n  9x = 6  (mod 15):  gcd(9,15) = 3 and 3 | 6   -> solvable\n  9x = 7  (mod 15):  gcd(9,15) = 3, which does not divide 7  -> no solution",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The gcd is the last non-zero remainder, never the zero that stops the loop."
+     },
+     {
+      "line": 10,
+      "text": "Every line stays in the form (something)*803 + (something)*154 - simplifying the arithmetic early destroys the coefficients you are extracting."
+     },
+     {
+      "line": 23,
+      "text": "An inverse is just the Bezout coefficient of a read modulo n; a negative coefficient is normalised by adding n."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Find the inverse of $7$ modulo $26$ as a residue in $\\{0, 1, \\dots, 25\\}$. State the Bezout combination you used and verify your answer.",
+     "rubric": {
+      "required": [
+       "15",
+       "inverse",
+       "gcd"
+      ],
+      "optional": [
+       "combination",
+       "remainder",
+       "Euclidean",
+       "residue",
+       "verify"
+      ],
+      "minWords": 35
+     },
+     "concepts": [
+      "modular-inverse",
+      "bezout-identity"
+     ],
+     "explain": "From $26 = 3 \\cdot 7 + 5$, $7 = 1 \\cdot 5 + 2$, $5 = 2 \\cdot 2 + 1$, unwinding gives $1 = 15 \\cdot 7 - 4 \\cdot 26$, so the inverse is $15$ and the check $7 \\cdot 15 = 105 = 4 \\cdot 26 + 1$ is the definition itself. Existence was settled before any arithmetic began, by $\\gcd(7,26) = 1$."
+    }
+   },
+   {
+    "title": "Primes, Unique Factorisation, and Euclid's Proof",
+    "body": "A **prime** is an integer $p > 1$ whose only positive divisors are $1$ and $p$. The **fundamental theorem of arithmetic** states that every integer $n > 1$ factors into primes in exactly one way up to the order of the factors: $2024 = 2^3 \\cdot 11 \\cdot 23$, and no other multiset of primes multiplies to $2024$.\n\nUniqueness is the tool, not the slogan. It turns divisibility into a comparison of exponents - $d \\mid n$ precisely when each prime exponent in $d$ is at most the matching exponent in $n$ - so $2024$ has $(3+1)(1+1)(1+1) = 16$ positive divisors, counted without listing a single one.\n\n**Euclid's proof** that the primes never run out: suppose $p_1, \\dots, p_k$ were all of them, set $N = p_1 p_2 \\cdots p_k + 1$, and observe that each $p_i$ leaves remainder $1$ in $N$. Yet $N > 1$ has a prime factor, which is therefore missing from the list - a contradiction.",
+    "code": "Factor 2024 by trial division:\n  2024 / 2 = 1012\n  1012 / 2 =  506\n   506 / 2 =  253\n   253 / 11 =  23          (253 = 11*23)\n    23 is prime\n  2024 = 2^3 * 11 * 23\n\nDivisor count straight off the exponents (3, 1, 1):\n  (3+1)*(1+1)*(1+1) = 16\n  1  2  4  8  11  22  44  88  23  46  92  184  253  506  1012  2024\n\nEuclid's argument as a skeleton:\n  assume   p1, p2, ..., pk  is EVERY prime\n  build    N = p1*p2*...*pk + 1\n  then     N leaves remainder 1 on division by each pi, so no pi divides N\n  but      N > 1, so N has a prime factor q  (fundamental theorem)\n  hence    q is a prime outside the list  ->  contradiction\n\nThe construction need not itself be prime:\n  2*3*5*7*11*13 + 1 = 30031 = 59 * 509\n  59 and 509 are both primes missing from the list, which is all the proof needs.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "Adding one to each exponent counts the choices for that prime, including the choice of taking it zero times."
+     },
+     {
+      "line": 18,
+      "text": "The contradiction is that the list was assumed complete, not that N is prime - N usually is not."
+     },
+     {
+      "line": 21,
+      "text": "30031 = 59 * 509 is the standard warning: the proof produces a new prime factor, never a formula for primes."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Give the prime factorisation of $600$ and use it to count the positive divisors of $600$ without listing them.",
+     "rubric": {
+      "required": [
+       "24",
+       "exponent",
+       "prime"
+      ],
+      "optional": [
+       "divisors",
+       "factorisation",
+       "unique",
+       "choices",
+       "multiply"
+      ],
+      "minWords": 35
+     },
+     "concepts": [
+      "prime-factorisation"
+     ],
+     "explain": "$600 = 2^3 \\cdot 3 \\cdot 5^2$, so a divisor is fixed by choosing an exponent for each prime independently: $4 \\cdot 2 \\cdot 3 = 24$. The counting rule is valid only because the fundamental theorem guarantees that two different exponent choices can never give the same number."
+    }
+   }
+  ]
+ },
+ "unseen-problems": [
+  {
+   "id": "dm-9-u-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Apply the division algorithm to $a = -100$ and $n = 7$: give the unique $q$ and $r$ with $-100 = 7q + r$ and $0 \\le r < 7$. Then argue that no other pair of integers satisfies both conditions.",
+   "rubric": {
+    "required": [
+     "remainder",
+     "quotient",
+     "unique",
+     "5"
+    ],
+    "optional": [
+     "negative",
+     "range",
+     "difference",
+     "multiple",
+     "subtract"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "division-algorithm"
+   ],
+   "tags": [
+    "division-algorithm",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "The answer is $q = -15$ and $r = 5$, since $7 \\cdot (-15) = -105$ and $-105 + 5 = -100$; the tempting $q = -14$ leaves $r = -2$, outside the permitted range. Uniqueness follows because two representations would give $7(q_1 - q_2) = r_2 - r_1$, forcing $7$ to divide a difference that lies strictly between $-7$ and $7$, and only $0$ qualifies."
+  },
+  {
+   "id": "dm-9-u-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $6 \\mid n^3 - n$ for every integer $n$. Factor first, then argue divisibility by $2$ and by $3$ separately from the fact that the factors are consecutive integers, and say why the two conclusions may be combined.",
+   "rubric": {
+    "required": [
+     "consecutive",
+     "divisible",
+     "even",
+     "coprime"
+    ],
+    "optional": [
+     "factor",
+     "product",
+     "multiple",
+     "gcd",
+     "three"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "divisibility",
+    "prime-factorisation"
+   ],
+   "tags": [
+    "divisibility",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "$n^3 - n = (n-1)n(n+1)$ is a product of three consecutive integers, so at least one is even and exactly one is a multiple of $3$. Combining the two into divisibility by $6$ needs $2$ and $3$ to be coprime - divisibility by $2$ and by $4$ would not combine into divisibility by $8$, so the coprimality is load-bearing rather than decorative."
+  },
+  {
+   "id": "dm-9-u-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Run the Euclidean algorithm on $1071$ and $462$, writing out every division line, then back-substitute to produce integers $x$ and $y$ with $1071x + 462y = \\gcd(1071, 462)$. State the gcd and verify the combination arithmetically.",
+   "rubric": {
+    "required": [
+     "21",
+     "gcd",
+     "remainder",
+     "combination"
+    ],
+    "optional": [
+     "Euclidean",
+     "substitute",
+     "divide",
+     "verify",
+     "coefficients"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "euclidean-algorithm",
+    "bezout-identity"
+   ],
+   "tags": [
+    "euclidean-algorithm",
+    "bezout-identity",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "The divisions are $1071 = 2 \\cdot 462 + 147$, $462 = 3 \\cdot 147 + 21$, $147 = 7 \\cdot 21 + 0$, so the gcd is the last non-zero remainder, $21$; unwinding gives $21 = 462 - 3 \\cdot 147 = 462 - 3(1071 - 2 \\cdot 462) = 7 \\cdot 462 - 3 \\cdot 1071$. The coefficients are not unique - adding $462/21 = 22$ to $x$ while subtracting $1071/21 = 51$ from $y$ gives another valid pair."
+  },
+  {
+   "id": "dm-9-u-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Solve $35x \\equiv 12 \\pmod{78}$ completely: decide first whether a solution exists, then find every residue modulo $78$ that works. Justify why your list is complete.",
+   "rubric": {
+    "required": [
+     "36",
+     "inverse",
+     "gcd",
+     "unique"
+    ],
+    "optional": [
+     "solution",
+     "residue",
+     "Euclidean",
+     "multiply",
+     "check"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "modular-inverse",
+    "congruence"
+   ],
+   "tags": [
+    "modular-inverse",
+    "congruence",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "$\\gcd(35,78) = 1$, so $35$ is invertible and the solution is unique modulo $78$: the inverse is $29$, giving $x \\equiv 29 \\cdot 12 = 348 \\equiv 36 \\pmod{78}$, checked by $35 \\cdot 36 = 1260 = 16 \\cdot 78 + 12$. Invertibility is exactly what collapses the solution set to a single residue - with a non-trivial gcd there would be either none or several."
+  },
+  {
+   "id": "dm-9-u-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that if $\\gcd(a,n) = 1$ then $a$ has a multiplicative inverse modulo $n$, and that the inverse is unique modulo $n$. Then prove the converse: if $a$ has an inverse modulo $n$ then $\\gcd(a,n) = 1$.",
+   "rubric": {
+    "required": [
+     "inverse",
+     "combination",
+     "unique",
+     "gcd"
+    ],
+    "optional": [
+     "Bezout",
+     "identity",
+     "linear",
+     "divides",
+     "multiply",
+     "congruent"
+    ],
+    "minWords": 75
+   },
+   "concepts": [
+    "modular-inverse",
+    "bezout-identity"
+   ],
+   "tags": [
+    "modular-inverse",
+    "bezout-identity",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "Forwards, Bezout supplies $ax + ny = 1$ and reducing modulo $n$ kills the $ny$ term, leaving $ax \\equiv 1$; uniqueness follows by multiplying $ax \\equiv ax' \\equiv 1$ through by an inverse. Backwards, $ax \\equiv 1 \\pmod n$ means $ax - 1 = nk$, so any common divisor of $a$ and $n$ divides $1$ - the same identity read in the other direction, which is why the two conditions are genuinely equivalent rather than merely related."
+  },
+  {
+   "id": "dm-9-u-06",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by contradiction that there are infinitely many primes. State precisely which earlier result guarantees that the number you construct has a prime factor at all.",
+   "rubric": {
+    "required": [
+     "contradiction",
+     "finite",
+     "prime",
+     "factor",
+     "remainder"
+    ],
+    "optional": [
+     "product",
+     "list",
+     "divides",
+     "fundamental",
+     "assume"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "euclid-infinitude",
+    "prime-factorisation"
+   ],
+   "tags": [
+    "euclid-infinitude",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "Assuming a finite list $p_1, \\dots, p_k$, the number $N = p_1 \\cdots p_k + 1$ leaves remainder $1$ under division by each $p_i$, so none of them divides it; the fundamental theorem of arithmetic then supplies a prime factor of $N$ outside the list. That appeal is the step most often skipped - without it nothing rules out $N$ having no prime factor whatsoever, and the contradiction never arrives."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-9-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the definition of $a \\equiv b \\pmod n$?",
+   "choices": [
+    "$n \\mid a - b$",
+    "$a \\mid b - n$",
+    "$a$ and $b$ are both multiples of $n$",
+    "$a - b$ divides $n$"
+   ],
+   "answer": 0,
+   "concepts": [
+    "congruence"
+   ],
+   "tags": [
+    "congruence"
+   ],
+   "xp": 10,
+   "explain": "Congruence is a statement about the difference, not about either number separately, which is why $17 \\equiv 5 \\pmod 6$ holds although neither is a multiple of $6$. The 'same remainder' reading is equivalent, but the difference form is the one that makes the addition and multiplication rules easy to prove."
+  },
+  {
+   "id": "dm-9-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the fundamental theorem of arithmetic?",
+   "choices": [
+    "Every integer $n > 1$ has at least one prime divisor.",
+    "Every integer $n > 1$ is a product of primes, and that product is unique up to the order of the factors.",
+    "There are infinitely many primes.",
+    "For all integers $a$ and $n > 0$ there are unique $q, r$ with $a = nq + r$ and $0 \\le r < n$."
+   ],
+   "answer": 1,
+   "concepts": [
+    "prime-factorisation"
+   ],
+   "tags": [
+    "prime-factorisation"
+   ],
+   "xp": 10,
+   "explain": "Existence of a factorisation is the easy half and is all the first option claims; the theorem's force is **uniqueness**, which is what licenses counting divisors from exponents and comparing two factorisations term by term. The last option is the division algorithm, a different uniqueness statement altogether."
+  },
+  {
+   "id": "dm-9-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the Euclidean algorithm on $252$ and $198$. Each blank is a single integer.",
+   "template": "252 = 1*198 + ___\n198 = 3*___ + 36\n 54 = 1*36 + ___\n 36 = 2*18 + ___\ngcd(252, 198) = ___",
+   "blanks": [
+    "54",
+    "54",
+    "18",
+    "0",
+    "18"
+   ],
+   "lang": "text",
+   "concepts": [
+    "euclidean-algorithm"
+   ],
+   "tags": [
+    "euclidean-algorithm"
+   ],
+   "xp": 20,
+   "explain": "The gcd is the last non-zero remainder, $18$ - the zero on the final line is the stopping signal, not the answer. Each line feeds the previous divisor and remainder into the next, and it is that strict decrease in the remainder that guarantees the algorithm halts."
+  },
+  {
+   "id": "dm-9-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of Euclid's proof that there are infinitely many primes into a valid logical order.",
+   "fragments": [
+    "since $N > 1$, the fundamental theorem gives $N$ a prime factor $q$",
+    "assume for contradiction that $p_1, p_2, \\dots, p_k$ are all the primes there are",
+    "$q$ is a prime not on the list, contradicting the assumption that the list was complete",
+    "form the number $N = p_1 p_2 \\cdots p_k + 1$",
+    "each $p_i$ divides $N - 1$, so dividing $N$ by $p_i$ leaves remainder $1$ and $p_i \\nmid N$"
+   ],
+   "answer": [
+    1,
+    3,
+    4,
+    0,
+    2
+   ],
+   "concepts": [
+    "euclid-infinitude"
+   ],
+   "tags": [
+    "euclid-infinitude"
+   ],
+   "xp": 20,
+   "explain": "The appeal to the fundamental theorem has to come after $N$ is built and before the contradiction is drawn, because the contradiction concerns $q$, not $N$. Establishing that no $p_i$ divides $N$ beforehand is what makes $q$ a new prime rather than merely an existing one."
+  },
+  {
+   "id": "dm-9-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Evaluate $3^{1000} \\bmod 7$ by finding the cycle of powers. Give each answer as a single integer.",
+   "steps": [
+    {
+     "label": "$3^1 \\bmod 7$",
+     "expected": "3"
+    },
+    {
+     "label": "$3^2 \\bmod 7$",
+     "expected": "2"
+    },
+    {
+     "label": "$3^3 \\bmod 7$",
+     "expected": "6"
+    },
+    {
+     "label": "the smallest $k > 0$ with $3^k \\equiv 1 \\pmod 7$",
+     "expected": "6"
+    },
+    {
+     "label": "the remainder of $1000$ on division by that $k$",
+     "expected": "4"
+    },
+    {
+     "label": "$3^{1000} \\bmod 7$",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "congruence"
+   ],
+   "tags": [
+    "congruence",
+    "trace"
+   ],
+   "xp": 40,
+   "explain": "Once $3^6 \\equiv 1 \\pmod 7$, the powers repeat with period $6$, so only $1000 \\bmod 6 = 4$ matters and $3^{1000} \\equiv 3^4 = 81 \\equiv 4 \\pmod 7$. The exponent is reduced modulo the cycle length, never modulo the modulus - reducing $1000$ modulo $7$ would answer a different question."
+  },
+  {
+   "id": "dm-9-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the last two digits of $7^{2024}$. Justify the reduction you use rather than asserting it.",
+   "rubric": {
+    "required": [
+     "01",
+     "100",
+     "cycle",
+     "remainder"
+    ],
+    "optional": [
+     "congruent",
+     "powers",
+     "divides",
+     "period",
+     "digits"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "congruence",
+    "division-algorithm"
+   ],
+   "tags": [
+    "congruence",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "The last two digits are the residue modulo $100$: the powers of $7$ run $7, 49, 43, 1$ and repeat with period $4$, and $2024 = 4 \\cdot 506$ lands exactly on the $1$, so the answer is $01$. Reporting $1$ instead of $01$ loses the distinction between a residue and a two-digit ending, which is what the question asked for."
+  },
+  {
+   "id": "dm-9-e-07",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by induction on $k$ that if $a \\equiv b \\pmod n$ then $a^k \\equiv b^k \\pmod n$ for every integer $k \\ge 1$.",
+   "rubric": {
+    "required": [
+     "base case",
+     "induction",
+     "multiplication",
+     "congruent"
+    ],
+    "optional": [
+     "hypothesis",
+     "product",
+     "step",
+     "compatible",
+     "divides"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "congruence"
+   ],
+   "tags": [
+    "congruence",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "The base case $k = 1$ is the hypothesis itself, and the inductive step multiplies the congruences $a^k \\equiv b^k$ and $a \\equiv b$ using the compatibility of congruence with multiplication. The entire proof is one repeated application of that closure rule, which is also why the analogous claim about congruent exponents is false."
+  },
+  {
+   "id": "dm-9-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Give the prime factorisation of $2024$, then count its positive divisors and state how many of them are even. Justify the counting rule you use.",
+   "rubric": {
+    "required": [
+     "16",
+     "12",
+     "exponent",
+     "unique"
+    ],
+    "optional": [
+     "divisors",
+     "even",
+     "prime",
+     "choices",
+     "factorisation"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "prime-factorisation"
+   ],
+   "tags": [
+    "prime-factorisation",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "$2024 = 2^3 \\cdot 11 \\cdot 23$ gives $(3+1)(1+1)(1+1) = 16$ divisors; an even divisor needs at least one factor of $2$, leaving $3$ choices for that exponent instead of $4$, so $3 \\cdot 2 \\cdot 2 = 12$ are even. The product rule is sound only because unique factorisation makes distinct exponent tuples produce distinct numbers."
+  },
+  {
+   "id": "dm-9-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student claims Euclid's proof shows that $p_1 p_2 \\cdots p_k + 1$ is always prime, citing $2 \\cdot 3 + 1 = 7$ and $2 \\cdot 3 \\cdot 5 + 1 = 31$. Given that $2 \\cdot 3 \\cdot 5 \\cdot 7 \\cdot 11 \\cdot 13 + 1 = 30031 = 59 \\cdot 509$, say exactly which step the student has misread and why the proof still stands.",
+   "rubric": {
+    "required": [
+     "factor",
+     "prime",
+     "list",
+     "contradiction"
+    ],
+    "optional": [
+     "composite",
+     "assumption",
+     "fundamental",
+     "divides",
+     "conclusion"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "euclid-infinitude"
+   ],
+   "tags": [
+    "euclid-infinitude",
+    "explain"
+   ],
+   "xp": 20,
+   "explain": "The proof concludes only that $N$ has a prime factor outside the assumed list, never that $N$ is itself prime; $59$ and $509$ are both such new primes, so $30031$ confirms the argument rather than damaging it. Under the proof's own assumption the list was everything, so a composite $N$ is not an uncovered case - it is a case the assumption has already forbidden."
+  },
+  {
+   "id": "dm-9-e-10",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $\\gcd(a, b) = \\gcd(b, a - qb)$ for all integers $a, b, q$ with $b \\neq 0$, by showing the two pairs have exactly the same set of common divisors. Then say why this makes the Euclidean algorithm terminate.",
+   "rubric": {
+    "required": [
+     "common divisor",
+     "divides",
+     "both directions",
+     "terminate"
+    ],
+    "optional": [
+     "linearity",
+     "combination",
+     "remainder",
+     "decreasing",
+     "greatest"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "euclidean-algorithm",
+    "divisibility"
+   ],
+   "tags": [
+    "euclidean-algorithm",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "If $d \\mid a$ and $d \\mid b$ then $d \\mid a - qb$ by linearity, and conversely $a = (a - qb) + qb$ recovers $a$ from the new pair - so the two sets of common divisors are equal and their greatest elements coincide. Termination is a separate argument: with $q$ chosen by the division algorithm the remainder is a non-negative integer strictly below $b$, and no such sequence can descend forever."
+  },
+  {
+   "id": "dm-9-e-11",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Solve $9x \\equiv 6 \\pmod{15}$ completely. List every solution as a residue modulo $15$ and explain why there is more than one, unlike the invertible case.",
+   "rubric": {
+    "required": [
+     "gcd",
+     "3",
+     "4",
+     "9",
+     "14"
+    ],
+    "optional": [
+     "divides",
+     "solutions",
+     "inverse",
+     "residue",
+     "modulo"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "congruence",
+    "modular-inverse"
+   ],
+   "tags": [
+    "congruence",
+    "modular-inverse",
+    "problem"
+   ],
+   "xp": 50,
+   "explain": "$\\gcd(9,15) = 3$ and $3 \\mid 6$, so solutions exist and there are exactly three: dividing the congruence through by $3$ gives $3x \\equiv 2 \\pmod 5$, hence $x \\equiv 4 \\pmod 5$, that is $x \\in \\{4, 9, 14\\}$ modulo $15$. Because $9$ is not invertible modulo $15$ the solution set cannot collapse to one residue - the gcd counts the solutions, and would have given none had it not divided $6$."
+  },
+  {
+   "id": "dm-9-e-12",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the back-substitution that turns the Euclidean algorithm on $17$ and $43$ into an inverse of $17$ modulo $43$. Each blank is a single integer, and the last is a residue in $\\{0, 1, \\dots, 42\\}$.",
+   "template": "43 = 2*17 + 9\n17 = 1*9 + ___\n 9 = 1*8 + 1\n 1 = 9 - 8 = 9 - (17 - 9) = ___*9 - 17\n 1 = 2*(43 - 2*17) - 17 = 2*43 - ___*17\nso the inverse of 17 modulo 43 is ___",
+   "blanks": [
+    "8",
+    "2",
+    "5",
+    "38"
+   ],
+   "lang": "text",
+   "concepts": [
+    "bezout-identity",
+    "modular-inverse"
+   ],
+   "tags": [
+    "bezout-identity",
+    "modular-inverse"
+   ],
+   "xp": 20,
+   "explain": "The Bezout coefficient of $17$ is $-5$, and an inverse is reported as a residue, so $-5 + 43 = 38$, checked by $17 \\cdot 38 = 646 = 43 \\cdot 15 + 1$. Every line keeps the expression as a combination of $43$ and $17$; collapsing the arithmetic early would destroy exactly the coefficients being extracted."
+  }
+ ]
+}

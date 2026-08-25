@@ -1,0 +1,753 @@
+{
+ "n": 4,
+ "name": "The Ladder of Dominoes",
+ "concepts": [
+  "mathematical-induction",
+  "base-case",
+  "inductive-hypothesis",
+  "inductive-step",
+  "summation-formulas",
+  "divisibility-by-induction",
+  "strong-induction",
+  "faulty-induction"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "proof-work",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Ladder of Dominoes",
+  "sections": [
+   {
+    "title": "Two Obligations and One Conclusion",
+    "body": "**Mathematical induction** proves a statement $P(n)$ for every integer $n \\ge b$ by discharging exactly two obligations. The **base case** establishes $P(b)$ outright, and the **inductive step** establishes the implication $P(k) \\Rightarrow P(k+1)$ for an arbitrary $k \\ge b$; the assumption $P(k)$ you are permitted to make inside that step is the **inductive hypothesis**.\n\nThe step alone proves nothing. It is a machine that converts one true instance into the next, and a machine with nothing fed into it produces nothing, which is why a failed base case sinks the argument however flawless the algebra above it.\n\nWhy is the principle valid? Suppose $P(n)$ failed somewhere. By the **well-ordering principle** the set of counterexamples, a non-empty set of integers bounded below by $b$, has a least element $m$. Then $m \\ne b$ because the base case holds, so $m - 1 \\ge b$ and $P(m-1)$ is true by minimality, and the inductive step then forces $P(m)$, a contradiction.\n\nSo induction is not an extra axiom bolted on; it is well-ordering wearing a different hat.",
+    "code": "SKELETON  (every induction proof has this shape)\n\n  Claim: P(n) holds for all integers n >= b.\n  Base case:   prove P(b) directly, by computation.\n  Ind. hyp.:   let k >= b and assume P(k) is true.\n  Ind. step:   using P(k), derive P(k+1).\n  Conclusion:  by induction, P(n) holds for all n >= b.\n\nA STEP WITHOUT A BASE PROVES NOTHING\n\n  False claim Q(n):  1 + 2 + ... + n = n(n+1)/2 + 5\n\n  Inductive step (this part is genuinely correct):\n    assume  1 + ... + k = k(k+1)/2 + 5\n    then    1 + ... + k + (k+1)\n            = k(k+1)/2 + 5 + (k+1)\n            = [k(k+1) + 2(k+1)]/2 + 5\n            = (k+1)(k+2)/2 + 5        <- exactly Q(k+1)\n\n  Base case:  n = 1 gives LHS = 1, RHS = 1(2)/2 + 5 = 6.\n              1 is not 6, so Q(1) fails and Q(n) is false for every n.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The hypothesis is assumed for one arbitrary k, never for all n at once - assuming the full claim is the circularity beginners actually fall into."
+     },
+     {
+      "line": 18,
+      "text": "Every line of this step is valid algebra. Validity of the step is simply not enough on its own."
+     },
+     {
+      "line": 20,
+      "text": "One arithmetic check kills the claim. The base case is the only place the argument ever touches reality."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the skeleton of an induction proof. Use a single lowercase word for the first and third blanks and a single letter for the second.",
+     "template": "1. The ___ case: prove $P(b)$ directly.\n2. Inductive hypothesis: let $___ \\ge b$ and assume $P(k)$.\n3. Inductive ___: derive $P(k+1)$ from that assumption.",
+     "blanks": [
+      "base",
+      "k",
+      "step"
+     ],
+     "lang": "text",
+     "concepts": [
+      "mathematical-induction",
+      "base-case",
+      "inductive-step"
+     ],
+     "explain": "The three parts are not stylistic conventions - they are exactly what the well-ordering argument consumes. With no base there is no contradiction available at the least counterexample, and with a step proved only for specific $k$ the chain reaches no further than you checked by hand."
+    }
+   },
+   {
+    "title": "Summation Formulas",
+    "body": "The classic target is $$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2},$$ and its inductive step is a single move: split the last term off the sum, replace what remains using the **inductive hypothesis**, then factor.\n\nThat move is the entire technique. The identity $\\sum_{i=1}^{k+1} a_i = \\left(\\sum_{i=1}^{k} a_i\\right) + a_{k+1}$ is the only place the hypothesis can enter, because it is the only place a sum of size $k$ appears.\n\nThe same skeleton proves $\\sum_{i=1}^{n} (2i-1) = n^2$ and $\\sum_{i=1}^{n} i^2 = \\frac{n(n+1)(2n+1)}{6}$; only the algebra after the substitution changes.\n\nNote what induction does not do: it **verifies** a closed form, it never discovers one. You must arrive with the formula already in hand.",
+    "code": "CLAIM   sum_{i=1}^{n} i = n(n+1)/2   for all n >= 1\n\nBASE  n = 1:   LHS = 1,   RHS = 1(1+1)/2 = 1.   Equal.\n\nHYP   let k >= 1 and assume  sum_{i=1}^{k} i = k(k+1)/2\n\nSTEP  sum_{i=1}^{k+1} i\n        = ( sum_{i=1}^{k} i ) + (k+1)     split off the last term\n        = k(k+1)/2 + (k+1)                apply the hypothesis\n        = [k(k+1) + 2(k+1)]/2             common denominator\n        = (k+1)(k+2)/2                    factor out (k+1)\n        = (k+1)((k+1)+1)/2                the claim at k+1\n\nCONCLUSION  by induction the formula holds for all n >= 1.\n\nSANITY CHECK   n = 5:    1+2+3+4+5 = 15 = 5(6)/2\n               n = 100:  100(101)/2 = 5050",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Splitting off the last term is the only manoeuvre available - it manufactures the size-k sum the hypothesis talks about."
+     },
+     {
+      "line": 9,
+      "text": "This single line is where the hypothesis is spent. A proof that never uses it is not an induction at all."
+     },
+     {
+      "line": 12,
+      "text": "Finish by writing the target in its k+1 form rather than a simplified one, so the reader can see the match."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the inductive step for $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$. Write each blank with no spaces, for example k+1.",
+     "template": "$\\sum_{i=1}^{k+1} i = \\frac{k(k+1)}{2} + ___$, and over a common denominator this equals $\\frac{(k+1)(k+___)}{2}$.",
+     "blanks": [
+      "k+1",
+      "2"
+     ],
+     "lang": "text",
+     "concepts": [
+      "summation-formulas",
+      "inductive-hypothesis"
+     ],
+     "explain": "The term peeled off a sum running to $k+1$ is $k+1$ itself, and $\\frac{k(k+1)}{2} + (k+1) = \\frac{(k+1)(k+2)}{2}$ because $(k+1)$ is a common factor. Recognising $\\frac{(k+1)(k+2)}{2}$ as the formula evaluated at $k+1$ is what actually closes the step."
+    }
+   },
+   {
+    "title": "Divisibility by Induction",
+    "body": "To prove $d \\mid f(n)$ by induction, rewrite $f(k+1)$ as something the hypothesis knows about plus something visibly divisible by $d$. The hypothesis supplies $f(k) = d\\,m$ for some integer $m$, and the step's task is to expose an integer factor inside $f(k+1)$.\n\nFor $8 \\mid 9^n - 1$ the algebra is $9^{k+1} - 1 = 9 \\cdot 9^k - 1 = 9(9^k - 1) + 8$, so the hypothesis handles the first summand and the constant $8$ handles the rest.\n\nThe phrase **for some integer $m$** is load-bearing. Divisibility asserts the existence of an integer witness, so your conclusion must exhibit one rather than merely produce a number that looks divisible.\n\nThe same shape proves $3 \\mid 4^n - 1$ and $6 \\mid n^3 - n$.",
+    "code": "CLAIM   8 | 9^n - 1   for all n >= 1\n\nBASE  n = 1:   9^1 - 1 = 8 = 8 x 1.   Divisible.\n\nHYP   let k >= 1 and assume  9^k - 1 = 8m  for some integer m\n\nSTEP  9^(k+1) - 1\n        = 9 * 9^k - 1\n        = 9 * 9^k - 9 + 8                 subtract and add 9\n        = 9(9^k - 1) + 8\n        = 9(8m) + 8                       apply the hypothesis\n        = 8(9m + 1)\n      9m + 1 is an integer, so 8 | 9^(k+1) - 1.\n\nCHECK   9^2 - 1 = 80  = 8 x 10\n        9^3 - 1 = 728 = 8 x 91",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Naming the witness m up front is what lets the step finish with an explicit integer cofactor."
+     },
+     {
+      "line": 9,
+      "text": "Subtracting and adding 9 is the whole trick: it manufactures the expression 9^k - 1 the hypothesis knows about."
+     },
+     {
+      "line": 12,
+      "text": "The proof ends only here, where 8 is factored out and the cofactor is declared an integer."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the base case and hypothesis for $8 \\mid 9^n - 1$. Give plain integers for the first two blanks and a single lowercase word for the third.",
+     "template": "Base case $n = 1$: $9^1 - 1 = ___$, which is $8 \\times ___$.\nHypothesis: assume $9^k - 1 = 8m$ for some ___.",
+     "blanks": [
+      "8",
+      "1",
+      "integer"
+     ],
+     "lang": "text",
+     "concepts": [
+      "divisibility-by-induction",
+      "base-case"
+     ],
+     "explain": "Divisibility is an existence claim, so the hypothesis must name an integer witness $m$ instead of saying the expression is 'divisible'. Carrying $m$ symbolically is precisely what allows the step to end at $8(9m + 1)$."
+    }
+   },
+   {
+    "title": "Strong Induction and What Forces It",
+    "body": "**Strong induction** widens the hypothesis: rather than assuming $P(k)$ alone, assume $P(j)$ for every $j$ with $b \\le j \\le k$, and from that prove $P(k+1)$. It is not a stronger axiom, since the same least-counterexample argument justifies it; it is simply a larger toolbox inside the step.\n\nYou need it exactly when the step reaches back further than one rung. Showing every integer $n \\ge 8$ is payable with 3s and 5s naturally uses $n - 3$, not $n - 1$, so the hypothesis must cover $k - 2$ as well as $k$.\n\nThe rule of thumb: **cover as many base cases as the step reaches back**. A step that reaches to $k - 2$ needs three bases, or the chain has holes near the bottom, and $7$ really is unpayable, so the base cases are what keep the claim honest about where it starts.\n\nPrime factorisation is the other standard example: from $n = ab$ with $1 < a, b < n$ you must invoke the hypothesis at $a$ and $b$, which sit nowhere near $n - 1$.",
+    "code": "CLAIM   every integer n >= 8 equals 3a + 5b with integers a,b >= 0\n\nWHY WEAK INDUCTION STALLS\n  from a representation of k there is no general way to reach k+1;\n  the natural move adds a 3, so the step needs k+1-3 = k-2.\n\nBASES   8  = 3 + 5\n        9  = 3 + 3 + 3\n        10 = 5 + 5\n\nHYP     let k >= 10 and assume every j with 8 <= j <= k is payable\n\nSTEP    k+1 >= 11, so   8 <= (k+1) - 3 <= k\n        hypothesis:     (k+1) - 3 = 3a + 5b\n        add one 3:      k+1 = 3(a+1) + 5b\n\nNOT PAYABLE   1, 2, 4, 7   (which is why the claim starts at 8)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Three consecutive bases, because the step jumps back three - the count of bases is dictated by the reach of the step."
+     },
+     {
+      "line": 12,
+      "text": "This inequality is the real content: it certifies that the value being reached back to lies inside the range the hypothesis covers."
+     },
+     {
+      "line": 16,
+      "text": "7 is unpayable, so no correct proof could have started lower. The base cases record where the statement becomes true."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "retrieval",
+     "prompt": "State how the strong inductive hypothesis differs from the ordinary one, and name a situation that forces you to use it.",
+     "rubric": {
+      "required": [
+       "strong",
+       "all",
+       "hypothesis",
+       "step"
+      ],
+      "optional": [
+       "base case",
+       "prime",
+       "reach",
+       "k-3"
+      ],
+      "minWords": 30
+     },
+     "concepts": [
+      "strong-induction",
+      "inductive-hypothesis"
+     ],
+     "explain": "Ordinary induction hands the step one previous rung; strong induction hands it every rung below. The difference matters only when the step decomposes $k+1$ into pieces it cannot control the size of - factoring, or subtracting 3 - because then $P(k)$ alone is the wrong assumption to be holding."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-4-gp-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a correct induction proof of $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$ for all $n \\ge 1$.",
+   "fragments": [
+    "Base case: for $n = 1$, the sum is $1$ and $\\frac{1 \\cdot 2}{2} = 1$, so the claim holds.",
+    "Let $k \\ge 1$ and assume $\\sum_{i=1}^{k} i = \\frac{k(k+1)}{2}$.",
+    "Then $\\sum_{i=1}^{k+1} i = \\left(\\sum_{i=1}^{k} i\\right) + (k+1)$.",
+    "By the hypothesis this equals $\\frac{k(k+1)}{2} + (k+1) = \\frac{(k+1)(k+2)}{2}$.",
+    "That is the formula with $n = k+1$, so $P(k) \\Rightarrow P(k+1)$.",
+    "By induction the formula holds for every $n \\ge 1$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "mathematical-induction",
+    "summation-formulas"
+   ],
+   "tags": [
+    "induction",
+    "summation"
+   ],
+   "xp": 20,
+   "explain": "Splitting the last term off must precede the substitution, because the hypothesis speaks only about a sum that stops at $k$ - until that sum is visible there is nothing to substitute into. The final line is not decoration either: the conclusion is what converts an implication about arbitrary $k$ into a statement about all $n$."
+  },
+  {
+   "id": "dm-4-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the inductive step for $\\sum_{i=1}^{n} (2i-1) = n^2$, the sum of the first $n$ odd numbers. Write blanks with no spaces, for example 2k+1.",
+   "template": "The $(k+1)$-th odd number is $2(k+1)-1 = ___$.\nSo $\\sum_{i=1}^{k+1} (2i-1) = k^2 + (2k+1) = (k+___)^2$.",
+   "blanks": [
+    "2k+1",
+    "1"
+   ],
+   "concepts": [
+    "summation-formulas",
+    "inductive-step"
+   ],
+   "tags": [
+    "induction",
+    "summation"
+   ],
+   "xp": 20,
+   "explain": "The step succeeds because $k^2 + 2k + 1$ is a perfect square, so the new total is exactly the formula at $k+1$. Recognising the completed square is the entire content of this induction - the geometry behind it is that adding an L-shaped strip of $2k+1$ dots turns a $k \\times k$ square into a $(k+1) \\times (k+1)$ one."
+  },
+  {
+   "id": "dm-4-gp-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Walk the first rungs of the induction for $8 \\mid 9^n - 1$. Give each value as a plain integer.",
+   "steps": [
+    {
+     "label": "$9^1 - 1$ (the base case)",
+     "expected": "8"
+    },
+    {
+     "label": "the witness $m$ with $9^1 - 1 = 8m$",
+     "expected": "1"
+    },
+    {
+     "label": "$9^2 - 1$",
+     "expected": "80"
+    },
+    {
+     "label": "the witness $m$ with $9^2 - 1 = 8m$",
+     "expected": "10"
+    },
+    {
+     "label": "$9^3 - 1$",
+     "expected": "728"
+    },
+    {
+     "label": "the witness $m$ with $9^3 - 1 = 8m$",
+     "expected": "91"
+    }
+   ],
+   "concepts": [
+    "divisibility-by-induction",
+    "base-case"
+   ],
+   "tags": [
+    "induction",
+    "divisibility"
+   ],
+   "xp": 40,
+   "explain": "The witnesses obey the very recurrence the inductive step produces: from $9^{k+1} - 1 = 8(9m + 1)$ you get $1 \\to 10 \\to 91$, and indeed $9 \\cdot 10 + 1 = 91$. Seeing the step's formula reproduce the arithmetic is how you check the algebra of a divisibility induction before writing it up."
+  },
+  {
+   "id": "dm-4-gp-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the statement of the strong inductive hypothesis and its target. Use a single letter for the first blank and a short expression with no spaces for the second.",
+   "template": "Strong induction assumes $P(j)$ for every $j$ with $b \\le j \\le ___$, and uses those assumptions to prove $P(___)$.",
+   "blanks": [
+    "k",
+    "k+1"
+   ],
+   "concepts": [
+    "strong-induction",
+    "inductive-hypothesis"
+   ],
+   "tags": [
+    "induction",
+    "strong-induction"
+   ],
+   "xp": 20,
+   "explain": "The target of the step is unchanged - it is always the next value - and only the size of the assumption grows. That is why nothing about the well-ordering justification has to be redone: the least counterexample still has every smaller value true beneath it."
+  },
+  {
+   "id": "dm-4-gp-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student proves that every integer $n \\ge 8$ can be written as $3a + 5b$ with $a, b \\ge 0$, using ordinary induction: base case $8 = 3 + 5$, then from a representation of $k$ they try to build one for $k+1$. Explain where this attempt breaks down and what changes fix it.",
+   "rubric": {
+    "required": [
+     "strong",
+     "hypothesis",
+     "base",
+     "3"
+    ],
+    "optional": [
+     "8",
+     "9",
+     "10",
+     "reach",
+     "7",
+     "k-2"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "strong-induction",
+    "faulty-induction"
+   ],
+   "tags": [
+    "induction",
+    "strong-induction"
+   ],
+   "xp": 20,
+   "explain": "Adding 3 to a representation lands on $k+3$, not $k+1$, so the only workable move goes the other way and needs $k+1-3 = k-2$ - a value the ordinary hypothesis says nothing about. Widening to a strong hypothesis fixes the reach, and because the step now jumps back three, three base cases ($8, 9, 10$) are required to keep the chain unbroken."
+  }
+ ],
+ "proof-work": [
+  {
+   "id": "dm-4-pw-01",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by induction that $\\sum_{i=1}^{n} (2i-1) = n^2$ for every integer $n \\ge 1$. Write the full proof: state the base case, state the inductive hypothesis explicitly, carry out the inductive step, and conclude.",
+   "rubric": {
+    "required": [
+     "base case",
+     "inductive hypothesis",
+     "step",
+     "induction"
+    ],
+    "optional": [
+     "odd",
+     "square",
+     "arbitrary",
+     "conclude"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "mathematical-induction",
+    "summation-formulas",
+    "inductive-hypothesis"
+   ],
+   "tags": [
+    "induction",
+    "summation",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "Every mark in this proof is earned at the substitution $\\sum_{i=1}^{k}(2i-1) = k^2$; the rest is bookkeeping. The result is also a good check on what induction is for - it confirms the closed form $n^2$ but gives no hint where that form came from, which is why you must bring the formula with you."
+  },
+  {
+   "id": "dm-4-pw-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by induction that $3 \\mid 4^n - 1$ for every integer $n \\ge 1$. Your inductive step must produce an explicit integer witness.",
+   "rubric": {
+    "required": [
+     "base case",
+     "hypothesis",
+     "integer",
+     "divisible"
+    ],
+    "optional": [
+     "witness",
+     "factor",
+     "step",
+     "induction"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "divisibility-by-induction",
+    "inductive-step"
+   ],
+   "tags": [
+    "induction",
+    "divisibility",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "The pivot is $4^{k+1} - 1 = 4(4^k - 1) + 3$, which splits the quantity into a piece the hypothesis controls and a piece divisible by 3 outright. Writing $4^k - 1 = 3m$ and finishing at $3(4m + 1)$ is what discharges the definition of divisibility, which demands an integer cofactor rather than an appeal to appearances."
+  },
+  {
+   "id": "dm-4-pw-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by strong induction that every integer $n \\ge 8$ can be written as $3a + 5b$ with integers $a, b \\ge 0$. Justify how many base cases you verify.",
+   "rubric": {
+    "required": [
+     "strong",
+     "base case",
+     "hypothesis",
+     "induction"
+    ],
+    "optional": [
+     "8",
+     "9",
+     "10",
+     "reach",
+     "range",
+     "arbitrary"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "strong-induction",
+    "mathematical-induction"
+   ],
+   "tags": [
+    "induction",
+    "strong-induction",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "The step subtracts 3, so it can only be trusted when $k+1-3$ lies in the range the hypothesis covers, which is why $8, 9, 10$ must all be checked by hand. A proof with only $8$ as a base is not merely untidy - it silently assumes representations of $9$ and $10$ that the step can never supply."
+  },
+  {
+   "id": "dm-4-pw-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Consider $Q(n)$: $\\;\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2} + 5$. Verify that the inductive step $Q(k) \\Rightarrow Q(k+1)$ is valid by carrying out the algebra, then determine whether $Q(n)$ holds for any $n \\ge 1$ and state exactly what this shows about the role of the base case.",
+   "rubric": {
+    "required": [
+     "base case",
+     "valid",
+     "false",
+     "step"
+    ],
+    "optional": [
+     "implication",
+     "vacuous",
+     "chain",
+     "never",
+     "6"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "faulty-induction",
+    "base-case"
+   ],
+   "tags": [
+    "induction",
+    "faulty-induction"
+   ],
+   "xp": 50,
+   "explain": "The step is genuinely valid because the constant $5$ survives the addition of $(k+1)$ untouched, yet $Q(1)$ compares $1$ against $6$ and fails, and every later case fails by the same $5$. A true implication chain with no true starting point transmits nothing - the base case is the only rung anchored to arithmetic rather than to another rung."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-4-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In an induction proof, what exactly is the **inductive hypothesis**?",
+   "choices": [
+    "The assumption that $P(k)$ holds for one arbitrary $k \\ge b$, used while proving $P(k+1)$",
+    "The assumption that $P(n)$ holds for all $n \\ge b$, which the proof then confirms",
+    "The statement $P(b)$ verified in the base case",
+    "The conclusion that $P(k) \\Rightarrow P(k+1)$ for every $k$"
+   ],
+   "answer": 0,
+   "concepts": [
+    "inductive-hypothesis"
+   ],
+   "tags": [
+    "induction",
+    "definitions"
+   ],
+   "xp": 10,
+   "explain": "Assuming the claim for all $n$ would be circular - it assumes the very thing being proved. The hypothesis is deliberately narrow: one arbitrary rung, granted only for the duration of the step, which is what makes the step an implication rather than a restatement."
+  },
+  {
+   "id": "dm-4-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What distinguishes **strong induction** from ordinary induction?",
+   "choices": [
+    "It proves a strictly larger class of statements, because it rests on an extra axiom",
+    "Its step may assume $P(j)$ for all $j$ with $b \\le j \\le k$, not just $P(k)$",
+    "It requires no base case, since the hypothesis already covers small values",
+    "It proves $P(k+2)$ rather than $P(k+1)$ in the inductive step"
+   ],
+   "answer": 1,
+   "concepts": [
+    "strong-induction"
+   ],
+   "tags": [
+    "induction",
+    "definitions"
+   ],
+   "xp": 10,
+   "explain": "Both forms follow from well-ordering, so neither proves anything the other cannot in principle; the difference is convenience in the step. Base cases are if anything more important under strong induction, because a step that reaches back several rungs needs several anchored ones."
+  },
+  {
+   "id": "dm-4-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the base case for the claim $6 \\mid n^3 - n$ at $n = 2$. Give plain integers.",
+   "template": "$2^3 - 2 = ___$, which equals $6 \\times ___$.",
+   "blanks": [
+    "6",
+    "1"
+   ],
+   "concepts": [
+    "divisibility-by-induction",
+    "base-case"
+   ],
+   "tags": [
+    "induction",
+    "divisibility"
+   ],
+   "xp": 20,
+   "explain": "A base case is an arithmetic fact, checked rather than argued, and stating the cofactor keeps you in the habit the definition of divisibility demands. Note $n = 1$ gives $0 = 6 \\times 0$, which is also divisible, since $6 \\mid 0$."
+  },
+  {
+   "id": "dm-4-ex-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Evaluate each quantity as a plain integer, checking two summation formulas against direct addition.",
+   "steps": [
+    {
+     "label": "$\\sum_{i=1}^{5} i$ by direct addition",
+     "expected": "15"
+    },
+    {
+     "label": "$\\frac{5 \\cdot 6}{2}$",
+     "expected": "15"
+    },
+    {
+     "label": "$\\sum_{i=1}^{6} i^2$ by direct addition",
+     "expected": "91"
+    },
+    {
+     "label": "$\\frac{6 \\cdot 7 \\cdot 13}{6}$",
+     "expected": "91"
+    },
+    {
+     "label": "$\\sum_{i=1}^{20} i$ using the closed form",
+     "expected": "210"
+    }
+   ],
+   "concepts": [
+    "summation-formulas"
+   ],
+   "tags": [
+    "induction",
+    "summation"
+   ],
+   "xp": 40,
+   "explain": "Agreement at several values is evidence, never proof - a formula can match a hundred cases and fail at the next, which is exactly why the closed form has to be established by induction. What the check does buy you is confidence that you copied the formula correctly before spending effort proving it."
+  },
+  {
+   "id": "dm-4-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a correct strong induction proof that every integer $n \\ge 8$ is of the form $3a + 5b$ with $a, b \\ge 0$.",
+   "fragments": [
+    "Base cases: $8 = 3 + 5$, $9 = 3 + 3 + 3$, and $10 = 5 + 5$.",
+    "Let $k \\ge 10$ and assume every $j$ with $8 \\le j \\le k$ can be written as $3a + 5b$.",
+    "Since $k + 1 \\ge 11$, the integer $(k+1) - 3$ satisfies $8 \\le (k+1) - 3 \\le k$.",
+    "So the hypothesis applies to it: $(k+1) - 3 = 3a + 5b$ for some $a, b \\ge 0$.",
+    "Adding one more $3$ gives $k + 1 = 3(a+1) + 5b$.",
+    "By strong induction every integer $n \\ge 8$ has this form."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "strong-induction",
+    "mathematical-induction"
+   ],
+   "tags": [
+    "induction",
+    "strong-induction"
+   ],
+   "xp": 20,
+   "explain": "The inequality line must come before the hypothesis is applied, because applying it to a value outside $[8, k]$ would be exactly the error three base cases exist to prevent. Notice the step never touches $k$ itself - the rung it stands on is $k - 2$."
+  },
+  {
+   "id": "dm-4-ex-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the inductive step for $8 \\mid 9^n - 1$. Write blanks with no spaces, using ^ for powers, for example 9^k.",
+   "template": "$9^{k+1} - 1 = 9(9^k - 1) + 8 = 9 \\cdot 8m + 8 = 8(9m + ___)$, where the hypothesis was $9^k - 1 = 8___$.",
+   "blanks": [
+    "1",
+    "m"
+   ],
+   "concepts": [
+    "divisibility-by-induction",
+    "inductive-step"
+   ],
+   "tags": [
+    "induction",
+    "divisibility"
+   ],
+   "xp": 20,
+   "explain": "Factoring out the $8$ is what turns an expression into a proof of divisibility, and $9m + 1$ is an integer because $m$ is. Any step that stops at $9 \\cdot 8m + 8$ has done the algebra but not the argument."
+  },
+  {
+   "id": "dm-4-ex-07",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by induction that $\\sum_{i=1}^{n} i^2 = \\frac{n(n+1)(2n+1)}{6}$ for every integer $n \\ge 1$. Show the base case, state the hypothesis, and complete the algebra of the step.",
+   "rubric": {
+    "required": [
+     "base case",
+     "hypothesis",
+     "step",
+     "induction"
+    ],
+    "optional": [
+     "factor",
+     "denominator",
+     "arbitrary",
+     "6"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "summation-formulas",
+    "mathematical-induction"
+   ],
+   "tags": [
+    "induction",
+    "summation",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "After substituting the hypothesis you need $\\frac{k(k+1)(2k+1)}{6} + (k+1)^2 = \\frac{(k+1)(k+2)(2k+3)}{6}$, which comes out by taking $(k+1)/6$ outside and simplifying $k(2k+1) + 6(k+1) = 2k^2 + 7k + 6 = (k+2)(2k+3)$. The algebra is heavier than in the linear case but the skeleton is identical, which is the point of drilling it."
+  },
+  {
+   "id": "dm-4-ex-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Someone claims that once you have proved the inductive step, checking the base case is a formality. Explain, using a concrete claim whose step is valid but whose base fails, why this is wrong.",
+   "rubric": {
+    "required": [
+     "base case",
+     "step",
+     "false"
+    ],
+    "optional": [
+     "implication",
+     "chain",
+     "counterexample",
+     "never",
+     "true"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "faulty-induction",
+    "base-case"
+   ],
+   "tags": [
+    "induction",
+    "faulty-induction"
+   ],
+   "xp": 20,
+   "explain": "An implication $P(k) \\Rightarrow P(k+1)$ is perfectly true whenever $P(k)$ is false, so a chain of valid steps over uniformly false statements is itself valid and useless. The claim $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2} + 5$ is the cleanest witness: the step goes through untouched and every single instance is false."
+  },
+  {
+   "id": "dm-4-ex-09",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For which integers $n \\ge 1$ is $2^n > n^2$? Test $n = 1, 2, 3, 4, 5$, state the smallest $n_0$ from which the inequality holds for all $n \\ge n_0$, and explain why the base case of an induction proving it must be placed there rather than at $n = 1$.",
+   "rubric": {
+    "required": [
+     "base case",
+     "5",
+     "false",
+     "induction"
+    ],
+    "optional": [
+     "2",
+     "3",
+     "4",
+     "16",
+     "25",
+     "32",
+     "smallest",
+     "holds"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "base-case",
+    "mathematical-induction"
+   ],
+   "tags": [
+    "induction",
+    "base-case"
+   ],
+   "xp": 50,
+   "explain": "The inequality holds at $n = 1$ ($2 > 1$), fails at $n = 2, 3, 4$ ($4 = 4$, $8 < 9$, $16 = 16$), and holds from $n = 5$ ($32 > 25$) onward, so $n_0 = 5$. This is why $n = 1$ is the wrong anchor even though it is true: induction transmits truth forward one rung at a time, and the chain starting at $1$ is severed at $2$."
+  },
+  {
+   "id": "dm-4-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Explain why the well-ordering principle justifies induction, by taking a claim $P(n)$ for $n \\ge b$ whose base case and inductive step both hold and deriving a contradiction from the assumption that some counterexample exists.",
+   "rubric": {
+    "required": [
+     "least",
+     "counterexample",
+     "contradiction",
+     "base case"
+    ],
+    "optional": [
+     "well-ordering",
+     "minimality",
+     "smallest",
+     "step"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "mathematical-induction",
+    "inductive-step"
+   ],
+   "tags": [
+    "induction",
+    "well-ordering",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "The argument turns on the least counterexample $m$: it cannot be $b$ because the base case holds, so $m - 1 \\ge b$ is not a counterexample by minimality, and the step then forces $P(m)$ true. Seeing induction as a repackaged least-counterexample proof explains why the two obligations are exactly the two things the contradiction needs."
+  }
+ ]
+}

@@ -1,0 +1,429 @@
+{
+ "n": 7,
+ "name": "The Vault of Choices",
+ "concepts": [
+  "product-and-sum-rules",
+  "permutations",
+  "combinations",
+  "combinations-with-repetition",
+  "binomial-theorem",
+  "inclusion-exclusion",
+  "pigeonhole-principle"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": ["lesson", "guided-practice", "counting-problems", "exam"],
+ "lesson": {
+  "title": "Counting Without Listing",
+  "sections": [
+   {
+    "title": "Multiply Independent Choices, Add Disjoint Cases",
+    "body": "Counting is the art of describing a set precisely enough that you never have to list it. The **product rule** says that if a construction is a sequence of independent steps offering $n_1, n_2, \\dots, n_k$ options, the number of outcomes is $n_1 \\cdot n_2 \\cdots n_k$; the **sum rule** says that if a set splits into **disjoint** cases, the sizes add.\n\nThe word *disjoint* is the whole of the sum rule. When the cases overlap, adding double-counts the overlap, and **inclusion-exclusion** repairs it: $|A \\cup B| = |A| + |B| - |A \\cap B|$.\n\nFor three sets every element must end up counted exactly once, so the singles go in, the three pairwise overlaps come out, and the triple overlap - removed once too often - goes back in: $$|A \\cup B \\cup C| = |A| + |B| + |C| - |A \\cap B| - |A \\cap C| - |B \\cap C| + |A \\cap B \\cap C|.$$\n\nThe alternating signs are not a mnemonic to memorise; they are forced by the demand that an element lying in exactly $j$ of the sets be counted a net one time.",
+    "code": "PRODUCT RULE -- independent steps multiply\n  3 starters x 4 mains x 2 desserts = 24 full dinners\n\nSUM RULE -- disjoint cases add\n  3 + 4 + 2 = 9 ways to order one single dish\n\nOVERLAPPING CASES -- inclusion-exclusion\n  How many n in 1..100 are divisible by 2, 3 or 5?\n\n  singles      |A2|  = 50   |A3|  = 33   |A5|  = 20\n  pairs        |A6|  = 16   |A10| = 10   |A15| =  6\n  triple       |A30| =  3\n\n  50 + 33 + 20 - 16 - 10 - 6 + 3 = 74\n\n  check on n = 30, which lies in all three sets:\n  counted +3 (singles), -3 (pairs), +1 (triple) = 1.  correct.",
+    "lang": "text",
+    "annotations": [
+     {"line": 2, "text": "One dinner is a triple (starter, main, dessert) and the choices do not constrain each other, so the counts multiply."},
+     {"line": 5, "text": "A single dish is a starter OR a main OR a dessert. The three cases share no dish, so the counts add."},
+     {"line": 10, "text": "$|A_d|$ is $\\lfloor 100/d \\rfloor$. A number divisible by both 2 and 3 is exactly a number divisible by 6."},
+     {"line": 16, "text": "This is the real justification: an element in exactly $j$ of the sets must end with a net count of $1$, for every $j$."}
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "A menu has 3 starters, 4 mains and 2 desserts. Fill in the two counts.",
+     "template": "a full dinner, one course of each: 3 x 4 x 2 = ___\na single dish, any one course:      3 + 4 + 2 = ___",
+     "blanks": ["24", "9"],
+     "concepts": ["product-and-sum-rules"],
+     "explain": "The two rules answer different questions about the same menu. An 'and' between independent steps multiplies; an 'or' between disjoint cases adds. Choosing the wrong one is the most common counting error there is, and the fix is always to say aloud whether the steps are joined by and or by or."
+    }
+   },
+   {
+    "title": "Ordered Is $P(n,k)$, Unordered Is $\\binom{n}{k}$",
+    "body": "To arrange $k$ of $n$ distinct objects **in order**, the product rule gives $n$ choices, then $n-1$, down to $n-k+1$, so $$P(n,k) = \\frac{n!}{(n-k)!}.$$\n\nIf the order is irrelevant, every unordered selection has been counted once for each of its $k!$ orderings, so dividing removes exactly that overcount: $$\\binom{n}{k} = \\frac{P(n,k)}{k!} = \\frac{n!}{k!\\,(n-k)!}.$$\n\nThe only question you ever have to answer is whether two selections built from the same objects in a different order are the **same outcome**. Medals are ordered, a squad is not; a password is ordered, a poker hand is not.\n\nBecause the division by $k!$ is exact, $\\binom{n}{k}$ is always a whole number even though the formula is a quotient of enormous factorials.",
+    "code": "TEN RUNNERS, THREE PLACES\n\n  order matters -- gold, silver, bronze\n    P(10,3) = 10 x 9 x 8 = 720\n\n  order does not matter -- a squad of three\n    C(10,3) = P(10,3) / 3! = 720 / 6 = 120\n\n  every squad {A,B,C} was counted 3! = 6 times as an ordering:\n    ABC  ACB  BAC  BCA  CAB  CBA\n  dividing by 3! collapses each block of 6 to one squad.\n\nGENERAL FORMS\n    P(n,k) = n! / (n-k)!\n    C(n,k) = n! / (k! (n-k)!)\n\nA POKER HAND IS UNORDERED\n    C(52,5) = 2598960",
+    "lang": "text",
+    "annotations": [
+     {"line": 4, "text": "Three factors because three places are filled; each factor drops by one because a runner already placed is no longer available."},
+     {"line": 9, "text": "This block of six is the whole content of the division. The overcount is the same for every squad, which is why one division fixes all of them at once."},
+     {"line": 18, "text": "$P(52,5)$ would be 311875200, exactly $5! = 120$ times larger, because a hand is not held in a meaningful order."}
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A club has 9 members. (a) How many ways can it pick a president, a treasurer and a secretary, all different people? (b) How many ways can it pick a 3-person subcommittee with no titles? Give both numbers and say why one is exactly 6 times the other.",
+     "concepts": ["permutations", "combinations"],
+     "rubric": {
+      "required": ["504", "84", "order", "6"],
+      "optional": ["permutation", "combination", "factorial", "overcount", "title"],
+      "minWords": 40
+     },
+     "explain": "$P(9,3)=504$ and $\\binom{9}{3}=84$, and $504/84 = 6 = 3!$. The factor of $3!$ is not a coincidence of these numbers: each untitled subcommittee corresponds to exactly $3!$ distinct assignments of the three titles, so the ordered count is always $k!$ times the unordered one."
+    }
+   },
+   {
+    "title": "Repetition Allowed, and the Binomial Theorem",
+    "body": "When you choose $k$ items from $n$ **types** with repeats allowed and order still irrelevant, an outcome is just a count per type. Lay the choice out as $k$ stars separated into $n$ groups by $n-1$ bars: every arrangement of the $k+n-1$ symbols is one outcome, and the outcome is fixed by which positions hold the bars, so there are $\\binom{n+k-1}{k}$ of them.\n\nThe same $\\binom{n}{k}$ also runs the **binomial theorem**: $$(x+y)^n = \\sum_{k=0}^{n} \\binom{n}{k} x^{n-k} y^{k}.$$\n\nThe reason is pure counting. Expanding the product means picking $x$ or $y$ from each of the $n$ factors, and a term $x^{n-k}y^k$ arises once for every choice of **which $k$ factors** contributed the $y$ - that is $\\binom{n}{k}$ choices.\n\nSetting $x = y = 1$ turns the theorem into $\\sum_{k=0}^{n}\\binom{n}{k} = 2^n$, which says the subsets of an $n$-element set, grouped by size, total $2^n$.",
+    "code": "STARS AND BARS -- 7 donuts chosen from 3 flavours, repeats allowed\n\n  * * * | * *   | * *      3 glazed, 2 jam, 2 plain\n  * * * * * * * |   |      7 glazed\n  |   * * * *   | * * *    0 glazed, 4 jam, 3 plain\n\n  7 stars and 3-1 = 2 bars sit in a row of 9 symbols.\n  the outcome is fixed by which 2 positions hold the bars:\n    C(9,2) = C(9,7) = 36\n\nBINOMIAL THEOREM -- expanding (x+y)^5\n\n  (x+y)^5 = x^5 + 5x^4y + 10x^3y^2 + 10x^2y^3 + 5xy^4 + y^5\n  coefficients    1    5     10      10     5    1\n  which are    C(5,0) C(5,1) C(5,2) C(5,3) C(5,4) C(5,5)\n  and 1 + 5 + 10 + 10 + 5 + 1 = 32 = 2^5\n\n  coefficient of x^2 in (2x+3)^5\n    = C(5,2) x 2^2 x 3^3\n    = 10 x 4 x 27 = 1080",
+    "lang": "text",
+    "annotations": [
+     {"line": 5, "text": "An empty group is legal, which is why a bar may sit at an end or next to another bar. Zero glazed donuts is a valid order."},
+     {"line": 9, "text": "$\\binom{9}{2} = \\binom{9}{7} = 36$: choosing the 2 bar positions and choosing the 7 star positions are the same act."},
+     {"line": 16, "text": "The row sums to $2^5$ because setting $x=y=1$ in the theorem counts every subset of a 5-element set."},
+     {"line": 19, "text": "The coefficient is not just $\\binom{5}{2}$: each of the two chosen factors contributes a 2 and each of the other three contributes a 3."}
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the two statements about $(x+y)^5$.",
+     "template": "the coefficient of x^3 y^2 in (x+y)^5 is ___\nas a binomial coefficient that number is C(5, ___)",
+     "blanks": ["10", "2"],
+     "concepts": ["binomial-theorem"],
+     "explain": "The exponent on $y$ names the coefficient: $x^3y^2$ needs a $y$ from exactly 2 of the 5 factors, so the count is $\\binom{5}{2} = 10$. Reading the term off the exponent, rather than expanding, is what makes the theorem usable for large $n$."
+    }
+   },
+   {
+    "title": "The Pigeonhole Principle",
+    "body": "If $n$ objects go into $k$ boxes and $n > k$, some box holds at least two objects. The proof is one line of contradiction: if every box held at most one, the total would be at most $k$, which is less than $n$.\n\nThe **generalised** form is the same argument with a larger cap. If each of the $k$ boxes held at most $m$ objects the total would be at most $km$, and pushing that as far as it goes shows some box must hold at least $\\lceil n/k \\rceil$.\n\nThe principle is trivial; the work is always in **choosing the boxes**. That choice is the whole proof, and the standard trick is to make the boxes remainders: the $k$ residue classes modulo $k$.\n\nNotice what pigeonhole does and does not give you. It proves that a crowded box **exists**; it never says which box, and it offers no method for finding it.",
+    "code": "PIGEONHOLE\n\n  13 people, 12 birth months  ->  two share a month\n  suppose not: every month holds at most 1 person\n  then the total is at most 12 x 1 = 12,  but there are 13.\n  contradiction.\n\nGENERALISED PIGEONHOLE\n\n  n objects, k boxes  ->  some box holds at least ceil(n/k)\n\n  100 people, 12 months:  ceil(100/12) = ceil(8.33..) = 9\n  suppose not: every month holds at most 8 people\n  then the total is at most 12 x 8 = 96,  but there are 100.\n  contradiction.\n\nCHOOSING THE BOXES IS THE PROOF\n\n  claim: among any 8 integers, two differ by a multiple of 7\n  boxes = the 7 remainders 0,1,2,3,4,5,6 modulo 7\n  8 integers into 7 boxes -> two share a remainder\n  same remainder means the difference is divisible by 7",
+    "lang": "text",
+    "annotations": [
+     {"line": 5, "text": "The product $12 \\times 1$ is where the contradiction is manufactured. Every pigeonhole proof multiplies boxes by the assumed cap."},
+     {"line": 12, "text": "Note $\\lceil 100/12 \\rceil = 9$, not 8, and the cap you assume in order to contradict it is $9 - 1 = 8$."},
+     {"line": 20, "text": "Remainders are the default boxes. There are exactly 7 of them, which is what makes 8 integers enough."},
+     {"line": 22, "text": "If $a \\equiv b \\pmod 7$ then $7 \\mid (a-b)$. The box structure is what converts a counting fact into a divisibility fact."}
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "Explain why any 8 distinct integers chosen from $\\{1, 2, \\dots, 50\\}$ must contain two whose difference is a multiple of 7. Name your boxes explicitly and say why two objects landing in the same box gives the conclusion.",
+     "concepts": ["pigeonhole-principle"],
+     "rubric": {
+      "required": ["remainder", "7", "8", "same"],
+      "optional": ["pigeonhole", "box", "modul", "divisible", "difference", "residue"],
+      "minWords": 45
+     },
+     "explain": "The boxes are the 7 remainders modulo 7, and 8 integers into 7 boxes forces a repeat. The step doing the real work is the translation: $a \\equiv b \\pmod 7$ means $7 \\mid (a-b)$, so 'same box' and 'difference divisible by 7' are the same statement. The bound 50 is a red herring - the argument never uses it."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-7-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Eight sprinters, three places on the podium. Fill in the ordered and the unordered count.",
+   "template": "ordered   P(8,3) = 8 x 7 x 6    = ___\nunordered C(8,3) = P(8,3) / 3! = ___",
+   "blanks": ["336", "56"],
+   "xp": 20,
+   "tags": ["permutations", "combinations"],
+   "concepts": ["permutations", "combinations"],
+   "explain": "$336 = 8 \\cdot 7 \\cdot 6$ and $336/6 = 56$. The single division by $3!$ is the entire difference between the two questions, which is why it is safest to compute the ordered count first and then decide whether to collapse it."
+  },
+  {
+   "id": "dm-7-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Count the integers $n$ with $1 \\le n \\le 60$ that are divisible by 3 or by 4. Fill in each intermediate quantity, then the union.",
+   "steps": [
+    {"label": "$|A|$, the multiples of 3 in 1..60", "expected": "20"},
+    {"label": "$|B|$, the multiples of 4 in 1..60", "expected": "15"},
+    {"label": "$|A \\cap B|$, the multiples of 12 in 1..60", "expected": "5"},
+    {"label": "$|A \\cup B|$", "expected": "30"}
+   ],
+   "xp": 40,
+   "tags": ["inclusion-exclusion"],
+   "concepts": ["inclusion-exclusion"],
+   "explain": "The intersection is the multiples of $\\operatorname{lcm}(3,4) = 12$, which equals $3 \\cdot 4$ here only because 3 and 4 share no factor. Then $20 + 15 - 5 = 30$; without the subtraction you would report 35 and count each multiple of 12 twice."
+  },
+  {
+   "id": "dm-7-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "These five lines form a proof that among any 13 people, two were born in the same month. Put them into a valid order.",
+   "fragments": [
+    "Therefore some month contains at least two of the 13 people.",
+    "Suppose for contradiction that every month contains at most one of them.",
+    "Let the 13 people be the objects and the 12 calendar months be the boxes.",
+    "Then the total number of people is at most $12 \\times 1 = 12$.",
+    "But there are 13 people, and $13 > 12$, a contradiction."
+   ],
+   "answer": [2, 1, 3, 4, 0],
+   "xp": 20,
+   "tags": ["pigeonhole-principle"],
+   "concepts": ["pigeonhole-principle"],
+   "explain": "The boxes must be named before anything can be assumed about them, and the assumed cap must be stated before it can be multiplied out. Every pigeonhole proof has this same skeleton: name the boxes, assume the cap, multiply, compare, contradict."
+  },
+  {
+   "id": "dm-7-g-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "How many bit strings of length 8 begin with 1 **or** end with 00? Give the size of each of the two sets, the size of their intersection, and the size of the union, with the arithmetic shown.",
+   "rubric": {
+    "required": ["128", "64", "32", "160"],
+    "optional": ["inclusion", "intersection", "overlap", "union", "free"],
+    "minWords": 40
+   },
+   "xp": 50,
+   "tags": ["inclusion-exclusion", "product-and-sum-rules"],
+   "concepts": ["inclusion-exclusion", "product-and-sum-rules"],
+   "explain": "Fixing a bit leaves the rest free, so each count is 2 raised to the number of free bits: $2^7 = 128$, $2^6 = 64$, and $2^5 = 32$ when three bits are pinned at once. The 'or' is not disjoint - a string can do both - so $128 + 64 = 192$ is wrong and $128 + 64 - 32 = 160$ is right."
+  },
+  {
+   "id": "dm-7-g-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A friend computes the number of 4-person committees from a pool of 12 as $P(12,4) = 11880$. Explain precisely what they have counted instead, and state the number their answer must be divided by and why.",
+   "rubric": {
+    "required": ["order", "combination", "factorial", "24"],
+    "optional": ["permutation", "overcount", "unordered", "divide", "495", "same"],
+    "minWords": 40
+   },
+   "xp": 20,
+   "tags": ["permutations", "combinations"],
+   "concepts": ["permutations", "combinations"],
+   "explain": "They counted ordered selections, so every committee appears once per arrangement of its four members: $4! = 24$ times. Dividing gives $11880/24 = 495 = \\binom{12}{4}$. The diagnostic question is never 'which formula' but 'do two selections with the same people in a different order count as different outcomes'."
+  }
+ ],
+ "counting-problems": [
+  {
+   "id": "dm-7-c-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A department has 7 women and 5 men. A committee of 4 is chosen. Using the complement - count all committees and remove the bad ones - find how many committees contain at least one man. State the total, the number with no men, and the answer.",
+   "rubric": {
+    "required": ["495", "35", "460"],
+    "optional": ["complement", "subtract", "at least", "combination", "case", "women"],
+    "minWords": 35
+   },
+   "xp": 50,
+   "tags": ["combinations"],
+   "concepts": ["combinations"],
+   "explain": "There are $\\binom{12}{4} = 495$ committees, and the only ones failing the condition are the all-women ones, $\\binom{7}{4} = 35$, leaving 460. The complement is the right move because 'at least one' spawns four cases (1, 2, 3 or 4 men) but has exactly one negation; summing the four cases gives $175 + 210 + 70 + 5 = 460$ too."
+  },
+  {
+   "id": "dm-7-c-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "How many distinct arrangements are there of the six letters of BANANA? Do not quote a formula you have not justified: count by **choosing positions** - first the three positions for the A's out of six, then the two positions for the N's out of what remains, then the B. Show each factor.",
+   "rubric": {
+    "required": ["60", "20", "position", "choose"],
+    "optional": ["product", "combination", "identical", "remaining", "indistinguishable"],
+    "minWords": 40
+   },
+   "xp": 50,
+   "tags": ["combinations", "product-and-sum-rules"],
+   "concepts": ["combinations", "product-and-sum-rules"],
+   "explain": "$\\binom{6}{3}\\binom{3}{2}\\binom{1}{1} = 20 \\cdot 3 \\cdot 1 = 60$. Choosing positions rather than permuting letters sidesteps the whole problem of identical letters: a set of positions carries no order, so the three A's are never arranged among themselves and nothing has to be divided back out."
+  },
+  {
+   "id": "dm-7-c-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "How many solutions in **non-negative integers** does $x_1 + x_2 + x_3 + x_4 = 12$ have? Describe the stars-and-bars encoding you use - how many stars, how many bars, how long the row - and give the number.",
+   "rubric": {
+    "required": ["455", "star", "bar", "12", "3"],
+    "optional": ["15", "position", "repetition", "row", "zero"],
+    "minWords": 40
+   },
+   "xp": 50,
+   "tags": ["combinations-with-repetition"],
+   "concepts": ["combinations-with-repetition"],
+   "explain": "Twelve stars and $4 - 1 = 3$ bars make a row of 15 symbols, and the solution is fixed by which 3 positions hold bars: $\\binom{15}{3} = 455$. Non-negativity is exactly what makes the encoding legal - a variable equal to zero is an empty gap between two adjacent bars, which the row represents perfectly happily."
+  },
+  {
+   "id": "dm-7-c-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Prove, using the generalised pigeonhole principle, that in any group of 100 people at least 9 share a birth month. State your boxes, the cap you assume for contradiction, and the contradiction itself.",
+   "rubric": {
+    "required": ["12", "8", "96", "100"],
+    "optional": ["pigeonhole", "ceil", "month", "box", "contradiction", "at most"],
+    "minWords": 45
+   },
+   "xp": 50,
+   "tags": ["pigeonhole-principle"],
+   "concepts": ["pigeonhole-principle"],
+   "explain": "$\\lceil 100/12 \\rceil = 9$, and the proof assumes the negation: every month holds at most 8. Then the group has at most $12 \\times 8 = 96$ people, contradicting 100. The cap you assume is always one below the number you want, which is precisely why the ceiling rather than the floor appears in the statement."
+  },
+  {
+   "id": "dm-7-c-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $\\binom{n}{k} = \\binom{n}{n-k}$ for all integers $0 \\le k \\le n$ by exhibiting an explicit bijection between the two families of sets being counted. Do not argue from the factorial formula.",
+   "rubric": {
+    "required": ["bijection", "complement", "subset"],
+    "optional": ["inverse", "one-to-one", "involution", "unique", "size", "element"],
+    "minWords": 50
+   },
+   "xp": 50,
+   "tags": ["combinations"],
+   "concepts": ["combinations"],
+   "explain": "The map sending a $k$-element subset $S$ of an $n$-set to its complement lands among the $(n-k)$-element subsets, and applying it twice returns $S$, so it is its own inverse and therefore a bijection. A bijection between finite sets forces equal size - that is the whole method, and it explains *why* the identity holds where cancelling factorials only confirms *that* it does."
+  },
+  {
+   "id": "dm-7-c-06",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove the binomial theorem $(x+y)^n = \\sum_{k=0}^{n} \\binom{n}{k} x^{n-k} y^k$ by a counting argument: expand the product of $n$ factors without collecting terms, then count how many of the resulting terms equal $x^{n-k}y^k$.",
+   "rubric": {
+    "required": ["factor", "choose", "coefficient", "binomial"],
+    "optional": ["expand", "distribut", "term", "product", "subset", "exactly"],
+    "minWords": 50
+   },
+   "xp": 50,
+   "tags": ["binomial-theorem"],
+   "concepts": ["binomial-theorem"],
+   "explain": "Expanding $(x+y)^n$ without collecting produces one term per way of picking $x$ or $y$ from each of the $n$ factors, so $2^n$ terms in all. A term equals $x^{n-k}y^k$ precisely when the set of factors that contributed a $y$ has size $k$, and there are $\\binom{n}{k}$ such sets - the coefficient is a subset count, which is why the same numbers govern subsets and expansions alike."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-7-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Ten runners; three of them will be chosen for a relay squad, and the order they run in does not matter. Which expression is the number of possible squads?",
+   "choices": ["$P(10,3)$", "$\\binom{10}{3}$", "$10^3$", "$3^{10}$"],
+   "answer": 1,
+   "xp": 10,
+   "tags": ["combinations"],
+   "concepts": ["combinations"],
+   "explain": "$\\binom{n}{k}$ is by definition the number of $k$-element **subsets** of an $n$-element set, and a subset carries no order. $P(10,3)$ would be right if the running order mattered, and $10^3$ would let the same runner take every leg."
+  },
+  {
+   "id": "dm-7-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The generalised pigeonhole principle states that placing $n$ objects into $k$ boxes guarantees that some box contains at least how many objects?",
+   "choices": ["$\\lfloor n/k \\rfloor$", "$\\lceil n/k \\rceil$", "$n - k$", "exactly $n/k$"],
+   "answer": 1,
+   "xp": 10,
+   "tags": ["pigeonhole-principle"],
+   "concepts": ["pigeonhole-principle"],
+   "explain": "The guarantee must be a whole number and must survive $k$ not dividing $n$, so it rounds **up**: with 100 objects and 12 boxes the floor would claim only 8, yet 12 boxes holding 8 each account for just 96. 'Exactly $n/k$' is false because nothing forces the objects to spread evenly."
+  },
+  {
+   "id": "dm-7-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the general term of the binomial theorem, then use it.",
+   "template": "(x+y)^n = sum over k = 0..n of  C(n, ___) * x^(n-k) * y^___\nfor n = 5, the coefficient of x^2 y^3 is ___",
+   "blanks": ["k", "k", "10"],
+   "xp": 20,
+   "tags": ["binomial-theorem"],
+   "concepts": ["binomial-theorem"],
+   "explain": "The index $k$ is simultaneously the exponent on $y$ and the number of factors that contributed a $y$, which is why the same letter fills both slots. For $n=5$ and $k=3$ the coefficient is $\\binom{5}{3} = 10$, equal to $\\binom{5}{2}$ exactly as complementation demands."
+  },
+  {
+   "id": "dm-7-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these four lines into a valid derivation of $|A \\cup B| = |A| + |B| - |A \\cap B|$.",
+   "fragments": [
+    "So adding $|A|$ and $|B|$ counts every element of $A \\cap B$ exactly twice and every other element once.",
+    "Every element of $A \\cup B$ lies in $A$ alone, in $B$ alone, or in both.",
+    "Hence $|A \\cup B| = |A| + |B| - |A \\cap B|$.",
+    "Subtracting $|A \\cap B|$ once therefore removes exactly that surplus and leaves every element counted once."
+   ],
+   "answer": [1, 0, 3, 2],
+   "xp": 20,
+   "tags": ["inclusion-exclusion"],
+   "concepts": ["inclusion-exclusion"],
+   "explain": "The derivation is a per-element audit: classify the elements, count how many times each class gets counted, then correct. That ordering is what generalises - for three sets the same audit forces the plus-minus-plus pattern instead of asking you to remember it."
+  },
+  {
+   "id": "dm-7-e-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Count the integers $n$ with $1 \\le n \\le 120$ divisible by 3, by 5 or by 8, using inclusion-exclusion for three sets. Give each term, then the union.",
+   "steps": [
+    {"label": "multiples of 3", "expected": "40"},
+    {"label": "multiples of 5", "expected": "24"},
+    {"label": "multiples of 8", "expected": "15"},
+    {"label": "multiples of 15, that is of both 3 and 5", "expected": "8"},
+    {"label": "multiples of 24, that is of both 3 and 8", "expected": "5"},
+    {"label": "multiples of 40, that is of both 5 and 8", "expected": "3"},
+    {"label": "multiples of 120, that is of all three", "expected": "1"},
+    {"label": "the union", "expected": "64"}
+   ],
+   "xp": 40,
+   "tags": ["inclusion-exclusion"],
+   "concepts": ["inclusion-exclusion"],
+   "explain": "$40 + 24 + 15 - 8 - 5 - 3 + 1 = 64$. Each pairwise intersection is the multiples of the lcm, which is why 3 and 8 give 24 while 5 and 8 give 40. Dropping the final $+1$ would undercount: $n = 120$ lies in all three sets, gets added three times and removed three times, and would end on zero."
+  },
+  {
+   "id": "dm-7-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A shop sells 5 flavours of ice cream. A cone holds 3 scoops; repeats are allowed and the order of the scoops does not matter. Using the stars-and-bars picture, explain why the number of cones is $\\binom{7}{3} = 35$ and not $\\binom{5}{3} = 10$.",
+   "rubric": {
+    "required": ["star", "bar", "35", "type"],
+    "optional": ["repetition", "repeat", "flavour", "position", "row", "empty", "order"],
+    "minWords": 45
+   },
+   "xp": 20,
+   "tags": ["combinations-with-repetition"],
+   "concepts": ["combinations-with-repetition"],
+   "explain": "$\\binom{5}{3}$ counts 3-element **subsets** of the flavours, which silently forbids two scoops of one flavour. The correct object is a count per flavour type: 3 stars and $5-1 = 4$ bars in a row of 7 symbols, giving $\\binom{7}{3} = 35$. Note the top number is $n+k-1$, not $n$ - the row grows as the number of scoops grows."
+  },
+  {
+   "id": "dm-7-e-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A licence plate is three letters (A-Z) followed by three digits (0-9). Letters may not repeat; digits may. How many plates are there? Give the count as a product of factors and then as a single number.",
+   "rubric": {
+    "required": ["26", "25", "24", "product"],
+    "optional": ["1000", "15,600,000", "15600000", "permutation", "repeat", "independent"],
+    "minWords": 35
+   },
+   "xp": 50,
+   "tags": ["product-and-sum-rules", "permutations"],
+   "concepts": ["product-and-sum-rules", "permutations"],
+   "explain": "The letter block is a permutation, $26 \\cdot 25 \\cdot 24 = P(26,3) = 15600$, while the digit block allows repeats and is $10^3 = 1000$; the blocks are independent, so the product rule multiplies them to $15{,}600{,}000$. The only real difficulty is noticing that one constraint applies to one block and not the other."
+  },
+  {
+   "id": "dm-7-e-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "On a grid you may move only one step Right or one step Up. A path from $(0,0)$ to $(5,4)$ therefore uses 5 R's and 4 U's in some order. How many such paths are there? Say what set of positions you are choosing, and give the number.",
+   "rubric": {
+    "required": ["126", "9", "4", "position"],
+    "optional": ["binomial", "order", "step", "choose", "sequence", "5"],
+    "minWords": 35
+   },
+   "xp": 50,
+   "tags": ["combinations"],
+   "concepts": ["combinations"],
+   "explain": "Every path is a string of 9 steps and is completely determined by which 4 of the 9 positions hold a U, so there are $\\binom{9}{4} = 126$. Choosing the 5 R positions instead gives $\\binom{9}{5} = 126$ as well - the complementation identity showing up in the wild rather than as an exercise."
+  },
+  {
+   "id": "dm-7-e-09",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Prove that any 12 integers, distinct or not, contain two whose difference is divisible by 11. Use the pigeonhole principle and state your boxes explicitly.",
+   "rubric": {
+    "required": ["pigeonhole", "11", "12", "remainder"],
+    "optional": ["modul", "residue", "box", "same", "difference", "divisible"],
+    "minWords": 45
+   },
+   "xp": 50,
+   "tags": ["pigeonhole-principle"],
+   "concepts": ["pigeonhole-principle"],
+   "explain": "There are exactly 11 remainders modulo 11, so 12 integers must repeat one. If $a \\equiv b \\pmod{11}$ then $11 \\mid (a - b)$, which is the conclusion. Choosing residue classes as the boxes is the standard move whenever the goal is a divisibility statement, and it is the only creative step in the proof."
+  },
+  {
+   "id": "dm-7-e-10",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $\\sum_{k=0}^{n} \\binom{n}{k} = 2^n$ by counting the subsets of an $n$-element set in two different ways. Say clearly what the left side counts and what the right side counts.",
+   "rubric": {
+    "required": ["subset", "count", "size", "element"],
+    "optional": ["double", "power set", "2^n", "binomial", "two ways", "partition", "in or out"],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": ["binomial-theorem", "combinations"],
+   "concepts": ["binomial-theorem", "combinations"],
+   "explain": "The right side counts subsets one element at a time - each of the $n$ elements is independently in or out, giving $2^n$ by the product rule. The left side counts the same subsets grouped by size, $\\binom{n}{k}$ of them of size $k$, and those groups are disjoint and exhaustive, so the sum rule applies. Two correct counts of one set must agree; that is double counting, and it settles identities that no amount of algebra makes obvious."
+  }
+ ]
+}

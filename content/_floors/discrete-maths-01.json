@@ -1,0 +1,755 @@
+{
+ "n": 1,
+ "name": "The Hall of Braces",
+ "concepts": [
+  "set-notation",
+  "membership",
+  "set-equality",
+  "subset",
+  "empty-set",
+  "cardinality",
+  "power-set",
+  "set-operations"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Language of Collections",
+  "sections": [
+   {
+    "title": "Naming a Collection",
+    "body": "A **set** is an unordered collection of distinct objects, and the only question you may ask a set is whether some object is a member of it. You can name a set two ways: by **roster notation**, listing the members inside braces as $\\{2, 3, 5, 7\\}$, or by **set-builder notation**, stating the rule that decides membership, as $\\{x \\in \\mathbb{Z} : x \\text{ is prime and } x < 10\\}$.\n\nMembership is written $3 \\in A$ and its denial $4 \\notin A$. Because a set only records *which* objects belong, order and repetition say nothing: $\\{1, 2, 2, 3\\}$ and $\\{3, 2, 1\\}$ are the same set.\n\nThe set with no members at all is the **empty set** $\\emptyset$ - and note that $\\emptyset$ and $\\{\\emptyset\\}$ are different, since the second one does have a member.",
+    "code": "ROSTER NOTATION  -  list the members between braces\n  A = {2, 3, 5, 7}\n  B = {red, green, blue}\n  E = {}                 the empty set, also written ∅\n\nSET-BUILDER NOTATION  -  state the membership rule instead\n  A = { x ∈ Z : x is prime and x < 10 }\n  read:  the set of integers x such that x is prime and x < 10\n  same set as the roster above:  {2, 3, 5, 7}\n\nMEMBERSHIP  -  one question, one yes-or-no answer\n  3 ∈ A      true    3 is one of the listed members\n  4 ∉ A      true    4 is not listed\n  {3} ∈ A    false   A contains the number 3, not the one-element set {3}\n\nORDER AND REPETITION CARRY NO INFORMATION\n  {1, 2, 2, 3} = {3, 2, 1}      both name the same three members",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The colon is read `such that`. Everything left of it says what kind of object x is; everything right of it is the test each candidate must pass."
+     },
+     {
+      "line": 14,
+      "text": "The commonest first mistake: a set whose member is a set. A contains the number 3, so {3} is a subset of A but not an element of A."
+     },
+     {
+      "line": 17,
+      "text": "Writing a member twice adds no information, because membership is a yes-or-no question and it has already been answered yes."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $A = \\{1, 3, \\{5\\}\\}$. Fill each of the first two blanks with either `in` or `not in`, and the last with a number.",
+     "template": "A = {1, 3, {5}}\n1 is ___ A\n5 is ___ A\n|A| = ___",
+     "blanks": [
+      "in",
+      "not in",
+      "3"
+     ],
+     "lang": "text",
+     "explain": "$5 \\notin A$ because the object listed is the set $\\{5\\}$, not the number $5$ - a box containing a coin is not a coin. Counting members with that in mind gives $|A| = 3$: the number 1, the number 3, and the one set $\\{5\\}$.",
+     "hint": "Read the third member of A out loud: is it a number, or a set?",
+     "concepts": [
+      "set-notation",
+      "membership",
+      "cardinality"
+     ],
+     "tags": [
+      "set-notation",
+      "membership",
+      "cardinality"
+     ]
+    }
+   },
+   {
+    "title": "Subset, Proper Subset, Equality",
+    "body": "$A \\subseteq B$ - read *A is a subset of B* - means every element of $A$ is also an element of $B$. This is a statement about all the elements of $A$ at once, which is why it is checked by taking an arbitrary $x \\in A$ and showing $x \\in B$.\n\nIf additionally $A \\neq B$, so $B$ has something $A$ lacks, then $A$ is a **proper subset**, written $A \\subsetneq B$.\n\nTwo sets are **equal** exactly when each is a subset of the other: $A = B$ precisely when $A \\subseteq B$ and $B \\subseteq A$. That **double inclusion** is the standard way to prove two differently-described sets are the same one.\n\nEvery set $S$ satisfies $\\emptyset \\subseteq S$ and $S \\subseteq S$ - the first holds vacuously, because there is no element of $\\emptyset$ that could fail the test.",
+    "code": "A = {1, 2}        B = {1, 2, 3}        C = {2, 1}\n\nSUBSET   A ⊆ B   means: every element of A is also an element of B\n  1 ∈ A, and 1 ∈ B.   2 ∈ A, and 2 ∈ B.   No element of A escapes.\n  So A ⊆ B.\n\nPROPER SUBSET   A ⊊ B   means: A ⊆ B and A ≠ B\n  A ⊊ B, because 3 ∈ B but 3 ∉ A.\n\nEQUALITY BY DOUBLE INCLUSION   A = C   iff   A ⊆ C and C ⊆ A\n  A ⊆ C ?   1 ∈ C yes,  2 ∈ C yes   ->  yes\n  C ⊆ A ?   2 ∈ A yes,  1 ∈ A yes   ->  yes\n  therefore A = C\n\nTWO SUBSETS EVERY SET HAS FOR FREE\n  ∅ ⊆ S    there is no element of ∅ that could fail the test\n  S ⊆ S    every element of S is an element of S",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Checking a subset claim on a finite set means one membership question per element of the left-hand set - never per element of the right-hand one."
+     },
+     {
+      "line": 11,
+      "text": "Double inclusion turns one equality into two subset checks, each a mechanical element-by-element test."
+     },
+     {
+      "line": 16,
+      "text": "Vacuous truth: a claim about every element of an empty collection has no counterexample available, so it stands."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put these lines in the order of a correct double-inclusion argument that $A = B$, where $A = \\{1, 2\\}$ and $B = \\{x \\in \\mathbb{Z} : x > 0 \\text{ and } x^2 \\leq 4\\}$.",
+     "fragments": [
+      "Let A = {1, 2} and B = { x ∈ Z : x > 0 and x^2 ≤ 4 }.",
+      "A ⊆ B: 1 > 0 and 1^2 = 1 ≤ 4, so 1 ∈ B; 2 > 0 and 2^2 = 4 ≤ 4, so 2 ∈ B.",
+      "B ⊆ A: let x ∈ B, so x is a positive integer with x^2 ≤ 4; then x = 1 or x = 2, and both are in A.",
+      "Both inclusions hold, so A = B."
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "explain": "The two inclusions do genuinely different work: the first checks two named numbers, the second must rule out every other integer, so it argues about an arbitrary $x$ rather than by listing. Skipping $B \\subseteq A$ would leave open that $B$ is larger, which is exactly the gap $\\subseteq$ tolerates and $=$ does not.",
+     "concepts": [
+      "set-equality",
+      "subset"
+     ],
+     "tags": [
+      "set-equality",
+      "subset"
+     ]
+    }
+   },
+   {
+    "title": "Cardinality and the Power Set",
+    "body": "The **cardinality** $|S|$ of a finite set is its number of members, so $|\\{2,3,5,7\\}| = 4$, $|\\emptyset| = 0$ and $|\\{\\emptyset\\}| = 1$.\n\nThe **power set** $\\mathcal{P}(S)$ is the set whose elements are all the subsets of $S$, with $\\emptyset$ and $S$ included. For $S = \\{a,b,c\\}$ it has eight members, and every one of them is itself a set.\n\nIn general $|\\mathcal{P}(S)| = 2^{|S|}$, and the reason is a counting argument: to build a subset you walk the members of $S$ once and make one independent **in or out** decision per member. With $|S|$ members that is $2^{|S|}$ different records, and two different records always describe two different subsets.\n\nThe formula survives the edge case: $|\\mathcal{P}(\\emptyset)| = 2^0 = 1$, and indeed $\\mathcal{P}(\\emptyset) = \\{\\emptyset\\}$.",
+    "code": "CARDINALITY   |S| = how many members S has\n  |{2, 3, 5, 7}| = 4        |∅| = 0        |{∅}| = 1\n\nPOWER SET   P(S) = the set of ALL subsets of S\n  S = {a, b, c}\n  P(S) = {  ∅,\n            {a}, {b}, {c},\n            {a,b}, {a,c}, {b,c},\n            {a,b,c}  }\n  |P(S)| = 8 = 2^3\n\nWHY 2^|S|  -  build a subset by walking the members once\n  a:  in or out    2 ways\n  b:  in or out    2 ways\n  c:  in or out    2 ways\n  2 * 2 * 2 = 8 distinct in/out records, and each one names a different subset\n\n  |S| = 0 -> 1        |S| = 1 -> 2        |S| = 4 -> 16",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Compare the last two: the empty set has nothing in it, while {∅} is a box with an empty box inside, so its cardinality is 1."
+     },
+     {
+      "line": 6,
+      "text": "∅ and S are both subsets of S, so both are members of P(S). Forgetting either is what turns 8 into 6."
+     },
+     {
+      "line": 17,
+      "text": "One in/out decision per member, so the count doubles each time a member is added - that doubling is what an exponent records."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "xp": 40,
+     "prompt": "Give the cardinality of each power set as a plain number.",
+     "steps": [
+      {
+       "label": "|P(∅)|",
+       "expected": "1"
+      },
+      {
+       "label": "|P({a})|",
+       "expected": "2"
+      },
+      {
+       "label": "|P({a, b})|",
+       "expected": "4"
+      },
+      {
+       "label": "|P({a, b, c, d})|",
+       "expected": "16"
+      }
+     ],
+     "explain": "Each new member doubles the answer because it adds one independent in/out decision on top of every subset already counted. The first line is the case people guess wrong: $\\emptyset$ has exactly one subset, namely itself, so $2^0 = 1$ rather than 0.",
+     "hint": "Count the members first, then raise 2 to that power.",
+     "concepts": [
+      "power-set",
+      "cardinality",
+      "empty-set"
+     ],
+     "tags": [
+      "power-set",
+      "cardinality",
+      "empty-set"
+     ]
+    }
+   },
+   {
+    "title": "Combining Sets",
+    "body": "Four operations build new sets from old. The **union** $A \\cup B$ holds everything in $A$ **or** in $B$; the **intersection** $A \\cap B$ holds everything in $A$ **and** in $B$; the **difference** $A \\setminus B$ holds what is in $A$ but not in $B$.\n\nThe **complement** $\\overline{A}$ is $U \\setminus A$, where $U$ is the declared **universal set** - a complement is meaningless until you say what $U$ is.\n\nUnion and intersection are symmetric in their two arguments, but difference is not: with $A = \\{1,2,3,4,5,6\\}$ and $B = \\{4,5,6,7,8\\}$ you get $A \\setminus B = \\{1,2,3\\}$ while $B \\setminus A = \\{7,8\\}$.\n\nCardinalities do not simply add: $|A| + |B| = 11$ here, but $|A \\cup B| = 8$, because the three shared members were counted twice.",
+    "code": "U = {1,2,3,4,5,6,7,8,9,10}    A = {1,2,3,4,5,6}    B = {4,5,6,7,8}\n\nA ∪ B = {1,2,3,4,5,6,7,8}     in A OR in B          |A ∪ B| = 8\nA ∩ B = {4,5,6}               in A AND in B         |A ∩ B| = 3\nA \\ B = {1,2,3}               in A AND NOT in B     |A \\ B| = 3\nB \\ A = {7,8}                 difference is NOT symmetric\nA-bar = U \\ A = {7,8,9,10}    complement, always taken relative to U\n\nCOUNT CHECK\n  |A| + |B| = 6 + 5 = 11,  but |A ∪ B| = 8.\n  The three shared members 4, 5, 6 were counted twice:  11 - 3 = 8.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Union is an inclusive OR: the shared members 4, 5 and 6 appear in the union once, because a set records membership only once."
+     },
+     {
+      "line": 7,
+      "text": "Complement is difference with the universal set on the left, so changing U changes the answer even though A is unchanged."
+     },
+     {
+      "line": 11,
+      "text": "Double counting the overlap is the commonest counting error, and this line is the repair that later becomes inclusion-exclusion."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "xp": 50,
+     "prompt": "Let $U = \\{1,2,3,4,5,6,7,8,9,10\\}$, $A = \\{1,2,3,4,5,6\\}$ and $C = \\{2,4,6,8,10\\}$. Write out $A \\cap C$, $A \\cup C$, $A \\setminus C$ and $\\overline{C}$ in roster notation, naming the operation you used for each, and state $|A \\cup C|$.",
+     "rubric": {
+      "required": [
+       "union",
+       "intersection",
+       "complement",
+       "difference"
+      ],
+      "optional": [
+       "8",
+       "roster",
+       "universal",
+       "both",
+       "either",
+       "overlap"
+      ],
+      "minWords": 30
+     },
+     "explain": "The answers are $A \\cap C = \\{2,4,6\\}$, $A \\cup C = \\{1,2,3,4,5,6,8,10\\}$ with $|A \\cup C| = 8$, $A \\setminus C = \\{1,3,5\\}$ and $\\overline{C} = \\{1,3,5,7,9\\}$. Notice $|A| + |C| = 11$ while the union has only 8 members: the overlap $\\{2,4,6\\}$ was counted twice, and the complement had to be read against $U$ rather than against $A$.",
+     "hint": "Take each operation in turn and test the ten members of U one at a time.",
+     "concepts": [
+      "set-operations",
+      "cardinality",
+      "membership"
+     ],
+     "tags": [
+      "set-operations",
+      "cardinality",
+      "membership"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-1-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Rewrite $\\{x \\in \\mathbb{Z} : 0 < x < 10 \\text{ and } x \\text{ is even}\\}$ in roster notation, in increasing order, then give its cardinality.",
+   "template": "{ x ∈ Z : 0 < x < 10 and x is even } = { ___, ___, ___, ___ }\ncardinality = ___",
+   "blanks": [
+    "2",
+    "4",
+    "6",
+    "8",
+    "4"
+   ],
+   "lang": "text",
+   "explain": "Set-builder notation names a set by a test, not by a list, so converting it means running the test over every candidate the left-hand part allows. The bounds are strict, which is why 0 and 10 are excluded even though 10 is even.",
+   "hint": "The inequality is strict at both ends.",
+   "concepts": [
+    "set-notation",
+    "membership",
+    "cardinality"
+   ],
+   "tags": [
+    "set-notation",
+    "membership",
+    "cardinality"
+   ]
+  },
+  {
+   "id": "dm-1-g-02",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Let $S = \\{1, \\{1\\}, \\{2,3\\}\\}$. For each of the following say **true** or **false** and justify it in a phrase: $1 \\in S$, $\\{1\\} \\in S$, $\\{1\\} \\subseteq S$, $\\{2,3\\} \\subseteq S$, $2 \\in S$, $\\emptyset \\subseteq S$, $|S| = 3$.",
+   "rubric": {
+    "required": [
+     "element",
+     "subset",
+     "true",
+     "false"
+    ],
+    "optional": [
+     "member",
+     "cardinality",
+     "empty",
+     "vacuous",
+     "listed",
+     "contains"
+    ],
+    "minWords": 45
+   },
+   "explain": "$S$ has exactly three elements, one number and two sets, so $|S| = 3$ is true. $\\{1\\} \\in S$ is true because the set $\\{1\\}$ is listed, and $\\{1\\} \\subseteq S$ is also true for a different reason - its only element $1$ lies in $S$. Meanwhile $\\{2,3\\} \\subseteq S$ fails because $2 \\notin S$, and so does $2 \\in S$; $\\emptyset \\subseteq S$ holds vacuously. The point is that $\\in$ asks about one listed object while $\\subseteq$ asks about all the elements of the left-hand set.",
+   "hint": "Write out the three elements of S on one line first, then answer each claim against that list.",
+   "concepts": [
+    "membership",
+    "subset",
+    "set-equality",
+    "empty-set"
+   ],
+   "tags": [
+    "membership",
+    "subset",
+    "set-equality",
+    "empty-set"
+   ]
+  },
+  {
+   "id": "dm-1-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Order these lines into a correct double-inclusion proof that $\\{x \\in \\mathbb{Z} : x \\text{ is even and } 0 < x < 9\\} = \\{2, 4, 6, 8\\}$.",
+   "fragments": [
+    "Write L = { x ∈ Z : x is even and 0 < x < 9 } and R = {2, 4, 6, 8}.",
+    "L ⊆ R: let x ∈ L; x is an even integer strictly between 0 and 9, and the only such integers are 2, 4, 6 and 8, so x ∈ R.",
+    "R ⊆ L: each of 2, 4, 6, 8 is even and lies strictly between 0 and 9, so each is in L.",
+    "Since L ⊆ R and R ⊆ L, the two sets are equal."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "explain": "The naming line matters: without it the two inclusions have nothing to refer to. The direction that argues about an arbitrary $x$ carries the real content, because it must exclude every integer not listed, while the other direction is four finite checks.",
+   "hint": "A proof states what it is about, does its two halves, and only then concludes.",
+   "concepts": [
+    "set-equality",
+    "subset",
+    "set-notation"
+   ],
+   "tags": [
+    "set-equality",
+    "subset",
+    "set-notation"
+   ]
+  },
+  {
+   "id": "dm-1-g-04",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Let $T = \\{a, b, c\\}$. List every element of $\\mathcal{P}(T)$, state $|\\mathcal{P}(T)|$, and say how many of those subsets contain $a$.",
+   "rubric": {
+    "required": [
+     "power set",
+     "empty",
+     "subset"
+    ],
+    "optional": [
+     "8",
+     "4",
+     "eight",
+     "half",
+     "itself",
+     "cardinality",
+     "singleton"
+    ],
+    "minWords": 30
+   },
+   "explain": "There are $2^3 = 8$ subsets: $\\emptyset$, three singletons, three pairs and $T$ itself - and the two most-forgotten members are $\\emptyset$ and $T$. Exactly 4 of them contain $a$, because once $a$'s decision is fixed as *in*, the remaining two members still have $2^2 = 4$ free in/out choices, so fixing one member's decision always halves the count.",
+   "hint": "List them grouped by size: none, one, two, three.",
+   "concepts": [
+    "power-set",
+    "cardinality",
+    "empty-set",
+    "subset"
+   ],
+   "tags": [
+    "power-set",
+    "cardinality",
+    "empty-set",
+    "subset"
+   ]
+  },
+  {
+   "id": "dm-1-g-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "xp": 40,
+   "prompt": "Evaluate $S = \\{x \\in \\mathbb{Z} : -2 \\leq x \\leq 3 \\text{ and } x \\text{ is odd}\\}$ one condition at a time. Write each set in roster notation, increasing order, elements separated by a comma and a space.",
+   "steps": [
+    {
+     "label": "the integers satisfying -2 ≤ x ≤ 3",
+     "expected": "{-2, -1, 0, 1, 2, 3}"
+    },
+    {
+     "label": "of those, the ones that are also odd",
+     "expected": "{-1, 1, 3}"
+    },
+    {
+     "label": "|S|",
+     "expected": "3"
+    }
+   ],
+   "explain": "A set-builder rule with two conditions is a filter applied twice: fix the candidate pool first, then keep only what passes. The inequalities here are non-strict, so both $-2$ and $3$ enter the pool - and negative odd numbers are still odd, which is the step most often dropped.",
+   "hint": "The clause before the colon gives the candidates; the conditions only remove.",
+   "concepts": [
+    "set-notation",
+    "cardinality",
+    "membership"
+   ],
+   "tags": [
+    "set-notation",
+    "cardinality",
+    "membership"
+   ]
+  },
+  {
+   "id": "dm-1-g-06",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "Explain why $|\\mathcal{P}(S)| = 2^{|S|}$ for every finite set $S$. Describe how a subset is built from a sequence of decisions, and say why no two different decision sequences give the same subset.",
+   "rubric": {
+    "required": [
+     "subset",
+     "element",
+     "2"
+    ],
+    "optional": [
+     "choice",
+     "decision",
+     "binary",
+     "include",
+     "exclude",
+     "double",
+     "independent",
+     "multiply",
+     "power set",
+     "distinct"
+    ],
+    "minWords": 45
+   },
+   "explain": "Every subset is completely determined by, and determines, one in/out answer per element, so subsets and in/out sequences of length $|S|$ pair off exactly and there are $2^{|S|}$ of the latter. The decisions are independent, which is why the twos multiply rather than add - and the same argument settles the edge case, since a set with no elements admits exactly one empty sequence of decisions, giving $2^0 = 1$.",
+   "hint": "Walk the elements of S once, and ask what you must record at each one.",
+   "concepts": [
+    "power-set",
+    "cardinality",
+    "subset"
+   ],
+   "tags": [
+    "power-set",
+    "cardinality",
+    "subset"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-1-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "Which statement is the definition of *$A$ is a proper subset of $B$*?",
+   "choices": [
+    "$A \\subseteq B$ and $A \\neq B$",
+    "$A \\subseteq B$ and $B \\subseteq A$",
+    "$A \\in B$ and $A \\neq B$",
+    "$|A| < |B|$"
+   ],
+   "answer": 0,
+   "explain": "Proper means *a subset, and strictly poorer in content* - not merely smaller in count. The last option fails on $A = \\{5\\}$, $B = \\{1,2\\}$, where $|A| < |B|$ but $A$ is not a subset of $B$ at all; the second option is the definition of equality, not of properness.",
+   "concepts": [
+    "subset",
+    "set-equality"
+   ],
+   "tags": [
+    "subset",
+    "set-equality"
+   ]
+  },
+  {
+   "id": "dm-1-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "Two sets $A$ and $B$ are equal exactly when:",
+   "choices": [
+    "they have the same cardinality",
+    "each is a subset of the other",
+    "their elements are written in the same order",
+    "one of them is an element of the other"
+   ],
+   "answer": 1,
+   "explain": "Equality of sets is decided by membership alone, and double inclusion states that condition as two checks. Equal cardinality is far weaker - $\\{1,2\\}$ and $\\{7,8\\}$ both have two elements and are different sets - while order is not recorded by a set in the first place.",
+   "concepts": [
+    "set-equality",
+    "cardinality"
+   ],
+   "tags": [
+    "set-equality",
+    "cardinality"
+   ]
+  },
+  {
+   "id": "dm-1-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Write $\\{x \\in \\mathbb{Z} : x^2 \\leq 9\\}$ in roster notation in increasing order, then give its cardinality.",
+   "template": "{ x ∈ Z : x^2 ≤ 9 } = { ___, ___, ___, ___, ___, ___, ___ }\ncardinality = ___",
+   "blanks": [
+    "-3",
+    "-2",
+    "-1",
+    "0",
+    "1",
+    "2",
+    "3",
+    "7"
+   ],
+   "lang": "text",
+   "explain": "The candidates are integers, not just positive ones, so the negative solutions count and squaring makes the set symmetric about 0. Seven members, not four - dropping the negatives is the standard slip, and $0$ qualifies because $0 \\leq 9$.",
+   "hint": "$x^2 \\leq 9$ is the same condition as $-3 \\leq x \\leq 3$.",
+   "concepts": [
+    "set-notation",
+    "cardinality",
+    "membership"
+   ],
+   "tags": [
+    "set-notation",
+    "cardinality",
+    "membership"
+   ]
+  },
+  {
+   "id": "dm-1-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Fill each blank with a single number.",
+   "template": "|∅| = ___\n|{∅}| = ___\nthe number of subsets of ∅ is ___\n|P({a, b})| = ___",
+   "blanks": [
+    "0",
+    "1",
+    "1",
+    "4"
+   ],
+   "lang": "text",
+   "explain": "$\\emptyset$ has no members while $\\{\\emptyset\\}$ has exactly one - the empty set itself - so the two are different sets with different cardinalities. $\\emptyset$ still has one subset, namely $\\emptyset$, which is precisely what $2^0 = 1$ predicts, and $\\mathcal{P}(\\{a,b\\})$ has $2^2 = 4$.",
+   "hint": "Count members, not braces - then use $2^n$.",
+   "concepts": [
+    "empty-set",
+    "power-set",
+    "cardinality"
+   ],
+   "tags": [
+    "empty-set",
+    "power-set",
+    "cardinality"
+   ]
+  },
+  {
+   "id": "dm-1-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Let $A = \\{1,2,3\\}$, $B = \\{3,4\\}$ and $C = \\{2,4,5\\}$. Put the steps of the evaluation of $(A \\cup B) \\setminus C$ into order.",
+   "fragments": [
+    "Start from A = {1, 2, 3}, B = {3, 4}, C = {2, 4, 5}.",
+    "Evaluate the bracket first: A ∪ B = {1, 2, 3, 4}.",
+    "Now remove from that union every element that also lies in C, namely 2 and 4.",
+    "The result is (A ∪ B) \\ C = {1, 3}."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "explain": "Set expressions obey brackets exactly as arithmetic ones do, so the union is formed before anything is removed; note that 3 lies in both $A$ and $B$ yet enters the union once. Removing $C$'s members takes out 2 and 4, while $5 \\in C$ removes nothing because it was never there.",
+   "concepts": [
+    "set-operations",
+    "set-notation"
+   ],
+   "tags": [
+    "set-operations",
+    "set-notation"
+   ]
+  },
+  {
+   "id": "dm-1-e-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "xp": 40,
+   "prompt": "Let $U = \\{1,2,3,4,5,6,7,8,9,10\\}$, $A = \\{1,2,3,4,5,6\\}$ and $B = \\{4,5,6,7,8\\}$. Give each result in roster notation, increasing order, elements separated by a comma and a space.",
+   "steps": [
+    {
+     "label": "A ∩ B",
+     "expected": "{4, 5, 6}"
+    },
+    {
+     "label": "A ∪ B",
+     "expected": "{1, 2, 3, 4, 5, 6, 7, 8}"
+    },
+    {
+     "label": "B \\ A",
+     "expected": "{7, 8}"
+    },
+    {
+     "label": "the complement of A relative to U",
+     "expected": "{7, 8, 9, 10}"
+    }
+   ],
+   "explain": "The union has 8 members although $|A| + |B| = 11$, because the three shared members are not counted twice. $B \\setminus A$ keeps only what $B$ has beyond the overlap, and the complement is the one answer that depends on $U$ - shrink $U$ to $\\{1,2,3,4,5,6,7,8\\}$ and it becomes $\\{7,8\\}$.",
+   "hint": "Work through U member by member, asking the two membership questions about each.",
+   "concepts": [
+    "set-operations",
+    "cardinality"
+   ],
+   "tags": [
+    "set-operations",
+    "cardinality"
+   ]
+  },
+  {
+   "id": "dm-1-e-07",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Let $D = \\{x \\in \\mathbb{Z} : x > 0 \\text{ and } x \\mid 30\\}$ and $M = \\{x \\in \\mathbb{Z} : 1 \\leq x \\leq 30 \\text{ and } 3 \\mid x\\}$. Write $D$ and $M$ in roster notation, then give $D \\cap M$, $D \\setminus M$ and $|D \\cup M|$, showing how you obtained that last number.",
+   "rubric": {
+    "required": [
+     "intersection",
+     "union",
+     "difference",
+     "divis"
+    ],
+    "optional": [
+     "14",
+     "overlap",
+     "twice",
+     "multiple",
+     "roster",
+     "8",
+     "10",
+     "4"
+    ],
+    "minWords": 40
+   },
+   "explain": "$D = \\{1,2,3,5,6,10,15,30\\}$ and $M = \\{3,6,9,12,15,18,21,24,27,30\\}$, so $D \\cap M = \\{3,6,15,30\\}$ and $D \\setminus M = \\{1,2,5,10\\}$. For the union, $|D| + |M| = 8 + 10 = 18$ counts the four shared members twice, so $|D \\cup M| = 18 - 4 = 14$ - and those shared members are exactly the divisors of 30 that are themselves multiples of 3.",
+   "hint": "Build both rosters first; $x \\mid 30$ means x divides 30 exactly.",
+   "concepts": [
+    "set-operations",
+    "cardinality",
+    "set-notation"
+   ],
+   "tags": [
+    "set-operations",
+    "cardinality",
+    "set-notation"
+   ]
+  },
+  {
+   "id": "dm-1-e-08",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "A set $S$ has exactly 5 elements, one of which is called $s$. Give, with a one-line reason each: (a) $|\\mathcal{P}(S)|$, (b) how many subsets of $S$ are **proper** subsets of $S$, (c) how many subsets of $S$ contain $s$.",
+   "rubric": {
+    "required": [
+     "32",
+     "31",
+     "16",
+     "subset"
+    ],
+    "optional": [
+     "power set",
+     "proper",
+     "itself",
+     "half",
+     "remaining",
+     "decision",
+     "empty",
+     "fix"
+    ],
+    "minWords": 35
+   },
+   "explain": "(a) $2^5 = 32$, one subset per in/out record. (b) Every subset except $S$ itself is proper, so $32 - 1 = 31$ - and $\\emptyset$ is proper, which is easy to lose. (c) Fixing $s$ as *in* leaves the other 4 elements free, giving $2^4 = 16$, exactly half, which is the general fact that fixing one element's decision halves the count.",
+   "hint": "Each part is a power of 2, except the one that is a subtraction.",
+   "concepts": [
+    "power-set",
+    "subset",
+    "cardinality"
+   ],
+   "tags": [
+    "power-set",
+    "subset",
+    "cardinality"
+   ]
+  },
+  {
+   "id": "dm-1-e-09",
+   "type": "proof",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Prove that for all sets $A$ and $B$, $A \\cap B \\subseteq A \\cup B$. Write full sentences, take an arbitrary element, and name the definition of intersection and of union where you use each.",
+   "rubric": {
+    "required": [
+     "arbitrary",
+     "element",
+     "intersection",
+     "union"
+    ],
+    "optional": [
+     "definition",
+     "therefore",
+     "since",
+     "subset",
+     "every",
+     "suppose",
+     "hence"
+    ],
+    "minWords": 45
+   },
+   "explain": "The proof is the subset definition applied literally: let $x$ be an arbitrary element of $A \\cap B$; then $x \\in A$ and $x \\in B$; in particular $x \\in A$, so $x \\in A$ or $x \\in B$, that is $x \\in A \\cup B$. The whole argument is the logical step from *and* to *or*, and because $x$ was arbitrary the conclusion holds for every element - which is exactly what $\\subseteq$ asserts. It assumes nothing about $A$ and $B$, so it holds even when they are disjoint and $A \\cap B$ is empty.",
+   "hint": "Start with `Let x be an arbitrary element of the intersection` and unfold the definitions.",
+   "concepts": [
+    "subset",
+    "set-operations",
+    "set-equality"
+   ],
+   "tags": [
+    "subset",
+    "set-operations",
+    "set-equality"
+   ]
+  },
+  {
+   "id": "dm-1-e-10",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "Explain the difference between $\\emptyset$ and $\\{\\emptyset\\}$. State the cardinality of each, and say which of $\\emptyset \\in \\{\\emptyset\\}$ and $\\emptyset \\subseteq \\{\\emptyset\\}$ are true, and why.",
+   "rubric": {
+    "required": [
+     "empty",
+     "element",
+     "0",
+     "1"
+    ],
+    "optional": [
+     "cardinality",
+     "subset",
+     "member",
+     "contains",
+     "vacuous",
+     "both",
+     "nothing",
+     "true"
+    ],
+    "minWords": 45
+   },
+   "explain": "$\\emptyset$ has no elements, so $|\\emptyset| = 0$; $\\{\\emptyset\\}$ has one element - the empty set - so $|\\{\\emptyset\\}| = 1$, and one is therefore not the other. Both claims are true, for different reasons: $\\emptyset \\in \\{\\emptyset\\}$ because the empty set is the listed member, and $\\emptyset \\subseteq \\{\\emptyset\\}$ because $\\emptyset$ is a subset of absolutely every set, vacuously. Keeping the container distinct from its contents is what makes power sets readable at all.",
+   "hint": "Count the members of each, then answer the two claims separately.",
+   "concepts": [
+    "empty-set",
+    "membership",
+    "set-notation"
+   ],
+   "tags": [
+    "empty-set",
+    "membership",
+    "set-notation"
+   ]
+  }
+ ]
+}

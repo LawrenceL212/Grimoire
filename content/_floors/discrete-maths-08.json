@@ -1,0 +1,855 @@
+{
+ "n": 8,
+ "name": "The Chamber of Weighted Doors",
+ "concepts": [
+  "sample-space",
+  "equally-likely-outcomes",
+  "addition-rule",
+  "multiplication-rule",
+  "conditional-probability",
+  "independence",
+  "bayes-theorem",
+  "base-rate"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "problem-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Chance, Evidence, and the Trap in the Denominator",
+  "sections": [
+   {
+    "title": "Sample Spaces, Events, and Equally Likely Outcomes",
+    "body": "A **sample space** $S$ is the set of every outcome an experiment can produce, and an **event** is any subset $A \\subseteq S$. Fixing $S$ first is the whole discipline of the subject: almost every wrong probability answer is a correct answer to a different sample space.\n\nWhen the outcomes of a finite $S$ are **equally likely**, probability collapses into counting, $P(A) = \\frac{|A|}{|S|}$, so every counting technique you already own is now a probability tool.\n\nTwo consequences follow at once: $P(S) = 1$ and $P(\\emptyset) = 0$. Since $A$ and its complement $\\overline{A}$ partition $S$, the **complement rule** $P(\\overline{A}) = 1 - P(A)$ always holds - often the cheapest route, because \"at least one\" is usually far harder to count than \"none\".",
+    "code": "Experiment: roll two fair dice, one red and one blue.\n\nSample space S = every ordered pair (red, blue). The grid shows the SUM\nof each outcome, but the outcome itself is the pair.\n\n          blue: 1   2   3   4   5   6\n   red 1        2   3   4   5   6   7\n   red 2        3   4   5   6   7   8\n   red 3        4   5   6   7   8   9\n   red 4        5   6   7   8   9  10\n   red 5        6   7   8   9  10  11\n   red 6        7   8   9  10  11  12\n\n|S| = 6 * 6 = 36 outcomes, and every one of them is equally likely.\n\nA = \"the sum is 7\"  = {(1,6),(2,5),(3,4),(4,3),(5,2),(6,1)}\n|A| = 6        P(A) = 6/36 = 1/6\n\nB = \"the sum is 12\" = {(6,6)}\n|B| = 1        P(B) = 1/36\n\nComplement rule:  P(the sum is not 7) = 1 - 1/6 = 5/6",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The outcome is the ordered pair, not the sum - (2,5) and (5,2) are two different outcomes that happen to share a total."
+     },
+     {
+      "line": 14,
+      "text": "Equally likely is an assumption about the dice, not a theorem. It is what licenses P(A) = |A| / |S|."
+     },
+     {
+      "line": 22,
+      "text": "Six outcomes counted directly, or thirty counted by subtraction - always count the smaller side."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Roll one fair die. Complete the computation for the event $A =$ \"the roll is even\". Give the final probability as a fraction in lowest terms.",
+     "template": "S = {1,2,3,4,5,6}     |S| = ___\nA = {2,4,6}           |A| = ___\nP(A) = |A| / |S| = ___",
+     "blanks": [
+      "6",
+      "3",
+      "1/2"
+     ],
+     "concepts": [
+      "sample-space",
+      "equally-likely-outcomes"
+     ],
+     "explain": "The formula $P(A) = \\frac{|A|}{|S|}$ is legal only because the six faces are equally likely; on a loaded die those same two counts would give the wrong answer. Naming $S$ before counting $A$ is what keeps the denominator honest."
+    }
+   },
+   {
+    "title": "The Addition Rule and Its Correction Term",
+    "body": "For a union you cannot simply add, because any outcome lying in both events would be counted twice. The **addition rule** repairs that with one subtraction: $$P(A \\cup B) = P(A) + P(B) - P(A \\cap B).$$\n\nWhen $A$ and $B$ are **disjoint** (mutually exclusive) the intersection is empty, the correction term is $0$, and the rule simplifies to $P(A \\cup B) = P(A) + P(B)$. That simplification is a special case, never the default.\n\nThis is inclusion-exclusion again, weighted by probability instead of raw counts. A cheap sanity check comes with it: probabilities never exceed $1$, so if adding two of them takes you past $1$ you have certainly dropped a correction term.",
+    "code": "Draw one card from a standard 52-card deck. All 52 outcomes equally likely.\n\n   H = \"the card is a heart\"        |H| = 13\n   F = \"the card is a face card\"    |F| = 12   (J, Q, K in four suits)\n   H and F together = {J-heart, Q-heart, K-heart}   |H and F| = 3\n\nNaive addition double-counts those three cards:\n   13 + 12 = 25, but only 22 distinct cards are a heart or a face card.\n\nAddition rule (inclusion-exclusion for two events):\n   P(H or F) = P(H) + P(F) - P(H and F)\n             = 13/52 + 12/52 - 3/52\n             = 22/52 = 11/26\n\nSpecial case - disjoint events. Let T = \"the card is a spade\".\n   H and T is impossible, so P(H and T) = 0 and the correction vanishes:\n   P(H or T) = 13/52 + 13/52 = 26/52 = 1/2",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "13 + 12 = 25 counts the three heart face cards in both totals; the correction removes exactly one copy of each."
+     },
+     {
+      "line": 11,
+      "text": "Subtract the intersection once, not twice - afterwards every qualifying card is counted exactly once."
+     },
+     {
+      "line": 16,
+      "text": "Disjoint is a property of the events, not a convenience: a card cannot be a heart and a spade, so the term is genuinely zero."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Roll two fair dice. Let $D =$ \"both dice show the same number\" and $T =$ \"the sum is at least 10\". Work through $P(D \\cup T)$. Give the first three as fractions over 36, and the last in lowest terms.",
+     "steps": [
+      {
+       "label": "P(D)",
+       "expected": "6/36"
+      },
+      {
+       "label": "P(T)",
+       "expected": "6/36"
+      },
+      {
+       "label": "P(D and T)",
+       "expected": "2/36"
+      },
+      {
+       "label": "P(D or T), lowest terms",
+       "expected": "5/18"
+      }
+     ],
+     "concepts": [
+      "addition-rule"
+     ],
+     "explain": "Only $(5,5)$ and $(6,6)$ satisfy both events, so the naive $12/36$ overcounts by exactly those two outcomes. Dropping the correction here inflates the answer by a fifth - large enough to matter, small enough to look plausible."
+    }
+   },
+   {
+    "title": "Conditioning, the Multiplication Rule, and Independence",
+    "body": "**Conditional probability** is a new sample space rather than a new formula: learning that $B$ occurred deletes every outcome outside $B$ and rescales what is left, giving $$P(A \\mid B) = \\frac{P(A \\cap B)}{P(B)}, \\qquad P(B) > 0.$$\n\nMultiplying through yields the **multiplication rule** $P(A \\cap B) = P(B)\\,P(A \\mid B)$, which is how sequential experiments are computed - drawing without replacement, one stage at a time.\n\n$A$ and $B$ are **independent** exactly when $P(A \\cap B) = P(A)P(B)$, equivalently when $P(A \\mid B) = P(A)$: knowing $B$ tells you nothing about $A$. Independence is an arithmetic coincidence you must verify, never something to assume because two events feel unrelated - and it is not disjointness, since disjoint events of positive probability are as **dependent** as events get.",
+    "code": "Two dice again. Condition on C = \"the red die shows an even number\".\n\nUnconditional:  P(sum = 8) = 5/36     {(2,6),(3,5),(4,4),(5,3),(6,2)}\n\nConditioning throws away every outcome outside C and renormalises:\n   |C| = 18 outcomes survive (red in {2,4,6}, blue anything)\n   of those, sum = 8 happens for (2,6), (4,4), (6,2)  ->  3 outcomes\n\n   P(sum = 8 | C) = P(sum = 8 and C) / P(C) = (3/36) / (18/36) = 3/18 = 1/6\n\nMultiplication rule, read right to left: P(A and B) = P(B) * P(A | B)\n   Two cards, no replacement:  P(both aces) = (4/52) * (3/51) = 1/221\n\nIndependence test - compare P(A and B) against P(A) * P(B):\n   A = \"red die is 3\", D = \"sum is 7\":  1/36  vs  (1/6)(1/6) = 1/36   INDEPENDENT\n   A = \"red die is 3\", E = \"sum is 8\":  1/36  vs  (1/6)(5/36) = 5/216 DEPENDENT",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The denominator moved from 36 to 18 - conditioning is renormalisation, which is why P(A | B) may be larger or smaller than P(A)."
+     },
+     {
+      "line": 12,
+      "text": "The 3/51 already assumes the first ace is gone; that is the conditional factor doing its job."
+     },
+     {
+      "line": 16,
+      "text": "Same event A, two different partners, two different verdicts - independence is a property of the pair, never of one event alone."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Roll one fair die. $A =$ \"the roll is even\" and $B =$ \"the roll is at most 2\". Complete the independence test: fractions in lowest terms, and the verdict as one word (independent or dependent).",
+     "template": "P(A) = 1/2      P(B) = 1/3\nA and B = {2}, so P(A and B) = ___\nP(A) * P(B) = ___\nVerdict: A and B are ___",
+     "blanks": [
+      "1/6",
+      "1/6",
+      "independent"
+     ],
+     "concepts": [
+      "independence"
+     ],
+     "explain": "The two sides agree, so the events are independent even though both describe the very same roll - independence lives in the arithmetic, not in causal separation. Widen $B$ to \"at most 3\" and the identical physical setup now fails the test."
+    }
+   },
+   {
+    "title": "Bayes Theorem and the Base-Rate Trap",
+    "body": "Writing $P(A \\cap B)$ two ways and equating them gives **Bayes theorem**, the rule for reversing a conditional: $$P(A \\mid B) = \\frac{P(B \\mid A)\\,P(A)}{P(B)}.$$\n\nThe denominator is normally rebuilt with the **law of total probability**, $P(B) = P(B \\mid A)P(A) + P(B \\mid \\overline{A})P(\\overline{A})$ - the addition rule applied to the two disjoint ways $B$ can happen.\n\nNow the famous trap. A 99% accurate test for a disease affecting 1 person in 1000 returns a positive result that is wrong about **95% of the time**. Nothing is broken: the healthy group is 999 times larger, so its small false-positive rate still produces twenty times more positives than the tiny sick group does.\n\nThe **base rate** $P(A)$ multiplies the whole numerator, and ignoring it is the most common probability error made outside a classroom.",
+    "code": "A disease affects 1 person in 1000. The test has 99% sensitivity\n(a sick person tests positive 99% of the time) and 98% specificity\n(a healthy person tests negative 98% of the time, so 2% false positives).\n\nImagine 100,000 people and just count them.\n\n                     test +      test -        total\n   has disease           99           1           100\n   healthy            1,998      97,902        99,900\n                    -------                  --------\n   total +            2,097                   100,000\n\n   P(disease | test +) = 99 / 2097 = 11/233 = 4.7%\n\nThe same numbers through Bayes theorem:\n\n   P(D | +) = P(+ | D) P(D) / [ P(+ | D) P(D) + P(+ | not D) P(not D) ]\n            = (0.99)(0.001) / [ (0.99)(0.001) + (0.02)(0.999) ]\n            = 0.00099 / 0.02097 = 0.0472\n\nThe 1,998 false positives are drawn from a group 999 times larger than\nthe sick group. That size ratio - the base rate - beats the 99% accuracy.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "100 sick people, 99 of whom test positive - the sensitivity is doing exactly what it promised."
+     },
+     {
+      "line": 9,
+      "text": "2% of 99,900 is 1,998 false positives, twenty times the true positives. This row is the entire paradox."
+     },
+     {
+      "line": 13,
+      "text": "Counting whole people is Bayes theorem with the denominators cleared - identical answer, far harder to get wrong."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A factory has two machines. Machine A makes 60% of the items and 2% of them are defective; machine B makes the other 40% and 5% of them are defective. An item is chosen at random and is defective. What is the probability it came from machine A? Show the law-of-total-probability denominator, and give the answer as a fraction in lowest terms.",
+     "xp": 50,
+     "concepts": [
+      "bayes-theorem"
+     ],
+     "rubric": {
+      "required": [
+       "3/8",
+       "0.032",
+       "defective"
+      ],
+      "optional": [
+       "Bayes",
+       "total probability",
+       "0.012",
+       "0.02",
+       "posterior",
+       "prior"
+      ],
+      "minWords": 35
+     },
+     "explain": "Machine A makes more items while B makes proportionally more defects, and those two pulls run in opposite directions - which is exactly why $3/8$ lands below A's $60\\%$ share yet nowhere near zero. The denominator $0.012 + 0.020 = 0.032$ is the overall defect rate, and every Bayes problem is ultimately a fight over what belongs in that denominator."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-8-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Two fair dice are rolled. Complete the count for $A =$ \"the sum is 7\". Enter whole numbers in the first two blanks and fractions in lowest terms in the last two.",
+   "template": "|S| = 6 * 6 = ___\nA = {(1,6),(2,5),(3,4),(4,3),(5,2),(6,1)}, so |A| = ___\nP(A) = |A| / |S| = ___\nP(the sum is not 7) = ___",
+   "blanks": [
+    "36",
+    "6",
+    "1/6",
+    "5/6"
+   ],
+   "concepts": [
+    "sample-space",
+    "equally-likely-outcomes"
+   ],
+   "tags": [
+    "sample-space",
+    "equally-likely-outcomes",
+    "complement-rule"
+   ],
+   "explain": "Seven is the most likely total precisely because it has the most ordered pairs producing it - the probability follows the count, and the count follows the choice of $S$. The last blank is the complement rule saving you from enumerating thirty outcomes.",
+   "hint": "The outcome is an ordered pair, so (3,4) and (4,3) are distinct members of $A$."
+  },
+  {
+   "id": "dm-8-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "xp": 40,
+   "prompt": "One card is drawn from a standard 52-card deck. Let $H =$ \"heart\" and $F =$ \"face card (J, Q, K)\". Walk the addition rule through to $P(H \\cup F)$. Give the first three as fractions over 52 and the last in lowest terms.",
+   "steps": [
+    {
+     "label": "P(H)",
+     "expected": "13/52"
+    },
+    {
+     "label": "P(F)",
+     "expected": "12/52"
+    },
+    {
+     "label": "P(H and F)",
+     "expected": "3/52"
+    },
+    {
+     "label": "P(H or F), lowest terms",
+     "expected": "11/26"
+    }
+   ],
+   "concepts": [
+    "addition-rule"
+   ],
+   "tags": [
+    "addition-rule",
+    "inclusion-exclusion"
+   ],
+   "explain": "The jack, queen and king of hearts belong to both events, so adding $13 + 12$ counts them twice and the subtraction restores each to a single count. Twenty-two distinct cards over fifty-two reduces to $11/26$, which is comfortably below the $25/52$ the naive sum would claim.",
+   "hint": "There are exactly three cards that are both a heart and a face card."
+  },
+  {
+   "id": "dm-8-g-03",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Two fair dice are rolled. Compute $P(\\text{sum} = 8)$ and then $P(\\text{sum} = 8 \\mid \\text{the first die is even})$. State how many outcomes survive the conditioning, give both probabilities as fractions in lowest terms, and say whether the evidence made the sum of 8 more or less likely.",
+   "concepts": [
+    "conditional-probability"
+   ],
+   "tags": [
+    "conditional-probability",
+    "sample-space"
+   ],
+   "rubric": {
+    "required": [
+     "5/36",
+     "18",
+     "1/6",
+     "more likely"
+    ],
+    "optional": [
+     "conditional",
+     "renormalise",
+     "renormalize",
+     "3",
+     "denominator",
+     "(4,4)"
+    ],
+    "minWords": 40
+   },
+   "explain": "Conditioning shrank the sample space from 36 outcomes to 18 and kept 3 of the 5 favourable ones, so the ratio rose from $5/36$ to $3/18 = 1/6$. The lesson is that evidence is not automatically bad news for an event - it reweights, and the direction depends entirely on how much of the favourable set survives.",
+   "hint": "The surviving outcomes are those with first die in $\\{2,4,6\\}$; among them find every pair summing to 8."
+  },
+  {
+   "id": "dm-8-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Two cards are drawn from a standard deck without replacement. Complete the multiplication-rule computation for \"both cards are aces\". Enter whole numbers in the first three blanks and a fraction in lowest terms in the last.",
+   "template": "P(first is an ace) = 4/___\nP(second is an ace | first was an ace) = ___/___\nP(both aces) = (4/52) * (3/51) = ___",
+   "blanks": [
+    "52",
+    "3",
+    "51",
+    "1/221"
+   ],
+   "concepts": [
+    "multiplication-rule"
+   ],
+   "tags": [
+    "multiplication-rule",
+    "conditional-probability"
+   ],
+   "explain": "Both the numerator and the denominator drop by one because the first ace has left the deck - that shrinking denominator is exactly what makes the second factor conditional rather than independent. With replacement it would be $(4/52)^2 = 1/169$, a visibly larger number.",
+   "hint": "After one ace is removed there are 3 aces left among 51 cards."
+  },
+  {
+   "id": "dm-8-g-05",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "A classmate claims that because two events cannot both happen, they must be independent. Explain why mutually exclusive events with non-zero probabilities are in fact dependent, and give the test that settles the question.",
+   "concepts": [
+    "independence"
+   ],
+   "tags": [
+    "independence",
+    "mutually-exclusive"
+   ],
+   "rubric": {
+    "required": [
+     "independent",
+     "mutually exclusive",
+     "zero"
+    ],
+    "optional": [
+     "disjoint",
+     "product",
+     "conditional",
+     "positive",
+     "dependent",
+     "intersection"
+    ],
+    "minWords": 45
+   },
+   "explain": "Disjointness makes $P(A \\cap B) = 0$ while $P(A)P(B) > 0$, so the defining equation fails as loudly as it can - and intuitively, learning that $B$ happened tells you $A$ definitely did not, which is maximum information rather than none. The test is always the same: compare $P(A \\cap B)$ with $P(A)P(B)$ and believe the arithmetic.",
+   "hint": "What is $P(A \\mid B)$ when $A$ and $B$ cannot both occur?"
+  }
+ ],
+ "problem-set": [
+  {
+   "id": "dm-8-p-01",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "An urn holds 5 red and 3 blue balls. Two are drawn without replacement. Compute (a) $P(\\text{both red})$ and (b) $P(\\text{the second ball is red})$, both as fractions in lowest terms. For (b), use the law of total probability over the colour of the first ball, and comment on the result.",
+   "concepts": [
+    "multiplication-rule",
+    "conditional-probability"
+   ],
+   "tags": [
+    "multiplication-rule",
+    "conditional-probability",
+    "total-probability"
+   ],
+   "rubric": {
+    "required": [
+     "replacement",
+     "5/14",
+     "5/8"
+    ],
+    "optional": [
+     "conditional",
+     "total probability",
+     "4/7",
+     "3/8",
+     "symmetry",
+     "multiplication"
+    ],
+    "minWords": 45
+   },
+   "explain": "Part (b) lands on $5/8$, exactly $P(\\text{first is red})$ - unconditionally the second draw is as likely to be red as the first, because nothing has been observed to break the symmetry between positions. That is the standard shock of this problem: the draws are dependent, yet the marginal probabilities are identical.",
+   "hint": "For (b): $P(R_2) = P(R_1)P(R_2 \\mid R_1) + P(B_1)P(R_2 \\mid B_1)$."
+  },
+  {
+   "id": "dm-8-p-02",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "A family has two children, and each child is independently a boy or a girl with probability $\\frac{1}{2}$. Given that at least one child is a boy, what is the probability that both are boys? Write out the sample space, state which outcomes the evidence eliminates, and give the answer as a fraction in lowest terms.",
+   "concepts": [
+    "conditional-probability",
+    "sample-space"
+   ],
+   "tags": [
+    "conditional-probability",
+    "sample-space",
+    "equally-likely-outcomes"
+   ],
+   "rubric": {
+    "required": [
+     "1/3",
+     "conditional",
+     "at least one"
+    ],
+    "optional": [
+     "BB",
+     "BG",
+     "GB",
+     "GG",
+     "four",
+     "equally likely",
+     "3/4",
+     "1/4"
+    ],
+    "minWords": 40
+   },
+   "explain": "The evidence removes only GG, leaving three equally likely outcomes of which one is BB - the tempting answer $1/2$ silently assumes a specific child was named, which the phrase \"at least one\" never does. This is the cleanest demonstration that a conditional probability is decided by the surviving sample space, not by intuition about the other child.",
+   "hint": "List BB, BG, GB, GG and cross out what \"at least one boy\" forbids."
+  },
+  {
+   "id": "dm-8-p-03",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Two fair dice are rolled. Let $A =$ \"the first die shows 3\", $D =$ \"the sum is 7\", $E =$ \"the sum is 8\". Decide whether $A$ and $D$ are independent, and whether $A$ and $E$ are independent. Show the product test with exact fractions for both pairs.",
+   "concepts": [
+    "independence"
+   ],
+   "tags": [
+    "independence",
+    "conditional-probability"
+   ],
+   "rubric": {
+    "required": [
+     "independent",
+     "1/36",
+     "5/216"
+    ],
+    "optional": [
+     "5/36",
+     "1/6",
+     "product",
+     "dependent",
+     "test",
+     "P(A)P(B)"
+    ],
+    "minWords": 45
+   },
+   "explain": "$A$ and $D$ pass because 7 is the one total reachable from every first-die value, so knowing the first die leaves the chance of a 7 at $1/6$; for a sum of 8 the first die matters, since a 1 makes it impossible. Independence therefore depends on the specific numbers, not on any general fact about \"the first die\" versus \"the sum\".",
+   "hint": "$P(D) = 6/36$ and $P(E) = 5/36$; both intersections with $A$ contain exactly one outcome."
+  },
+  {
+   "id": "dm-8-p-04",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Put these steps in order to derive Bayes theorem from the definition of conditional probability, ending with the form whose denominator is expanded for computation.",
+   "fragments": [
+    "Apply the same definition the other way round: $P(B \\mid A) = \\frac{P(A \\cap B)}{P(A)}$, valid when $P(A) > 0$.",
+    "Conclude $P(A \\mid B) = \\frac{P(B \\mid A)\\,P(A)}{P(B)}$.",
+    "Start from the definition $P(A \\mid B) = \\frac{P(A \\cap B)}{P(B)}$, valid when $P(B) > 0$.",
+    "Substitute that expression for $P(A \\cap B)$ into the first equation.",
+    "Rearrange the second equation into $P(A \\cap B) = P(B \\mid A)\\,P(A)$.",
+    "Expand the denominator by the law of total probability: $P(B) = P(B \\mid A)P(A) + P(B \\mid \\overline{A})P(\\overline{A})$."
+   ],
+   "answer": [
+    2,
+    0,
+    4,
+    3,
+    1,
+    5
+   ],
+   "concepts": [
+    "bayes-theorem"
+   ],
+   "tags": [
+    "bayes-theorem",
+    "conditional-probability",
+    "total-probability"
+   ],
+   "explain": "Bayes theorem is not an extra axiom - it is the single quantity $P(A \\cap B)$ written with two different denominators and the equation solved. Seeing that makes the final expansion feel inevitable: $P(B)$ is rarely given directly, so it must be rebuilt from the two disjoint routes to $B$.",
+   "hint": "Both conditional statements are about the same intersection."
+  },
+  {
+   "id": "dm-8-p-05",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "A disease affects 1 person in 1000. A test has 99% sensitivity and 98% specificity. A randomly chosen person tests positive. Compute $P(\\text{disease} \\mid \\text{positive})$. Work with a population of 100,000: report the number of true positives, the number of false positives, and the final probability as a percentage rounded to one decimal place.",
+   "concepts": [
+    "bayes-theorem",
+    "base-rate"
+   ],
+   "tags": [
+    "bayes-theorem",
+    "base-rate",
+    "conditional-probability"
+   ],
+   "rubric": {
+    "required": [
+     "4.7",
+     "false positive",
+     "base rate"
+    ],
+    "optional": [
+     "99",
+     "1998",
+     "2097",
+     "prevalence",
+     "sensitivity",
+     "specificity",
+     "Bayes",
+     "11/233"
+    ],
+    "minWords": 45
+   },
+   "explain": "The 99 true positives are swamped by 1,998 false ones, so the posterior is $99/2097 \\approx 4.7\\%$ - a test that is right 99% of the time on the sick and 98% of the time on the healthy still yields a positive that is usually wrong. The reason is arithmetic, not a flaw in the test: a small error rate applied to a huge healthy population outproduces a large hit rate applied to a tiny sick one.",
+   "hint": "Of 100,000 people, 100 have the disease and 99,900 do not. Fill in both rows before dividing."
+  },
+  {
+   "id": "dm-8-p-06",
+   "type": "proof",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Prove that if $A$ and $B$ are independent, then $A$ and $\\overline{B}$ are also independent. Start by splitting $A$ into its part inside $B$ and its part outside $B$, and finish by showing $P(A \\cap \\overline{B}) = P(A)P(\\overline{B})$.",
+   "concepts": [
+    "independence"
+   ],
+   "tags": [
+    "independence",
+    "complement-rule",
+    "proof"
+   ],
+   "rubric": {
+    "required": [
+     "independent",
+     "complement",
+     "disjoint"
+    ],
+    "optional": [
+     "P(A)P(B)",
+     "factor",
+     "partition",
+     "intersection",
+     "1 - P(B)",
+     "definition"
+    ],
+    "minWords": 55
+   },
+   "explain": "The engine of the proof is that $A \\cap B$ and $A \\cap \\overline{B}$ are disjoint and their union is $A$, so $P(A \\cap \\overline{B}) = P(A) - P(A)P(B) = P(A)(1 - P(B))$. That the factorisation survives complementation is what makes independence a usable structural assumption rather than a coincidence about one particular pair of events.",
+   "hint": "$P(A) = P(A \\cap B) + P(A \\cap \\overline{B})$, and independence lets you replace the first term."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-8-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "In probability, what is a **sample space**?",
+   "choices": [
+    "The set of all possible outcomes of the experiment",
+    "The subset of outcomes we are interested in",
+    "The most likely outcome of the experiment",
+    "The number of outcomes divided by the number of trials"
+   ],
+   "answer": 0,
+   "concepts": [
+    "sample-space"
+   ],
+   "tags": [
+    "sample-space"
+   ],
+   "explain": "The second option defines an event, which is a subset of the sample space - conflating the two is what produces the wrong denominator. Everything downstream, including every conditional probability, is computed relative to a sample space that must be pinned down first."
+  },
+  {
+   "id": "dm-8-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "Two events $A$ and $B$ are **independent** precisely when which condition holds?",
+   "choices": [
+    "$P(A \\cap B) = P(A)P(B)$",
+    "$P(A \\cap B) = 0$",
+    "$P(A \\cup B) = P(A) + P(B)$",
+    "$P(A) = P(B)$"
+   ],
+   "answer": 0,
+   "concepts": [
+    "independence"
+   ],
+   "tags": [
+    "independence",
+    "mutually-exclusive"
+   ],
+   "explain": "Options two and three both describe mutually exclusive events, which are the opposite of independent whenever both probabilities are positive. Independence is a multiplicative statement about the intersection; disjointness is an additive statement about the union."
+  },
+  {
+   "id": "dm-8-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Two fair dice are rolled. $A =$ \"the sum is 7\" and $B =$ \"the first die shows 2\". Complete the addition rule. Enter whole numbers only.",
+   "template": "P(A) = 6/36\nP(B) = ___/36\nA and B holds only for (2,5), so P(A and B) = ___/36\nP(A or B) = (6 + 6 - ___)/36 = ___/36",
+   "blanks": [
+    "6",
+    "1",
+    "1",
+    "11"
+   ],
+   "concepts": [
+    "addition-rule"
+   ],
+   "tags": [
+    "addition-rule",
+    "sample-space"
+   ],
+   "explain": "The single shared outcome $(2,5)$ is what separates the correct $11/36$ from the naive $12/36$ - one outcome, but it is the whole point of the rule. Every union computation should begin by asking which outcomes satisfy both events."
+  },
+  {
+   "id": "dm-8-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Two fair dice are rolled. Order these steps into a correct complement-rule computation of $P(\\text{at least one die shows a 6})$.",
+   "fragments": [
+    "Count the complement: each die has 5 non-six faces, so $|\\overline{A}| = 5 \\times 5 = 25$.",
+    "Let $A =$ \"at least one die shows a 6\", so $\\overline{A} =$ \"neither die shows a 6\".",
+    "Apply the complement rule: $P(A) = 1 - \\frac{25}{36} = \\frac{11}{36}$.",
+    "Fix the sample space: ordered pairs, so $|S| = 36$ equally likely outcomes.",
+    "Therefore $P(\\overline{A}) = \\frac{25}{36}$."
+   ],
+   "answer": [
+    3,
+    1,
+    0,
+    4,
+    2
+   ],
+   "concepts": [
+    "equally-likely-outcomes",
+    "addition-rule"
+   ],
+   "tags": [
+    "equally-likely-outcomes",
+    "complement-rule",
+    "sample-space"
+   ],
+   "explain": "Counting $A$ directly invites the classic error $6 + 6 = 12$, which double-counts $(6,6)$; the complement has no overlap to worry about and needs one multiplication. \"At least one\" is almost always a signal to negate the event before counting anything."
+  },
+  {
+   "id": "dm-8-x-05",
+   "type": "trace",
+   "layer": "application",
+   "xp": 40,
+   "prompt": "A disease affects 1% of a population. A test has 95% sensitivity and 90% specificity. Using a population of 10,000, trace the computation of $P(\\text{disease} \\mid \\text{positive})$. Give whole numbers for the counts and a fraction in lowest terms for the final step.",
+   "steps": [
+    {
+     "label": "Number with the disease",
+     "expected": "100"
+    },
+    {
+     "label": "Of those, number testing positive",
+     "expected": "95"
+    },
+    {
+     "label": "Number without the disease",
+     "expected": "9900"
+    },
+    {
+     "label": "Of those, number testing positive",
+     "expected": "990"
+    },
+    {
+     "label": "Total positive tests",
+     "expected": "1085"
+    },
+    {
+     "label": "P(disease | positive), lowest terms",
+     "expected": "19/217"
+    }
+   ],
+   "concepts": [
+    "bayes-theorem",
+    "base-rate"
+   ],
+   "tags": [
+    "bayes-theorem",
+    "base-rate",
+    "conditional-probability"
+   ],
+   "explain": "At roughly $8.8\\%$ the posterior is nine times the $1\\%$ base rate yet still far from a diagnosis - the evidence moved the belief a long way without moving it past doubt. Notice the false positives (990) outnumber the true ones (95) even though the disease is ten times more common here than in the lesson's example.",
+   "hint": "Build both rows of the 2x2 table before dividing anything."
+  },
+  {
+   "id": "dm-8-x-06",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "A spam filter knows that 40% of incoming email is spam. The word \"lottery\" appears in 5% of spam messages and in 0.1% of legitimate messages. A message contains the word \"lottery\". Compute the probability it is spam: show the law-of-total-probability denominator as a decimal, and give the answer as a fraction in lowest terms and as a percentage to one decimal place.",
+   "concepts": [
+    "bayes-theorem"
+   ],
+   "tags": [
+    "bayes-theorem",
+    "conditional-probability",
+    "total-probability"
+   ],
+   "rubric": {
+    "required": [
+     "100/103",
+     "97.1",
+     "0.0206"
+    ],
+    "optional": [
+     "Bayes",
+     "0.02",
+     "prior",
+     "posterior",
+     "denominator",
+     "total probability"
+    ],
+    "minWords": 40
+   },
+   "explain": "The prior of $0.4$ is unremarkable, but the likelihood ratio is $50{:}1$, and that ratio is what drags the posterior to $97.1\\%$. Set beside the medical test - same theorem, opposite conclusion - it shows the posterior is decided by base rate and likelihood ratio together, never by either one alone.",
+   "hint": "Denominator $= (0.4)(0.05) + (0.6)(0.001)$."
+  },
+  {
+   "id": "dm-8-x-07",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Urn A holds 2 red and 3 blue balls; urn B holds 4 red and 1 blue ball. An urn is chosen by a fair coin flip and one ball is drawn from it. The ball is red. Compute $P(\\text{urn A} \\mid \\text{red})$. Give $P(\\text{red})$ and the final answer as fractions in lowest terms.",
+   "concepts": [
+    "bayes-theorem",
+    "conditional-probability"
+   ],
+   "tags": [
+    "bayes-theorem",
+    "conditional-probability",
+    "total-probability"
+   ],
+   "rubric": {
+    "required": [
+     "1/3",
+     "3/5",
+     "Bayes"
+    ],
+    "optional": [
+     "total probability",
+     "2/5",
+     "4/5",
+     "prior",
+     "posterior",
+     "1/2"
+    ],
+    "minWords": 40
+   },
+   "explain": "The prior was an even $1/2$ and the red ball pushed it down to $1/3$, because urn B produces red balls twice as often - evidence shifts belief in proportion to how much better one hypothesis explains it. The denominator $3/5$ is the overall chance of red, assembled from the two disjoint routes to a red ball.",
+   "hint": "$P(\\text{red}) = \\frac{1}{2} \\cdot \\frac{2}{5} + \\frac{1}{2} \\cdot \\frac{4}{5}$."
+  },
+  {
+   "id": "dm-8-x-08",
+   "type": "problem",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Three fair coins are flipped. Given that at least one coin came up heads, what is the probability that exactly two came up heads? Give the size of the conditioned sample space and the answer as a fraction in lowest terms.",
+   "concepts": [
+    "conditional-probability",
+    "equally-likely-outcomes"
+   ],
+   "tags": [
+    "conditional-probability",
+    "equally-likely-outcomes",
+    "sample-space"
+   ],
+   "rubric": {
+    "required": [
+     "3/7",
+     "7/8",
+     "3/8"
+    ],
+    "optional": [
+     "conditional",
+     "at least one",
+     "TTT",
+     "eight",
+     "seven",
+     "complement"
+    ],
+    "minWords": 35
+   },
+   "explain": "The evidence deletes exactly one of the eight outcomes, TTT, so the denominator becomes 7 while the favourable count stays at 3 - the answer $3/7$ is slightly above the unconditional $3/8$. Whenever the evidence removes only unfavourable outcomes, the conditional probability must rise.",
+   "hint": "Only TTT is eliminated; three outcomes have exactly two heads."
+  },
+  {
+   "id": "dm-8-x-09",
+   "type": "proof",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Let $S$ be a finite sample space of equally likely outcomes and let $A, B \\subseteq S$. Prove the addition rule $P(A \\cup B) = P(A) + P(B) - P(A \\cap B)$ by a counting argument, and state what the rule reduces to when $A \\cap B = \\emptyset$.",
+   "concepts": [
+    "addition-rule"
+   ],
+   "tags": [
+    "addition-rule",
+    "inclusion-exclusion",
+    "proof"
+   ],
+   "rubric": {
+    "required": [
+     "twice",
+     "union",
+     "intersection"
+    ],
+    "optional": [
+     "inclusion-exclusion",
+     "disjoint",
+     "equally likely",
+     "|S|",
+     "subtract",
+     "counted",
+     "empty"
+    ],
+    "minWords": 55
+   },
+   "explain": "The proof is inclusion-exclusion divided through by $|S|$: an outcome in both events contributes to $|A|$ and to $|B|$, so subtracting $|A \\cap B|$ once leaves every outcome of the union counted exactly once. Because the argument is about counting, it needs the equally likely assumption to be a statement about probability at all.",
+   "hint": "Count the contribution of a single outcome to $|A| + |B|$ in each of the three possible cases."
+  },
+  {
+   "id": "dm-8-x-10",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "A newspaper reports that a screening test is \"99% accurate\", and concludes that a person who tests positive almost certainly has the condition. Explain what the report gets wrong, and what extra number a reader needs before the conclusion can be judged.",
+   "concepts": [
+    "base-rate"
+   ],
+   "tags": [
+    "base-rate",
+    "bayes-theorem",
+    "conditional-probability"
+   ],
+   "rubric": {
+    "required": [
+     "base rate",
+     "false positive",
+     "rare"
+    ],
+    "optional": [
+     "prevalence",
+     "population",
+     "Bayes",
+     "denominator",
+     "posterior",
+     "healthy",
+     "specificity"
+    ],
+    "minWords": 50
+   },
+   "explain": "\"99% accurate\" reports $P(+ \\mid \\text{disease})$, while the reader wants $P(\\text{disease} \\mid +)$, and the two differ by the base rate - which is the missing number. When the condition is rare the healthy group is so much larger that its false positives dominate the positive column, so the posterior can sit in the low single digits despite the headline accuracy."
+  }
+ ]
+}

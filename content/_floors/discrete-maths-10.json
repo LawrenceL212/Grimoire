@@ -1,0 +1,210 @@
+{
+ "n": 10,
+ "name": "The Trial of Finite Things",
+ "concepts": [
+  "exam-synthesis",
+  "proof-strategy-selection",
+  "cross-topic-transfer",
+  "answer-verification",
+  "timed-problem-solving"
+ ],
+ "cognitiveLevel": "boss",
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "title": "Before You Open the Paper",
+  "sections": [
+   {
+    "title": "What the Trial Asks For",
+    "body": "The Trial is **one unseen problem set of eight problems, ninety marks, ninety minutes** - one mark a minute, which is the only pacing rule you need. Nothing here is new material: every problem is assembled from the nine floors you have already cleared, but no problem announces which floor it came from.\n\nMarks are for **argument**, not for the final number. A correct answer with no justification scores a fraction of a fully reasoned one, and a wrong final number reached by a clearly correct method keeps most of its marks - so write the method down even when the arithmetic collapses.\n\nWrite every answer as prose plus symbols: name the technique you are using, state what you assume, and end with the claim you set out to prove. If a problem has a numeric answer, put it on its own line so the self-check list at the bottom of the paper can confirm it.",
+    "code": "THE TRIAL - 8 problems, 90 marks, 90 minutes\n\n  #  topic                                 marks   target time\n  1  sets, inclusion-exclusion                10       10 min\n  2  propositional logic, truth tables         8        8 min\n  3  proof technique: contraposition          12       12 min\n     and contradiction\n  4  induction on a summation formula         12       12 min\n  5  number theory: gcd, inverses, powers     12       12 min\n  6  relations and equivalence classes        10       10 min\n  7  graphs: degrees and colouring            10       10 min\n  8  counting and probability                 16       16 min\n                                            -----      ------\n                                               90       90 min\n\nMARKING, per problem\n  ~60%  a correct and complete argument\n  ~25%  the right technique, named and set up\n  ~15%  the final answer, stated explicitly\n\nSo: a named technique + a wrong number  >  a right number + silence.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "One mark per minute. If a 10-mark problem has eaten 20 minutes, leave it and come back - the marks are not there any more."
+     },
+     {
+      "line": 18,
+      "text": "The three-line marking split is why an abandoned problem should still carry a sentence naming the technique you would have used."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the five parts of a written induction proof into the order a marker expects to read them.",
+     "fragments": [
+      "State the proposition $P(n)$ precisely, and say which $n$ it ranges over.",
+      "Base case: verify $P(1)$ by direct computation.",
+      "Inductive hypothesis: assume $P(k)$ holds for an arbitrary fixed $k \\ge 1$.",
+      "Inductive step: derive $P(k+1)$, marking the line where the hypothesis is used.",
+      "Conclude: by the principle of induction, $P(n)$ holds for all $n \\ge 1$."
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4
+     ],
+     "xp": 20,
+     "explain": "The order is not decoration - it is what makes the argument checkable. The hypothesis has to be stated before the step that consumes it, or a reader cannot tell whether you assumed $P(k)$ or quietly assumed $P(k+1)$, which is the commonest way an induction proof silently begs the question.",
+     "tags": [
+      "proof-strategy-selection",
+      "exam-synthesis"
+     ],
+     "concepts": [
+      "proof-strategy-selection"
+     ]
+    }
+   },
+   {
+    "title": "Choosing the Shape of the Argument",
+    "body": "Most lost marks in a timed paper are not arithmetic - they are three minutes spent pushing a **direct proof** at a claim whose hypothesis is useless. The shape of the claim tells you the shape of the proof, and there are only five shapes worth reaching for.\n\nA universal claim over $\\mathbb{N}$ invites **induction**. An implication whose conclusion is easier to negate than its hypothesis is to use invites **contraposition**, since $P \\Rightarrow Q$ and $\\neg Q \\Rightarrow \\neg P$ are the same statement. A claim that no object exists invites **contradiction**: assume one does and derive an impossibility.\n\nTwo more: a claim of the form $\\forall x,\\ P(x)$ is destroyed by a single **counterexample**, and a claim that two finite sets have equal size is often cleanest as a **bijection**. Pick the shape in the first thirty seconds, write its name down, and the rest of the problem becomes bookkeeping.",
+    "code": "PICKING THE SHAPE - read the claim, not the topic\n\n  claim looks like                          reach for\n  ----------------------------------------  --------------------\n  for all n >= 1, P(n)                      induction\n  P => Q, and ~Q is the easy end to hold    contraposition\n  no x has property P / x is irrational     contradiction\n  for all x, P(x)   (and you doubt it)      one counterexample\n  |A| = |B|, both finite                    a bijection A -> B\n\nWORKED: for every integer n, if n^2 is even then n is even.\n\n  direct:          n^2 = 2k  =>  n = sqrt(2k)   ... stuck, no integers here\n  contrapositive:  if n is odd then n^2 is odd\n                   n = 2m + 1\n                   n^2 = 4m^2 + 4m + 1 = 2(2m^2 + 2m) + 1   -> odd\n                   done, and it took three lines\n\nThe two statements are logically identical, so proving the second\nproves the first. Nothing was lost by turning the claim around.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "The direct attempt fails for a structural reason: an even square hands you a square root, and square roots leave the integers. That is the signal to turn the claim around."
+     },
+     {
+      "line": 14,
+      "text": "Odd is a constructive hypothesis - it hands you the witness $m$ immediately. That is almost always why the contrapositive is the easier direction."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the technique-selection table. One word per blank, drawn from: induction, contrapositive, contradiction, counterexample.",
+     "template": "for all $n \\ge 1$, $P(n)$   ->   prove by ___\n$P \\Rightarrow Q$, with $\\neg Q$ the easier end to grab   ->   prove the ___\nno object with the stated property exists   ->   prove by ___\nthe claim $\\forall x,\\ P(x)$ is false   ->   exhibit one ___",
+     "blanks": [
+      "induction",
+      "contrapositive",
+      "contradiction",
+      "counterexample"
+     ],
+     "xp": 20,
+     "explain": "Contraposition and contradiction get confused under time pressure because both open by negating something. The difference is what gets negated: contraposition negates only the conclusion and stays a direct argument, while contradiction negates the whole claim and must end at an explicit impossibility. If your contradiction never reaches an absurdity, it was a contrapositive all along.",
+     "tags": [
+      "proof-strategy-selection",
+      "cross-topic-transfer"
+     ],
+     "concepts": [
+      "proof-strategy-selection"
+     ]
+    }
+   },
+   {
+    "title": "Checking an Answer You Cannot Run",
+    "body": "Nothing executes in this dungeon, so **verification is a step you write, not a button you press**. Every closed form you derive can be tested against a small case in under a minute, and a formula that fails at $n = 1$ has just saved you the twelve marks you were about to lose.\n\nThe cheap checks are worth memorising. A probability must land in $[0, 1]$; a count must be a non-negative integer; a residue modulo $m$ must lie in $\\{0, 1, \\dots, m-1\\}$; an inclusion-exclusion total can never exceed $|U|$; the edge count implied by a degree sum must come out whole.\n\nWhen a check fails, the fastest repair is to re-derive the smallest case by hand rather than to re-read the algebra. Budget the last five minutes of the ninety for exactly this sweep across all eight answers.",
+    "code": "VERIFY A CLOSED FORM BY TESTING SMALL n\n\nclaim:  sum_{i=1..n} i * 2^i  =  (n - 1) * 2^(n+1) + 2\n\n  n = 1   left:  1*2                       = 2\n          right: (1-1) * 2^2 + 2 = 0 + 2   = 2      agree\n\n  n = 2   left:  1*2 + 2*4                 = 10\n          right: (2-1) * 2^3 + 2 = 8 + 2   = 10     agree\n\n  n = 3   left:  1*2 + 2*4 + 3*8           = 34\n          right: (3-1) * 2^4 + 2 = 32 + 2  = 34     agree\n\nTwo agreeing cases are not a proof. But one DISagreeing case is a\ndisproof, and it costs thirty seconds to look for.\n\nCHEAP SANITY CHECKS\n  probability in [0,1]      |  count is a non-negative integer\n  residue mod m in [0,m-1]  |  |A u B u C| <= |U|\n  sum of degrees is even    |  edges = (sum of degrees) / 2 is whole",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "$n = 1$ is where a mis-stated closed form fails first: an off-by-one in the exponent or the constant shows up immediately at the smallest input."
+     },
+     {
+      "line": 14,
+      "text": "This asymmetry is the whole point. Testing cases can only refute, never confirm, so it belongs in front of the proof as a filter rather than in place of it."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Verify the closed form $\\sum_{i=1}^{n} i \\cdot 2^i = (n-1)2^{n+1} + 2$ at two small values of $n$. Give each value as a plain integer, and answer the last step with yes or no.",
+     "steps": [
+      {
+       "label": "the sum $\\sum_{i=1}^{1} i \\cdot 2^i$",
+       "expected": "2"
+      },
+      {
+       "label": "the closed form at $n = 1$, that is $(1-1)2^{2} + 2$",
+       "expected": "2"
+      },
+      {
+       "label": "the sum $\\sum_{i=1}^{3} i \\cdot 2^i$",
+       "expected": "34"
+      },
+      {
+       "label": "the closed form at $n = 3$, that is $(3-1)2^{4} + 2$",
+       "expected": "34"
+      },
+      {
+       "label": "has the formula survived both tests? (yes / no)",
+       "expected": "yes"
+      }
+     ],
+     "xp": 40,
+     "explain": "Agreement at $n = 1$ and $n = 3$ establishes nothing about $n = 40$, since infinitely many false formulas pass any finite sample. What the check buys is asymmetric: it cannot confirm the claim, but it can kill a mis-copied one before you spend twelve marks' worth of time inducting on it.",
+     "tags": [
+      "answer-verification",
+      "timed-problem-solving"
+     ],
+     "concepts": [
+      "answer-verification"
+     ]
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "dm-10-t-01",
+   "type": "problem",
+   "layer": "application",
+   "xp": 300,
+   "tags": [
+    "exam-synthesis",
+    "proof-strategy-selection",
+    "cross-topic-transfer",
+    "answer-verification",
+    "timed-problem-solving"
+   ],
+   "concepts": [
+    "exam-synthesis",
+    "proof-strategy-selection",
+    "cross-topic-transfer",
+    "answer-verification",
+    "timed-problem-solving"
+   ],
+   "prompt": "**THE TRIAL. Eight problems, 90 marks, 90 minutes.** Work in one continuous sitting, closed book. Answer every part in the one answer box, numbered `1(a)`, `1(b)`, and so on. Marks are for the argument: name your technique, state your assumptions, and put each numeric answer on its own line. The self-check list at the foot of the paper holds the required final answers - do not read it until you have finished.\n\n**Problem 1 - Sets and inclusion-exclusion (10 marks).** Let $U = \\{1, 2, \\dots, 30\\}$, and inside $U$ let $A$ be the multiples of $2$, $B$ the multiples of $3$, and $C$ the multiples of $5$.\n\n- (a) Compute $|A \\cup B \\cup C|$ by inclusion-exclusion, showing all seven terms.\n- (b) Hence compute $|\\overline{A \\cup B \\cup C}|$, the number of elements of $U$ divisible by none of $2$, $3$, $5$.\n- (c) In one sentence, say why $|A \\cap B| = 5$ is obtained by counting multiples of $6$ rather than by multiplying $|A|$ and $|B|$.\n\n**Problem 2 - Propositional logic (8 marks).**\n\n- (a) Prove by truth table that $(p \\Rightarrow q) \\land (\\neg p \\Rightarrow q) \\equiv q$. Show all four rows.\n- (b) Is $(p \\Rightarrow q) \\Rightarrow (q \\Rightarrow p)$ a tautology? Answer yes or no, and justify with a single row of a truth table.\n\n**Problem 3 - Proof technique (12 marks).**\n\n- (a) Prove that for every integer $n$, if $n^2$ is even then $n$ is even. Name the technique before you use it.\n- (b) Using part (a), prove that $\\sqrt{2}$ is irrational. Your argument must say exactly where the assumption that the fraction is in lowest terms is contradicted.\n\n**Problem 4 - Induction (12 marks).**\n\n- (a) Prove by induction that for all $n \\ge 1$, $$\\sum_{i=1}^{n} i \\cdot 2^i = (n-1)2^{n+1} + 2.$$ Mark clearly the line in which the inductive hypothesis is used.\n- (b) State the value of the sum when $n = 10$.\n\n**Problem 5 - Number theory (12 marks).**\n\n- (a) Compute $7^{2026} \\bmod 13$. Use the order of $7$ modulo $13$ rather than repeated squaring alone, and state what that order is.\n- (b) Find the multiplicative inverse of $7$ modulo $13$, as the representative in $\\{0, 1, \\dots, 12\\}$.\n- (c) Solve $7x \\equiv 5 \\pmod{13}$ for the least non-negative $x$.\n- (d) Compute $\\gcd(252, 198)$ by the Euclidean algorithm, then find integers $s, t$ with $252s + 198t = \\gcd(252, 198)$.\n\n**Problem 6 - Relations (10 marks).** Define $R$ on $S = \\{1, 2, \\dots, 12\\}$ by $a \\mathbin{R} b$ if and only if $a \\equiv b \\pmod 4$.\n\n- (a) Prove that $R$ is an equivalence relation, treating reflexivity, symmetry and transitivity separately.\n- (b) State the number of equivalence classes and give one representative of each.\n- (c) Compute $|R|$, the number of ordered pairs $(a, b) \\in S \\times S$ satisfying the relation, and explain the count rather than enumerating it.\n\n**Problem 7 - Graphs (10 marks).**\n\n- (a) A simple graph $G$ has $10$ vertices, every one of degree $3$. How many edges does $G$ have? Justify with the degree-sum identity.\n- (b) Prove that in any simple graph the number of vertices of odd degree is even.\n- (c) State the chromatic number of the cycle $C_5$, with one sentence for why that many colours suffice and one for why fewer do not.\n\n**Problem 8 - Counting and probability (16 marks).**\n\n- (a) How many bit strings of length $10$ contain exactly four $1$s? Give the binomial coefficient and its value.\n- (b) How many bit strings of length $10$ contain at least eight $1$s?\n- (c) Two fair six-sided dice are rolled. Given that at least one die shows a $5$, what is the probability that the two dice sum to $8$? Give an exact fraction in lowest terms and name the rule you used.\n- (d) In one sentence, say why the answer to (c) differs from the unconditional probability that the sum is $8$.\n\n**Self-check.** The tests below list the required final answer to each numeric part. They check arithmetic only - the marks live in the reasoning above them.",
+   "explain": "The paper is built so that no problem can be answered by pattern-matching to a single floor. Problem 3(b) is unreachable without 3(a), which is itself a contraposition, so two proof shapes have to be nested rather than chosen between; 5(a) is hopeless by brute force and forces you to see that the order of $7$ modulo $13$ divides $12$ and then reduce the exponent $2026$ modulo that order; 6(c) is a counting question wearing a relations costume, and rewards reading four classes of three elements as $4 \\cdot 3^2$ instead of enumerating $144$ pairs; 8(c) punishes the reflex answer $5/36$, because conditioning has already shrunk the sample space from $36$ outcomes to $11$. That is the real subject of the Trial: these topics were never separate, and competence is knowing which of them a problem is secretly about.\n\n---\n\n**Self-check.** Compare these against your own answers before\nyou read the discussion above again.\n\n- Problem 1(a): |A u B u C| — **22**\n- Problem 1(b): elements of 1..30 divisible by none of 2, 3, 5 — **8**\n- Problem 2(b): is (p => q) => (q => p) a tautology? — **no**\n- Problem 4(b): the value of the sum at n = 10 — **18434**\n- Problem 5(a): 7^2026 mod 13 — **4**\n- Problem 5(b): the inverse of 7 modulo 13 — **2**\n- Problem 5(c): least non-negative solution of 7x = 5 (mod 13) — **10**\n- Problem 5(d): gcd(252, 198) — **18**\n- Problem 6(b): number of equivalence classes — **4**\n- Problem 6(c): |R|, the number of ordered pairs — **36**\n- Problem 7(a): edges of a 3-regular graph on 10 vertices — **15**\n- Problem 7(c): chromatic number of C_5 — **3**\n- Problem 8(a): bit strings of length 10 with exactly four 1s — **210**\n- Problem 8(b): bit strings of length 10 with at least eight 1s — **56**\n- Problem 8(c): P(sum = 8 | at least one 5), exact fraction — **2/11**",
+   "rubric": {
+    "required": [
+     "inclusion",
+     "truth table",
+     "contrapositive",
+     "contradiction",
+     "base case",
+     "inductive hypothesis",
+     "mod",
+     "equivalence",
+     "degree",
+     "binomial",
+     "probability"
+    ],
+    "optional": [
+     "reflexive",
+     "symmetric",
+     "transitive",
+     "counterexample",
+     "bijection",
+     "chromatic",
+     "handshake",
+     "conditional",
+     "complement",
+     "irrational",
+     "Euclidean",
+     "inverse",
+     "order"
+    ],
+    "minWords": 400
+   },
+   "capstone": true
+  }
+ ]
+}

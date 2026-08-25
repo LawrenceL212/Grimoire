@@ -1,0 +1,765 @@
+{
+ "n": 2,
+ "name": "The Chamber of True and False",
+ "concepts": [
+  "propositions",
+  "logical-connectives",
+  "truth-tables",
+  "implication",
+  "biconditional",
+  "tautology-and-contradiction",
+  "logical-equivalence",
+  "de-morgans-laws",
+  "converse-inverse-contrapositive"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Algebra of True and False",
+  "sections": [
+   {
+    "title": "What Counts as a Proposition",
+    "body": "A **proposition** is a declarative sentence that has exactly one truth value: it is either **true** or **false**, never both and never neither. Questions, commands and requests are not propositions, because there is nothing about them to be true or false.\n\nAn open sentence such as $x + 1 = 4$ is also not a proposition, because its truth value depends on a **free variable** you have not been told the value of. Fix the variable, or bind it with $\\forall$ or $\\exists$, and it becomes one.\n\nThe one operation you need before any table is **negation**. Written $\\neg p$ and read *not $p$*, it is defined entirely by the fact that it **flips the truth value**: if $p$ is true then $\\neg p$ is false, and if $p$ is false then $\\neg p$ is true.",
+    "code": "STATEMENT                                  A PROPOSITION?   TRUTH VALUE\n-----------------------------------------  ---------------  -----------\n\"7 is a prime number.\"                     yes              T\n\"7 + 3 = 11.\"                              yes              F\n\"Every even integer above 2 is composite.\" yes              T\n\"What time is the lecture?\"                no               -  a question\n\"Close the door.\"                          no               -  a command\n\"x + 1 = 4\"                                no               -  depends on x\n\"This statement is false.\"                 no               -  self-referential\n\nNegation flips the value and changes nothing else:\n  p = \"7 is a prime number.\"   is T,  so  ~p = \"7 is not prime.\"     is F\n  q = \"7 + 3 = 11.\"            is F,  so  ~q = \"7 + 3 is not 11.\"    is T",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "A proposition does not have to be true. 7 + 3 = 11 is false, and being definitely false is exactly what makes it a proposition."
+     },
+     {
+      "line": 6,
+      "text": "A question has no truth value at all. Asking it is not asserting anything."
+     },
+     {
+      "line": 8,
+      "text": "Free variable x. Say x = 3 and it becomes true; say x = 9 and it becomes false. Until you say, it is neither."
+     },
+     {
+      "line": 12,
+      "text": "Negation is a one-input connective: it takes one truth value and returns the other one."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For each sentence, write `yes` if it is a proposition and `no` if it is not.",
+     "template": "\"The number 12 is divisible by 5.\"       -> ___\n\"Add 3 to both sides.\"                   -> ___\n\"n is an odd number.\"                    -> ___\n\"Every prime greater than 2 is odd.\"     -> ___",
+     "blanks": [
+      "yes",
+      "no",
+      "no",
+      "yes"
+     ],
+     "lang": "text",
+     "concepts": [
+      "propositions"
+     ],
+     "tags": [
+      "propositions"
+     ],
+     "xp": 20,
+     "explain": "Being false does not disqualify a sentence: 12 is not divisible by 5, so the first sentence is a false proposition, which is still a proposition. The second is an instruction, so there is nothing in it to be true or false, and the third leaves $n$ free, so its truth value is not determined. The fourth pins everything down with *every*, so it asserts one definite thing - and it happens to be true."
+    }
+   },
+   {
+    "title": "Conjunction, Disjunction, and the Truth Table",
+    "body": "A **truth table** lists every possible assignment of truth values to the variables and computes the value of a compound proposition in each case. With $n$ distinct variables there are $2^n$ assignments, so the table has $2^n$ rows - two variables give four rows, three give eight.\n\n**Conjunction** $p \\land q$ is true only when $p$ and $q$ are both true. **Disjunction** $p \\lor q$ is true when at least one of them is true, and this *or* is **inclusive**: $p \\lor q$ is still true when both hold.\n\nBecause the table is exhaustive, it settles any question about a compound proposition by inspection rather than by argument. That is the whole reason propositional logic is tractable: the space of cases is finite and small.",
+    "code": "p   q  |  ~p  |  p ^ q  |  p v q\n-------+-----+---------+--------\nT   T  |  F  |    T    |    T\nT   F  |  F  |    F    |    T\nF   T  |  T  |    F    |    T\nF   F  |  T  |    F    |    F\n\nRead down a column, not across a row: the column IS the connective.\n  p ^ q  is T in exactly one row  - conjunction demands both\n  p v q  is F in exactly one row  - inclusive or, still T when both hold\n\nWith n distinct variables the table has 2^n rows:\n  n = 1 -> 2 rows,   n = 2 -> 4 rows,   n = 3 -> 8 rows.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Row order is a convention: count down in binary with T as 1. Keeping the same order every time makes two tables comparable at a glance."
+     },
+     {
+      "line": 6,
+      "text": "The only row where p v q is false is the row where both are false. Everything else is true."
+     },
+     {
+      "line": 10,
+      "text": "Inclusive or. English often means the exclusive one - tea or coffee - but mathematics never does unless it says so."
+     },
+     {
+      "line": 13,
+      "text": "2^n grows fast, which is why hand tables stop being practical at around four variables."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Take $p$ to be true and $q$ to be false. Fill each blank with `T` or `F`.",
+     "template": "p = T, q = F:\n  ~p    = ___\n  p ^ q = ___\n  p v q = ___\n  ~q    = ___",
+     "blanks": [
+      "F",
+      "F",
+      "T",
+      "T"
+     ],
+     "lang": "text",
+     "concepts": [
+      "logical-connectives",
+      "truth-tables"
+     ],
+     "tags": [
+      "logical-connectives",
+      "truth-tables"
+     ],
+     "xp": 20,
+     "explain": "This is the second row of the standard table, evaluated one connective at a time. The conjunction fails because $q$ is false and conjunction needs *both*; the disjunction survives on $p$ alone, which is exactly the asymmetry between $\\land$ and $\\lor$. Negation simply reports the other value, so $\\neg q$ is true precisely because $q$ is not."
+    }
+   },
+   {
+    "title": "Implication, and Why False Implies Anything",
+    "body": "The **implication** $p \\Rightarrow q$ reads *if $p$ then $q$*; here $p$ is the **hypothesis** and $q$ the **conclusion**. It is defined to be false in exactly one row - the row where the hypothesis is true and the conclusion is false - and true in the other three.\n\nThat is why $F \\Rightarrow T$ and $F \\Rightarrow F$ are both **true**. An implication is a promise about what happens *when the hypothesis holds*; if the hypothesis never holds, the promise was never triggered and so cannot have been broken. Such cases are called **vacuously true**.\n\nSwapping and negating the two halves gives three relatives. The **converse** is $q \\Rightarrow p$, the **inverse** is $\\neg p \\Rightarrow \\neg q$, and the **contrapositive** is $\\neg q \\Rightarrow \\neg p$. Only the contrapositive has the same truth table as the original.\n\nThe **biconditional** $p \\Leftrightarrow q$ reads *$p$ if and only if $q$* and is true exactly when the two sides agree - it is the implication and its converse asserted together.",
+    "code": "p   q  |  p -> q  |  ~p v q  |  q -> p  |  ~p -> ~q  |  ~q -> ~p  |  p <-> q\n-------+----------+----------+----------+------------+------------+---------\nT   T  |    T     |    T     |    T     |     T      |     T      |    T\nT   F  |    F     |    F     |    T     |     T      |     F      |    F\nF   T  |    T     |    T     |    F     |     F      |     T      |    F\nF   F  |    T     |    T     |    T     |     T      |     T      |    T\n\nOnly a T hypothesis can ever make an implication F. Hence:\n  F -> T is T    nothing was promised about a false hypothesis\n  F -> F is T    the promise was never triggered, so it was never broken\n\nColumn (p -> q) matches column (~q -> ~p) exactly  -> the contrapositive.\nColumn (q -> p) matches column (~p -> ~q) exactly  -> converse and inverse\nare equivalent to each other, and neither matches p -> q. Row 3 separates them.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The single F in the whole implication column: true hypothesis, false conclusion. Memorise this row and the rest follows."
+     },
+     {
+      "line": 5,
+      "text": "Row 3 is F -> T, and it is true. It is also the row where the converse and the inverse part company with the original."
+     },
+     {
+      "line": 9,
+      "text": "Vacuous truth is not a loophole - it is what makes 'every element of the empty set is purple' come out true."
+     },
+     {
+      "line": 12,
+      "text": "Two identical columns is the definition of logical equivalence, so this line is already a complete proof that the contrapositive is equivalent."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "Explain why $F \\Rightarrow T$ is defined to be **true**, using the words *hypothesis* and *conclusion*, and say what would go wrong with the truth table if it were defined as false instead.",
+     "rubric": {
+      "required": [
+       "implication",
+       "hypothesis",
+       "false"
+      ],
+      "optional": [
+       "conclusion",
+       "vacuous",
+       "promise",
+       "row",
+       "true",
+       "broken"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "implication"
+     ],
+     "tags": [
+      "implication"
+     ],
+     "xp": 20,
+     "explain": "An implication asserts only what happens when the hypothesis holds, so a false hypothesis leaves nothing to violate - there is no row in which the promise was made and then broken. If $F \\Rightarrow T$ were false, then $\\neg p \\lor q$ would no longer match $p \\Rightarrow q$, and a universally quantified claim such as *every prime above $2$ is odd* would be sunk by the even number $4$, which never satisfies the hypothesis in the first place."
+    }
+   },
+   {
+    "title": "Tautology, Contradiction, and Equivalence",
+    "body": "A compound proposition true in **every** row is a **tautology**, such as $p \\lor \\neg p$. One false in every row is a **contradiction**, such as $p \\land \\neg p$. Everything else is called contingent: its value depends on the row.\n\nTwo propositions are **logically equivalent**, written $P \\equiv Q$, when their final columns are identical row for row. Equivalently, $P \\equiv Q$ exactly when $P \\Leftrightarrow Q$ is a tautology - so equivalence is a statement *about* formulas, while the biconditional is itself a formula.\n\n**De Morgan's laws** are the two equivalences that push a negation through a connective, flipping it as they go: $$\\neg(p \\land q) \\equiv \\neg p \\lor \\neg q \\qquad \\neg(p \\lor q) \\equiv \\neg p \\land \\neg q$$\n\nTwo more worth keeping: $p \\Rightarrow q \\equiv \\neg p \\lor q$, and negating that with De Morgan gives $\\neg(p \\Rightarrow q) \\equiv p \\land \\neg q$ - the only way to break a promise is to meet the hypothesis and fail the conclusion.",
+    "code": "De Morgan, checked row by row:\n\np   q  |  p ^ q  |  ~(p ^ q)  |  ~p v ~q  |  p v q  |  ~(p v q)  |  ~p ^ ~q\n-------+---------+------------+-----------+---------+------------+---------\nT   T  |    T    |     F      |     F     |    T    |     F      |    F\nT   F  |    F    |     T      |     T     |    T    |     F      |    F\nF   T  |    F    |     T      |     T     |    T    |     F      |    F\nF   F  |    F    |     T      |     T     |    F    |     T      |    T\n\nColumns 3 and 4 agree in every row  ->  ~(p ^ q) = ~p v ~q\nColumns 6 and 7 agree in every row  ->  ~(p v q) = ~p ^ ~q\n\np v ~p   is T in every row   -> a tautology\np ^ ~p   is F in every row   -> a contradiction\nTwo formulas are logically equivalent exactly when their final columns match.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Row 1: p ^ q is T, so its negation is F, and ~p v ~q is F v F = F. They agree here and in the three rows below."
+     },
+     {
+      "line": 8,
+      "text": "The bottom row is the only one where p v q is false, and the only one where ~p ^ ~q is true. That is why those two columns coincide."
+     },
+     {
+      "line": 10,
+      "text": "Negation turned ^ into v. That swap is the whole content of De Morgan - dropping it is the most common algebra error in logic."
+     },
+     {
+      "line": 15,
+      "text": "This is the working definition of equivalence: not 'they mean the same thing' but 'these two columns are the same column'."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put these steps into a valid order for verifying $\\neg(p \\lor q) \\equiv \\neg p \\land \\neg q$ by truth table.",
+     "fragments": [
+      "Negate that column to obtain the column for $\\neg(p \\lor q)$.",
+      "List all four assignments of truth values to $p$ and $q$, one per row.",
+      "Combine those two columns into the column for $\\neg p \\land \\neg q$.",
+      "Compute the column for $p \\lor q$ in each row.",
+      "Observe that the two final columns agree in every row, so the formulas are logically equivalent.",
+      "Compute the columns for $\\neg p$ and for $\\neg q$."
+     ],
+     "answer": [
+      1,
+      3,
+      0,
+      5,
+      2,
+      4
+     ],
+     "concepts": [
+      "de-morgans-laws",
+      "truth-tables"
+     ],
+     "tags": [
+      "de-morgans-laws",
+      "truth-tables"
+     ],
+     "xp": 20,
+     "explain": "A truth table is built strictly inside-out: the rows must exist before any column can be filled, and a column for a compound can only be computed once every sub-formula it mentions already has one. The comparison is the last step and never the first, because equivalence is *concluded* from the completed columns rather than assumed while filling them."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-02-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the truth table for the implication $p \\Rightarrow q$. Write `T` or `F` in each blank.",
+   "template": "p   q  |  p -> q\n-------+---------\nT   T  |   ___\nT   F  |   ___\nF   T  |   ___\nF   F  |   ___",
+   "blanks": [
+    "T",
+    "F",
+    "T",
+    "T"
+   ],
+   "lang": "text",
+   "concepts": [
+    "implication",
+    "truth-tables"
+   ],
+   "tags": [
+    "implication",
+    "truth-tables"
+   ],
+   "xp": 20,
+   "explain": "Three of the four rows are true, which surprises everyone once. The single false row is the second, where the hypothesis holds and the conclusion fails - that is the only shape a broken promise can take. The bottom two rows are vacuously true because their hypothesis is false, and that is precisely what makes $p \\Rightarrow q$ agree with $\\neg p \\lor q$."
+  },
+  {
+   "id": "dm-02-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the truth table for the biconditional $p \\Leftrightarrow q$. Write `T` or `F` in each blank.",
+   "template": "p   q  |  p <-> q\n-------+----------\nT   T  |   ___\nT   F  |   ___\nF   T  |   ___\nF   F  |   ___",
+   "blanks": [
+    "T",
+    "F",
+    "F",
+    "T"
+   ],
+   "lang": "text",
+   "concepts": [
+    "biconditional"
+   ],
+   "tags": [
+    "biconditional",
+    "truth-tables"
+   ],
+   "xp": 20,
+   "explain": "The biconditional is the *agreement* connective: true in the two rows where both sides carry the same value, false in the two where they differ. Note that it is true when both sides are **false**, which trips anyone reading it as *both hold*. It is exactly $(p \\Rightarrow q) \\land (q \\Rightarrow p)$, so losing either direction loses the whole thing."
+  },
+  {
+   "id": "dm-02-gp-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Evaluate $\\neg(p \\land \\neg q) \\lor r$ when $p$ is true, $q$ is false and $r$ is false. Give `T` or `F` at each step.",
+   "steps": [
+    {
+     "label": "value of NOT q",
+     "expected": "T"
+    },
+    {
+     "label": "value of p AND (NOT q)",
+     "expected": "T"
+    },
+    {
+     "label": "value of NOT (p AND NOT q)",
+     "expected": "F"
+    },
+    {
+     "label": "value of the whole formula",
+     "expected": "F"
+    }
+   ],
+   "lang": "text",
+   "concepts": [
+    "logical-connectives"
+   ],
+   "tags": [
+    "logical-connectives",
+    "truth-tables"
+   ],
+   "xp": 40,
+   "explain": "Evaluation follows the structure of the formula from the innermost sub-formula outwards, which is the same discipline as filling a truth table column by column. The single row you were handed is the one where the formula fails: $p$ true and $q$ false makes $p \\land \\neg q$ true, its negation false, and with $r$ false the disjunction has nothing left to stand on. Note that $\\neg(p \\land \\neg q)$ is just $p \\Rightarrow q$ in disguise."
+  },
+  {
+   "id": "dm-02-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Give the truth value of each of these four implications, and justify each one by naming the truth value of its hypothesis and of its conclusion.\n\n- (a) If $2 + 2 = 4$, then $3$ is prime.\n- (b) If $2 + 2 = 4$, then $3$ is even.\n- (c) If $2 + 2 = 5$, then $3$ is prime.\n- (d) If $2 + 2 = 5$, then $3$ is even.",
+   "rubric": {
+    "required": [
+     "hypothesis",
+     "conclusion",
+     "false",
+     "true"
+    ],
+    "optional": [
+     "vacuous",
+     "row",
+     "prime",
+     "implication",
+     "only"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "implication"
+   ],
+   "tags": [
+    "implication",
+    "truth-tables"
+   ],
+   "xp": 50,
+   "explain": "Only (b) is false: its hypothesis $2 + 2 = 4$ is true and its conclusion *$3$ is even* is false, which is the one combination an implication forbids. (a) is true with both halves true, and (c) and (d) are **vacuously true** because $2 + 2 = 5$ is false, so no promise was ever triggered. Notice that the truth of (c) has nothing to do with any connection between arithmetic and primality - propositional logic sees only the two truth values, never the meaning."
+  },
+  {
+   "id": "dm-02-gp-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $\\neg(p \\land q) \\equiv \\neg p \\lor \\neg q$ by constructing the full truth table. Show every row and every intermediate column, and state explicitly which feature of the finished table establishes the equivalence.",
+   "rubric": {
+    "required": [
+     "truth table",
+     "row",
+     "equivalent",
+     "column"
+    ],
+    "optional": [
+     "De Morgan",
+     "identical",
+     "four",
+     "negation",
+     "conjunction",
+     "disjunction"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "de-morgans-laws",
+    "truth-tables"
+   ],
+   "tags": [
+    "de-morgans-laws",
+    "truth-tables",
+    "logical-equivalence"
+   ],
+   "xp": 50,
+   "explain": "With two variables the table has $2^2 = 4$ rows, so the proof is a **complete case analysis** - there is literally nothing left to check once the four rows are done, which is why a truth table is a proof and not merely evidence. Both columns come out $F, T, T, T$: the only row where $p \\land q$ holds is the first, and that is exactly the only row where neither $\\neg p$ nor $\\neg q$ is available to satisfy the disjunction."
+  },
+  {
+   "id": "dm-02-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The converse of $p \\Rightarrow q$ is $q \\Rightarrow p$. Explain why an implication is **not** logically equivalent to its converse, name a row of the truth table where the two differ, and give a concrete English example of a true implication whose converse is false.",
+   "rubric": {
+    "required": [
+     "converse",
+     "false",
+     "row"
+    ],
+    "optional": [
+     "contrapositive",
+     "inverse",
+     "counterexample",
+     "hypothesis",
+     "equivalent",
+     "example"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "converse-inverse-contrapositive"
+   ],
+   "tags": [
+    "converse-inverse-contrapositive",
+    "implication",
+    "logical-equivalence"
+   ],
+   "xp": 20,
+   "explain": "The two columns disagree in two rows - $p$ true with $q$ false, and $p$ false with $q$ true - and one differing row is already enough to destroy an equivalence. *If $n$ is divisible by $4$ then $n$ is even* is true, while its converse fails at $n = 6$. Confusing a statement with its converse is the most common logical error in ordinary reasoning, and the contrapositive is the only one of the three relatives you may safely swap in."
+  },
+  {
+   "id": "dm-02-gp-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Show by truth table that $p \\Rightarrow q \\equiv \\neg p \\lor q$. Then, using that equivalence together with De Morgan's laws, derive a form for $\\neg(p \\Rightarrow q)$ that uses no implication at all, and say in words what it means.",
+   "rubric": {
+    "required": [
+     "truth table",
+     "equivalent",
+     "row",
+     "negation"
+    ],
+    "optional": [
+     "De Morgan",
+     "conjunction",
+     "disjunction",
+     "hypothesis",
+     "conclusion",
+     "column"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "logical-equivalence",
+    "implication"
+   ],
+   "tags": [
+    "logical-equivalence",
+    "implication",
+    "de-morgans-laws"
+   ],
+   "xp": 50,
+   "explain": "Both columns read $T, F, T, T$, so an implication is nothing more than a disjunction in costume - which is how implication gets eliminated in practice. Negating gives $\\neg(\\neg p \\lor q) \\equiv \\neg\\neg p \\land \\neg q \\equiv p \\land \\neg q$: to deny *if $p$ then $q$* you must exhibit a case where $p$ holds **and** $q$ fails. That is exactly the shape of a counterexample, and it is why disproving an implication never requires proving the opposite implication."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-02-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these is the definition of a **proposition**?",
+   "choices": [
+    "Any sentence that contains at least one mathematical symbol.",
+    "A declarative sentence that is either true or false, but not both.",
+    "A sentence whose truth value depends on the value of a free variable.",
+    "Any sentence that can be written using $\\land$, $\\lor$ and $\\neg$."
+   ],
+   "answer": 1,
+   "concepts": [
+    "propositions"
+   ],
+   "tags": [
+    "propositions"
+   ],
+   "xp": 10,
+   "explain": "The definition turns on having exactly one determinate truth value, not on notation and not on being true. *Not both* rules out self-referential sentences like *this statement is false*, and *either* rules out open sentences such as $x + 1 = 4$ - which is precisely what option 3 describes, and why option 3 is the trap."
+  },
+  {
+   "id": "dm-02-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these is the definition of a **tautology**?",
+   "choices": [
+    "A compound proposition that is true in at least one row of its truth table.",
+    "A compound proposition that is false in every row of its truth table.",
+    "A compound proposition that is true in every row of its truth table.",
+    "Two compound propositions whose truth tables are identical."
+   ],
+   "answer": 2,
+   "concepts": [
+    "tautology-and-contradiction"
+   ],
+   "tags": [
+    "tautology-and-contradiction"
+   ],
+   "xp": 10,
+   "explain": "*Every* row, not merely some row - a formula true in at least one row is only satisfiable, which is a far weaker property. Option 2 defines a contradiction and option 4 defines logical equivalence, and the three notions are linked: $P \\equiv Q$ holds exactly when $P \\Leftrightarrow Q$ is a tautology."
+  },
+  {
+   "id": "dm-02-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Take $p$ true and $q$ false, and evaluate both sides of each De Morgan law. Write `T` or `F` in each blank.",
+   "template": "p = T, q = F:\n  ~(p ^ q) = ___        ~p v ~q = ___\n  ~(p v q) = ___        ~p ^ ~q = ___",
+   "blanks": [
+    "T",
+    "T",
+    "F",
+    "F"
+   ],
+   "lang": "text",
+   "concepts": [
+    "de-morgans-laws"
+   ],
+   "tags": [
+    "de-morgans-laws",
+    "truth-tables"
+   ],
+   "xp": 20,
+   "explain": "Each law's two sides land on the same value in this row, as they must in all four. Watch the connective flip rather than the values: $\\neg p$ is false here, so the *disjunction* $\\neg p \\lor \\neg q$ still succeeds on $\\neg q$ alone, while the *conjunction* $\\neg p \\land \\neg q$ is sunk by that same false $\\neg p$."
+  },
+  {
+   "id": "dm-02-ex-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Evaluate $(p \\lor q) \\Rightarrow \\neg r$ in the two rows shown. Write `T` or `F` in each blank.",
+   "template": "p=T, q=F, r=T:   p v q = ___    ~r = ___    (p v q) -> ~r = ___\np=F, q=F, r=T:   p v q = ___    ~r = ___    (p v q) -> ~r = ___",
+   "blanks": [
+    "T",
+    "F",
+    "F",
+    "F",
+    "F",
+    "T"
+   ],
+   "lang": "text",
+   "concepts": [
+    "truth-tables",
+    "logical-connectives"
+   ],
+   "tags": [
+    "truth-tables",
+    "logical-connectives",
+    "implication"
+   ],
+   "xp": 20,
+   "explain": "The two rows share the *same* conclusion $\\neg r = F$ yet give opposite results, which isolates the role of the hypothesis. In the first row the hypothesis holds and the conclusion fails, giving the unique false pattern; in the second the hypothesis has collapsed to false, so the implication is vacuously true no matter what $\\neg r$ does."
+  },
+  {
+   "id": "dm-02-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into a valid order for deciding, by truth table, whether a compound proposition is a tautology, a contradiction, or neither.",
+   "fragments": [
+    "Build a column for each sub-formula, working from the innermost outwards.",
+    "Call it a tautology if that final column is $T$ in every row, a contradiction if it is $F$ in every row, and contingent otherwise.",
+    "Count the distinct variables in the formula; with $n$ of them the table needs $2^n$ rows.",
+    "Build the final column for the whole formula out of the sub-formula columns.",
+    "Write one row for each assignment of $T$ and $F$ to those variables."
+   ],
+   "answer": [
+    2,
+    4,
+    0,
+    3,
+    1
+   ],
+   "concepts": [
+    "tautology-and-contradiction",
+    "truth-tables"
+   ],
+   "tags": [
+    "tautology-and-contradiction",
+    "truth-tables"
+   ],
+   "xp": 20,
+   "explain": "The variable count comes first because it fixes the size of the table - $2^n$ rows - and everything after it is bookkeeping inside that fixed frame. Sub-formula columns must precede the final column, since a compound cannot be evaluated before its parts. The classification is then a single sweep down the finished column, and *contingent* is a real third answer rather than a failure to decide."
+  },
+  {
+   "id": "dm-02-ex-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Evaluate $\\bigl((p \\lor q) \\land \\neg r\\bigr) \\Rightarrow p$ when $p$ is false, $q$ is true and $r$ is false. Give `T` or `F` at each step.",
+   "steps": [
+    {
+     "label": "value of p OR q",
+     "expected": "T"
+    },
+    {
+     "label": "value of NOT r",
+     "expected": "T"
+    },
+    {
+     "label": "value of the hypothesis (p OR q) AND (NOT r)",
+     "expected": "T"
+    },
+    {
+     "label": "value of the whole implication",
+     "expected": "F"
+    }
+   ],
+   "lang": "text",
+   "concepts": [
+    "logical-connectives",
+    "implication"
+   ],
+   "tags": [
+    "logical-connectives",
+    "implication",
+    "truth-tables"
+   ],
+   "xp": 40,
+   "explain": "This row assembles a **true** hypothesis on top of a **false** conclusion, which is the one and only way an implication can fail - so the formula is not a tautology, and a single row was enough to prove that. Note how $q$ carried the disjunction entirely on its own even though $p$ was false; refuting a claim about every row needs one row, while establishing it needs them all."
+  },
+  {
+   "id": "dm-02-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Decide whether $\\bigl((p \\Rightarrow q) \\land p\\bigr) \\Rightarrow q$ is a tautology, a contradiction, or neither. Build the truth table, state the value of the final column in each of the four rows, and justify your classification from it.",
+   "rubric": {
+    "required": [
+     "truth table",
+     "tautology",
+     "row",
+     "every"
+    ],
+    "optional": [
+     "hypothesis",
+     "conclusion",
+     "column",
+     "four",
+     "contradiction",
+     "contingent"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "tautology-and-contradiction",
+    "implication"
+   ],
+   "tags": [
+    "tautology-and-contradiction",
+    "implication",
+    "truth-tables"
+   ],
+   "xp": 50,
+   "explain": "It is a tautology: the final column is $T$ in all four rows. The reason is structural rather than arithmetical - the hypothesis $(p \\Rightarrow q) \\land p$ can only hold in the top row, and in that row $q$ is true, so the forbidden pattern *true hypothesis, false conclusion* never arises. This tautology is the rule of inference called **modus ponens**, and its being a tautology is exactly what licenses detaching $q$ once you know both $p \\Rightarrow q$ and $p$."
+  },
+  {
+   "id": "dm-02-ex-08",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $p \\Rightarrow q \\equiv \\neg q \\Rightarrow \\neg p$ using a truth table with columns for $\\neg p$, $\\neg q$, $p \\Rightarrow q$ and $\\neg q \\Rightarrow \\neg p$. Then explain, citing a specific row, why the same argument does **not** work for the converse $q \\Rightarrow p$.",
+   "rubric": {
+    "required": [
+     "contrapositive",
+     "truth table",
+     "equivalent",
+     "converse"
+    ],
+    "optional": [
+     "column",
+     "row",
+     "inverse",
+     "identical",
+     "hypothesis",
+     "differ"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "converse-inverse-contrapositive",
+    "logical-equivalence"
+   ],
+   "tags": [
+    "converse-inverse-contrapositive",
+    "logical-equivalence",
+    "truth-tables"
+   ],
+   "xp": 50,
+   "explain": "Both columns read $T, F, T, T$, so the contrapositive is genuinely interchangeable with the original - which is what licenses proof by contrapositive later on. The converse column reads $T, T, F, T$ instead and parts company in the second and third rows; the row $p$ false, $q$ true is the cleanest witness, since $p \\Rightarrow q$ is vacuously true there while $q \\Rightarrow p$ has a true hypothesis and a false conclusion."
+  },
+  {
+   "id": "dm-02-ex-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why $x + 1 = 4$ is not a proposition while $\\exists x \\in \\mathbb{Z},\\; x + 1 = 4$ is one, give the truth value of the second, and name what changed between the two sentences.",
+   "rubric": {
+    "required": [
+     "variable",
+     "truth value",
+     "proposition"
+    ],
+    "optional": [
+     "free",
+     "quantifier",
+     "depends",
+     "bound",
+     "true",
+     "definite"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "propositions"
+   ],
+   "tags": [
+    "propositions"
+   ],
+   "xp": 20,
+   "explain": "The first sentence has a **free variable**, so it has no single truth value - it is true at $x = 3$ and false everywhere else, and a proposition is not permitted to be both. The quantifier **binds** that variable, turning a family of claims into one claim about all of $\\mathbb{Z}$, and that claim is true because $x = 3$ witnesses it. The gap between an open sentence and a proposition is the whole reason quantifiers exist."
+  },
+  {
+   "id": "dm-02-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Classify each of these as a tautology, a contradiction, or neither, and justify each answer from its truth table.\n\n- (a) $(p \\land \\neg p) \\Rightarrow q$\n- (b) $p \\land \\neg p$\n- (c) $p \\Rightarrow p$\n- (d) $p \\Rightarrow \\neg p$",
+   "rubric": {
+    "required": [
+     "tautology",
+     "contradiction",
+     "hypothesis",
+     "row"
+    ],
+    "optional": [
+     "vacuous",
+     "truth table",
+     "false",
+     "every",
+     "column",
+     "neither"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "tautology-and-contradiction"
+   ],
+   "tags": [
+    "tautology-and-contradiction",
+    "implication",
+    "logical-connectives"
+   ],
+   "xp": 50,
+   "explain": "(a) is a **tautology**: its hypothesis $p \\land \\neg p$ is false in every row, so the implication is vacuously true throughout - a contradiction really does imply everything. (b) is a contradiction and (c) is a tautology, since $p \\Rightarrow p$ has matching halves in both of its rows. (d) is the interesting one: it is **neither**, because it is false when $p$ is true but true when $p$ is false, and being false somewhere is not the same as being false everywhere."
+  },
+  {
+   "id": "dm-02-ex-11",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Show by truth table that $p \\Leftrightarrow q \\equiv (p \\Rightarrow q) \\land (q \\Rightarrow p)$. Then use the table to explain why knowing only that $p \\Rightarrow q$ is true is not enough to conclude $p \\Leftrightarrow q$, naming a row that makes the point.",
+   "rubric": {
+    "required": [
+     "biconditional",
+     "truth table",
+     "equivalent",
+     "row"
+    ],
+    "optional": [
+     "converse",
+     "implication",
+     "column",
+     "direction",
+     "conjunction",
+     "agree"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "biconditional",
+    "logical-equivalence"
+   ],
+   "tags": [
+    "biconditional",
+    "logical-equivalence",
+    "implication"
+   ],
+   "xp": 50,
+   "explain": "Both columns read $T, F, F, T$, so a biconditional is precisely an implication conjoined with its converse - which is why *if and only if* proofs always have two halves. The row $p$ false, $q$ true settles the second part: there $p \\Rightarrow q$ is vacuously true while $p \\Leftrightarrow q$ is false, because the missing direction $q \\Rightarrow p$ fails. One direction constrains the pair; only both directions force them to agree."
+  }
+ ]
+}

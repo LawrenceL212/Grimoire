@@ -1,0 +1,769 @@
+{
+ "n": 5,
+ "name": "The Hall of Correspondences",
+ "concepts": [
+  "relations",
+  "relation-properties",
+  "equivalence-relations",
+  "equivalence-classes",
+  "partitions",
+  "functions-as-relations",
+  "injective-surjective-bijective",
+  "composition-and-inverses"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "proof-set",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Relations, Classes, and Functions",
+  "sections": [
+   {
+    "title": "A Relation Is Just a Set of Pairs",
+    "body": "A **binary relation** from $A$ to $B$ is nothing more exotic than a subset $R \\subseteq A \\times B$; when $A = B$ we say $R$ is a relation *on* $A$. Writing $a\\,R\\,b$ is shorthand for $(a,b) \\in R$, so a relation carries no rule, no formula and no meaning of its own - it is only the list of pairs it contains.\n\nThat bluntness is the point: deciding whether a relation holds is always the same act, namely looking inside the set to see whether the ordered pair is there.\n\nBecause $R$ may be any subset of $A \\times B$, a set with $|A| = n$ carries exactly $2^{n^2}$ relations on it - $512$ of them when $n = 3$.\n\nOrder matters inside a pair, since $(1,2)$ and $(2,1)$ are different elements, so a relation may contain one and not the other.",
+    "code": "A = {1, 2, 3, 4}\nR = { (a, b) in A x A  :  a divides b }\n\nAsk the question once for every one of the 16 cells of A x A:\n\n        b=1   b=2   b=3   b=4\n  a=1    X     X     X     X\n  a=2    .     X     .     X\n  a=3    .     .     X     .\n  a=4    .     .     .     X\n\n  X = the pair is in R,  . = the pair is not\n\nR = {(1,1), (1,2), (1,3), (1,4), (2,2), (2,4), (3,3), (4,4)}\n\n  |A x A| = 16        |R| = 8\n  R is one of the 2^16 = 65536 possible relations on A.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The rule 'a divides b' is only a description used to build the set. Once R is written out the rule is gone; R is the pairs."
+     },
+     {
+      "line": 7,
+      "text": "Row a=1 is full because 1 divides everything. Column b=1 is nearly empty because only 1 divides 1."
+     },
+     {
+      "line": 16,
+      "text": "8 of the 16 cells are marked. Nothing forces that - any one of the 65536 subsets of A x A is a legal relation."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $A = \\{1,2,3,4\\}$ and $R = \\{(a,b) \\in A \\times A : a \\mid b\\}$. Fill in the two counts as plain integers.",
+     "template": "|A x A| = ___\n|R| = ___",
+     "blanks": [
+      "16",
+      "8"
+     ],
+     "concepts": [
+      "relations"
+     ],
+     "explain": "$|A \\times A| = 4^2 = 16$ because a pair is built by two independent choices from $A$. Only $8$ of those cells survive the divisibility test, and those eight pairs are the entire content of $R$: a relation is measured by counting pairs, never by inspecting the rule that generated them."
+    }
+   },
+   {
+    "title": "Four Properties a Relation May Have",
+    "body": "Four properties do almost all the work in this subject. $R$ is **reflexive** if $(a,a) \\in R$ for every $a \\in A$, **symmetric** if $(a,b) \\in R \\Rightarrow (b,a) \\in R$, **antisymmetric** if $(a,b) \\in R \\land (b,a) \\in R \\Rightarrow a = b$, and **transitive** if $(a,b) \\in R \\land (b,c) \\in R \\Rightarrow (a,c) \\in R$.\n\nEach is a $\\forall$ statement, so proving one means arguing about an arbitrary pair, while refuting one means exhibiting a single concrete counterexample.\n\nThe trap is antisymmetry: it is **not** the negation of symmetry, because a relation with no two-way off-diagonal pairs satisfies it vacuously, and a relation can easily be neither symmetric nor antisymmetric.\n\nTransitivity is the property that fails most quietly, since the offending pair $(a,c)$ is missing rather than wrong, and a missing pair is invisible until you go looking for it.",
+    "code": "The four properties. R is a relation on a set A.\n\n  reflexive       for all a in A:                     (a,a) in R\n  symmetric       (a,b) in R                implies   (b,a) in R\n  antisymmetric   (a,b) in R and (b,a) in R implies   a = b\n  transitive      (a,b) in R and (b,c) in R implies   (a,c) in R\n\nFive relations on A = {1, 2, 3}:\n\n  R                         refl   sym   anti  trans\n  ---------------------------------------------------\n  {(1,1),(2,2),(3,3)}        yes   yes   yes   yes\n  {(1,2),(2,1)}               no   yes    no    no\n  divides                    yes    no   yes   yes\n  {(1,2),(2,3)}               no    no   yes    no\n  strictly-less-than          no    no   yes   yes\n\nTwo things worth staring at.\n\n  {(1,2),(2,1)} is not transitive.  (1,2) in R and (2,1) in R, so\n  transitivity demands (1,1) in R.  It is absent, so the property fails.\n\n  {(1,2),(2,3)} is antisymmetric and also not symmetric.\n  Antisymmetric is not the negation of symmetric - it holds vacuously\n  here, because no pair (a,b) with a != b has its reverse in R.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Antisymmetry is a conditional. If its hypothesis never fires - no pair has its reverse present - the property holds for free."
+     },
+     {
+      "line": 12,
+      "text": "The identity relation is the smallest reflexive relation, and it happens to satisfy all four properties at once."
+     },
+     {
+      "line": 21,
+      "text": "One missing pair kills a forall statement. Refuting transitivity never needs more than a single (a,b),(b,c) witness."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $A = \\{1,2,3\\}$ and $R = \\{(1,1),(1,2),(2,1),(2,2),(3,3)\\}$. State, with a one-line justification each, which of reflexive, symmetric, antisymmetric and transitive $R$ has. Where a property fails, name the exact pairs that break it.",
+     "rubric": {
+      "required": [
+       "reflexive",
+       "symmetric",
+       "transitive",
+       "antisymmetric",
+       "counterexample"
+      ],
+      "optional": [
+       "(1,2)",
+       "(2,1)",
+       "vacuous",
+       "fails",
+       "diagonal"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "relation-properties"
+     ],
+     "explain": "$R$ is reflexive, symmetric and transitive but **not** antisymmetric: $(1,2)$ and $(2,1)$ are both present while $1 \\neq 2$, which is exactly the antisymmetry counterexample. Transitivity survives because every composable pair closes - $(1,2)$ with $(2,1)$ demands $(1,1)$, and $(1,1)$ is there. This is the shape of an equivalence relation, and it shows symmetry and antisymmetry are independent properties rather than opposites."
+    }
+   },
+   {
+    "title": "Equivalence Relations Cut a Set Into Blocks",
+    "body": "A relation that is reflexive, symmetric **and** transitive is an **equivalence relation**, usually written $\\sim$; it is the mathematical way of saying \"the same for present purposes\". The **equivalence class** of $a$ is $[a] = \\{x \\in A : x \\sim a\\}$, the set of everything indistinguishable from $a$.\n\nThe central theorem is that classes never partly overlap: for any $a,b$ either $[a] = [b]$ or $[a] \\cap [b] = \\varnothing$, and that follows from symmetry and transitivity alone.\n\nSince reflexivity puts every $a$ inside its own class, the classes also cover $A$, and together the two facts say the classes form a **partition**.\n\nThe correspondence runs both ways, because every partition of $A$ induces the equivalence relation \"lies in the same block\", so equivalence relations on $A$ and partitions of $A$ are the same objects wearing different clothes.",
+    "code": "Congruence mod 3 on Z:   a ~ b   iff   3 | (a - b)\n\n  reflexive     a - a = 0 and 3 | 0                          yes\n  symmetric     if a - b = 3k then b - a = 3(-k)             yes\n  transitive    if a - b = 3j and b - c = 3k then\n                a - c = (a-b) + (b-c) = 3(j+k)               yes\n\nSo ~ is an equivalence relation.  Its classes, shown inside {0,...,8}:\n\n  [0] = {0, 3, 6}\n  [1] = {1, 4, 7}\n  [2] = {2, 5, 8}\n\n  disjoint:  no number appears in two of them\n  covering:  every number appears in one of them\n  =>         the classes form a PARTITION of {0,...,8}\n\nNames are not classes:  [0] = [3] = [6].  One block, three labels.\nGoing the other way, the partition { {0,3,6}, {1,4,7}, {2,5,8} }\nrebuilds ~ exactly:  a ~ b iff a and b sit in the same block.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Transitivity of congruence is really the fact that a sum of two multiples of 3 is a multiple of 3. Almost every mod-n proof reduces to closure like this."
+     },
+     {
+      "line": 10,
+      "text": "Three classes for mod 3 and never more: the possible remainders are 0, 1 and 2, so a fourth class would have to repeat one of them."
+     },
+     {
+      "line": 18,
+      "text": "[0] = [3] is an equality of SETS, not of labels. Choosing a different representative never changes the block."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "Let $\\sim$ be an equivalence relation on $A$ and suppose $a \\sim b$. Explain why $[a] = [b]$, and say which of reflexivity, symmetry and transitivity each direction of the set inclusion uses.",
+     "rubric": {
+      "required": [
+       "transitivity",
+       "symmetry",
+       "subset",
+       "class",
+       "both"
+      ],
+      "optional": [
+       "inclusion",
+       "arbitrary",
+       "double",
+       "equal",
+       "reflexivity"
+      ],
+      "minWords": 50
+     },
+     "concepts": [
+      "equivalence-classes"
+     ],
+     "explain": "Set equality is proved by double inclusion. If $x \\in [a]$ then $x \\sim a$, and with $a \\sim b$ transitivity gives $x \\sim b$, so $[a] \\subseteq [b]$; the reverse inclusion needs symmetry first, to turn $a \\sim b$ into $b \\sim a$, and then transitivity again. Reflexivity plays no part here - its separate job is guaranteeing the classes are non-empty and cover $A$."
+    }
+   },
+   {
+    "title": "Functions Are Relations With One Extra Law",
+    "body": "A function $f : A \\to B$ is exactly a relation $F \\subseteq A \\times B$ satisfying one extra law: for every $a \\in A$ there is **exactly one** $b$ with $(a,b) \\in F$. So every function is a relation, while a relation is a function only when it is total on $A$ and single-valued.\n\nThree adjectives classify functions: $f$ is **injective** if $f(x) = f(y) \\Rightarrow x = y$, **surjective** if every $b \\in B$ equals some $f(a)$, and **bijective** if both.\n\nComposition $(g \\circ f)(x) = g(f(x))$ is again a function, and it inherits these properties: a composition of injections is injective, of surjections surjective, and of bijections bijective.\n\nA function has a two-sided inverse $f^{-1}$ with $f^{-1} \\circ f = \\mathrm{id}_A$ and $f \\circ f^{-1} = \\mathrm{id}_B$ **if and only if** it is a bijection, because injectivity is what makes $f^{-1}$ single-valued and surjectivity is what makes it total.",
+    "code": "A function f : A -> B is a relation F contained in A x B with one extra law:\n\n  for every a in A there is EXACTLY ONE b in B with (a,b) in F.\n\n  injective    f(x) = f(y) implies x = y             nothing collides\n  surjective   for all b in B some a has f(a) = b    nothing is missed\n  bijective    injective and surjective\n\nTake f : {0,1,2,3,4} -> {0,1,2,3,4},  f(x) = 3x mod 5.\n\n  x      0   1   2   3   4\n  f(x)   0   3   1   4   2\n\nEvery output appears exactly once, so f is a bijection.\nNow let g(x) = 2x mod 5.  Since 3 * 2 = 6 = 1 (mod 5),\n\n  g(f(x)) = 2(3x) = 6x = x (mod 5)     and     f(g(x)) = x (mod 5)\n\nso g is a two-sided inverse and g = f^-1.\n\nCounting, from a 3-element set to a 5-element set:\n\n  functions    5^3      = 125\n  injections   5*4*3    = 60\n  surjections  none     (3 inputs cannot cover 5 targets)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "'Exactly one' folds two conditions together: at least one (total) and at most one (single-valued). Drop either and you have a relation that is not a function."
+     },
+     {
+      "line": 12,
+      "text": "Multiplication by 3 is a bijection mod 5 because gcd(3,5) = 1. A multiplier sharing a factor with the modulus would repeat values and destroy injectivity."
+     },
+     {
+      "line": 24,
+      "text": "Injections cannot exceed the target in size and surjections cannot fall short, so for finite sets a bijection forces |A| = |B|."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "With $f(x) = 3x \\bmod 5$ and $g(x) = 2x \\bmod 5$ on $\\{0,1,2,3,4\\}$, evaluate each step. Give a single integer in $\\{0,1,2,3,4\\}$ for each.",
+     "steps": [
+      {
+       "label": "f(2)",
+       "expected": "1"
+      },
+      {
+       "label": "f(4)",
+       "expected": "2"
+      },
+      {
+       "label": "g(f(4))",
+       "expected": "4"
+      },
+      {
+       "label": "f(g(3))",
+       "expected": "3"
+      }
+     ],
+     "concepts": [
+      "composition-and-inverses"
+     ],
+     "explain": "$f(4) = 12 \\equiv 2 \\pmod 5$ and $g(2) = 4$, returning the input, while $f(g(3)) = f(1) = 3$ shows the undoing works from the other side too. A one-sided check is not enough in general: it is the two-sided identity $g \\circ f = \\mathrm{id}$ together with $f \\circ g = \\mathrm{id}$ that certifies $g = f^{-1}$ and therefore that $f$ is a bijection."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-5-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the four defining conditions. Each blank takes exactly one word: reflexive, symmetric, antisymmetric or transitive.",
+   "template": "R is ___ when (a,a) is in R for every a in A.\nR is ___ when (a,b) in R forces (b,a) in R.\nR is ___ when (a,b) in R and (b,a) in R force a = b.\nR is ___ when (a,b) in R and (b,c) in R force (a,c) in R.",
+   "blanks": [
+    "reflexive",
+    "symmetric",
+    "antisymmetric",
+    "transitive"
+   ],
+   "xp": 20,
+   "tags": [
+    "relation-properties",
+    "relations"
+   ],
+   "concepts": [
+    "relation-properties"
+   ],
+   "explain": "Reflexivity is a claim about the diagonal $\\{(a,a) : a \\in A\\}$ and has no hypothesis, while the other three are conditionals whose hypothesis is one or two pairs already in $R$. Reading them as $\\forall$ statements tells you at once how to attack them: a proof argues about arbitrary $a,b,c$, a refutation needs one concrete triple."
+  },
+  {
+   "id": "dm-5-g-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines into a valid order for a proof that congruence modulo $n$ is transitive on $\\mathbb{Z}$.",
+   "fragments": [
+    "Assume $a \\equiv b \\pmod n$ and $b \\equiv c \\pmod n$.",
+    "By the definition of divisibility there are integers $j, k$ with $a - b = jn$ and $b - c = kn$.",
+    "Add the two equations: $(a-b) + (b-c) = jn + kn$.",
+    "The left side collapses to $a - c$ and the right side factors as $(j+k)n$.",
+    "Since $j + k$ is an integer, $n \\mid (a - c)$, that is $a \\equiv c \\pmod n$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "xp": 20,
+   "tags": [
+    "equivalence-relations"
+   ],
+   "concepts": [
+    "equivalence-relations"
+   ],
+   "explain": "The engine of the proof is the unglamorous step of adding the two divisibility equations, because the $b$ terms cancel and leave precisely $a - c$. Note also that the hypothesis must be assumed before the witnesses $j,k$ can be named - naming a witness for a fact not yet assumed is the commonest structural error in these proofs."
+  },
+  {
+   "id": "dm-5-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $A = \\{1,2,3\\}$ and $R = \\{(1,1),(2,2),(3,3),(1,3),(3,1),(1,2)\\}$. Answer each step with exactly `yes` or `no`.",
+   "steps": [
+    {
+     "label": "Is R reflexive?",
+     "expected": "yes"
+    },
+    {
+     "label": "Is R symmetric?",
+     "expected": "no"
+    },
+    {
+     "label": "Is R antisymmetric?",
+     "expected": "no"
+    },
+    {
+     "label": "Is R transitive?",
+     "expected": "no"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "relation-properties"
+   ],
+   "concepts": [
+    "relation-properties"
+   ],
+   "explain": "This relation is the clean demonstration that symmetric and antisymmetric are independent: $(1,2)$ has no reverse so symmetry dies, while $(1,3)$ and $(3,1)$ are both present with $1 \\neq 3$ so antisymmetry dies too. Transitivity fails on $(3,1)$ followed by $(1,2)$, which demands $(3,2)$ - a missing pair rather than a wrong one, and therefore easy to overlook."
+  },
+  {
+   "id": "dm-5-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Every function is a relation, but most relations are not functions. Taking $R = \\{(1,2),(1,3),(2,3)\\}$ and $S = \\{(1,2)\\}$ as relations on $\\{1,2,3\\}$, explain precisely which condition each one violates, and state the two conditions a relation must satisfy to be a function from $A$ to $B$.",
+   "rubric": {
+    "required": [
+     "exactly one",
+     "total",
+     "single-valued",
+     "function",
+     "relation"
+    ],
+    "optional": [
+     "domain",
+     "undefined",
+     "two outputs",
+     "subset",
+     "input"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "tags": [
+    "functions-as-relations"
+   ],
+   "concepts": [
+    "functions-as-relations"
+   ],
+   "explain": "$R$ is not single-valued, since the input $1$ is paired with both $2$ and $3$ and so $R(1)$ has no unambiguous meaning. $S$ is single-valued but not total on $\\{1,2,3\\}$, because the inputs $2$ and $3$ receive no output at all. The phrase 'exactly one' packs both requirements into two words, and pulling them apart is what lets you say precisely *which* way a relation fails to be a function."
+  },
+  {
+   "id": "dm-5-g-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The partition $P = \\{\\,\\{1,2\\},\\ \\{3\\},\\ \\{4,5\\}\\,\\}$ of $A = \\{1,2,3,4,5\\}$ induces the equivalence relation $\\sim$ given by $a \\sim b$ exactly when $a$ and $b$ lie in the same block. Compute $|{\\sim}|$, the number of ordered pairs it contains, explain the counting rule that produced that number, and state $[4]$ explicitly.",
+   "rubric": {
+    "required": [
+     "9",
+     "block",
+     "ordered pairs",
+     "square",
+     "partition"
+    ],
+    "optional": [
+     "disjoint",
+     "sum",
+     "class",
+     "same block",
+     "size"
+    ],
+    "minWords": 45
+   },
+   "xp": 50,
+   "tags": [
+    "partitions",
+    "equivalence-classes"
+   ],
+   "concepts": [
+    "partitions"
+   ],
+   "explain": "Blocks are disjoint, so no pair gets counted twice, and a block of size $k$ contributes every one of its $k^2$ ordered pairs: $2^2 + 1^2 + 2^2 = 9$. The class $[4] = \\{4,5\\}$ *is* the block containing $4$ - under the partition-to-relation correspondence, 'equivalence class' and 'block' are two names for one set."
+  }
+ ],
+ "proof-set": [
+  {
+   "id": "dm-5-p-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $A = \\{1,2,3,4\\}$ and $R = \\{(a,b) \\in A \\times A : a \\mid b\\}$. Determine which of reflexive, symmetric, antisymmetric and transitive $R$ satisfies. Prove each property that holds by arguing about an arbitrary pair rather than by checking the eight listed pairs, and give an explicit counterexample for each property that fails.",
+   "rubric": {
+    "required": [
+     "reflexive",
+     "antisymmetric",
+     "transitive",
+     "symmetric",
+     "counterexample",
+     "divides"
+    ],
+    "optional": [
+     "arbitrary",
+     "a = b",
+     "partial order",
+     "fails",
+     "positive",
+     "integer"
+    ],
+    "minWords": 90
+   },
+   "xp": 50,
+   "tags": [
+    "relation-properties",
+    "relations"
+   ],
+   "concepts": [
+    "relation-properties",
+    "relations"
+   ],
+   "explain": "Divisibility on positive integers is reflexive because $a = 1 \\cdot a$, transitive because $b = ja$ and $c = kb$ give $c = (jk)a$, and antisymmetric because $a \\mid b$ and $b \\mid a$ with both positive force $a = b$. Symmetry fails and a single witness settles it: $(1,2) \\in R$ while $(2,1) \\notin R$. Reflexive, antisymmetric and transitive together is the definition of a **partial order**, which is why divisibility behaves like an ordering rather than like a sameness."
+  },
+  {
+   "id": "dm-5-p-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Fix an integer $n \\ge 1$. Prove that the relation defined by $a \\sim b \\iff n \\mid (a-b)$ is an equivalence relation on $\\mathbb{Z}$. Verify all three properties directly from the definition of divisibility, without appealing to any result about remainders.",
+   "rubric": {
+    "required": [
+     "reflexive",
+     "symmetric",
+     "transitive",
+     "divides",
+     "integer",
+     "definition"
+    ],
+    "optional": [
+     "arbitrary",
+     "closed",
+     "equivalence relation",
+     "negation",
+     "sum",
+     "witness"
+    ],
+    "minWords": 100
+   },
+   "xp": 50,
+   "tags": [
+    "equivalence-relations"
+   ],
+   "concepts": [
+    "equivalence-relations"
+   ],
+   "explain": "Every step is the same move: turn $n \\mid x$ into 'there is an integer $k$ with $x = kn$', do integer algebra, then turn it back. Reflexivity needs $n \\mid 0$, true because $0 = 0 \\cdot n$; symmetry needs $\\mathbb{Z}$ closed under negation; transitivity needs it closed under addition. The proof never uses $n$ being prime or the numbers being positive, which is exactly why congruence transfers so freely to other settings."
+  },
+  {
+   "id": "dm-5-p-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $\\sim$ be an equivalence relation on a non-empty set $A$. Prove that for all $a,b \\in A$ either $[a] = [b]$ or $[a] \\cap [b] = \\varnothing$. Then prove that the collection of equivalence classes is a partition of $A$, meaning every element lies in some class and distinct classes are disjoint.",
+   "rubric": {
+    "required": [
+     "intersection",
+     "transitivity",
+     "symmetry",
+     "reflexivity",
+     "partition",
+     "subset",
+     "nonempty"
+    ],
+    "optional": [
+     "double inclusion",
+     "contrapositive",
+     "cover",
+     "arbitrary",
+     "witness",
+     "disjoint"
+    ],
+    "minWords": 120
+   },
+   "xp": 50,
+   "tags": [
+    "equivalence-classes",
+    "partitions"
+   ],
+   "concepts": [
+    "equivalence-classes",
+    "partitions"
+   ],
+   "explain": "The right structure is to assume the intersection is nonempty, take a witness $c$ lying in both classes, and prove the classes are equal - which is the contrapositive of 'distinct classes are disjoint'. From $c \\sim a$ and $c \\sim b$, symmetry and transitivity yield $a \\sim b$, and double inclusion then gives $[a] = [b]$. Reflexivity does the separate job of the covering half, since $a \\sim a$ places every $a$ inside $[a]$, so no element is left out and no class is empty."
+  },
+  {
+   "id": "dm-5-p-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $f : A \\to B$. Prove that $f$ is a bijection if and only if there exists $g : B \\to A$ with $g \\circ f = \\mathrm{id}_A$ and $f \\circ g = \\mathrm{id}_B$. Prove both directions, and in the direction that constructs $g$, say explicitly which of injectivity and surjectivity makes $g$ well defined and which makes it total on $B$.",
+   "rubric": {
+    "required": [
+     "injective",
+     "surjective",
+     "bijection",
+     "inverse",
+     "well defined",
+     "both directions",
+     "identity"
+    ],
+    "optional": [
+     "total",
+     "unique",
+     "composition",
+     "onto",
+     "one-to-one",
+     "exists"
+    ],
+    "minWords": 130
+   },
+   "xp": 50,
+   "tags": [
+    "injective-surjective-bijective",
+    "composition-and-inverses"
+   ],
+   "concepts": [
+    "injective-surjective-bijective",
+    "composition-and-inverses"
+   ],
+   "explain": "Forwards, define $g(b)$ to be the unique $a$ with $f(a) = b$: surjectivity guarantees such an $a$ exists, making $g$ total, and injectivity guarantees it is unique, making $g$ well defined - each adjective buys exactly one half of 'function'. Backwards, $g \\circ f = \\mathrm{id}_A$ forces $f$ injective by applying $g$ to $f(x) = f(y)$, and $f \\circ g = \\mathrm{id}_B$ forces $f$ surjective since every $b$ equals $f(g(b))$. Two-sidedness is essential, because a one-sided inverse buys only one of the two properties."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-5-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A relation $R$ on $A$ is **antisymmetric** exactly when:",
+   "choices": [
+    "whenever $(a,b) \\in R$, the pair $(b,a) \\notin R$",
+    "whenever $(a,b) \\in R$ and $(b,a) \\in R$, it follows that $a = b$",
+    "$R$ is not symmetric",
+    "$(a,a) \\notin R$ for every $a \\in A$"
+   ],
+   "answer": 1,
+   "xp": 10,
+   "tags": [
+    "relation-properties"
+   ],
+   "concepts": [
+    "relation-properties"
+   ],
+   "explain": "Antisymmetry is a conditional whose conclusion is $a = b$, so it happily permits two-way pairs on the diagonal - the identity relation is both symmetric and antisymmetric. The first choice states the strictly stronger 'asymmetric', which would forbid every $(a,a)$, and the third confuses a defined property with a negation."
+  },
+  {
+   "id": "dm-5-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For an equivalence relation $\\sim$ on $A$ and an element $a \\in A$, the **equivalence class** $[a]$ is defined as:",
+   "choices": [
+    "$\\{x \\in A : x \\sim a\\}$",
+    "$\\{(x,y) \\in A \\times A : x \\sim y\\}$",
+    "the collection of all partitions of $A$ whose blocks contain $a$",
+    "$\\{x \\in A : x \\neq a \\text{ and } x \\sim a\\}$"
+   ],
+   "answer": 0,
+   "xp": 10,
+   "tags": [
+    "equivalence-classes"
+   ],
+   "concepts": [
+    "equivalence-classes"
+   ],
+   "explain": "A class is a subset of $A$, not a set of pairs, so the second choice describes the relation itself. The last choice excludes $a$, which would wreck the covering property, since reflexivity is precisely what puts $a \\in [a]$ and guarantees no class is empty."
+  },
+  {
+   "id": "dm-5-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the counts for a set $A$ with $|A| = 3$. Answer each blank with a plain integer.",
+   "template": "Number of relations on A: ___\nNumber of reflexive relations on A: ___\nNumber of relations on A that are both symmetric and antisymmetric: ___",
+   "blanks": [
+    "512",
+    "64",
+    "8"
+   ],
+   "xp": 20,
+   "tags": [
+    "relations",
+    "relation-properties"
+   ],
+   "concepts": [
+    "relations"
+   ],
+   "explain": "A relation is a free in-or-out choice for each of the $9$ cells of $A \\times A$, giving $2^9 = 512$. Reflexivity pins the $3$ diagonal cells to 'in' and leaves $2^6 = 64$ free choices. Symmetric and antisymmetric together force every off-diagonal pair out, so such a relation is any subset of the $3$-element diagonal: $2^3 = 8$."
+  },
+  {
+   "id": "dm-5-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a valid proof that if $[a] \\cap [b] \\neq \\varnothing$ then $[a] \\subseteq [b]$, where $\\sim$ is an equivalence relation on $A$.",
+   "fragments": [
+    "Suppose $[a] \\cap [b] \\neq \\varnothing$ and pick some $c \\in [a] \\cap [b]$.",
+    "By the definition of the classes, $c \\sim a$ and $c \\sim b$.",
+    "By symmetry $a \\sim c$, and combining with $c \\sim b$ transitivity gives $a \\sim b$.",
+    "Now take an arbitrary $x \\in [a]$, so that $x \\sim a$.",
+    "Transitivity applied to $x \\sim a$ and $a \\sim b$ yields $x \\sim b$, that is $x \\in [b]$.",
+    "Since $x$ was arbitrary, $[a] \\subseteq [b]$."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "xp": 20,
+   "tags": [
+    "equivalence-classes"
+   ],
+   "concepts": [
+    "equivalence-classes"
+   ],
+   "explain": "The proof has two phases and they cannot be swapped: first extract the single fact $a \\sim b$ from the shared witness $c$, then use it to move an arbitrary $x$ out of $[a]$ and into $[b]$. Introducing $x$ before $a \\sim b$ is established leaves you holding $x \\sim a$ with nothing to chain it onto."
+  },
+  {
+   "id": "dm-5-e-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Count the equivalence relations on $A = \\{1,2,3\\}$. Do it by listing the partitions of $A$ rather than by testing relations, state the resulting number, and write out the equivalence relation induced by the partition $\\{\\{1,2\\},\\{3\\}\\}$ as an explicit set of ordered pairs.",
+   "rubric": {
+    "required": [
+     "partition",
+     "5",
+     "block",
+     "equivalence relation",
+     "ordered pairs"
+    ],
+    "optional": [
+     "bijection",
+     "correspondence",
+     "same block",
+     "singleton",
+     "class"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": [
+    "equivalence-relations",
+    "partitions"
+   ],
+   "concepts": [
+    "equivalence-relations",
+    "partitions"
+   ],
+   "explain": "There are $5$ partitions of a $3$-element set - one single block, three ways to split as $2+1$, and one all-singletons - and since partitions correspond bijectively to equivalence relations there are exactly $5$ of the latter. The partition $\\{\\{1,2\\},\\{3\\}\\}$ yields $\\{(1,1),(1,2),(2,1),(2,2),(3,3)\\}$, and counting through partitions is far cheaper than filtering all $512$ relations by three properties."
+  },
+  {
+   "id": "dm-5-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $|A| = 3$ and $|B| = 5$. Count (a) the functions $A \\to B$, (b) the injections $A \\to B$, (c) the surjections $A \\to B$, and (d) the bijections $B \\to B$. Give a one-line reason for each count.",
+   "rubric": {
+    "required": [
+     "125",
+     "60",
+     "0",
+     "120",
+     "injective",
+     "surjective"
+    ],
+    "optional": [
+     "independent",
+     "pigeonhole",
+     "permutation",
+     "cannot",
+     "choices",
+     "factorial"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "tags": [
+    "injective-surjective-bijective",
+    "functions-as-relations"
+   ],
+   "concepts": [
+    "injective-surjective-bijective",
+    "functions-as-relations"
+   ],
+   "explain": "Each of the $3$ inputs picks an output independently, giving $5^3 = 125$ functions. Injectivity removes the used targets one at a time, giving $5 \\cdot 4 \\cdot 3 = 60$. There are **no** surjections, because $3$ inputs produce at most $3$ distinct outputs and $5 > 3$ - a pigeonhole argument run in reverse. Bijections $B \\to B$ are permutations of five things, so $5! = 120$."
+  },
+  {
+   "id": "dm-5-e-07",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Let $f : A \\to B$ and $g : B \\to C$ both be injective. Prove that $g \\circ f$ is injective. Then give a concrete example of functions $f, g$ for which $g \\circ f$ is injective but $g$ is not, and say what that shows about the converse.",
+   "rubric": {
+    "required": [
+     "injective",
+     "composition",
+     "counterexample",
+     "converse",
+     "arbitrary"
+    ],
+    "optional": [
+     "apply",
+     "false",
+     "one-to-one",
+     "does not follow",
+     "image",
+     "collapse"
+    ],
+    "minWords": 80
+   },
+   "xp": 50,
+   "tags": [
+    "composition-and-inverses",
+    "injective-surjective-bijective"
+   ],
+   "concepts": [
+    "composition-and-inverses"
+   ],
+   "explain": "Peel the functions off from the outside in: $g(f(x)) = g(f(y))$ with $g$ injective gives $f(x) = f(y)$, and $f$ injective then gives $x = y$. The converse fails because $g$ only ever needs to be injective on the *image* of $f$ - take $f : \\{1\\} \\to \\{1,2\\}$ with $f(1) = 1$ and $g : \\{1,2\\} \\to \\{1\\}$ constant, so $g \\circ f$ is injective on a one-element domain while $g$ collapses two points."
+  },
+  {
+   "id": "dm-5-e-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student claims: \"Symmetry and transitivity already give reflexivity - if $a \\sim b$ then $b \\sim a$ by symmetry, and transitivity then gives $a \\sim a$.\" Explain the precise flaw in this argument, and give a relation on $\\{1,2\\}$ that is symmetric and transitive but not reflexive.",
+   "rubric": {
+    "required": [
+     "symmetric",
+     "transitive",
+     "reflexive",
+     "assumes",
+     "counterexample"
+    ],
+    "optional": [
+     "isolated",
+     "vacuously",
+     "every element",
+     "no pair",
+     "related to something"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "tags": [
+    "relation-properties",
+    "equivalence-relations"
+   ],
+   "concepts": [
+    "relation-properties"
+   ],
+   "explain": "The argument silently assumes every $a$ is related to *some* $b$; an element appearing in no pair at all is untouched by symmetry and transitivity, yet reflexivity still demands $(a,a)$. On $\\{1,2\\}$ take $R = \\{(1,1)\\}$, which is symmetric and transitive but misses $(2,2)$. That is exactly why reflexivity is listed as an independent axiom rather than derived from the other two."
+  },
+  {
+   "id": "dm-5-e-09",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $f(x) = 3x \\bmod 5$ and $h(x) = (x+2) \\bmod 5$ on $\\{0,1,2,3,4\\}$. Evaluate each step, giving one integer in $\\{0,1,2,3,4\\}$.",
+   "steps": [
+    {
+     "label": "f(3)",
+     "expected": "4"
+    },
+    {
+     "label": "h(f(3))",
+     "expected": "1"
+    },
+    {
+     "label": "f(h(3))",
+     "expected": "0"
+    },
+    {
+     "label": "the value y with f(y) = 1",
+     "expected": "2"
+    }
+   ],
+   "xp": 40,
+   "tags": [
+    "composition-and-inverses"
+   ],
+   "concepts": [
+    "composition-and-inverses"
+   ],
+   "explain": "$h \\circ f$ and $f \\circ h$ disagree at $x = 3$, giving $1$ against $0$, which is the concrete reminder that composition is not commutative even when both factors are bijections. The last step reads the table backwards: $f(2) = 6 \\equiv 1 \\pmod 5$, so $f^{-1}(1) = 2$, and in general $f^{-1}(y) = 2y \\bmod 5$ because $2$ is the multiplicative inverse of $3$ modulo $5$."
+  },
+  {
+   "id": "dm-5-e-10",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the statement of the correspondence between equivalence relations and partitions. The first two blanks take one word each; the third takes an integer.",
+   "template": "Given an equivalence relation on A, its equivalence classes form a ___ of A.\nGiven a partition of A, the relation 'lies in the same ___' is an equivalence relation.\nThe number of equivalence relations on a set of size 4 is ___.",
+   "blanks": [
+    "partition",
+    "block",
+    "15"
+   ],
+   "xp": 20,
+   "tags": [
+    "partitions",
+    "equivalence-relations"
+   ],
+   "concepts": [
+    "partitions"
+   ],
+   "explain": "The two constructions are mutually inverse, so the objects are in bijection and either one may be counted in order to count the other. Counting partitions of a $4$-element set gives $15$: one single block, four splits of shape $3+1$, three of shape $2+2$, six of shape $2+1+1$, and one all-singletons."
+  }
+ ]
+}

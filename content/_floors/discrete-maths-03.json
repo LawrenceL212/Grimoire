@@ -1,0 +1,802 @@
+{
+ "n": 3,
+ "name": "The Chamber of Proof",
+ "concepts": [
+  "direct-proof",
+  "contrapositive",
+  "proof-by-contradiction",
+  "parity",
+  "divisibility",
+  "irrationality-of-sqrt2"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "proof-work",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Direct Proof, Contrapositive, Contradiction",
+  "sections": [
+   {
+    "title": "The Shape of a Direct Proof",
+    "body": "A **direct proof** of $P \\Rightarrow Q$ assumes $P$ and reasons forward, one justified step at a time, until $Q$ appears. Its engine is always the same move: replace each word in the hypothesis by the equation that defines it. An integer $n$ is **even** exactly when $n = 2k$ for some $k \\in \\mathbb{Z}$, **odd** exactly when $n = 2k + 1$, and $a \\mid b$ (read as $a$ **divides** $b$) exactly when $b = ak$ for some $k \\in \\mathbb{Z}$.\n\nSo the skeleton is: unpack the definitions, do algebra, then repackage the result as a definition again. That last move carries as much weight as the first - you have not shown $m + n$ is even until you have exhibited it in the form $2t$ with $t$ an integer.\n\nNote what a direct proof never does: it never checks examples. Confirming $n = 1, 2, 3$ shows only that the claim is not obviously false; the symbolic argument is what covers all infinitely many integers at once.",
+    "code": "CLAIM   if m is odd and n is odd, then m + n is even\n\ndefinitions used\n  n even  <=>  n = 2k       for some integer k\n  n odd   <=>  n = 2k + 1   for some integer k\n  a | b   <=>  b = a*k      for some integer k\n\nPROOF\n  1. assume the hypothesis      m odd and n odd\n  2. unpack the definitions     m = 2j + 1,  n = 2k + 1   (j, k integers)\n  3. algebra                    m + n = 2j + 1 + 2k + 1\n                                      = 2j + 2k + 2\n                                      = 2*(j + k + 1)\n  4. name the witness           let t = j + k + 1;  t is an integer\n                                because integers are closed under +\n  5. repackage as a definition  m + n = 2t, so m + n is even\n  QED\n\nthe same skeleton, in divisibility form\nCLAIM   if 3 | n then 3 | 5n\n  n = 3k  =>  5n = 15k = 3*(5k)  =>  3 | 5n     (witness 5k)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Every proof on this floor bottoms out in one of these three equations. Learn them as equations, not as English."
+     },
+     {
+      "line": 11,
+      "text": "Line 3 is the only place algebra happens. Everything above it is translation, and everything below it is translation back."
+     },
+     {
+      "line": 14,
+      "text": "Naming the witness t is not ceremony - the definition of even demands an integer, so you must say which one."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete this direct proof. Each blank is a single lowercase word or a single number - no spaces, no symbols.",
+     "template": "CLAIM  if m and n are odd, then m + n is even\n\nProof. Since m is odd, m = 2j + ___ for some integer j.\nSince n is odd, n = 2k + 1 for some integer k.\nThen m + n = 2j + 2k + ___.\nFactoring out the 2, m + n = 2*(j + k + ___).\nSince j + k + 1 is an integer, m + n is ___ by definition. QED",
+     "blanks": [
+      "1",
+      "2",
+      "1",
+      "even"
+     ],
+     "xp": 20,
+     "concepts": [
+      "direct-proof",
+      "parity"
+     ],
+     "tags": [
+      "direct-proof",
+      "parity"
+     ],
+     "explain": "The two spare $+1$ terms combine into the $+2$ that makes the factoring possible - that is the whole mechanism. A proof that stops at $2j + 2k + 2$ has done the algebra but not the last step: you must present the number in the form $2t$ with $t$ an integer before the word **even** is earned."
+    }
+   },
+   {
+    "title": "When the Contrapositive Is Easier",
+    "body": "The **contrapositive** of $P \\Rightarrow Q$ is $\\neg Q \\Rightarrow \\neg P$, and the two are **logically equivalent** - same truth value in every row of the truth table, so proving either one proves the other. Do not confuse it with the **converse** $Q \\Rightarrow P$, which is a different statement entirely and is usually false.\n\nReach for the contrapositive when the hypothesis is about a compound expression and the conclusion is about a bare variable. The claim if $n^2$ is even then $n$ is even gives you $n^2 = 2k$, from which $n$ is hard to extract; the contrapositive hands you $n = 2k + 1$ instead, and squaring is easy.\n\nThe rule of thumb: negate whichever side gives you an **equation you can substitute**. A contrapositive proof is still a direct proof - it is a direct proof of a different but equivalent implication, and you should say in the first line that that is what you are doing.",
+    "code": "why it is legal: the two columns agree in all four rows\n\n  P | Q | not Q | not P | P => Q | (not Q) => (not P)\n ---+---+-------+-------+--------+--------------------\n  T | T |   F   |   F   |   T    |         T\n  T | F |   T   |   F   |   F    |         F\n  F | T |   F   |   T   |   T    |         T\n  F | F |   T   |   T   |   T    |         T\n\nCLAIM   for every integer n, if n^2 is even then n is even\n\n  contrapositive:  if n is odd then n^2 is odd\n  converse      :  if n is even then n^2 is even   <-- a DIFFERENT claim\n\nPROOF (by contrapositive)\n  1. suppose n is odd            n = 2k + 1, k an integer\n  2. square it                   n^2 = 4k^2 + 4k + 1\n  3. force the 2 out             n^2 = 2*(2k^2 + 2k) + 1\n  4. witness 2k^2 + 2k is an integer, so n^2 is odd\n  5. that is the contrapositive, so the original claim holds\n  QED\n\nthe direct attempt, for comparison: n^2 = 2k gives no handle on n\nat all without already knowing something about square roots.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Row 2 is the only row where an implication is false: true hypothesis, false conclusion. Both columns catch exactly that row."
+     },
+     {
+      "line": 13,
+      "text": "Converse and contrapositive differ by which side you negate. Only one of them is equivalent to the original."
+     },
+     {
+      "line": 19,
+      "text": "Everything is in service of reaching the shape 2*(integer) + 1, which is the definition of odd."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Arrange these lines into a correct proof by contrapositive of: for every integer $n$, if $n^2$ is even then $n$ is even.",
+     "fragments": [
+      "We prove the contrapositive: if $n$ is odd then $n^2$ is odd.",
+      "Suppose $n$ is odd, so $n = 2k + 1$ for some integer $k$.",
+      "Then $n^2 = (2k+1)^2 = 4k^2 + 4k + 1$.",
+      "Rewriting, $n^2 = 2(2k^2 + 2k) + 1$.",
+      "Since $2k^2 + 2k$ is an integer, $n^2$ is odd.",
+      "The contrapositive holds, so if $n^2$ is even then $n$ is even."
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "xp": 20,
+     "concepts": [
+      "contrapositive",
+      "parity"
+     ],
+     "tags": [
+      "contrapositive",
+      "parity"
+     ],
+     "explain": "Announcing the contrapositive **before** assuming anything is not politeness - a reader who meets $n = 2k+1$ without warning thinks you have assumed the wrong thing. The final line is load-bearing too: it is where the logical equivalence gets cashed in, and a proof that stops at $n^2$ is odd has technically established a different sentence."
+    }
+   },
+   {
+    "title": "Proof by Contradiction",
+    "body": "In a **proof by contradiction** you assume the statement is **false**, reason until you derive something impossible, and conclude that the assumption was untenable. Formally you show that $\\neg P$ implies a falsehood, which forces $P$ to be true.\n\nTwo things make it powerful. First, it hands you an extra hypothesis for free: instead of arguing from nothing you get to argue from $\\neg P$. Second, it is the natural weapon against statements of the form there is no $x$ such that something holds, because negating such a statement produces exactly the object you want to dissect.\n\nThe discipline is in the ending. You must arrive at a **specific** impossibility - a number that is both even and odd, a fraction claimed to be in lowest terms whose parts share a factor - and name it. A vague sense that something has gone wrong is not a contradiction.",
+    "code": "SKELETON\n  1. suppose, for contradiction, that the claim is false\n  2. write down precisely what that negation says\n  3. reason normally from it\n  4. reach a statement of the form  X and not X\n  5. conclude the negation is impossible, so the claim holds\n\nCLAIM   there are no integers a, b with 4a + 6b = 7\n\nPROOF (by contradiction)\n  1. suppose such integers a, b DO exist\n  2. 4a + 6b = 2*(2a + 3b)\n  3. 2a + 3b is an integer, so 4a + 6b is even\n  4. therefore 7 is even\n  5. but 7 = 2*3 + 1, so 7 is odd\n  6. 7 cannot be both even and odd  <-- the contradiction, named\n  7. so no such integers exist\n  QED\n\nsame machine, divisibility flavour\nCLAIM   there are no integers x, y with 6x + 9y = 25\n  6x + 9y = 3*(2x + 3y), so 3 | 25, but 25 = 3*8 + 1.  contradiction.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Step 4 is the target you steer toward. If you cannot name the X, you have not finished the proof."
+     },
+     {
+      "line": 11,
+      "text": "Negating 'there are no integers such that...' gives you actual integers to compute with. That is the free hypothesis."
+     },
+     {
+      "line": 16,
+      "text": "The contradiction is about 7 itself, a fixed number - which is why nothing here depends on which a and b were chosen."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete this proof by contradiction. Each blank is a single lowercase word.",
+     "template": "CLAIM  there are no integers a and b with 4a + 6b = 7\n\nProof. Suppose, for ___, that such integers exist.\nThen 7 = 4a + 6b = 2*(2a + 3b), and 2a + 3b is an integer,\nso 7 is ___.\nBut 7 = 2*3 + 1, so 7 is ___.\nNo integer is both, so the assumption is impossible and no such\nintegers ___. QED",
+     "blanks": [
+      "contradiction",
+      "even",
+      "odd",
+      "exist"
+     ],
+     "xp": 20,
+     "concepts": [
+      "proof-by-contradiction",
+      "parity"
+     ],
+     "tags": [
+      "proof-by-contradiction",
+      "parity"
+     ],
+     "explain": "The contradiction is pinned to a **fixed** number, $7$, not to the unknowns - which is why the argument does not depend on which $a$ and $b$ were supposedly chosen. Any equation whose left side is forced even and whose right side is odd dies the same way, and that is the general lesson: parity is an invariant the equation cannot escape."
+    }
+   },
+   {
+    "title": "The Canonical Contradiction: the Irrationality of $\\sqrt{2}$",
+    "body": "A number is **rational** when it can be written $\\frac{p}{q}$ with $p, q \\in \\mathbb{Z}$ and $q \\neq 0$, and **irrational** when it cannot. Irrationality says that no such pair exists, so contradiction is the obvious tool: assume a pair does exist and take it apart.\n\nThe extra ingredient is that any fraction can be put in **lowest terms** - cancel common factors until $p$ and $q$ share none. That is not an assumption about $\\sqrt{2}$; it is a fact about fractions, and it is the trap the proof springs. From $2q^2 = p^2$ we learn that $p$ is even, and substituting then shows $q$ is even too, so $2 \\mid p$ and $2 \\mid q$ - contradicting lowest terms.\n\nNotice how much of this floor it reuses: the step from $p^2$ even to $p$ even is exactly the contrapositive lemma of the previous section. Big proofs are small proofs stacked.",
+    "code": "CLAIM   sqrt(2) is irrational\n\nPROOF (by contradiction)\n  1. suppose sqrt(2) is rational\n  2. then sqrt(2) = p/q with p, q integers, q != 0,\n     and the fraction in LOWEST TERMS (p and q share no factor > 1)\n  3. square both sides       2 = p^2 / q^2\n  4. clear the denominator   2*q^2 = p^2\n  5. so p^2 is even\n  6. LEMMA (previous section): p^2 even => p even\n     so p = 2m for some integer m\n  7. substitute              2*q^2 = (2m)^2 = 4m^2\n  8. divide by 2             q^2 = 2m^2,  so q^2 is even\n  9. by the same lemma       q is even\n 10. so 2 | p and 2 | q\n 11. but step 2 said they share no factor > 1   <-- contradiction\n 12. hence sqrt(2) is not rational\n  QED\n\nwhere it does NOT go wrong: run the same argument on sqrt(4).\n  4*q^2 = p^2 forces p even, p = 2m, so q^2 = m^2 - and q = m = 1,\n  p = 2 is perfectly consistent. no contradiction ever appears,\n  which is correct, because sqrt(4) = 2 IS rational.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Lowest terms is the loaded gun on the mantelpiece. Every later step is aimed at it."
+     },
+     {
+      "line": 10,
+      "text": "This is the lemma proved by contrapositive earlier. Without it, step 5 tells you nothing about p."
+     },
+     {
+      "line": 20,
+      "text": "A technique that 'works' on a false statement is broken. Watching it fail on sqrt(4) is how you know the argument used something specific to 2."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "In the proof above, why is it legitimate to assume at step 2 that $p/q$ is in lowest terms, and what exactly goes wrong with the proof if you drop that assumption?",
+     "rubric": {
+      "required": [
+       "lowest terms",
+       "common factor",
+       "contradiction",
+       "cancel"
+      ],
+      "optional": [
+       "rational",
+       "even",
+       "assumption",
+       "coprime",
+       "divide"
+      ],
+      "minWords": 45
+     },
+     "xp": 20,
+     "concepts": [
+      "irrationality-of-sqrt2",
+      "proof-by-contradiction"
+     ],
+     "tags": [
+      "irrationality-of-sqrt2",
+      "proof-by-contradiction"
+     ],
+     "explain": "It is legitimate because every rational number already has a lowest-terms representation: cancel common factors repeatedly, a process that must stop because the numerator shrinks each time. So assuming it costs nothing - you are choosing a convenient representative, not adding a hypothesis. Drop it and the argument still shows $p$ and $q$ are both even, but that is no longer absurd: $\\frac{6}{4}$ has both parts even and is a perfectly honest fraction. The contradiction lives entirely in the collision between share no common factor and both divisible by $2$."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "dm-3-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete this direct proof that divisibility is transitive. Write products with `*` and no spaces, for example `m*n`. Each blank is a single token.",
+   "template": "CLAIM  if a | b and b | c then a | c\n\nProof. By the definition of divides, b = a*___ for some integer m.\nLikewise c = b*n for some integer ___.\nSubstituting the first equation into the second,\n   c = (a*m)*n = a*(___).\nSince m*n is an integer, this exhibits c as a times an integer,\nso ___ | c by definition. QED",
+   "blanks": [
+    "m",
+    "n",
+    "m*n",
+    "a"
+   ],
+   "xp": 20,
+   "concepts": [
+    "divisibility",
+    "direct-proof"
+   ],
+   "tags": [
+    "divisibility",
+    "direct-proof"
+   ],
+   "explain": "Transitivity is nothing but substitution plus the closure of the integers under multiplication. The final blank is the point of the exercise: the definition of $a \\mid c$ demands the form $c = a \\cdot t$ with $t$ an integer, and regrouping $(am)n$ as $a(mn)$ is precisely what produces it."
+  },
+  {
+   "id": "dm-3-g-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a correct direct proof that the product of two odd integers is odd.",
+   "fragments": [
+    "Let $m$ and $n$ be odd integers.",
+    "By definition, $m = 2j + 1$ and $n = 2k + 1$ for some integers $j, k$.",
+    "Multiplying, $mn = 4jk + 2j + 2k + 1$.",
+    "Regrouping, $mn = 2(2jk + j + k) + 1$.",
+    "Since $2jk + j + k$ is an integer, $mn$ has the form $2t + 1$.",
+    "Therefore $mn$ is odd."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "xp": 20,
+   "concepts": [
+    "direct-proof",
+    "parity"
+   ],
+   "tags": [
+    "direct-proof",
+    "parity"
+   ],
+   "explain": "Every direct parity proof has this five-beat rhythm: name the objects, unpack the definitions, do the algebra, force the expression into the shape $2t$ or $2t + 1$, then read the definition back off. Placing the regrouping line before the multiplication is the tempting error - you cannot factor an expression you have not yet expanded."
+  },
+  {
+   "id": "dm-3-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "The claim if $3n + 2$ is odd then $n$ is odd is proved by contrapositive. Before proving it, check the machinery by hand: for each $n$ below, give the parity of $3n + 2$. Answer with exactly the word `even` or the word `odd`.",
+   "steps": [
+    {
+     "label": "n = 1, so 3n + 2 = 5",
+     "expected": "odd"
+    },
+    {
+     "label": "n = 2, so 3n + 2 = 8",
+     "expected": "even"
+    },
+    {
+     "label": "n = 3, so 3n + 2 = 11",
+     "expected": "odd"
+    },
+    {
+     "label": "n = 4, so 3n + 2 = 14",
+     "expected": "even"
+    }
+   ],
+   "xp": 40,
+   "concepts": [
+    "parity",
+    "contrapositive"
+   ],
+   "tags": [
+    "parity",
+    "contrapositive"
+   ],
+   "explain": "The table shows $3n+2$ is odd exactly when $n$ is odd, which is the contrapositive made visible: $n$ even forces $3n+2$ even. But four rows are evidence, not proof - only the symbolic step $n = 2k \\Rightarrow 3n + 2 = 2(3k + 1)$ covers every integer. Use tables to decide **what** to prove and which direction is easier, never as the proof itself."
+  },
+  {
+   "id": "dm-3-g-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Show that there are no integers $x$ and $y$ satisfying $6x + 9y = 25$. State which proof technique you are using, and name the specific impossibility you reach.",
+   "rubric": {
+    "required": [
+     "contradiction",
+     "integer",
+     "divid",
+     "3"
+    ],
+    "optional": [
+     "factor",
+     "suppose",
+     "assume",
+     "25",
+     "multiple"
+    ],
+    "minWords": 45
+   },
+   "xp": 50,
+   "concepts": [
+    "proof-by-contradiction",
+    "divisibility"
+   ],
+   "tags": [
+    "proof-by-contradiction",
+    "divisibility"
+   ],
+   "explain": "Suppose such integers existed. Then $25 = 6x + 9y = 3(2x + 3y)$, and $2x + 3y$ is an integer, so $3 \\mid 25$. But $25 = 3 \\cdot 8 + 1$, so $3 \\nmid 25$ - the named impossibility. The general principle behind it: $ax + by = c$ has integer solutions only when every common divisor of $a$ and $b$ also divides $c$. Here $\\gcd(6, 9) = 3$ and $3 \\nmid 25$. Parity arguments are this same principle with the divisor $2$."
+  },
+  {
+   "id": "dm-3-g-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are given two claims: (a) if $n^2 + 1$ is even then $n$ is odd, and (b) if $n$ is odd then $n + 2$ is odd. For each, say whether a direct proof or a contrapositive proof is the more natural first attempt, and justify your choice by describing what equation each approach hands you to work with.",
+   "rubric": {
+    "required": [
+     "contrapositive",
+     "direct",
+     "substitut",
+     "hypothesis"
+    ],
+    "optional": [
+     "even",
+     "odd",
+     "equation",
+     "square",
+     "handle",
+     "unpack"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "concepts": [
+    "contrapositive",
+    "direct-proof"
+   ],
+   "tags": [
+    "contrapositive",
+    "direct-proof"
+   ],
+   "explain": "The deciding question is always which assumption converts into an equation you can substitute. In (a) the direct hypothesis gives $n^2 + 1 = 2k$, so $n^2 = 2k - 1$ - an equation about $n^2$, with no route back to $n$. The contrapositive assumes $n$ even, hands you $n = 2k$ outright, and $n^2 + 1 = 2(2k^2) + 1$ finishes it. In (b) the direct hypothesis already gives $n = 2k + 1$, the cleanest handle available, so the contrapositive would only add work. The rule generalises: negate whichever side mentions the bare variable."
+  }
+ ],
+ "proof-work": [
+  {
+   "id": "dm-3-p-01",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that for every integer $n$, the number $n^2 - n$ is even. Your proof must cover every integer, not a sample of them.",
+   "rubric": {
+    "required": [
+     "even",
+     "odd",
+     "integer",
+     "2k"
+    ],
+    "optional": [
+     "case",
+     "consecutive",
+     "factor",
+     "definition",
+     "either"
+    ],
+    "minWords": 55
+   },
+   "xp": 50,
+   "concepts": [
+    "parity",
+    "direct-proof"
+   ],
+   "tags": [
+    "parity",
+    "direct-proof"
+   ],
+   "explain": "Two clean routes exist. By cases: if $n = 2k$ then $n^2 - n = 4k^2 - 2k = 2(2k^2 - k)$; if $n = 2k+1$ then $n^2 - n = 4k^2 + 4k + 1 - 2k - 1 = 2(2k^2 + k)$. Either way the result has the form $2t$ with $t$ an integer. By factoring: $n^2 - n = n(n-1)$, a product of consecutive integers, one of which must be even, and an even factor makes the product even. The casework version is longer but uses nothing unproved; the factoring version is shorter but leans on one of two consecutive integers is even, which itself deserves a line."
+  },
+  {
+   "id": "dm-3-p-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by contrapositive: for every integer $n$, if $5n + 3$ is even then $n$ is odd. State the contrapositive explicitly before you begin, and finish by saying why proving it settles the original claim.",
+   "rubric": {
+    "required": [
+     "contrapositive",
+     "even",
+     "odd",
+     "equivalent"
+    ],
+    "optional": [
+     "suppose",
+     "2k",
+     "negation",
+     "substitut",
+     "definition"
+    ],
+    "minWords": 55
+   },
+   "xp": 50,
+   "concepts": [
+    "contrapositive",
+    "parity"
+   ],
+   "tags": [
+    "contrapositive",
+    "parity"
+   ],
+   "explain": "The contrapositive is: if $n$ is even then $5n + 3$ is odd. Assume $n = 2k$; then $5n + 3 = 10k + 3 = 2(5k + 1) + 1$, and $5k + 1$ is an integer, so $5n + 3$ is odd. Because $\\neg Q \\Rightarrow \\neg P$ is logically equivalent to $P \\Rightarrow Q$, the original claim follows. Notice how negating $n$ is odd produced the substitutable equation $n = 2k$, while the direct route would start from $5n + 3 = 2k$, giving $n = \\frac{2k-3}{5}$ - a fraction, carrying no parity information at all."
+  },
+  {
+   "id": "dm-3-p-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $\\sqrt{2}$ is irrational. Set up the contradiction precisely, state any lemma you rely on, and identify the exact statement that becomes impossible.",
+   "rubric": {
+    "required": [
+     "contradiction",
+     "rational",
+     "even",
+     "integer",
+     "lowest terms"
+    ],
+    "optional": [
+     "common factor",
+     "coprime",
+     "square",
+     "substitut",
+     "lemma",
+     "contrapositive"
+    ],
+    "minWords": 80
+   },
+   "xp": 50,
+   "concepts": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction",
+    "parity"
+   ],
+   "tags": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction",
+    "parity"
+   ],
+   "explain": "Assume $\\sqrt{2} = \\frac{p}{q}$ with $p, q$ integers, $q \\neq 0$, in lowest terms. Squaring and clearing denominators gives $2q^2 = p^2$, so $p^2$ is even; by the lemma that $p^2$ even implies $p$ even (itself proved by contrapositive) write $p = 2m$. Then $2q^2 = 4m^2$, so $q^2 = 2m^2$, so $q^2$ is even and $q$ is even by the same lemma. Now $2$ divides both $p$ and $q$, contradicting lowest terms. The proof is a stack: a contrapositive lemma sitting inside a contradiction. That structure is also why it fails on $\\sqrt{4}$, where $4q^2 = p^2$ forces $p$ even but yields no matching conclusion about $q$."
+  },
+  {
+   "id": "dm-3-p-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove directly that if $a \\mid b$ and $a \\mid c$, then $a \\mid (bx + cy)$ for all integers $x$ and $y$. Say which closure property of the integers your final step depends on.",
+   "rubric": {
+    "required": [
+     "divid",
+     "integer",
+     "definition",
+     "closed"
+    ],
+    "optional": [
+     "witness",
+     "factor",
+     "substitut",
+     "distribut",
+     "combination"
+    ],
+    "minWords": 55
+   },
+   "xp": 50,
+   "concepts": [
+    "divisibility",
+    "direct-proof"
+   ],
+   "tags": [
+    "divisibility",
+    "direct-proof"
+   ],
+   "explain": "Write $b = as$ and $c = at$ with $s, t$ integers. Then $bx + cy = asx + aty = a(sx + ty)$, and $sx + ty$ is an integer because the integers are closed under multiplication and addition - that closure is what licenses the final step, since the definition of divides demands an integer witness. The result is worth memorising: any integer combination of two multiples of $a$ is again a multiple of $a$. The earlier $6x + 9y = 25$ problem is this theorem in contrapositive dress - $3$ divides $6$ and $9$, so $3$ must divide any combination, and $25$ is not one."
+  }
+ ],
+ "exam": [
+  {
+   "id": "dm-3-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the **contrapositive** of: if $n$ is divisible by $6$, then $n$ is even?",
+   "choices": [
+    "If $n$ is even, then $n$ is divisible by $6$.",
+    "If $n$ is not even, then $n$ is not divisible by $6$.",
+    "If $n$ is not divisible by $6$, then $n$ is not even.",
+    "$n$ is divisible by $6$ and $n$ is not even."
+   ],
+   "answer": 1,
+   "xp": 10,
+   "concepts": [
+    "contrapositive"
+   ],
+   "tags": [
+    "contrapositive"
+   ],
+   "explain": "The contrapositive negates **and** swaps: $\\neg Q \\Rightarrow \\neg P$. Choice 0 is the converse and choice 2 is the inverse - equivalent to each other, but neither is equivalent to the original, as $n = 4$ shows. Choice 3 is the negation of the implication, which is what a proof by contradiction assumes, not what a contrapositive proof proves."
+  },
+  {
+   "id": "dm-3-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For integers $a$ and $b$, the statement $a \\mid b$ means:",
+   "choices": [
+    "$\\frac{a}{b}$ is an integer.",
+    "there exists an integer $k$ with $b = ak$.",
+    "$b$ is smaller than $a$.",
+    "$a$ and $b$ share no common factor greater than $1$."
+   ],
+   "answer": 1,
+   "xp": 10,
+   "concepts": [
+    "divisibility"
+   ],
+   "tags": [
+    "divisibility"
+   ],
+   "explain": "$a \\mid b$ says $b$ is a multiple of $a$, and the definition is deliberately phrased as an existence claim about an integer $k$ - that is what makes it usable in algebra, since you can substitute $b = ak$ wherever $b$ appears. Choice 0 reverses the roles, choice 3 defines coprimality, and choice 2 is simply false: $3 \\mid 12$ and $3 < 12$."
+  },
+  {
+   "id": "dm-3-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete this proof by contrapositive. Each blank is a single lowercase word or a single number.",
+   "template": "CLAIM  for every integer n, if n^3 + 5 is odd then n is even\n\nProof. We prove the ___: if n is odd then n^3 + 5 is even.\nSuppose n is odd, so n = 2k + ___ for some integer k.\nThen n^3 + 5 = 8k^3 + 12k^2 + 6k + 1 + 5\n            = 2*(4k^3 + 6k^2 + 3k + 3).\nSince 4k^3 + 6k^2 + 3k + 3 is an integer, n^3 + 5 is ___.\nThe two implications are logically ___, so the claim holds. QED",
+   "blanks": [
+    "contrapositive",
+    "1",
+    "even",
+    "equivalent"
+   ],
+   "xp": 20,
+   "concepts": [
+    "contrapositive",
+    "parity"
+   ],
+   "tags": [
+    "contrapositive",
+    "parity"
+   ],
+   "explain": "Expanding $(2k+1)^3$ gives $8k^3 + 12k^2 + 6k + 1$, and adding $5$ makes every remaining coefficient even - that is the entire content of the proof. The last blank is not decoration: the equivalence of an implication with its contrapositive is the only reason proving a different sentence counts as proving this one."
+  },
+  {
+   "id": "dm-3-e-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into the standard proof by contradiction that $\\sqrt{2}$ is irrational.",
+   "fragments": [
+    "Suppose, for contradiction, that $\\sqrt{2}$ is rational.",
+    "Then $\\sqrt{2} = \\frac{p}{q}$ for integers $p, q$ with $q \\neq 0$, and the fraction in lowest terms.",
+    "Squaring and clearing the denominator gives $2q^2 = p^2$.",
+    "So $p^2$ is even, and therefore $p$ is even, say $p = 2m$.",
+    "Substituting, $2q^2 = 4m^2$, so $q^2 = 2m^2$.",
+    "So $q^2$ is even, and therefore $q$ is even.",
+    "Then $2$ divides both $p$ and $q$, contradicting lowest terms.",
+    "Hence $\\sqrt{2}$ is irrational."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "xp": 20,
+   "concepts": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction"
+   ],
+   "tags": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction"
+   ],
+   "explain": "The ordering is forced by dependency: you cannot conclude $q$ is even before deriving $q^2 = 2m^2$, and that derivation needs $p = 2m$, which needs $2q^2 = p^2$. The commonest misplacement is putting the lowest-terms clause near the end, beside the contradiction it feeds - but it has to be declared the moment the fraction is introduced, or the final step contradicts something that was never assumed."
+  },
+  {
+   "id": "dm-3-e-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "The lemma if $n^2$ is even then $n$ is even is used inside the $\\sqrt{2}$ proof. For each $n$, give the parity of $n^2$, answering with exactly the word `even` or the word `odd`.",
+   "steps": [
+    {
+     "label": "n = 3, so n^2 = 9",
+     "expected": "odd"
+    },
+    {
+     "label": "n = 4, so n^2 = 16",
+     "expected": "even"
+    },
+    {
+     "label": "n = 6, so n^2 = 36",
+     "expected": "even"
+    },
+    {
+     "label": "n = 7, so n^2 = 49",
+     "expected": "odd"
+    }
+   ],
+   "xp": 40,
+   "concepts": [
+    "parity",
+    "contrapositive"
+   ],
+   "tags": [
+    "parity",
+    "contrapositive"
+   ],
+   "explain": "Squaring preserves parity in both directions, so here the lemma and its converse are both true - unusual, and easy to over-generalise from. The proof of the direction we need still runs through the contrapositive, because assuming $n$ odd gives the substitutable $n = 2k+1$ while assuming $n^2 = 2k$ gives nothing. These four rows are a sanity check on the statement, never a proof of it."
+  },
+  {
+   "id": "dm-3-e-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Prove that if $n$ is an odd integer, then $8 \\mid (n^2 - 1)$. Show your algebra, and justify the final divisibility claim from the definition.",
+   "rubric": {
+    "required": [
+     "odd",
+     "integer",
+     "divid",
+     "8"
+    ],
+    "optional": [
+     "consecutive",
+     "even",
+     "factor",
+     "witness",
+     "definition",
+     "2k"
+    ],
+    "minWords": 55
+   },
+   "xp": 50,
+   "concepts": [
+    "divisibility",
+    "parity"
+   ],
+   "tags": [
+    "divisibility",
+    "parity"
+   ],
+   "explain": "Write $n = 2k + 1$. Then $n^2 - 1 = 4k^2 + 4k = 4k(k+1)$. Now $k$ and $k+1$ are consecutive integers, so one of them is even and $k(k+1) = 2t$ for some integer $t$. Hence $n^2 - 1 = 8t$, which is exactly the definition of $8 \\mid (n^2 - 1)$. Stopping at $4k(k+1)$ proves only divisibility by $4$; the extra factor of $2$ has to be extracted from the consecutive-integers observation, and that is the step most attempts quietly skip."
+  },
+  {
+   "id": "dm-3-e-07",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that the sum of a rational number and an irrational number is irrational. That is: if $r$ is rational and $x$ is irrational, then $r + x$ is irrational.",
+   "rubric": {
+    "required": [
+     "contradiction",
+     "rational",
+     "irrational",
+     "integer"
+    ],
+    "optional": [
+     "suppose",
+     "assume",
+     "closed",
+     "difference",
+     "fraction",
+     "definition"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "concepts": [
+    "proof-by-contradiction",
+    "irrationality-of-sqrt2"
+   ],
+   "tags": [
+    "proof-by-contradiction",
+    "irrationality-of-sqrt2"
+   ],
+   "explain": "Suppose for contradiction that $r + x$ is rational. Write $r = \\frac{a}{b}$ and $r + x = \\frac{c}{d}$ with $a, b, c, d$ integers and $b, d \\neq 0$. Then $x = (r + x) - r = \\frac{c}{d} - \\frac{a}{b} = \\frac{cb - ad}{db}$, whose numerator and denominator are integers with $db \\neq 0$, so $x$ is rational - contradicting the hypothesis. The engine is closure of the rationals under subtraction. Contradiction is the right frame because irrational is itself a negative statement, and negating it is what finally produces a fraction to compute with. This is also how $\\sqrt{2} + 1$ is known to be irrational with no new work."
+  },
+  {
+   "id": "dm-3-e-08",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove by contrapositive: for integers $a$ and $b$, if $a + b \\geq 15$ then $a \\geq 8$ or $b \\geq 8$. Be careful to negate the conclusion correctly.",
+   "rubric": {
+    "required": [
+     "contrapositive",
+     "negat",
+     "both",
+     "14"
+    ],
+    "optional": [
+     "and",
+     "or",
+     "at most",
+     "7",
+     "inequality",
+     "equivalent"
+    ],
+    "minWords": 55
+   },
+   "xp": 50,
+   "concepts": [
+    "contrapositive",
+    "direct-proof"
+   ],
+   "tags": [
+    "contrapositive",
+    "direct-proof"
+   ],
+   "explain": "The negation of $a \\geq 8$ or $b \\geq 8$ is $a \\leq 7$ **and** $b \\leq 7$ - an or becomes an and, which is the step this question really tests. From there it is one line: $a + b \\leq 7 + 7 = 14 < 15$, so the hypothesis $a + b \\geq 15$ fails. That establishes $\\neg Q \\Rightarrow \\neg P$, hence the original. A direct attempt would have to reach a disjunction from a single inequality, needing a case split; the contrapositive turns that disjunction into a conjunction, and conjunctions are strictly easier to use as hypotheses."
+  },
+  {
+   "id": "dm-3-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes: Proof that $\\sqrt{2}$ is irrational - suppose $\\sqrt{2} = p/q$ for integers $p, q$. Then $2q^2 = p^2$, so $p$ is even, $p = 2m$, so $q^2 = 2m^2$, so $q$ is even. So $p$ and $q$ are both even. Therefore $\\sqrt{2}$ is irrational. Identify the gap and explain precisely why the argument as written proves nothing.",
+   "rubric": {
+    "required": [
+     "lowest terms",
+     "contradiction",
+     "common factor",
+     "even"
+    ],
+    "optional": [
+     "cancel",
+     "coprime",
+     "assumption",
+     "descent",
+     "repeat",
+     "divide"
+    ],
+    "minWords": 55
+   },
+   "xp": 20,
+   "concepts": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction"
+   ],
+   "tags": [
+    "irrationality-of-sqrt2",
+    "proof-by-contradiction"
+   ],
+   "explain": "The student never assumed the fraction was in lowest terms, so $p$ and $q$ are both even is not absurd at all - $\\frac{4}{2}$ and $\\frac{6}{4}$ are honest fractions with both parts even. Without that assumption the argument only says that any representation can be halved, which you could keep doing forever, and it produces no impossibility to point at. A proof by contradiction is finished only when a specific statement collides with a specific earlier assumption, and here there is no earlier assumption to collide with. It can be rescued by infinite descent - no strictly decreasing sequence of positive integers exists - but that has to be said, not left implied."
+  },
+  {
+   "id": "dm-3-e-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Determine every integer $n$ with $1 \\leq n \\leq 20$ for which $n^2 + n$ is odd. State your answer, then prove it - do not merely tabulate the twenty cases.",
+   "rubric": {
+    "required": [
+     "none",
+     "even",
+     "odd",
+     "integer"
+    ],
+    "optional": [
+     "case",
+     "factor",
+     "consecutive",
+     "no such",
+     "parity",
+     "2k"
+    ],
+    "minWords": 50
+   },
+   "xp": 50,
+   "concepts": [
+    "parity",
+    "direct-proof"
+   ],
+   "tags": [
+    "parity",
+    "direct-proof"
+   ],
+   "explain": "The answer is that **no** such $n$ exists, because $n^2 + n$ is even for every integer and so in particular for every $n$ in the range. By cases: if $n = 2k$ then $n^2 + n = 2(2k^2 + k)$; if $n = 2k + 1$ then $n^2 + n = 4k^2 + 6k + 2 = 2(2k^2 + 3k + 1)$. Or factor: $n^2 + n = n(n+1)$, consecutive integers, one of which is even. The lesson is that a bounded range is a trap - checking twenty cases reaches the right answer for the wrong kind of reason, while the general argument is both shorter and stronger."
+  }
+ ]
+}
