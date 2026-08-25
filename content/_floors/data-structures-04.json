@@ -1,0 +1,933 @@
+{
+ "n": 4,
+ "name": "The Hall of Keys",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "hash-function",
+  "bucket-index",
+  "collisions",
+  "separate-chaining",
+  "open-addressing",
+  "load-factor",
+  "resize",
+  "hashable-keys"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Turning a key into an address",
+    "body": "Every structure so far has made you *search* for things. An array can jump straight to a slot, but only if you already know the index. A hash table's whole idea is to **compute** the index from the key, so that finding a value costs the same as computing a small function - no search at all.\n\nTwo pieces do this. A **hash function** turns a key of any shape into an integer, and it must be deterministic: the same key must always produce the same number, or you would never find what you stored. Then that integer is squeezed into the table's range, almost always with `% buckets`, giving the **bucket index** - the actual slot.\n\nA good hash function spreads keys evenly across the range, and changes a lot when the key changes a little. The polynomial hash below is the classic starting point: walk the characters, and at each step multiply the running value by a small prime and add the next character code. The multiplication is what makes position matter - without it `'ab'` and `'ba'` would collide, since addition does not care about order.\n\nBe careful about what \"O(1)\" is claiming. Hashing a key is not free; it costs time proportional to the size of the *key*. The claim is that lookup does not get slower as the *table* grows, which is a different and much more useful promise.",
+    "code": "function hashString(s, buckets) {\n  let h = 0;\n  for (let i = 0; i < s.length; i++) {\n    h = (h * 31 + s.charCodeAt(i)) % buckets;\n  }\n  return h;\n}\n\nconsole.log(hashString('a', 8));    // 1\nconsole.log(hashString('ab', 8));   // 1  - a collision\nconsole.log(hashString('abc', 8));  // 2",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The multiply-and-add is what makes position significant, so `'ab'` and `'ba'` land in different buckets. Taking the modulus every step, rather than only at the end, keeps `h` small enough to avoid overflowing into imprecise floating-point integers."
+     },
+     {
+      "line": 10,
+      "text": "Two different keys landing in bucket 1. This is not a bug in the hash function - the next section shows why it is unavoidable."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the step that turns an arbitrary hash value into a legal bucket index for a table of `buckets` slots.",
+     "template": "const index = Math.abs(h) ___ buckets;\n",
+     "blanks": [
+      "%"
+     ],
+     "concepts": [
+      "bucket-index",
+      "hash-function"
+     ],
+     "tags": [
+      "bucket-index"
+     ],
+     "explain": "The modulus is what guarantees the result is a legal index - it maps any integer into `0 .. buckets - 1`, which is exactly the range of the table. Dividing would give a fraction, and using the raw hash would index far off the end of the array.",
+     "xp": 15
+    }
+   },
+   {
+    "title": "Collisions are not a bug",
+    "body": "There are infinitely many possible keys and only `buckets` slots. By the **pigeonhole principle**, some pair of distinct keys must land in the same bucket - and not merely might, but *must*, for any hash function whatsoever. No amount of cleverness removes collisions. A hash table is therefore not \"a mapping from keys to slots\"; it is a mapping from keys to slots **plus a strategy for what to do when two keys want the same slot**.\n\nThe first strategy is **separate chaining**: each bucket holds a small list of entries, and a colliding key simply joins the list. Lookup hashes to the bucket, then scans that one short list comparing keys. If the hash spreads well and the table is not overloaded, those lists stay tiny - a handful of comparisons at most - which is where average O(1) comes from.\n\nNotice the two comparisons that must both happen. The hash gets you to the right bucket, but the bucket may hold several keys, so you still have to compare the actual keys for equality. Skipping that second check is a classic bug: you find *a* value in the right bucket and return it, and it belongs to a different key entirely.\n\nThe worst case is unforgiving. If every key hashes to the same bucket - a bad hash function, or an adversary choosing keys deliberately - every operation degenerates to scanning one list of n entries, and the table becomes an O(n) linked list wearing a hash table's interface.",
+    "code": "function makeTable(buckets) {\n  return Array.from({ length: buckets }, () => []);\n}\n\nfunction set(table, key, value) {\n  const chain = table[hashString(key, table.length)];\n  const found = chain.find((entry) => entry[0] === key);\n  if (found) found[1] = value;\n  else chain.push([key, value]);\n}\n\nfunction get(table, key) {\n  const chain = table[hashString(key, table.length)];\n  const found = chain.find((entry) => entry[0] === key);\n  return found ? found[1] : null;\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The key comparison inside the bucket. Without it, `set` would append a duplicate entry for a key already present, and `get` would return whichever collided entry happened to be first."
+     },
+     {
+      "line": 14,
+      "text": "Two lookups, not one: hash to the bucket, then search within it. The second search is over a list you hope is one or two entries long - that hope is what the load factor manages."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "function hashString(s, buckets) {\n  let h = 0;\n  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % buckets;\n  return h;\n}\n\nconst table = [[], [], [], [], [], [], [], []];\nfor (const key of ['a', 'ab', 'abc']) {\n  table[hashString(key, 8)].push(key);\n}\nconsole.log(table[1].length);",
+     "lang": "javascript",
+     "answer": "2",
+     "concepts": [
+      "collisions",
+      "separate-chaining"
+     ],
+     "tags": [
+      "collisions"
+     ],
+     "explain": "`'a'` and `'ab'` both hash to bucket 1, so that bucket's chain holds two keys while `'abc'` sits alone in bucket 2. Answering 1 assumes each key gets its own slot - which is precisely the assumption the pigeonhole principle forbids.",
+     "xp": 15
+    }
+   },
+   {
+    "title": "Open addressing, and the trouble with deleting",
+    "body": "The other strategy keeps everything in one flat array and never allocates a list. On a collision, **open addressing** simply looks elsewhere in the table for a free slot. The simplest rule is **linear probing**: if slot `i` is taken, try `i + 1`, then `i + 2`, wrapping around with `% size`. Lookup follows the identical path and stops at the first empty slot, because an empty slot proves the key was never inserted - had it been, it would have landed there.\n\nThis is faster than chaining in practice, because everything lives in contiguous memory and the processor's cache rewards that heavily. It costs you two things.\n\nThe first is **clustering**. Once a run of occupied slots forms, any key hashing anywhere into that run must walk to its end, and lands at the end - making the run longer. Long runs grow faster than short ones, so the damage compounds.\n\nThe second is deletion, which is genuinely subtle. You cannot simply empty a slot. If a key was displaced past that slot by probing, blanking the slot puts an empty cell in the middle of its probe path, and every future lookup for that key stops there and reports \"not found\" - even though the key is still sitting in the table. The fix is a **tombstone**: a marker meaning \"empty now, but keep probing past me\". Insertion may reuse a tombstone; lookup must walk through it.",
+    "code": "function insertProbe(slots, key) {\n  const size = slots.length;\n  let i = key % size;\n  let steps = 0;\n\n  while (slots[i] !== null && steps < size) {\n    i = (i + 1) % size;\n    steps++;\n  }\n  if (steps === size) return -1;   // table is full\n  slots[i] = key;\n  return i;\n}\n\nconst slots = [null, null, null, null, null];\nconsole.log(insertProbe(slots, 5));   // 0\nconsole.log(insertProbe(slots, 10));  // 1 - displaced by one",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The wrap is what makes the probe sequence a cycle over the whole table rather than a walk off the end of the array."
+     },
+     {
+      "line": 6,
+      "text": "The `steps` counter is not decoration. Without a bound, a full table sends this loop around forever, because there is no empty slot to stop at."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "probeOrder",
+     "prompt": "Write `probeOrder(start, size)` returning the complete linear-probing sequence for a table of `size` slots beginning at index `start` - that is, every index it would visit, in order, before returning to where it began.",
+     "starterCode": "function probeOrder(start, size) {\n  const out = [];\n  // step forward from start, wrapping, visiting every slot exactly once\n  return out;\n}\n",
+     "tests": [
+      {
+       "input": "0, 3",
+       "expected": [
+        0,
+        1,
+        2
+       ]
+      },
+      {
+       "input": "2, 3",
+       "expected": [
+        2,
+        0,
+        1
+       ]
+      },
+      {
+       "input": "0, 1",
+       "expected": [
+        0
+       ]
+      },
+      {
+       "input": "3, 4",
+       "expected": [
+        3,
+        0,
+        1,
+        2
+       ]
+      }
+     ],
+     "solution": "function probeOrder(start, size) {\n  const out = [];\n  for (let k = 0; k < size; k++) out.push((start + k) % size);\n  return out;\n}\n",
+     "hint": "Add an offset that runs from 0 up to `size - 1` and take the modulus each time, rather than incrementing and testing for the end of the array.",
+     "concepts": [
+      "open-addressing",
+      "bucket-index"
+     ],
+     "tags": [
+      "open-addressing"
+     ],
+     "explain": "Because the step is 1 and the table size bounds the walk, linear probing visits every slot exactly once before repeating - which is why insertion can only fail when the table is genuinely full. A probe step that shared a factor with `size` would revisit slots and could miss free ones entirely, which is why step sizes and table sizes are chosen with care.",
+     "xp": 25
+    }
+   },
+   {
+    "title": "Load factor, and what may be used as a key",
+    "body": "The **load factor** is the honest measure of how crowded a table is: entries divided by buckets. It is the number that decides whether the average-O(1) promise still holds. Under chaining, the load factor is the average chain length, so at 0.75 the typical lookup compares about one key. Under open addressing it is worse than linear - probe lengths climb sharply as the table approaches full, which is why open-addressed tables usually resize at a lower threshold.\n\nWhen the load factor crosses the threshold the table **resizes**: allocate a larger array, usually double, and re-insert every existing entry. Re-insert, not copy - the bucket index is computed as `% buckets`, so changing the bucket count changes where every key belongs. A resize is O(n), but doubling means it happens rarely enough that the amortised cost per insert is still O(1), exactly the argument that justified the dynamic array's growth.\n\nFinally, what may serve as a key. A key must satisfy two conditions, and the second is the one people forget. It must be hashable, and it must be **stable** - equal keys must hash equally, and a key must not change while it is in the table. Mutating an object after using it as a key strands the entry: the table looks in the bucket the new value hashes to, finds nothing, and the entry sits unreachable in its old bucket forever. This is why the usual advice is to key on immutable values.\n\nOne JavaScript trap deserves naming. A plain `{}` is not an empty dictionary - it inherits `toString`, `constructor` and friends, so `counts['constructor']` is a function rather than `undefined`. Use `new Map()`, or `Object.create(null)` for an object with no prototype.",
+    "code": "function loadFactor(size, buckets) {\n  if (buckets === 0) return 0;\n  return size / buckets;\n}\n\n// A plain object is not an empty dictionary:\nconst plain = {};\nconsole.log(plain['constructor'] === undefined);  // false\n\nconst clean = Object.create(null);\nconsole.log(clean['constructor'] === undefined);   // true",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Inherited from `Object.prototype`. Any counter written as `counts[w] = (counts[w] || 0) + 1` over a plain object produces nonsense for this key, because the inherited function is truthy."
+     },
+     {
+      "line": 10,
+      "text": "`Object.create(null)` makes an object with no prototype at all, so the only keys it has are the ones you put there. `new Map()` is the better answer when keys are not strings."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "loadFactor",
+     "prompt": "Write `loadFactor(size, buckets)` returning the table's load factor - entries divided by buckets. A table with no buckets has a load factor of `0` rather than dividing by zero.",
+     "starterCode": "function loadFactor(size, buckets) {\n  // guard the empty table, then divide\n  return 0;\n}\n",
+     "tests": [
+      {
+       "input": "3, 4",
+       "expected": 0.75
+      },
+      {
+       "input": "0, 4",
+       "expected": 0
+      },
+      {
+       "input": "8, 4",
+       "expected": 2
+      },
+      {
+       "input": "1, 0",
+       "expected": 0
+      }
+     ],
+     "solution": "function loadFactor(size, buckets) {\n  if (buckets === 0) return 0;\n  return size / buckets;\n}\n",
+     "hint": "Guard `buckets === 0` before dividing - in JavaScript `1 / 0` is `Infinity` rather than an error, so the bug would propagate silently instead of throwing.",
+     "concepts": [
+      "load-factor",
+      "resize"
+     ],
+     "tags": [
+      "load-factor"
+     ],
+     "explain": "A load factor above 1 is perfectly legal under chaining - it just means the average bucket holds more than one entry - but it is impossible under open addressing, where each slot holds at most one. The zero-bucket guard matters because JavaScript returns `Infinity` rather than throwing, so an unguarded division would quietly poison every later comparison against the threshold.",
+     "xp": 25
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-4-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function h(s, buckets) {\n  let x = 0;\n  for (let i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) % buckets;\n  return x;\n}\nconsole.log(h('a', 8) === h('a', 8));\nconsole.log(h('a', 8) === h('b', 8));",
+   "lang": "javascript",
+   "answer": "true\nfalse",
+   "concepts": [
+    "hash-function"
+   ],
+   "tags": [
+    "hash-function"
+   ],
+   "explain": "The first line is the determinism requirement: the same key must always hash the same, or nothing could ever be found again. The second shows different keys usually differing - but only usually, which is the whole reason collision handling exists.",
+   "xp": 20
+  },
+  {
+   "id": "ds-4-g-02",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "Explain why no hash function, however well designed, can eliminate collisions entirely. Your answer should make clear that this is a counting argument rather than a shortcoming that better engineering could fix.",
+   "concepts": [
+    "collisions"
+   ],
+   "tags": [
+    "collisions"
+   ],
+   "explain": "It is a counting argument, not an engineering shortfall: there are more possible keys than there are buckets, so by the pigeonhole principle some pair of distinct keys must share a slot - and this holds for every hash function that has ever been or could be written. A better hash spreads keys more evenly and so makes collisions rarer and more uniform, which is worth a great deal in practice, but it cannot make them impossible. That is why a hash table is defined by its collision strategy as much as by its hash.",
+   "xp": 30,
+   "rubric": {
+    "required": [
+     "pigeonhole",
+     "more",
+     "bucket",
+     "finite"
+    ],
+    "optional": [
+     "key",
+     "infinite",
+     "map",
+     "distinct",
+     "share",
+     "spread"
+    ],
+    "minWords": 40
+   }
+  },
+  {
+   "id": "ds-4-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A table of 5 slots uses linear probing with `hash(k) = k % 5`, starting empty. Insert 5, then 10, then 7, then 15. Give the index each key lands in.",
+   "steps": [
+    {
+     "label": "insert 5",
+     "expected": "0"
+    },
+    {
+     "label": "insert 10",
+     "expected": "1"
+    },
+    {
+     "label": "insert 7",
+     "expected": "2"
+    },
+    {
+     "label": "insert 15",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "open-addressing",
+    "collisions"
+   ],
+   "tags": [
+    "open-addressing"
+   ],
+   "explain": "5, 10 and 15 all hash to 0, so they form a cluster running 0, 1, 3. The interesting one is 7: it hashes to 2, a slot nobody else wanted, yet it is caught in the cluster anyway - and by occupying 2 it forces 15 out to 3. That is clustering doing its damage: keys that never collided by hash still interfere by position.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a chained hash table's `get(key)` into the order they must happen.",
+   "fragments": [
+    "compute the hash of the key",
+    "reduce the hash modulo the bucket count to get an index",
+    "look up the chain stored at that index",
+    "scan the chain comparing each entry's key for equality",
+    "return the matching entry's value, or null if the scan found nothing"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "separate-chaining",
+    "bucket-index"
+   ],
+   "tags": [
+    "separate-chaining"
+   ],
+   "explain": "The step people leave out is the fourth. Reaching the right bucket is not the same as finding the right key, because the bucket may hold several - so a lookup that returns the first entry in the bucket returns another key's value whenever a collision has occurred.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-g-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the resize check that runs after each insertion.",
+   "template": "size++;\nif (size / buckets > ___) {\n  buckets = buckets * ___;\n  rehashEverything();\n}\n",
+   "blanks": [
+    "maxLoad",
+    "2"
+   ],
+   "concepts": [
+    "resize",
+    "load-factor"
+   ],
+   "tags": [
+    "resize"
+   ],
+   "explain": "Growing by a constant multiple is what makes the amortised cost O(1); growing by a fixed number of buckets instead would make insertion O(n) on average, for the same reason a dynamic array doubles rather than adding one slot. `rehashEverything` is unavoidable because the bucket index depends on the bucket count, so every key belongs somewhere new.",
+   "xp": 20
+  },
+  {
+   "id": "ds-4-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "In an open-addressed table, why can a deleted entry not simply be set back to empty? Describe the failure concretely and name the fix.",
+   "rubric": {
+    "required": [
+     "probe",
+     "empty",
+     "stop",
+     "tombstone",
+     "delet"
+    ],
+    "optional": [
+     "cluster",
+     "linear",
+     "displaced",
+     "marker",
+     "lookup",
+     "reuse"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "open-addressing",
+    "collisions"
+   ],
+   "tags": [
+    "open-addressing"
+   ],
+   "explain": "Lookup stops at the first empty slot, because an empty slot proves the key was never inserted. So blanking a slot in the middle of some other key's probe path makes that key unreachable: the search halts at the hole and reports not-found while the entry sits two slots further on. A tombstone - a marker meaning 'empty, but keep going' - preserves the path. Lookup probes through tombstones; insertion may reuse them.",
+   "xp": 30
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-4-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "hashString",
+   "prompt": "Write `hashString(s, buckets)` returning a bucket index for the string `s`. Use the polynomial hash from the lesson: start at 0, and for each character set `h = (h * 31 + charCode) % buckets`. The empty string hashes to 0.",
+   "starterCode": "function hashString(s, buckets) {\n  let h = 0;\n  // multiply by 31, add the character code, take the modulus - every step\n  return h;\n}\n",
+   "tests": [
+    {
+     "input": "'', 8",
+     "expected": 0
+    },
+    {
+     "input": "'a', 8",
+     "expected": 1
+    },
+    {
+     "input": "'ab', 8",
+     "expected": 1
+    },
+    {
+     "input": "'abc', 8",
+     "expected": 2
+    },
+    {
+     "input": "'a', 1",
+     "expected": 0
+    }
+   ],
+   "solution": "function hashString(s, buckets) {\n  let h = 0;\n  for (let i = 0; i < s.length; i++) {\n    h = (h * 31 + s.charCodeAt(i)) % buckets;\n  }\n  return h;\n}\n",
+   "hint": "Take the modulus inside the loop, not once at the end - it keeps `h` small and the result is identical, because modular arithmetic distributes over multiplication and addition.",
+   "concepts": [
+    "hash-function",
+    "bucket-index"
+   ],
+   "tags": [
+    "hash-function"
+   ],
+   "explain": "A table of one bucket is the edge case worth keeping: every key hashes to 0, which is the degenerate hash table that behaves exactly like a list. That `'a'` and `'ab'` both give 1 is not a defect in your implementation - it is a genuine collision, and the next challenges are about surviving it.",
+   "xp": 35
+  },
+  {
+   "id": "ds-4-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "hashMapOps",
+   "prompt": "Write `hashMapOps(ops, buckets)` implementing a chained hash map. `ops` is an array of strings: `'set KEY VALUE'` stores an integer, `'get KEY'` retrieves it, `'del KEY'` removes it. Return an array of the results of the `'get'` operations, using `null` for a key that is not present. Setting an existing key must update it, not duplicate it. Use the polynomial hash from the lesson.",
+   "starterCode": "function hashMapOps(ops, buckets) {\n  const table = Array.from({ length: buckets }, () => []);\n  const out = [];\n  // hash to a bucket, then search that bucket by key\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "['set a 1', 'get a'], 4",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "['get z'], 4",
+     "expected": [
+      null
+     ]
+    },
+    {
+     "input": "['set a 1', 'set a 2', 'get a'], 4",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "['set a 1', 'del a', 'get a'], 4",
+     "expected": [
+      null
+     ]
+    },
+    {
+     "input": "['set a 1', 'set b 2', 'get a', 'get b'], 1",
+     "expected": [
+      1,
+      2
+     ]
+    }
+   ],
+   "solution": "function hashMapOps(ops, buckets) {\n  const table = Array.from({ length: buckets }, () => []);\n  const hash = (k) => {\n    let h = 0;\n    for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % buckets;\n    return h;\n  };\n  const out = [];\n  for (const op of ops) {\n    const parts = op.split(' ');\n    const cmd = parts[0], key = parts[1];\n    const chain = table[hash(key)];\n    const at = chain.findIndex((e) => e[0] === key);\n    if (cmd === 'set') {\n      if (at >= 0) chain[at][1] = Number(parts[2]);\n      else chain.push([key, Number(parts[2])]);\n    } else if (cmd === 'get') {\n      out.push(at >= 0 ? chain[at][1] : null);\n    } else if (cmd === 'del') {\n      if (at >= 0) chain.splice(at, 1);\n    }\n  }\n  return out;\n}\n",
+   "hint": "Find the entry's position in the chain once, then let `set`, `get` and `del` all branch on whether that position is `-1`.",
+   "concepts": [
+    "separate-chaining",
+    "collisions",
+    "bucket-index"
+   ],
+   "tags": [
+    "separate-chaining"
+   ],
+   "explain": "The last test is the one that matters: with a single bucket every key collides, so the table degenerates to one list and the implementation is forced to prove it compares keys rather than trusting the bucket. An implementation that returns the first entry in the bucket passes the first four tests and fails this one - which is exactly the bug the key comparison exists to prevent.",
+   "xp": 40
+  },
+  {
+   "id": "ds-4-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "linearProbeInsert",
+   "prompt": "Write `linearProbeInsert(size, keys)` inserting each integer of `keys` into an open-addressed table of `size` slots using `hash(k) = k % size` and linear probing. Return an array giving the index each key landed in, using `-1` for a key that could not be placed because the table was full.",
+   "starterCode": "function linearProbeInsert(size, keys) {\n  const slots = new Array(size).fill(null);\n  const out = [];\n  // probe forward from the hash, wrapping, and bound the walk\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "5, [5, 10, 15]",
+     "expected": [
+      0,
+      1,
+      2
+     ]
+    },
+    {
+     "input": "5, []",
+     "expected": []
+    },
+    {
+     "input": "3, [1, 2, 3, 4]",
+     "expected": [
+      1,
+      2,
+      0,
+      -1
+     ]
+    },
+    {
+     "input": "5, [7]",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "4, [4, 8, 12]",
+     "expected": [
+      0,
+      1,
+      2
+     ]
+    }
+   ],
+   "solution": "function linearProbeInsert(size, keys) {\n  const slots = new Array(size).fill(null);\n  const out = [];\n  for (const k of keys) {\n    let i = k % size;\n    let steps = 0;\n    while (slots[i] !== null && steps < size) {\n      i = (i + 1) % size;\n      steps++;\n    }\n    if (steps === size) { out.push(-1); continue; }\n    slots[i] = k;\n    out.push(i);\n  }\n  return out;\n}\n",
+   "hint": "Bound the probe with a step counter compared against `size`. Without it, a full table has no empty slot to stop at and the loop never terminates.",
+   "concepts": [
+    "open-addressing",
+    "collisions"
+   ],
+   "tags": [
+    "open-addressing"
+   ],
+   "explain": "The full-table case in test 3 is the one that separates a correct implementation from a hanging one: after 1, 2 and 3 fill every slot, the key 4 probes 1, 2, 0 and arrives back where it started. Only the step counter stops it, and only because the counter is compared against the table size rather than against finding an empty slot that does not exist.",
+   "xp": 40
+  },
+  {
+   "id": "ds-4-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "finalBuckets",
+   "prompt": "Write `finalBuckets(inserts, initialBuckets, maxLoad)`. Starting from an empty table, perform `inserts` insertions; after each one, if the load factor `size / buckets` is **strictly greater** than `maxLoad`, double the bucket count. Return the final bucket count.",
+   "starterCode": "function finalBuckets(inserts, initialBuckets, maxLoad) {\n  let buckets = initialBuckets, size = 0;\n  // grow when the load factor crosses the threshold\n  return buckets;\n}\n",
+   "tests": [
+    {
+     "input": "0, 4, 0.75",
+     "expected": 4
+    },
+    {
+     "input": "3, 4, 0.75",
+     "expected": 4
+    },
+    {
+     "input": "4, 4, 0.75",
+     "expected": 8
+    },
+    {
+     "input": "9, 4, 0.75",
+     "expected": 16
+    },
+    {
+     "input": "1, 1, 0.75",
+     "expected": 2
+    }
+   ],
+   "solution": "function finalBuckets(inserts, initialBuckets, maxLoad) {\n  let buckets = initialBuckets, size = 0;\n  for (let i = 0; i < inserts; i++) {\n    size++;\n    if (size / buckets > maxLoad) buckets = buckets * 2;\n  }\n  return buckets;\n}\n",
+   "hint": "Check the threshold after each single insertion, not once at the end - the whole point is that the table grows during the run.",
+   "concepts": [
+    "resize",
+    "load-factor"
+   ],
+   "tags": [
+    "resize"
+   ],
+   "explain": "Test 2 pins down the boundary: three entries in four buckets is a load factor of exactly 0.75, which is not *strictly* greater than 0.75, so no resize happens. Using `>=` instead grows the table one insert early and fails here - a reminder that a threshold is only well defined once you say which side of it is included.",
+   "xp": 35
+  },
+  {
+   "id": "ds-4-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "firstDuplicate",
+   "prompt": "Write `firstDuplicate(nums)` returning the first value in the array that has already been seen earlier in the array, or `null` if every value is distinct. Use a hash set so the scan is O(n) rather than O(n²).",
+   "starterCode": "function firstDuplicate(nums) {\n  const seen = new Set();\n  // check membership before recording\n  return null;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 2, 1]",
+     "expected": 2
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": null
+    },
+    {
+     "input": "[5, 5]",
+     "expected": 5
+    },
+    {
+     "input": "[0, -1, 0]",
+     "expected": 0
+    }
+   ],
+   "solution": "function firstDuplicate(nums) {\n  const seen = new Set();\n  for (const n of nums) {\n    if (seen.has(n)) return n;\n    seen.add(n);\n  }\n  return null;\n}\n",
+   "hint": "Test membership before adding, or every value looks like a duplicate of itself.",
+   "concepts": [
+    "hashable-keys",
+    "hash-function"
+   ],
+   "tags": [
+    "hashable-keys"
+   ],
+   "explain": "This is the canonical reason hash sets exist: it replaces a nested scan comparing every pair, which is O(n²), with one pass and an O(1) membership test. The `[0, -1, 0]` case is deliberate - a `Set` distinguishes `0` from `-1` correctly, whereas a hand-rolled index-based approach that treats a falsy `0` as absent would report `null`.",
+   "xp": 35
+  },
+  {
+   "id": "ds-4-i-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "countOf",
+   "prompt": "This counter is right for ordinary words and produces nonsense for a few. Find out which, and fix it while keeping the name `countOf` and the same signature. `countOf(words, target)` returns how many times `target` appears in the array `words`.",
+   "starterCode": "function countOf(words, target) {\n  const counts = {};\n  for (const w of words) {\n    counts[w] = (counts[w] || 0) + 1;\n  }\n  return counts[target] || 0;\n}\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'a'], 'a'",
+     "expected": 2
+    },
+    {
+     "input": "[], 'a'",
+     "expected": 0
+    },
+    {
+     "input": "['constructor', 'constructor'], 'constructor'",
+     "expected": 2
+    },
+    {
+     "input": "['toString'], 'toString'",
+     "expected": 1
+    },
+    {
+     "input": "['a'], 'z'",
+     "expected": 0
+    }
+   ],
+   "solution": "function countOf(words, target) {\n  const counts = Object.create(null);\n  for (const w of words) {\n    counts[w] = (counts[w] || 0) + 1;\n  }\n  return counts[target] || 0;\n}\n",
+   "hint": "The bug is not in the counting logic - it is in what `{}` already contains before you put anything in it.",
+   "concepts": [
+    "hashable-keys"
+   ],
+   "tags": [
+    "hashable-keys"
+   ],
+   "explain": "A plain `{}` inherits `Object.prototype`, so `counts['constructor']` is a function rather than `undefined` before anything is counted. The function is truthy, so `(counts[w] || 0) + 1` adds 1 to a function and yields a string, and the count for `'constructor'` is garbage. `Object.create(null)` makes an object with no prototype and no inherited keys; a `Map` is the better choice when keys are not strings.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-4-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does the load factor of a hash table measure?",
+   "choices": [
+    "Entries divided by buckets - how crowded the table is",
+    "Buckets divided by entries - how much room remains",
+    "The number of collisions that have occurred so far",
+    "The time in milliseconds taken by the last lookup"
+   ],
+   "answer": 0,
+   "concepts": [
+    "load-factor"
+   ],
+   "tags": [
+    "load-factor"
+   ],
+   "explain": "Entries over buckets, which under chaining is precisely the average chain length - so it predicts how many key comparisons a typical lookup performs. Inverting the ratio would make a crowded table report a small number, which is the wrong direction for a threshold to trigger on.",
+   "xp": 15
+  },
+  {
+   "id": "ds-4-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of separate chaining? Select all that apply.",
+   "choices": [
+    "A load factor greater than 1 is legal",
+    "Each bucket holds a list of entries that collided",
+    "A lookup must still compare keys after reaching the bucket",
+    "Deleting an entry requires leaving a tombstone behind"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "separate-chaining",
+    "load-factor"
+   ],
+   "tags": [
+    "separate-chaining"
+   ],
+   "explain": "Chaining stores a list per bucket, so it can hold more entries than buckets and the load factor may exceed 1, and reaching a bucket never identifies a key on its own. Tombstones belong to open addressing: under chaining you simply remove the entry from its list, because no other key's search path runs through it.",
+   "xp": 20
+  },
+  {
+   "id": "ds-4-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const counts = {};\ncounts['toString'] = (counts['toString'] || 0) + 1;\nconsole.log(typeof counts['toString']);",
+   "lang": "javascript",
+   "answer": "string",
+   "concepts": [
+    "hashable-keys"
+   ],
+   "tags": [
+    "hashable-keys"
+   ],
+   "explain": "`counts['toString']` is inherited from `Object.prototype` and is a function, so it is truthy and `||` keeps it; adding 1 to a function coerces both to strings and concatenates. The answer is `'string'`, not `'number'` - which is exactly how this bug hides, since nothing throws and the value merely becomes quietly wrong.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the linear-probing lookup. It must walk past tombstones but stop at a genuinely empty slot.",
+   "template": "let i = hash(key) % size;\nwhile (slots[i] !== ___) {\n  if (slots[i] !== TOMBSTONE && slots[i].key === key) return slots[i].value;\n  i = (i + 1) ___ size;\n}\nreturn null;\n",
+   "blanks": [
+    "EMPTY",
+    "%"
+   ],
+   "concepts": [
+    "open-addressing"
+   ],
+   "tags": [
+    "open-addressing"
+   ],
+   "explain": "The loop condition must test for EMPTY rather than for a tombstone, because an empty slot is the only thing that proves the key was never inserted - a tombstone proves the opposite, that something was displaced past this point. The modulus is what makes the probe wrap rather than run off the end of the array.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a hash table resize into the order they must happen.",
+   "fragments": [
+    "notice that the load factor has crossed the threshold",
+    "allocate a new array with double the bucket count",
+    "for each entry in the old table, recompute its bucket index against the new count",
+    "insert the entry into the new table at its recomputed index",
+    "replace the old table with the new one"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "resize",
+    "load-factor"
+   ],
+   "tags": [
+    "resize"
+   ],
+   "explain": "The third step is the one that makes a resize O(n) rather than a memory copy: the bucket index is `hash % buckets`, so changing the bucket count moves almost every key. Copying the old buckets across verbatim would leave every entry in a slot that lookups no longer search.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A chained table of 4 buckets uses `hash(k) = k % 4`. Starting empty, insert 4, 8, 1, 12. After each insertion give the length of bucket 0's chain.",
+   "steps": [
+    {
+     "label": "insert 4",
+     "expected": "1"
+    },
+    {
+     "label": "insert 8",
+     "expected": "2"
+    },
+    {
+     "label": "insert 1",
+     "expected": "2"
+    },
+    {
+     "label": "insert 12",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "separate-chaining",
+    "collisions"
+   ],
+   "tags": [
+    "collisions"
+   ],
+   "explain": "4, 8 and 12 are all multiples of 4 and so all land in bucket 0, while 1 goes to bucket 1 and leaves bucket 0 untouched. The chain reaching length 3 in a 4-bucket table is degeneration in miniature: lookups for those keys now cost three comparisons, and a hash that maps every key this way turns the table into a linked list.",
+   "xp": 25
+  },
+  {
+   "id": "ds-4-x-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time complexity of a lookup in a chained hash table holding n entries, and explain when that worst case actually happens.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "bucket",
+     "same",
+     "chain",
+     "average"
+    ],
+    "optional": [
+     "adversar",
+     "collision",
+     "linked",
+     "hash function",
+     "degenerate",
+     "load"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "collisions",
+    "separate-chaining"
+   ],
+   "tags": [
+    "collisions"
+   ],
+   "explain": "If every key hashes to the same bucket, that bucket's chain holds all n entries and a lookup scans all of them - O(n). It happens with a badly chosen hash function, with keys whose distribution the hash handles poorly, or with an adversary who chooses colliding keys deliberately, which is a real denial-of-service technique and the reason production hash functions are seeded randomly. The O(1) everyone quotes is the average under a hash that spreads well and a bounded load factor - both assumptions, not guarantees.",
+   "xp": 35
+  },
+  {
+   "id": "ds-4-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "groupAnagrams",
+   "prompt": "Write `groupAnagrams(words)` grouping words that are anagrams of one another. Return an array of groups, each group an array of the words in the order they appeared in the input; the groups themselves must appear in the order their first member appeared. Use a hash map keyed on something that is equal for exactly the anagrams.",
+   "starterCode": "function groupAnagrams(words) {\n  const groups = new Map();\n  // what value is identical for two anagrams and different otherwise?\n  return [];\n}\n",
+   "tests": [
+    {
+     "input": "['eat', 'tea', 'tan', 'ate']",
+     "expected": [
+      [
+       "eat",
+       "tea",
+       "ate"
+      ],
+      [
+       "tan"
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['a']",
+     "expected": [
+      [
+       "a"
+      ]
+     ]
+    },
+    {
+     "input": "['ab', 'ba', 'abc']",
+     "expected": [
+      [
+       "ab",
+       "ba"
+      ],
+      [
+       "abc"
+      ]
+     ]
+    },
+    {
+     "input": "['x', 'x']",
+     "expected": [
+      [
+       "x",
+       "x"
+      ]
+     ]
+    }
+   ],
+   "solution": "function groupAnagrams(words) {\n  const groups = new Map();\n  for (const w of words) {\n    const key = w.split('').sort().join('');\n    if (!groups.has(key)) groups.set(key, []);\n    groups.get(key).push(w);\n  }\n  return Array.from(groups.values());\n}\n",
+   "hint": "Two words are anagrams exactly when their sorted letters are identical - so the sorted string is a key that collides deliberately, for precisely the words you want grouped.",
+   "concepts": [
+    "hashable-keys",
+    "hash-function"
+   ],
+   "tags": [
+    "hashable-keys"
+   ],
+   "explain": "The insight is to choose a key that is *deliberately* equal for the things you want together - a canonical form. A `Map` is the right structure rather than a plain object both because it preserves insertion order by specification, which the required group ordering depends on, and because it has no inherited keys to collide with a sorted string.",
+   "xp": 40
+  },
+  {
+   "id": "ds-4-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are told a hash table gives O(1) lookup. State precisely what that claim assumes, and describe a realistic situation in which it is false.",
+   "rubric": {
+    "required": [
+     "average",
+     "hash",
+     "load factor",
+     "O(n)",
+     "bucket"
+    ],
+    "optional": [
+     "amortis",
+     "resize",
+     "adversar",
+     "collision",
+     "worst",
+     "spread",
+     "assumption"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "load-factor",
+    "collisions",
+    "hash-function"
+   ],
+   "tags": [
+    "load-factor",
+    "hash-function"
+   ],
+   "explain": "The claim is an average, and it rests on two assumptions: that the hash function spreads keys roughly evenly, and that the load factor is held below a threshold by resizing. Break either and it fails - a hash that maps many keys to one bucket makes lookup O(n), and a table that never resizes has chains that grow without bound. It is false in practice when keys are adversarially chosen to collide, which is a real denial-of-service attack, and it is misleading even when true, because an individual insert that triggers a resize costs O(n) and only the amortised average is constant.",
+   "xp": 40
+  }
+ ]
+}
