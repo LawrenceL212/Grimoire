@@ -1,0 +1,934 @@
+{
+ "n": 6,
+ "name": "Reading the Shape",
+ "concepts": [
+  "critical-points",
+  "fermat-theorem",
+  "increasing-decreasing",
+  "first-derivative-test",
+  "concavity",
+  "second-derivative-test",
+  "inflection-points",
+  "rolle-theorem",
+  "mean-value-theorem",
+  "curve-sketching",
+  "closed-interval-optimisation"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "sketching-clinic",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Reading the Shape",
+  "sections": [
+   {
+    "title": "Where an Extremum Can Hide",
+    "body": "Suppose $f$ has a local maximum at an interior point $c$ and is differentiable there. Just to the left of $c$ the graph is climbing towards the peak, so the difference quotients $\\frac{f(x)-f(c)}{x-c}$ are $\\ge 0$; just to the right it is falling away, so they are $\\le 0$. Both one-sided limits have to equal the single number $f'(c)$, and the only number that is both $\\ge 0$ and $\\le 0$ is zero. That argument is **Fermat's theorem**: an interior extremum with a derivative has a horizontal tangent.\n\nRead what the hypotheses are doing. *Interior* matters because at an endpoint you only ever get one side of the argument - $f(x) = x$ on $[0,1]$ has a maximum at $x=1$ with $f'(1) = 1$. *Differentiable* matters because a graph can turn without having a tangent at all: $f(x) = |x|$ has a minimum at $0$ where $f'(0)$ simply does not exist.\n\nSo we widen the net. A **critical point** is a point of the domain where $f'(c) = 0$ **or** $f'(c)$ fails to exist. Fermat then says that every interior local extremum is critical, which turns an infinite search over the whole line into a finite list of suspects - and that is the only reason optimisation is ever tractable.\n\nThe converse is false, and this is the most expensive mistake in the chapter. For $f(x) = x^3$ we have $f'(0) = 0$, yet $f$ is strictly increasing through $0$, so the graph merely pauses. A critical point is a place worth *inspecting*, never a place where something is *guaranteed* to happen.",
+    "code": "FERMAT'S THEOREM\n  If f has a local extremum at an INTERIOR point c of its domain\n  AND f'(c) exists, then f'(c) = 0.\n\nCRITICAL POINT of f\n  a point c in the domain of f with   f'(c) = 0   OR   f'(c) undefined.\n\nFermat catches the first kind; the definition deliberately sweeps up the\nsecond. Between them, nothing else can be an interior local extremum.\n\nf(x)  = x^3 - 3x^2 - 9x + 5\nf'(x) = 3x^2 - 6x - 9 = 3(x^2 - 2x - 3) = 3(x - 3)(x + 1)\n\n  f'(x) = 0  <=>  x = -1  or  x = 3        two critical points\n  f is a polynomial, so f' exists everywhere - no second kind here.\n\n  f(-1) = -1 - 3 + 9 + 5  =  10        f(3) = 27 - 27 - 27 + 5 = -22\n\nTWO WARNINGS, BOTH FAMOUS\n\n  g(x) = x^(2/3)    g'(x) = 2 / (3 x^(1/3)), undefined at x = 0,\n                    yet g(0) = 0 <= g(x) for every x: a local MINIMUM\n                    at a cusp. Solving g' = 0 alone would never find it.\n\n  h(x) = x^3        h'(0) = 0, so 0 IS critical - but h(-1/2) < h(0)\n                    < h(1/2), so there is no extremum there at all.\n                    Critical is NECESSARY, never SUFFICIENT.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Two hypotheses, two counterexamples: drop 'interior' and endpoints break it, drop differentiability and |x| breaks it."
+     },
+     {
+      "line": 6,
+      "text": "The OR is the whole point. A definition built only on f'(c) = 0 would silently lose every corner and every cusp."
+     },
+     {
+      "line": 12,
+      "text": "Factor rather than reach for the quadratic formula: factored form hands you the roots and the sign of f' on each interval at once."
+     },
+     {
+      "line": 25,
+      "text": "x^3 at the origin is the standard trap. Fermat is a one-way implication, and reading it backwards costs marks every single year."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For $f(x) = x^3 - 3x^2 - 9x + 5$ above, give the two critical numbers in increasing order together with the value of $f$ at each. Integers only.",
+     "template": "smaller critical number x = ___ , f = ___\nlarger critical number x = ___ , f = ___",
+     "blanks": [
+      "-1",
+      "10",
+      "3",
+      "-22"
+     ],
+     "concepts": [
+      "critical-points"
+     ],
+     "explain": "$f'(x) = 3(x-3)(x+1)$ vanishes exactly at $x = -1$ and $x = 3$, and a polynomial is differentiable everywhere, so there are no critical points of the second kind. The values $f(-1) = 10$ and $f(3) = -22$ come from $f$, never from $f'$ - substituting into $f'$ and reporting $0$ is the usual slip, and it discards the only numbers that let you compare candidates later."
+    }
+   },
+   {
+    "title": "The Sign of the Derivative Is the Direction of Travel",
+    "body": "$f'(x)$ is the instantaneous rate of change, so the sign of $f'$ says which way the graph is travelling: positive means rising, negative means falling. That sounds like a restatement of the definition, but it is a genuine theorem about a whole interval rather than a single point, and it is the Mean Value Theorem that proves it - a debt we pay in the last section.\n\nIt turns classification into bookkeeping. Cut the domain at every critical number and at every point where $f$ is undefined; on each open piece $f'$ is continuous and never zero, so by the intermediate value theorem it cannot change sign there. **One test point therefore settles an entire interval.**\n\nThe **first derivative test** reads the resulting sign chart. At a critical number $c$: if $f'$ runs $-$ then $+$, the graph falls into $c$ and climbs out again, so $c$ is a local minimum; $+$ then $-$ gives a local maximum; and no change at all gives neither, which is exactly what happens to $x^3$ at the origin.\n\nNotice what this test does **not** require. It never asks whether $f'(c)$ itself exists, only what $f'$ does on either side, so it handles cusps and corners as comfortably as smooth turning points - which is why it stays the tool of last resort when the second derivative test falls silent.",
+    "code": "INCREASING / DECREASING TEST   (a corollary of the Mean Value Theorem)\n  f' > 0 throughout an interval  ->  f is increasing on it\n  f' < 0 throughout an interval  ->  f is decreasing on it\n\nFIRST DERIVATIVE TEST at a critical number c\n  f' changes  - to +   ->  local MINIMUM at c\n  f' changes  + to -   ->  local MAXIMUM at c\n  f' keeps its sign    ->  NEITHER\n\ng(x)  = x^4 - 8x^2 + 3\ng'(x) = 4x^3 - 16x = 4x(x - 2)(x + 2)      critical: x = -2, 0, 2\n\nCut the line at the critical numbers, then test ONE point per piece:\n\n  interval      test x     g'(test x)              behaviour\n  (-inf, -2)      -3       4(-3)(-5)(-1) = -60     decreasing\n  (-2, 0)         -1       4(-1)(-3)( 1) =  12     increasing\n  (0, 2)           1       4( 1)(-1)( 3) = -12     decreasing\n  (2, inf)         3       4( 3)( 1)( 5) =  60     increasing\n\n  x = -2:  - to +  ->  local minimum,  g(-2) = 16 - 32 + 3 = -13\n  x =  0:  + to -  ->  local maximum,  g( 0) = 3\n  x =  2:  - to +  ->  local minimum,  g( 2) = -13\n\nOne sample per interval is enough ONLY because g' is continuous and has\nno other zero in between: it cannot change sign without passing zero.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Flagged now, proved in section four. Nothing on this floor is allowed to rest on a picture alone."
+     },
+     {
+      "line": 8,
+      "text": "The 'neither' row is the one people forget to look for, and it is precisely the x^3 case."
+     },
+     {
+      "line": 13,
+      "text": "Choose easy test points. The size of g'(x) is irrelevant here - only its sign is being read off."
+     },
+     {
+      "line": 26,
+      "text": "This sentence justifies the whole table. Miss a critical number when cutting and one sample can lie about half its interval."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "For $g(x) = x^4 - 8x^2 + 3$, give the sign of $g'$ on each interval as `+` or `-`, then classify each critical number as `min`, `max` or `neither`.",
+     "steps": [
+      {
+       "label": "sign of g' on (-inf, -2)",
+       "expected": "-"
+      },
+      {
+       "label": "sign of g' on (-2, 0)",
+       "expected": "+"
+      },
+      {
+       "label": "sign of g' on (0, 2)",
+       "expected": "-"
+      },
+      {
+       "label": "sign of g' on (2, inf)",
+       "expected": "+"
+      },
+      {
+       "label": "x = -2 is a",
+       "expected": "min"
+      },
+      {
+       "label": "x = 0 is a",
+       "expected": "max"
+      },
+      {
+       "label": "x = 2 is a",
+       "expected": "min"
+      }
+     ],
+     "concepts": [
+      "increasing-decreasing",
+      "first-derivative-test"
+     ],
+     "explain": "$g'(x) = 4x(x-2)(x+2)$ is a cubic with three simple roots, so it flips sign at every one of them, giving $-,+,-,+$ from left to right. The two ends agree in sign, as they must: an even-degree $g$ with a positive leading coefficient falls in from $+\\infty$ and climbs back out to $+\\infty$. The result is the classic W, with $g(-2) = g(2) = -13$ because $g$ is even, and a local maximum trapped between the two wells."
+    }
+   },
+   {
+    "title": "Concavity, and What the Second Derivative Adds",
+    "body": "The first derivative says where the graph is going; the second says how the going is changing. $f'' > 0$ means $f'$ is increasing - the slope is turning anticlockwise - so the curve bends upwards and lies above each of its tangent lines: **concave up**. $f'' < 0$ reverses every clause: **concave down**. Neither statement says anything about rising or falling; a curve can perfectly well fall while curving upwards, and $f(x) = x^3 - 3x^2 - 9x + 5$ does exactly that on $(1,3)$.\n\nAn **inflection point** is where the concavity changes. Since $f''$ can only change sign by passing through zero or by ceasing to exist, those points are the candidates - but a candidate is not a verdict. For $k(x) = x^4$ we get $k''(0) = 0$ while $k'' > 0$ on both sides, so nothing changes and the origin is a flat minimum rather than an inflection. Always test the sign of $f''$ either side, exactly as you did for $f'$.\n\nAt a critical number with $f'(c) = 0$, concavity classifies for free: a flat tangent inside a cup is a **local minimum**, a flat tangent inside a cap is a **local maximum**. This is the **second derivative test**, and it is one substitution rather than a sign chart. Its price is that $f''(c) = 0$ tells you nothing at all - $x^4$, $-x^4$ and $x^3$ all have $f'(0) = f''(0) = 0$ and produce a minimum, a maximum and neither.\n\nPut the three sign rows together - $f'$, $f''$ and the end behaviour - and you have a sketch. Not a plot of points, but a *shape*: where it rises, where it bends, and where those two facts change.",
+    "code": "CONCAVITY   f'' > 0  ->  f' is increasing  ->  graph bends UP   (a cup)\n            f'' < 0  ->  f' is decreasing  ->  graph bends DOWN (a cap)\n\nINFLECTION POINT   a point where f is continuous and the concavity\n            actually CHANGES. f''(c) = 0 is a candidate, not a verdict.\n\n            Trap:  k(x) = x^4,  k''(x) = 12x^2,  so k''(0) = 0 -\n            but k'' > 0 on BOTH sides, so nothing changes. No\n            inflection: just a very flat minimum.\n\nSECOND DERIVATIVE TEST at c with f'(c) = 0\n            f''(c) > 0  ->  local MINIMUM   (cup, tangent flat)\n            f''(c) < 0  ->  local MAXIMUM   (cap, tangent flat)\n            f''(c) = 0  ->  NO INFORMATION; go back to the sign of f'\n\nFULL SKETCH OF   f(x) = x^3 - 3x^2 - 9x + 5\n  f'(x)  = 3(x - 3)(x + 1)       critical numbers  x = -1, 3\n  f''(x) = 6x - 6 = 6(x - 1)     candidate inflection  x = 1\n\n  f''(-1) = -12 < 0  ->  local MAX at x = -1,  f(-1) =  10\n  f''( 3) =  12 > 0  ->  local MIN at x =  3,  f( 3) = -22\n\n  x        (-inf,-1)   -1    (-1, 1)    1    (1, 3)     3   (3, inf)\n  f'           +        0       -       -       -       0       +\n  f''          -        -       -       0       +       +       +\n  shape     rise/cap   MAX   fall/cap  INFL  fall/cup   MIN   rise/cup\n\n  The concavity genuinely flips at x = 1, and f(1) = -6, so (1, -6) is\n  an inflection point. It is NOT an extremum: f' = -12 there, so the\n  graph is falling straight through it, merely changing how it falls.\n\n  As x -> +-inf the x^3 term dominates: f -> +inf on the right and\n  f -> -inf on the left, so neither extremum is absolute.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Concavity is monotonicity applied to f'. Every rule here is section two, one derivative up."
+     },
+     {
+      "line": 8,
+      "text": "Same discipline as the first derivative test: a zero is a candidate, and only a change of sign convicts."
+     },
+     {
+      "line": 14,
+      "text": "'No information' means exactly that - not 'neither'. The first derivative test still decides the case."
+     },
+     {
+      "line": 26,
+      "text": "Four combinations of two signs, four shapes. Reading this row aloud left to right is the sketch."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $k(x) = x^4 - 4x^3$. Find $k'$ and $k''$, list every critical number and every candidate inflection point, and classify each. Explain in particular what happens at $x = 0$, where both derivatives vanish.",
+     "answer": "k'(x) = 4x^3 - 12x^2 = 4x^2(x - 3) and k''(x) = 12x^2 - 24x = 12x(x - 2). Critical numbers x = 0 and x = 3. Since k'' (3) = 36 > 0, x = 3 is a local minimum with k(3) = -27. At x = 0 the second derivative test is silent because k''(0) = 0, so use the sign of k': k'(-1) = -16 and k'(1) = -8, both negative, so k' does not change sign and x = 0 is neither a maximum nor a minimum. The candidate inflection points are x = 0 and x = 2; k'' is positive on (-inf, 0), negative on (0, 2) and positive on (2, inf), so the concavity changes at both, and (0, 0) and (2, -16) are genuine inflection points. So x = 0 is an inflection point with a horizontal tangent.",
+     "rubric": {
+      "required": [
+       "critical",
+       "concav",
+       "inflect",
+       "sign",
+       "minim"
+      ],
+      "optional": [
+       "second derivative",
+       "horizontal",
+       "tangent",
+       "neither",
+       "candidat"
+      ],
+      "minWords": 50
+     },
+     "concepts": [
+      "concavity",
+      "inflection-points",
+      "second-derivative-test"
+     ],
+     "explain": "The double root in $k'(x) = 4x^2(x-3)$ is the tell: a squared factor cannot change sign, so $k'$ stays negative on both sides of $0$ and no extremum can occur there. The second derivative test is silent because $k''(0) = 0$, and the temptation is to read that silence as 'neither an inflection nor an extremum' - but $k''$ does change sign at $0$, so the origin is an inflection point with a horizontal tangent, a genuinely different animal from the flat minimum of $x^4$."
+    }
+   },
+   {
+    "title": "Rolle, the Mean Value Theorem and the Candidates Method",
+    "body": "**Rolle's theorem** says that if $f$ is continuous on $[a,b]$, differentiable on $(a,b)$ and $f(a) = f(b)$, then $f'(c) = 0$ somewhere inside. The proof is Fermat plus the extreme value theorem: a continuous function on a closed bounded interval attains a maximum and a minimum, and if both sit at the equal endpoints then $f$ is constant and every interior point works - otherwise one of them is interior, where Fermat forces a horizontal tangent.\n\nTilt that picture and you get the **Mean Value Theorem**: under the same hypotheses without $f(a) = f(b)$, some $c \\in (a,b)$ has $$f'(c) = \\frac{f(b) - f(a)}{b - a}.$$ Drive $60$ miles in one hour and at some instant your speedometer read exactly $60$ mph. The hypotheses are not decoration: $f(x) = |x|$ on $[-1,1]$ satisfies $f(-1) = f(1)$ yet never has $f' = 0$, because the one point where the graph turns is the one point where $f$ is not differentiable.\n\nThe MVT is what makes this floor rigorous. If $f' > 0$ on an interval and $x_1 < x_2$, then $f(x_2) - f(x_1) = f'(c)(x_2 - x_1) > 0$, so $f$ really is increasing - the sign chart of section two is a theorem, not a drawing. The same identity gives every bound of the form $|f(x_2) - f(x_1)| \\le M|x_2 - x_1|$ once $|f'| \\le M$.\n\nFinally, extreme value plus Fermat gives the **candidates method** for an absolute extremum on a closed bounded $[a,b]$: list the interior critical numbers, add the two endpoints, evaluate $f$ at each and take the largest and smallest. Nothing is classified and nothing is sketched, because the theorem guarantees the winner is somewhere on that finite list. Drop either hypothesis and it collapses - $f(x) = x$ on the open interval $(0,1)$ attains neither.",
+    "code": "ROLLE'S THEOREM\n  f continuous on [a, b], differentiable on (a, b), and f(a) = f(b)\n  =>  there is some c in (a, b) with f'(c) = 0.\n\nMEAN VALUE THEOREM\n  f continuous on [a, b], differentiable on (a, b)\n  =>  there is some c in (a, b) with\n\n          f'(c) = ( f(b) - f(a) ) / ( b - a )\n\n  Some instantaneous rate equals the average rate over [a, b].\n  (Rolle is the MVT with the right-hand side equal to zero.)\n\nWHY THE SIGN TEST IS LEGAL\n  Take x1 < x2 in an interval where f' > 0. The MVT on [x1, x2] gives\n      f(x2) - f(x1) = f'(c)(x2 - x1)   for some c in (x1, x2),\n  and both factors on the right are positive, so f(x2) > f(x1).\n  That IS 'f is increasing' - proved, not assumed from a picture.\n\nTHE MVT IN NUMBERS     f(x) = sqrt(x) on [0, 4]\n  average rate = (2 - 0) / (4 - 0) = 1/2\n  f'(c) = 1 / (2 sqrt(c)) = 1/2  ->  sqrt(c) = 1  ->  c = 1, inside (0,4).\n\nEXTREME VALUE THEOREM + FERMAT = THE CANDIDATES METHOD\n  A continuous f on a CLOSED, BOUNDED interval [a, b] attains both an\n  absolute maximum and an absolute minimum. Each is either an endpoint\n  or an interior local extremum - and so, by Fermat, a critical point.\n\n  f(x) = x^3 - 3x^2 - 9x + 5   on   [-2, 4]\n    candidates:  x = -2, 4 (endpoints),  x = -1, 3 (critical, inside)\n    f(-2) = 3     f(-1) = 10     f(3) = -22     f(4) = -15\n    absolute MAX = 10 at x = -1        absolute MIN = -22 at x = 3\n\n  No sign chart, no second derivative: build a finite list and compare.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Continuity on the closed interval, differentiability only on the open one. |x| on [-1,1] fails the second and the conclusion fails with it."
+     },
+     {
+      "line": 12,
+      "text": "One theorem, two dressings. Proving the MVT means subtracting the chord from f and applying Rolle to the difference."
+     },
+     {
+      "line": 17,
+      "text": "This is the payment promised in section two. Everything on this floor about rising and falling rests on these two lines."
+     },
+     {
+      "line": 27,
+      "text": "Endpoints are the half of the list that Fermat cannot see, which is exactly why the method adds them by hand."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Find the absolute maximum and absolute minimum of $p(x) = x^3 - 3x$ on $[0, 3]$ by the candidates method. State every candidate and say why one critical number of $p$ does not appear on your list.",
+     "answer": "p'(x) = 3x^2 - 3 = 3(x - 1)(x + 1), so the critical numbers are x = 1 and x = -1. Only x = 1 lies in [0, 3]; x = -1 is outside the interval, so it is irrelevant here. The candidates are the endpoints x = 0 and x = 3 together with the interior critical number x = 1. Evaluating: p(0) = 0, p(1) = 1 - 3 = -2, p(3) = 27 - 9 = 18. The absolute maximum is 18 at x = 3 and the absolute minimum is -2 at x = 1.",
+     "rubric": {
+      "required": [
+       "critical",
+       "endpoint",
+       "absolute",
+       "candidat",
+       "interval"
+      ],
+      "optional": [
+       "maximum",
+       "minim",
+       "continu",
+       "outside",
+       "evaluat"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "closed-interval-optimisation",
+      "critical-points"
+     ],
+     "explain": "Only critical numbers *inside* the interval are candidates, so $x = -1$ is discarded on sight - a candidate list is about the interval you were given, not about the whole function. The absolute maximum here lands on an endpoint, which is why endpoints are always on the list: $x = 3$ is not critical, $p'(3) = 24 \\neq 0$, and any method that only inspects critical points would report $-2$ as the maximum too."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "calc1-6-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the statements. Use `0`, `exists`, `minimum`, `maximum` or `neither` as appropriate, and write the interval endpoints as integers.",
+   "template": "Fermat: if f has a local extremum at an interior c and f'(c) ___ , then f'(c) = ___\nFor f(x) = x^3, the point x = 0 is critical and is a ___\nFor f(x) = x^4 - 8x^2 + 3, the local maximum sits at x = ___",
+   "blanks": [
+    "exists",
+    "0",
+    "neither",
+    "0"
+   ],
+   "concepts": [
+    "fermat-theorem",
+    "critical-points",
+    "first-derivative-test"
+   ],
+   "tags": [
+    "fermat-theorem",
+    "critical-points",
+    "first-derivative-test"
+   ],
+   "xp": 30,
+   "hint": "Fermat needs the derivative to be there before it can say anything about its value.",
+   "explain": "Fermat's conclusion $f'(c) = 0$ is only available when $f'(c)$ exists in the first place, which is why the critical-point definition adds the 'or fails to exist' clause rather than relying on Fermat alone. $x^3$ shows the converse failing: critical, no extremum. In $x^4 - 8x^2 + 3$ the derivative runs $-,+,-,+$, so the middle critical number $x = 0$ is the only $+$ to $-$ crossing and hence the local maximum, even though it is the highest of the three critical values but not of the function."
+  },
+  {
+   "id": "calc1-6-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of the candidates method - finding the absolute extrema of a continuous $f$ on $[a,b]$ - into the correct order.",
+   "fragments": [
+    "Check that f is continuous on the closed bounded interval [a, b], so the extreme value theorem applies.",
+    "Differentiate and find every critical number: f'(x) = 0 or f'(x) undefined.",
+    "Discard the critical numbers that lie outside [a, b].",
+    "Evaluate f at each surviving critical number and at both endpoints a and b.",
+    "Compare the finite list of values: the largest is the absolute maximum, the smallest the absolute minimum."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "tags": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "xp": 30,
+   "explain": "The continuity check comes first because it is what guarantees a maximum and a minimum exist at all - without it the whole list could be a list of near-misses, as for $f(x) = 1/x$ on $(0,1]$. Filtering by the interval must precede evaluation, since a critical number outside $[a,b]$ says nothing about $f$ on $[a,b]$. Note that no step classifies anything: the candidates method never needs the first or second derivative test."
+  },
+  {
+   "id": "calc1-6-gp-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $q(x) = 2x^3 + 3x^2 - 12x + 1$, so $q'(x) = 6(x-1)(x+2)$ and $q''(x) = 6(2x+1)$. Give the sign of $q'$ and of $q''$ on each interval as `+` or `-`, then give the two critical values.",
+   "steps": [
+    {
+     "label": "sign of q' on (-inf, -2)",
+     "expected": "+"
+    },
+    {
+     "label": "sign of q' on (-2, 1)",
+     "expected": "-"
+    },
+    {
+     "label": "sign of q' on (1, inf)",
+     "expected": "+"
+    },
+    {
+     "label": "sign of q'' on (-inf, -1/2)",
+     "expected": "-"
+    },
+    {
+     "label": "sign of q'' on (-1/2, inf)",
+     "expected": "+"
+    },
+    {
+     "label": "q(-2)",
+     "expected": "21"
+    },
+    {
+     "label": "q(1)",
+     "expected": "-6"
+    }
+   ],
+   "concepts": [
+    "increasing-decreasing",
+    "concavity",
+    "critical-points"
+   ],
+   "tags": [
+    "increasing-decreasing",
+    "concavity",
+    "critical-points"
+   ],
+   "xp": 60,
+   "hint": "Test one convenient point per interval: $x = -3$, $x = 0$ and $x = 2$ for $q'$.",
+   "explain": "$q'(0) = -12$ is negative while $q'(-3) = 24$ and $q'(2) = 24$ are positive, giving the $+,-,+$ pattern every cubic with a positive leading coefficient and two distinct critical numbers must have. $q''$ is linear, so it changes sign once and once only, at $x = -\\tfrac12$. Watch the two charts disagree in shape: $q$ is falling on the whole of $(-2,1)$ while its concavity switches partway through, which is exactly why concavity is not a statement about rising or falling."
+  },
+  {
+   "id": "calc1-6-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $g(x) = x^4 - 8x^2 + 3$. Find every critical number, give the intervals on which $g$ is increasing and decreasing, and classify each critical number by the **first derivative test**. State the local extreme values.",
+   "answer": "g'(x) = 4x^3 - 16x = 4x(x - 2)(x + 2), so the critical numbers are x = -2, 0, 2 and g' exists everywhere. Reading the sign of g' from one test point per interval: g'(-3) = -60, g'(-1) = 12, g'(1) = -12, g'(3) = 60. So g is decreasing on (-inf, -2) and on (0, 2), and increasing on (-2, 0) and on (2, inf). By the first derivative test, g' changes from - to + at x = -2 (local minimum, g(-2) = -13), from + to - at x = 0 (local maximum, g(0) = 3) and from - to + at x = 2 (local minimum, g(2) = -13).",
+   "rubric": {
+    "required": [
+     "critical",
+     "increas",
+     "decreas",
+     "sign",
+     "minim"
+    ],
+    "optional": [
+     "maximum",
+     "interval",
+     "test point",
+     "local",
+     "derivativ"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "critical-points",
+    "increasing-decreasing",
+    "first-derivative-test"
+   ],
+   "tags": [
+    "critical-points",
+    "increasing-decreasing",
+    "first-derivative-test"
+   ],
+   "xp": 75,
+   "hint": "Factor $g'$ completely first; the three roots cut the line into four intervals.",
+   "explain": "Because $g$ is even, the two wells are mirror images and must share the value $-13$ - a free check on the arithmetic. The tempting error is to report $g$ as 'decreasing then increasing' on the strength of the two minima, but the local maximum at $x = 0$ means the direction of travel reverses three times, not once. Neither minimum is merely local either: $g \\to +\\infty$ at both ends, so $-13$ is in fact the absolute minimum of $g$ on all of $\\mathbb{R}$."
+  },
+  {
+   "id": "calc1-6-gp-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $h(x) = x^4$ and $k(x) = x^4 - 4x^3$. Both satisfy $h''(0) = k''(0) = 0$. Decide for each whether $x = 0$ is an inflection point, justifying with the sign of the second derivative on either side, and say what the second derivative test can conclude at $x = 0$ in each case.",
+   "answer": "h''(x) = 12x^2, which is positive for every x other than 0, so the concavity is up on both sides and does not change: x = 0 is NOT an inflection point of h. It is a local (indeed absolute) minimum, which the second derivative test cannot detect because h''(0) = 0; the sign of h' - negative to the left, positive to the right - settles it. For k, k''(x) = 12x^2 - 24x = 12x(x - 2), so k'' > 0 on (-inf, 0) and k'' < 0 on (0, 2): the concavity does change, so x = 0 IS an inflection point of k, with k(0) = 0. Since k'(x) = 4x^2(x - 3) is negative on both sides of 0, x = 0 is a critical point of k that is not an extremum. In both cases the second derivative test returns no information at x = 0.",
+   "rubric": {
+    "required": [
+     "concav",
+     "inflect",
+     "sign",
+     "second derivativ",
+     "chang"
+    ],
+    "optional": [
+     "minim",
+     "critical",
+     "candidat",
+     "neither",
+     "horizontal"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "concavity",
+    "inflection-points",
+    "second-derivative-test"
+   ],
+   "tags": [
+    "concavity",
+    "inflection-points",
+    "second-derivative-test"
+   ],
+   "xp": 75,
+   "hint": "Factor each second derivative and test a point on each side of the origin.",
+   "explain": "The pair is designed to break the reflex 'second derivative zero, therefore inflection'. $12x^2$ is a square: it can touch zero without changing sign, so $x^4$ has no inflection there at all. $12x(x-2)$ has a simple root at $0$, so it does change sign and $k$ does have one. The deeper point is that $f''(c) = 0$ is a statement about a single point, while both inflection and the second derivative test are statements about a neighbourhood - which is why you always go back to a sign chart when the test is silent."
+  }
+ ],
+ "sketching-clinic": [
+  {
+   "id": "calc1-6-cl-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Sketch $q(x) = 2x^3 + 3x^2 - 12x + 1$. Give the critical numbers, the intervals of increase and decrease, the local extreme values classified by the **second derivative test**, the intervals of concavity, the inflection point, and the behaviour as $x \\to \\pm\\infty$.",
+   "answer": "q'(x) = 6x^2 + 6x - 12 = 6(x - 1)(x + 2), so the critical numbers are x = -2 and x = 1. q'' (x) = 12x + 6 = 6(2x + 1). Second derivative test: q''(-2) = -18 < 0, so x = -2 is a local maximum with q(-2) = -16 + 12 + 24 + 1 = 21; q''(1) = 18 > 0, so x = 1 is a local minimum with q(1) = 2 + 3 - 12 + 1 = -6. Sign of q': positive on (-inf, -2), negative on (-2, 1), positive on (1, inf), so q increases, decreases, then increases. Concavity: q'' < 0 on (-inf, -1/2) (concave down) and q'' > 0 on (-1/2, inf) (concave up), and the concavity changes at x = -1/2, where q(-1/2) = -1/4 + 3/4 + 6 + 1 = 15/2, so (-1/2, 15/2) is the inflection point. As x -> +inf, q -> +inf and as x -> -inf, q -> -inf, so neither extremum is absolute.",
+   "rubric": {
+    "required": [
+     "critical",
+     "increas",
+     "concav",
+     "inflect",
+     "maximum",
+     "minim"
+    ],
+    "optional": [
+     "second derivativ",
+     "sign",
+     "interval",
+     "infinity",
+     "local"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "curve-sketching",
+    "concavity",
+    "inflection-points",
+    "second-derivative-test",
+    "increasing-decreasing"
+   ],
+   "tags": [
+    "curve-sketching",
+    "concavity",
+    "inflection-points",
+    "second-derivative-test",
+    "increasing-decreasing"
+   ],
+   "xp": 90,
+   "hint": "Every cubic has exactly one inflection point, and it sits at the root of the linear function $q''$.",
+   "explain": "The inflection point of a cubic is always the midpoint of its two critical numbers when they exist - here $\\tfrac{-2+1}{2} = -\\tfrac12$, which is a free check on $q'' = 0$. Reporting the local maximum $21$ as *the* maximum is the standard error: a cubic is unbounded in both directions, so 'local' is doing real work in that sentence. Notice too that the graph is still concave down at $x = 0$, where it is falling steeply - concavity and direction are independent readings."
+  },
+  {
+   "id": "calc1-6-cl-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the absolute maximum and absolute minimum of $f(x) = x + \\dfrac{2}{x}$ on $[1,4]$. Give exact values, not decimals, and say why the extreme value theorem applies here even though $f$ has an infinite discontinuity.",
+   "answer": "f'(x) = 1 - 2/x^2 = (x^2 - 2)/x^2, which is zero when x^2 = 2, that is x = sqrt(2) (the root -sqrt(2) is outside [1,4]), and undefined only at x = 0, which is also outside [1,4]. So the candidates are the endpoints x = 1 and x = 4 and the interior critical number x = sqrt(2). Values: f(1) = 3, f(sqrt(2)) = sqrt(2) + 2/sqrt(2) = sqrt(2) + sqrt(2) = 2 sqrt(2), and f(4) = 4 + 1/2 = 9/2. Since 2 sqrt(2) is about 2.83 < 3 < 4.5, the absolute minimum is 2 sqrt(2) at x = sqrt(2) and the absolute maximum is 9/2 at x = 4. The extreme value theorem applies because the discontinuity of f sits at x = 0, which is not in [1,4]; f is continuous on the whole of the closed bounded interval we were given.",
+   "rubric": {
+    "required": [
+     "critical",
+     "endpoint",
+     "continu",
+     "absolute",
+     "candidat"
+    ],
+    "optional": [
+     "minim",
+     "maximum",
+     "interval",
+     "undefined",
+     "outside"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "tags": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "xp": 75,
+   "hint": "$f'(x) = 0$ and $f'(x)$ undefined are both worth checking here - then keep only what lies in $[1,4]$.",
+   "explain": "Continuity is required on $[a,b]$ only, so a pole at $x = 0$ is simply irrelevant to $[1,4]$ - the habit of rejecting the whole method because the formula misbehaves somewhere else is a common and costly one. Note that the maximum sits at an endpoint where $f'(4) = 1 - \\tfrac18 \\neq 0$: an endpoint extremum need not be critical, which is exactly why Fermat is stated for interior points and the method adds $a$ and $b$ by hand."
+  },
+  {
+   "id": "calc1-6-cl-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "An open box is made from a $12\\text{ cm} \\times 12\\text{ cm}$ square of card by cutting a square of side $x$ from each corner and folding up the sides. Write the volume $V(x)$, state the closed interval of physically meaningful $x$, and find the $x$ that maximises the volume and the maximum volume itself.",
+   "answer": "After cutting squares of side x from each corner, the base is a square of side 12 - 2x and the height is x, so V(x) = x(12 - 2x)^2. The side 12 - 2x must be non-negative and x must be non-negative, so the physical domain is the closed interval [0, 6]. V is a polynomial, hence continuous on [0, 6], so the candidates method applies. V'(x) = (12 - 2x)^2 + x * 2(12 - 2x)(-2) = (12 - 2x)(12 - 2x - 4x) = (12 - 2x)(12 - 6x) = 12(x - 6)(x - 2), so the critical numbers are x = 2 and x = 6. Candidates: V(0) = 0, V(2) = 2 * 64 = 128, V(6) = 0. The maximum volume is 128 cubic centimetres, attained at x = 2 cm; both endpoints give a degenerate box of zero volume.",
+   "rubric": {
+    "required": [
+     "volume",
+     "interval",
+     "critical",
+     "endpoint",
+     "maximum"
+    ],
+    "optional": [
+     "candidat",
+     "continu",
+     "domain",
+     "derivativ",
+     "degenerate"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "closed-interval-optimisation",
+    "critical-points",
+    "curve-sketching"
+   ],
+   "tags": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "xp": 90,
+   "hint": "Do not expand $x(12-2x)^2$ - differentiate it as a product and factor the result.",
+   "explain": "Naming the interval is half the problem: without $[0,6]$ there is no extreme value theorem, and $x = 6$ would look like a serious rival rather than the flattened box it is. The other trap is that $V'$ has two roots and only one is interesting - $x = 6$ is a critical number sitting exactly at an endpoint, where the volume is zero. Real optimisation problems almost always come with a physical domain like this one, and finding it is a modelling step, not a calculus step."
+  },
+  {
+   "id": "calc1-6-cl-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove the increasing test from the Mean Value Theorem: if $f$ is continuous on $[a,b]$, differentiable on $(a,b)$ and $f'(x) > 0$ for every $x \\in (a,b)$, then $f$ is strictly increasing on $[a,b]$. State clearly where each hypothesis is used.",
+   "answer": "Let x1 and x2 be any two points of [a, b] with x1 < x2. The restriction of f to [x1, x2] is continuous there (because f is continuous on the whole of [a, b]) and differentiable on (x1, x2) (because (x1, x2) is contained in (a, b)), so the Mean Value Theorem applies to f on [x1, x2]: there is some c in (x1, x2) with f(x2) - f(x1) = f'(c)(x2 - x1). Now c lies in (a, b), so f'(c) > 0 by hypothesis, and x2 - x1 > 0 since x1 < x2. A product of two positive numbers is positive, so f(x2) - f(x1) > 0, that is f(x2) > f(x1). As x1 < x2 were arbitrary points of [a, b], f is strictly increasing on [a, b]. Continuity on the closed interval is what lets the argument reach the endpoints a and b; differentiability on the open interval is what supplies f'(c); and the sign hypothesis is what converts the equation into an inequality.",
+   "rubric": {
+    "required": [
+     "mean value",
+     "continu",
+     "differenti",
+     "positiv",
+     "increas",
+     "arbitrar"
+    ],
+    "optional": [
+     "hypothes",
+     "product",
+     "endpoint",
+     "interval",
+     "strictly"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "mean-value-theorem",
+    "increasing-decreasing"
+   ],
+   "tags": [
+    "mean-value-theorem",
+    "increasing-decreasing"
+   ],
+   "xp": 90,
+   "hint": "Take an arbitrary pair $x_1 < x_2$ and apply the MVT to $f$ on the sub-interval $[x_1, x_2]$, not on $[a,b]$.",
+   "explain": "The move that makes this a proof rather than a picture is applying the MVT to an arbitrary sub-interval $[x_1,x_2]$: one application on $[a,b]$ alone would only compare the two endpoints, which is far weaker than 'increasing'. Note the hypothesis is needed at $c$ only, and $c$ is unknown - the argument works precisely because $f' > 0$ everywhere in $(a,b)$ makes it irrelevant which $c$ the theorem hands you. A sign hypothesis at a single point would prove nothing at all, which is why $f'(0) = 1 > 0$ does not make $x + 2x^2\\sin(1/x)$ increasing near $0$."
+  },
+  {
+   "id": "calc1-6-cl-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes: \"$f'(c) = 0$, so $f$ has a local extremum at $c$; and $f''(c) = 0$, so $f$ has an inflection point at $c$.\" Both claims are wrong. Explain exactly which implication has been reversed in each case, give a specific counterexample to each, and state the correct one-way statements.",
+   "answer": "Both claims read a necessary condition as if it were sufficient. Fermat's theorem says that IF f has an interior local extremum at c AND f'(c) exists THEN f'(c) = 0; the student has asserted its converse. The counterexample is f(x) = x^3 at c = 0: f'(0) = 0, but f is strictly increasing through 0 and there is no extremum. The correct statement is that a critical point is only a candidate; the sign of f' on either side, or the second derivative test, decides. Similarly, IF f has an inflection point at c AND f''(c) exists THEN f''(c) = 0; the second claim is the converse of that, and the converse of a true implication carries no guarantee at all. The counterexample is f(x) = x^4 at c = 0: f''(x) = 12x^2 is zero at 0 but positive on both sides, so the concavity never changes and there is no inflection - the origin is a flat minimum. The correct statement is that f''(c) = 0 makes c a candidate inflection point, and only an actual change in the sign of f'' confirms it. Note also that f' or f'' may fail to exist at an extremum or inflection, as at the cusp of x^(2/3), which is why the definitions of critical point and inflection point do not require differentiability.",
+   "rubric": {
+    "required": [
+     "fermat",
+     "critical",
+     "converse",
+     "sign",
+     "concav",
+     "counterexample"
+    ],
+    "optional": [
+     "candidat",
+     "inflect",
+     "necessary",
+     "sufficient",
+     "cusp"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "fermat-theorem",
+    "critical-points",
+    "inflection-points"
+   ],
+   "tags": [
+    "fermat-theorem",
+    "critical-points",
+    "inflection-points"
+   ],
+   "xp": 45,
+   "hint": "Write each theorem out as 'if P then Q' and ask what the student has assumed instead.",
+   "explain": "Both errors are the same logical error twice, and naming it that way is worth more than memorising two counterexamples: a necessary condition narrows the search, it never ends it. $x^3$ and $x^4$ are the canonical witnesses because they are as simple as a counterexample can be, and $-x^4$ completes the set by showing a maximum at a point where $f'' = 0$. The habit to build is that every zero of $f'$ or $f''$ is followed by a sign check on both sides before anything is claimed."
+  }
+ ],
+ "exam": [
+  {
+   "id": "calc1-6-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "By definition, a **critical point** of a function $f$ is a point $c$ such that:",
+   "choices": [
+    "$c$ is in the domain of $f$ and either $f'(c) = 0$ or $f'(c)$ does not exist",
+    "$f'(c) = 0$",
+    "$f$ has a local maximum or a local minimum at $c$",
+    "$f'(c) = 0$ and $f''(c) \\neq 0$"
+   ],
+   "answer": 0,
+   "concepts": [
+    "critical-points"
+   ],
+   "tags": [
+    "critical-points"
+   ],
+   "xp": 15,
+   "explain": "The 'or does not exist' clause is what lets the definition cover corners and cusps, such as the minimum of $|x|$ at $0$, so option two is strictly too narrow. Option three states Fermat's theorem backwards - $x^3$ is critical at $0$ with no extremum - and option four smuggles in the second derivative test, which is a way of classifying critical points rather than part of what makes one. The requirement that $c$ lie in the domain also matters: $x = 0$ is not a critical point of $1/x$."
+  },
+  {
+   "id": "calc1-6-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "By definition, $f$ has an **inflection point** at $c$ when:",
+   "choices": [
+    "$f''(c) = 0$",
+    "$f$ is continuous at $c$ and the concavity of $f$ changes at $c$",
+    "$f'(c) = 0$ and $f''(c) = 0$",
+    "$f$ changes from increasing to decreasing at $c$"
+   ],
+   "answer": 1,
+   "concepts": [
+    "inflection-points"
+   ],
+   "tags": [
+    "inflection-points"
+   ],
+   "xp": 15,
+   "explain": "Inflection is defined by a change in concavity, not by a value of $f''$: for $x^4$ we have $f''(0) = 0$ with concavity up on both sides and no inflection, while $x^{1/3}$ has an inflection at $0$ where $f''$ does not even exist. Option four describes a local maximum, which is a statement about $f'$ rather than $f''$. Continuity at $c$ is part of the definition so that a jump - where the concavity either side may well differ - is not miscounted as an inflection."
+  },
+  {
+   "id": "calc1-6-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the second derivative test, then apply it. Answer with `minimum`, `maximum` or `nothing` in the first three blanks, and with a number in the last.",
+   "template": "If f'(c) = 0 and f''(c) > 0 then c is a local ___\nIf f'(c) = 0 and f''(c) < 0 then c is a local ___\nIf f'(c) = 0 and f''(c) = 0 the test concludes ___\nFor q(x) = 2x^3 + 3x^2 - 12x + 1, q''(1) = ___",
+   "blanks": [
+    "minimum",
+    "maximum",
+    "nothing",
+    "18"
+   ],
+   "concepts": [
+    "second-derivative-test",
+    "concavity"
+   ],
+   "tags": [
+    "second-derivative-test",
+    "concavity"
+   ],
+   "xp": 30,
+   "explain": "A flat tangent inside a cup is a minimum and inside a cap is a maximum - the signs are easier to keep straight from the picture than from the words. The third line is the one that matters: $f''(c) = 0$ yields no information whatsoever, and the frequent misreading 'therefore neither' is refuted by $x^4$, which has a genuine minimum at the origin. With $q''(x) = 12x + 6$ we get $q''(1) = 18 > 0$, confirming the local minimum there."
+  },
+  {
+   "id": "calc1-6-ex-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the stages of a full curve sketch into the order in which they are naturally carried out.",
+   "fragments": [
+    "Find the domain of f and its behaviour as x tends to the ends of that domain.",
+    "Compute f' and solve f'(x) = 0, also noting where f' fails to exist.",
+    "Build the sign chart of f' to get the intervals of increase and decrease, and classify the critical numbers.",
+    "Compute f'' and find its zeros as candidate inflection points.",
+    "Build the sign chart of f'' to get the intervals of concavity and confirm which candidates really are inflection points.",
+    "Plot the extreme points and inflection points, then join them with arcs of the right direction and curvature."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "curve-sketching"
+   ],
+   "tags": [
+    "curve-sketching"
+   ],
+   "xp": 30,
+   "explain": "Each derivative is fully exploited before the next one is computed, because the sign chart of $f'$ is what makes the critical numbers meaningful and the sign chart of $f''$ is what promotes a candidate to an inflection point. Plotting comes last and takes only a handful of points: the value of the sketch is the shape between them, and that shape is already fixed by the two sign charts. Starting with a table of values instead is the habit this ordering is designed to break."
+  },
+  {
+   "id": "calc1-6-ex-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Let $F(x) = \\dfrac{x}{x^2+1}$, with $F'(x) = \\dfrac{1-x^2}{(x^2+1)^2}$ and $F''(x) = \\dfrac{2x(x^2-3)}{(x^2+1)^3}$. Give the sign of $F'$ and $F''$ on each interval as `+` or `-`.",
+   "steps": [
+    {
+     "label": "sign of F' on (-inf, -1)",
+     "expected": "-"
+    },
+    {
+     "label": "sign of F' on (-1, 1)",
+     "expected": "+"
+    },
+    {
+     "label": "sign of F' on (1, inf)",
+     "expected": "-"
+    },
+    {
+     "label": "sign of F'' on (-inf, -sqrt(3))",
+     "expected": "-"
+    },
+    {
+     "label": "sign of F'' on (-sqrt(3), 0)",
+     "expected": "+"
+    },
+    {
+     "label": "sign of F'' on (0, sqrt(3))",
+     "expected": "-"
+    },
+    {
+     "label": "sign of F'' on (sqrt(3), inf)",
+     "expected": "+"
+    }
+   ],
+   "concepts": [
+    "increasing-decreasing",
+    "concavity",
+    "curve-sketching"
+   ],
+   "tags": [
+    "increasing-decreasing",
+    "concavity",
+    "curve-sketching"
+   ],
+   "xp": 60,
+   "explain": "Every denominator here is a positive power of $x^2+1$, so the sign of each derivative is entirely decided by its numerator - recognising that saves all of the work. $1 - x^2$ is positive only between its roots, so $F$ rises on $(-1,1)$ and falls outside it, giving the maximum $F(1) = \\tfrac12$ and the minimum $F(-1) = -\\tfrac12$. The numerator $2x(x^2-3)$ has three simple roots, so $F''$ alternates through four intervals and $F$ has three inflection points - one of them at the origin, where $F$ is rising steeply and not extreme at all."
+  },
+  {
+   "id": "calc1-6-ex-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "State Rolle's theorem in full. Then explain why $f(x) = |x|$ on $[-1,1]$ satisfies $f(-1) = f(1)$ yet has no point where $f' = 0$, and say precisely which hypothesis fails and why the theorem is not thereby contradicted.",
+   "answer": "Rolle's theorem: if f is continuous on the closed interval [a, b], differentiable on the open interval (a, b), and f(a) = f(b), then there is at least one c in (a, b) with f'(c) = 0. For f(x) = |x| on [-1, 1] we do have f(-1) = 1 = f(1), and f is continuous everywhere, including on [-1, 1]. But f'(x) = -1 for x < 0 and f'(x) = +1 for x > 0, so f' is never zero on (-1, 1), and f'(0) does not exist: the left and right difference quotients tend to -1 and +1, so the limit defining the derivative fails to exist at the corner. The hypothesis that fails is differentiability on the open interval (-1, 1), because 0 lies inside that interval. No contradiction arises, because a theorem promises its conclusion only when every hypothesis holds; the one point where the graph turns is precisely the point where the derivative is missing.",
+   "rubric": {
+    "required": [
+     "continu",
+     "differenti",
+     "hypothes",
+     "corner",
+     "open interval"
+    ],
+    "optional": [
+     "one-sided",
+     "conclusion",
+     "endpoint",
+     "exist",
+     "counterexample"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "rolle-theorem",
+    "critical-points"
+   ],
+   "tags": [
+    "rolle-theorem",
+    "critical-points"
+   ],
+   "xp": 45,
+   "explain": "The example is instructive because it is continuity that survives and differentiability that fails - the two are easy to conflate, and $|x|$ separates them at a single point. Note the corner is still a critical point and still a minimum, so Fermat is untouched; it is only the conclusion '$f'(c) = 0$' that is unavailable, since there is no $f'(0)$ to be zero. A hypothesis failing at one interior point out of infinitely many is enough to void the guarantee entirely."
+  },
+  {
+   "id": "calc1-6-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Verify that the Mean Value Theorem applies to $f(x) = x^3$ on $[0,2]$ and find every $c$ that it promises. Then state in one sentence what the number $c$ means for the graph of $f$ on that interval.",
+   "answer": "f(x) = x^3 is a polynomial, so it is continuous on [0, 2] and differentiable on (0, 2), and both hypotheses of the Mean Value Theorem hold. The average rate of change is (f(2) - f(0)) / (2 - 0) = (8 - 0) / 2 = 4. Setting f'(c) = 3c^2 = 4 gives c^2 = 4/3, so c = 2/sqrt(3) or c = -2/sqrt(3). Only c = 2/sqrt(3) = 2 sqrt(3)/3, which is about 1.155, lies in the open interval (0, 2); the negative root is discarded. So there is exactly one such c, namely c = 2 sqrt(3)/3. Geometrically, the tangent line to y = x^3 at that point is parallel to the chord joining (0, 0) to (2, 8), which has slope 4.",
+   "rubric": {
+    "required": [
+     "continu",
+     "differenti",
+     "average",
+     "tangent",
+     "parallel",
+     "interval"
+    ],
+    "optional": [
+     "chord",
+     "slope",
+     "discard",
+     "polynomial",
+     "hypothes"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "mean-value-theorem"
+   ],
+   "tags": [
+    "mean-value-theorem"
+   ],
+   "xp": 75,
+   "hint": "The average rate of change over $[0,2]$ is the slope of the chord; set $f'(c)$ equal to it.",
+   "explain": "The MVT promises at least one $c$ **inside** the open interval, so the algebraic root $-2/\\sqrt{3}$ must be discarded even though it satisfies the equation - the theorem is a statement about $(0,2)$, not about $\\mathbb{R}$. Forgetting that check is the standard error, along with computing $f'$ at the endpoints instead of solving for $c$: note $f'(0) = 0$ and $f'(2) = 12$ straddle $4$, which is a useful sanity check but not an answer."
+  },
+  {
+   "id": "calc1-6-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the absolute maximum and absolute minimum of $g(x) = x^4 - 8x^2 + 3$ on $[-1, 3]$, and state which of them occur at an endpoint.",
+   "answer": "g'(x) = 4x(x - 2)(x + 2), so the critical numbers are x = -2, 0 and 2. Only x = 0 and x = 2 lie in [-1, 3]; x = -2 is outside and is discarded. The candidates are therefore x = -1, 0, 2, 3. Evaluating: g(-1) = 1 - 8 + 3 = -4, g(0) = 3, g(2) = 16 - 32 + 3 = -13, g(3) = 81 - 72 + 3 = 12. The absolute maximum is 12 at the endpoint x = 3, and the absolute minimum is -13 at the interior critical number x = 2. So the maximum occurs at an endpoint and the minimum does not.",
+   "rubric": {
+    "required": [
+     "critical",
+     "endpoint",
+     "candidat",
+     "absolute",
+     "evaluat"
+    ],
+    "optional": [
+     "outside",
+     "interval",
+     "maximum",
+     "minim",
+     "interior"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "tags": [
+    "closed-interval-optimisation",
+    "critical-points"
+   ],
+   "xp": 75,
+   "hint": "Three critical numbers, but only two of them are inside $[-1,3]$.",
+   "explain": "The local maximum at $x = 0$ with value $3$ is a decoy: it is genuinely a local maximum, yet the endpoint $x = 3$ beats it with $12$, which is why the candidates method compares values rather than classifying them. Discarding $x = -2$ matters too - it is the mirror minimum with the same value $-13$, so keeping it would not change the answer here, but on a different interval it would produce a minimum at a point the function never reaches."
+  },
+  {
+   "id": "calc1-6-ex-09",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Give a full analysis of $F(x) = \\dfrac{x}{x^2+1}$: domain, critical numbers, local extreme values, intervals of concavity, all inflection points, and the limits as $x \\to \\pm\\infty$. You may quote $F'(x) = \\dfrac{1-x^2}{(x^2+1)^2}$ and $F''(x) = \\dfrac{2x(x^2-3)}{(x^2+1)^3}$.",
+   "answer": "The domain is all of R, since x^2 + 1 is never zero. Every denominator is a positive power of x^2 + 1, so each derivative takes its sign from its numerator. F'(x) = 0 when 1 - x^2 = 0, that is x = -1 and x = 1, and F' exists everywhere, so those are the only critical numbers. The numerator 1 - x^2 is negative on (-inf, -1), positive on (-1, 1) and negative on (1, inf), so F is decreasing, then increasing, then decreasing. By the first derivative test x = -1 is a local minimum with F(-1) = -1/2 and x = 1 is a local maximum with F(1) = 1/2. The numerator 2x(x^2 - 3) of F'' has simple roots at x = -sqrt(3), 0 and sqrt(3), so F'' is negative on (-inf, -sqrt(3)), positive on (-sqrt(3), 0), negative on (0, sqrt(3)) and positive on (sqrt(3), inf): F is concave down, up, down, up. The concavity changes at all three, so the inflection points are (-sqrt(3), -sqrt(3)/4), (0, 0) and (sqrt(3), sqrt(3)/4). Finally the denominator grows faster than the numerator, so F -> 0 as x -> +inf and as x -> -inf, and y = 0 is a horizontal asymptote; the local extreme values 1/2 and -1/2 are therefore the absolute maximum and minimum.",
+   "rubric": {
+    "required": [
+     "domain",
+     "critical",
+     "concav",
+     "inflect",
+     "asymptot",
+     "sign"
+    ],
+    "optional": [
+     "numerator",
+     "increas",
+     "decreas",
+     "maximum",
+     "minim"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "curve-sketching",
+    "concavity",
+    "inflection-points",
+    "first-derivative-test"
+   ],
+   "tags": [
+    "curve-sketching",
+    "concavity",
+    "inflection-points",
+    "first-derivative-test"
+   ],
+   "xp": 90,
+   "hint": "Positive denominators can be ignored entirely when you are only reading off signs.",
+   "explain": "Because $F \\to 0$ at both ends and the graph is bounded, the two local extrema turn out to be absolute - a conclusion the sign charts alone cannot deliver, which is why end behaviour is part of the analysis rather than an afterthought. The origin is the instructive point: $F''(0) = 0$ and the concavity does flip there, so it is an inflection point, but $F'(0) = 1$, so the graph is climbing steeply through it. An inflection with a non-horizontal tangent is entirely normal and catches people who expect inflection points to look flat."
+  },
+  {
+   "id": "calc1-6-ex-10",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $p(x) = x^3 + x - 1$ has exactly one real root. Use the intermediate value theorem for existence, and Rolle's theorem (or the increasing test) for uniqueness.",
+   "answer": "Existence: p is a polynomial, hence continuous on R. p(0) = -1 < 0 and p(1) = 1 > 0, so by the intermediate value theorem there is at least one r in (0, 1) with p(r) = 0. Uniqueness: suppose, for contradiction, that p had two distinct real roots r1 < r2. Then p is continuous on [r1, r2] and differentiable on (r1, r2), and p(r1) = 0 = p(r2), so Rolle's theorem gives some c in (r1, r2) with p'(c) = 0. But p'(x) = 3x^2 + 1 >= 1 > 0 for every real x, so p' is never zero - a contradiction. Hence p cannot have two distinct real roots, and combined with existence it has exactly one. Equivalently, p' > 0 everywhere means p is strictly increasing on R, and a strictly increasing function takes each value at most once.",
+   "rubric": {
+    "required": [
+     "intermediate value",
+     "continu",
+     "rolle",
+     "contradic",
+     "increas",
+     "root"
+    ],
+    "optional": [
+     "differenti",
+     "sign",
+     "distinct",
+     "unique",
+     "polynomial"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "rolle-theorem",
+    "increasing-decreasing",
+    "critical-points"
+   ],
+   "tags": [
+    "rolle-theorem",
+    "increasing-decreasing",
+    "critical-points"
+   ],
+   "xp": 90,
+   "hint": "Two roots would give Rolle a pair of equal values to work with. What would it then produce?",
+   "explain": "This is the standard division of labour: the intermediate value theorem manufactures a root but never counts them, while Rolle bounds the count without producing any. The proof by contradiction is where Rolle earns its keep - $3x^2 + 1$ is never zero, so a second root is impossible, and the same computation says $p$ is strictly increasing, which is the direct version of the same argument. Note that finding the root numerically, around $0.6823$, would prove nothing about uniqueness at all."
+  }
+ ]
+}

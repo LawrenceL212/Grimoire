@@ -1,0 +1,285 @@
+{
+ "n": 10,
+ "name": "The Trial of Change",
+ "concepts": [
+  "limits-and-continuity",
+  "the-derivative-from-first-principles",
+  "differentiation-rules-and-the-chain-rule",
+  "related-rates",
+  "optimisation-and-extreme-values",
+  "existence-theorems-ivt-and-mvt",
+  "the-fundamental-theorem-of-calculus",
+  "integration-by-substitution"
+ ],
+ "cognitiveLevel": "boss",
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "title": "The Trial of Change",
+  "sections": [
+   {
+    "title": "What the Trial Asks",
+    "body": "This floor is a single closed-book paper, and it is worth knowing before you start that the whole dungeon rests on **two limits**. One is the limit of a difference quotient, $f'(a) = \\lim_{h \\to 0} \\frac{f(a+h)-f(a)}{h}$, which turns a curve into a slope; the other is the limit of a sum of thin rectangles, $\\int_a^b f(x)\\,dx$, which turns a rate into a total.\n\nEverything the paper asks is one of those two wearing a costume. A related rate is a derivative taken with respect to time, an optimisation is a derivative set to zero, the Mean Value Theorem is a promise about a derivative, and a substitution is the chain rule read backwards.\n\nThe Fundamental Theorem is what makes the paper a single question rather than seven: $\\frac{d}{dx}\\int_a^x f(t)\\,dt = f(x)$ and $\\int_a^b F'(x)\\,dx = F(b)-F(a)$ say that the two limits are inverse operations. Expect the marking to reward that recognition - the last part of the trial asks you to state it in your own words.\n\nThere is no starter working, no hint and no exam here. Read each part, decide which of the two limits it is really about, and write the reasoning as well as the number.",
+    "code": "THE TRIAL IN ONE COLUMN - every question below is one of two limits.\n\n  derivative    f'(a)  =  lim  ( f(a+h) - f(a) ) / h        a slope\n                         h->0\n\n  integral      int_a^b f  =  lim  sum f(x_i) * dx          an area\n                             n->oo\n\nWorked, from first principles, f(x) = x^2 at a = 3:\n\n  ( f(3+h) - f(3) ) / h  =  ( (3+h)^2 - 9 ) / h\n                         =  ( 9 + 6h + h^2 - 9 ) / h\n                         =  ( 6h + h^2 ) / h\n                         =  6 + h          h =/= 0, so the cancel is legal\n\n  lim ( 6 + h ) = 6      hence  f'(3) = 6\n  h->0\n\nTHE FUNDAMENTAL THEOREM ties the two columns together:\n\n  d/dx int_a^x f(t) dt  =  f(x)            differentiating undoes integrating\n  int_a^b F'(x) dx      =  F(b) - F(a)     integrating undoes differentiating\n\nSo the paper is one idea asked seven ways: a limit, a derivative, a rate,\nan extremum, an existence theorem, an integral, and the reason they agree.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The h in the denominator is what makes this a limit rather than a division: at h = 0 the quotient is 0/0 and says nothing. Every derivative rule you know was proved from this line."
+     },
+     {
+      "line": 14,
+      "text": "Cancelling h is legal precisely because a limit as h tends to 0 never evaluates at h = 0. Setting h = 0 too early gives 0/0; never letting it go gives no derivative at all."
+     },
+     {
+      "line": 22,
+      "text": "Read this pair as one sentence: differentiation and integration undo each other. It is the reason a question about area can be answered by antidifferentiating."
+     },
+     {
+      "line": 25,
+      "text": "Seven parts, one idea. If you can say which of the two limits a part is really asking about, you have already chosen the method."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Warm the machinery up. Give each limit as an exact fraction in lowest terms, written like `3/8`.",
+     "template": "lim as x -> 0 of ( sqrt(4+x) - 2 ) / x = ___\nlim as x -> infinity of ( 3x^2 - x ) / ( 2x^2 + 5 ) = ___",
+     "blanks": [
+      "1/4",
+      "3/2"
+     ],
+     "concepts": [
+      "limits-and-continuity"
+     ],
+     "explain": "Multiplying by the conjugate turns $\\frac{\\sqrt{4+x}-2}{x}$ into $\\frac{1}{\\sqrt{4+x}+2}$, which is continuous at $0$ and gives $\\frac{1}{4}$; the tempting answer $0$ comes from cancelling the $x$ before rationalising, and the equally tempting $\\infty$ from noticing only the vanishing denominator. For the second, dividing top and bottom by $x^2$ leaves $\\frac{3 - 1/x}{2 + 5/x^2} \\to \\frac{3}{2}$ - the ratio of leading coefficients, not $1$ and not $\\infty$."
+    }
+   },
+   {
+    "title": "Every Rate Is the Same Rate",
+    "body": "A derivative is a rate of change, so a question about how fast something grows is never a new kind of question - only a new letter. The one structural idea is that when two quantities are tied by a geometric relation and both depend on time, differentiating the relation with respect to $t$ forces the **chain rule** on every term: $\\frac{d}{dt}(x^2) = 2x \\frac{dx}{dt}$, never $2x$.\n\nThe order of operations is where marks are lost. Write the relation for a general instant, differentiate it, and only then substitute the numbers describing the particular instant - because a number frozen in before differentiation has derivative zero, and the equation collapses to $0 = 0$.\n\nImplicit differentiation is the same manoeuvre with $x$ in place of $t$, so if you can do one you can do the other. In both, the sign of the answer carries meaning: a negative rate is a length shrinking or a level falling, and dropping it loses half the answer.",
+    "code": "A RELATED RATE IS ONE CHAIN RULE, TAKEN WITH RESPECT TO TIME.\n\nA 13 ft ladder leans against a wall. Its foot slides out at dx/dt = 2 ft/s.\nHow fast is the top falling when the foot is 5 ft from the wall?\n\n  1. GEOMETRY FIRST, with the instant still general:\n\n        x^2 + y^2 = 169          x = x(t),  y = y(t)\n\n  2. DIFFERENTIATE THE RELATION with respect to t.  Every term needs the\n     chain rule, because x and y are functions of t and not the variable:\n\n        d/dt (x^2) = 2x * dx/dt          NOT 2x\n        d/dt (y^2) = 2y * dy/dt          NOT 2y\n\n        2x dx/dt + 2y dy/dt = 0\n\n  3. ONLY NOW substitute the instant.  x = 5 gives y = 12, and dx/dt = 2:\n\n        2(5)(2) + 2(12) dy/dt = 0\n                       dy/dt  = -20/24 = -5/6 ft/s\n\nThe sign is the answer's other half: dy/dt < 0 says the top is falling.\nSubstituting x = 5 into x^2 + y^2 = 169 BEFORE differentiating gives\n25 + y^2 = 169, a statement about one frozen instant, whose derivative is\n0 = 0.  A constant has no rate; that is why the instant goes in last.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Keep the instant out of the geometry. x and y are functions of t here, which is exactly what licenses the chain rule on the next step."
+     },
+     {
+      "line": 13,
+      "text": "This is the whole idea of a related rate. The factor dx/dt appears because x is not the variable of differentiation - t is."
+     },
+     {
+      "line": 18,
+      "text": "y is recovered from the relation, not given: 5-12-13. Half of all related-rate errors are a missing quantity that the geometry already knew."
+     },
+     {
+      "line": 24,
+      "text": "Substituting first destroys the information you were about to extract. This one sentence explains most zero-mark answers on this kind of question."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A spherical balloon is inflated at $12$ cm$^3$/s. Find $\\frac{dr}{dt}$ at the instant $r = 2$ cm, stating the relation you differentiated and where the chain rule entered. Give the exact value.",
+     "answer": "V = (4/3) pi r^3, so dV/dt = 4 pi r^2 dr/dt - the chain rule enters because r is a function of t, not the variable of differentiation. At r = 2: 12 = 16 pi dr/dt, so dr/dt = 3/(4 pi) cm/s, about 0.239 cm/s.",
+     "rubric": {
+      "required": [
+       "chain",
+       "rate",
+       "differenti",
+       "radius",
+       "volume"
+      ],
+      "optional": [
+       "sphere",
+       "instant",
+       "substitut",
+       "relation",
+       "implicit"
+      ],
+      "minWords": 35
+     },
+     "concepts": [
+      "related-rates",
+      "differentiation-rules-and-the-chain-rule"
+     ],
+     "explain": "Differentiating $V = \\tfrac{4}{3}\\pi r^3$ with respect to $t$ gives $\\frac{dV}{dt} = 4\\pi r^2 \\frac{dr}{dt}$, and $4\\pi r^2$ is the surface area - the balloon grows by adding a skin, which is why that factor is not an accident. Setting $r = 2$ first would give the constant $V = \\tfrac{32}{3}\\pi$ and the useless derivative $0 = 0$; that is the standard wrong turn. The radius therefore slows as the balloon grows, since $\\frac{dr}{dt} = \\frac{12}{4\\pi r^2}$ falls like $1/r^2$ even though the air goes in at a constant rate."
+    }
+   },
+   {
+    "title": "Where the Extremes Hide, and Why the Domain Decides",
+    "body": "An interior maximum or minimum of a differentiable function has a horizontal tangent, so critical points are the only interior candidates - but *candidate* is all they are, and which extra work you owe depends entirely on the domain. On a **closed, bounded** interval the Extreme Value Theorem guarantees both extremes exist and the endpoints are candidates too, so evaluating a finite list settles the matter with no second-derivative test at all.\n\nOn an open or unbounded domain there are no endpoints to test and no theorem promising an extremum exists, so a critical point is not automatically the answer. You must supply the argument yourself: show the function tends to $+\\infty$ (or $-\\infty$) at both ends of the domain, or show $f'' > 0$ throughout so the function is convex and the stationary point is global.\n\nThe Intermediate Value Theorem and the Mean Value Theorem are of a different species: they assert that some $c$ **exists**, never where it is. Their power is in combination - the IVT gives at least one root, and Rolle's theorem, applied to a derivative that never vanishes, gives at most one.\n\nCheck the hypotheses before invoking either. A function with a corner or a jump inside the interval is outside the theorems' reach, and $|x|$ on $[-1,1]$ is the standard warning against using the Mean Value Theorem carelessly.",
+    "code": "TWO KINDS OF DOMAIN, TWO KINDS OF ARGUMENT.\n\nCLOSED AND BOUNDED - the Extreme Value Theorem does the work for you.\n\n  f(x) = x^3 - 6x^2 + 9x  on  [0, 4]        f is continuous, [0,4] is closed\n  f'(x) = 3x^2 - 12x + 9 = 3(x-1)(x-3)  ->  critical points x = 1, x = 3\n\n  candidates: the critical points AND the two endpoints\n\n     f(0) = 0      f(1) = 4      f(3) = 0      f(4) = 4\n\n  max = 4, attained twice, at x = 1 and at the endpoint x = 4;  min = 0.\n  No second-derivative test needed: a finite list has a largest member.\n\nOPEN OR UNBOUNDED - the theorem does not apply, so you must argue.\n\n  A(x) = x + 4/x  on  (0, oo)               no endpoints to test\n  A'(x) = 1 - 4/x^2 = 0  ->  x = 2 (x = -2 is outside the domain), A(2) = 4\n\n  A(x) -> oo as x -> 0+   and   A(x) -> oo as x -> oo\n\n  so A cannot escape to a smaller value near either end, and the single\n  interior critical point must be the global minimum.  A'' = 8/x^3 > 0 on\n  the whole domain settles it a second way: A is convex there.\n\nEXISTENCE, NOT LOCATION - IVT and MVT promise a c and never compute it.\n  IVT: f continuous on [a,b] takes every value between f(a) and f(b).\n  MVT: f continuous on [a,b], differentiable on (a,b) => some c in (a,b)\n       has f'(c) = ( f(b) - f(a) ) / ( b - a ).",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "The endpoints are candidates, not afterthoughts: here the maximum is attained at x = 4, an endpoint, where the derivative is not zero at all."
+     },
+     {
+      "line": 18,
+      "text": "Discarding x = -2 is a domain decision, not an algebraic one. A large share of the marks in an optimisation live in decisions like this."
+     },
+     {
+      "line": 22,
+      "text": "This is the argument the Extreme Value Theorem would have supplied on a closed interval. On (0, oo) you owe it explicitly."
+     },
+     {
+      "line": 27,
+      "text": "Existence theorems answer 'is there one?' and stay silent on 'which one?'. Asking the IVT to locate a root is asking the wrong question."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Let $f(x) = x^3 - 3x$ on the closed interval $[0,2]$. Work the candidate method through, giving each value as a plain integer.",
+     "steps": [
+      {
+       "label": "the only critical point of f inside (0, 2)",
+       "expected": "1"
+      },
+      {
+       "label": "f at the left endpoint, f(0)",
+       "expected": "0"
+      },
+      {
+       "label": "f at the critical point, f(1)",
+       "expected": "-2"
+      },
+      {
+       "label": "f at the right endpoint, f(2)",
+       "expected": "2"
+      },
+      {
+       "label": "the global maximum value of f on [0, 2]",
+       "expected": "2"
+      },
+      {
+       "label": "the global minimum value of f on [0, 2]",
+       "expected": "-2"
+      }
+     ],
+     "concepts": [
+      "optimisation-and-extreme-values"
+     ],
+     "explain": "$f'(x) = 3x^2 - 3$ vanishes at $x = \\pm 1$, and $x = -1$ is outside $[0,2]$ - discarding it is part of the method, not a detail. The maximum sits at the endpoint $x = 2$, where $f' = 9 \\neq 0$, which is exactly why endpoints must be evaluated: a search restricted to stationary points would report the maximum as $0$ or miss it entirely. The minimum $-2$ does come from the critical point, so both kinds of candidate earn their place on the list."
+    }
+   },
+   {
+    "title": "The Two Halves of the Fundamental Theorem",
+    "body": "The Fundamental Theorem has two halves and they do opposite jobs. Part 1 says that accumulating a continuous $f$ and then differentiating returns $f$: $\\frac{d}{dx}\\int_a^x f(t)\\,dt = f(x)$ - and when the upper limit is itself a function, the chain rule multiplies in, so $\\frac{d}{dx}\\int_a^{g(x)} f(t)\\,dt = f(g(x))\\,g'(x)$.\n\nPart 2 is the one you compute with: $\\int_a^b F'(x)\\,dx = F(b) - F(a)$ for any antiderivative $F$. Read from right to left it is the **Net Change Theorem** - the integral of a rate of change over an interval is the total change - which is why a velocity integrates to a displacement and a flow rate to a volume.\n\n**Substitution is the chain rule reversed.** Setting $u = g(x)$ and $du = g'(x)\\,dx$ turns $\\int f(g(x))g'(x)\\,dx$ into $\\int f(u)\\,du$, and for a definite integral the cleanest habit is to convert the limits along with the variable, so that no back-substitution is needed and no evaluation is done against the wrong variable.\n\nThat mismatch - new antiderivative, old limits - is the single commonest wreck in a calculus paper. Convert the limits or back-substitute first, but never mix the two conventions.",
+    "code": "THE TWO HALVES DO OPPOSITE JOBS.\n\nFTC PART 1 - differentiating an accumulation.\n\n  d/dx int_2^x (1/t) dt = 1/x\n\n  With a function in the upper limit, the chain rule joins in:\n\n  d/dx int_2^(x^2) (1/t) dt = ( 1/(x^2) ) * d/dx (x^2) = 2x/x^2 = 2/x\n\nFTC PART 2 - evaluating with any antiderivative.\n\n  int_a^b F'(x) dx = F(b) - F(a)      the Net Change Theorem in disguise:\n                                      the integral of a rate is the change\n\nSUBSTITUTION IS THE CHAIN RULE READ BACKWARDS.\n\n  int_0^2 x sqrt(1 + x^2) dx        u = 1 + x^2,  du = 2x dx,  x dx = du/2\n\n  CHANGE THE LIMITS with the variable:  x = 0 -> u = 1,  x = 2 -> u = 5\n\n  = int_1^5 sqrt(u) * du/2 = (1/2)(2/3) u^(3/2) |_1^5 = ( 5 sqrt5 - 1 ) / 3\n\nLeaving the old limits on a new variable is the classic wreck: writing\n(1/3) u^(3/2) evaluated from 0 to 2 answers a different question entirely.\nEither change the limits, or back-substitute u = 1 + x^2 first - never mix.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "No antiderivative of 1/t was needed. Part 1 hands you the derivative of the accumulation directly, which is the point of it."
+     },
+     {
+      "line": 9,
+      "text": "The extra factor 2x is the chain rule: the upper limit moves at rate d/dx (x^2), so the accumulation does too."
+     },
+     {
+      "line": 13,
+      "text": "The integral of a rate is a change. Reading Part 2 this way is what turns a symbolic identity into a physical statement."
+     },
+     {
+      "line": 20,
+      "text": "Changing the limits is the safeguard: once they are u-limits, the u-antiderivative can be evaluated with nothing left to remember."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Evaluate $\\displaystyle\\int_1^2 2x\\,(x^2+1)^3\\,dx$ exactly by substitution, changing the limits rather than back-substituting. State the substitution, the new limits, and the exact value as a fraction.",
+     "answer": "Let u = x^2 + 1, so du = 2x dx. The limits change with the variable: x = 1 gives u = 2 and x = 2 gives u = 5. The integral becomes int_2^5 u^3 du = [u^4/4] from 2 to 5 = (625 - 16)/4 = 609/4.",
+     "rubric": {
+      "required": [
+       "substitut",
+       "limit",
+       "integral",
+       "antideriv",
+       "chain"
+      ],
+      "optional": [
+       "609",
+       "fundamental",
+       "du",
+       "convert",
+       "back-substitut"
+      ],
+      "minWords": 35
+     },
+     "concepts": [
+      "integration-by-substitution",
+      "the-fundamental-theorem-of-calculus"
+     ],
+     "explain": "The integrand is built for substitution because $2x$ is exactly $\\frac{du}{dx}$ for $u = x^2+1$ - spotting that inner-function-and-its-derivative pattern is the chain rule recognised in reverse. With $u$-limits $2$ and $5$ the answer is $\\frac{5^4 - 2^4}{4} = \\frac{609}{4}$. Evaluating $\\frac{u^4}{4}$ between the **old** limits $1$ and $2$ instead gives $\\frac{16-1}{4} = \\frac{15}{4}$, a wrong answer that looks perfectly tidy; it is the reason the limits must travel with the variable."
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "calc1-10-t-01",
+   "type": "problem",
+   "layer": "application",
+   "capstone": true,
+   "xp": 300,
+   "prompt": "**The Trial of Change - closed book, one sitting.**\n\nThroughout, let $$f(x) = \\sqrt{9+x}, \\qquad x > -9.$$\n\nAnswer all seven parts. Show the reasoning, not only the numbers.\n\n**1. Limits.** Evaluate, with algebra rather than a numerical guess, $$\\lim_{x \\to 0} \\frac{\\sqrt{9+x}-3}{x} \\qquad \\text{and} \\qquad \\lim_{x \\to \\infty}\\left(\\sqrt{x^2+6x} - x\\right).$$ Then let $g(x)$ be that first quotient for $x \\neq 0$, with $g(0) = k$. State the value of $k$ that makes $g$ continuous at $0$, and name the kind of discontinuity $g$ has for every other choice of $k$.\n\n**2. A derivative from first principles.** Using only the definition $f'(x) = \\lim_{h \\to 0}\\frac{f(x+h)-f(x)}{h}$, prove that $f'(x) = \\frac{1}{2\\sqrt{9+x}}$. Then say which limit from part 1 you have just recomputed, and at which point. Finally differentiate $u(x) = x^2\\sqrt{9+x}$ using the product and chain rules, and simplify it to a single fraction.\n\n**3. A related rate.** Water runs into an inverted right circular cone at $5$ cm$^3$/s. The cone is $6$ cm deep and $6$ cm across the top, so the water's surface radius is always half its depth. Find how fast the depth is rising, and how fast the surface radius is growing, at the instant the water is $4$ cm deep. State the relation you differentiated, and say where the chain rule entered and why the instant is substituted last.\n\n**4. An optimisation, with a domain argument.** A closed cylindrical tin must hold exactly $1000$ cm$^3$. Its total surface area is $S = 2\\pi r^2 + 2\\pi r h$. Give the exact minimising radius, the corresponding height, and the exact minimum area. The domain is the open, unbounded interval $r > 0$, so the Extreme Value Theorem does **not** apply: supply an argument of your own that your critical point is a global minimum, and say what the relation between $h$ and $r$ turns out to be.\n\n**5. Existence theorems.** (a) Prove that $x^3 + x - 1 = 0$ has exactly one real root: the Intermediate Value Theorem for *at least one*, and Rolle's theorem or the Mean Value Theorem for *at most one*. State the interval you used and check the hypotheses. (b) Find every $c$ that the Mean Value Theorem guarantees for $f$ on $[0,16]$, and confirm it lies in the open interval $(0,16)$.\n\n**6. Integration.** Evaluate exactly $$\\text{(a) } \\int_0^{16} \\frac{dx}{2\\sqrt{9+x}}, \\qquad \\text{(b) } \\int_0^{2} x^2\\sqrt{9+x^3}\\,dx, \\qquad \\text{(c) } \\frac{d}{dx}\\int_0^{x^2}\\sqrt{9+t}\\,dt.$$ Do (a) by the Fundamental Theorem, and say why its value had to equal the numerator of the Mean Value quotient in part 5(b). Do (b) by substitution, changing the limits rather than back-substituting. For (c), name the two theorems you used.\n\n**7. Coherence.** Close with a short paragraph explaining how part 1 was already a derivative in disguise, how the Net Change Theorem made 6(a) inevitable once part 2 was done, and why part 4 needed an argument that part 5(b) did not.",
+   "answer": "1/6 and 3; k = 1/6, removable. f'(x) = 1/(2 sqrt(9+x)); u'(x) = x(5x+36)/(2 sqrt(9+x)). dh/dt = 5/(4 pi) cm/s and dr/dt = 5/(8 pi) cm/s at h = 4. r = (500/pi)^(1/3) ~ 5.419 cm, h = 2r ~ 10.839 cm, S_min = 300 (2 pi)^(1/3) ~ 553.58 cm^2, global because S'' > 0 on r > 0. Exactly one real root of x^3 + x - 1, lying in (0,1); the MVT gives c = 7 on [0,16]. Integrals: 2; (2/9)(17 sqrt 17 - 27) = 34 sqrt(17)/9 - 6 ~ 9.576; and 2x sqrt(9 + x^2).",
+   "rubric": {
+    "required": [
+     "limit",
+     "continu",
+     "derivativ",
+     "chain",
+     "rate",
+     "critical",
+     "domain",
+     "minim",
+     "theorem",
+     "integral",
+     "substitut"
+    ],
+    "optional": [
+     "conjugate",
+     "first principles",
+     "removable",
+     "antideriv",
+     "net change",
+     "global",
+     "convex",
+     "interval",
+     "endpoint",
+     "instant"
+    ],
+    "minWords": 250
+   },
+   "concepts": [
+    "limits-and-continuity",
+    "the-derivative-from-first-principles",
+    "differentiation-rules-and-the-chain-rule",
+    "related-rates",
+    "optimisation-and-extreme-values",
+    "existence-theorems-ivt-and-mvt",
+    "the-fundamental-theorem-of-calculus",
+    "integration-by-substitution"
+   ],
+   "tags": [
+    "limits-and-continuity",
+    "the-derivative-from-first-principles",
+    "differentiation-rules-and-the-chain-rule",
+    "related-rates",
+    "optimisation-and-extreme-values",
+    "existence-theorems-ivt-and-mvt",
+    "the-fundamental-theorem-of-calculus",
+    "integration-by-substitution"
+   ],
+   "explain": "One function carries most of this paper, and noticing that is worth more than any single computation. Part 1's limit $\\lim_{x\\to0}\\frac{\\sqrt{9+x}-3}{x}$ is literally $f'(0)$ for $f(x)=\\sqrt{9+x}$, so once part 2 has proved $f'(x)=\\frac{1}{2\\sqrt{9+x}}$ the value $\\frac{1}{6}$ stands confirmed by two independent routes. Part 6(a) then integrates that same $f'$ over $[0,16]$, and the Net Change Theorem forces the answer to be $f(16)-f(0)=5-3=2$ - which is exactly the numerator of the Mean Value quotient in 5(b). A candidate who computes those three numbers separately and never remarks on the pattern has done the arithmetic and missed the subject.\n\nThe famous wrong answers are all here to be avoided. In part 1 the second limit is an $\\infty - \\infty$ form, and answering $0$ because \"the $x$s cancel\" or $\\infty$ because \"the square root wins\" are both guesses; multiplying by the conjugate gives $\\frac{6x}{\\sqrt{x^2+6x}+x}$, which tends to $3$. In part 2 the power rule is not available - the question asks for the definition, and the conjugate is what rescues the $0/0$. In part 3, substituting $h = 4$ before differentiating turns a relation into a constant and yields $0 = 0$. In part 4 the Extreme Value Theorem is unavailable on $(0,\\infty)$, so quoting it is a lost mark; $S \\to \\infty$ as $r \\to 0^{+}$ and as $r \\to \\infty$, or equivalently $S'' = 4\\pi + \\frac{4000}{r^3} > 0$, is the argument that works. In part 5, a $c$ landing outside the open interval means an arithmetic slip, not an exception to the theorem. In part 6(b), leaving the $x$-limits on a $u$-antiderivative is the classic wreck.\n\n**Self-check - your answers must match these.**\n\n- **Part 1.** $\\displaystyle\\lim_{x\\to0}\\frac{\\sqrt{9+x}-3}{x} = \\frac{1}{6}$, via $\\frac{\\sqrt{9+x}-3}{x} = \\frac{1}{\\sqrt{9+x}+3}$. $\\displaystyle\\lim_{x\\to\\infty}\\left(\\sqrt{x^2+6x}-x\\right) = 3$. Continuity at $0$ needs $k = \\frac{1}{6}$; any other $k$ leaves a **removable** discontinuity, since the limit exists but disagrees with the value.\n\n- **Part 2.** $\\frac{f(x+h)-f(x)}{h} = \\frac{1}{\\sqrt{9+x+h}+\\sqrt{9+x}} \\to \\frac{1}{2\\sqrt{9+x}}$. At $x = 0$ that is $\\frac{1}{6}$, recomputing part 1's first limit. And $u'(x) = 2x\\sqrt{9+x} + \\frac{x^2}{2\\sqrt{9+x}} = \\frac{x(5x+36)}{2\\sqrt{9+x}}$.\n\n- **Part 3.** With $r = h/2$, $V = \\frac{\\pi}{3}r^2h = \\frac{\\pi h^3}{12}$, so $\\frac{dV}{dt} = \\frac{\\pi h^2}{4}\\cdot\\frac{dh}{dt}$. At $h = 4$: $\\frac{dh}{dt} = \\frac{5}{4\\pi} \\approx 0.398$ cm/s, and $\\frac{dr}{dt} = \\frac{1}{2}\\cdot\\frac{dh}{dt} = \\frac{5}{8\\pi} \\approx 0.199$ cm/s.\n\n- **Part 4.** $h = \\frac{1000}{\\pi r^2}$ gives $S(r) = 2\\pi r^2 + \\frac{2000}{r}$, so $S'(r) = 4\\pi r - \\frac{2000}{r^2} = 0$ at $r^3 = \\frac{500}{\\pi}$, that is $r = \\sqrt[3]{500/\\pi} \\approx 5.419$ cm. Then $h = \\frac{1000}{\\pi r^2} = 2r \\approx 10.839$ cm - the optimal tin is exactly as tall as it is wide - and $S_{\\min} = 300\\sqrt[3]{2\\pi} \\approx 553.58$ cm$^2$. It is global because $S'' > 0$ for every $r > 0$, or because $S \\to \\infty$ at both ends of the domain.\n\n- **Part 5.** (a) $p(x) = x^3+x-1$ is continuous with $p(0) = -1 < 0 < 1 = p(1)$, so the IVT gives a root in $(0,1)$; $p'(x) = 3x^2+1 > 0$ everywhere, so two roots would force $p'(c) = 0$ for some $c$ between them by Rolle's theorem - impossible. Exactly one real root, near $x \\approx 0.682$. (b) $\\frac{f(16)-f(0)}{16-0} = \\frac{5-3}{16} = \\frac{1}{8}$, and $\\frac{1}{2\\sqrt{9+c}} = \\frac{1}{8}$ gives $\\sqrt{9+c} = 4$, so $c = 7$, which lies in $(0,16)$.\n\n- **Part 6.** (a) $\\int_0^{16}\\frac{dx}{2\\sqrt{9+x}} = \\left[\\sqrt{9+x}\\right]_0^{16} = 5-3 = 2$, the net change in $f$. (b) With $u = 9+x^3$, $du = 3x^2\\,dx$ and limits $9 \\to 17$: $\\frac{1}{3}\\cdot\\frac{2}{3}\\left[u^{3/2}\\right]_9^{17} = \\frac{2}{9}\\left(17\\sqrt{17}-27\\right) = \\frac{34\\sqrt{17}}{9} - 6 \\approx 9.576$. (c) $\\frac{d}{dx}\\int_0^{x^2}\\sqrt{9+t}\\,dt = 2x\\sqrt{9+x^2}$, by the first part of the Fundamental Theorem together with the chain rule."
+  }
+ ]
+}

@@ -1,0 +1,888 @@
+{
+ "n": 3,
+ "name": "The Slope of an Instant",
+ "concepts": [
+  "average-rate-of-change",
+  "difference-quotient",
+  "derivative-at-a-point",
+  "derivative-from-definition",
+  "tangent-line",
+  "linear-approximation",
+  "derivative-notation",
+  "differentiability-and-continuity",
+  "corner-and-cusp"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "definition-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Slope of an Instant",
+  "sections": [
+   {
+    "title": "From Average Speed to the Speed Right Now",
+    "body": "Ask how fast a stone is moving over the whole of its flight and the question is easy: divide the height gained by the time taken. That number is an **average rate of change**, and geometrically it is the slope of the **secant** line joining two points of the graph, $$\\frac{f(b) - f(a)}{b - a}.$$\n\nAsk instead how fast the stone is moving *at the instant* $t = 1$ and the same recipe collapses. One instant is a single point, the height gained is $0$ and the time taken is $0$, and $\\frac{0}{0}$ is not a number - it is the symptom of a question asked badly.\n\nThe repair is the whole of differential calculus in one move. Do not evaluate at the instant; evaluate on a short interval $[a, a+h]$, simplify the resulting **difference quotient** $\\frac{f(a+h) - f(a)}{h}$ *while $h$ is still nonzero*, and only then let $h \\to 0$. The algebra almost always cancels the offending $h$, leaving an expression that behaves perfectly well at $h = 0$.\n\nSo the instantaneous rate is not a quotient that we somehow evaluate at a point; it is the **limit of a family of honest quotients**. Nothing is ever divided by zero, and the geometry keeps pace: as $h \\to 0$ the secant through $(a, f(a))$ and $(a+h, f(a+h))$ pivots about the fixed first point and settles onto the tangent.",
+    "code": "A stone is thrown upward.  Its height in metres after t seconds:\n\n    h(t) = 20t - 5t^2\n\nAVERAGE velocity over [1, 1 + dt] is the slope of a SECANT line:\n\n    h(1)      = 20 - 5                    = 15\n    h(1 + dt) = 20(1 + dt) - 5(1 + dt)^2\n              = 20 + 20dt - 5 - 10dt - 5dt^2\n              = 15 + 10dt - 5dt^2\n\n    average   = ( h(1 + dt) - h(1) ) / dt\n              = ( 10dt - 5dt^2 ) / dt\n              = 10 - 5dt            <- true for EVERY dt =/= 0\n\nNow shrink the interval.  dt is never allowed to BE zero, but it is\nallowed to be sent to zero:\n\n    dt = 1      ->  10 - 5      =  5     m/s\n    dt = 0.1    ->  10 - 0.5    =  9.5   m/s\n    dt = 0.01   ->  10 - 0.05   =  9.95  m/s\n    dt -> 0     ->  10                   m/s   <- the INSTANT\n\nThe cancellation is the trick, and the only trick.  It converts an\nexpression that reads 0/0 at dt = 0 into one, 10 - 5dt, that is\nperfectly comfortable there.  So h'(1) = 10 m/s.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "Everything after the first term is a multiple of dt. That is not luck: h(1 + dt) must reduce to h(1) when dt = 0, so the difference is forced to carry a factor of dt."
+     },
+     {
+      "line": 14,
+      "text": "Read the arrow as a warning. The simplified form equals the quotient only where the quotient exists; at dt = 0 the left-hand side is undefined while the right-hand side is 10."
+     },
+     {
+      "line": 21,
+      "text": "The numbers are converging on 10, but a table can never prove a limit - it can only suggest one. The algebra above is the proof."
+     },
+     {
+      "line": 26,
+      "text": "This is the pattern for every derivative on this floor: expand, find the common factor of h, cancel it, then substitute h = 0 into what survives."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For the stone $h(t) = 20t - 5t^2$, the average velocity over $[1, 1+\\Delta t]$ simplifies to $10 - 5\\,\\Delta t$. Give each value as a plain number.",
+     "template": "average velocity over [1, 1.2] = ___ m/s\naverage velocity over [1, 1.02] = ___ m/s\ninstantaneous velocity at t = 1 = ___ m/s",
+     "blanks": [
+      "9",
+      "9.9",
+      "10"
+     ],
+     "concepts": [
+      "average-rate-of-change",
+      "difference-quotient"
+     ],
+     "explain": "Substituting $\\Delta t = 0.2$ and $\\Delta t = 0.02$ into $10 - 5\\,\\Delta t$ gives $9$ and $9.9$, and the limit as $\\Delta t \\to 0$ gives $10$. Note that no average equals $10$ for any interval of positive length: the instantaneous value is a limit the averages approach, never one of them. Reading the last blank off the table rather than off the algebra is the habit to break early."
+    }
+   },
+   {
+    "title": "The Definition, the Ritual, and the Notation",
+    "body": "The **derivative of $f$ at $a$** is that limit, given a name: $$f'(a) = \\lim_{h \\to 0} \\frac{f(a+h) - f(a)}{h},$$ and $f$ is called **differentiable at $a$** when this limit exists as a finite number. Substituting $x = a + h$ gives the equivalent form $f'(a) = \\lim_{x \\to a} \\frac{f(x) - f(a)}{x - a}$; the two say the same thing, and the first is usually easier to expand while the second is usually easier to factorise.\n\nComputing one is a fixed four-step ritual: write the quotient, expand the numerator, cancel the factor of $h$ that always appears, then substitute $h = 0$. The cancellation is legal precisely because $h \\neq 0$ throughout - a limit as $h \\to 0$ never asks what happens *at* $0$.\n\nLetting $a$ vary turns the derivative into a new function $f'$, whose domain is the set of points where the limit exists and may be smaller than the domain of $f$. That shift - from a number attached to one point to a function defined on a set - is what makes the rest of the subject possible.\n\nThree notations coexist. Lagrange's $f'(x)$ names the derived function and $f'(a)$ evaluates it; Leibniz's $\\frac{dy}{dx}$ remembers that the derivative grew out of a genuine quotient $\\frac{\\Delta y}{\\Delta x}$ of real differences, while $\\frac{dy}{dx}\\Big|_{x=a}$ pins down the point and $\\frac{d}{dx}f(x)$ names the operation. Leibniz's symbol is a single indivisible piece of notation and not a fraction of two numbers - but it is deliberately shaped like one, because it records where the limit came from and it keeps the units honest.",
+    "code": "DEFINITION      f'(a) = lim   ( f(a + h) - f(a) ) / h\n                        h->0\n\nEXAMPLE 1   f(x) = 1/x   at a = 2\n\n   ( 1/(2+h) - 1/2 ) / h  =  ( (2 - (2+h)) / (2(2+h)) ) / h     common denominator\n                          =  ( -h / (2(2+h)) ) / h\n                          =  -1 / (2(2+h))                      the h cancels\n   h -> 0                 =  -1/4                               so f'(2) = -1/4\n\nEXAMPLE 2   f(x) = sqrt(x)   at a = 4        multiply by the conjugate\n\n   ( sqrt(4+h) - 2 ) / h  =  ( sqrt(4+h) - 2 )( sqrt(4+h) + 2 )\n                             ---------------------------------\n                                    h ( sqrt(4+h) + 2 )\n                          =  ( (4 + h) - 4 ) / ( h ( sqrt(4+h) + 2 ) )\n                          =  1 / ( sqrt(4+h) + 2 )\n   h -> 0                 =  1/4                                so f'(4) = 1/4\n\nEXAMPLE 3   f(x) = x^3     at a general x    -> the derivative FUNCTION\n\n   ( (x+h)^3 - x^3 ) / h  =  ( 3x^2 h + 3x h^2 + h^3 ) / h\n                          =  3x^2 + 3xh + h^2\n   h -> 0                 =  3x^2                               so f'(x) = 3x^2\n\nNOTATION      f'(x)      Lagrange, the derived function\n              dy/dx      Leibniz, from  (delta y)/(delta x)\n              dy/dx|x=a  the derivative evaluated at a\n              d/dx f(x)  'differentiate this' as an operation",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Rational functions need one common denominator before anything can cancel. Subtracting first and dividing by h second keeps the algebra from sprawling."
+     },
+     {
+      "line": 11,
+      "text": "A difference of square roots hides its factor of h until the conjugate exposes it. This one manoeuvre handles every root you will meet from the definition."
+     },
+     {
+      "line": 23,
+      "text": "Every surviving term either has no h - that is the answer - or has a factor of h and therefore dies. Sorting terms that way makes the limit a glance rather than a calculation."
+     },
+     {
+      "line": 27,
+      "text": "If y is metres and x is seconds, dy/dx carries metres per second. Leibniz's notation is the only one of the three that displays its own units."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Use the definition to compute $f'(3)$ for $f(x) = \\frac{1}{x}$. Show the common denominator, the cancellation of $h$, and the substitution $h = 0$.",
+     "answer": "(1/(3+h) - 1/3)/h = ((3 - (3+h))/(3(3+h)))/h = (-h/(3(3+h)))/h = -1/(3(3+h)). Letting h -> 0 gives f'(3) = -1/9. The tangent to y = 1/x at (3, 1/3) therefore has slope -1/9, negative because 1/x is decreasing there.",
+     "rubric": {
+      "required": [
+       "denominator",
+       "cancel",
+       "limit",
+       "1/9",
+       "definition"
+      ],
+      "optional": [
+       "tangent",
+       "slope",
+       "decreas",
+       "substitut",
+       "quotient",
+       "negative"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "derivative-at-a-point",
+      "derivative-from-definition"
+     ],
+     "explain": "Combining over the common denominator $3(3+h)$ turns the numerator into $-h$, so dividing by $h$ leaves $\\frac{-1}{3(3+h)}$, which is a perfectly ordinary expression at $h = 0$ and evaluates to $-\\frac{1}{9}$. The famous wrong answer is $+\\frac{1}{9}$: the sign is easy to lose, though $\\frac{1}{3+h} < \\frac{1}{3}$ guarantees the numerator was always going to be negative. A second common slip is reading $-\\frac{1}{3^2}$ as $-\\frac{1}{6}$, confusing the square with a doubling."
+    }
+   },
+   {
+    "title": "The Tangent Line as a Local Linear Approximation",
+    "body": "A tangent line is often described as a line touching the curve at one point, which is wrong twice over: the tangent to $y = x^3$ at the origin crosses the curve, and a line can meet a curve at exactly one point without being tangent to anything. The honest definition is the limiting one - the **tangent line at $a$** is the line through $(a, f(a))$ whose slope is $f'(a)$, the limit of the secant slopes.\n\nWritten out, that line is $$L(x) = f(a) + f'(a)\\,(x - a).$$ It is the unique line agreeing with $f$ in **value** and in **slope** at $a$, which is why it is also called the **linear approximation** or **linearisation** of $f$ near $a$: among all lines it is the one whose error dies fastest as $x \\to a$.\n\nThat gives the derivative a practical face. Near $a$ a differentiable function is *indistinguishable from a straight line* at small enough scale - zoom far enough into a smooth graph and it flattens onto its tangent. This is **local linearity**, and it is what differentiability really means geometrically.\n\nThe approximation is local, and the error grows with distance and with curvature. Where the graph bends downwards the tangent lies above it and $L(x)$ overestimates; where it bends upwards the tangent lies below and $L(x)$ underestimates. Using the linearisation far from $a$ is the standard way to obtain a plausible and badly wrong number.",
+    "code": "f(x) = sqrt(x)      at a = 4:   f(4) = 2,   f'(4) = 1/4\n\nTANGENT LINE      L(x) = f(a) + f'(a)(x - a)\n                       = 2 + (1/4)(x - 4)\n                       = x/4 + 1\n\nIt agrees with f twice over, and nowhere else exactly:\n\n    L(4)  = 2      = f(4)         same VALUE at the point\n    L'(4) = 1/4    = f'(4)        same SLOPE at the point\n\nUSE IT AS AN APPROXIMATION near x = 4:\n\n    sqrt(4.2)  ~=  L(4.2)  =  2 + (1/4)(0.2)  =  2.05\n    true value             =  2.049390153...\n    error                  =  0.00061            tiny\n\nPush it too far and the same line lies to you:\n\n    sqrt(9)    ~=  L(9)    =  2 + (1/4)(5)     =  3.25\n    true value             =  3\n    error                  =  0.25              400x worse\n\nsqrt bends DOWNWARD (it is concave), so the tangent lies ABOVE the\ncurve and every estimate is an OVERestimate.  Both errors above came\nout positive, and that is not a coincidence.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Point-slope form first, tidied form second. Writing L(x) = f(a) + f'(a)(x - a) keeps the point of tangency visible; expanding it early is how the point gets lost."
+     },
+     {
+      "line": 10,
+      "text": "Two conditions, and a line has exactly two degrees of freedom, so the tangent is unique. No other line matches both."
+     },
+     {
+      "line": 16,
+      "text": "The distance from 4 was 0.2 and the error is about 0.0006 - roughly the square of the distance. Linear approximation errors shrink quadratically, which is why they are so good close in."
+     },
+     {
+      "line": 22,
+      "text": "The distance grew by a factor of 25 and the error by about 400. The approximation degrades far faster than the distance grows, which is the whole meaning of the word 'local'."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Given $f(x) = \\sqrt{x}$ with $f'(9) = \\frac{1}{6}$, write the tangent line to $y = \\sqrt{x}$ at $x = 9$ and use it to estimate $\\sqrt{9.3}$. State whether your estimate is too large or too small, and why.",
+     "answer": "L(x) = 3 + (1/6)(x - 9), so L(9.3) = 3 + 0.3/6 = 3.05. The true value is 3.0495901..., so the estimate is slightly too large. The square root graph is concave (it bends downward), so its tangent line lies above the curve everywhere, making every linear approximation taken from it an overestimate.",
+     "rubric": {
+      "required": [
+       "tangent",
+       "3.05",
+       "approxim",
+       "over",
+       "concav"
+      ],
+      "optional": [
+       "slope",
+       "above",
+       "error",
+       "curve",
+       "bend",
+       "linear"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "tangent-line",
+      "linear-approximation"
+     ],
+     "explain": "The tangent at $x = 9$ is $L(x) = 3 + \\frac{1}{6}(x-9)$, so $L(9.3) = 3 + \\frac{0.3}{6} = 3.05$ against a true $\\sqrt{9.3} = 3.04959\\ldots$ - an error near $0.0004$, again of the order of the square of the step $0.3$. It is an **over**estimate because $\\sqrt{x}$ is concave and its tangent sits above the graph; answering 'too small' is the reflex of anyone who has only ever approximated a convex function such as $x^2$, where the tangent sits below."
+    }
+   },
+   {
+    "title": "Differentiability Implies Continuity - and the Converse Does Not",
+    "body": "Differentiability is a strictly stronger condition than continuity, and the implication runs one way only. If $f'(a)$ exists then $$\\lim_{h \\to 0}\\big(f(a+h) - f(a)\\big) = \\lim_{h \\to 0}\\left(\\frac{f(a+h) - f(a)}{h} \\cdot h\\right) = f'(a) \\cdot 0 = 0,$$ so $f(a+h) \\to f(a)$ and $f$ is continuous at $a$. Multiplying and dividing by $h$ is the entire proof.\n\nContrapositively, a function discontinuous at $a$ cannot possibly be differentiable there: a jump keeps the numerator $f(a+h) - f(a)$ away from $0$ while the denominator marches to $0$, so the quotient blows up.\n\nThe converse fails, and it fails visibly. At a **corner** such as $f(x) = |x|$ at $0$ the two one-sided difference quotients are $+1$ and $-1$: both one-sided limits exist, they simply disagree, so no single slope can be assigned. At a **cusp** such as $f(x) = x^{2/3}$ at $0$ the quotient is $h^{-1/3}$, which runs to $+\\infty$ from the right and $-\\infty$ from the left, and the graph comes to a sharp point with a vertical tangent direction.\n\nA third failure mode is a plain **vertical tangent**, as for $f(x) = x^{1/3}$ at $0$, where the quotient $h^{-2/3} \\to +\\infty$ from both sides. In every one of these cases the function is continuous and the limit defining $f'(0)$ still fails to be a finite number: continuity asks that the function's own *values* agree in the limit, differentiability asks that the *quotients* agree, and the second is a far more demanding request.",
+    "code": "DIFFERENTIABLE  =>  CONTINUOUS        (and the converse is FALSE)\n\n  f(a+h) - f(a)  =  [ ( f(a+h) - f(a) ) / h ] * h   ->  f'(a) * 0  = 0\n\n  so f(a+h) -> f(a).  Multiplying and dividing by h is the whole proof.\n\nCOUNTEREXAMPLE 1   a CORNER:   f(x) = |x|   at a = 0\n\n    ( |0 + h| - |0| ) / h  =  |h| / h\n\n        h > 0  ->  h/h   =  +1        right-hand limit  = +1\n        h < 0  ->  -h/h  =  -1        left-hand limit   = -1\n\n    Both one-sided limits EXIST and DISAGREE, so f'(0) does not exist.\n    Yet |x| is continuous at 0:  |h| -> 0.\n\nCOUNTEREXAMPLE 2   a CUSP:   f(x) = x^(2/3)   at a = 0\n\n    ( h^(2/3) - 0 ) / h  =  h^(2/3 - 1)  =  h^(-1/3)  =  1 / cbrt(h)\n\n        h -> 0+   ->  +infinity\n        h -> 0-   ->  -infinity\n\n    Neither one-sided limit is finite, so f'(0) does not exist.\n    Again x^(2/3) is continuous at 0:  x^(2/3) -> 0.\n\nSUMMARY     continuous      = the VALUES settle down\n            differentiable  = the QUOTIENTS settle down, to ONE number\n            the second implies the first and is strictly rarer",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "This step needs h =/= 0 to be legal, which is exactly the condition under which a limit as h -> 0 operates. The product law then splits the expression into two limits."
+     },
+     {
+      "line": 12,
+      "text": "A corner is a disagreement between two finite slopes. Nothing is infinite here; the failure is one of uniqueness, not of size."
+     },
+     {
+      "line": 22,
+      "text": "A cusp is a different failure: the slopes are unbounded rather than merely disagreeing. Distinguishing corner from cusp is worth more than memorising either."
+     },
+     {
+      "line": 29,
+      "text": "Continuity constrains f itself; differentiability constrains the difference quotients built from f. There are vastly more continuous functions than differentiable ones."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "For $f(x) = |x|$ at $a = 0$ the difference quotient is $\\frac{|h|}{h}$. Give the first two values as plain numbers, and answer the last two steps `yes` or `no`.",
+     "steps": [
+      {
+       "label": "difference quotient at h = 0.5",
+       "expected": "1"
+      },
+      {
+       "label": "difference quotient at h = -0.5",
+       "expected": "-1"
+      },
+      {
+       "label": "Is f continuous at 0?",
+       "expected": "yes"
+      },
+      {
+       "label": "Is f differentiable at 0?",
+       "expected": "no"
+      }
+     ],
+     "concepts": [
+      "corner-and-cusp",
+      "differentiability-and-continuity"
+     ],
+     "explain": "For $h > 0$ the quotient is $\\frac{h}{h} = 1$ and for $h < 0$ it is $\\frac{-h}{h} = -1$, whatever the size of $|h|$ - shrinking $h$ never brings the two sides closer, so no limit exists. Continuity is untouched: $|h| \\to 0$, so the values agree in the limit even though the slopes never do. Answering that $f'(0) = 0$ 'by symmetry' is the classic error; symmetry here produces two slopes and no way to choose between them."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "calc1-3-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "For $f(x) = x^2$ at $a = 5$, expand and simplify the difference quotient, then take the limit. Fill each blank with a plain number.",
+   "template": "( (5 + h)^2 - 25 ) / h  =  ___ + h\nf'(5) = ___",
+   "blanks": [
+    "10",
+    "10"
+   ],
+   "concepts": [
+    "difference-quotient",
+    "derivative-at-a-point"
+   ],
+   "tags": [
+    "difference-quotient",
+    "derivative-at-a-point"
+   ],
+   "xp": 24,
+   "hint": "$(5+h)^2 = 25 + 10h + h^2$.",
+   "explain": "Expanding gives $25 + 10h + h^2 - 25 = 10h + h^2$, and dividing by $h$ leaves $10 + h$, so $f'(5) = 10$. The two blanks agree only because the leftover term $h$ vanishes in the limit; writing $f'(5) = 10 + h$ is the standard error, and it is a category mistake - $f'(5)$ is a number, and $h$ has already been sent to zero."
+  },
+  {
+   "id": "calc1-3-gp-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = 3x^2 - 2x + 1$. Using the definition of the derivative - no rules - compute $f'(2)$. Show the expanded numerator, the cancellation, and the limit.",
+   "answer": "f(2+h) = 3(2+h)^2 - 2(2+h) + 1 = 12 + 12h + 3h^2 - 4 - 2h + 1 = 9 + 10h + 3h^2, and f(2) = 9. So the difference quotient is (10h + 3h^2)/h = 10 + 3h, and letting h -> 0 gives f'(2) = 10.",
+   "rubric": {
+    "required": [
+     "definition",
+     "expand",
+     "cancel",
+     "limit",
+     "10"
+    ],
+    "optional": [
+     "quotient",
+     "numerator",
+     "slope",
+     "tangent",
+     "substitut",
+     "constant"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "difference-quotient",
+    "derivative-at-a-point",
+    "derivative-from-definition"
+   ],
+   "tags": [
+    "difference-quotient",
+    "derivative-at-a-point",
+    "derivative-from-definition"
+   ],
+   "xp": 60,
+   "hint": "$3(2+h)^2 = 12 + 12h + 3h^2$, and the constant terms must cancel against $f(2) = 9$.",
+   "explain": "The constants $12 - 4 + 1 = 9$ cancel exactly against $f(2) = 9$ - they always must, since $f(a+h) \\to f(a)$ - leaving $10h + 3h^2$, every term of which carries the factor of $h$ that makes the cancellation possible. After cancelling, $10 + 3h \\to 10$. The tempting wrong answers are $10 + 3h$, which is not a number, and $13$, from quietly setting $h = 1$ instead of letting it vanish."
+  },
+  {
+   "id": "calc1-3-gp-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes $\\frac{dy}{dx} = \\frac{0}{0}$ 'because $dy$ and $dx$ both shrink to zero'. Explain what $\\frac{dy}{dx}$ actually denotes, how it differs from $\\frac{\\Delta y}{\\Delta x}$, and how $f'(a)$, $\\frac{dy}{dx}\\Big|_{x=a}$ and $\\frac{d}{dx}f(x)$ each say something slightly different.",
+   "rubric": {
+    "required": [
+     "limit",
+     "quotient",
+     "notation",
+     "function",
+     "Leibniz"
+    ],
+    "optional": [
+     "slope",
+     "evaluat",
+     "operat",
+     "unit",
+     "secant",
+     "point"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "derivative-notation"
+   ],
+   "tags": [
+    "derivative-notation"
+   ],
+   "xp": 24,
+   "hint": "$\\frac{\\Delta y}{\\Delta x}$ is a genuine quotient of two nonzero numbers; $\\frac{dy}{dx}$ is not a quotient at all.",
+   "explain": "$\\frac{\\Delta y}{\\Delta x}$ is a real quotient of two nonzero differences - a secant slope - whereas $\\frac{dy}{dx}$ is a single indivisible symbol denoting the **limit** of those quotients, so it is never evaluated by setting anything to zero. $f'(x)$ and $\\frac{d}{dx}f(x)$ name the derived function, the second reading as an instruction to differentiate, while $f'(a)$ and $\\frac{dy}{dx}\\Big|_{x=a}$ name one number, the slope at a single point. Leibniz shaped his notation like a fraction deliberately - it remembers the secants it came from and it carries the units, metres per second - which is exactly why it invites this error."
+  },
+  {
+   "id": "calc1-3-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For $f(x) = x^2$ you know $f'(3) = 6$. Write the tangent line to $y = x^2$ at $(3, 9)$ in the form $y = mx + c$, then use it to estimate $(3.02)^2$. Compare with the exact value and say whether the estimate is high or low, with a reason.",
+   "answer": "L(x) = 9 + 6(x - 3) = 6x - 9. Then L(3.02) = 6(3.02) - 9 = 18.12 - 9 = 9.12. The exact value is (3.02)^2 = 9.1204, so the estimate 9.12 is slightly LOW. The parabola y = x^2 is convex (it bends upward), so its tangent lines lie below the graph everywhere and every linear estimate taken from a tangent is an underestimate. The error 0.0004 is exactly (0.02)^2.",
+   "rubric": {
+    "required": [
+     "tangent",
+     "9.12",
+     "under",
+     "convex",
+     "below"
+    ],
+    "optional": [
+     "slope",
+     "error",
+     "approxim",
+     "curve",
+     "bend",
+     "exact"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "tags": [
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "xp": 60,
+   "hint": "$L(x) = f(3) + f'(3)(x-3)$; then note that $(3+e)^2 = 9 + 6e + e^2$.",
+   "explain": "Point-slope gives $L(x) = 9 + 6(x-3) = 6x - 9$, so $L(3.02) = 9.12$ against the exact $9.1204$. The gap is $(0.02)^2 = 0.0004$, and the identity $(3+e)^2 = 9 + 6e + e^2$ shows *exactly* what linearisation throws away: the tangent keeps $9 + 6e$ and discards the $e^2$. Since $e^2 > 0$ the estimate is low - as it must be for any convex function, whose tangents lie below the graph."
+  },
+  {
+   "id": "calc1-3-gp-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The stone of the lesson has height $h(t) = 20t - 5t^2$ metres. Compute the average velocity over $[1, 3]$, compare it with the instantaneous velocity $h'(1) = 10$ m/s, and explain in physical terms how both can be correct at once.",
+   "answer": "h(1) = 20 - 5 = 15 and h(3) = 60 - 45 = 15, so the average velocity over [1, 3] is (15 - 15)/2 = 0 m/s. The instantaneous velocity at t = 1 is 10 m/s upward. Both are correct: the stone rises from t = 1 to t = 2, reaching its greatest height of 20 m, then falls back to exactly 15 m at t = 3. Average velocity records only net displacement over elapsed time, so an equal rise and fall cancel; the derivative records the rate at a single instant and knows nothing about the rest of the interval.",
+   "rubric": {
+    "required": [
+     "average",
+     "instantaneous",
+     "displacement",
+     "zero",
+     "interval"
+    ],
+    "optional": [
+     "secant",
+     "rise",
+     "fall",
+     "speed",
+     "net",
+     "tangent"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "average-rate-of-change",
+    "difference-quotient"
+   ],
+   "tags": [
+    "average-rate-of-change",
+    "difference-quotient"
+   ],
+   "xp": 60,
+   "hint": "Evaluate $h(3)$ before assuming the average must be positive.",
+   "explain": "$h(1) = h(3) = 15$, so the secant joining those two points is horizontal and the average velocity is exactly $0$, while $h'(1) = 10$ m/s. There is no contradiction: an average summarises a whole interval - here a rise to $20$ m at $t = 2$ and an equal fall - whereas the derivative is a property of one instant. The trap is treating average velocity as average *speed*: the stone's average speed over $[1,3]$ is $5$ m/s, since it covers $10$ m of distance in $2$ s while its displacement is nil."
+  }
+ ],
+ "definition-workshop": [
+  {
+   "id": "calc1-3-ws-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Compute $f'(9)$ for $f(x) = \\sqrt{x}$ straight from the definition, using the conjugate. Then write the tangent line at $x = 9$ and use it to estimate $\\sqrt{9.3}$, reporting the size and direction of the error.",
+   "answer": "( sqrt(9+h) - 3 )/h, multiplied above and below by ( sqrt(9+h) + 3 ), becomes ((9+h) - 9)/( h( sqrt(9+h) + 3 ) ) = 1/( sqrt(9+h) + 3 ). Letting h -> 0 gives f'(9) = 1/6. The tangent is L(x) = 3 + (1/6)(x - 9), so L(9.3) = 3.05 while sqrt(9.3) = 3.0495901..., an error of about 0.00041 - an overestimate, because the square root is concave and its tangent lies above the curve.",
+   "rubric": {
+    "required": [
+     "conjugate",
+     "cancel",
+     "1/6",
+     "tangent",
+     "3.05",
+     "over"
+    ],
+    "optional": [
+     "concav",
+     "error",
+     "approxim",
+     "limit",
+     "slope",
+     "definition"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "derivative-from-definition",
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "tags": [
+    "derivative-from-definition",
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "xp": 60,
+   "hint": "Multiply numerator and denominator by $\\sqrt{9+h} + 3$; the numerator collapses to $h$.",
+   "explain": "The conjugate turns the stubborn numerator $\\sqrt{9+h} - 3$ into $(9+h) - 9 = h$, which then cancels the $h$ below to leave $\\frac{1}{\\sqrt{9+h}+3} \\to \\frac{1}{6}$. The most common wrong answer is $\\frac{1}{3}$, from mistaking the derivative of $\\sqrt{x}$ for $\\frac{1}{\\sqrt{x}}$ and losing the factor of $2$ in $\\frac{1}{2\\sqrt{x}}$. The estimate $3.05$ overshoots by about $0.0004$, and it overshoots rather than undershoots because a concave graph sits below its tangents."
+  },
+  {
+   "id": "calc1-3-ws-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that if $f$ is differentiable at $a$ then $f$ is continuous at $a$. State precisely what each of the two words means as a limit, and say explicitly which limit law licenses the step where you multiply and divide by $h$.",
+   "rubric": {
+    "required": [
+     "differenti",
+     "continu",
+     "limit",
+     "product",
+     "zero",
+     "quotient"
+    ],
+    "optional": [
+     "exist",
+     "finite",
+     "converse",
+     "nonzero",
+     "definition",
+     "value"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "differentiability-and-continuity"
+   ],
+   "tags": [
+    "differentiability-and-continuity"
+   ],
+   "xp": 60,
+   "hint": "Write $f(a+h) - f(a) = \\frac{f(a+h)-f(a)}{h}\\cdot h$ and take the limit of a product.",
+   "explain": "Continuity at $a$ says $\\lim_{h \\to 0} f(a+h) = f(a)$, equivalently $\\lim_{h \\to 0}\\big(f(a+h) - f(a)\\big) = 0$; differentiability says $\\lim_{h \\to 0}\\frac{f(a+h)-f(a)}{h}$ exists and is finite. Writing $f(a+h) - f(a) = \\frac{f(a+h)-f(a)}{h} \\cdot h$ - legal because $h \\neq 0$ throughout a limit as $h \\to 0$ - the **product law** applies, since *both* factors have limits, giving $f'(a) \\cdot 0 = 0$. The finiteness of $f'(a)$ is doing real work: for $f(x) = x^{1/3}$ at $0$ the quotient runs to $\\infty$, the product law does not apply, and the argument correctly refuses to run. A proof that never invokes the product law, or never says the derivative is finite, has skipped the only two steps that matter."
+  },
+  {
+   "id": "calc1-3-ws-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Show from the definition that $f(x) = |x|$ is not differentiable at $0$, by computing both one-sided limits of the difference quotient. Then explain why this does not contradict the theorem of the previous problem.",
+   "answer": "The difference quotient at 0 is (|h| - 0)/h = |h|/h. For h > 0 this is h/h = 1, so the right-hand limit is 1; for h < 0 it is (-h)/h = -1, so the left-hand limit is -1. A two-sided limit exists only when the one-sided limits agree, and 1 =/= -1, so f'(0) does not exist. There is no contradiction: the theorem says differentiable implies continuous, not the converse. |x| is continuous at 0 since |h| -> 0, and continuity is simply too weak a condition to force a single tangent slope.",
+   "rubric": {
+    "required": [
+     "one-sided",
+     "limit",
+     "differenti",
+     "continu",
+     "converse",
+     "corner"
+    ],
+    "optional": [
+     "quotient",
+     "agree",
+     "slope",
+     "left",
+     "right",
+     "implies"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "corner-and-cusp",
+    "differentiability-and-continuity"
+   ],
+   "tags": [
+    "corner-and-cusp",
+    "differentiability-and-continuity"
+   ],
+   "xp": 60,
+   "hint": "$|h| = h$ for $h > 0$ and $|h| = -h$ for $h < 0$. Handle the two signs separately.",
+   "explain": "The quotient $\\frac{|h|}{h}$ takes only the values $\\pm 1$, so it never settles: the right-hand limit is $1$, the left is $-1$, and a two-sided limit requires agreement. Notice the failure has nothing to do with size - both one-sided limits are finite - it is a failure of *uniqueness*, which is what a corner always is. The suggestion that $f'(0) = 0$ 'by symmetry' inverts the situation, since symmetry here supplies two candidate slopes and no way to choose, and the theorem is untouched because an implication does not run backwards."
+  },
+  {
+   "id": "calc1-3-ws-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = x^{2/3}$. Compute the difference quotient at $a = 0$, simplify it to a single power of $h$, and find both one-sided limits. Explain how this failure of differentiability differs from the one at a corner, and describe the graph at the origin.",
+   "answer": "The quotient is ( h^(2/3) - 0 )/h = h^(2/3 - 1) = h^(-1/3) = 1/cbrt(h). As h -> 0 from the right this tends to +infinity; as h -> 0 from the left cbrt(h) is negative and small, so the quotient tends to -infinity. Neither one-sided limit is finite, so f'(0) does not exist. This differs from a corner, where both one-sided limits exist but disagree: here the secant slopes are unbounded, not merely mismatched. The graph has a cusp - a sharp point at the origin with both branches rising away from it and the tangent direction vertical, the left branch arriving with slope -infinity and the right with +infinity. The function is still continuous at 0, since x^(2/3) -> 0.",
+   "rubric": {
+    "required": [
+     "cusp",
+     "infinit",
+     "one-sided",
+     "vertical",
+     "corner",
+     "continu"
+    ],
+    "optional": [
+     "unbounded",
+     "quotient",
+     "slope",
+     "finite",
+     "left",
+     "right"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "corner-and-cusp"
+   ],
+   "tags": [
+    "corner-and-cusp"
+   ],
+   "xp": 60,
+   "hint": "$\\frac{h^{2/3}}{h} = h^{-1/3}$, and the real cube root of a negative number is negative.",
+   "explain": "Subtracting exponents gives $h^{-1/3} = \\frac{1}{\\sqrt[3]{h}}$, whose magnitude *grows* without bound as $h \\to 0$ - the opposite of what a derivative needs. The signs differ because $h^{2/3} \\ge 0$ always while $h$ changes sign, so the quotient inherits the sign of $h$: $+\\infty$ on the right, $-\\infty$ on the left. A cusp is therefore a failure of **boundedness** where a corner is a failure of **agreement**, and the two are worth keeping distinct: $x^{1/3}$ has a plain vertical tangent, with quotient $h^{-2/3} \\to +\\infty$ from both sides and no sharp point at all."
+  },
+  {
+   "id": "calc1-3-ws-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = x^3 - x$. Using the definition with a general $x$, find the derivative **function** $f'$. Then find every point where the tangent to $y = x^3 - x$ is horizontal, and say what changed when you let the point vary instead of fixing it.",
+   "answer": "f(x+h) - f(x) = (x+h)^3 - (x+h) - x^3 + x = 3x^2 h + 3x h^2 + h^3 - h. Dividing by h gives 3x^2 + 3xh + h^2 - 1, and letting h -> 0 gives f'(x) = 3x^2 - 1. Horizontal tangents need f'(x) = 0, so 3x^2 = 1 and x = 1/sqrt(3) or x = -1/sqrt(3), about 0.577 and -0.577. Letting the point vary turns a number attached to one place into a new function, whose domain is every point where the limit exists - here all of R - and a function is something you can solve equations with, set equal to zero, or differentiate again.",
+   "rubric": {
+    "required": [
+     "definition",
+     "cancel",
+     "horizontal",
+     "function",
+     "zero",
+     "tangent"
+    ],
+    "optional": [
+     "limit",
+     "slope",
+     "domain",
+     "general",
+     "solve",
+     "root"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "derivative-from-definition",
+    "derivative-notation"
+   ],
+   "tags": [
+    "derivative-from-definition",
+    "derivative-notation"
+   ],
+   "xp": 60,
+   "hint": "$(x+h)^3 = x^3 + 3x^2h + 3xh^2 + h^3$, and the $-x$ term contributes $-h$ to the numerator.",
+   "explain": "Once $x^3$ and $-x$ have cancelled, every remaining term of the numerator carries a factor of $h$, so dividing leaves $3x^2 + 3xh + h^2 - 1$ and the limit is $f'(x) = 3x^2 - 1$. Setting it to zero gives $x = \\pm\\frac{1}{\\sqrt{3}} \\approx \\pm 0.577$ - two horizontal tangents, not one, and dropping the negative root is the commonest loss here. The real change is conceptual: with the point fixed you obtain a single slope, but with it free you obtain an object you can solve equations with, which is what turns the derivative from a measurement into a tool."
+  }
+ ],
+ "exam": [
+  {
+   "id": "calc1-3-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "By definition, the derivative of $f$ at the point $a$ is:",
+   "choices": [
+    "$\\displaystyle \\frac{f(a+h) - f(a)}{h}$ evaluated at $h = 0$",
+    "$\\displaystyle \\lim_{h \\to 0} \\frac{f(a+h) - f(a)}{h}$, when that limit exists and is finite",
+    "$\\displaystyle \\frac{f(b) - f(a)}{b - a}$ for the two points nearest to $a$",
+    "$\\displaystyle \\lim_{h \\to 0} \\big(f(a+h) - f(a)\\big)$"
+   ],
+   "answer": 1,
+   "concepts": [
+    "derivative-at-a-point"
+   ],
+   "tags": [
+    "derivative-at-a-point"
+   ],
+   "xp": 12,
+   "explain": "The derivative is a **limit** of difference quotients, and the existence clause is part of the definition rather than decoration. Option one is the classic misreading and is literally $\\frac{0}{0}$ - undefined, which is precisely why the limit is needed. Option three appeals to 'the two nearest points', which do not exist on a continuum, and option four is the expression whose vanishing defines **continuity** at $a$."
+  },
+  {
+   "id": "calc1-3-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement correctly relates differentiability and continuity at a point $a$?",
+   "choices": [
+    "Continuous at $a$ implies differentiable at $a$, but not conversely.",
+    "Differentiable at $a$ implies continuous at $a$, but not conversely.",
+    "Each implies the other; the two words describe the same condition.",
+    "Neither implies the other; the two conditions are logically independent."
+   ],
+   "answer": 1,
+   "concepts": [
+    "differentiability-and-continuity"
+   ],
+   "tags": [
+    "differentiability-and-continuity"
+   ],
+   "xp": 12,
+   "explain": "Differentiability is the stronger condition, because $f(a+h) - f(a) = \\frac{f(a+h)-f(a)}{h}\\cdot h \\to f'(a)\\cdot 0 = 0$. The converse fails at $|x|$, which is continuous everywhere yet has no derivative at $0$, so option one is exactly backwards and option three overstates the case. Option four is wrong because one direction genuinely does hold, and holds with no hypotheses beyond the definition."
+  },
+  {
+   "id": "calc1-3-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete both standard forms of the definition of $f'(a)$. Write single symbols, exactly as they would appear.",
+   "template": "f'(a) = lim_{h -> 0}  ( f(a + ___) - f(___) ) / ___\nf'(a) = lim_{x -> a}  ( f(x) - f(a) ) / ( x - ___ )",
+   "blanks": [
+    "h",
+    "a",
+    "h",
+    "a"
+   ],
+   "concepts": [
+    "difference-quotient",
+    "derivative-notation"
+   ],
+   "tags": [
+    "difference-quotient",
+    "derivative-notation"
+   ],
+   "xp": 24,
+   "explain": "The two forms are related by the substitution $x = a + h$, so $h \\to 0$ and $x \\to a$ are one statement written twice. The denominator must be the *same* increment as the one added inside $f$ - dividing by $x$, or by $x - h$, is the usual slip, and it destroys the meaning: numerator and denominator must both be differences for the quotient to be a rate of change."
+  },
+  {
+   "id": "calc1-3-ex-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of computing $f'(a)$ from the definition into the order in which they must be carried out.",
+   "fragments": [
+    "Write the difference quotient ( f(a+h) - f(a) ) / h for the given f and a.",
+    "Expand f(a+h) and subtract f(a), so that the constant terms cancel.",
+    "Factor h out of every surviving term of the numerator and cancel it against the denominator.",
+    "Now that the expression is defined at h = 0, substitute h = 0 to evaluate the limit.",
+    "Report the number as f'(a), the slope of the tangent line at ( a, f(a) )."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "derivative-from-definition"
+   ],
+   "tags": [
+    "derivative-from-definition"
+   ],
+   "xp": 24,
+   "explain": "Substitution must come **last**: attempting $h = 0$ before the cancellation gives $\\frac{0}{0}$, which is the whole difficulty the limit exists to dodge. The constants cancel before the $h$ can be factored out, and they are guaranteed to cancel because $f(a+h)$ reduces to $f(a)$ when $h = 0$ - which is exactly why the numerator always carries a factor of $h$ for a differentiable function."
+  },
+  {
+   "id": "calc1-3-ex-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "For $f(x) = x^2$ at $a = 1$, the difference quotient is $\\frac{(1+h)^2 - 1}{h} = 2 + h$. Give each value as a plain number.",
+   "steps": [
+    {
+     "label": "difference quotient at h = 1",
+     "expected": "3"
+    },
+    {
+     "label": "difference quotient at h = 0.5",
+     "expected": "2.5"
+    },
+    {
+     "label": "difference quotient at h = 0.1",
+     "expected": "2.1"
+    },
+    {
+     "label": "the limit as h -> 0, that is f'(1)",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "difference-quotient",
+    "derivative-at-a-point"
+   ],
+   "tags": [
+    "difference-quotient",
+    "derivative-at-a-point"
+   ],
+   "xp": 48,
+   "explain": "Each entry is simply $2 + h$: the secant slopes $3$, $2.5$, $2.1$ march steadily down towards $2$, the tangent slope. Every one of those secants is a genuine slope through two distinct points of the parabola, and not one of them equals $2$ - the derivative is the value they approach, never a value they attain. That is why a numerical table can suggest the answer while only the algebraic cancellation establishes it."
+  },
+  {
+   "id": "calc1-3-ex-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why differentiability at $a$ forces continuity at $a$, and why continuity does not force differentiability. Give a concrete counterexample of each of the two distinct ways differentiability can fail at a point where the function is continuous.",
+   "rubric": {
+    "required": [
+     "differenti",
+     "continu",
+     "limit",
+     "corner",
+     "cusp",
+     "converse"
+    ],
+    "optional": [
+     "product",
+     "one-sided",
+     "infinit",
+     "quotient",
+     "vertical",
+     "finite"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "differentiability-and-continuity",
+    "corner-and-cusp"
+   ],
+   "tags": [
+    "differentiability-and-continuity",
+    "corner-and-cusp"
+   ],
+   "xp": 24,
+   "explain": "Differentiability gives $f(a+h) - f(a) = \\frac{f(a+h)-f(a)}{h}\\cdot h \\to f'(a)\\cdot 0 = 0$, so the values must settle; continuity constrains only those values and says nothing about the quotients built from them. The two failure modes are a **corner**, as at $|x|$ where the one-sided limits are $+1$ and $-1$, finite but unequal, and a **cusp**, as at $x^{2/3}$ where they are $+\\infty$ and $-\\infty$, unbounded rather than merely mismatched. Offering a jump discontinuity as the counterexample misses the point entirely: it fails *continuity* too, so it cannot show that continuity is insufficient."
+  },
+  {
+   "id": "calc1-3-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = \\dfrac{2}{x+1}$. Compute $f'(1)$ from the definition, showing the common denominator and the cancellation. Then state the point of the real line at which this method could not even begin, and why.",
+   "answer": "f(1+h) - f(1) = 2/(2+h) - 1 = (2 - (2+h))/(2+h) = -h/(2+h). Dividing by h gives -1/(2+h), and letting h -> 0 gives f'(1) = -1/2. The method could not begin at x = -1: f is not defined there, so f(-1+h) - f(-1) is meaningless and no difference quotient can be formed at all. A function must be defined at a, indeed on a neighbourhood of a, before differentiability at a can even be discussed.",
+   "rubric": {
+    "required": [
+     "denominator",
+     "cancel",
+     "1/2",
+     "limit",
+     "defined",
+     "definition"
+    ],
+    "optional": [
+     "domain",
+     "neighbourhood",
+     "quotient",
+     "slope",
+     "negative",
+     "substitut"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "derivative-from-definition",
+    "derivative-at-a-point"
+   ],
+   "tags": [
+    "derivative-from-definition",
+    "derivative-at-a-point"
+   ],
+   "xp": 60,
+   "hint": "$f(1) = 1$, and $\\frac{2}{2+h} - 1$ over a common denominator has numerator $-h$.",
+   "explain": "Over the common denominator $2+h$ the numerator becomes $2 - (2+h) = -h$, which cancels the $h$ below and leaves $\\frac{-1}{2+h} \\to -\\frac{1}{2}$. The sign is the trap: $f$ is decreasing at $x = 1$, so a positive answer signals a subtraction performed the wrong way round. The failure at $x = -1$ is worth stating precisely - it is not that a limit fails to exist, it is that the expression $f(a+h) - f(a)$ cannot even be written down when $f(a)$ does not exist."
+  },
+  {
+   "id": "calc1-3-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Given that $\\frac{d}{dx}\\left(\\frac{1}{x}\\right) = -\\frac{1}{x^2}$, write the tangent line to $y = \\frac{1}{x}$ at the point $\\left(2, \\tfrac{1}{2}\\right)$ in the form $y = mx + c$, and use it to estimate $\\frac{1}{2.1}$. Compare with the exact value and account for the direction of the error.",
+   "answer": "The slope is -1/2^2 = -1/4, so L(x) = 1/2 - (1/4)(x - 2) = 1 - x/4. Then L(2.1) = 1 - 0.525 = 0.475. The exact value is 1/2.1 = 0.476190..., so the estimate is slightly too SMALL, by about 0.0012. For x > 0 the graph of 1/x is convex (it bends upward), so its tangent lines lie below the curve and every linear estimate taken from one is an underestimate.",
+   "rubric": {
+    "required": [
+     "tangent",
+     "slope",
+     "0.475",
+     "under",
+     "convex",
+     "below"
+    ],
+    "optional": [
+     "error",
+     "approxim",
+     "exact",
+     "curve",
+     "bend",
+     "linear"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "tags": [
+    "tangent-line",
+    "linear-approximation"
+   ],
+   "xp": 60,
+   "hint": "$L(x) = f(2) + f'(2)(x-2)$ with $f'(2) = -\\frac{1}{4}$; then tidy to $y = mx + c$.",
+   "explain": "Point-slope gives $L(x) = \\frac{1}{2} - \\frac{1}{4}(x-2)$, which tidies to $y = 1 - \\frac{x}{4}$, so $L(2.1) = 0.475$ against the exact $0.476190\\ldots$. The estimate is **low** because $\\frac{1}{x}$ is convex for $x > 0$ and tangents to a convex graph lie beneath it - the same reason the parabola's tangents undershoot, despite the two curves looking nothing alike. Assuming that a decreasing function must give an overestimate is the confusion to avoid: the direction of the error is set by the curvature, not by the sign of the slope."
+  },
+  {
+   "id": "calc1-3-ex-09",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $g(x) = |x - 3|$. Decide whether $g$ is continuous at $x = 3$ and whether it is differentiable there, justifying each answer from the relevant limit. Then give the domain of the derivative function $g'$ and its value on each piece.",
+   "answer": "g is continuous at 3: |3 + h - 3| = |h| -> 0 = g(3). It is not differentiable at 3: the difference quotient is (|h| - 0)/h = |h|/h, which is +1 for h > 0 and -1 for h < 0, so the one-sided limits are 1 and -1 and no two-sided limit exists. The derivative function g' has domain all real x except 3, with g'(x) = 1 for x > 3 and g'(x) = -1 for x < 3. So the domain of g' is strictly smaller than the domain of g - a corner removes exactly one point.",
+   "rubric": {
+    "required": [
+     "continu",
+     "differenti",
+     "one-sided",
+     "domain",
+     "corner",
+     "limit"
+    ],
+    "optional": [
+     "quotient",
+     "slope",
+     "left",
+     "right",
+     "exist",
+     "smaller"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "corner-and-cusp",
+    "differentiability-and-continuity"
+   ],
+   "tags": [
+    "corner-and-cusp",
+    "differentiability-and-continuity"
+   ],
+   "xp": 60,
+   "hint": "This is $|x|$ shifted three units to the right; the difference quotient at $3$ is $\\frac{|h|}{h}$.",
+   "explain": "Shifting a graph sideways moves its corner and changes nothing else, so every conclusion about $|x|$ at $0$ transfers to $|x-3|$ at $3$: continuous, because $|h| \\to 0$, but with one-sided slopes $-1$ and $+1$ that never reconcile. The part most often dropped is the last: $g'$ is a perfectly good function with domain $\\mathbb{R} \\setminus \\{3\\}$, so the domain of a derivative can be **smaller** than the domain of the function. Claiming $g'(3) = 0$ because the graph has its lowest point there confuses a minimum with a horizontal tangent - a minimum at a corner has no tangent at all."
+  },
+  {
+   "id": "calc1-3-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For $f(x) = x^2$, compute the average rate of change over $[2, 5]$. Then, given $f'(x) = 2x$, find every point of $(2,5)$ at which the instantaneous rate equals that average, and explain geometrically what you have found.",
+   "answer": "The average rate of change is (f(5) - f(2))/(5 - 2) = (25 - 4)/3 = 21/3 = 7. Setting 2x = 7 gives x = 3.5, the only such point, and it does lie inside (2, 5). Geometrically the secant line through (2, 4) and (5, 25) has slope 7, and at x = 3.5 the tangent line has that same slope 7 - so the tangent there is parallel to the secant spanning the whole interval. The average over an interval is realised as an instantaneous rate at some interior point.",
+   "rubric": {
+    "required": [
+     "average",
+     "instantaneous",
+     "secant",
+     "tangent",
+     "parallel",
+     "7"
+    ],
+    "optional": [
+     "slope",
+     "interior",
+     "3.5",
+     "interval",
+     "rate",
+     "equal"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "average-rate-of-change",
+    "derivative-at-a-point"
+   ],
+   "tags": [
+    "average-rate-of-change",
+    "derivative-at-a-point"
+   ],
+   "xp": 60,
+   "hint": "The average rate over $[a,b]$ is $\\frac{f(b)-f(a)}{b-a}$; then solve $f'(x)$ equal to that number.",
+   "explain": "The secant slope is $\\frac{25-4}{3} = 7$, and $2x = 7$ gives the single point $x = 3.5$, the midpoint of the interval - a special feature of parabolas, not a general rule. What you have found is that the tangent at $3.5$ is parallel to the secant joining the endpoints, which is the geometric content of the Mean Value Theorem met on a later floor. The tempting wrong move is to average the endpoint derivatives, $\\frac{f'(2)+f'(5)}{2} = \\frac{4+10}{2} = 7$; it agrees here only because $f'$ happens to be linear, and it fails for almost any other function."
+  }
+ ]
+}

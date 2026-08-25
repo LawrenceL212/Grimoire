@@ -1,0 +1,861 @@
+{
+ "n": 5,
+ "name": "Implicit and Related",
+ "concepts": [
+  "implicit-differentiation",
+  "implicit-tangent-lines",
+  "implicit-second-derivative",
+  "logarithmic-differentiation",
+  "related-rates",
+  "related-rates-method"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "related-rates-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Implicit and Related",
+  "sections": [
+   {
+    "title": "Differentiating an Equation, Not a Formula",
+    "body": "Most curves worth drawing are cut out by an **equation** rather than handed to you as a formula $y = f(x)$. The circle $x^2 + y^2 = 25$ fails the vertical line test outright, so there is no single function to differentiate - and yet the curve plainly has a tangent at all but two of its points.\n\nThe way out is local. Near any point of the circle where $y \\neq 0$ the curve *is* the graph of some differentiable function $y(x)$ - the upper or the lower semicircle - and **implicit differentiation never needs that function's formula, only its existence**. Granted that much, $y$ is a function of $x$, so every appearance of $y$ differentiates by the chain rule and picks up a factor $y'$.\n\nDifferentiating both sides of $x^2 + y^2 = 25$ gives $2x + 2y\\,y' = 0$, hence $\\displaystyle y' = -\\frac{x}{y}$. Notice what that formula is: one expression covering every point of the curve at once, in which the slope depends on **where you are**, not merely on $x$.\n\nThe whole technique lives or dies on the factor $y'$. Drop it and you obtain $2x + 2y = 0$, the line $y = -x$, which crosses the circle at two points and is tangent at neither - a wrong answer that looks perfectly tidy, which is exactly what makes it dangerous.",
+    "code": "IMPLICIT DIFFERENTIATION IS THE CHAIN RULE, APPLIED HONESTLY\n\nCurve:   x^2 + y^2 = 25        two y-values for most x, so NOT a function\n\nNear any point with y =/= 0 the curve is locally the graph of some\ndifferentiable function y(x). We never need its formula - only that it\nexists, so that y' means something. Every y then hides a y':\n\n  d/dx [ y^2   ] = 2y * y'            outer 2u, inner y'\n  d/dx [ sin y ] = cos y * y'\n  d/dx [ x * y ] = 1*y + x*y'         product rule, then chain rule\n  d/dx [ x^2   ] = 2x                 no y, so no y' - ordinary\n\nDifferentiate BOTH SIDES of the equation, then solve for y':\n\n    x^2 + y^2  = 25\n    2x + 2y*y' = 0\n            y' = -x/y\n\n  at (3,  4):  y' = -3/4      upper half, falling to the right\n  at (3, -4):  y' =  3/4      lower half, rising\n  at (5,  0):  y' undefined   vertical tangent - the zero denominator\n                              is the curve telling you so\n\nForget the y' and you get 2x + 2y = 0, i.e. y = -x: a line through the\norigin that meets the circle at two points and is tangent at neither.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "This is the entire justification. The implicit function theorem guarantees a local y(x) wherever the curve is not vertical - here, wherever y is not 0."
+     },
+     {
+      "line": 9,
+      "text": "Read each of these as 'derivative of the outside, evaluated inside, times the derivative of the inside', where the inside is y and its derivative is the unknown y'."
+     },
+     {
+      "line": 17,
+      "text": "Solving for y' is always linear in y': collect the y' terms on one side, factor, divide. No implicit equation ever demands more than that."
+     },
+     {
+      "line": 22,
+      "text": "A vertical tangent shows up as a zero denominator rather than as an error. The formula degrades gracefully and reports what the geometry is doing."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Differentiate each expression with respect to $x$, treating $y$ as a function of $x$. Write each blank exactly in the form the template expects.",
+     "template": "d/dx[y^5] = ___ * y'\nd/dx[cos y] = ___ * y'\nd/dx[x^3 y^2] = 3x^2 y^2 + x^3 * ___ * y'\nd/dx[25] = ___",
+     "blanks": [
+      "5y^4",
+      "-sin y",
+      "2y",
+      "0"
+     ],
+     "concepts": [
+      "implicit-differentiation"
+     ],
+     "explain": "Each $y$-term is a composition: the outer derivative evaluated at $y$, times the inner derivative $y'$. So $y^5 \\to 5y^4 y'$ and $\\cos y \\to -\\sin y \\cdot y'$, while $x^3y^2$ needs the product rule first and only then the chain rule on $y^2$. The constant $25$ differentiates to $0$, which is why the right-hand side of an implicit equation usually vanishes and every piece of information ends up on the left."
+    }
+   },
+   {
+    "title": "Tangents to Curves That Are Not Functions",
+    "body": "A tangent line needs a point and a slope, and implicit differentiation supplies the slope at any point you can name. On the circle at $(3,4)$ we get $y' = -3/4$ and so $y = -\\frac{3}{4}x + \\frac{25}{4}$; at $(3,-4)$ the same formula returns $+3/4$, correctly telling apart the two branches that share an $x$.\n\nThe folium of Descartes $x^3 + y^3 = 6xy$ is the real advertisement for the method: it loops back on itself, and no rearrangement into $y = f(x)$ is worth attempting. Differentiating gives $\\displaystyle y' = \\frac{2y - x^2}{y^2 - 2x}$, so at the symmetric point $(3,3)$ the tangent is $y = 6 - x$.\n\nBecause the slope arrives as a **fraction**, the interesting points come almost free. A horizontal tangent needs the numerator to vanish, so $2y = x^2$; substituting back into the curve gives $x^3 = 16$ and the point $\\left(2^{4/3},\\, 2^{5/3}\\right) \\approx (2.520,\\, 3.175)$. A vertical tangent needs the denominator to vanish, and by the curve's symmetry in the line $y = x$ that happens at the mirror point.\n\nSecond derivatives work the same way with one extra move: differentiate $y' = -x/y$, then substitute the expression for $y'$ back in. That yields $y'' = -\\frac{x^2 + y^2}{y^3} = -\\frac{25}{y^3}$ on the circle - and using the **original equation** to simplify at the very end is what turns an unwieldy expression into a memorable one.",
+    "code": "THE FOLIUM OF DESCARTES        x^3 + y^3 = 6xy\n\n  3x^2 + 3y^2*y'  = 6y + 6x*y'\n  3y^2*y' - 6x*y' = 6y - 3x^2\n  y' (3y^2 - 6x)  = 6y - 3x^2\n\n           2y - x^2\n  y'  =  ------------\n            y^2 - 2x\n\nAt (3, 3) - on the curve, since 27 + 27 = 54 = 6*9 -\n\n  y' = (6 - 9)/(9 - 6) = -1      tangent:  y - 3 = -(x - 3),  y = 6 - x\n\nHORIZONTAL tangent: numerator 0, denominator not.  2y = x^2, so\nsubstitute y = x^2/2 back into the curve:\n\n  x^3 + x^6/8 = 3x^3  ->  x^6/8 = 2x^3  ->  x^3 = 16   (or x = 0)\n  x = 16^(1/3) = 2^(4/3) ~ 2.520,   y = x^2/2 = 2^(5/3) ~ 3.175\n\nVERTICAL tangent: denominator 0, so y^2 = 2x, and the curve is symmetric\nin the line y = x, giving the mirror point (2^(5/3), 2^(4/3)).\n\nSECOND DERIVATIVE, back on the circle x^2 + y^2 = 25 with y' = -x/y:\n\n  y'' = d/dx [ -x/y ] = -( 1*y - x*y' ) / y^2        quotient rule\n      = -( y - x(-x/y) ) / y^2 = -( y^2 + x^2 ) / y^3\n      = -25 / y^3                   using the curve itself, at the end\n\nNegative on the upper half (y > 0): concave down, as a circle should be.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Collect, factor, divide. The equation is linear in y' every time, because y' enters only through single chain-rule factors."
+     },
+     {
+      "line": 11,
+      "text": "Always confirm the point lies on the curve before using it. A slope computed at a point off the curve is meaningless, however clean the arithmetic looks."
+     },
+     {
+      "line": 15,
+      "text": "Numerator zero AND denominator non-zero. If both vanish - as they do at the origin here - the point is singular and there is no single tangent line."
+     },
+     {
+      "line": 26,
+      "text": "Differentiate first, simplify with the original equation last. The other order means differentiating an expression that is only valid on the curve."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "The curve $x^2 + xy + y^2 = 7$ passes through $(1,2)$. Find $\\frac{dy}{dx}$ in terms of $x$ and $y$, evaluate it at $(1,2)$, and give the equation of the tangent line there.",
+     "answer": "Differentiating term by term: 2x + y + x y' + 2y y' = 0, so y'(x + 2y) = -(2x + y) and dy/dx = -(2x + y)/(x + 2y). At (1,2), which is on the curve since 1 + 2 + 4 = 7, the slope is -(2 + 2)/(1 + 4) = -4/5. Tangent line: y - 2 = -(4/5)(x - 1), that is y = -(4/5)x + 14/5.",
+     "rubric": {
+      "required": [
+       "product",
+       "implicit",
+       "slope",
+       "tangent",
+       "substitut"
+      ],
+      "optional": [
+       "chain",
+       "point",
+       "denominat",
+       "solve",
+       "curve"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "implicit-differentiation",
+      "implicit-tangent-lines"
+     ],
+     "explain": "The cross term $xy$ needs the product rule before the chain rule: $\\frac{d}{dx}(xy) = y + x y'$, and dropping the lone $y$ is the commonest slip here. Collecting gives $y'(x + 2y) = -(2x+y)$, so $y' = -\\frac{2x+y}{x+2y} = -\\frac{4}{5}$ at $(1,2)$ - and because both coordinates enter, the point must genuinely lie on the curve, which $1 + 2 + 4 = 7$ confirms. The tangent is $y = -\\frac{4}{5}x + \\frac{14}{5}$."
+    }
+   },
+   {
+    "title": "Logarithmic Differentiation",
+    "body": "The power rule needs a constant exponent and the exponential rule needs a constant base, so $y = x^x$ is served by neither, and the honest position is that no rule you have applies at all. Taking logarithms first repairs this: $\\ln y = x \\ln x$, and differentiating implicitly gives $\\frac{y'}{y} = \\ln x + 1$, hence $y' = x^x(\\ln x + 1)$.\n\nThe quantity $\\frac{y'}{y}$ that this move produces is the **logarithmic derivative**, the rate of change of $y$ relative to $y$ itself. Its virtue is that logarithms turn products into sums, quotients into differences and powers into multipliers, so a formula built from many factors becomes a sum of simple terms before any differentiation happens.\n\nThat makes the technique worth using even where the ordinary rules would eventually work. For $y = \\frac{(x+1)^2 (x+2)^3}{(x+3)^4}$ the quotient-and-product computation is grim, whereas $\\ln y = 2\\ln(x+1) + 3\\ln(x+2) - 4\\ln(x+3)$ differentiates in one line to $\\frac{y'}{y} = \\frac{2}{x+1} + \\frac{3}{x+2} - \\frac{4}{x+3}$.\n\nTwo habits keep it safe. Finish by multiplying back by $y$ - the derivative is $y \\cdot \\frac{y'}{y}$, never the logarithmic derivative on its own - and where $y$ may be negative use $\\ln|y|$, whose derivative is still $y'/y$, so no line of the working changes.",
+    "code": "y = x^x  IS NEITHER A POWER NOR AN EXPONENTIAL\n\n  power rule       needs a constant exponent    x^5\n  exponential rule needs a constant base        5^x\n  x^x has neither, so both rules are simply inapplicable.\n\nTake logarithms first, then differentiate implicitly:\n\n  ln y = x ln x\n  y'/y = 1*ln x + x*(1/x) = ln x + 1\n  y'   = x^x (ln x + 1)\n\n  at x = 2:  y' = 4(ln 2 + 1) ~ 6.773\n  at x = 1:  y' = 1(0 + 1) = 1\n\nThe same trick flattens any product, quotient or power into a sum:\n\n              (x+1)^2 (x+2)^3\n  y  =  -------------------------\n                 (x+3)^4\n\n  ln y = 2 ln(x+1) + 3 ln(x+2) - 4 ln(x+3)\n  y'/y = 2/(x+1) + 3/(x+2) - 4/(x+3)\n  y'   = y * [ 2/(x+1) + 3/(x+2) - 4/(x+3) ]\n\n  at x = 0:  y = 8/81,  y' = (8/81)(2 + 3/2 - 4/3) = (8/81)(13/6) = 52/243\n\nCaveat: ln y needs y > 0. Where y < 0, work with ln|y| - the derivative\nof ln|y| is still y'/y, so not a single line of the work changes.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Say this out loud whenever a variable appears in an exponent. Neither rule is merely awkward here; both are inapplicable, because each assumes something constant that is not."
+     },
+     {
+      "line": 10,
+      "text": "The left-hand side is d/dx[ln y] = y'/y by the chain rule. That single term is why logarithmic differentiation is implicit differentiation wearing a disguise."
+     },
+     {
+      "line": 22,
+      "text": "Three logarithm laws do all the work before any calculus happens: log of a product, log of a quotient, log of a power."
+     },
+     {
+      "line": 24,
+      "text": "Multiplying back by y is the step people forget. y'/y is a rate relative to y, not the derivative itself."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Let $y = x^{\\sin x}$ for $x > 0$. Use logarithmic differentiation to find $\\frac{dy}{dx}$, then evaluate it at $x = \\frac{\\pi}{2}$.",
+     "answer": "Take logarithms: ln y = sin(x) ln x. Differentiate implicitly, using the product rule on the right: y'/y = cos(x) ln x + sin(x)/x. Multiply back by y to get y' = x^(sin x) [cos(x) ln x + sin(x)/x]. At x = pi/2: y = (pi/2)^1 = pi/2, cos(pi/2) = 0, and sin(pi/2)/(pi/2) = 2/pi, so y' = (pi/2)(2/pi) = 1.",
+     "rubric": {
+      "required": [
+       "logarithm",
+       "implicit",
+       "product",
+       "multipl",
+       "evaluat"
+      ],
+      "optional": [
+       "chain",
+       "exponent",
+       "relative",
+       "base",
+       "substitut"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "logarithmic-differentiation"
+     ],
+     "explain": "Both the base and the exponent vary, so the only route is $\\ln y = \\sin x \\ln x$, whose right-hand side needs the product rule. That gives $\\frac{y'}{y} = \\cos x \\ln x + \\frac{\\sin x}{x}$, and multiplying back by $y = x^{\\sin x}$ finishes it. At $x = \\pi/2$ the first term dies because $\\cos(\\pi/2) = 0$, leaving $\\frac{\\pi}{2}\\cdot\\frac{2}{\\pi} = 1$ - a rare case where a forbidding derivative evaluates to something exact."
+    }
+   },
+   {
+    "title": "Related Rates: Name, Relate, Differentiate, Substitute",
+    "body": "A related-rates problem hands you one rate and asks for another, and the bridge between them is always a single equation relating the quantities themselves. The discipline is fixed: **name** each changing quantity as a function of $t$, **relate** them by an equation true at every instant, **differentiate** that equation with respect to $t$, and only then **substitute** the numbers describing the one instant of interest.\n\nThat ordering is not pedantry. For the sliding ladder $x^2 + y^2 = 100$ differentiates to $2x\\frac{dx}{dt} + 2y\\frac{dy}{dt} = 0$, giving $\\frac{dy}{dt} = -\\frac{x}{y}\\cdot\\frac{dx}{dt}$; with $x = 6$, $y = 8$ and $\\frac{dx}{dt} = 1$ ft/s the top slides down at $3/4$ ft/s. Substitute $x = 6$ **before** differentiating and the relation becomes $36 + y^2 = 100$, in which the moving foot has been frozen into a constant, and its derivative reports the nonsense $\\frac{dy}{dt} = 0$.\n\nThe geometry usually needs one reduction first: eliminate any quantity whose rate you neither know nor want, using a constraint. An inverted cone of top radius $2$ and height $4$ satisfies $r = h/2$ at every depth, so $V = \\frac{\\pi}{3}r^2h$ becomes $V = \\frac{\\pi h^3}{12}$ and only $h$ is left to differentiate.\n\nFinish by checking the sign and the units. A negative rate means a shrinking quantity, and for the balloon with $\\frac{dV}{dt} = 100$ cm$^3$/s the answer $\\frac{dr}{dt} = \\frac{1}{25\\pi}$ cm/s carries its own sanity check: the $4\\pi r^2$ in the denominator grows without bound, so a fixed inflow makes the radius creep ever more slowly.",
+    "code": "THE METHOD - and the order matters more than the algebra.\n\n  1 NAME     every changing quantity as a function of time\n  2 RELATE   them by one equation true at EVERY instant\n  3 DIFFERENTIATE that equation with respect to t\n  4 SUBSTITUTE the instantaneous numbers, LAST\n  5 ANSWER   with units, and a sign that makes sense\n\nTHE LADDER.  A 10 ft ladder leans on a wall. The foot is pulled away at\ndx/dt = 1 ft/s. How fast is the top sliding down when the foot is 6 ft\nfrom the wall?\n\n  1  x(t) = foot to wall,  y(t) = top above floor\n  2  x^2 + y^2 = 100                true at every instant\n  3  2x*dx/dt + 2y*dy/dt = 0  ->  dy/dt = -(x/y) dx/dt\n  4  x = 6 gives y = sqrt(100 - 36) = 8\n     dy/dt = -(6/8)(1) = -3/4 ft/s\n  5  The top falls at 3/4 ft/s. Negative = descending. Correct.\n\nSubstituting x = 6 at step 2 would give 36 + y^2 = 100, whose derivative\nis 2y*dy/dt = 0: the foot has been frozen into a constant and the answer\ncollapses to dy/dt = 0. This is THE classic related-rates error.\n\nTHE EXPANDING SPHERE.  Air enters a balloon at dV/dt = 100 cm^3/s.\n\n  V = (4/3) pi r^3  ->  dV/dt = 4 pi r^2 dr/dt\n  at r = 25:  100 = 4 pi (625) dr/dt  ->  dr/dt = 1/(25 pi) cm/s\n  surface S = 4 pi r^2  ->  dS/dt = 8 pi r dr/dt = 8 pi(25)/(25 pi) = 8\n\nSo dS/dt = 8 cm^2/s. The radius creeps ever more slowly at fixed dV/dt,\nbecause the 4 pi r^2 in the denominator grows without bound.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Step 2 is where the modelling happens. Geometry - Pythagoras, similar triangles, a volume formula - almost always supplies the relating equation."
+     },
+     {
+      "line": 15,
+      "text": "Every derivative here is taken with respect to t, not x. dy/dt is a rate in time, and the chain rule is what connects it to the geometry."
+     },
+     {
+      "line": 21,
+      "text": "Read this paragraph twice. Freezing a variable before differentiating is the most common way a related-rates answer goes wrong, and it fails silently."
+     },
+     {
+      "line": 28,
+      "text": "One equation, one differentiation, one substitution. The sphere is the ladder with a different relating equation and nothing else changed."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A stone dropped in a pond sends out a circular ripple whose radius grows at $\\frac{dr}{dt} = 1$ ft/s. How fast is the enclosed area growing when $r = 4$ ft? Name your quantities, give the relating equation, and state the answer with units.",
+     "answer": "Let r(t) be the radius and A(t) the enclosed area. Relation, true at every instant: A = pi r^2. Differentiate with respect to t: dA/dt = 2 pi r dr/dt. Substitute r = 4 and dr/dt = 1: dA/dt = 8 pi ft^2/s, about 25.13 ft^2/s.",
+     "rubric": {
+      "required": [
+       "radius",
+       "area",
+       "differentiat",
+       "substitut",
+       "pi"
+      ],
+      "optional": [
+       "chain",
+       "instant",
+       "unit",
+       "circle",
+       "rate"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "related-rates",
+      "related-rates-method"
+     ],
+     "explain": "$A = \\pi r^2$ holds at every instant, so it may be differentiated in $t$ to give $\\frac{dA}{dt} = 2\\pi r \\frac{dr}{dt} = 8\\pi$ ft$^2$/s. Substituting $r = 4$ first would have produced the constant $16\\pi$, whose derivative is $0$. Note too that $\\frac{dA}{dt}$ grows with $r$ even though $\\frac{dr}{dt}$ is constant: a larger ripple sweeps a longer circumference every second."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "cal1-5-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Each point below lies on the curve named beside it. Give $\\frac{dy}{dx}$ there as a fraction in lowest terms, or the word `undefined`.",
+   "template": "x^2 + y^2 = 25 at (3, 4):   dy/dx = ___\nx^2 + y^2 = 25 at (0, 5):   dy/dx = ___\nx^2 + y^2 = 25 at (5, 0):   dy/dx = ___\nx^3 + y^3 = 6xy at (3, 3):  dy/dx = ___",
+   "blanks": [
+    "-3/4",
+    "0",
+    "undefined",
+    "-1"
+   ],
+   "concepts": [
+    "implicit-differentiation",
+    "implicit-tangent-lines"
+   ],
+   "tags": [
+    "implicit-differentiation",
+    "implicit-tangent-lines"
+   ],
+   "xp": 30,
+   "hint": "For the circle $y' = -x/y$; for the folium $y' = \\dfrac{2y - x^2}{y^2 - 2x}$.",
+   "explain": "On the circle $y' = -x/y$, so the top of the circle $(0,5)$ has slope $0$ and the rightmost point $(5,0)$ has a zero denominator - the vertical tangent announcing itself rather than the formula breaking. For the folium, $\\frac{2(3) - 9}{9 - 6} = -1$. The tempting error at $(5,0)$ is to report $0$: a zero **numerator** means horizontal, a zero **denominator** means vertical, and swapping them turns every extreme point of a curve upside down."
+  },
+  {
+   "id": "cal1-5-gp-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The curve $\\sqrt{x} + \\sqrt{y} = 4$ passes through $(4,4)$. Find $\\frac{dy}{dx}$ implicitly, evaluate it at $(4,4)$, and give the tangent line there. Then say what happens to the slope as the point moves towards $(16,0)$.",
+   "answer": "Differentiate: 1/(2 sqrt(x)) + (1/(2 sqrt(y))) y' = 0, so y' = -sqrt(y)/sqrt(x). At (4,4): y' = -2/2 = -1, and the tangent is y - 4 = -(x - 4), i.e. y = -x + 8. As the point moves towards (16,0), sqrt(y) -> 0 with sqrt(x) -> 4, so y' -> 0 and the curve meets the x-axis with a horizontal tangent.",
+   "rubric": {
+    "required": [
+     "implicit",
+     "chain",
+     "slope",
+     "tangent",
+     "horizontal"
+    ],
+    "optional": [
+     "square root",
+     "substitut",
+     "denominat",
+     "curve",
+     "solve"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "implicit-differentiation",
+    "implicit-tangent-lines"
+   ],
+   "tags": [
+    "implicit-differentiation",
+    "implicit-tangent-lines"
+   ],
+   "xp": 75,
+   "hint": "Write $\\sqrt{y}$ as $y^{1/2}$ so the chain rule is visible: its derivative is $\\frac{1}{2}y^{-1/2}y'$.",
+   "explain": "Writing the radicals as $x^{1/2}$ and $y^{1/2}$ makes the chain rule unmistakable, giving $\\frac{1}{2\\sqrt{x}} + \\frac{y'}{2\\sqrt{y}} = 0$ and so $y' = -\\sqrt{y}/\\sqrt{x}$, which is $-1$ at $(4,4)$ and yields $y = -x + 8$. Approaching $(16,0)$ the numerator tends to $0$ while the denominator tends to $4$, so the slope tends to $0$: this curve is an arc that lands flat on the axis, not a straight line, even though its tangent at the symmetric point has slope $-1$. Reading $\\sqrt{x} + \\sqrt{y} = 4$ as if it were $x + y = 16$ is the trap - squaring is not linear."
+  },
+  {
+   "id": "cal1-5-gp-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Use logarithmic differentiation to find $\\frac{dy}{dx}$ for $$y = (2x+1)^5 (x^4-3)^6.$$ Give the logarithmic derivative $\\frac{y'}{y}$ and then the full derivative, and say why this route beats the product rule here.",
+   "answer": "ln|y| = 5 ln|2x+1| + 6 ln|x^4-3|. Differentiating: y'/y = 10/(2x+1) + 24x^3/(x^4-3). Multiplying back: y' = (2x+1)^5 (x^4-3)^6 [10/(2x+1) + 24x^3/(x^4-3)]. It beats the product rule because the logarithm turns a product of powers into a sum, so each factor is differentiated once, independently, with no expansion and no nested chain rules to keep track of.",
+   "rubric": {
+    "required": [
+     "logarithm",
+     "product",
+     "sum",
+     "multipl",
+     "chain"
+    ],
+    "optional": [
+     "absolute",
+     "power",
+     "factor",
+     "implicit",
+     "derivative"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "logarithmic-differentiation"
+   ],
+   "tags": [
+    "logarithmic-differentiation"
+   ],
+   "xp": 75,
+   "hint": "$\\ln$ of a product is a sum, and $\\ln$ of a power brings the exponent down in front.",
+   "explain": "$\\ln|y| = 5\\ln|2x+1| + 6\\ln|x^4-3|$ converts one product of two powers into two independent terms, each differentiating by the chain rule to $\\frac{5\\cdot 2}{2x+1}$ and $\\frac{6\\cdot 4x^3}{x^4-3}$. The exponent always reappears as a **multiplier**, never as a new power - forgetting the inner derivatives $2$ and $4x^3$ is the standard error. Finally multiply by $y$ itself: $\\frac{y'}{y}$ is a relative rate, and stopping there answers a different question."
+  },
+  {
+   "id": "cal1-5-gp-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of the related-rates method into the order that keeps the answer correct.",
+   "fragments": [
+    "Name every changing quantity as a function of time, and note which rate is given and which is wanted.",
+    "Write one equation relating those quantities that is true at every instant, using a constraint to eliminate any quantity whose rate is neither known nor wanted.",
+    "Differentiate that equation with respect to t, so every quantity contributes a rate through the chain rule.",
+    "Substitute the numbers describing the single instant of interest, including the given rate.",
+    "Solve for the wanted rate and report it with units and a sign."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "tags": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "xp": 30,
+   "explain": "The only step whose position genuinely matters is substitution, and it must come after differentiation: a number written in early becomes a constant, and constants have derivative zero, so a moving quantity silently stops moving. Eliminating an unwanted quantity belongs with the relating equation because it is a statement about the geometry - $r = h/2$ in a cone - rather than about the instant. Units and sign come last because they are the check, not the calculation."
+  },
+  {
+   "id": "cal1-5-gp-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A metal cube is heated and its volume grows at $10$ cm$^3$/s. When the edge is $5$ cm, how fast is the edge growing, and how fast is the total surface area growing? Show the relating equations before you substitute.",
+   "answer": "Let s(t) be the edge. Volume V = s^3, so dV/dt = 3 s^2 ds/dt. At s = 5: 10 = 3(25) ds/dt, so ds/dt = 10/75 = 2/15 cm/s, about 0.133 cm/s. Surface area S = 6 s^2, so dS/dt = 12 s ds/dt = 12(5)(2/15) = 8 cm^2/s.",
+   "rubric": {
+    "required": [
+     "edge",
+     "volume",
+     "surface",
+     "differentiat",
+     "substitut"
+    ],
+    "optional": [
+     "chain",
+     "unit",
+     "instant",
+     "cube",
+     "rate"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "related-rates"
+   ],
+   "tags": [
+    "related-rates"
+   ],
+   "xp": 75,
+   "hint": "Two relating equations share the same unknown rate $\\frac{ds}{dt}$: $V = s^3$ and $S = 6s^2$.",
+   "explain": "$V = s^3$ differentiates to $\\frac{dV}{dt} = 3s^2\\frac{ds}{dt}$, so $\\frac{ds}{dt} = \\frac{10}{75} = \\frac{2}{15}$ cm/s, and feeding that into $\\frac{dS}{dt} = 12s\\frac{ds}{dt}$ gives $8$ cm$^2$/s. The structure is the balloon's exactly: one geometric formula converts a volume rate into a length rate, and a second converts that length rate into an area rate. The seductive wrong move is to divide $10$ by the volume $125$, or to treat $\\frac{dV}{dt} = 10$ as though the edge grew by $10$ - rates of different quantities are not interchangeable, and the powers of $s$ are what keep them apart."
+  }
+ ],
+ "related-rates-workshop": [
+  {
+   "id": "cal1-5-ws-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A $10$ ft ladder leans against a wall, its foot pulled away at $1$ ft/s. (a) Find $\\frac{dy}{dt}$ when the foot is $8$ ft from the wall. (b) Find the rate of change of the area of the triangle formed by the ladder, wall and floor when the foot is $6$ ft from the wall. (c) What is $\\frac{dy}{dt}$ at the instant the ladder is vertical, and is that plausible?",
+   "answer": "With x^2 + y^2 = 100 and dx/dt = 1: dy/dt = -(x/y) dx/dt. (a) x = 8 gives y = 6, so dy/dt = -8/6 = -4/3 ft/s. (b) A = xy/2, so dA/dt = (y dx/dt + x dy/dt)/2; at x = 6, y = 8, dy/dt = -3/4, giving dA/dt = (8(1) + 6(-3/4))/2 = (8 - 4.5)/2 = 7/4 ft^2/s. (c) Vertical means x = 0, y = 10, so dy/dt = 0: the top is momentarily stationary, which is plausible because y = sqrt(100 - x^2) has a maximum there.",
+   "rubric": {
+    "required": [
+     "Pythagor",
+     "differentiat",
+     "substitut",
+     "area",
+     "product"
+    ],
+    "optional": [
+     "negative",
+     "descend",
+     "instant",
+     "maximum",
+     "chain",
+     "unit"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "tags": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "xp": 75,
+   "hint": "The area needs the product rule, and it needs $\\frac{dy}{dt}$ from part of the same instant - not from a different one.",
+   "explain": "One relation, $x^2 + y^2 = 100$, answers all three parts: $\\frac{dy}{dt} = -\\frac{x}{y}\\frac{dx}{dt}$ gives $-4/3$ ft/s at $x = 8$, faster than the $-3/4$ ft/s at $x = 6$ because the ratio $x/y$ blows up as the ladder flattens. The area needs the product rule on $A = xy/2$, mixing a growing base with a falling height, and the two effects partly cancel to leave $\\frac{7}{4}$ ft$^2$/s. At $x = 0$ the numerator vanishes and $\\frac{dy}{dt} = 0$: the top really is instantaneously at rest at the top of its travel - the same reason a ball thrown upwards has zero velocity at its peak."
+  },
+  {
+   "id": "cal1-5-ws-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Water is poured into an inverted right circular cone of top radius $2$ m and height $4$ m at $2$ m$^3$/min. How fast is the depth rising when the water is $3$ m deep? State the constraint you use to eliminate the water's surface radius, and explain why the answer would be larger at a smaller depth.",
+   "answer": "Similar triangles give r/h = 2/4, so r = h/2 at every depth. Then V = (pi/3) r^2 h = (pi/3)(h^2/4)h = pi h^3 / 12. Differentiating: dV/dt = (pi h^2 / 4) dh/dt. At h = 3 with dV/dt = 2: 2 = (9 pi/4) dh/dt, so dh/dt = 8/(9 pi) m/min, about 0.283 m/min. At smaller depth the cross-section pi h^2/4 is smaller, so the same inflow raises the surface faster.",
+   "rubric": {
+    "required": [
+     "similar",
+     "radius",
+     "eliminat",
+     "volume",
+     "differentiat",
+     "depth"
+    ],
+    "optional": [
+     "constraint",
+     "cross-section",
+     "substitut",
+     "chain",
+     "instant",
+     "unit"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "tags": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "xp": 75,
+   "hint": "You are given no rate for $r$ and asked for none, so get rid of $r$ before differentiating.",
+   "explain": "The similar-triangle constraint $r = h/2$ holds at every depth, so substituting it **before** differentiating is legitimate and reduces $V = \\frac{\\pi}{3}r^2h$ to $V = \\frac{\\pi h^3}{12}$, a function of one variable. Differentiating gives $\\frac{dV}{dt} = \\frac{\\pi h^2}{4}\\frac{dh}{dt}$ and hence $\\frac{dh}{dt} = \\frac{8}{9\\pi}$ m/min. Note the contrast with the ladder: a **geometric constraint** true at all times may be substituted early, whereas an **instantaneous value** such as $h = 3$ may not. Keeping $r$ and differentiating it too is not wrong, but then you need $\\frac{dr}{dt}$, which you must recover from the same constraint anyway."
+  },
+  {
+   "id": "cal1-5-ws-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A man $6$ ft tall walks away from a $15$ ft lamppost at $5$ ft/s. Find (a) how fast the **length of his shadow** grows and (b) how fast the **tip of his shadow** moves. Explain why the two answers differ and why neither depends on how far he has already walked.",
+   "answer": "Let x(t) be his distance from the post and s(t) the shadow length. Similar triangles: 6/s = 15/(x+s), so 6x + 6s = 15s, giving s = 2x/3. (a) ds/dt = (2/3)(5) = 10/3 ft/s. (b) The tip is at x + s = 5x/3 from the post, so its speed is (5/3)(5) = 25/3 ft/s. They differ because the tip moves with the man as well as with the shadow: 25/3 = 5 + 10/3. Neither depends on x because s is a linear multiple of x, so the ratio of rates is constant.",
+   "rubric": {
+    "required": [
+     "similar",
+     "shadow",
+     "tip",
+     "linear",
+     "differentiat"
+    ],
+    "optional": [
+     "constant",
+     "triangle",
+     "substitut",
+     "sum",
+     "distance",
+     "unit"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "tags": [
+    "related-rates",
+    "related-rates-method"
+   ],
+   "xp": 75,
+   "hint": "Set up similar triangles with the tip at distance $x + s$ from the post, and decide which of $s$ and $x+s$ each question is asking about.",
+   "explain": "Similar triangles give $\\frac{6}{s} = \\frac{15}{x+s}$, hence $s = \\frac{2x}{3}$, and differentiating that linear relation gives $\\frac{ds}{dt} = \\frac{10}{3}$ ft/s while the tip, at $x + s = \\frac{5x}{3}$, moves at $\\frac{25}{3}$ ft/s. Confusing the two is the famous error in this problem: the shadow lengthens *behind* the walker while its tip runs ahead, and the tip's speed is his own speed plus the lengthening, $5 + \\frac{10}{3}$. Because $s$ is proportional to $x$, the derivative is a constant and the position $x$ never enters - which is why this problem, unusually, has no 'at the instant when' clause to substitute."
+  },
+  {
+   "id": "cal1-5-ws-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "At noon ship A is $150$ km due west of ship B. A sails east at $35$ km/h and B sails north at $25$ km/h. How fast is the distance between them changing at 4 p.m.? Give an exact value and a decimal, and say what the sign means.",
+   "answer": "Let t be hours after noon, with the horizontal gap p(t) = 150 - 35t and the vertical gap q(t) = 25t, and D^2 = p^2 + q^2. Differentiating: 2D dD/dt = 2p dp/dt + 2q dq/dt, so dD/dt = (p(-35) + q(25))/D. At t = 4: p = 10, q = 100, D = sqrt(100 + 10000) = 10 sqrt(101) ~ 100.50 km. Then dD/dt = (10(-35) + 100(25))/(10 sqrt(101)) = 2150/(10 sqrt(101)) = 215/sqrt(101) ~ 21.39 km/h. Positive, so they are separating.",
+   "rubric": {
+    "required": [
+     "distance",
+     "differentiat",
+     "substitut",
+     "positive",
+     "separat"
+    ],
+    "optional": [
+     "Pythagor",
+     "chain",
+     "component",
+     "instant",
+     "unit",
+     "sign"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "related-rates"
+   ],
+   "tags": [
+    "related-rates"
+   ],
+   "xp": 75,
+   "hint": "Differentiate $D^2 = p^2 + q^2$ rather than $D = \\sqrt{p^2+q^2}$; it is the same statement with far less algebra.",
+   "explain": "Differentiating $D^2 = p^2 + q^2$ implicitly gives $D\\frac{dD}{dt} = p\\frac{dp}{dt} + q\\frac{dq}{dt}$, which is cleaner than differentiating the square root and identical in content. At 4 p.m. A has almost closed the east-west gap, $p = 10$, while B has opened a $100$ km northward gap, so the northward term dominates and $\\frac{dD}{dt} = \\frac{215}{\\sqrt{101}} \\approx 21.39$ km/h. The sign is the whole story: the ships were approaching earlier in the afternoon, and a positive $\\frac{dD}{dt}$ says the crossing has already happened. The usual mistake is to treat $150$ as a constant or $35$ and $25$ as rates of $D$ itself - they are rates of the **components**, and only the chain rule combines them."
+  },
+  {
+   "id": "cal1-5-ws-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Assume the power rule for integer exponents. Using implicit differentiation, prove that for a rational exponent $\\frac{p}{q}$ (with $q$ a positive integer, $x > 0$) $$\\frac{d}{dx}\\,x^{p/q} = \\frac{p}{q}\\,x^{(p/q)-1}.$$ Start from $y = x^{p/q}$, raise both sides to the power $q$, and justify the step where you assume $y$ is differentiable.",
+   "rubric": {
+    "required": [
+     "implicit",
+     "chain",
+     "power",
+     "rational",
+     "differentiab",
+     "substitut"
+    ],
+    "optional": [
+     "exponent",
+     "integer",
+     "solve",
+     "assume",
+     "positive",
+     "simplif"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "implicit-differentiation"
+   ],
+   "tags": [
+    "implicit-differentiation"
+   ],
+   "xp": 75,
+   "hint": "$y^q = x^p$ involves only integer exponents, so the rule you are allowed to use applies to both sides.",
+   "explain": "Setting $y = x^{p/q}$ and raising to the $q$ gives $y^q = x^p$, an equation in which both exponents are integers, so the assumed rule applies: $qy^{q-1}y' = px^{p-1}$. Solving, $y' = \\frac{p}{q}\\cdot\\frac{x^{p-1}}{y^{q-1}} = \\frac{p}{q}\\cdot\\frac{x^{p-1}}{x^{p(q-1)/q}} = \\frac{p}{q}x^{(p/q)-1}$ once the exponents are subtracted. The step that must be flagged is the assumption that $y$ is differentiable at all - implicit differentiation always presupposes it, and here it is guaranteed for $x > 0$ because $y = x^{p/q}$ is a composition of a continuous increasing bijection with a differentiable one. This is the standard pattern: implicit differentiation extends a rule you already have to a case you do not, rather than proving anything from scratch."
+  },
+  {
+   "id": "cal1-5-ws-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For the folium $x^3 + y^3 = 6xy$, find every point other than the origin where the tangent is horizontal. Then explain how the same calculation locates the vertical tangent without any further differentiation.",
+   "answer": "y' = (2y - x^2)/(y^2 - 2x). Horizontal needs 2y = x^2 with y^2 =/= 2x. Substituting y = x^2/2 into the curve: x^3 + x^6/8 = 3x^3, so x^6/8 = 2x^3 and x^3 = 16 (or x = 0). Hence x = 16^(1/3) = 2^(4/3) ~ 2.520 and y = x^2/2 = 2^(5/3) ~ 3.175. The curve is symmetric under swapping x and y, since the equation is unchanged, so reflecting that point in the line y = x gives the vertical tangent at (2^(5/3), 2^(4/3)) - which is also what setting the denominator y^2 = 2x gives.",
+   "rubric": {
+    "required": [
+     "numerator",
+     "denominat",
+     "horizontal",
+     "vertical",
+     "symmetr",
+     "substitut"
+    ],
+    "optional": [
+     "origin",
+     "singular",
+     "reflect",
+     "implicit",
+     "curve",
+     "solve"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "implicit-tangent-lines",
+    "implicit-differentiation"
+   ],
+   "tags": [
+    "implicit-tangent-lines",
+    "implicit-differentiation"
+   ],
+   "xp": 75,
+   "hint": "A fraction is zero when its numerator is - but you must then put that condition back into the curve to find a point that actually exists.",
+   "explain": "Setting the numerator to zero gives a **condition**, $2y = x^2$, not a point; the point appears only after substituting the condition back into $x^3 + y^3 = 6xy$, which reduces to $x^3 = 16$. That gives $\\left(2^{4/3}, 2^{5/3}\\right)$, and the symmetry $x \\leftrightarrow y$ of the defining equation reflects it to the vertical tangent at $\\left(2^{5/3}, 2^{4/3}\\right)$. The origin is excluded because there both numerator and denominator vanish: it is the node where the curve crosses itself and has two tangents, not one. Solving $2y = x^2$ alone and reporting a whole parabola of answers is the usual failure here."
+  }
+ ],
+ "exam": [
+  {
+   "id": "cal1-5-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Implicit differentiation is best defined as:",
+   "choices": [
+    "solving an equation for $y$ and then differentiating the resulting formula",
+    "differentiating both sides of an equation with respect to $x$, treating $y$ as a differentiable function of $x$ so that every $y$-term contributes a factor $\\frac{dy}{dx}$",
+    "differentiating the left side with respect to $x$ and the right side with respect to $y$",
+    "replacing $\\frac{dy}{dx}$ by the ratio of the partial derivatives before any differentiation is carried out"
+   ],
+   "answer": 1,
+   "concepts": [
+    "implicit-differentiation"
+   ],
+   "tags": [
+    "implicit-differentiation"
+   ],
+   "xp": 15,
+   "explain": "The definition rests on treating $y$ as a locally defined differentiable function of $x$: that assumption is what makes the chain rule applicable and produces the factor $\\frac{dy}{dx}$ on every $y$-term. Option one describes what implicit differentiation exists to avoid, and is often impossible - no elementary solution of $x^3 + y^3 = 6xy$ for $y$ is worth writing down. Differentiating the two sides with respect to different variables is not a legal operation at all, since it no longer says that two equal quantities change equally."
+  },
+  {
+   "id": "cal1-5-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The **logarithmic derivative** of a positive differentiable function $y(x)$ is defined as:",
+   "choices": [
+    "$\\ln\\left(\\frac{dy}{dx}\\right)$",
+    "$\\frac{d}{dx}\\left(\\ln x\\right) = \\frac{1}{x}$",
+    "$\\frac{d}{dx}\\left(\\ln y\\right) = \\frac{y'}{y}$, the rate of change of $y$ relative to $y$ itself",
+    "$y \\ln y$, the quantity whose derivative recovers $y'$"
+   ],
+   "answer": 2,
+   "concepts": [
+    "logarithmic-differentiation"
+   ],
+   "tags": [
+    "logarithmic-differentiation"
+   ],
+   "xp": 15,
+   "explain": "By the chain rule $\\frac{d}{dx}\\ln y = \\frac{y'}{y}$, and it is that ratio - a **relative** rate, with units of 'per unit $x$' whatever $y$ measures - which logarithmic differentiation computes. Taking the logarithm of the derivative instead of the derivative of the logarithm is the classic reversal and gives something with no useful properties at all. Remembering that the technique always ends by multiplying back by $y$ is the practical consequence of this definition."
+  },
+  {
+   "id": "cal1-5-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the missing factor in each derivative. Write each answer exactly in the style of the examples given: `3y^2`, `4 pi r^2`, `2 pi r`.",
+   "template": "d/dx[y^3] = ___ * dy/dx\nV = (4/3) pi r^3:  dV/dt = ___ * dr/dt\nA = pi r^2:        dA/dt = ___ * dr/dt\nS = 6 s^2:         dS/dt = ___ * ds/dt",
+   "blanks": [
+    "3y^2",
+    "4 pi r^2",
+    "2 pi r",
+    "12 s"
+   ],
+   "concepts": [
+    "implicit-differentiation",
+    "related-rates"
+   ],
+   "tags": [
+    "implicit-differentiation",
+    "related-rates"
+   ],
+   "xp": 30,
+   "explain": "Every line is the same chain rule wearing different clothes: differentiate the outside as a power, then multiply by the derivative of the inside variable. Note that the sphere's volume derivative is its **surface area**, $4\\pi r^2$, and the disc's area derivative is its **circumference**, $2\\pi r$ - not a coincidence, but the statement that growth happens at the boundary. Writing $\\frac{dV}{dt} = 4\\pi r^2$ with no $\\frac{dr}{dt}$ is the omission that makes related-rates answers dimensionally wrong."
+  },
+  {
+   "id": "cal1-5-ex-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A $10$ ft ladder has its foot pulled from the wall at $1$ ft/s, so $x^2 + y^2 = 100$ and $\\frac{dy}{dt} = -\\frac{x}{y}$. Give each quantity as an exact number - a fraction where necessary, with its sign.",
+   "steps": [
+    {
+     "label": "y (ft) when x = 6",
+     "expected": "8"
+    },
+    {
+     "label": "dy/dt (ft/s) when x = 6",
+     "expected": "-3/4"
+    },
+    {
+     "label": "dy/dt (ft/s) when x = 8",
+     "expected": "-4/3"
+    },
+    {
+     "label": "dy/dt (ft/s) when x = 0",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "related-rates"
+   ],
+   "tags": [
+    "related-rates"
+   ],
+   "xp": 60,
+   "explain": "The pairs $(6,8)$ and $(8,6)$ both satisfy $x^2+y^2 = 100$, and the ratio $x/y$ flips between them: $-3/4$ becomes $-4/3$, so the top descends faster the flatter the ladder gets - and the rate is unbounded as $y \\to 0$, which is why this configuration is genuinely dangerous. At $x = 0$ the numerator is zero and the top is instantaneously at rest. Dropping the minus sign is the most common answer here; $y$ is decreasing at every instant, so a positive answer contradicts the picture."
+  },
+  {
+   "id": "cal1-5-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the steps of logarithmic differentiation for a function $y$ built from products, quotients and powers.",
+   "fragments": [
+    "Take logarithms of both sides, writing ln|y| when y may be negative.",
+    "Use the log laws to turn the product, quotient and powers into a sum of simple terms.",
+    "Differentiate both sides with respect to x, so the left side becomes y'/y.",
+    "Multiply both sides by y to isolate y'.",
+    "Replace y by the original expression, so the answer is written in x alone."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "logarithmic-differentiation"
+   ],
+   "tags": [
+    "logarithmic-differentiation"
+   ],
+   "xp": 30,
+   "explain": "Expanding with the log laws before differentiating is the entire point: differentiate first and you are back to the product and quotient rules you were trying to escape. The last two steps are separate for a reason - multiplying by $y$ gives a correct derivative, but one written in terms of $y$, and a derivative is expected as a function of $x$. Stopping at $\\frac{y'}{y}$ answers a different question, namely the relative rate."
+  },
+  {
+   "id": "cal1-5-ex-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For the hyperbola $x^2 - y^2 = 1$, find $\\frac{dy}{dx}$ and then $\\frac{d^2y}{dx^2}$, simplifying the second derivative using the original equation. What does the sign of $y''$ say about the branch in the upper half-plane, $y > 0$?",
+   "answer": "Differentiating: 2x - 2y y' = 0, so y' = x/y. Differentiating again with the quotient rule: y'' = (y - x y')/y^2 = (y - x(x/y))/y^2 = (y^2 - x^2)/y^3. Using x^2 - y^2 = 1 gives y^2 - x^2 = -1, so y'' = -1/y^3. For y > 0 this is negative, so that part of the curve is concave down.",
+   "rubric": {
+    "required": [
+     "implicit",
+     "quotient",
+     "substitut",
+     "concav",
+     "sign",
+     "second"
+    ],
+    "optional": [
+     "simplif",
+     "original",
+     "chain",
+     "branch",
+     "negative",
+     "curve"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "implicit-second-derivative",
+    "implicit-differentiation"
+   ],
+   "tags": [
+    "implicit-second-derivative",
+    "implicit-differentiation"
+   ],
+   "xp": 75,
+   "hint": "After the quotient rule, substitute the expression you already found for $y'$ - and only then use the curve's own equation.",
+   "explain": "Two substitutions happen, in a fixed order: first replace $y'$ by $x/y$ inside the derivative of $x/y$, giving $y'' = \\frac{y^2-x^2}{y^3}$, and only then use $x^2 - y^2 = 1$ to collapse the numerator to $-1$. Doing it the other way - simplifying with the curve before differentiating - is illegitimate, because $x^2 - y^2 = 1$ holds only on the curve and cannot be differentiated as if it defined the surrounding plane. The result $y'' = -1/y^3$ makes the upper branch concave down and, by the same formula with $y < 0$, the lower branch concave up: each branch bends away from the origin, exactly as a hyperbola should."
+  },
+  {
+   "id": "cal1-5-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $y = x^{\\ln x}$ for $x > 0$. Find $\\frac{dy}{dx}$ by logarithmic differentiation and evaluate it at $x = e$. Explain why neither the power rule nor the exponential rule applies.",
+   "answer": "ln y = (ln x)(ln x) = (ln x)^2. Differentiating: y'/y = 2 ln x * (1/x), so y' = x^(ln x) * 2 ln x / x. At x = e: ln e = 1, so y = e^1 = e and y' = e * 2 * 1 / e = 2. The power rule needs a constant exponent and the exponential rule needs a constant base; here the exponent ln x and the base x both vary, so neither applies.",
+   "rubric": {
+    "required": [
+     "logarithm",
+     "exponent",
+     "base",
+     "constant",
+     "chain",
+     "evaluat"
+    ],
+    "optional": [
+     "implicit",
+     "multipl",
+     "square",
+     "substitut",
+     "vary",
+     "product"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "logarithmic-differentiation"
+   ],
+   "tags": [
+    "logarithmic-differentiation"
+   ],
+   "xp": 75,
+   "hint": "$\\ln\\left(x^{\\ln x}\\right) = (\\ln x)^2$, and that squares needs the chain rule, not the product rule.",
+   "explain": "Taking logarithms turns the awkward tower into $(\\ln x)^2$, whose derivative is $2\\ln x \\cdot \\frac{1}{x}$ by the chain rule - the inner derivative $\\frac{1}{x}$ is what most wrong answers omit. Multiplying back gives $y' = \\frac{2\\ln x}{x}x^{\\ln x}$, which at $x = e$ is $\\frac{2}{e}\\cdot e = 2$. Writing $y' = \\ln x \\cdot x^{\\ln x - 1}$ by the power rule is the tempting error: it treats a varying exponent as constant, and it disagrees with the correct value even at $x = e$, where it returns $1$ rather than $2$."
+  },
+  {
+   "id": "cal1-5-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A spherical snowball melts so that its volume decreases at $2$ cm$^3$/min. When the radius is $5$ cm, find $\\frac{dr}{dt}$ and the rate of change of the surface area. Comment on the signs.",
+   "answer": "V = (4/3) pi r^3 gives dV/dt = 4 pi r^2 dr/dt. With dV/dt = -2 and r = 5: -2 = 100 pi dr/dt, so dr/dt = -1/(50 pi) cm/min, about -0.00637 cm/min. Then S = 4 pi r^2 gives dS/dt = 8 pi r dr/dt = 8 pi (5)(-1/(50 pi)) = -4/5 cm^2/min. Both are negative because the snowball is shrinking, and both rates are set by the single given rate dV/dt.",
+   "rubric": {
+    "required": [
+     "volume",
+     "surface",
+     "negative",
+     "shrink",
+     "differentiat",
+     "substitut"
+    ],
+    "optional": [
+     "radius",
+     "chain",
+     "unit",
+     "sphere",
+     "instant",
+     "rate"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "related-rates"
+   ],
+   "tags": [
+    "related-rates"
+   ],
+   "xp": 75,
+   "hint": "A decreasing volume means $\\frac{dV}{dt}$ is negative; carry that sign through rather than adding it at the end.",
+   "explain": "Entering the loss as $\\frac{dV}{dt} = -2$ makes every later sign take care of itself: $\\frac{dr}{dt} = \\frac{-2}{4\\pi(25)} = -\\frac{1}{50\\pi}$ cm/min, and $\\frac{dS}{dt} = 8\\pi r\\frac{dr}{dt} = -\\frac{4}{5}$ cm$^2$/min. Taking $\\frac{dV}{dt} = +2$ and 'remembering to make the answer negative' is the habit that fails as soon as a problem mixes a growing quantity with a shrinking one, as the ladder's triangle does. Notice also how small $\\frac{dr}{dt}$ is: at $r = 5$ the sphere has $100\\pi \\approx 314$ cm$^2$ of surface, so a couple of cubic centimetres spread over it barely moves the radius."
+  },
+  {
+   "id": "cal1-5-ex-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why, in a related-rates problem, the instantaneous values must be substituted **after** differentiating, while a geometric constraint such as $r = h/2$ in a cone may be substituted before. Use the ladder and the cone to make the distinction concrete, and say what wrong answer early substitution produces.",
+   "rubric": {
+    "required": [
+     "constant",
+     "instant",
+     "constraint",
+     "differentiat",
+     "zero",
+     "every"
+    ],
+    "optional": [
+     "ladder",
+     "cone",
+     "similar",
+     "frozen",
+     "derivative",
+     "true"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "related-rates-method",
+    "related-rates"
+   ],
+   "tags": [
+    "related-rates-method",
+    "related-rates"
+   ],
+   "xp": 30,
+   "explain": "The test is whether the substituted statement is true at **every** instant or at only one. $r = h/2$ holds throughout the filling of the cone, so the reduced relation $V = \\frac{\\pi h^3}{12}$ is still an identity in $t$ and may be differentiated. The ladder's $x = 6$ holds at a single instant; writing it in first converts a moving quantity into a constant, and $36 + y^2 = 100$ differentiates to $2y\\frac{dy}{dt} = 0$, so the answer collapses to $\\frac{dy}{dt} = 0$ - a silent, plausible-looking zero rather than an error message. The same logic explains why the given rate is substituted last as well: it too describes one instant."
+  }
+ ]
+}

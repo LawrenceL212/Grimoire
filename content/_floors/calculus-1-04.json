@@ -1,0 +1,855 @@
+{
+ "n": 4,
+ "name": "The Rules of Descent",
+ "concepts": [
+  "power-rule",
+  "constant-and-sum-rules",
+  "product-rule",
+  "quotient-rule",
+  "chain-rule",
+  "trig-derivatives",
+  "exponential-and-log-derivatives",
+  "higher-derivatives"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "differentiation-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Rules of Descent",
+  "sections": [
+   {
+    "title": "Constants, Powers and Sums",
+    "body": "The derivative is a limit, $f'(x) = \\displaystyle\\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}$, and limits add and scale. That inherited fact gives the **sum rule** $(f+g)' = f' + g'$ and the **constant multiple rule** $(cf)' = cf'$ for free: differentiation is a *linear* operation, so a polynomial can be attacked one term at a time.\n\nA constant function has a horizontal graph, so its slope is $0$ everywhere - the difference quotient is $\\frac{c - c}{h} = 0$ before any limit is taken. The **power rule** $\\frac{d}{dx}x^n = nx^{n-1}$ comes from expanding $(x+h)^n$: the $h^1$ term contributes $nx^{n-1}h$, while every later term carries $h^2$ or higher and dies when divided by $h$ and sent to $0$.\n\nIt is worth knowing that the rule holds for **every real** exponent, not merely positive integers, even though the binomial argument only settles the integer case. That is what makes $\\frac{1}{x^3} = x^{-3}$ and $\\sqrt{x} = x^{1/2}$ tractable: rewrite as a power first, differentiate second.\n\nThe standing trap is applying the power rule to $2^x$. The rule wants the variable in the **base** with a constant exponent; $2^x$ has a constant base and a variable exponent, and its derivative is not $x\\,2^{x-1}$ but $2^x \\ln 2$ - a fact belonging to the exponential rules later on this floor.",
+    "code": "THE FOUR LINEAR RULES        (c constant, f and g differentiable)\n\n  d/dx [ c ]            = 0\n  d/dx [ x^n ]          = n x^(n-1)          for ANY real n\n  d/dx [ c f(x) ]       = c f'(x)\n  d/dx [ f(x) + g(x) ]  = f'(x) + g'(x)\n\nWORKED:  f(x) = 3x^5 - 7x^2 + 4x - 9\n\n  term        rewrite      derivative\n  3x^5        3 * x^5      3 * 5x^4      = 15x^4\n  -7x^2      -7 * x^2     -7 * 2x        = -14x\n  4x          4 * x^1      4 * 1         = 4\n  -9          constant     0             = 0\n\n  f'(x) = 15x^4 - 14x + 4\n\nREWRITE FIRST, THEN APPLY THE POWER RULE\n\n  1/x^3   = x^(-3)    ->  -3x^(-4)      = -3/x^4\n  sqrt(x) = x^(1/2)   ->  (1/2)x^(-1/2) = 1/(2 sqrt(x))\n  x^(2/3)             ->  (2/3)x^(-1/3)\n\nNOT the power rule:  2^x has a CONSTANT base and a VARIABLE exponent.\nThe power rule needs the variable in the base. d/dx 2^x = 2^x ln 2.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The exponent drops down in front and then decreases by one. Both halves matter: writing n x^n keeps the power unchanged and is the commonest slip."
+     },
+     {
+      "line": 14,
+      "text": "A constant contributes nothing. Learners who dutifully write -9 x^(-1) here have applied the power rule to something that is not a power of x at all."
+     },
+     {
+      "line": 20,
+      "text": "Rewriting is the whole trick for roots and reciprocals. Never try to differentiate 1/x^3 as a quotient - it is a power in disguise."
+     },
+     {
+      "line": 24,
+      "text": "Read the position of the variable before choosing a rule. Variable in the base means power rule; variable in the exponent means exponential rule."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Apply the power, constant and constant-multiple rules. Each blank is a single integer.",
+     "template": "d/dx (x^9)  = 9 x^___\nd/dx (x^-4) = ___ x^-5\nd/dx (5x^3) = ___ x^2\nd/dx (12)   = ___",
+     "blanks": [
+      "8",
+      "-4",
+      "15",
+      "0"
+     ],
+     "concepts": [
+      "power-rule",
+      "constant-and-sum-rules"
+     ],
+     "explain": "The exponent comes down as a factor and is then reduced by one, so $x^9 \\to 9x^8$ and $x^{-4} \\to -4x^{-5}$ - note $-4 - 1 = -5$, because reducing a negative exponent makes it *more* negative. The constant multiple $5$ rides along untouched: $5 \\cdot 3x^2 = 15x^2$. A constant has slope $0$; answering $12$ for the last blank means differentiating was skipped entirely."
+    }
+   },
+   {
+    "title": "Products and Quotients",
+    "body": "Differentiation is linear, so it distributes over sums - and the great temptation is to assume it distributes over products too. It does not, and one line kills the idea: take $f(x) = g(x) = x$, so $f'g' = 1 \\cdot 1 = 1$, but $(fg)(x) = x^2$ has derivative $2x$. **The derivative of a product is not the product of the derivatives.**\n\nThe correct statement is the **product rule** $(fg)' = f'g + fg'$, and the geometry explains the two terms. Think of a rectangle with sides $f$ and $g$: growing both sides adds a strip of area $g \\,\\Delta f$ along one edge and a strip $f \\,\\Delta g$ along the other, plus a tiny corner $\\Delta f \\,\\Delta g$ that is second order and vanishes in the limit. Each factor gets its turn to change while the other is held still.\n\nThe **quotient rule** $\\left(\\frac{f}{g}\\right)' = \\frac{f'g - fg'}{g^2}$ follows from the product rule, and its numerator is *not* symmetric: swapping the two terms flips the sign of the whole answer. Fix the order by the shape of the answer - the derivative of the top comes first, positively.\n\nWherever the algebra allows it, expanding a product or simplifying a quotient before differentiating is a legitimate check, and often less work. $(x^2+1)(x^3-2x)$ expands to $x^5 - x^3 - 2x$, and the two routes must agree.",
+    "code": "THE FAMOUS WRONG ANSWER\n\n  f(x) = x,  g(x) = x        f'(x) g'(x) = 1 * 1 = 1\n  f(x) g(x) = x^2            (f g)'      = 2x\n\n  1 is not 2x. So (f g)' is NOT f' g'.\n\nPRODUCT RULE     (f g)' = f' g + f g'\n\n  Picture a rectangle with sides f and g. Growing both sides adds a\n  strip g*(change in f) and a strip f*(change in g).\n\nWORKED:  y = (x^2 + 1)(x^3 - 2x)\n\n  f = x^2 + 1      f' = 2x\n  g = x^3 - 2x     g' = 3x^2 - 2\n\n  y' = 2x(x^3 - 2x) + (x^2 + 1)(3x^2 - 2)\n     = 2x^4 - 4x^2 + 3x^4 - 2x^2 + 3x^2 - 2\n     = 5x^4 - 3x^2 - 2\n\n  CHECK by expanding first: y = x^5 - x^3 - 2x, y' = 5x^4 - 3x^2 - 2.\n\nQUOTIENT RULE    (f/g)' = (f' g - f g') / g^2      order matters\n\nWORKED:  y = (x^2 - 1)/(x^2 + 1)\n\n  y' = [ 2x(x^2 + 1) - (x^2 - 1)(2x) ] / (x^2 + 1)^2\n     = [ 2x^3 + 2x - 2x^3 + 2x ] / (x^2 + 1)^2\n     = 4x / (x^2 + 1)^2",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Two lines of arithmetic settle it forever. If you ever doubt a proposed rule, test it on f = g = x before trusting it."
+     },
+     {
+      "line": 9,
+      "text": "Two strips, two terms. The missing corner is the product of two small changes, negligible compared with either strip on its own."
+     },
+     {
+      "line": 20,
+      "text": "Expanding first is not cheating - it is the check. Any product of polynomials can be verified this way in under a minute."
+     },
+     {
+      "line": 22,
+      "text": "f'g - fg', in that order, over g squared. Writing fg' - f'g negates every answer you produce, and the error is invisible in the working."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Differentiate $y = \\dfrac{3x+1}{x-2}$ with the quotient rule, simplifying the numerator completely. Then say what your answer's sign tells you about whether the function ever increases.",
+     "answer": "f = 3x+1 with f' = 3; g = x-2 with g' = 1. y' = [3(x-2) - (3x+1)(1)] / (x-2)^2 = (3x - 6 - 3x - 1)/(x-2)^2 = -7/(x-2)^2. The denominator is a square, so it is positive wherever it is defined; the numerator is the constant -7. Hence y' < 0 for every x other than 2, and the function is decreasing on each side of its asymptote - it never increases anywhere.",
+     "rubric": {
+      "required": [
+       "quotient",
+       "numerat",
+       "denominat",
+       "squar",
+       "decreas"
+      ],
+      "optional": [
+       "sign",
+       "negativ",
+       "asymptot",
+       "constant",
+       "simplif"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "quotient-rule"
+     ],
+     "explain": "The numerator is $3(x-2) - (3x+1)$, and the $3x$ terms cancel to leave the constant $-7$, so $y' = \\frac{-7}{(x-2)^2}$. Because $(x-2)^2 > 0$ everywhere it is defined, the sign of $y'$ is the sign of $-7$: always negative. Reversing the two numerator terms gives $+7/(x-2)^2$ and the exactly wrong conclusion, which is why the order in the quotient rule is worth memorising as a unit rather than reconstructed each time."
+    }
+   },
+   {
+    "title": "The Chain Rule",
+    "body": "Most functions in the wild are **compositions**: $\\sin(5x)$ is $\\sin$ applied to $5x$, and $(3x^2+5)^4$ is *fourth power* applied to $3x^2+5$. The **chain rule** says the derivative of $f(g(x))$ is $f'(g(x)) \\cdot g'(x)$ - differentiate the outer function at the inner value, then multiply by the derivative of the inner function.\n\nThe Leibniz form $\\frac{dy}{dx} = \\frac{dy}{du}\\cdot\\frac{du}{dx}$ makes the reason almost obvious: rates multiply. If $u$ changes three times as fast as $x$, and $y$ changes five times as fast as $u$, then $y$ changes fifteen times as fast as $x$. Gears in a train multiply their ratios, and the chain rule is that statement in the language of slopes.\n\nThe famous wrong answer here is $\\frac{d}{dx}\\sin(5x) = \\cos(5x)$, dropping the factor of $5$. Sanity-check it against the graph: $\\sin(5x)$ oscillates five times as fast as $\\sin x$, so its slopes must be five times as steep, and the correct derivative is $5\\cos(5x)$.\n\nTo find the outer function, ask what you would do **last** when evaluating the expression by hand for a given $x$. For $\\sqrt{x^2+1}$ you would add and then take the root, so the root is outer; for $\\ln(x^2+1)$ the logarithm is outer, giving $\\frac{1}{x^2+1}\\cdot 2x = \\frac{2x}{x^2+1}$.",
+    "code": "CHAIN RULE     y = f(g(x))    ->    y' = f'(g(x)) * g'(x)\n               Leibniz form:        dy/dx = dy/du * du/dx\n\nGears: if u turns 3 times as fast as x, and y turns 5 times as fast\nas u, then y turns 15 times as fast as x. Rates MULTIPLY.\n\nWORKED:  y = (3x^2 + 5)^4\n\n  outer  f(u) = u^4           f'(u) = 4u^3\n  inner  u = g(x) = 3x^2 + 5  g'(x) = 6x\n\n  y' = 4(3x^2 + 5)^3 * 6x = 24x (3x^2 + 5)^3\n\nWORKED:  y = sin(5x)\n\n  outer sin, inner 5x   ->   y' = cos(5x) * 5 = 5 cos(5x)\n\n  WRONG:  y' = cos(5x)       <- the inner derivative was dropped\n\nWORKED:  y = ln(x^2 + 1)\n\n  outer ln, inner x^2 + 1  ->  y' = (1/(x^2+1)) * 2x = 2x/(x^2+1)\n\nPEEL FROM THE OUTSIDE IN. Ask: what is the LAST operation I would\nperform on x if I evaluated this by hand? That one is the outer.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Rates multiply, they do not add. This is the whole content of the rule; the notation is only bookkeeping for it."
+     },
+     {
+      "line": 11,
+      "text": "Notice the inner function is copied unchanged inside the outer derivative. Differentiating it there as well is a second common error."
+     },
+     {
+      "line": 17,
+      "text": "sin(5x) wiggles five times as fast as sin x, so its slopes are five times as steep. The missing 5 is visible on the graph."
+     },
+     {
+      "line": 23,
+      "text": "This question resolves every ambiguity. For sin(x^2) you would square first and take the sine last, so sine is the outer function."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Each of these needs the chain rule. Supply the missing constant factor - a single integer per blank.",
+     "template": "d/dx (x^3 + 1)^5 = ___ x^2 (x^3 + 1)^4\nd/dx cos(4x)     = ___ sin(4x)\nd/dx e^(3x^2)    = ___ x e^(3x^2)",
+     "blanks": [
+      "15",
+      "-4",
+      "6"
+     ],
+     "concepts": [
+      "chain-rule",
+      "trig-derivatives",
+      "exponential-and-log-derivatives"
+     ],
+     "explain": "Outer $u^5$ gives $5(x^3+1)^4$ and the inner derivative is $3x^2$, so the factor is $5 \\cdot 3 = 15$. For $\\cos(4x)$ the outer derivative already carries a minus sign and the inner derivative contributes $4$, giving $-4$; answering $4$ loses the sign that belongs to cosine. The last one multiplies the inner derivative $6x$ by the exponential itself, so the constant is $6$ - and answering $1$ there is exactly the mistake of treating $e^{3x^2}$ as though it were $e^x$."
+    }
+   },
+   {
+    "title": "Sine, Cosine, Exponential, Logarithm - and Doing It Again",
+    "body": "Four derivatives have to be known cold: $(\\sin x)' = \\cos x$, $(\\cos x)' = -\\sin x$, $(e^x)' = e^x$ and $(\\ln x)' = \\frac{1}{x}$ for $x > 0$. The minus sign on cosine is forced by the picture: at $x = 0$ the cosine graph sits at its maximum with slope $0 = -\\sin 0$, and immediately afterwards it falls, so its derivative must be negative there.\n\nThat $e^x$ is its own derivative is not a coincidence but the *definition* of $e$: among all exponentials $a^x$ the derivative is $a^x$ times the constant $\\displaystyle\\lim_{h \\to 0}\\frac{a^h - 1}{h}$, and $e$ is precisely the base for which that constant equals $1$. Every other base pays a factor of $\\ln a$.\n\nDifferentiating a derivative gives the **second derivative** $f''$, then $f'''$, and in general $f^{(n)}$. If $f$ is position then $f'$ is velocity and $f''$ is acceleration; for a graph, $f''$ will turn out to measure concavity. A polynomial of degree $d$ is worn away one degree at a time and is identically zero from the $(d+1)$-th derivative onwards.\n\nSine, by contrast, never wears away: $\\sin \\to \\cos \\to -\\sin \\to -\\cos \\to \\sin$ is a cycle of length four, so $\\frac{d^4}{dx^4}\\sin x = \\sin x$ and any high derivative follows from the remainder of $n$ on division by $4$.",
+    "code": "THE FOUR YOU MEMORISE\n\n  d/dx sin x = cos x         d/dx e^x  = e^x\n  d/dx cos x = -sin x        d/dx ln x = 1/x        (x > 0)\n\nThe minus sign is not decoration: at x = 0 cosine is at a maximum,\nso its slope there must be 0 = -sin 0, and just after 0 it falls.\n\nHIGHER DERIVATIVES: differentiate, then differentiate again.\n\n  f'' = (f')'      f''' = (f'')'      f^(n) = nth derivative\n\n  f(x)    = x^4 - 3x^3 + 2x\n  f'(x)   = 4x^3 - 9x^2 + 2\n  f''(x)  = 12x^2 - 18x\n  f'''(x) = 24x - 18\n  f^(4)   = 24           f^(5) = 0    and 0 forever after\n\nSINE CYCLES WITH PERIOD 4\n\n  sin -> cos -> -sin -> -cos -> sin       so d^4/dx^4 sin x = sin x\n  hence d^100/dx^100 sin x = sin x, because 100 = 4 * 25 exactly.\n\nln x LEAVES A PATTERN TOO\n\n  (ln x)' = x^(-1)    (ln x)'' = -x^(-2)    (ln x)''' = 2x^(-3)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Derive the sign from the graph rather than memorising it. A maximum has slope zero, and what follows a maximum is a decrease."
+     },
+     {
+      "line": 16,
+      "text": "Degree four dies at the fifth derivative. Every polynomial is eventually annihilated, which is exactly what transcendental functions never do."
+     },
+     {
+      "line": 20,
+      "text": "Divide n by 4 and keep the remainder: 0 gives sin, 1 gives cos, 2 gives -sin, 3 gives -cos. No hundredth derivative need ever be computed."
+     },
+     {
+      "line": 25,
+      "text": "Each step is the power rule applied to x^(-k), which is why the signs alternate and the coefficients grow like factorials."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Differentiate $\\sin x$ repeatedly. Write each answer in one of the forms `cos x`, `-sin x`, `-cos x` or `sin x`.",
+     "steps": [
+      {
+       "label": "first derivative of sin x",
+       "expected": "cos x"
+      },
+      {
+       "label": "second derivative of sin x",
+       "expected": "-sin x"
+      },
+      {
+       "label": "third derivative of sin x",
+       "expected": "-cos x"
+      },
+      {
+       "label": "fourth derivative of sin x",
+       "expected": "sin x"
+      }
+     ],
+     "concepts": [
+      "trig-derivatives",
+      "higher-derivatives"
+     ],
+     "explain": "Each step applies $(\\sin)' = \\cos$ and $(\\cos)' = -\\sin$, carrying any minus sign along untouched: $\\sin \\to \\cos \\to -\\sin \\to -\\cos \\to \\sin$. The cycle closes after four steps, so $\\frac{d^4}{dx^4}\\sin x = \\sin x$. The usual error is losing a sign at the third step; keep the minus outside and differentiate only the function, so that $(-\\sin x)' = -\\cos x$ rather than $\\cos x$."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "calc1-4-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Differentiate using the power, constant-multiple and sum rules. Every blank is a single integer.",
+   "template": "d/dx (4x^3 - 2x + 7) = ___ x^2 - 2\nd/dx (6/x^2)         = ___ / x^3\nd/dx sqrt(x)         = 1 / (___ sqrt(x))\nd/dx (-11)           = ___",
+   "blanks": [
+    "12",
+    "-12",
+    "2",
+    "0"
+   ],
+   "concepts": [
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "tags": [
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "xp": 24,
+   "hint": "Rewrite $6/x^2$ as $6x^{-2}$ and $\\sqrt{x}$ as $x^{1/2}$ before differentiating.",
+   "explain": "Term by term: $4x^3 \\to 12x^2$, $-2x \\to -2$, and the constant $7 \\to 0$. Rewriting $6/x^2$ as $6x^{-2}$ gives $-12x^{-3} = -12/x^3$ - the exponent $-2$ drops down as a factor and then decreases to $-3$, so the answer is negative although every visible number was positive. And $\\sqrt{x} = x^{1/2}$ gives $\\tfrac12 x^{-1/2} = \\frac{1}{2\\sqrt{x}}$, which is why the slope of a square root blows up at $0$."
+  },
+  {
+   "id": "calc1-4-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of applying the chain rule to a composite function into the correct order.",
+   "fragments": [
+    "Read the expression from the outside in, naming the outer function f and the inner function u = g(x).",
+    "Differentiate the outer function, leaving the inner function sitting unchanged inside it: f'(g(x)).",
+    "Differentiate the inner function on its own: g'(x).",
+    "Multiply the two derivatives together.",
+    "Simplify, and check that a factor of g'(x) really is present in the answer."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "chain-rule"
+   ],
+   "tags": [
+    "chain-rule"
+   ],
+   "xp": 24,
+   "explain": "Nothing can be differentiated until the composition has been split, so identifying outer and inner comes first. The outer derivative must be evaluated *at the inner function*, not at $x$, which is why the inner expression is copied across unchanged before being differentiated separately. The final check earns its place because the commonest chain-rule error is producing an answer with no $g'(x)$ factor in it at all."
+  },
+  {
+   "id": "calc1-4-gp-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = (x^2+1)(x^3-2x)$ with the product rule and simplify. Then expand the original product and differentiate again to check the two agree, and give $y'(1)$.",
+   "answer": "Product rule with f = x^2+1, f' = 2x, g = x^3-2x, g' = 3x^2-2: y' = 2x(x^3-2x) + (x^2+1)(3x^2-2) = 2x^4 - 4x^2 + 3x^4 - 2x^2 + 3x^2 - 2 = 5x^4 - 3x^2 - 2. Expanding first gives y = x^5 - x^3 - 2x, whose term-by-term derivative is also 5x^4 - 3x^2 - 2. At x = 1, y'(1) = 5 - 3 - 2 = 0, so the curve has a horizontal tangent there.",
+   "rubric": {
+    "required": [
+     "product",
+     "deriv",
+     "expand",
+     "zero"
+    ],
+    "optional": [
+     "term",
+     "check",
+     "tangent",
+     "horizontal",
+     "agree",
+     "simplif"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "product-rule",
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "tags": [
+    "product-rule",
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "xp": 60,
+   "hint": "Each factor takes a turn at being differentiated while the other is left alone.",
+   "explain": "The product rule gives $2x(x^3-2x) + (x^2+1)(3x^2-2)$, which collapses to $5x^4 - 3x^2 - 2$; expanding first to $x^5 - x^3 - 2x$ produces the identical derivative, which is the point of running both routes. The wrong answer worth naming is $f'g' = 2x(3x^2-2) = 6x^3 - 4x$, a cubic where the truth is a quartic - the product of the derivatives has the wrong degree, let alone the wrong value. At $x = 1$ the derivative is zero, so the tangent there is horizontal."
+  },
+  {
+   "id": "calc1-4-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = \\dfrac{x^2-1}{x^2+1}$ with the quotient rule, simplifying the numerator fully. State where $y' = 0$, and explain what would have gone wrong had you written the numerator as $fg' - f'g$.",
+   "answer": "f = x^2-1 with f' = 2x; g = x^2+1 with g' = 2x. y' = [2x(x^2+1) - (x^2-1)(2x)] / (x^2+1)^2 = [2x^3 + 2x - 2x^3 + 2x]/(x^2+1)^2 = 4x/(x^2+1)^2. It is zero exactly at x = 0, negative for x < 0 and positive for x > 0. Writing the numerator in the reversed order fg' - f'g would give -4x/(x^2+1)^2, the exact negative, so the function would appear to increase where it in fact decreases - and no algebraic step would look suspicious.",
+   "rubric": {
+    "required": [
+     "quotient",
+     "numerat",
+     "denominat",
+     "squar",
+     "sign"
+    ],
+    "optional": [
+     "zero",
+     "increas",
+     "decreas",
+     "cancel",
+     "revers",
+     "order"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "quotient-rule",
+    "power-rule"
+   ],
+   "tags": [
+    "quotient-rule",
+    "power-rule"
+   ],
+   "xp": 60,
+   "hint": "The two $2x^3$ terms cancel, and the two $2x$ terms add.",
+   "explain": "Subtracting kills the $2x^3$ terms and doubles the $2x$ terms, leaving $y' = \\frac{4x}{(x^2+1)^2}$, zero only at $x = 0$ - which matches the graph, since $y = 1 - \\frac{2}{x^2+1}$ has its minimum there. The denominator is squared and hence always positive, so the sign of $y'$ is decided entirely by the numerator. Reversing the numerator negates the answer while leaving the working visually plausible, which is precisely why quotient-rule sign errors survive a re-read."
+  },
+  {
+   "id": "calc1-4-gp-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Apply the chain rule to $y = (x^3+1)^5$ at the point $x = 1$, one factor at a time. Every answer is a plain integer.",
+   "steps": [
+    {
+     "label": "value of the inner function u = x^3 + 1 at x = 1",
+     "expected": "2"
+    },
+    {
+     "label": "du/dx = 3x^2 at x = 1",
+     "expected": "3"
+    },
+    {
+     "label": "dy/du = 5u^4 evaluated at that u",
+     "expected": "80"
+    },
+    {
+     "label": "dy/dx at x = 1",
+     "expected": "240"
+    }
+   ],
+   "concepts": [
+    "chain-rule",
+    "power-rule"
+   ],
+   "tags": [
+    "chain-rule",
+    "power-rule"
+   ],
+   "xp": 48,
+   "hint": "$\\frac{dy}{du}$ must be evaluated at $u = g(1)$, not at $x = 1$.",
+   "explain": "Here $u = 2$, so $\\frac{dy}{du} = 5u^4 = 5 \\cdot 16 = 80$, while $\\frac{du}{dx} = 3$; the rates multiply to $240$, which agrees with $\\frac{dy}{dx} = 15x^2(x^3+1)^4$ at $x = 1$. The step that goes wrong most often is the third: evaluating $5u^4$ at $u = 1$ rather than at $u = g(1) = 2$ gives $5$ and a final answer of $15$. The outer derivative always wants the *inner value*, which is what $f'(g(x))$ literally says."
+  }
+ ],
+ "differentiation-workshop": [
+  {
+   "id": "calc1-4-ws-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = (3x^2+5)^4$ and evaluate $y'(1)$. Then differentiate $y = \\sqrt{x^2+1}$, naming the outer and inner functions in each case.",
+   "answer": "For (3x^2+5)^4 the outer function is u^4 and the inner is u = 3x^2+5, so y' = 4(3x^2+5)^3 * 6x = 24x(3x^2+5)^3. At x = 1 the inner value is 8, so y'(1) = 24 * 8^3 = 24 * 512 = 12288. For sqrt(x^2+1), rewrite as (x^2+1)^(1/2): the outer is the one-half power, the inner is x^2+1, and y' = (1/2)(x^2+1)^(-1/2) * 2x = x/sqrt(x^2+1).",
+   "rubric": {
+    "required": [
+     "outer",
+     "inner",
+     "chain",
+     "multipl"
+    ],
+    "optional": [
+     "power",
+     "rewrit",
+     "evaluat",
+     "factor",
+     "root",
+     "substitut"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "chain-rule",
+    "power-rule"
+   ],
+   "tags": [
+    "chain-rule",
+    "power-rule"
+   ],
+   "xp": 60,
+   "hint": "Rewrite the square root as a power of one half, and it becomes the same problem twice.",
+   "explain": "Both are the power rule wrapped around an inner function, so both pick up a factor of $g'(x)$: $24x(3x^2+5)^3$ and $\\frac{2x}{2\\sqrt{x^2+1}} = \\frac{x}{\\sqrt{x^2+1}}$. At $x = 1$ the first gives $24 \\cdot 512 = 12288$; expanding $(3x^2+5)^4$ first also works but costs far more algebra for the same number. Writing $\\frac{d}{dx}\\sqrt{x^2+1} = \\frac{1}{2\\sqrt{x^2+1}}$ is the classic omission - the inner $2x$ is exactly what makes the derivative vanish at $x = 0$, where the graph has its minimum."
+  },
+  {
+   "id": "calc1-4-ws-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = x^2 \\sin(3x)$. Say which rule you apply first and which is nested inside it, and give $y'$ in fully simplified form.",
+   "answer": "The outermost structure is a product of x^2 and sin(3x), so the product rule comes first; the chain rule is needed inside it to differentiate sin(3x). With f = x^2, f' = 2x, g = sin(3x), g' = 3cos(3x), the product rule gives y' = 2x sin(3x) + x^2 * 3cos(3x) = 2x sin(3x) + 3x^2 cos(3x). Both terms are required: dropping the second treats sin(3x) as a constant, and writing cos(3x) without the 3 drops the inner derivative.",
+   "rubric": {
+    "required": [
+     "product",
+     "chain",
+     "cos",
+     "inner",
+     "term"
+    ],
+    "optional": [
+     "nest",
+     "factor",
+     "outer",
+     "simplif",
+     "trigonometric",
+     "three"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "product-rule",
+    "chain-rule",
+    "trig-derivatives"
+   ],
+   "tags": [
+    "product-rule",
+    "chain-rule",
+    "trig-derivatives"
+   ],
+   "xp": 60,
+   "hint": "Ask what the last operation would be if you evaluated $y$ by hand at a number: you would multiply.",
+   "explain": "The last thing you would do when evaluating is multiply, so the product rule is outermost and the chain rule handles $\\sin(3x)$ inside it, giving $y' = 2x\\sin(3x) + 3x^2\\cos(3x)$. Two separate famous errors lurk here: $2x \\cdot 3\\cos(3x)$ multiplies the derivatives instead of applying the product rule, and $2x\\sin(3x) + x^2\\cos(3x)$ forgets the chain factor of $3$. Choosing which rule is outermost by the *structure* rather than by reading order is what keeps nested rules straight."
+  },
+  {
+   "id": "calc1-4-ws-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the derivative of a product is not the product of the derivatives. Give an explicit counterexample with your own functions, and say what the second term of the product rule is measuring that a naive $f'g'$ misses entirely.",
+   "rubric": {
+    "required": [
+     "product",
+     "counterexample",
+     "term",
+     "deriv",
+     "chang"
+    ],
+    "optional": [
+     "rectangle",
+     "linear",
+     "sum",
+     "constant",
+     "area",
+     "strip"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "product-rule"
+   ],
+   "tags": [
+    "product-rule"
+   ],
+   "xp": 24,
+   "explain": "Differentiation is linear, so it commutes with sums and constant multiples - but linearity says nothing whatever about products, and one counterexample settles it: $f = g = x$ gives $(fg)' = (x^2)' = 2x$ while $f'g' = 1$. The product rule's two terms record two independent contributions to the change in $fg$: one where $f$ changes with $g$ held still, one where $g$ changes with $f$ held still, exactly like the two strips added to a growing rectangle. The naive $f'g'$ instead measures the *corner*, a product of two small changes, which is the one contribution negligible in the limit. A quick sanity check: if $g$ is constant then $g' = 0$, so $f'g'$ would claim every such derivative is zero."
+  },
+  {
+   "id": "calc1-4-ws-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = \\dfrac{e^x}{x^2+1}$, factorising the numerator of your answer. Then differentiate $y = \\ln(x^2+1)$. State which rules each one needs, and say what the factorised form of the first derivative tells you about the sign of $y'$.",
+   "answer": "The first needs the quotient rule with f = e^x, f' = e^x, g = x^2+1, g' = 2x: y' = [e^x(x^2+1) - e^x(2x)]/(x^2+1)^2 = e^x(x^2-2x+1)/(x^2+1)^2 = e^x(x-1)^2/(x^2+1)^2. Since e^x > 0 and both remaining factors are squares, y' >= 0 everywhere, vanishing only at x = 1, so the function never decreases. The second needs the chain rule with the logarithm outside: y' = (1/(x^2+1)) * 2x = 2x/(x^2+1).",
+   "rubric": {
+    "required": [
+     "quotient",
+     "chain",
+     "exponen",
+     "logar",
+     "squar"
+    ],
+    "optional": [
+     "factoris",
+     "positiv",
+     "sign",
+     "never",
+     "inner",
+     "vanish"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "quotient-rule",
+    "exponential-and-log-derivatives",
+    "chain-rule"
+   ],
+   "tags": [
+    "quotient-rule",
+    "exponential-and-log-derivatives",
+    "chain-rule"
+   ],
+   "xp": 60,
+   "hint": "$e^x$ is a common factor of both numerator terms, and what is left is a perfect square.",
+   "explain": "Because $e^x$ is its own derivative it factors straight out of the numerator, leaving $x^2 - 2x + 1 = (x-1)^2$, so $y' = \\frac{e^x(x-1)^2}{(x^2+1)^2} \\ge 0$ with equality only at $x = 1$: a stationary point that is not a turning point at all. The logarithm is a pure chain rule, and writing $\\frac{d}{dx}\\ln(x^2+1) = \\frac{1}{x^2+1}$ is the standard omission - the missing $2x$ is what makes the derivative negative for $x < 0$, as it must be on a function decreasing towards its minimum at the origin."
+  },
+  {
+   "id": "calc1-4-ws-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = x^4 - 3x^3 + 2x$. Compute $f''$, $f'''$, $f^{(4)}$ and $f^{(5)}$, and say what happens to every derivative after that. Then give $\\dfrac{d^{100}}{dx^{100}}\\sin x$, justifying it without computing a hundred derivatives, and contrast the two behaviours.",
+   "answer": "f'(x) = 4x^3 - 9x^2 + 2, f''(x) = 12x^2 - 18x, f'''(x) = 24x - 18, f^(4)(x) = 24, and f^(5)(x) = 0 - as is every derivative beyond the fifth, because each differentiation lowers the degree by one and a degree-four polynomial survives only four of them. Sine never wears away: sin -> cos -> -sin -> -cos -> sin is a cycle of length four, so d^100/dx^100 sin x = sin x, since 100 = 4 * 25 leaves remainder 0.",
+   "rubric": {
+    "required": [
+     "second",
+     "third",
+     "polynomial",
+     "zero",
+     "cycl"
+    ],
+    "optional": [
+     "degree",
+     "remainder",
+     "repeat",
+     "constant",
+     "period",
+     "lower"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "higher-derivatives",
+    "power-rule",
+    "trig-derivatives"
+   ],
+   "tags": [
+    "higher-derivatives",
+    "power-rule",
+    "trig-derivatives"
+   ],
+   "xp": 60,
+   "hint": "Divide $100$ by $4$ and keep only the remainder.",
+   "explain": "Each differentiation drops a polynomial's degree by one, so $x^4 - 3x^3 + 2x$ reaches the constant $24$ at the fourth derivative and is annihilated at the fifth - and stays annihilated. Sine is the opposite case: its derivatives cycle with period four, so only $100$ modulo $4 = 0$ matters and the answer is $\\sin x$ itself. The tempting error is reading the cycle as period two because $f'' = -\\sin x$ *looks* like $\\sin x$; the sign is part of the function, and it takes two more steps to return."
+  }
+ ],
+ "exam": [
+  {
+   "id": "calc1-4-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The chain rule states that for $y = f(g(x))$, the derivative $\\frac{dy}{dx}$ equals:",
+   "choices": [
+    "$f'(g(x)) \\cdot g'(x)$",
+    "$f'(x) \\cdot g'(x)$",
+    "$f'(g'(x))$",
+    "$f'(g(x)) + g'(x)$"
+   ],
+   "answer": 0,
+   "concepts": [
+    "chain-rule"
+   ],
+   "tags": [
+    "chain-rule"
+   ],
+   "xp": 12,
+   "explain": "The outer derivative is evaluated **at the inner function** and then multiplied by the inner derivative - in Leibniz form $\\frac{dy}{dx} = \\frac{dy}{du}\\frac{du}{dx}$, because rates multiply. Option two differentiates the outer function at $x$ rather than at $g(x)$, which already fails on $\\sin(5x)$; option three composes the derivatives instead of multiplying them, and option four would make $\\frac{d}{dx}\\sin(5x) = \\cos(5x) + 5$, which is not even a multiple of a cosine."
+  },
+  {
+   "id": "calc1-4-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The quotient rule states that $\\left(\\dfrac{f}{g}\\right)'$ equals:",
+   "choices": [
+    "$\\dfrac{f'}{g'}$",
+    "$\\dfrac{fg' - f'g}{g^2}$",
+    "$\\dfrac{f'g - fg'}{g^2}$",
+    "$\\dfrac{f'g - fg'}{g}$"
+   ],
+   "answer": 2,
+   "concepts": [
+    "quotient-rule"
+   ],
+   "tags": [
+    "quotient-rule"
+   ],
+   "xp": 12,
+   "explain": "The derivative of the numerator comes first and positively: $\\frac{f'g - fg'}{g^2}$. Option two is that same expression negated, and it is the single most common way to be consistently wrong while showing correct-looking working. Option one is the quotient analogue of the product fallacy - it fails on $f = x^2$, $g = x$, where the truth is $1$ and it claims $2x$ - and option four has the wrong power in the denominator, which you can catch by testing a constant $g$."
+  },
+  {
+   "id": "calc1-4-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Give the four elementary derivatives. Write them exactly in the forms `cos x`, `-sin x`, `e^x` and `1/x`.",
+   "template": "d/dx sin x = ___\nd/dx cos x = ___\nd/dx e^x   = ___\nd/dx ln x  = ___",
+   "blanks": [
+    "cos x",
+    "-sin x",
+    "e^x",
+    "1/x"
+   ],
+   "concepts": [
+    "trig-derivatives",
+    "exponential-and-log-derivatives"
+   ],
+   "tags": [
+    "trig-derivatives",
+    "exponential-and-log-derivatives"
+   ],
+   "xp": 24,
+   "explain": "Only cosine picks up a minus sign, and the graph explains why: cosine starts at a maximum and immediately falls. The exponential $e^x$ is the unique function equal to its own derivative, which is exactly what singles out the base $e$ from every other $a^x$. And $(\\ln x)' = \\frac{1}{x}$ is the reason the logarithm grows without bound yet ever more slowly - its slope decays but never reaches zero."
+  },
+  {
+   "id": "calc1-4-ex-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Apply the power rule where it is legal. The first three blanks are integers; the last is `yes` or `no`.",
+   "template": "d/dx (x^12)     = 12 x^___\nd/dx (1/x)      = ___ / x^2\nd/dx (x^7 - 4x) = 7x^6 - ___\nMay the power rule be used on 2^x? ___",
+   "blanks": [
+    "11",
+    "-1",
+    "4",
+    "no"
+   ],
+   "concepts": [
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "tags": [
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "xp": 24,
+   "explain": "$x^{12} \\to 12x^{11}$, and $1/x = x^{-1} \\to -x^{-2} = -1/x^2$, where the minus sign is the whole content of the answer. The sum rule handles $x^7 - 4x$ one term at a time, and $-4x$ contributes $-4$. The power rule requires the variable in the **base**; $2^x$ has a variable exponent, so the answer is no - $x\\,2^{x-1}$ is the celebrated wrong answer here, while the truth is $2^x\\ln 2$."
+  },
+  {
+   "id": "calc1-4-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these four expressions as the first, second, third and fourth derivatives of $\\cos x$.",
+   "fragments": [
+    "-cos x",
+    "sin x",
+    "-sin x",
+    "cos x"
+   ],
+   "answer": [
+    2,
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "trig-derivatives",
+    "higher-derivatives"
+   ],
+   "tags": [
+    "trig-derivatives",
+    "higher-derivatives"
+   ],
+   "xp": 24,
+   "explain": "Cosine differentiates to $-\\sin x$, that to $-\\cos x$, that to $\\sin x$, and that back to $\\cos x$ - the same four-step cycle as sine, entered one step further along. The signs are the whole difficulty: a minus sign is carried through the next differentiation unchanged, so $(-\\sin x)' = -\\cos x$ rather than $\\cos x$. Because the cycle has length four, $\\frac{d^{4k}}{dx^{4k}}\\cos x = \\cos x$ for every $k$."
+  },
+  {
+   "id": "calc1-4-ex-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "For $f(x) = x^4 - 3x^3 + 2x$, evaluate the derivatives requested. Every answer is a plain integer.",
+   "steps": [
+    {
+     "label": "f'(1)",
+     "expected": "-3"
+    },
+    {
+     "label": "f''(2)",
+     "expected": "12"
+    },
+    {
+     "label": "f'''(1)",
+     "expected": "6"
+    },
+    {
+     "label": "f^(5)(x), for every x",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "higher-derivatives",
+    "power-rule"
+   ],
+   "tags": [
+    "higher-derivatives",
+    "power-rule"
+   ],
+   "xp": 48,
+   "explain": "Differentiating in turn gives $f' = 4x^3 - 9x^2 + 2$, $f'' = 12x^2 - 18x$ and $f''' = 24x - 18$, so $f'(1) = 4 - 9 + 2 = -3$, $f''(2) = 48 - 36 = 12$ and $f'''(1) = 6$. The fourth derivative is the constant $24$, so the fifth is identically zero and so is every derivative after it. Substituting before differentiating - computing $f(1) = 0$ and then differentiating a number - is the error that turns every one of these into zero."
+  },
+  {
+   "id": "calc1-4-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = (2x+1)^3(x-5)$, using the product rule with the chain rule nested inside it, then factorise your answer as far as possible.",
+   "answer": "Take f = (2x+1)^3 and g = x-5. The chain rule gives f' = 3(2x+1)^2 * 2 = 6(2x+1)^2, and g' = 1. The product rule then gives y' = 6(2x+1)^2(x-5) + (2x+1)^3. Factor out (2x+1)^2: y' = (2x+1)^2 [6(x-5) + (2x+1)] = (2x+1)^2 (6x - 30 + 2x + 1) = (2x+1)^2(8x - 29). So y' = 0 at x = -1/2 and at x = 29/8.",
+   "rubric": {
+    "required": [
+     "product",
+     "chain",
+     "factor",
+     "inner"
+    ],
+    "optional": [
+     "nest",
+     "common",
+     "simplif",
+     "zero",
+     "squar",
+     "expand"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "product-rule",
+    "chain-rule",
+    "power-rule"
+   ],
+   "tags": [
+    "product-rule",
+    "chain-rule",
+    "power-rule"
+   ],
+   "xp": 60,
+   "hint": "$(2x+1)^2$ is a common factor of both terms; take it out before expanding anything.",
+   "explain": "The chain rule supplies the factor $2$ inside $f' = 6(2x+1)^2$ - omitting it gives $3(2x+1)^2$ and quietly halves that whole term. Pulling out the common $(2x+1)^2$ before expanding turns a messy quartic into $(2x+1)^2(8x-29)$, from which the stationary points $x = -\\frac12$ and $x = \\frac{29}{8}$ can simply be read off. Expanding everything first is not wrong, only slower, and it hides the factorisation that carries all the useful information."
+  },
+  {
+   "id": "calc1-4-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Differentiate $y = \\dfrac{x+1}{x^2}$ twice over: once with the quotient rule, and once by first rewriting it as a sum of powers of $x$. Show that the two answers agree.",
+   "answer": "Quotient rule with f = x+1, f' = 1, g = x^2, g' = 2x: y' = [1*x^2 - (x+1)(2x)]/x^4 = [x^2 - 2x^2 - 2x]/x^4 = (-x^2 - 2x)/x^4 = -(x+2)/x^3. Rewriting instead: y = x^-1 + x^-2, so y' = -x^-2 - 2x^-3 = -(1/x^2) - (2/x^3), and over the common denominator x^3 that is -(x+2)/x^3. The two agree.",
+   "rubric": {
+    "required": [
+     "quotient",
+     "rewrit",
+     "power",
+     "denominat",
+     "agree"
+    ],
+    "optional": [
+     "cancel",
+     "common",
+     "negativ",
+     "simplif",
+     "check",
+     "sum"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "quotient-rule",
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "tags": [
+    "quotient-rule",
+    "power-rule",
+    "constant-and-sum-rules"
+   ],
+   "xp": 60,
+   "hint": "Split the fraction into $\\frac{x}{x^2} + \\frac{1}{x^2}$ before rewriting as powers.",
+   "explain": "Both routes give $y' = -\\frac{x+2}{x^3}$, and the second is much shorter: splitting the fraction turns the problem into $x^{-1} + x^{-2}$, which the power and sum rules finish in one line. The quotient-rule route is where an $x^4$ survives uncancelled in the denominator if the numerator is not factorised - $\\frac{-x^2-2x}{x^4}$ is correct but unfinished. The moral is that the quotient rule is a tool of last resort: when the denominator is a single power, rewriting always wins."
+  },
+  {
+   "id": "calc1-4-ex-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the chain rule must include the factor $g'(x)$, using $\\frac{d}{dx}\\sin(5x)$ as your example. Say what the wrong answer $\\cos(5x)$ would imply about the graph, and describe how the rates-multiply reading of $\\frac{dy}{dx} = \\frac{dy}{du}\\frac{du}{dx}$ makes the extra factor inevitable.",
+   "rubric": {
+    "required": [
+     "inner",
+     "outer",
+     "rate",
+     "multipl",
+     "steep"
+    ],
+    "optional": [
+     "compress",
+     "graph",
+     "oscillat",
+     "factor",
+     "five",
+     "slope"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "chain-rule",
+    "trig-derivatives"
+   ],
+   "tags": [
+    "chain-rule",
+    "trig-derivatives"
+   ],
+   "xp": 24,
+   "explain": "The inner function $u = 5x$ compresses the horizontal axis by a factor of five, so $\\sin(5x)$ completes five oscillations where $\\sin x$ completes one; the same rise happens over a fifth of the run, so every slope is five times as steep and the derivative must be $5\\cos(5x)$. The answer $\\cos(5x)$ has maximum slope $1$, which would mean squashing a graph horizontally leaves its steepness untouched - visibly false. In the Leibniz reading, $y$ changes at $\\frac{dy}{du}$ per unit of $u$ while $u$ changes at $\\frac{du}{dx}$ per unit of $x$, and composing two rates multiplies them, exactly as gear ratios compose."
+  },
+  {
+   "id": "calc1-4-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $y = e^{2x}$. Find $y'$, $y''$ and a formula for $y^{(n)}$, and use it to give $y^{(5)}$. Then explain why $e^{2x}$ is not its own derivative even though $e^x$ is.",
+   "answer": "The chain rule with outer e^u and inner u = 2x gives y' = 2e^(2x). Differentiating again multiplies by 2 once more: y'' = 4e^(2x), and in general y^(n) = 2^n e^(2x), so y^(5) = 32 e^(2x). e^x is its own derivative because its inner function is x, whose derivative is 1; e^(2x) has inner function 2x, whose derivative is 2, and that factor of 2 is picked up on every differentiation. The self-derivative property belongs to e^x specifically, not to exponentials in general.",
+   "rubric": {
+    "required": [
+     "chain",
+     "inner",
+     "factor",
+     "exponen",
+     "repeat"
+    ],
+    "optional": [
+     "power",
+     "constant",
+     "pattern",
+     "induct",
+     "itself",
+     "multipl"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "exponential-and-log-derivatives",
+    "chain-rule",
+    "higher-derivatives"
+   ],
+   "tags": [
+    "exponential-and-log-derivatives",
+    "chain-rule",
+    "higher-derivatives"
+   ],
+   "xp": 60,
+   "hint": "Differentiate three times and look at what multiplies $e^{2x}$ each time.",
+   "explain": "Every differentiation reproduces the exponential and pulls out one more copy of the inner derivative, so $y^{(n)} = 2^n e^{2x}$ and $y^{(5)} = 32e^{2x}$. The self-derivative property is a statement about $e^x$ alone: its inner function is $x$ with derivative $1$, so the chain factor is invisible. Reading it as '$e$ to anything is its own derivative' is the error, and it would give $y^{(5)} = e^{2x}$ - wrong by a factor of $32$, and the discrepancy grows without bound as $n$ increases."
+  }
+ ]
+}

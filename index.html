@@ -1437,7 +1437,16 @@ function gradeRubric(text, rubric) {
   const r = rubric || {};
   const body = String(text || "");
   const words = body.trim().split(/\s+/).filter(Boolean).length;
-  const hit = (kw) => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(body);
+  // \b before a NON-word character is not the boundary an author expects:
+  // /\b-1\/9/ needs a word character immediately before the minus, so a
+  // plainly written " -1/9" never matches and that keyword can never be hit.
+  // A required keyword that can never be hit makes its challenge unpassable,
+  // so anchor only when the keyword really starts with a word character.
+  const hit = (kw) => {
+    const lit = String(kw).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const anchor = /^\w/.test(String(kw)) ? "\\b" : "";
+    return new RegExp(anchor + lit, "i").test(body);
+  };
 
   const req = r.required || [], opt = r.optional || [], bad = r.forbidden || [];
   const reqHits = req.filter(hit), optHits = opt.filter(hit), badHits = bad.filter(hit);

@@ -1,0 +1,820 @@
+{
+ "n": 1,
+ "name": "Approach Without Arrival",
+ "concepts": [
+  "limit-intuition",
+  "one-sided-limits",
+  "limits-that-fail",
+  "limit-laws",
+  "indeterminate-forms",
+  "squeeze-theorem",
+  "epsilon-delta"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "limit-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Approach Without Arrival",
+  "sections": [
+   {
+    "title": "Approaching Without Arriving",
+    "body": "Every question calculus asks is really the same question: what happens to a quantity as something else closes in on a value it never reaches? The speed of a falling stone at an instant is an average speed over an interval of length zero; the slope of a curve at a point is a rise over a run of zero. Written down honestly both are $\\frac{0}{0}$, which is not a number. The **limit** is the machinery that rescues these questions.\n\nTake $f(x) = \\frac{x^2 - 1}{x - 1}$. At $x = 1$ it is genuinely undefined - there is a hole punched in the graph. But ask instead what $f$ does near $1$, and the answer is completely unambiguous: feed in $0.999$ and you get $1.999$, feed in $1.001$ and you get $2.001$. The output is closing in on $2$ from both sides, and nothing about the missing point interferes.\n\nThat is the whole idea. We write $\\displaystyle\\lim_{x \\to 1} f(x) = 2$, and this says **nothing whatever about $f(1)$**. The definition deliberately excludes $x = a$, because the interesting cases are precisely the ones where the function is broken or undefined at the point in question. A limit that merely reported $f(a)$ would be a machine for telling you what you already knew.\n\nSo read $\\lim_{x \\to a} f(x) = L$ as: the values of $f$ can be forced as close to $L$ as anyone demands, by taking $x$ close enough to $a$ - but not equal to it. Three words carry the load: **forced**, **anyone**, and **not equal**.",
+    "code": "f(x) = (x^2 - 1) / (x - 1)          domain: every real number EXCEPT x = 1\n\n  x        0.9      0.99     0.999   |  1  |   1.001    1.01     1.1\n  f(x)     1.9      1.99     1.999   | --- |   2.001    2.01     2.1\n\nAt x = 1 the formula reads 0/0, which is not a number, so f(1) does not exist.\nEverywhere else the factorisation is legal:\n\n      x^2 - 1       (x - 1)(x + 1)\n     ---------  =  ----------------  =  x + 1        (for x =/= 1)\n       x - 1            x - 1\n\nSo f agrees with the line y = x + 1 everywhere except at the single punched-out\npoint (1, 2).  The table closes in on 2 from both sides.\n\n     lim   f(x)  =  2          while       f(1)  is undefined\n    x->1\n\nThe limit is a statement about the NEIGHBOURHOOD of 1, never about 1 itself.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The excluded point is not an accident of this example - it is the normal situation. Derivatives are built entirely from functions undefined at the very point of interest."
+     },
+     {
+      "line": 4,
+      "text": "Read the table outward-in from both ends. Approaching from below and from above must reach the same destination, or there is no limit at all."
+     },
+     {
+      "line": 10,
+      "text": "The cancellation is legal because x is never equal to 1 - dividing by (x - 1) requires exactly that. This is why factoring solves 0/0 rather than cheating at it."
+     },
+     {
+      "line": 16,
+      "text": "Say this out loud: the limit is 2, and f(1) does not exist. Both statements are true at once, and getting comfortable with that is most of the battle."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For $f(x) = \\dfrac{x^2 - 1}{x - 1}$, fill in the two facts. Write the limit as a number, and write `undefined` for the value.",
+     "template": "lim (x->1) f(x) = ___\nf(1)            = ___",
+     "blanks": [
+      "2",
+      "undefined"
+     ],
+     "hint": "One of these questions looks at the neighbourhood of 1; the other looks at 1 itself.",
+     "explain": "The limit is $2$ because $f$ agrees with $x + 1$ at every point except $x = 1$, and $x + 1 \\to 2$. The value $f(1)$ is undefined because substituting gives $\\frac{0}{0}$. The tempting error is to declare the limit undefined too, on the grounds that the function is - but the limit never evaluates $f$ at the point.",
+     "concepts": [
+      "limit-intuition"
+     ],
+     "tags": [
+      "limit-intuition"
+     ]
+    }
+   },
+   {
+    "title": "Two Roads In, and Three Ways to Fail",
+    "body": "A point on the line can be approached from two directions, so a limit really has two halves. The **left-hand limit** $\\lim_{x \\to a^-} f(x)$ watches only $x < a$; the **right-hand limit** $\\lim_{x \\to a^+} f(x)$ watches only $x > a$. The two-sided limit exists exactly when both one-sided limits exist **and agree**, and it then equals their common value. This is not a technicality - it is the definition split into its two obligations.\n\nThat gives a clean taxonomy of failure. The first way is the **jump**: both one-sided limits exist, but they are different numbers. The sign function $\\frac{|x|}{x}$ is $-1$ to the left of $0$ and $+1$ to the right, so $\\lim_{x \\to 0} \\frac{|x|}{x}$ does not exist even though nothing is unbounded and nothing misbehaves.\n\nThe second is the **blow-up**: the values leave every bound. For $h(x) = \\frac{1}{(x-2)^2}$ the output grows past any number you name, and we write $\\lim_{x \\to 2} h(x) = \\infty$ as a description of how the limit fails, not as a claim that it exists. Note that $\\frac{1}{x - 3}$ fails both ways at once: $-\\infty$ on the left, $+\\infty$ on the right.\n\nThe third is the strangest and the most instructive: **oscillation**. Take $k(x) = \\sin(1/x)$ as $x \\to 0$. Nothing is unbounded - $k$ stays inside $[-1, 1]$ forever - and there is no jump. But $1/x$ races to infinity, so $k$ runs through its entire range infinitely many times inside any window around $0$, however small. No candidate $L$ can be approached, because the function will always wander a full unit away again. Boundedness is not enough; settling is required.",
+    "code": "ONE-SIDED               lim  f(x) = L  <=>  lim  f(x) = lim  f(x) = L\n                       x->a                x->a-        x->a+\n\nTHE THREE FAILURES\n\n(1) JUMP          g(x) = |x| / x        (2) BLOW-UP    h(x) = 1/(x - 2)^2\n\n      lim  g(x) = -1                          lim  h(x) = +infinity\n     x->0-                                   x->2\n      lim  g(x) = +1                    the values leave every bound, so no\n     x->0+                              finite L can be approached\n    both sides exist, they disagree\n\n(3) OSCILLATION   k(x) = sin(1/x)  as  x -> 0\n\n      x = 1/pi     1/(2pi)   2/(5pi)   2/pi     as x shrinks, 1/x races to\n      k(x) = 0       0         +1       +1      infinity and sin runs through\n      x = 2/(3pi)  2/(7pi)                      its whole range infinitely\n      k(x) = -1      -1                         often in ANY window round 0\n\n    k never settles: it is bounded, yet no L is approached.\n\nA subtler case: 1/(x - 3) has lim = -infinity on the left and +infinity on the\nright, so it fails as a jump AND as a blow-up at once.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "This biconditional is the workhorse. To show a limit does not exist, it is almost always cheapest to produce two disagreeing one-sided limits."
+     },
+     {
+      "line": 6,
+      "text": "|x|/x is the standard jump. It is defined everywhere except 0, bounded, and perfectly well behaved on each side - none of which saves the limit."
+     },
+     {
+      "line": 8,
+      "text": "Writing = +infinity is a description of the failure mode, not an existence claim. A limit equal to infinity does not exist as a number."
+     },
+     {
+      "line": 19,
+      "text": "This is the sentence to remember about sin(1/x): infinitely many full oscillations inside every window around 0, no matter how narrow the window."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For $g(x) = \\dfrac{|x|}{x}$, give the two one-sided limits at $0$ as signed numbers, then state whether the two-sided limit exists (`yes` or `no`).",
+     "template": "lim (x->0-) g(x) = ___\nlim (x->0+) g(x) = ___\ntwo-sided limit exists? ___",
+     "blanks": [
+      "-1",
+      "1",
+      "no"
+     ],
+     "hint": "For $x < 0$, $|x| = -x$. Substitute that in before deciding.",
+     "explain": "To the left, $|x| = -x$, so $g(x) = -1$ identically; to the right $|x| = x$, so $g(x) = 1$. Both one-sided limits exist, so the failure is not caused by anything blowing up or oscillating - it is a pure jump, and disagreement alone is enough to destroy the two-sided limit.",
+     "concepts": [
+      "one-sided-limits",
+      "limits-that-fail"
+     ],
+     "tags": [
+      "one-sided-limits",
+      "limits-that-fail"
+     ]
+    }
+   },
+   {
+    "title": "The Limit Laws and the 0/0 Loophole",
+    "body": "Limits respect arithmetic. If $\\lim_{x \\to a} f(x) = L$ and $\\lim_{x \\to a} g(x) = M$ both exist, then the limit of a sum is $L + M$, of a product is $LM$, of a power is $L^n$, and of a quotient is $\\frac{L}{M}$ - **provided $M \\neq 0$**. Every one of these laws opens with the hypothesis that both limits exist, and the quotient law adds one more condition. Those conditions are where all the interesting problems live.\n\nThe immediate payoff is **direct substitution**. Because a polynomial is built from sums and products of $x$ and constants, $\\lim_{x \\to a} p(x) = p(a)$ for every polynomial, and the same holds for a rational function at any point where its denominator is not zero. For $\\lim_{x \\to 2}(3x^2 - 2x + 1)$ you simply substitute and get $9$.\n\nWhen substitution produces $\\frac{0}{0}$, the quotient law does not apply - it says nothing at all. That is what **indeterminate form** means: $\\frac{0}{0}$ is not a value, and it is not a verdict of non-existence either. It is the algebra reporting that both parts vanish together, which is precisely the situation in which the answer could be anything. Compare $\\frac{x^2}{x} \\to 0$, $\\frac{x}{x} \\to 1$ and $\\frac{x}{x^2} \\to \\infty$ at $0$: all three are $\\frac{0}{0}$, and all three behave differently.\n\nThe cure is to rewrite the function so the vanishing factor cancels. **Factor** when the parts are polynomials: $\\frac{x^2 - x - 6}{x - 3} = \\frac{(x-3)(x+2)}{x-3} = x + 2 \\to 5$. **Rationalise** when a root is present, by multiplying top and bottom by the conjugate, so that $\\frac{\\sqrt{x+4}-2}{x} = \\frac{1}{\\sqrt{x+4}+2} \\to \\frac{1}{4}$. Both rewrites alter the function only at the single bad point - and the limit was never looking there.",
+    "code": "LIMIT LAWS   (valid whenever  lim f = L  and  lim g = M  both exist)\n\n   sum        lim (f + g) = L + M        power   lim f^n = L^n\n   product    lim (f * g) = L * M        root    lim nth-root(f) = nth-root(L)\n   quotient   lim (f / g) = L / M        ONLY IF  M =/= 0   <-- the whole story\n\nDirect substitution therefore works for any polynomial, and for a rational\nfunction wherever its denominator is not zero:\n\n   lim (3x^2 - 2x + 1) = 3*(2)^2 - 2*(2) + 1 = 12 - 4 + 1 = 9\n  x->2\n\nWHEN SUBSTITUTION GIVES 0/0, THE QUOTIENT LAW IS SIMPLY SILENT.\n0/0 is an INDETERMINATE FORM: it reports that numerator and denominator both\nvanish, and nothing more.  Rewrite the function, then substitute.\n\n  FACTOR          x^2 - x - 6      (x - 3)(x + 2)\n                 -------------  =  --------------  =  x + 2  ->  5   as x -> 3\n                    x - 3              x - 3\n\n  RATIONALISE    sqrt(x + 4) - 2     sqrt(x+4) - 2   sqrt(x+4) + 2\n                ----------------  =  ------------- * -------------\n                       x                  x          sqrt(x+4) + 2\n\n                      (x + 4) - 4              x                 1        1\n                = -------------------- = --------------- = ------------- -> -\n                   x (sqrt(x+4) + 2)     x (sqrt(x+4)+2)   sqrt(x+4)+2      4\n\nBoth rewrites change the function only at the one bad point - and the limit\nnever looked at that point anyway.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "M =/= 0 is the condition that fails in every 0/0 problem you will meet. When it fails the law is silent - it does not report non-existence."
+     },
+     {
+      "line": 10,
+      "text": "Direct substitution is a theorem about polynomials and rational functions, not a universal method. Always check what substitution actually returns before trusting it."
+     },
+     {
+      "line": 14,
+      "text": "0/0 carries exactly one piece of information: both parts vanish at a. The answer can be any number, or infinity, or nothing at all."
+     },
+     {
+      "line": 18,
+      "text": "Cancelling (x - 3) is only legal because x =/= 3 throughout the approach - which is exactly the hypothesis the limit hands you for free."
+     },
+     {
+      "line": 22,
+      "text": "The conjugate works because (A - B)(A + B) = A^2 - B^2 kills the square root, moving the troublesome factor to where it can cancel."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 1} \\frac{x^3 - 1}{x - 1}$. Show the rewrite you used and say why it is legitimate.",
+     "answer": "3",
+     "rubric": {
+      "required": [
+       "3",
+       "factor",
+       "cancel"
+      ],
+      "optional": [
+       "substitut",
+       "indeterminate",
+       "polynomial"
+      ],
+      "minWords": 25
+     },
+     "hint": "$x^3 - 1 = (x - 1)(x^2 + x + 1)$.",
+     "explain": "Substitution gives $\\frac{0}{0}$, so the quotient law is unavailable. Factoring gives $\\frac{(x-1)(x^2+x+1)}{x-1} = x^2 + x + 1$, which is a polynomial, so substitution now applies and yields $1 + 1 + 1 = 3$. The common wrong answer is $1$, from cancelling the visible $x$ terms or from assuming $\\frac{0}{0} = 1$.",
+     "concepts": [
+      "indeterminate-forms",
+      "limit-laws"
+     ],
+     "tags": [
+      "indeterminate-forms",
+      "limit-laws"
+     ]
+    }
+   },
+   {
+    "title": "Trapping a Limit, and Saying It Precisely",
+    "body": "Some functions defeat every law and every rewrite. $f(x) = x^2 \\sin(1/x)$ near $0$ is a product of something tending to $0$ and something with no limit at all, so the product law cannot be invoked - its hypothesis is unmet. The way through is to stop computing and start **trapping**.\n\nThe **squeeze theorem** says: if $g(x) \\le f(x) \\le h(x)$ near $a$, and $g$ and $h$ both tend to the same $L$, then $f$ is forced to $L$ as well. It has nowhere else to go. Since $-1 \\le \\sin(1/x) \\le 1$ for every $x \\neq 0$, multiplying through by $x^2 \\ge 0$ gives $-x^2 \\le x^2\\sin(1/x) \\le x^2$; both wrappers tend to $0$, so the limit is $0$. Notice where the wildness went: it is still there, but it is confined.\n\nEverything so far has leaned on the phrase close to, which is not yet mathematics. The precise definition turns it into a game. $\\lim_{x \\to a} f(x) = L$ means: for every $\\varepsilon > 0$ there exists $\\delta > 0$ such that $0 < |x - a| < \\delta$ implies $|f(x) - L| < \\varepsilon$. A challenger names an output tolerance $\\varepsilon$; you must answer with an input window $\\delta$ that guarantees it. You must be able to answer every challenge, not merely a generous one.\n\nRead the clause $0 < |x - a|$ once more - it is the punched-out point written in symbols, and it is why $f(a)$ is irrelevant. For $f(x) = 3x + 1$ at $a = 2$ with $L = 7$: $|(3x+1) - 7| = 3|x - 2|$, which is below $\\varepsilon$ as soon as $|x - 2| < \\varepsilon/3$, so $\\delta = \\varepsilon/3$ answers every challenge at once. You will not be drilled on this today. Recognise its shape, and notice that it says exactly what the tables and the pictures have been saying all along.",
+    "code": "SQUEEZE THEOREM\n   If  g(x) <= f(x) <= h(x)  near a (except possibly at a)\n   and  lim g(x) = lim h(x) = L,   then  lim f(x) = L.\n        x->a       x->a                  x->a\n\n   f(x) = x^2 * sin(1/x)    sin(1/x) oscillates forever, so no law applies.\n   But  -1 <= sin(1/x) <= 1  for every x =/= 0, so multiplying by x^2 >= 0:\n\n            -x^2  <=  x^2 sin(1/x)  <=  x^2\n\n            lim (-x^2) = 0     lim (x^2) = 0     =>   lim f(x) = 0\n           x->0               x->0                   x->0\n\n   The wrapper collapses onto 0 and drags the wild function with it.\n\nTHE PRECISE DEFINITION - read it once, slowly\n\n   lim f(x) = L   means:   for every  epsilon > 0  there is a  delta > 0\n  x->a                     such that  0 < |x - a| < delta  ==>  |f(x) - L| < eps\n\n   epsilon      = the tolerance a challenger demands on the OUTPUT\n   delta        = the closeness you supply on the INPUT\n   0 < |x - a|  = the punched-out point: x = a is excluded, deliberately\n\n   f(x) = 3x + 1,  a = 2,  L = 7:   |(3x + 1) - 7| = 3|x - 2| < eps\n                                    whenever  |x - 2| < eps/3,  so delta = eps/3.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The bound -1 <= sin(anything) <= 1 holds for every input whatsoever, which is what makes it usable when the input is misbehaving."
+     },
+     {
+      "line": 9,
+      "text": "Multiplying an inequality by x^2 preserves its direction because x^2 >= 0. Multiplying by x would not, and the argument would collapse."
+     },
+     {
+      "line": 18,
+      "text": "epsilon comes first and is chosen by an adversary; delta comes second and is chosen by you in response. Swapping that order inverts the definition into something false."
+     },
+     {
+      "line": 23,
+      "text": "0 < |x - a| excludes x = a. Every earlier remark that the limit ignores the point is this one inequality."
+     },
+     {
+      "line": 26,
+      "text": "delta = eps/3 works for every eps at once, which is what the definition demands. A delta that only handles eps = 0.01 proves nothing."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the squeeze argument for $\\displaystyle\\lim_{x \\to 0} x^2 \\sin(1/x)$. Use `x^2` and `-x^2` for the wrappers and a number for the limits.",
+     "template": "___  <=  x^2 sin(1/x)  <=  ___\nboth wrappers tend to ___, so the limit is ___",
+     "blanks": [
+      "-x^2",
+      "x^2",
+      "0",
+      "0"
+     ],
+     "hint": "Start from $-1 \\le \\sin(1/x) \\le 1$ and multiply through by $x^2$.",
+     "explain": "The bound on $\\sin$ holds for every argument, including one racing to infinity, so it survives where the product law does not. Multiplying by $x^2 \\ge 0$ keeps the inequalities pointing the same way, and both wrappers collapse to $0$, leaving the trapped function no room. Concluding 'no limit, because $\\sin(1/x)$ has none' is the tempting error - the factor $x^2$ crushes the oscillation.",
+     "concepts": [
+      "squeeze-theorem"
+     ],
+     "tags": [
+      "squeeze-theorem"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "cal1-1-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the approach table for $f(x) = \\dfrac{x^2 - 1}{x - 1}$ as $x \\to 1$. Give exact decimals, and write `undefined` where the function has no value.",
+   "template": "f(0.9)  = ___\nf(0.99) = ___\nf(1)    = ___\nf(1.01) = ___",
+   "blanks": [
+    "1.9",
+    "1.99",
+    "undefined",
+    "2.01"
+   ],
+   "concepts": [
+    "limit-intuition"
+   ],
+   "tags": [
+    "limit-intuition"
+   ],
+   "xp": 20,
+   "hint": "Away from $x = 1$ the function simplifies to $x + 1$.",
+   "explain": "Every entry except the middle one is just $x + 1$, because the cancellation is valid whenever $x \\neq 1$. The middle entry is undefined because substitution gives $\\frac{0}{0}$. The table therefore closes in on $2$ from both sides while stepping straight over a point that has no value at all - exactly the situation limits were invented to describe."
+  },
+  {
+   "id": "cal1-1-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps for evaluating $\\displaystyle\\lim_{x \\to 3} \\frac{x^2 - x - 6}{x - 3}$ into the correct order.",
+   "fragments": [
+    "Substitute x = 3 and observe the indeterminate form 0/0.",
+    "Factor the numerator as (x - 3)(x + 2).",
+    "Cancel the factor (x - 3), which is legal because x is never equal to 3 on the approach.",
+    "Substitute x = 3 into the simplified expression x + 2.",
+    "Report the limit as 5."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "tags": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "xp": 20,
+   "hint": "Nothing is rewritten until substitution has been tried and has failed.",
+   "explain": "Substitution comes first because it is the cheapest test and, when the denominator does not vanish, it is the whole answer. Only after $\\frac{0}{0}$ appears is a rewrite justified, and the cancellation must be defended by the fact that $x \\neq 3$ throughout the approach. Rewriting before checking is how learners end up factoring problems that direct substitution would have finished in one line."
+  },
+  {
+   "id": "cal1-1-gp-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = x + 1$ for $x < 2$ and $f(x) = x^2$ for $x \\ge 2$. Find $\\lim_{x \\to 2^-} f(x)$ and $\\lim_{x \\to 2^+} f(x)$, then decide whether $\\lim_{x \\to 2} f(x)$ exists. Justify the verdict.",
+   "answer": "left 3, right 4, two-sided limit does not exist",
+   "concepts": [
+    "one-sided-limits",
+    "limits-that-fail"
+   ],
+   "tags": [
+    "one-sided-limits",
+    "limits-that-fail"
+   ],
+   "xp": 50,
+   "hint": "Each one-sided limit uses one branch of the definition and ignores the other entirely.",
+   "rubric": {
+    "required": [
+     "3",
+     "4",
+     "left",
+     "right",
+     "exist"
+    ],
+    "optional": [
+     "jump",
+     "disagree",
+     "agree"
+    ],
+    "minWords": 30
+   },
+   "explain": "Approaching from below only the branch $x + 1$ is in play, giving $3$; approaching from above only $x^2$ is in play, giving $4$. Both one-sided limits exist perfectly well, so the failure is a jump rather than a blow-up or an oscillation, and disagreement alone is enough to destroy it. The classic error is to answer $4$ because $f(2) = 4$ - but the value at the point never settles a limit."
+  },
+  {
+   "id": "cal1-1-gp-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 2}(3x^2 - 2x + 1)$ by the limit laws. Fill in the substituted values and the final answer as plain numbers.",
+   "template": "lim (3x^2 - 2x + 1) = 3*(___)^2 - 2*(___) + 1 = ___",
+   "blanks": [
+    "2",
+    "2",
+    "9"
+   ],
+   "concepts": [
+    "limit-laws"
+   ],
+   "tags": [
+    "limit-laws"
+   ],
+   "xp": 20,
+   "hint": "$12 - 4 + 1$.",
+   "explain": "Direct substitution is legal here not by habit but by theorem: the sum, product and power laws applied to $\\lim_{x \\to 2} x = 2$ build the polynomial one operation at a time, so $\\lim_{x \\to a} p(x) = p(a)$. The arithmetic gives $12 - 4 + 1 = 9$. Substitution is only ever a shortcut for that chain of laws, which is why it stops working the moment a law's hypothesis fails."
+  },
+  {
+   "id": "cal1-1-gp-05",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "Name the three distinct ways a limit can fail to exist, give the standard example of each, and say what distinguishes the third from the other two.",
+   "concepts": [
+    "limits-that-fail",
+    "one-sided-limits"
+   ],
+   "tags": [
+    "limits-that-fail",
+    "one-sided-limits"
+   ],
+   "xp": 20,
+   "hint": "One example is bounded and settles on each side, one is unbounded, and one is bounded but never settles.",
+   "rubric": {
+    "required": [
+     "jump",
+     "oscillat",
+     "bound",
+     "one-sided",
+     "sin"
+    ],
+    "optional": [
+     "infinit",
+     "disagree",
+     "settle"
+    ],
+    "minWords": 45
+   },
+   "explain": "A jump has two one-sided limits that both exist and disagree, as with $\\frac{|x|}{x}$ at $0$. A blow-up leaves every bound, as with $\\frac{1}{(x-2)^2}$ at $2$. Oscillation is the instructive one: $\\sin(1/x)$ at $0$ stays inside $[-1, 1]$ and has no jump, yet crosses its whole range infinitely often in every window, so boundedness plainly does not imply that a limit exists."
+  }
+ ],
+ "limit-workshop": [
+  {
+   "id": "cal1-1-lw-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 3} \\frac{x^2 + 3x}{x^2 - 9}$, or show that it fails to exist. Factor first, then say exactly what substitution returns after the rewrite.",
+   "answer": "does not exist; the one-sided limits are -infinity and +infinity",
+   "concepts": [
+    "limit-laws",
+    "limits-that-fail",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "limit-laws",
+    "limits-that-fail",
+    "indeterminate-forms"
+   ],
+   "xp": 50,
+   "hint": "Factor both parts, then look carefully at what actually cancels - and at what does not.",
+   "rubric": {
+    "required": [
+     "factor",
+     "exist",
+     "infinit",
+     "one-sided",
+     "cancel"
+    ],
+    "optional": [
+     "blow",
+     "unbound",
+     "numerator",
+     "3/0"
+    ],
+    "minWords": 40
+   },
+   "explain": "Factoring gives $\\frac{x(x+3)}{(x-3)(x+3)} = \\frac{x}{x-3}$ for $x \\neq -3$, so the cancellation removes the trouble at $-3$ and leaves the trouble at $3$ completely untouched. Substituting now gives $\\frac{3}{0}$, not $\\frac{0}{0}$: the numerator does not vanish, so this is a blow-up, negative from the left and positive from the right, and the limit does not exist. The trap is assuming every factorisation ends in a finite answer - the same algebra gives the limit $\\frac{1}{2}$ at $-3$ and nothing at all at $3$."
+  },
+  {
+   "id": "cal1-1-lw-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 0} \\frac{\\sqrt{x + 9} - 3}{x}$. Show the conjugate step.",
+   "answer": "1/6",
+   "concepts": [
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "indeterminate-forms"
+   ],
+   "xp": 50,
+   "hint": "Multiply numerator and denominator by $\\sqrt{x+9} + 3$.",
+   "rubric": {
+    "required": [
+     "1/6",
+     "conjugate",
+     "cancel",
+     "0/0"
+    ],
+    "optional": [
+     "rationalis",
+     "root",
+     "substitut"
+    ],
+    "minWords": 30
+   },
+   "explain": "Substitution gives $\\frac{0}{0}$, and no factorisation is visible while a root sits inside a difference. Multiplying by $\\frac{\\sqrt{x+9}+3}{\\sqrt{x+9}+3}$ turns the numerator into $(x + 9) - 9 = x$, which cancels the $x$ below and leaves $\\frac{1}{\\sqrt{x+9}+3} \\to \\frac{1}{6}$. Answering $\\frac{1}{3}$ is the standard slip - it comes from stopping before the surviving denominator is evaluated."
+  },
+  {
+   "id": "cal1-1-lw-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Suppose $4x - 9 \\le f(x) \\le x^2 - 4x + 7$ for all $x \\ge 0$. Find $\\lim_{x \\to 4} f(x)$, name the theorem that licenses the conclusion, and say what would happen to the argument if the two bounds disagreed at $4$.",
+   "answer": "7",
+   "concepts": [
+    "squeeze-theorem"
+   ],
+   "tags": [
+    "squeeze-theorem"
+   ],
+   "xp": 50,
+   "hint": "Evaluate both bounding functions at $x = 4$ before doing anything else.",
+   "rubric": {
+    "required": [
+     "7",
+     "squeeze",
+     "both",
+     "same"
+    ],
+    "optional": [
+     "trap",
+     "bound",
+     "polynomial",
+     "no formula"
+    ],
+    "minWords": 35
+   },
+   "explain": "Both wrappers are polynomials, so substitution gives $4(4) - 9 = 7$ and $16 - 16 + 7 = 7$. Because they agree, $f$ is pinned between two quantities heading to the same place and the squeeze theorem forces $\\lim_{x \\to 4} f(x) = 7$ - even though no formula for $f$ was ever supplied. Had the bounds disagreed, the theorem would say nothing whatever, which is why checking that they match is the actual work rather than a formality."
+  },
+  {
+   "id": "cal1-1-lw-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Classify how the limit fails in each case, using exactly one of jump, blow-up or oscillation: (a) $\\dfrac{|x|}{x}$ at $0$; (b) $\\dfrac{1}{(x-2)^2}$ at $2$; (c) $\\sin(1/x)$ at $0$. Justify each classification with the one-sided behaviour.",
+   "answer": "(a) jump, (b) blow-up, (c) oscillation",
+   "concepts": [
+    "limits-that-fail",
+    "one-sided-limits",
+    "limit-intuition"
+   ],
+   "tags": [
+    "limits-that-fail",
+    "one-sided-limits",
+    "limit-intuition"
+   ],
+   "xp": 50,
+   "hint": "Ask of each: are the values bounded, and do they settle on each side?",
+   "rubric": {
+    "required": [
+     "jump",
+     "blow",
+     "oscillat",
+     "-1",
+     "infinit"
+    ],
+    "optional": [
+     "bound",
+     "one-sided",
+     "settle",
+     "disagree"
+    ],
+    "minWords": 45
+   },
+   "explain": "In (a) both sides settle, at $-1$ and $+1$, and merely disagree - a jump. In (b) the values are positive and unbounded on both sides, so it is a blow-up and we write $+\\infty$ to describe the failure. In (c) the values never leave $[-1, 1]$, so nothing is unbounded, yet $1/x$ races to infinity and $\\sin(1/x)$ completes infinitely many oscillations in every window around $0$; calling this a jump is the common error, but there is no one-sided limit here to jump between."
+  },
+  {
+   "id": "cal1-1-lw-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 2} \\frac{2 - x}{x^2 - 4}$, and explain precisely which hypothesis of the quotient law fails and what you did instead.",
+   "answer": "-1/4",
+   "concepts": [
+    "limit-laws",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "limit-laws",
+    "indeterminate-forms"
+   ],
+   "xp": 50,
+   "hint": "$2 - x = -(x - 2)$, and $x^2 - 4 = (x-2)(x+2)$.",
+   "rubric": {
+    "required": [
+     "-1/4",
+     "quotient",
+     "denominator",
+     "factor",
+     "0/0"
+    ],
+    "optional": [
+     "cancel",
+     "sign",
+     "zero"
+    ],
+    "minWords": 35
+   },
+   "explain": "The quotient law requires the denominator's limit to be non-zero, and here it is $0$, so the law is inapplicable rather than false. Writing $2 - x = -(x-2)$ and factoring below gives $\\frac{-(x-2)}{(x-2)(x+2)} = \\frac{-1}{x+2} \\to -\\frac{1}{4}$. Losing the minus sign and answering $\\frac{1}{4}$ is the standard casualty here - the numerator is $2 - x$, not $x - 2$."
+  }
+ ],
+ "exam": [
+  {
+   "id": "cal1-1-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the definition of $\\displaystyle\\lim_{x \\to a} f(x) = L$?",
+   "choices": [
+    "The values of $f(x)$ can be made as close to $L$ as desired by taking $x$ sufficiently close to, but not equal to, $a$.",
+    "$f(a) = L$.",
+    "$f(x)$ eventually equals $L$ for some $x$ near $a$.",
+    "$f$ is defined at $a$ and its graph has no break there."
+   ],
+   "answer": 0,
+   "concepts": [
+    "limit-intuition"
+   ],
+   "tags": [
+    "limit-intuition"
+   ],
+   "xp": 10,
+   "explain": "The limit is a statement about arbitrary closeness on a punctured neighbourhood, which is why the phrase 'but not equal to' cannot be dropped. Option B is the seductive one - it holds for continuous functions and fails for exactly the functions limits were built to handle, such as $\\frac{x^2-1}{x-1}$ at $1$, whose limit is $2$ although $f(1)$ does not exist."
+  },
+  {
+   "id": "cal1-1-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which is a correct statement of the squeeze theorem?",
+   "choices": [
+    "If $g(x) \\le f(x) \\le h(x)$ near $a$ and $\\lim_{x \\to a} g(x) = \\lim_{x \\to a} h(x) = L$, then $\\lim_{x \\to a} f(x) = L$.",
+    "If $g(x) \\le f(x) \\le h(x)$ near $a$ and both $g$ and $h$ have limits at $a$, then $\\lim_{x \\to a} f(x)$ exists.",
+    "If $f$ is bounded near $a$, then $\\lim_{x \\to a} f(x)$ exists.",
+    "If $\\lim_{x \\to a} g(x) = L$ and $g(x) \\le f(x)$ near $a$, then $\\lim_{x \\to a} f(x)$ exists and is at least $L$."
+   ],
+   "answer": 0,
+   "concepts": [
+    "squeeze-theorem"
+   ],
+   "tags": [
+    "squeeze-theorem"
+   ],
+   "xp": 10,
+   "explain": "The wrappers must converge to the same value; that equality is the whole mechanism, since it is what leaves the trapped function nowhere to go. Option B drops it and is false - $-1 \\le \\sin(1/x) \\le 1$ has convergent bounds and no limit. Option C is refuted by the same example, and option D supplies only a one-sided bound, which never establishes existence."
+  },
+  {
+   "id": "cal1-1-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Give the one-sided limits of $h(x) = \\dfrac{1}{x - 3}$ at $3$, using `-infinity` or `+infinity`, then state whether $\\lim_{x \\to 3} h(x)$ exists (`yes` or `no`).",
+   "template": "lim (x->3-) h(x) = ___\nlim (x->3+) h(x) = ___\ntwo-sided limit exists? ___",
+   "blanks": [
+    "-infinity",
+    "+infinity",
+    "no"
+   ],
+   "concepts": [
+    "one-sided-limits",
+    "limits-that-fail"
+   ],
+   "tags": [
+    "one-sided-limits",
+    "limits-that-fail"
+   ],
+   "xp": 20,
+   "hint": "Just below $3$ the denominator is a small negative number.",
+   "explain": "For $x$ slightly below $3$ the denominator is small and negative, driving the quotient to $-\\infty$; just above, it is small and positive, giving $+\\infty$. Unlike $\\frac{1}{(x-3)^2}$, which is $+\\infty$ from both sides, this function fails as a blow-up and as a disagreement at once - so not even the description $\\lim = \\infty$ is available."
+  },
+  {
+   "id": "cal1-1-ex-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For $f(x) = 3x + 1$, $a = 2$ and $L = 7$: find a $\\delta$ that works for $\\varepsilon = 0.06$, then give a $\\delta$ in terms of $\\varepsilon$ that answers every challenge. Show the algebra connecting them.",
+   "answer": "delta = epsilon/3, so delta = 0.02",
+   "concepts": [
+    "epsilon-delta"
+   ],
+   "tags": [
+    "epsilon-delta"
+   ],
+   "xp": 50,
+   "hint": "Simplify $|(3x+1) - 7|$ first; it collapses to a multiple of $|x - 2|$.",
+   "rubric": {
+    "required": [
+     "0.02",
+     "3",
+     "epsilon",
+     "delta",
+     "tolerance"
+    ],
+    "optional": [
+     "every",
+     "punctur",
+     "output",
+     "input"
+    ],
+    "minWords": 35
+   },
+   "explain": "The output error is $|(3x+1) - 7| = |3x - 6| = 3|x-2|$, so demanding it below $\\varepsilon$ is exactly demanding $|x - 2| < \\varepsilon/3$; with $\\varepsilon = 0.06$ that is $\\delta = 0.02$. The point of the second half is that one formula answers every challenge at once - producing only the numerical $\\delta$ proves nothing, because the definition quantifies over all $\\varepsilon > 0$ before $\\delta$ is ever chosen."
+  },
+  {
+   "id": "cal1-1-ex-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 4} \\frac{x - 4}{\\sqrt{x} - 2}$. Show your rewrite.",
+   "answer": "4",
+   "concepts": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "tags": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "xp": 50,
+   "hint": "Either multiply by the conjugate $\\sqrt{x} + 2$, or notice that $x - 4$ is a difference of two squares in $\\sqrt{x}$.",
+   "rubric": {
+    "required": [
+     "4",
+     "conjugate",
+     "0/0",
+     "cancel"
+    ],
+    "optional": [
+     "rationalis",
+     "squares",
+     "substitut"
+    ],
+    "minWords": 30
+   },
+   "explain": "Substitution gives $\\frac{0}{0}$. Multiplying by $\\frac{\\sqrt{x}+2}{\\sqrt{x}+2}$ makes the denominator $x - 4$, which cancels the numerator and leaves $\\sqrt{x} + 2 \\to 4$; equivalently $x - 4 = (\\sqrt{x}-2)(\\sqrt{x}+2)$ directly. Answering $1$ - as though $\\frac{0}{0}$ were $1$, or as though the two $x - 4$ expressions simply cancelled - is the failure this problem is built to expose."
+  },
+  {
+   "id": "cal1-1-ex-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 3} \\frac{\\frac{1}{x} - \\frac{1}{3}}{x - 3}$. Show how you cleared the inner fractions.",
+   "answer": "-1/9",
+   "concepts": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "tags": [
+    "indeterminate-forms",
+    "limit-laws"
+   ],
+   "xp": 50,
+   "hint": "Combine the numerator over the common denominator $3x$ before touching anything else.",
+   "rubric": {
+    "required": [
+     "-1/9",
+     "common denominator",
+     "cancel",
+     "0/0"
+    ],
+    "optional": [
+     "3x",
+     "sign",
+     "negative"
+    ],
+    "minWords": 30
+   },
+   "explain": "The numerator is $\\frac{3 - x}{3x}$, so the whole expression is $\\frac{3-x}{3x(x-3)} = \\frac{-1}{3x} \\to -\\frac{1}{9}$. Both traps are about sign and order: $3 - x = -(x - 3)$ is what produces the minus, and answering $\\frac{1}{9}$ means that negation was dropped somewhere. A complex fraction is always cleared from the inside outwards."
+  },
+  {
+   "id": "cal1-1-ex-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student writes: 'Since $f(x) = \\frac{x^2-1}{x-1}$ is undefined at $x = 1$, the limit there is undefined too.' Explain what is wrong with the reasoning, and describe what the graph actually looks like near $x = 1$.",
+   "concepts": [
+    "limit-intuition",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "limit-intuition",
+    "indeterminate-forms"
+   ],
+   "xp": 20,
+   "hint": "Which point does the definition of the limit deliberately exclude?",
+   "rubric": {
+    "required": [
+     "2",
+     "undefined",
+     "neighbourhood",
+     "hole",
+     "not equal"
+    ],
+    "optional": [
+     "punctur",
+     "cancel",
+     "removab",
+     "line"
+    ],
+    "minWords": 45
+   },
+   "explain": "The definition examines $0 < |x - 1| < \\delta$, a punctured neighbourhood, so the value at the point is excluded by construction and cannot decide anything. The graph is the line $y = x + 1$ with a single hole at $(1, 2)$, and the limit is $2$ precisely because every nearby value is near $2$. The student's rule would make limits useless, since every derivative is a limit of a quotient undefined at exactly the point of interest."
+  },
+  {
+   "id": "cal1-1-ex-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps for evaluating $\\displaystyle\\lim_{x \\to 0} \\frac{\\sqrt{x+4} - 2}{x}$ into the correct order.",
+   "fragments": [
+    "Substitute x = 0 and obtain the indeterminate form 0/0.",
+    "Multiply numerator and denominator by the conjugate sqrt(x+4) + 2.",
+    "Simplify the numerator to (x + 4) - 4 = x.",
+    "Cancel the factor x, valid because x is never 0 on the approach.",
+    "Substitute into 1/(sqrt(x+4) + 2) to get 1/4."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "indeterminate-forms"
+   ],
+   "xp": 20,
+   "explain": "The conjugate is applied only after substitution has produced $\\frac{0}{0}$, and its purpose is to convert the difference of roots into $(x+4) - 4$ so that a factor of $x$ appears where it can cancel. Cancelling before simplifying the numerator is impossible, because no common factor exists until the difference of squares has been carried out."
+  },
+  {
+   "id": "cal1-1-ex-09",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Tabulate $f(x) = \\dfrac{x^2 - 9}{x - 3}$ at the values below to watch the limit at $3$ emerge. Give each value as an exact decimal, and the limit as a whole number.",
+   "code": "f(x) = (x^2 - 9) / (x - 3)          undefined at x = 3",
+   "lang": "text",
+   "steps": [
+    {
+     "label": "f(2.9)",
+     "expected": "5.9"
+    },
+    {
+     "label": "f(2.99)",
+     "expected": "5.99"
+    },
+    {
+     "label": "f(3.01)",
+     "expected": "6.01"
+    },
+    {
+     "label": "limit as x -> 3",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "limit-intuition",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "limit-intuition",
+    "indeterminate-forms"
+   ],
+   "xp": 40,
+   "hint": "For $x \\neq 3$ the function is simply $x + 3$.",
+   "explain": "Factoring gives $\\frac{(x-3)(x+3)}{x-3} = x + 3$ away from $3$, so each tabulated value is just $x + 3$ and the column converges on $6$ from both sides. Tables build intuition but never prove a limit: $\\sin(1/x)$ sampled at $x = \\frac{1}{n\\pi}$ produces a flawless column of zeros for a limit that does not exist."
+  },
+  {
+   "id": "cal1-1-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x \\to 0} x \\cos(1/x)$, or show it does not exist. Name the theorem you use and state the bounds explicitly.",
+   "answer": "0",
+   "concepts": [
+    "squeeze-theorem",
+    "limits-that-fail"
+   ],
+   "tags": [
+    "squeeze-theorem",
+    "limits-that-fail"
+   ],
+   "xp": 50,
+   "hint": "Bound $\\cos(1/x)$ first, then multiply by $|x|$ rather than by $x$.",
+   "rubric": {
+    "required": [
+     "0",
+     "squeeze",
+     "cos",
+     "bound",
+     "-1"
+    ],
+    "optional": [
+     "oscillat",
+     "product",
+     "absolute"
+    ],
+    "minWords": 35
+   },
+   "explain": "Because $-1 \\le \\cos(1/x) \\le 1$ for every $x \\neq 0$, we get $-|x| \\le x\\cos(1/x) \\le |x|$, and both wrappers tend to $0$, so the squeeze theorem gives $0$. Multiplying the inequality by $x$ rather than $|x|$ is the trap: for negative $x$ that reverses the inequalities and the sandwich falls apart. Declaring the limit non-existent because $\\cos(1/x)$ has none misapplies the product law, whose hypothesis - that both factors have limits - is unmet."
+  }
+ ]
+}

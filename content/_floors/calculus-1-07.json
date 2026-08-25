@@ -1,0 +1,926 @@
+{
+ "n": 7,
+ "name": "Optimisation and Approximation",
+ "concepts": [
+  "applied-optimisation",
+  "optimisation-domains",
+  "lhopitals-rule",
+  "indeterminate-forms",
+  "linear-approximation",
+  "differentials",
+  "newtons-method"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "optimisation-clinic",
+  "approximation-and-iteration",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Optimisation and Approximation",
+  "sections": [
+   {
+    "title": "Optimisation, With an Honest Domain",
+    "body": "An applied optimisation problem arrives as a sentence and must leave as a function of **one** variable on a **stated** domain. Name the quantity to be made largest or smallest, write it as a formula, use the constraint in the problem to eliminate every variable but one, and only then differentiate. The calculus is the easy half; the translation is where the problem is won or lost.\n\nThe step most often skipped is the domain. The formula $V(x) = x(12-2x)^2$ makes sense for every real $x$, but the box it describes exists only for $0 \\le x \\le 6$: you cannot cut a square of negative side, and two cuts totalling more than $12$ leave no base at all. Writing that interval down is not bookkeeping - it is what licenses the conclusion at the end.\n\nOn a **closed, bounded** interval the Extreme Value Theorem guarantees that a continuous function attains both a maximum and a minimum, and that each occurs at a critical point or at an endpoint. The honest finish is therefore a short table: evaluate the objective at every interior critical point and at both endpoints, then read off the winner. A second-derivative test identifies a *local* extremum and by itself settles nothing global.\n\nWhen the domain is open or unbounded - a can of fixed volume has radius $r > 0$ with no largest $r$ - there are no endpoints to tabulate and the theorem does not apply. Then you must argue instead: show the objective runs off to $\\infty$ (or down to a value it never beats) at both ends, or show $f'$ changes sign exactly once, so that the lone interior critical point is forced to be the global extremum.",
+    "code": "OPEN BOX FROM A 12 x 12 SHEET: cut a square of side x from each\ncorner and fold the four flaps up.\n\n  base = (12 - 2x) by (12 - 2x)        height = x\n\n  V(x) = x (12 - 2x)^2        the objective, in ONE variable at last\n\nDOMAIN, stated and defended\n  x > 0 or there is no box; 12 - 2x > 0 or the base has vanished.\n  Admitting the two degenerate ends gives the CLOSED interval\n  0 <= x <= 6, and closed-and-bounded is exactly what the Extreme\n  Value Theorem asks for.\n\nCRITICAL POINTS\n  V(x)  = 144x - 48x^2 + 4x^3\n  V'(x) = 144 - 96x + 12x^2 = 12(x - 2)(x - 6)\n  V'(x) = 0  at  x = 2  and  x = 6\n\nCOMPARE EVERYTHING - critical points AND endpoints\n  V(0) = 0\n  V(2) = 2 * 8^2 = 128        <- the maximum\n  V(6) = 6 * 0^2 = 0\n  x = 6 is a critical point AND an endpoint, and it gives the WORST\n  value on the interval. A critical point is a candidate, never an\n  answer.\n\nANSWER: cut x = 2 inches, for a volume of 128 cubic inches.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The constraint has already been spent here: the height x and the base 12 - 2x are the same variable, so no Lagrange-style juggling is needed."
+     },
+     {
+      "line": 11,
+      "text": "The endpoints x = 0 and x = 6 describe boxes with no height and no base. Including them costs nothing and buys the Extreme Value Theorem."
+     },
+     {
+      "line": 16,
+      "text": "Expanding before differentiating is optional - the product rule on x(12-2x)^2 gives the same factorisation - but the factored form is what exposes both roots at a glance."
+     },
+     {
+      "line": 24,
+      "text": "This is the whole reason for the table. V'(6) = 0 with V(6) = 0: a vanishing derivative is evidence of flatness, never of largeness."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "A paddock is fenced on three sides with $200$ m of fencing, the fourth side being a straight river. Let $x$ be the length of each of the two sides perpendicular to the river. Fill in the blanks with plain numbers.",
+     "template": "the side parallel to the river has length 200 - ___x\nA(x) = x(200 - 2x) on the domain 0 <= x <= ___\nA'(x) = 0 at x = ___\nmaximum area = ___ square metres",
+     "blanks": [
+      "2",
+      "100",
+      "50",
+      "5000"
+     ],
+     "concepts": [
+      "applied-optimisation",
+      "optimisation-domains"
+     ],
+     "explain": "Two sides of length $x$ and one of length $y$ use $2x + y = 200$, so $y = 200 - 2x$ and $A(x) = x(200-2x)$. The physical domain is $0 \\le x \\le 100$ because $y$ cannot be negative - that ceiling comes from the constraint, not from the formula, which happily returns negative areas beyond it. $A'(x) = 200 - 4x$ vanishes at $x = 50$, giving $A = 50 \\cdot 100 = 5000$, and both endpoints give $0$. The classic slip is to fence all four sides out of habit: that gives a $50 \\times 50$ square of area only $2500$ from the same fencing."
+    }
+   },
+   {
+    "title": "L'H\u00f4pital's Rule and the Forms It Cannot Touch",
+    "body": "Suppose $f$ and $g$ are differentiable on an interval around $a$ (except possibly at $a$), that $g'(x) \\neq 0$ there, and that $f(x)/g(x)$ has the form $\\frac{0}{0}$ or $\\frac{\\pm\\infty}{\\pm\\infty}$ as $x \\to a$. If $\\displaystyle\\lim_{x \\to a} \\frac{f'(x)}{g'(x)}$ exists or is $\\pm\\infty$, then $$\\lim_{x \\to a} \\frac{f(x)}{g(x)} = \\lim_{x \\to a} \\frac{f'(x)}{g'(x)}.$$ Note what is differentiated: numerator and denominator **separately**. This is not the quotient rule, and reaching for the quotient rule here is the single most wrecked calculation in the subject.\n\nTwo hypotheses cause all the damage when they are ignored. The first is the form. The rule says nothing whatever about $\\frac{1}{0}$, $\\frac{0}{1}$ or $\\infty + \\infty$, and differentiating anyway returns a confident wrong answer: $\\lim_{x\\to 0}\\frac{\\cos x}{x}$ has form $\\frac{1}{0}$ and does not exist, yet the rule would cheerfully report $\\lim_{x \\to 0} \\frac{-\\sin x}{1} = 0$.\n\nThe second is the direction of the implication. If $\\lim f'/g'$ fails to exist you have learnt nothing at all - and certainly not that the original limit fails to exist. $\\lim_{x\\to\\infty}\\frac{x + \\sin x}{x} = 1$ is immediate on dividing through, while the ratio of derivatives $1 + \\cos x$ oscillates forever. The rule is then **inconclusive**, which is a different thing from being contradicted.\n\nThe remaining indeterminate forms are handled by conversion, never by direct assault. A product $0 \\cdot \\infty$ becomes a quotient once one factor is moved into the denominator; a difference $\\infty - \\infty$ becomes one via a common denominator or a conjugate; and the exponential forms $1^{\\infty}$, $0^0$ and $\\infty^0$ become one by taking logarithms - compute $\\lim \\ln y$, then exponentiate at the very end, since $\\lim y = e^{\\lim \\ln y}$ and not $\\lim \\ln y$ itself.",
+    "code": "L'HOPITAL APPLIES TO   0/0   AND   oo/oo   AND TO NOTHING ELSE\n\n  lim (sin x - x)/x^3              form 0/0\n  x->0\n     -> (cos x - 1)/(3x^2)         0/0 again\n     -> (-sin x)/(6x)              0/0 again\n     -> (-cos x)/6  ->  -1/6       three passes, each one legal\n\nCONVERT FIRST, THEN APPLY\n\n  0 * oo    lim  x ln x = lim (ln x)/(1/x) = lim (1/x)/(-1/x^2)\n            x->0+         x->0+             x->0+\n                        = lim (-x) = 0\n  oo - oo   lim sqrt(x^2 + x) - x, multiplied by its conjugate,\n            x->oo   becomes  x/(sqrt(x^2 + x) + x)  ->  1/2\n  1^oo      lim (1 + 3/x)^x: take logs, x ln(1 + 3/x) -> 3, so the\n            x->oo   limit is e^3 - exponentiate at the very end\n\nDO NOT APPLY - these forms are not indeterminate at all\n\n  lim (x^2 + x)/(cos x) = 0/1 = 0            just substitute\n  x->0\n  differentiating anyway: (2x + 1)/(-sin x), which runs to -oo on\n  the right and +oo on the left. A confident, wrong answer.\n\nINCONCLUSIVE IS NOT THE SAME AS WRONG\n\n  lim (x + sin x)/x = 1   but (1 + cos x)/1 oscillates forever, so\n  x->oo   the rule has no conclusion to offer. The hypothesis that\n  lim f'/g' EXISTS is what failed; the original limit is fine.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Re-check the form before every pass. The moment the quotient stops being 0/0 or oo/oo you must stop differentiating and evaluate."
+     },
+     {
+      "line": 11,
+      "text": "There were two ways to build a quotient here; putting ln x on top works because differentiating 1/x is easy. Sending x downstairs instead leads to a mess that never resolves."
+     },
+     {
+      "line": 17,
+      "text": "The log limit is 3, so the answer is e^3. Reporting 3 - forgetting to undo the logarithm - is the standard loss of a mark on 1^oo problems."
+     },
+     {
+      "line": 24,
+      "text": "0/1 is not indeterminate. The rule is a licence to differentiate, and using it unlicensed changes the value of the limit rather than merely failing to find it."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Classify the form of each limit. Answer with exactly one of `0/0`, `oo/oo`, `0*oo`, `oo-oo`, `1^oo` or `not indeterminate`, writing any product form as `0*oo` whichever way round its factors appear.",
+     "steps": [
+      {
+       "label": "lim_{x->0} (e^x - 1 - x)/x^2",
+       "expected": "0/0"
+      },
+      {
+       "label": "lim_{x->oo} x^2 e^(-x)",
+       "expected": "0*oo"
+      },
+      {
+       "label": "lim_{x->0} (x^2 + x)/cos(x)",
+       "expected": "not indeterminate"
+      },
+      {
+       "label": "lim_{x->0+} (1 + 2x)^(1/x)",
+       "expected": "1^oo"
+      }
+     ],
+     "concepts": [
+      "indeterminate-forms",
+      "lhopitals-rule"
+     ],
+     "explain": "The four values are $\\tfrac12$, $0$, $0$ and $e^2$, but only the first is ready for the rule as it stands. The second is a product and must be rewritten as $x^2/e^x$ before any differentiating; the fourth needs logarithms, giving $\\lim \\frac{\\ln(1+2x)}{x} = 2$ and hence $e^2$. The third is the trap: $\\frac{0}{1}$ is an ordinary limit settled by substitution, and differentiating top and bottom turns a tidy $0$ into a spurious divergence."
+    }
+   },
+   {
+    "title": "Linear Approximation and Differentials",
+    "body": "Differentiability means the graph looks straight under enough magnification, and the tangent line is that straight thing: $$L(x) = f(a) + f'(a)(x - a).$$ Replacing $f$ by $L$ near $a$ is the **linear approximation**, and it is the most reused idea in applied mathematics - Newton's method, Euler's method and every first-order error estimate are this single line, iterated or integrated.\n\nThe error is second order, which is what makes the approximation worth having. Since $L$ matches $f$ in both value and slope at $a$, the gap is about $\\frac{1}{2}f''(a)(x-a)^2$, so halving the distance from $a$ quarters the error. Concavity also fixes the **sign** of the error before any arithmetic is done: where $f'' < 0$ the curve bends away below its tangent and $L$ overestimates, and where $f'' > 0$ it underestimates.\n\nThe **differential** is the same statement dressed for computation. Writing $dy = f'(x)\\,dx$ says a small change $dx$ in the input moves the output by about $f'(x)\\,dx$, and the true change $\\Delta y = f(x + dx) - f(x)$ differs from $dy$ by that same second-order amount. This is how a measurement tolerance is pushed through a formula without recomputing anything twice.\n\nRelative error is the form worth memorising. For a sphere, $\\frac{dV}{V} = \\frac{4\\pi r^2\\,dr}{\\frac{4}{3}\\pi r^3} = 3\\,\\frac{dr}{r}$: the constants cancel, the units cancel, and a power in the formula simply multiplies the percentage error. Cubing a length triples its relative uncertainty, which is why a third of a percent on a radius is a full percent on a volume.",
+    "code": "LINEAR APPROXIMATION of sqrt(x) at a = 64\n\n  f(64) = 8     f'(x) = 1/(2 sqrt(x))     f'(64) = 1/16\n\n  L(x) = 8 + (x - 64)/16\n\n  L(65)    = 8 + 1/16 = 8.0625\n  sqrt(65) =            8.06225774830...\n  error    =            0.00024225...     L OVERSHOOTS\n\n  Why over? f''(x) = -1/(4 x^(3/2)) < 0, so sqrt is concave down and\n  every tangent line lies above the curve. The SIGN of the error is\n  settled before any arithmetic is done.\n\nDIFFERENTIALS: the same sentence, written for error propagation\n\n  dy = f'(x) dx     \"a change dx in x moves y by about f'(x) dx\"\n\n  A sphere is measured at r = 6 cm with tolerance dr = +/- 0.02 cm.\n\n  V  = (4/3) pi r^3            dV = 4 pi r^2 dr\n  dV = 4 pi (36)(0.02) = 2.88 pi = 9.0478 cm^3\n  true change at r = 6.02:               9.0780 cm^3   - close indeed\n\n  RELATIVE error is the form worth memorising:\n    dV/V = (4 pi r^2 dr) / ((4/3) pi r^3) = 3 dr/r = 3(0.02/6) = 1%\n  A 0.33% error in a radius is a 1% error in a volume: cubing\n  triples relative error, which is why a 'small' error in a cubed\n  quantity is not small.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "a = 64 was chosen because 64 is a perfect square nearby - the whole art of the method is picking a base point where f and f' are exact."
+     },
+     {
+      "line": 9,
+      "text": "Four correct digits from one multiplication. The error scales like (x - a)^2, so approximating sqrt(66) instead would cost about four times as much accuracy."
+     },
+     {
+      "line": 17,
+      "text": "dy is the tangent line's prediction, not the real change. Treating them as equal is exactly the approximation being made, and it is only safe for small dx."
+     },
+     {
+      "line": 26,
+      "text": "pi cancels and so does every unit, which is why the relative form transfers to any measurement: it depends on the exponent 3 alone."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Let $f(x) = x^{1/3}$ with $a = 8$. Complete the linear approximation and its verdict. Give the first blank as a plain integer, the second as `up` or `down`, the third as `overestimate` or `underestimate`.",
+     "template": "L(x) = 2 + (x - 8)/___\nx^(1/3) is concave ___ for x > 0\nso L(8.1) is an ___ of the true value",
+     "blanks": [
+      "12",
+      "down",
+      "overestimate"
+     ],
+     "concepts": [
+      "linear-approximation"
+     ],
+     "explain": "$f'(x) = \\frac{1}{3}x^{-2/3}$ gives $f'(8) = \\frac{1}{3 \\cdot 4} = \\frac{1}{12}$, so $L(8.1) = 2 + \\frac{0.1}{12} \\approx 2.0083333$ against the true $2.0082989$. Since $f''(x) = -\\frac{2}{9}x^{-5/3} < 0$ the curve is concave down and its tangent lies above it, so the estimate has to be high - and it is, by about $3.4 \\times 10^{-5}$. Reading concavity off the first derivative is the usual confusion: $f$ is increasing here and concave down at the same time."
+    }
+   },
+   {
+    "title": "Newton's Method: The Tangent Line, Iterated",
+    "body": "Solving $f(x) = 0$ exactly is usually impossible, so replace $f$ near a guess $x_n$ by the one function you can always solve - its tangent line. Setting $0 = f(x_n) + f'(x_n)(x - x_n)$ and solving for $x$ gives $$x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)},$$ so each new guess is the $x$-intercept of the tangent at the last one. Newton's method is the linear approximation of the previous section, applied over and over.\n\nWhen $f$ is smooth, the root is **simple** (that is, $f' \\neq 0$ there) and the start is close enough, the error is squared at each step and the number of correct digits roughly doubles - which is why three steps from $x_0 = 1$ already give $\\sqrt{2}$ to five decimal places.\n\nEvery one of those conditions can fail, and each failure looks different. A guess with $f'(x_n) = 0$ has a horizontal tangent that never meets the axis, so the step is undefined. A poor start can **cycle**: $x^3 - 2x + 2$ from $x_0 = 0$ bounces between $0$ and $1$ forever. It can **diverge**, since for $f(x) = x^{1/3}$ the iteration is exactly $x \\mapsto -2x$, doubling away from the root each step. And a perfectly convergent run may simply land on a different root from the one you wanted.\n\nSo Newton is a local method with no searching in it. Bracket the root first - a sign change, a sketch, a few bisection steps - then iterate, and check at the end that $|f(x_n)|$ really is small. Iterates that stop changing are evidence about the map, not proof about $f$.",
+    "code": "NEWTON = solve the TANGENT LINE for zero, then do it again\n\n  0 = f(x_n) + f'(x_n)(x - x_n)  =>  x_{n+1} = x_n - f(x_n)/f'(x_n)\n\nIT WORKS: f(x) = x^2 - 2, x0 = 1   (the map is just (x + 2/x)/2)\n\n  x0 = 1\n  x1 = 3/2     = 1.5\n  x2 = 17/12   = 1.41666666666667\n  x3 = 577/408 = 1.41421568627451\n  sqrt(2)      = 1.41421356237310\n                     ^ correct digits 1, then 3, then 6: doubling\n\nFAILURE 1 - the flat tangent. f'(x_n) = 0 makes the step undefined:\na horizontal line never meets the x-axis, so there is no next guess.\n\nFAILURE 2 - a cycle. f(x) = x^3 - 2x + 2 from x0 = 0\n\n  f(0) = 2, f'(0) = -2  ->  x1 = 0 - 2/(-2) = 1\n  f(1) = 1, f'(1) =  1  ->  x2 = 1 - 1/1    = 0\n  0, 1, 0, 1, ... forever. The real root sits near -1.7693 and is\n  never approached at all.\n\nFAILURE 3 - running away. f(x) = x^(1/3), whose root is 0\n  x - f/f' = x - x^(1/3) / ((1/3) x^(-2/3)) = x - 3x = -2x\n  from x0 = 1:  1, -2, 4, -8, ...  doubling away from the answer.\n\nNewton is a LOCAL method. It rewards a good starting guess and\npunishes a careless one; nothing in it goes looking for a root.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The whole method is one line of algebra: take the tangent line, set y = 0, solve for x. Nothing else needs memorising, and the formula can be rebuilt in seconds."
+     },
+     {
+      "line": 12,
+      "text": "That doubling is quadratic convergence. It holds only near a simple root; at a double root the same method crawls, halving the error rather than squaring it."
+     },
+     {
+      "line": 20,
+      "text": "A perfect 2-cycle. Note that nothing looks wrong locally - each individual step is a legitimate tangent-line solve - so only tracking the iterates reveals it."
+     },
+     {
+      "line": 26,
+      "text": "Here f' becomes infinite at the root rather than zero, so the tangent is nearly vertical and overshoots every time. Failure is not always caused by a flat tangent."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Run Newton's method by hand. Give each iterate as an exact fraction in lowest terms, or as an integer where it is one.",
+     "steps": [
+      {
+       "label": "f(x) = x^3 - x - 1, x0 = 1: x1",
+       "expected": "3/2"
+      },
+      {
+       "label": "f(x) = x^3 - x - 1, x0 = 1: x2",
+       "expected": "31/23"
+      },
+      {
+       "label": "f(x) = x^3 - 2x + 2, x0 = 0: x1",
+       "expected": "1"
+      },
+      {
+       "label": "f(x) = x^3 - 2x + 2, x0 = 0: x2",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "newtons-method"
+     ],
+     "explain": "For the first, $f(1) = -1$ and $f'(1) = 2$ give $x_1 = 1 + \\tfrac12 = \\tfrac32$; then $f(\\tfrac32) = \\tfrac78$ and $f'(\\tfrac32) = \\tfrac{23}{4}$ give $x_2 = \\tfrac32 - \\tfrac{7}{46} = \\tfrac{31}{23} \\approx 1.347826$, closing on the root $1.324718$. The second returns to its starting point after two steps and will do so forever: this is not slow convergence but no convergence, and no number of extra iterations repairs it."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "cal1-7-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "A rectangular pen is built against a long wall, so only three sides are fenced, using $120$ m of fencing in total. With $x$ the length of each side perpendicular to the wall, fill in the blanks with plain numbers.",
+   "template": "the side parallel to the wall has length 120 - ___x\nthe physical domain is 0 <= x <= ___\nA'(x) = 0 at x = ___\nthe largest area is ___ square metres",
+   "blanks": [
+    "2",
+    "60",
+    "30",
+    "1800"
+   ],
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 36,
+   "hint": "$2x + y = 120$, and $y \\ge 0$ is what caps the domain.",
+   "explain": "$y = 120 - 2x$ makes $A(x) = x(120 - 2x)$, and $y \\ge 0$ forces $x \\le 60$. Then $A'(x) = 120 - 4x = 0$ at $x = 30$, with $y = 60$ and $A = 1800$; both endpoints give zero area, so $x = 30$ wins the comparison. The shape is always half a square - twice as wide as it is deep - which is the general answer to every three-sided fencing problem, whatever the total length happens to be."
+  },
+  {
+   "id": "cal1-7-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a complete applied optimisation solution into the order in which they must be carried out.",
+   "fragments": [
+    "Name the variables and write the quantity to be optimised as a formula.",
+    "Use the constraint to eliminate variables until the objective depends on one variable only.",
+    "State the domain that the physical situation forces on that variable.",
+    "Differentiate and solve f'(x) = 0 for the critical points lying inside the domain.",
+    "Compare the objective at each critical point against the endpoints, or - on an open domain - against its behaviour at the ends.",
+    "Translate the winning value of x back into the quantities the question actually asked for."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 36,
+   "explain": "The objective cannot be differentiated until the constraint has reduced it to one variable, and the domain has to be known before a critical point can be judged as inside or outside it. The comparison step is the one usually dropped, yet it is the only step that turns a list of candidates into an answer - and the final translation matters because most questions ask for dimensions or a cost, not for the value of $x$ that produced them."
+  },
+  {
+   "id": "cal1-7-gp-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Evaluate each limit exactly. Write `does not exist` where no finite or infinite limit exists, and use `e^3`-style notation for exponentials.",
+   "steps": [
+    {
+     "label": "lim_{x->0} (1 - cos x)/x^2",
+     "expected": "1/2"
+    },
+    {
+     "label": "lim_{x->oo} (ln x)/x",
+     "expected": "0"
+    },
+    {
+     "label": "lim_{x->0+} x^x",
+     "expected": "1"
+    },
+    {
+     "label": "lim_{x->0} (cos x)/x",
+     "expected": "does not exist"
+    }
+   ],
+   "concepts": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "xp": 72,
+   "hint": "Only three of these are indeterminate. Check the form of each one before differentiating anything.",
+   "explain": "The first is $\\frac{0}{0}$ twice over, ending at $\\frac{\\cos x}{2} \\to \\tfrac12$. The second is $\\frac{\\infty}{\\infty}$ and collapses in one pass to $\\frac{1/x}{1} \\to 0$, the standard statement that logarithms lose every race against powers. The third is $0^0$: $\\ln y = x\\ln x \\to 0$, so $y \\to 1$. The fourth has form $\\frac{1}{0}$, is not indeterminate, and diverges to $+\\infty$ on the right and $-\\infty$ on the left - applying the rule illegally would produce a confident $0$."
+  },
+  {
+   "id": "cal1-7-gp-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Build the linear approximation of $f(x) = \\sqrt{x}$ at $a = 64$ and use it on $65$. Give the first two blanks as plain numbers and the last as `overestimate` or `underestimate`.",
+   "template": "f'(64) = 1/___\nL(65) = ___\nsince sqrt is concave down, L(65) is an ___",
+   "blanks": [
+    "16",
+    "8.0625",
+    "overestimate"
+   ],
+   "concepts": [
+    "linear-approximation"
+   ],
+   "tags": [
+    "linear-approximation"
+   ],
+   "xp": 36,
+   "hint": "$f'(x) = \\frac{1}{2\\sqrt{x}}$, and $x - a = 1$ here.",
+   "explain": "$f'(64) = \\frac{1}{2 \\cdot 8} = \\frac{1}{16}$, so $L(65) = 8 + \\frac{1}{16} = 8.0625$ against the true $8.06225775$ - high by about $0.00024$. The overshoot is guaranteed rather than lucky: $f''(x) = -\\frac{1}{4}x^{-3/2}$ is negative, so the tangent line sits above the curve on both sides of $64$. Choosing $a = 65$ or some other non-square would defeat the whole point, since $f(a)$ then needs the very root you are trying to estimate."
+  },
+  {
+   "id": "cal1-7-gp-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Newton's method on $f(x) = x^2 - 2$, whose iteration simplifies to $x_{n+1} = \\tfrac12\\left(x_n + \\tfrac{2}{x_n}\\right)$. Give each iterate as an exact fraction in lowest terms.",
+   "steps": [
+    {
+     "label": "x0 = 1: x1",
+     "expected": "3/2"
+    },
+    {
+     "label": "x0 = 1: x2",
+     "expected": "17/12"
+    },
+    {
+     "label": "x0 = 1: x3",
+     "expected": "577/408"
+    },
+    {
+     "label": "x0 = 2: x1",
+     "expected": "3/2"
+    }
+   ],
+   "concepts": [
+    "newtons-method"
+   ],
+   "tags": [
+    "newtons-method"
+   ],
+   "xp": 72,
+   "hint": "Average the guess with $2$ divided by the guess.",
+   "explain": "The iterates $1, \\tfrac32, \\tfrac{17}{12}, \\tfrac{577}{408}$ evaluate to $1.5$, $1.41666667$ and $1.41421569$ against $\\sqrt{2} = 1.41421356$ - one correct digit, then three, then six, the signature doubling of quadratic convergence. Starting at $2$ lands on the same $\\tfrac32$, since the map averages a guess with $2/x$ and so folds over- and under-estimates together; that self-correcting average is why this ancient algorithm is numerically stable for any positive start."
+  }
+ ],
+ "optimisation-clinic": [
+  {
+   "id": "cal1-7-oc-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A closed cylindrical can must hold $355$ cm$^3$. Find the radius and height minimising the total surface area $S = 2\\pi r^2 + 2\\pi r h$. The domain here is the open interval $r > 0$, so state explicitly what replaces the endpoint comparison, and give the resulting relationship between $h$ and $r$.",
+   "answer": "The constraint pi r^2 h = 355 gives h = 355/(pi r^2), so S(r) = 2 pi r^2 + 710/r on the open domain r > 0. S'(r) = 4 pi r - 710/r^2 = 0 gives r^3 = 355/(2 pi), so r = 3.8372 cm and h = 355/(pi r^2) = 7.6744 cm, which is exactly 2r: the optimal can is as tall as it is wide. Because the domain is open there are no endpoints to test; instead S(r) -> +infinity as r -> 0+ (the 710/r term) and as r -> infinity (the 2 pi r^2 term), and S' has exactly one zero on (0, infinity), so that single critical point must be the global minimum. S(r) is then about 277.5 cm^2. The second derivative S'' = 4 pi + 1420/r^3 is positive everywhere, which confirms a minimum locally.",
+   "rubric": {
+    "required": [
+     "critical",
+     "domain",
+     "minim",
+     "radius",
+     "height",
+     "limit"
+    ],
+    "optional": [
+     "global",
+     "open",
+     "endpoint",
+     "constraint",
+     "surface",
+     "infinit"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 90,
+   "hint": "Eliminate $h$ with the volume constraint, then ask what $S$ does as $r \\to 0^+$ and as $r \\to \\infty$.",
+   "explain": "Substituting $h = 355/(\\pi r^2)$ turns $2\\pi r h$ into $710/r$, giving $S(r) = 2\\pi r^2 + 710/r$, and $S'(r) = 0$ at $r^3 = 355/(2\\pi)$, that is $r \\approx 3.8372$ with $h \\approx 7.6744 = 2r$. The domain argument is the real content: $(0, \\infty)$ has no endpoints, so the comparison table is replaced by the two limits $S \\to \\infty$ at both ends plus the uniqueness of the critical point. Quoting the Extreme Value Theorem on an open interval is the standard error - it needs closed *and* bounded, and $(0,\\infty)$ is neither. Real drink cans are not this shape, which tells you the true objective includes seams, printing and shelf appearance, not merely metal."
+  },
+  {
+   "id": "cal1-7-oc-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the point or points on the parabola $y = x^2$ closest to $(0, 3)$, and the shortest distance. Justify minimising the squared distance rather than the distance, and say what the critical point $x = 0$ actually is.",
+   "answer": "Minimise D^2(x) = x^2 + (x^2 - 3)^2 over all real x. Squaring is legitimate because t -> sqrt(t) is increasing on t >= 0, so D and D^2 are minimised at exactly the same x. d/dx D^2 = 2x + 4x(x^2 - 3) = 2x(2x^2 - 5), so the critical points are x = 0 and x = +/- sqrt(5/2) = +/- sqrt(10)/2 = +/- 1.5811. Values: D^2(0) = 9 but D^2(+/- sqrt(10)/2) = 5/2 + 1/4 = 11/4. So the nearest points are (sqrt(10)/2, 5/2) and (-sqrt(10)/2, 5/2), at distance sqrt(11)/2 = 1.6583, while x = 0 - the vertex, the tempting answer - is a local MAXIMUM of the distance among the critical points. The domain is all of R with no endpoints, but D -> infinity as |x| -> infinity, so a global minimum does exist and must be among the critical points.",
+   "rubric": {
+    "required": [
+     "distanc",
+     "critical",
+     "squar",
+     "minim",
+     "point",
+     "maximum"
+    ],
+    "optional": [
+     "increas",
+     "vertex",
+     "global",
+     "symmetr",
+     "parabola",
+     "local"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 90,
+   "hint": "Write everything in terms of $x$ alone using $y = x^2$, and factor the derivative rather than expanding it.",
+   "explain": "The factored derivative $2x(2x^2-5)$ hands over three critical points at once, and the whole exercise is in comparing them: $D^2(0) = 9$ against $D^2 = \\tfrac{11}{4}$ at $x = \\pm\\tfrac{\\sqrt{10}}{2}$, so the vertex is the *worst* of the three and the answer is a symmetric pair of points at height $y = \\tfrac52$. Squaring is safe because $\\sqrt{\\cdot}$ is increasing, which preserves the location of every extremum while removing an awkward square root from the differentiation. The famous wrong answer is $(0,0)$: the point below $(0,3)$ looks closest, but the parabola climbs towards the target faster than it moves sideways away from it."
+  },
+  {
+   "id": "cal1-7-oc-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A rectangle sits with its base on the $x$-axis and its two upper corners on the parabola $y = 4 - x^2$. Maximise its area. State the closed domain, carry out the endpoint comparison in full, and give the dimensions of the winner.",
+   "answer": "With upper corners at (x, 4 - x^2) and (-x, 4 - x^2) for 0 <= x <= 2, the width is 2x and the height is 4 - x^2, so A(x) = 2x(4 - x^2) = 8x - 2x^3 on the closed bounded interval [0, 2]. A'(x) = 8 - 6x^2 = 0 gives x^2 = 4/3, so x = 2/sqrt(3) = 2 sqrt(3)/3 = 1.1547 (the negative root lies outside the domain). Comparison: A(0) = 0, A(2) = 0, A(2 sqrt(3)/3) = 32 sqrt(3)/9 = 6.1584. The maximum is therefore 32 sqrt(3)/9, attained by a rectangle of width 2x = 4 sqrt(3)/3 = 2.3094 and height 4 - 4/3 = 8/3 = 2.6667. Because [0, 2] is closed and bounded and A is continuous, the Extreme Value Theorem guarantees this maximum exists and is attained.",
+   "rubric": {
+    "required": [
+     "domain",
+     "endpoint",
+     "critical",
+     "area",
+     "maxim",
+     "continu"
+    ],
+    "optional": [
+     "extreme",
+     "width",
+     "height",
+     "closed",
+     "bounded",
+     "symmetr"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 90,
+   "hint": "Use the symmetry: put the corners at $\\pm x$ so the width is $2x$, and note the parabola meets the axis at $x = 2$.",
+   "explain": "Here the domain really is closed and bounded - $x$ cannot exceed $2$ without the corner dropping below the axis - so the Extreme Value Theorem applies and the endpoint table is short and decisive: $0$, $0$ and $\\tfrac{32\\sqrt3}{9} \\approx 6.1584$. The rectangle is $\\tfrac{4\\sqrt3}{3}$ wide by $\\tfrac83$ tall, so it is not the square anyone guesses, and it does not have its corner at the point where the parabola is steepest. Forgetting the factor $2$ in the width is the commonest arithmetical slip and produces the right $x$ with half the area."
+  },
+  {
+   "id": "cal1-7-oc-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why locating the only critical point of an objective is not by itself a solution to an optimisation problem. Contrast the argument available on a closed bounded interval with the one you must construct on an open or unbounded domain, and say why the Extreme Value Theorem needs both closedness and boundedness - giving a function that fails on each count.",
+   "rubric": {
+    "required": [
+     "critical",
+     "endpoint",
+     "closed",
+     "continu",
+     "extreme",
+     "limit"
+    ],
+    "optional": [
+     "bounded",
+     "global",
+     "attain",
+     "interval",
+     "sign",
+     "infinit"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "optimisation-domains",
+    "applied-optimisation"
+   ],
+   "tags": [
+    "optimisation-domains",
+    "applied-optimisation"
+   ],
+   "xp": 36,
+   "explain": "A critical point is only a place where the derivative gives no information about direction; it may be a maximum, a minimum, or neither, as $x^3$ at $0$ shows. On a closed bounded interval continuity buys the Extreme Value Theorem, so both extremes exist and each must be a critical point or an endpoint, making a finite comparison table sufficient. Both hypotheses are load-bearing: $f(x) = x$ on the open $(0,1)$ is continuous and bounded yet attains neither extreme, and $f(x) = x$ on the unbounded $[0,\\infty)$ has no maximum at all. On such a domain you must supply the missing argument yourself - typically by showing the objective tends to $\\infty$ at both ends, or that $f'$ changes sign exactly once, so the lone critical point cannot be beaten."
+  }
+ ],
+ "approximation-and-iteration": [
+  {
+   "id": "cal1-7-ai-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Use a linear approximation to estimate $\\sqrt[3]{8.1}$. State the base point and why you chose it, give the estimate to seven decimal places, and say whether it over- or under-estimates the true value, justifying the direction from the second derivative rather than from the answer.",
+   "answer": "Take f(x) = x^(1/3) and a = 8, because 8 is the nearest point where both f and f' are exact: f(8) = 2 and f'(x) = (1/3) x^(-2/3), so f'(8) = 1/12. Then L(x) = 2 + (x - 8)/12 and L(8.1) = 2 + 0.1/12 = 2.0083333. The true value is 2.0082989, so the linear approximation overestimates, by about 3.4 x 10^-5. The direction is forced by concavity: f''(x) = -(2/9) x^(-5/3) < 0 for x > 0, so the graph is concave down and every tangent line lies above it. The error is second order, roughly (1/2)|f''(8)|(0.1)^2 = 3.5 x 10^-5, which matches what was observed.",
+   "rubric": {
+    "required": [
+     "tangent",
+     "concav",
+     "overestimat",
+     "derivativ",
+     "approximat",
+     "second"
+    ],
+    "optional": [
+     "base",
+     "error",
+     "above",
+     "exact",
+     "cube",
+     "linear"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "linear-approximation"
+   ],
+   "tags": [
+    "linear-approximation"
+   ],
+   "xp": 90,
+   "hint": "The base point must be a perfect cube, and the sign of $f''$ decides the direction before you compute anything.",
+   "explain": "The choice $a = 8$ is the whole trick: a linear approximation is only useful where $f(a)$ and $f'(a)$ are known exactly, so you look for the nearest perfect cube rather than the nearest round number. $L(8.1) = 2.0083333$ against $2.0082989$ is an overestimate of $3.4 \\times 10^{-5}$, and $f'' < 0$ predicted that sign in advance. Note that $f'(8) = \\tfrac1{12}$ is *positive* while $f''$ is negative: confusing increase with concavity is the usual reason a student predicts the wrong direction of error."
+  },
+  {
+   "id": "cal1-7-ai-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A ball bearing is measured as $r = 6$ mm with a tolerance of $\\pm 0.02$ mm. Use differentials to estimate the resulting uncertainty in the volume $V = \\tfrac{4}{3}\\pi r^3$, both as an absolute figure and as a relative error, and explain why the relative form is the one worth memorising.",
+   "answer": "dV = 4 pi r^2 dr = 4 pi (36)(0.02) = 2.88 pi = 9.05 mm^3, against V = 288 pi = 904.78 mm^3. The exact change from r = 6 to r = 6.02 is 9.08 mm^3, so the differential is accurate to under half a percent of itself. The relative error is dV/V = (4 pi r^2 dr)/((4/3) pi r^3) = 3 dr/r = 3(0.02/6) = 0.01 = 1%. The relative form is worth memorising because every constant and every unit cancels, leaving only the exponent: a power p in a formula multiplies the relative error by p, so cubing a length triples its percentage uncertainty. A radius known to about a third of a percent gives a volume known only to a full percent.",
+   "rubric": {
+    "required": [
+     "differential",
+     "relative",
+     "volume",
+     "radius",
+     "cub",
+     "error"
+    ],
+    "optional": [
+     "toleranc",
+     "uncertain",
+     "approximat",
+     "percent",
+     "cancel",
+     "exponent"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "differentials"
+   ],
+   "tags": [
+    "differentials"
+   ],
+   "xp": 90,
+   "hint": "$dV = \\frac{dV}{dr}\\,dr$, and divide the result by $V$ before putting any numbers in.",
+   "explain": "$dV = 4\\pi r^2\\,dr$ is just the surface area times the thickness of the added shell, which is why the formula is memorable geometrically as well as symbolically: $2.88\\pi \\approx 9.05$ mm$^3$ against a true change of $9.08$. Dividing before substituting gives $\\frac{dV}{V} = 3\\frac{dr}{r}$ with no $\\pi$, no units and no arithmetic, and it generalises instantly - a quantity proportional to $r^p$ multiplies relative error by $p$. The tempting mistake is reporting $9.05$ mm$^3$ as though it were large; against $904.78$ mm$^3$ it is $1\\%$, and it is the ratio, not the raw figure, that says whether the measurement is good enough."
+  },
+  {
+   "id": "cal1-7-ai-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate (a) $\\displaystyle\\lim_{x\\to 0}\\frac{\\sin x - x}{x^3}$, (b) $\\displaystyle\\lim_{x\\to 0^+} x\\ln x$, (c) $\\displaystyle\\lim_{x\\to\\infty}\\left(1 + \\frac{3}{x}\\right)^x$, naming the indeterminate form of each and the conversion (if any) needed before L'H\u00f4pital's rule may be applied. Then explain why the rule must **not** be used on $\\displaystyle\\lim_{x\\to 0}\\frac{x^2 + x}{\\cos x}$ and what it would wrongly suggest.",
+   "answer": "(a) Form 0/0, no conversion needed. Three passes: (cos x - 1)/(3x^2), then (-sin x)/(6x), then (-cos x)/6, so the limit is -1/6. (b) Form 0 times -infinity, a product, so convert it to a quotient: (ln x)/(1/x) has form -infinity/infinity, and one pass gives (1/x)/(-1/x^2) = -x -> 0. (c) Form 1^infinity, an exponential, so take logarithms: ln y = x ln(1 + 3/x) = ln(1 + 3/x)/(1/x), which is 0/0; one pass gives 3/(1 + 3/x) -> 3, so the limit is e^3, not 3. The last limit has form 0/1, which is not indeterminate at all - substitute to get 0. Differentiating top and bottom anyway gives (2x + 1)/(-sin x), which runs to -infinity as x -> 0+ and to +infinity as x -> 0-, so the illegal step manufactures a divergence in place of an ordinary limit of 0.",
+   "rubric": {
+    "required": [
+     "indeterminat",
+     "form",
+     "logarithm",
+     "quotient",
+     "limit",
+     "differentiat"
+    ],
+    "optional": [
+     "convert",
+     "substitut",
+     "product",
+     "exponent",
+     "pass",
+     "divergen"
+    ],
+    "minWords": 75
+   },
+   "concepts": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "xp": 90,
+   "hint": "Check the form before each pass, including the passes after the first. Two of these three need rewriting before the rule is even legal.",
+   "explain": "In (a) each successive quotient is checked and is still $\\tfrac00$, which is what licenses three consecutive passes; stopping early at $\\frac{\\cos x - 1}{3x^2}$ and declaring it $0$ is the usual error. In (b) the product must be turned into a quotient, and putting $\\ln x$ on top is the choice that resolves - the other arrangement grows worse forever. In (c) the answer is $e^3$: computing $\\lim \\ln y = 3$ and reporting $3$ is the classic dropped step. The fourth limit is the real lesson: $\\tfrac{0}{1}$ is not indeterminate, so applying the rule does not merely fail to help, it changes the answer from $0$ into a divergence."
+  },
+  {
+   "id": "cal1-7-ai-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "The equation $x^3 - x - 1 = 0$ has exactly one real root. Starting from $x_0 = 1$, carry out two Newton steps, giving $x_1$ and $x_2$ as exact fractions and $x_2$ to six decimal places. Then describe what happens to Newton's method applied to $x^3 - 2x + 2 = 0$ from $x_0 = 0$, and say what that failure tells you about the method in general.",
+   "answer": "With f(x) = x^3 - x - 1 and f'(x) = 3x^2 - 1: f(1) = -1 and f'(1) = 2, so x1 = 1 - (-1)/2 = 3/2. Then f(3/2) = 7/8 and f'(3/2) = 23/4, so x2 = 3/2 - (7/8)(4/23) = 3/2 - 7/46 = 31/23 = 1.347826. The root is 1.324718, and a third step gives 1.325200. For g(x) = x^3 - 2x + 2 from x0 = 0: g(0) = 2 and g'(0) = -2 give x1 = 1; then g(1) = 1 and g'(1) = 1 give x2 = 0. The iteration cycles 0, 1, 0, 1 forever and never approaches the real root near -1.7693. This shows Newton is a local method: each step is a legitimate tangent-line solve, but the tangent line is only a good model of f near the current point, so convergence is guaranteed only from a start close enough to a simple root. Starting instead at x0 = -2 converges quickly to -1.7693.",
+   "rubric": {
+    "required": [
+     "tangent",
+     "cycle",
+     "root",
+     "local",
+     "iterat",
+     "converg"
+    ],
+    "optional": [
+     "fraction",
+     "guess",
+     "simple",
+     "start",
+     "bracket",
+     "fail"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "newtons-method"
+   ],
+   "tags": [
+    "newtons-method"
+   ],
+   "xp": 90,
+   "hint": "Keep the arithmetic in fractions: $f(3/2) = 7/8$ and $f'(3/2) = 23/4$.",
+   "explain": "The first sequence is Newton at its best: $1 \\to \\tfrac32 \\to \\tfrac{31}{23} \\approx 1.347826$ and then $1.325200$ against a root of $1.324718$, the error shrinking roughly as its own square. The second is Newton at its worst, and the instructive part is that nothing looks wrong step by step - each iterate is the honest $x$-intercept of a genuine tangent line. What fails is global, not local: the cycle $0 \\to 1 \\to 0$ is a stable trap that no amount of extra iteration escapes. Assuming a formula that works on textbook examples will always converge is precisely the assumption this cubic was built to break."
+  },
+  {
+   "id": "cal1-7-ai-05",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Derive Newton's iteration $x_{n+1} = x_n - \\dfrac{f(x_n)}{f'(x_n)}$ from the tangent line to $y = f(x)$ at $x = x_n$, proving that the next iterate is exactly the $x$-intercept of that tangent. Then explain precisely what goes wrong when $f'(x_n) = 0$, and why a root at which $f'$ vanishes slows the method down even when it does converge - illustrating with $f(x) = x^2$.",
+   "rubric": {
+    "required": [
+     "tangent",
+     "intercept",
+     "slope",
+     "zero",
+     "approximat",
+     "converg"
+    ],
+    "optional": [
+     "horizontal",
+     "linear",
+     "multipl",
+     "double",
+     "halv",
+     "local"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "newtons-method",
+    "linear-approximation"
+   ],
+   "tags": [
+    "newtons-method",
+    "linear-approximation"
+   ],
+   "xp": 90,
+   "hint": "Write the tangent line, set $y = 0$, solve for $x$. Then try the whole derivation on $f(x) = x^2$ and watch the step size.",
+   "explain": "The tangent at $x_n$ is $y = f(x_n) + f'(x_n)(x - x_n)$; setting $y = 0$ and solving gives $x = x_n - f(x_n)/f'(x_n)$ provided $f'(x_n) \\neq 0$, so the iterate is the intercept by construction rather than by coincidence. When $f'(x_n) = 0$ the tangent is horizontal, has no $x$-intercept unless it lies along the axis, and the formula divides by zero - the method does not slow down, it stops. At a **double** root the damage is subtler: for $f(x) = x^2$ the map is $x - \\frac{x^2}{2x} = \\frac{x}{2}$, which converges to $0$ but only halves the error each step, so quadratic convergence degrades to linear and the doubling of correct digits is lost. The underlying reason is the same in both cases: the tangent-line model is poor exactly where the curve is flat."
+  }
+ ],
+ "exam": [
+  {
+   "id": "cal1-7-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement gives the conditions under which L'H\u00f4pital's rule may be applied to $\\lim_{x \\to a} \\frac{f(x)}{g(x)}$?",
+   "choices": [
+    "Whenever $f$ and $g$ are both differentiable near $a$.",
+    "Only when the limit has the form $\\frac{0}{0}$ or $\\frac{\\pm\\infty}{\\pm\\infty}$, with $g' \\neq 0$ near $a$ and $\\lim f'/g'$ existing or infinite.",
+    "Whenever the limit cannot be evaluated by direct substitution.",
+    "Whenever $\\lim_{x \\to a} f(x) = \\lim_{x \\to a} g(x)$."
+   ],
+   "answer": 1,
+   "concepts": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "xp": 18,
+   "explain": "The form condition is what makes the rule true, and it is the hypothesis most often skipped: $\\frac{\\cos x}{x}$ is a differentiable quotient near $0$ that the rule cannot touch, which kills the first option. The third is the practical habit that produces wrong answers - $\\frac{1}{0}$ resists substitution and is still not indeterminate. The fourth is close but too weak, since $\\lim f = \\lim g = 2$ is a perfectly ordinary quotient equal to $1$."
+  },
+  {
+   "id": "cal1-7-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "For a differentiable $f$, the differential $dy$ is defined as:",
+   "choices": [
+    "the exact change in $y$ caused by a change $dx$ in $x$",
+    "$f'(x)\\,dx$ - the change in $y$ predicted by the tangent line at $x$ for an input change of $dx$",
+    "$f(x + dx) - f(x)$, by definition",
+    "another notation for the derivative $f'(x)$ itself"
+   ],
+   "answer": 1,
+   "concepts": [
+    "differentials",
+    "linear-approximation"
+   ],
+   "tags": [
+    "differentials",
+    "linear-approximation"
+   ],
+   "xp": 18,
+   "explain": "$dy = f'(x)\\,dx$ is the tangent line's prediction, while $\\Delta y = f(x+dx) - f(x)$ is the true change; they differ by a second-order amount, which is the entire content of linear approximation. Options one and three describe $\\Delta y$, and equating the two is the mistake that makes error propagation look exact when it is only an estimate. The fourth confuses a quantity with a rate: $dy$ is a change in $y$, whereas $f'(x)$ is a change per unit change in $x$."
+  },
+  {
+   "id": "cal1-7-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Newton's method, in symbols and in one instance. Give the second blank as an exact fraction and the third as a plain number.",
+   "template": "x_{n+1} = x_n - f(x_n)/___\nfor f(x) = x^2 - 5 starting from x0 = 2: x1 = ___\nthe step is undefined at any guess where f'(x_n) = ___",
+   "blanks": [
+    "f'(x_n)",
+    "9/4",
+    "0"
+   ],
+   "concepts": [
+    "newtons-method"
+   ],
+   "tags": [
+    "newtons-method"
+   ],
+   "xp": 36,
+   "explain": "$f(2) = -1$ and $f'(2) = 4$, so $x_1 = 2 - \\frac{-1}{4} = \\frac94 = 2.25$, already close to $\\sqrt5 = 2.2360680$. The denominator is the derivative at the current guess, not at the root, which is exactly why a horizontal tangent - $f'(x_n) = 0$ - destroys the step: the tangent line is parallel to the axis and has no intercept to move to. Writing $f'(x)$ generically instead of $f'(x_n)$ is a common slip that obscures the fact that the slope is re-evaluated every iteration."
+  },
+  {
+   "id": "cal1-7-ex-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the steps for evaluating a limit of the indeterminate form $1^{\\infty}$.",
+   "fragments": [
+    "Recognise the form as 1^infinity: indeterminate, but not a quotient, so the rule does not yet apply.",
+    "Set y equal to the expression and take logarithms, so that ln y is a product of the exponent with a logarithm.",
+    "Rearrange that product, which has form infinity times 0, into a quotient of form 0/0 or infinity/infinity.",
+    "Apply L'Hopital's rule to the quotient and evaluate the limit L of ln y.",
+    "Exponentiate: the original limit is e^L, not L."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "indeterminate-forms",
+    "lhopitals-rule"
+   ],
+   "tags": [
+    "indeterminate-forms",
+    "lhopitals-rule"
+   ],
+   "xp": 36,
+   "explain": "Each step exists to repair the defect the previous one exposed: the rule speaks only about quotients, logarithms turn a power into a product, and only a product rearranged into a quotient is admissible. The last step is the one most often dropped - $\\lim_{x\\to\\infty}(1+3/x)^x$ has $\\lim \\ln y = 3$ and answer $e^3$, so stopping at $3$ loses everything. Note also that $1^{\\infty}$ is genuinely indeterminate even though $1$ raised to any fixed power is $1$: the base is approaching $1$, not sitting at it."
+  },
+  {
+   "id": "cal1-7-ex-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Evaluate each limit exactly. Write exponentials in the form `e^2`.",
+   "steps": [
+    {
+     "label": "lim_{x->oo} (sqrt(x^2 + x) - x)",
+     "expected": "1/2"
+    },
+    {
+     "label": "lim_{x->0} (tan x - x)/x^3",
+     "expected": "1/3"
+    },
+    {
+     "label": "lim_{x->oo} x^2 e^(-x)",
+     "expected": "0"
+    },
+    {
+     "label": "lim_{x->0+} (1 + 2x)^(1/x)",
+     "expected": "e^2"
+    }
+   ],
+   "concepts": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "xp": 72,
+   "hint": "One needs a conjugate, one needs three passes, one needs rewriting as a quotient, and one needs logarithms.",
+   "explain": "The first is $\\infty - \\infty$: the conjugate turns it into $\\frac{x}{\\sqrt{x^2+x}+x} \\to \\tfrac12$, and guessing $0$ because both terms 'grow the same' is the classic error. The second needs three passes and lands on $\\tfrac13$, next to the famous $-\\tfrac16$ for $\\frac{\\sin x - x}{x^3}$ - the sign and size differ because $\\tan$ bends away from its tangent line in the opposite direction to $\\sin$. The third becomes $\\frac{x^2}{e^x}$ and dies after two passes, since exponentials outrun every power. The fourth is $1^\\infty$ and equals $e^2$ via $\\lim\\frac{\\ln(1+2x)}{x} = 2$."
+  },
+  {
+   "id": "cal1-7-ex-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "An open-topped box with a square base must hold $32000$ cm$^3$. Minimise the area of material used - the base plus four sides. Give the dimensions and the area, and justify that your critical point is the **global** minimum, given that the domain is $x > 0$ and therefore has no endpoints.",
+   "answer": "Let the base have side x and the height be h. The constraint x^2 h = 32000 gives h = 32000/x^2, and the open-top surface area is S = x^2 + 4xh = x^2 + 128000/x on the domain x > 0. S'(x) = 2x - 128000/x^2 = 0 gives x^3 = 64000, so x = 40 cm, h = 32000/1600 = 20 cm and S = 1600 + 3200 = 4800 cm^2. Global justification: the domain (0, infinity) is open and unbounded, so there are no endpoints to compare. Instead S -> +infinity as x -> 0+ because of the 128000/x term, and S -> +infinity as x -> infinity because of the x^2 term, and x = 40 is the only critical point on the domain, so it must be the global minimum. Equivalently S'' = 2 + 256000/x^3 > 0 for all x > 0, so S is concave up everywhere and the single stationary point is the global minimum. Note h = x/2: the optimal open box is half as tall as it is wide.",
+   "rubric": {
+    "required": [
+     "constraint",
+     "domain",
+     "critical",
+     "minim",
+     "surface",
+     "global"
+    ],
+    "optional": [
+     "limit",
+     "endpoint",
+     "height",
+     "base",
+     "second",
+     "infinit"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "tags": [
+    "applied-optimisation",
+    "optimisation-domains"
+   ],
+   "xp": 90,
+   "hint": "Only one square face, so the area is $x^2 + 4xh$, not $2x^2 + 4xh$.",
+   "explain": "Eliminating $h$ gives $S(x) = x^2 + 128000/x$ and $x^3 = 64000$, so $x = 40$, $h = 20$ and $S = 4800$ cm$^2$. The justification is the graded part: on $(0,\\infty)$ there is no endpoint table, so you argue from the two limits and the uniqueness of the critical point, or from $S'' > 0$ everywhere. Including a lid by mistake gives $S = 2x^2 + 128000/x$ and a different answer entirely, which is why re-reading the geometry before differentiating is worth more than any amount of care with the calculus."
+  },
+  {
+   "id": "cal1-7-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\lim_{x\\to\\infty}\\left(\\sqrt{x^2 + x} - x\\right)$ twice: once by an algebraic conjugate manipulation and once by converting it into a quotient to which L'H\u00f4pital's rule applies. Then say exactly why the rule cannot be used on the difference as it stands.",
+   "answer": "Conjugate: sqrt(x^2 + x) - x = ((x^2 + x) - x^2)/(sqrt(x^2 + x) + x) = x/(sqrt(x^2 + x) + x). Dividing top and bottom by x gives 1/(sqrt(1 + 1/x) + 1) -> 1/(1 + 1) = 1/2. By L'Hopital: write the expression as (sqrt(1 + 1/x) - 1)/(1/x), which has form 0/0 as x -> infinity; substituting t = 1/x makes it (sqrt(1 + t) - 1)/t as t -> 0+, and one pass gives (1/(2 sqrt(1 + t)))/1 -> 1/2. The rule cannot be applied to the original expression because it is a difference, not a quotient: infinity - infinity is indeterminate, but L'Hopital's rule speaks only about 0/0 and infinity/infinity, so the difference must first be rewritten as a single fraction.",
+   "rubric": {
+    "required": [
+     "conjugat",
+     "quotient",
+     "indeterminat",
+     "differenc",
+     "limit",
+     "form"
+    ],
+    "optional": [
+     "fraction",
+     "substitut",
+     "divid",
+     "rewrit",
+     "denominator",
+     "apply"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "indeterminate-forms"
+   ],
+   "xp": 90,
+   "hint": "Multiply by $\\frac{\\sqrt{x^2+x}+x}{\\sqrt{x^2+x}+x}$; for the second method, divide through by $x$ first so the small quantity $1/x$ appears.",
+   "explain": "Both routes give $\\tfrac12$, and the agreement is the point: the conjugate is faster, while the L'H\u00f4pital route shows how any $\\infty - \\infty$ is made legal by manufacturing a single fraction. The famous wrong answer is $0$, from reasoning that $\\sqrt{x^2+x} \\approx x$ for large $x$ - true in the ratio sense but useless here, because the difference of two quantities each growing without bound is not controlled by their being close in relative terms. Geometrically, $\\sqrt{x^2+x}$ runs asymptotically parallel to the line $y = x + \\tfrac12$, and that constant gap is the limit."
+  },
+  {
+   "id": "cal1-7-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For each of $f(x) = x^{1/3}$ started at $x_0 = 1$ and $g(x) = x^3 - 2x + 2$ started at $x_0 = 0$, compute the first three Newton iterates and name the failure. Say what should be done differently in each case, and explain why 'the iterates stopped changing' is not on its own evidence that a root has been found.",
+   "answer": "For f(x) = x^(1/3): f'(x) = (1/3) x^(-2/3), so x - f/f' = x - 3x = -2x. From x0 = 1 the iterates are -2, 4, -8: the method diverges, doubling its distance from the only root at 0 every step, because f has a vertical tangent there and each tangent line crosses the axis on the far side. No starting guess except the root itself works, so the fix is to abandon Newton here - bisect instead, or solve the equivalent equation x = 0 obtained by cubing. For g(x) = x^3 - 2x + 2: g(0) = 2, g'(0) = -2 give x1 = 1; g(1) = 1, g'(1) = 1 give x2 = 0; then x3 = 1 again. This is a 2-cycle, and the real root near -1.7693 is never approached; the fix is a better bracket, for instance x0 = -2, which converges in a few steps. Finally, iterates that stop changing only say the Newton map has reached a fixed point numerically: if f'(x_n) is very large or the step underflows, f(x_n)/f'(x_n) can be negligible while f(x_n) itself is not small, so the residual |f(x_n)| must always be checked directly.",
+   "rubric": {
+    "required": [
+     "diverg",
+     "cycle",
+     "tangent",
+     "root",
+     "check",
+     "bracket"
+    ],
+    "optional": [
+     "vertical",
+     "fixed",
+     "residual",
+     "bisect",
+     "start",
+     "converg"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "newtons-method"
+   ],
+   "tags": [
+    "newtons-method"
+   ],
+   "xp": 90,
+   "hint": "Simplify the Newton map symbolically for the first one before substituting any numbers.",
+   "explain": "The cube root case is the cleanest failure in the subject because the map simplifies to $x \\mapsto -2x$ exactly, so divergence is provable rather than observed - and note the cause is $f' \\to \\infty$ at the root, not $f' = 0$, which is the failure people expect. The cubic is a stable $2$-cycle that no extra iterations escape. The last part is the practical lesson: a small *step* means $f(x_n)/f'(x_n)$ is small, which is a statement about the ratio, so a steep graph can make the step tiny while the residual is not - always test $|f(x_n)|$ itself before believing a root has been located."
+  }
+ ]
+}

@@ -1,0 +1,993 @@
+{
+ "n": 9,
+ "name": "The Modelling Floor",
+ "concepts": [
+  "modelling-setup",
+  "optimisation-setup",
+  "related-rates-setup",
+  "domain-and-endpoints",
+  "theorem-hypotheses",
+  "mean-value-theorem",
+  "lhopitals-rule",
+  "derivative-in-context",
+  "integral-in-context",
+  "growth-comparison"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "set-up-the-model",
+  "choose-the-theorem",
+  "interpret-and-judge",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Building the Model, and Earning the Theorem",
+  "sections": [
+   {
+    "title": "Naming the Variable, Writing the Constraint",
+    "body": "A modelling problem does not arrive as a function. It arrives as a situation, and the whole of the difficulty lies in three decisions made before any differentiation happens: **what is being optimised**, **what constrains it**, and **which single variable everything else will be written in terms of**.\n\nFix the target first, give it a name, and give it units - volume in $\\text{cm}^3$, cost in pounds, area in $\\text{m}^2$ - because a target with units is a target you can sanity-check. Then write the **constraint**: the sentence in the problem that stops the answer being infinite. A box of unbounded volume or a fence enclosing unbounded area is what you get when the constraint has been left out.\n\nThe constraint is what lets you eliminate variables. Two unknowns and one constraint leave one free variable, and a function of one variable is the only object the derivative tests can be pointed at. Choosing the *convenient* variable - the one that makes the constraint easiest to solve - is real skill, not bookkeeping.\n\nFinally, and this is the step most often skipped, write down the **domain**. It comes from the situation rather than the algebra: lengths are positive, a corner cut cannot exceed half the shorter side, a quantity produced cannot be negative. The domain is what tells you that a critical point at $x = 12$ is a fact about a cubic and not about a box, and whether the domain is a closed interval decides whether the Extreme Value Theorem is available to you at all.",
+    "code": "PROBLEM  A 30 cm by 16 cm sheet of tin. Cut a square of side x out of each\n         corner, fold the flaps up, and make an open box of largest volume.\n\nSTEP 1  NAME     x = side of the cut square, in cm.       one unknown, chosen\nSTEP 2  TARGET   V = (length)(width)(height), in cm^3.    what is optimised\nSTEP 3  RELATE   folding removes x from BOTH ends of each side:\n             length = 30 - 2x     width = 16 - 2x     height = x\nSTEP 4  REDUCE   V(x) = x (30 - 2x)(16 - 2x)              one variable only\nSTEP 5  DOMAIN   every factor must be a genuine length:\n             x > 0,   30 - 2x > 0,   16 - 2x > 0    ->    0 < x < 8\n         The SHORT side binds. Writing 0 < x < 15 models a box that\n         cannot be folded.\n\nOnly now is there anything worth differentiating.\n\n    V(x)  = 4x^3 - 92x^2 + 480x\n    V'(x) = 12x^2 - 184x + 480 = 4(3x - 10)(x - 12)\n\n    critical points   x = 10/3   and   x = 12\n    x = 12 lies outside 0 < x < 8, so the MODEL discards it - the algebra\n    alone never would have\n\n    V''(10/3) = 24(10/3) - 184 = -104 < 0             a maximum\n    V(10/3)   = (10/3)(70/3)(28/3) = 19600/27 = 725.9 cm^3 (1 d.p.)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Naming costs nothing and comes first. A startling share of sign errors in optimisation are really a variable that was never pinned to a definite quantity."
+     },
+     {
+      "line": 8,
+      "text": "The 2 is the modelling. A square is removed at each of the two ends of every side, so each dimension loses 2x rather than x."
+     },
+     {
+      "line": 11,
+      "text": "The domain comes from the situation, not the formula: a 16 cm side cannot lose more than 16 cm in total, so the short side is what binds."
+     },
+     {
+      "line": 21,
+      "text": "x = 12 is a perfectly good root of a perfectly good quadratic. Only the model can reject it, which is why the domain had to be written down first."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "A closed cylindrical tin must hold $355\\ \\text{cm}^3$. Set the minimisation up and stop there: name your variable, state the constraint, express the surface area $S$ as a function of that one variable, and give the domain. Do not solve it.",
+     "answer": "Let r be the base radius in cm and h the height in cm. Constraint: pi r^2 h = 355, so h = 355/(pi r^2). Target: S = 2 pi r^2 + 2 pi r h square centimetres. Substituting the constraint gives S(r) = 2 pi r^2 + 710/r on the domain r > 0, which is open and unbounded rather than a closed interval.",
+     "rubric": {
+      "required": [
+       "radius",
+       "constrain",
+       "surface",
+       "domain",
+       "substitut"
+      ],
+      "optional": [
+       "cylind",
+       "height",
+       "volum",
+       "unit",
+       "positiv",
+       "unbounded"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "modelling-setup",
+      "optimisation-setup",
+      "domain-and-endpoints"
+     ],
+     "explain": "The fixed volume is the constraint and the surface area is the target; swapping the two gives a problem with no answer at all, since a tin of fixed surface area can be made to hold as little as you please. Eliminating $h$ through $h = 355/(\\pi r^2)$ leaves $S(r) = 2\\pi r^2 + 710/r$ on $r > 0$. That domain is open and unbounded, so the Extreme Value Theorem does **not** apply here and a first- or second-derivative argument has to carry the existence of the minimum by itself."
+    }
+   },
+   {
+    "title": "Related Rates: Differentiate the Relation, Then Substitute",
+    "body": "A related-rates problem is a modelling problem with time smuggled in. Every quantity is secretly a function of $t$, and the sentence tying them together must be true **for every $t$ in an interval**, not merely at the instant you care about. That is the entire content of the technique, and violating it is the classic error.\n\nSo the order is fixed: **write the relation, differentiate it with respect to $t$, and only then substitute the instant.** Substituting first turns a variable into a constant, and constants have derivative zero - which is how a perfectly good relation collapses into the absurdity $0 = 100$.\n\nDeciding *which* relation is the modelling work, and geometry supplies most of them: Pythagoras for a ladder or for two vehicles travelling at right angles, similar triangles for shadows and for cones, $V = \\frac{4}{3}\\pi r^3$ for a balloon. If your relation contains a variable whose rate you were never given, eliminate it first using a second, static relation - a cone's $r = h/2$ is the standard example.\n\nExpect the chain rule everywhere, since $\\frac{d}{dt}\\left[r^3\\right] = 3r^2 \\frac{dr}{dt}$ and not $3r^2$. And read the sign at the end: $\\frac{dy}{dt} = -0.45$ is not an untidiness to be stripped off, it is the statement that the ladder's top is descending.",
+    "code": "RELATED RATES   A spherical balloon is inflated at 100 cm^3 per second.\n                How fast is the radius growing at the instant r = 10 cm?\n\nWRONG                              RIGHT\nsubstitute, then differentiate     differentiate, then substitute\n\n  V = (4/3) pi r^3                   V(t) = (4/3) pi r(t)^3\n  r = 10  ->  V = 4000 pi / 3        dV/dt = 4 pi r^2 (dr/dt)\n  V is now a CONSTANT                100 = 4 pi (10)^2 (dr/dt)\n  dV/dt = 0                          dr/dt = 1/(4 pi) = 0.0796 cm/s\n  contradiction - it was 100\n\nr = 10 is a fact about ONE MOMENT. V = (4/3) pi r^3 is a fact about\nEVERY moment, and that is the only reason it may be differentiated\nwith respect to t at all.\n\nLADDER   A 5 m ladder, foot 3 m from the wall, sliding out at 0.6 m/s.\n\n  relation, true for all t:   x(t)^2 + y(t)^2 = 25\n  differentiate in t:         2x x' + 2y y' = 0    ->   y' = -x x' / y\n  NOW substitute the instant: x = 3,  y = sqrt(25 - 9) = 4,  x' = 0.6\n                              y' = -(3)(0.6)/4 = -0.45 m/s\n\n  The sign carries the meaning: the top of the ladder is FALLING.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 9,
+      "text": "This is the whole lesson in one line. Fixing r at 10 before differentiating destroys the only variable the derivative had to work with."
+     },
+     {
+      "line": 13,
+      "text": "True for all t is the licence to differentiate. A statement about a single instant cannot be differentiated at all."
+     },
+     {
+      "line": 20,
+      "text": "2x x' + 2y y' = 0 is the chain rule applied twice. The 25 differentiates to zero because the ladder's length genuinely is constant."
+     },
+     {
+      "line": 23,
+      "text": "Negative means decreasing. Reporting 0.45 m/s with the sign stripped off answers a question nobody asked."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Two cars leave the same junction at the same moment, one north at $60$ km/h and one east at $80$ km/h. Set up the related rate for the distance $D$ between them: state the relation, say why it is true for all $t$, differentiate it, and only then give $\\frac{dD}{dt}$ after one hour.",
+     "answer": "Let x(t) be the eastward distance and y(t) the northward one, in km. The roads are perpendicular, so D(t)^2 = x(t)^2 + y(t)^2 holds at every t, not only at one instant. Differentiating gives 2D D' = 2x x' + 2y y', so D' = (x x' + y y')/D. After one hour x = 80, y = 60, D = 100, x' = 80, y' = 60, hence D' = (6400 + 3600)/100 = 100 km/h.",
+     "rubric": {
+      "required": [
+       "relation",
+       "differenti",
+       "substitut",
+       "instant",
+       "perpendic"
+      ],
+      "optional": [
+       "Pythagor",
+       "chain",
+       "distance",
+       "rate",
+       "hour",
+       "100"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "related-rates-setup",
+      "modelling-setup"
+     ],
+     "explain": "Because the roads are perpendicular, $D^2 = x^2 + y^2$ holds at every instant, and that is precisely what licenses differentiating it in $t$. The result $\\frac{dD}{dt} = \\frac{x x' + y y'}{D} = 100$ km/h happens to be constant here, which is a good check: the separation grows like $\\sqrt{60^2+80^2}$ every hour. The two tempting wrong moves are substituting $D = 100$ first and concluding $D' = 0$, and simply adding the speeds to get $140$."
+    }
+   },
+   {
+    "title": "Which Theorem, and Do Its Hypotheses Hold?",
+    "body": "The theorems of this course are conditional promises, and a promise whose conditions fail promises nothing. **Extreme Value** guarantees an absolute maximum and minimum exist, but only for a continuous $f$ on a **closed, bounded** $[a,b]$ - which is exactly why the closed-interval method is entitled to compare critical values against endpoint values and then stop. **Rolle** and the **Mean Value Theorem** each guarantee a point $c$ where the derivative matches a slope, given continuity on $[a,b]$ and differentiability on the open interval $(a,b)$.\n\nNotice the asymmetry: continuity is demanded on the closed interval, differentiability only on the open one. That is deliberate, so that $f(x) = \\sqrt{1-x^2}$ on $[-1,1]$, with its vertical tangents at both endpoints, still qualifies.\n\n**L'Hopital's rule** carries the strictest conditions of the three and is the one most often abused. It applies to $\\frac{0}{0}$ and $\\frac{\\infty}{\\infty}$ and to nothing else. Every other indeterminate form - $0 \\cdot \\infty$, $\\infty - \\infty$, $1^{\\infty}$, $0^0$ - must first be **rewritten** as a quotient, usually by taking a reciprocal or a logarithm. Applying the rule to a form that is not indeterminate at all is worse than useless: $\\displaystyle\\lim_{x \\to 0} \\frac{x+1}{x+2} = \\frac{1}{2}$, while differentiating top and bottom confidently returns $1$.\n\nThe rule is also one-directional. If $\\lim f'/g'$ exists it equals $\\lim f/g$; if it fails to exist, **nothing whatever follows** about the original limit. So judging a claimed application means checking three things in order: is the form genuinely indeterminate, is it a quotient, and did the new limit actually exist?",
+    "code": "THEOREM         HYPOTHESES                       CONCLUSION\nExtreme Value   f continuous on a CLOSED,        f attains an absolute max\n                BOUNDED interval [a, b]          and min somewhere on [a,b]\nRolle           f continuous on [a,b],           some c in (a,b) has\n                differentiable on (a,b),         f'(c) = 0\n                and f(a) = f(b)\nMean Value      f continuous on [a,b],           some c in (a,b) has\n                differentiable on (a,b)          f'(c) = (f(b)-f(a))/(b-a)\nL'Hopital       f/g is 0/0 or inf/inf at a,      lim f/g = lim f'/g'\n                g' nonzero near a, AND the       - and ONLY then\n                limit of f'/g' EXISTS\n\nEVERY HYPOTHESIS HAS A COUNTEREXAMPLE WAITING BEHIND IT\n\n  EVT     f(x) = x on the OPEN interval (0,1) has no maximum. Closed and\n          bounded is not decoration.\n  Rolle   f(x) = |x| on [-1,1] is continuous with f(-1) = f(1) = 1, yet\n          f' is never 0. One non-differentiable point was enough.\n  MVT     f(x) = 1/x on [-1,1]: the secant slope is (1 - (-1))/2 = 1, but\n          f'(c) = -1/c^2 < 0 for every c. f is not continuous at 0, so\n          [-1,1] was never a legal interval to begin with.\n  L'H     lim x->0 (x+1)/(x+2) = 1/2 and is not indeterminate. Differen-\n          tiating top and bottom returns 1/1 = 1: confidently wrong.\n  L'H     lim x->0 x^2 sin(1/x)/sin(x) = 0, but the ratio of derivatives\n          (2x sin(1/x) - cos(1/x))/cos(x) has NO limit. The rule runs one\n          way only: the second limit existing licenses the first.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Closed AND bounded. Drop either word and the theorem is false, which is why the closed-interval method insists on evaluating at the endpoints too."
+     },
+     {
+      "line": 10,
+      "text": "Read this hypothesis last and never skip it. Most bad applications of the rule are impeccable in form and fail exactly here."
+     },
+     {
+      "line": 17,
+      "text": "Continuity everywhere and a single missing derivative: the corner at x = 0 is the whole counterexample."
+     },
+     {
+      "line": 20,
+      "text": "The discontinuity sits inside the interval, not at an endpoint. Always look within [a,b], never only at its ends."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "A student writes: \"$\\displaystyle\\lim_{x \\to \\infty} \\frac{x + \\sin x}{x}$ is of the form $\\frac{\\infty}{\\infty}$, so by L'Hopital it equals $\\lim_{x \\to \\infty} (1 + \\cos x)$, which does not exist. Therefore the original limit does not exist.\" Say precisely which step fails and what the limit actually is.",
+     "rubric": {
+      "required": [
+       "exist",
+       "hypothes",
+       "limit",
+       "conclu",
+       "divid"
+      ],
+      "optional": [
+       "indetermin",
+       "oscillat",
+       "squeeze",
+       "bounded",
+       "one",
+       "cosine"
+      ],
+      "minWords": 50
+     },
+     "concepts": [
+      "lhopitals-rule",
+      "theorem-hypotheses"
+     ],
+     "explain": "The form really is $\\frac{\\infty}{\\infty}$, so reaching for the rule is not itself illegal - the error is entirely in the last sentence. L'Hopital says that *if* $\\lim f'/g'$ exists then it equals $\\lim f/g$; the non-existence of $\\lim (1 + \\cos x)$ tells you only that the rule is silent here, never that the original limit fails. Dividing through instead gives $1 + \\frac{\\sin x}{x} \\to 1$, because $|\\sin x| \\le 1$ forces $\\frac{\\sin x}{x} \\to 0$."
+    }
+   },
+   {
+    "title": "Reading a Derivative or an Integral in Context",
+    "body": "A derivative in a modelling problem is a **rate**, and its units are the units of the output divided by the units of the input. If $C(q)$ is the cost in pounds of making $q$ widgets, then $C'(200) = 16$ says *pounds per widget at a production level of 200*, and it predicts that widget number $201$ costs about $16$ pounds. Reporting a bare $16$, or calling it \"the cost\", throws away the entire content of the statement.\n\nThat prediction is linear, so it is an approximation whose error you can name. For $C(q) = 5000 + 12q + 0.01q^2$ the true extra cost is $C(201) - C(200) = 16.01$, and the penny of difference is exactly the curvature the tangent line ignores. This is also why economists are comfortable calling $C'$ the marginal cost.\n\nAn integral runs the units the other way. $\\int_a^b f'(t)\\,dt$ multiplies a rate by a duration, so litres per minute times minutes gives **litres**: a total, an accumulation, never a rate. If a question asks *how much* rather than *how fast*, it is asking for an integral.\n\nOne last distinction that units alone will not catch. For a velocity $v(t)$, $\\int_a^b v\\,dt$ is **displacement** - signed, net, where the object ended up - while $\\int_a^b |v|\\,dt$ is **distance travelled**. With $v(t) = 3t^2 - 12$ on $[0,4]$ these are $16$ m and $48$ m respectively, and only reading the sign of $v$ tells you which one the question wanted.",
+    "code": "IF  Q = f(t)   then   f'(t) has units (units of Q) per (unit of t)\n               and    the integral of f'(t) dt is back in units of Q.\n\nCOST     C(q) = pounds to produce q widgets, C(q) = 5000 + 12q + 0.01q^2\n         C'(q) = 12 + 0.02q,  so  C'(200) = 16\n         READ IT: 16 POUNDS PER WIDGET at a production level of 200\n         PREDICTS: widget number 201 costs about 16 pounds\n         EXACT:    C(201) - C(200) = 16.01\n         The derivative is the linear estimate of one more unit, and the\n         one-penny gap is the curvature that estimate ignores.\n\nLEAK     r(t) = 40 - 2t litres per minute, for 0 <= t <= 10\n         integral from 0 to 10 of r(t) dt = [40t - t^2] from 0 to 10\n                                          = 400 - 100 = 300 LITRES\n         units multiply: (litres/minute)(minutes) = litres\n         An integral of a rate is a TOTAL. It is never itself a rate.\n\nSIGN     v(t) = 3t^2 - 12 m/s on [0,4], with v = 0 at t = 2\n         displacement = integral of v(t) dt   = 16 m   (net, signed)\n         distance     = integral of |v(t)| dt = 16 + 32 = 48 m\n         \"Where did it end up\" and \"how far did it travel\" are different\n         integrals of the same function, and only one of them is signed.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Per. The word that turns a number into a rate, and the word most often missing from an answer that is otherwise correct."
+     },
+     {
+      "line": 7,
+      "text": "One more unit, measured from the current level. A marginal cost is always attached to a production level and is never a global property of the firm."
+     },
+     {
+      "line": 16,
+      "text": "Cancelling units is a real check, not a ritual: if the minutes fail to cancel, the integral was set up against the wrong variable."
+     },
+     {
+      "line": 21,
+      "text": "16 against 48. The signed and unsigned integrals of the same v differ by exactly twice the area lying below the axis."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Water leaks from a tank at $r(t) = 40 - 2t$ litres per minute for $0 \\le t \\le 10$. State the units of $r'(t)$ and of $\\int_0^{10} r(t)\\,dt$, compute that integral, and say in one sentence each what the two quantities tell you about the tank.",
+     "answer": "r'(t) = -2 has units of litres per minute per minute: the leak rate is itself easing off by 2 litres/min every minute. The integral has units of litres and equals [40t - t^2] from 0 to 10 = 400 - 100 = 300 litres, the total volume lost across the ten minutes.",
+     "rubric": {
+      "required": [
+       "litre",
+       "minute",
+       "unit",
+       "total",
+       "rate"
+      ],
+      "optional": [
+       "accumulat",
+       "slow",
+       "300",
+       "per",
+       "volum",
+       "negative"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "integral-in-context",
+      "derivative-in-context"
+     ],
+     "explain": "Differentiating a rate gives the rate of change of a rate, so $r'$ is measured in litres per minute **per minute** - the doubled unit is the whole point - and it is negative because the leak is easing off. The integral multiplies litres per minute by minutes, so it returns litres: $300$ of them, a total rather than a speed. Reporting the integral as $300$ litres per minute is the standard slip, and it would describe a tank losing $3000$ litres over the same window."
+    }
+   }
+  ]
+ },
+ "set-up-the-model": [
+  {
+   "id": "cal-9-sm-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A Norman window is a rectangle surmounted by a semicircle of the same width, and the perimeter of the whole window must be $10$ m. Choose your variable, write the area as a function of it, state the domain, and find the dimensions of largest area. Say explicitly at which step the constraint was used.",
+   "answer": "Let r be the semicircle's radius in metres, so the rectangle is 2r wide and h tall. Perimeter: 2h + 2r + pi r = 10, so h = (10 - 2r - pi r)/2 - this is where the constraint is used, to eliminate h. Area A = 2rh + pi r^2 / 2 = 10r - 2r^2 - pi r^2 / 2, on the domain 0 < r < 10/(2 + pi) so that h stays positive. A'(r) = 10 - 4r - pi r = 0 gives r = 10/(4 + pi) = 1.400 m, and A''(r) = -4 - pi < 0, so it is a maximum. Then h = 10/(4 + pi) = r, the rectangle is 2.800 m wide and 1.400 m tall, and A = 50/(4 + pi) = 7.001 m^2.",
+   "rubric": {
+    "required": [
+     "constrain",
+     "perimeter",
+     "domain",
+     "radius",
+     "maximum"
+    ],
+    "optional": [
+     "semicircl",
+     "eliminat",
+     "height",
+     "area",
+     "concav",
+     "width"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "modelling-setup",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "tags": [
+    "modelling-setup",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "xp": 110,
+   "explain": "Setting $h = (10 - 2r - \\pi r)/2$ is the one step that spends the constraint, and everything after it is single-variable calculus: $A'(r) = 10 - (4+\\pi)r$ vanishes at $r = 10/(4+\\pi) \\approx 1.400$ m, with $A'' = -(4+\\pi) < 0$ confirming a maximum. The elegant answer is that $h = r$: the rectangle is exactly half as tall as it is wide, so the window is a semicircle sitting on a square-ish rectangle of height $r$, and $A = 50/(4+\\pi) \\approx 7.001\\ \\text{m}^2$. The classic modelling error is to include the rectangle's top edge in the perimeter - it is not part of the frame, since the semicircle sits on it - which gives $2h + 4r + \\pi r = 10$ and a different, wrong window."
+  },
+  {
+   "id": "cal-9-sm-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "An open-topped box with a square base must hold $32\\,000\\ \\text{cm}^3$. Minimise the material used. Set it up in full - variable, constraint, target, domain - then solve, and say why the Extreme Value Theorem is of no help here and what argument you used instead.",
+   "answer": "Let x be the base side and h the height, both in cm. Constraint: x^2 h = 32000, so h = 32000/x^2. Target, for an OPEN box: A = x^2 + 4xh = x^2 + 128000/x square centimetres, on the domain x > 0. A'(x) = 2x - 128000/x^2 = 0 gives x^3 = 64000, so x = 40 cm and h = 32000/1600 = 20 cm, with A = 1600 + 3200 = 4800 cm^2. A''(40) = 2 + 256000/64000 = 6 > 0, a minimum. The Extreme Value Theorem needs a closed bounded interval and this domain is open and unbounded, so instead I argue that A tends to infinity at both ends of the domain and A'' > 0 everywhere, leaving the single critical point as the global minimum.",
+   "rubric": {
+    "required": [
+     "constrain",
+     "domain",
+     "height",
+     "minim",
+     "critical"
+    ],
+    "optional": [
+     "unbounded",
+     "curvatur",
+     "open",
+     "infinit",
+     "surface",
+     "global"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "modelling-setup",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "tags": [
+    "modelling-setup",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "xp": 110,
+   "explain": "The single modelling decision that matters is the word **open**: the surface is $x^2 + 4xh$, not $2x^2 + 4xh$, and using the closed-box formula out of habit gives $x = \\sqrt[3]{32000} \\approx 31.7$ instead of $40$. Eliminating $h$ leaves $A(x) = x^2 + 128000/x$ on $x > 0$, and $A'(x) = 2x - 128000/x^2 = 0$ gives $x^3 = 64\\,000$, so $x = 40$ cm, $h = 20$ cm, $A = 4800\\ \\text{cm}^2$. Because the domain is open and unbounded the Extreme Value Theorem does not apply at all; what saves the argument is that $A \\to \\infty$ as $x \\to 0^+$ and as $x \\to \\infty$, together with $A'' = 2 + 256000/x^3 > 0$ throughout, so the one critical point is a global minimum."
+  },
+  {
+   "id": "cal-9-sm-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A tank is an inverted cone $4$ m deep with a top radius of $2$ m, and water flows in at $3\\ \\text{m}^3/\\text{min}$. Set the problem up before computing: state the two relations you need, say which one is static and which one gets differentiated and why, then find $\\frac{dh}{dt}$ when the water is $2$ m deep.",
+   "answer": "Static relation, from similar triangles: r/h = 2/4, so r = h/2 at every depth. It is used to eliminate r before differentiating, because no rate for r was given. Volume relation, true for all t: V = (1/3) pi r^2 h = pi h^3 / 12. Differentiating in t gives dV/dt = (pi h^2 / 4) dh/dt, so dh/dt = 4 (dV/dt) / (pi h^2) = 12/(pi h^2). At h = 2 this is 12/(4 pi) = 3/pi = 0.955 metres per minute.",
+   "rubric": {
+    "required": [
+     "similar",
+     "eliminat",
+     "differenti",
+     "relation",
+     "depth"
+    ],
+    "optional": [
+     "cone",
+     "radius",
+     "chain",
+     "static",
+     "instant",
+     "volum"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "tags": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "xp": 110,
+   "explain": "There are two relations and they do different jobs. Similar triangles give the **static** $r = h/2$, which must be used to eliminate $r$ *before* differentiating, because no rate for $r$ was given; the volume relation $V = \\pi h^3/12$ is the one that holds for every $t$ and so may be differentiated. That yields $\\frac{dV}{dt} = \\frac{\\pi h^2}{4}\\frac{dh}{dt}$, hence $\\frac{dh}{dt} = 12/(\\pi h^2) = 3/\\pi \\approx 0.955$ m/min at $h = 2$. Differentiating $V = \\frac{1}{3}\\pi r^2 h$ as it stands is the classic trap: it is perfectly correct and perfectly useless, since it leaves two unknown rates in one equation. Note also that $\\frac{dh}{dt}$ falls as $h$ grows - the cone is wider higher up."
+  },
+  {
+   "id": "cal-9-sm-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A street lamp is $6$ m above the pavement and a person $1.8$ m tall walks away from its base at $1.5$ m/s. Model the situation and find two different rates: how fast the shadow lengthens, and how fast the **tip** of the shadow moves. Say which similar triangles the relation comes from.",
+   "answer": "Let x(t) be the person's distance from the lamp's base and s(t) the shadow's length, both in metres. The ray from the lamp's top through the person's head makes the small triangle (height 1.8, base s) similar to the large triangle (height 6, base x + s), so s/1.8 = (x + s)/6. Hence 6s = 1.8x + 1.8s, so 4.2s = 1.8x and s = 3x/7 for all t. Differentiating: ds/dt = (3/7)(1.5) = 9/14 = 0.643 m/s. The tip is at x + s, so it moves at dx/dt + ds/dt = 1.5 + 9/14 = 15/7 = 2.143 m/s.",
+   "rubric": {
+    "required": [
+     "similar",
+     "triangl",
+     "shadow",
+     "tip",
+     "differenti"
+    ],
+    "optional": [
+     "ratio",
+     "eliminat",
+     "rate",
+     "walker",
+     "metre",
+     "pavement"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "tags": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "xp": 110,
+   "explain": "The relation comes from the single ray running from the lamp's top, past the walker's head, to the tip of the shadow: it makes the small triangle (height $1.8$, base $s$) similar to the large one (height $6$, base $x+s$), so $\\frac{s}{1.8} = \\frac{x+s}{6}$ and therefore $s = \\frac{3}{7}x$ for every $t$. Differentiating gives $\\frac{ds}{dt} = \\frac{9}{14} \\approx 0.643$ m/s, while the tip sits at $x+s$, so it moves at $1.5 + \\frac{9}{14} = \\frac{15}{7} \\approx 2.143$ m/s. Reporting one number for both is the standard error: the shadow's *length* and the shadow's *tip* are different quantities, and the tip necessarily outruns the walker because it is the walker's position plus a growing shadow. Notice that neither rate depends on $x$ - both are constant, which the linearity of $s = \\frac{3}{7}x$ predicts."
+  },
+  {
+   "id": "cal-9-sm-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student solving the ladder problem writes: at this instant $x = 3$ and $y = 4$, so $x^2 + y^2 = 25$ becomes $9 + 16 = 25$, and differentiating both sides gives $0 = 0$. Explain exactly what has gone wrong, state what property a relation must have before it may be differentiated with respect to $t$, and say how to repair the argument.",
+   "rubric": {
+    "required": [
+     "instant",
+     "interval",
+     "relation",
+     "differenti",
+     "substitut"
+    ],
+    "optional": [
+     "constant",
+     "variabl",
+     "chain",
+     "order",
+     "function",
+     "identit"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "tags": [
+    "related-rates-setup",
+    "modelling-setup"
+   ],
+   "xp": 44,
+   "explain": "$9 + 16 = 25$ is a true statement about numbers, and every derivative of it is $0 = 0$ - correct and empty. Differentiation needs a relation between **functions of $t$** that holds throughout an interval of time; substituting the instant first destroys exactly the variation the derivative was going to measure. The repair is to keep $x(t)^2 + y(t)^2 = 25$ as an identity in $t$, differentiate to $2x x' + 2y y' = 0$, and only then put in $x = 3$, $y = 4$, $x' = 0.6$ to get $y' = -0.45$ m/s. This ordering is the whole of related rates, and it is why the working must carry $x(t)$ and $y(t)$ as functions until the final line."
+  }
+ ],
+ "choose-the-theorem": [
+  {
+   "id": "cal-9-ct-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $f(x) = x^3 - 6x^2 + 9x + 1$. (a) Name the theorem guaranteeing that $f$ has an absolute maximum on $[0,5]$ and check its hypotheses one by one. (b) Find that maximum. (c) Give an interval on which this same $f$ has no absolute maximum, and name the hypothesis that fails there.",
+   "answer": "(a) The Extreme Value Theorem. f is a polynomial, hence continuous everywhere and in particular on [0,5], and [0,5] is closed and bounded; both hypotheses hold. (b) f'(x) = 3x^2 - 12x + 9 = 3(x-1)(x-3), so the critical points are x = 1 and x = 3. Comparing f(0) = 1, f(1) = 5, f(3) = 1 and f(5) = 21, the absolute maximum is 21, attained at the endpoint x = 5. (c) On the open interval (0,5) there is no absolute maximum: f approaches 21 as x approaches 5 but never attains it. The hypothesis that fails is that the interval be closed.",
+   "rubric": {
+    "required": [
+     "extreme",
+     "continu",
+     "closed",
+     "endpoint",
+     "critical"
+    ],
+    "optional": [
+     "bounded",
+     "polynomial",
+     "absolute",
+     "open",
+     "candidat",
+     "interval"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "theorem-hypotheses",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "tags": [
+    "theorem-hypotheses",
+    "optimisation-setup",
+    "domain-and-endpoints"
+   ],
+   "xp": 110,
+   "explain": "The Extreme Value Theorem is what makes the closed-interval method legitimate: because a polynomial is continuous and $[0,5]$ is closed and bounded, an absolute maximum is *known* to exist, so comparing the finitely many candidate values is enough. Here $f'(x) = 3(x-1)(x-3)$ gives critical points $1$ and $3$, and $f(0)=1$, $f(1)=5$, $f(3)=1$, $f(5)=21$ - so the maximum is $21$ and it sits at an **endpoint**, not at a critical point. That is the famous trap: a student who tests only critical points reports $5$ and is wrong by a factor of four. On the open $(0,5)$ the values climb towards $21$ without ever reaching it, and closedness is precisely the hypothesis that has failed."
+  },
+  {
+   "id": "cal-9-ct-02",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that if $f$ is continuous on $[a,b]$ and $f'(x) = 0$ for every $x$ in $(a,b)$, then $f$ is constant on $[a,b]$. Name the theorem you invoke, state its hypotheses explicitly, and say where each hypothesis is actually needed.",
+   "rubric": {
+    "required": [
+     "mean",
+     "continu",
+     "differenti",
+     "hypothes",
+     "constant"
+    ],
+    "optional": [
+     "secant",
+     "interval",
+     "arbitrar",
+     "zero",
+     "endpoint",
+     "theorem"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "xp": 110,
+   "explain": "The proof is one application of the Mean Value Theorem, but the interest is in where the hypotheses bite. Take any $x$ in $(a,b]$; $f$ is continuous on $[a,x]$ and differentiable on $(a,x)$, so the MVT supplies a $c$ in $(a,x)$ with $f(x) - f(a) = f'(c)(x-a) = 0$, whence $f(x) = f(a)$ for every such $x$ and $f$ is constant. Continuity on the *closed* interval is what lets the conclusion reach the endpoints, and differentiability on the *open* interval is all that is needed inside. The result is false without connectedness of the domain, which is why it must be stated on an interval: $f(x) = x/|x|$ has zero derivative everywhere it is defined and is not constant."
+  },
+  {
+   "id": "cal-9-ct-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that $|\\sin a - \\sin b| \\le |a - b|$ for all real $a$ and $b$. Say which theorem you use, verify its hypotheses for the function you apply it to, and identify the single fact about the derivative that does the work.",
+   "rubric": {
+    "required": [
+     "mean",
+     "cos",
+     "bound",
+     "differenti",
+     "continu"
+    ],
+    "optional": [
+     "Lipschitz",
+     "secant",
+     "absolute",
+     "equal",
+     "everywhere",
+     "interval"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "xp": 110,
+   "explain": "Take $a \\neq b$ and apply the Mean Value Theorem to $\\sin$ on the interval between them: $\\sin$ is continuous and differentiable everywhere, so those hypotheses cost nothing, and there is a $c$ strictly between $a$ and $b$ with $\\sin a - \\sin b = (\\cos c)(a - b)$. The single fact doing all the work is $|\\cos c| \\le 1$; taking absolute values gives the bound immediately, and $a = b$ is trivial. This is the general pattern - a bound on $f'$ becomes a bound on how fast $f$ can change - and it is why such functions are called Lipschitz. Note the bound is sharp: as $b \\to a$ the ratio tends to $|\\cos a|$, which reaches $1$ at $a = 0$."
+  },
+  {
+   "id": "cal-9-ct-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A student claims: let $f(x) = 1/x$ on $[-1,1]$; by the Mean Value Theorem there is a $c$ in $(-1,1)$ with $f'(c) = \\frac{f(1)-f(-1)}{1-(-1)} = 1$. Decide whether the claim is legitimate. If it is not, name the hypothesis that fails and prove that no such $c$ exists at all.",
+   "answer": "Not legitimate. f(x) = 1/x is undefined at x = 0, an interior point of [-1,1], so f is neither continuous on [-1,1] nor differentiable on (-1,1) and the MVT does not apply. The secant slope is indeed (1 - (-1))/2 = 1, but f'(x) = -1/x^2 is strictly negative wherever it exists, so f'(c) = 1 would need -1/c^2 = 1, that is c^2 = -1, which no real c satisfies. So the conclusion is not merely unproven but false, which shows the hypothesis was doing real work.",
+   "rubric": {
+    "required": [
+     "continu",
+     "hypothes",
+     "secant",
+     "negative",
+     "defined"
+    ],
+    "optional": [
+     "interior",
+     "differenti",
+     "interval",
+     "slope",
+     "square",
+     "false"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "theorem-hypotheses",
+    "mean-value-theorem"
+   ],
+   "tags": [
+    "theorem-hypotheses",
+    "mean-value-theorem"
+   ],
+   "xp": 110,
+   "explain": "The arithmetic is right and the conclusion is false, which is the most instructive combination available. The secant slope really is $\\frac{1-(-1)}{2} = 1$, but $f(x) = 1/x$ is undefined at $x = 0$, an **interior** point of $[-1,1]$, so it is neither continuous on $[-1,1]$ nor differentiable on $(-1,1)$ and the theorem was never applicable. Moreover no such $c$ can exist: $f'(x) = -1/x^2$ is strictly negative wherever it is defined, and $-1/c^2 = 1$ would require $c^2 = -1$. The habit worth forming is to check the interior of the interval and not merely its endpoints - the function is perfectly well behaved at $-1$ and $1$."
+  },
+  {
+   "id": "cal-9-ct-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "$f(x) = |x|$ is continuous on $[-1,1]$ with $f(-1) = f(1)$, yet no $c$ in $(-1,1)$ has $f'(c) = 0$. Explain why Rolle's theorem is not contradicted, and then explain why the theorem demands differentiability only on the open $(a,b)$ while demanding continuity on the closed $[a,b]$.",
+   "rubric": {
+    "required": [
+     "differenti",
+     "corner",
+     "open",
+     "closed",
+     "continu"
+    ],
+    "optional": [
+     "hypothes",
+     "endpoint",
+     "vertical",
+     "tangent",
+     "interior",
+     "guarantee"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "theorem-hypotheses",
+    "mean-value-theorem"
+   ],
+   "tags": [
+    "theorem-hypotheses",
+    "mean-value-theorem"
+   ],
+   "xp": 44,
+   "explain": "Nothing is contradicted because Rolle requires differentiability at **every** interior point, and $|x|$ fails at exactly one of them, the corner at $x = 0$; a single missing derivative is enough to void the guarantee, which is why one cannot treat differentiability as a formality. The asymmetry in the hypotheses is deliberate economy: continuity on the closed interval is needed so that the endpoint values $f(a)$ and $f(b)$ mean something, while the conclusion only ever names an interior $c$, so behaviour of $f'$ at the ends is irrelevant. Demanding differentiability on $[a,b]$ would needlessly exclude honest cases such as $f(x) = \\sqrt{1-x^2}$ on $[-1,1]$, whose tangents at $\\pm 1$ are vertical but which satisfies Rolle happily with $c = 0$."
+  }
+ ],
+ "interpret-and-judge": [
+  {
+   "id": "cal-9-ij-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A firm's cost is $C(q) = 5000 + 12q + 0.01q^2$ pounds for $q$ widgets. Compute $C'(200)$, state its units, say precisely what it predicts, then compare that prediction with the exact cost of the $201$st widget and account for the difference.",
+   "answer": "C'(q) = 12 + 0.02q, so C'(200) = 16 pounds per widget at a production level of 200. It predicts that the 201st widget costs about 16 pounds. Exactly, C(200) = 5000 + 2400 + 400 = 7800 and C(201) = 5000 + 2412 + 404.01 = 7816.01, so the true extra cost is 16.01 pounds. The one-penny difference is the curvature the tangent line ignores: C'' = 0.02 > 0, so the cost curve is convex, the tangent lies below it, and the linear estimate underestimates by C''/2 = 0.01.",
+   "rubric": {
+    "required": [
+     "pound",
+     "widget",
+     "unit",
+     "tangent",
+     "approxim"
+    ],
+    "optional": [
+     "margin",
+     "curvat",
+     "convex",
+     "penny",
+     "predict",
+     "level"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "derivative-in-context"
+   ],
+   "tags": [
+    "derivative-in-context"
+   ],
+   "xp": 110,
+   "explain": "$C'(q) = 12 + 0.02q$, so $C'(200) = 16$ - and the units are the whole point: **pounds per widget, at a production level of 200**. A bare $16$, or the phrase the cost is 16, says something false, since producing $200$ widgets costs $\\pounds 7800$. The prediction is that widget $201$ costs about $\\pounds 16$; exactly, $C(201) - C(200) = 7816.01 - 7800 = \\pounds 16.01$. That penny is the curvature the tangent line throws away: with $C'' = 0.02 > 0$ the cost curve is convex, so the tangent lies below it and the linear estimate always undershoots, here by $C''/2 = 0.01$. This is the general shape of every marginal quantity in economics."
+  },
+  {
+   "id": "cal-9-ij-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A particle moves on a line with velocity $v(t) = 3t^2 - 12$ metres per second, $0 \\le t \\le 4$. Compute both $\\displaystyle\\int_0^4 v\\,dt$ and $\\displaystyle\\int_0^4 |v|\\,dt$, give the units, say in plain words which question each answers, and state exactly when the two agree.",
+   "answer": "v = 0 at t = 2, with v < 0 on [0,2) and v > 0 on (2,4]. Signed: the integral of v is [t^3 - 12t] from 0 to 4 = 64 - 48 = 16 metres, the displacement - the particle ends 16 m to the right of where it started. Unsigned: split at t = 2. The integral of 12 - 3t^2 from 0 to 2 is 24 - 8 = 16, and the integral of 3t^2 - 12 from 2 to 4 is 16 - (-16) = 32, so the distance travelled is 48 metres. Both are in metres, since metres per second times seconds is metres. They agree exactly when v does not change sign on the interval.",
+   "rubric": {
+    "required": [
+     "displacement",
+     "distance",
+     "sign",
+     "metre",
+     "integral"
+    ],
+    "optional": [
+     "split",
+     "velocity",
+     "total",
+     "net",
+     "absolute",
+     "travel"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "integral-in-context"
+   ],
+   "tags": [
+    "integral-in-context"
+   ],
+   "xp": 110,
+   "explain": "The signed integral is $[t^3 - 12t]_0^4 = 16$ metres and answers *where did it end up*: the particle finishes $16$ m to the right of its start. The unsigned integral answers *how far did it travel* and needs the sign change at $t = 2$ found first: $\\int_0^2 (12 - 3t^2) = 16$ and $\\int_2^4 (3t^2 - 12) = 32$, giving $48$ metres. Both are metres, because (m/s)(s) cancels to m - the units cannot tell them apart, which is exactly why the sign has to be thought about. Reporting $16$ as the distance travelled is the standard error, and it is wrong by $32$ m here; the two integrals agree precisely when $v$ does not change sign on the interval."
+  },
+  {
+   "id": "cal-9-ij-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "For each limit, decide whether L'Hopital's rule may be applied as it stands, say what the form is, state what must be done first if anything, and give the correct value: (a) $\\displaystyle\\lim_{x\\to 0}\\frac{x+1}{x+2}$; (b) $\\displaystyle\\lim_{x\\to 0^+} x\\ln x$; (c) $\\displaystyle\\lim_{x\\to 0}\\frac{e^x - 1 - x}{x^2}$.",
+   "rubric": {
+    "required": [
+     "indetermin",
+     "form",
+     "rewrit",
+     "quotient",
+     "twice"
+    ],
+    "optional": [
+     "logarith",
+     "reciprocal",
+     "substitut",
+     "apply",
+     "again",
+     "value"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "xp": 44,
+   "explain": "(a) is not indeterminate at all - it is $\\frac{1}{2}$ by substitution - and differentiating top and bottom returns $1$, a wrong answer produced by an entirely legal-looking manoeuvre. (b) is $0 \\cdot \\infty$, which is not a quotient, so the rule cannot be applied until it is **rewritten**: $\\frac{\\ln x}{1/x}$ is $\\frac{-\\infty}{\\infty}$, and the rule then gives $\\frac{1/x}{-1/x^2} = -x \\to 0$. Rewriting as $\\frac{x}{1/\\ln x}$ is legal too but leads nowhere, so the choice of reciprocal matters. (c) is a genuine $\\frac{0}{0}$, and one application gives $\\frac{e^x-1}{2x}$, still $\\frac{0}{0}$, so a second gives $\\frac{e^x}{2} \\to \\frac{1}{2}$. Checking the form before each application, not only before the first, is the discipline this question is testing."
+  },
+  {
+   "id": "cal-9-ij-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "As $x \\to \\infty$, give the order of growth of $\\displaystyle f(x) = \\frac{3x^3 - 5x + 2}{x + \\ln x}$ in the form $O(x^k)$. Justify it by naming the dominant term of the numerator and of the denominator and saying why each of the other terms may be dropped.",
+   "answer": "O(x^2)",
+   "rubric": {
+    "required": [
+     "dominant",
+     "numerator",
+     "denominator",
+     "logarith",
+     "ratio"
+    ],
+    "optional": [
+     "cubic",
+     "negligib",
+     "limit",
+     "divide",
+     "grow",
+     "power"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "growth-comparison",
+    "derivative-in-context"
+   ],
+   "tags": [
+    "growth-comparison",
+    "derivative-in-context"
+   ],
+   "xp": 88,
+   "explain": "The numerator is dominated by $3x^3$, since $\\frac{5x}{x^3} \\to 0$ and $\\frac{2}{x^3} \\to 0$; the denominator is dominated by $x$, since $\\frac{\\ln x}{x} \\to 0$ - itself a standard L'Hopital exercise. Dividing, $f(x) \\sim 3x^2$, and indeed $\\lim_{x\\to\\infty} f(x)/x^2 = 3$, so $f$ is exactly of order $x^2$. The tempting wrong answer is $O(x^3)$, read off the numerator with the denominator forgotten; the other trap is to imagine that the $\\ln x$ slows the denominator enough to matter, when in fact it is swamped by the $x$ beside it. Logarithms lose to every positive power of $x$, always."
+  }
+ ],
+ "exam": [
+  {
+   "id": "cal-9-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the Mean Value Theorem?",
+   "choices": [
+    "If $f$ is continuous on $[a,b]$ then $f$ attains an absolute maximum somewhere on $[a,b]$.",
+    "If $f$ is continuous on $[a,b]$ and differentiable on $(a,b)$, then some $c$ in $(a,b)$ has $f'(c) = \\frac{f(b)-f(a)}{b-a}$.",
+    "If $f$ is continuous on $[a,b]$, differentiable on $(a,b)$ and $f(a) = f(b)$, then some $c$ in $(a,b)$ has $f'(c) = 0$.",
+    "If $f$ is continuous on $[a,b]$ then $f$ takes every value between $f(a)$ and $f(b)$."
+   ],
+   "answer": 1,
+   "concepts": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "xp": 22,
+   "explain": "Option two is the MVT, and the closed/open split in its hypotheses is part of the statement, not an accident. Option one is the Extreme Value Theorem, option three is Rolle's theorem - the special case where the secant is horizontal - and option four is the Intermediate Value Theorem, which is about values of $f$ rather than about its derivative. Confusing Rolle with the MVT is harmless enough, since each implies the other; confusing either with the IVT is not."
+  },
+  {
+   "id": "cal-9-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "L'Hopital's rule licenses replacing $\\displaystyle\\lim_{x\\to a} \\frac{f(x)}{g(x)}$ by $\\displaystyle\\lim_{x\\to a} \\frac{f'(x)}{g'(x)}$ precisely when:",
+   "choices": [
+    "$f(a) = g(a) = 0$, with no further conditions",
+    "$f/g$ has the form $\\frac{0}{0}$ or $\\frac{\\infty}{\\infty}$ at $a$, $g'$ is non-zero near $a$, and $\\displaystyle\\lim_{x\\to a} f'/g'$ exists",
+    "$f$ and $g$ are both differentiable at $a$",
+    "the limit of $f/g$ is an indeterminate form of any kind whatsoever"
+   ],
+   "answer": 1,
+   "concepts": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "xp": 22,
+   "explain": "Option two is the full statement, and the last clause is the one that is forgotten: the rule concludes something only when the new limit exists. Option one omits both the $\\frac{\\infty}{\\infty}$ case and that existence requirement; option three confuses differentiability with the shape of the form, and the rule needs neither $f$ nor $g$ to be defined at $a$; option four is false because $0\\cdot\\infty$, $\\infty-\\infty$, $1^\\infty$ and $0^0$ must be rewritten as quotients first."
+  },
+  {
+   "id": "cal-9-ex-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find every point on the parabola $y = x^2$ closest to $(0,3)$. Set the problem up before solving: state what you are minimising, justify minimising the square of the distance rather than the distance, and give the domain.",
+   "answer": "Minimise D(x) = x^2 + (x^2 - 3)^2, the SQUARE of the distance from (x, x^2) to (0,3). This is legitimate because square root is strictly increasing on non-negative numbers, so D and the distance are minimised at the same x. The domain is all of R, unbounded, so the Extreme Value Theorem does not apply. D'(x) = 2x + 4x(x^2 - 3) = 2x(2x^2 - 5), so x = 0 or x^2 = 5/2. D(0) = 9 and D(+/- sqrt(5/2)) = 5/2 + 1/4 = 11/4 < 9, so the closest points are (sqrt(10)/2, 5/2) and (-sqrt(10)/2, 5/2), at distance sqrt(11)/2 = 1.658. There are two of them, by symmetry, and x = 0 is not one.",
+   "rubric": {
+    "required": [
+     "square",
+     "increas",
+     "minim",
+     "critical",
+     "two"
+    ],
+    "optional": [
+     "distance",
+     "domain",
+     "symmetr",
+     "parabola",
+     "vertex",
+     "root"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "optimisation-setup",
+    "modelling-setup",
+    "domain-and-endpoints"
+   ],
+   "tags": [
+    "optimisation-setup",
+    "modelling-setup",
+    "domain-and-endpoints"
+   ],
+   "xp": 110,
+   "explain": "Minimising $D(x) = x^2 + (x^2-3)^2$ is legitimate because $t \\mapsto \\sqrt{t}$ is strictly increasing on $t \\ge 0$, so distance and squared distance are minimised at exactly the same points - and the square is a polynomial, which spares you a square root in the derivative. Then $D'(x) = 2x + 4x(x^2-3) = 2x(2x^2 - 5)$, giving $x = 0$ or $x = \\pm\\sqrt{5/2} = \\pm\\frac{\\sqrt{10}}{2}$. Since $D(0) = 9$ and $D(\\pm\\sqrt{5/2}) = \\frac{11}{4}$, the closest points are $\\left(\\pm\\frac{\\sqrt{10}}{2}, \\frac{5}{2}\\right)$ at distance $\\frac{\\sqrt{11}}{2} \\approx 1.658$. Two features catch people out: there are **two** answers, by symmetry, and the critical point $x = 0$ - the obvious guess, the vertex - is a local *maximum* of the distance among nearby candidates rather than the minimum."
+  },
+  {
+   "id": "cal-9-ex-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "$f$ is differentiable on $\\mathbb{R}$, with $f(0) = 3$ and $f'(x) \\le 5$ for every $x$ in $[0,4]$. Find the largest value $f(4)$ could take, prove the bound, name the theorem and hypotheses you used, and say whether the bound is attained.",
+   "answer": "By the Mean Value Theorem, f is continuous on [0,4] and differentiable on (0,4) - both follow from differentiability on R - so there is a c in (0,4) with f(4) - f(0) = f'(c)(4 - 0). Since f'(c) <= 5, f(4) <= 3 + 20 = 23. The bound is attained: f(x) = 3 + 5x satisfies every hypothesis and gives f(4) = 23 exactly, so 23 is the largest possible value and cannot be improved.",
+   "rubric": {
+    "required": [
+     "mean",
+     "continu",
+     "differenti",
+     "bound",
+     "attain"
+    ],
+    "optional": [
+     "hypothes",
+     "secant",
+     "linear",
+     "interval",
+     "equal",
+     "largest"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "mean-value-theorem",
+    "theorem-hypotheses"
+   ],
+   "xp": 110,
+   "explain": "Differentiability on $\\mathbb{R}$ hands you both MVT hypotheses at once - continuity on $[0,4]$ and differentiability on $(0,4)$ - so there is a $c$ in $(0,4)$ with $f(4) - f(0) = f'(c)\\cdot 4 \\le 20$, giving $f(4) \\le 23$. The bound is attained by $f(x) = 3+5x$, so $23$ cannot be improved; a bound you cannot exhibit a case for may simply be loose. Note what the argument does **not** need: no formula for $f$, no continuity of $f'$, and no assumption that $f'$ is ever equal to $5$. This one-line move - a bound on the derivative becomes a bound on the function - is the single most useful thing the MVT does."
+  },
+  {
+   "id": "cal-9-ex-05",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Let $f$ be twice differentiable near $a$ with $f''$ continuous, and let $L(x) = f(a) + f'(a)(x-a)$ be its linearisation. Give the order of the error $|f(a+h) - L(a+h)|$ as $h \\to 0$ in $O$ notation in $h$, justify it, and illustrate with $f(x) = e^x$ at $a = 0$.",
+   "answer": "O(h^2)",
+   "rubric": {
+    "required": [
+     "second",
+     "error",
+     "quadratic",
+     "derivativ",
+     "approxim"
+    ],
+    "optional": [
+     "Taylor",
+     "curvatur",
+     "half",
+     "exponential",
+     "tangent",
+     "remainder"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "growth-comparison",
+    "derivative-in-context"
+   ],
+   "tags": [
+    "growth-comparison",
+    "derivative-in-context"
+   ],
+   "xp": 88,
+   "explain": "Taylor with remainder - or the MVT applied twice - gives $f(a+h) - L(a+h) = \\frac{1}{2}f''(\\xi)h^2$ for some $\\xi$ between $a$ and $a+h$, and continuity of $f''$ keeps that factor bounded near $a$, so the error is $O(h^2)$. The illustration is $e^h - 1 - h$, whose ratio to $h^2$ tends to $\\frac{1}{2}$: at $h = 0.1$ the error is about $0.00517$, close to $\\frac{h^2}{2} = 0.005$. The tempting wrong answer is $O(h)$, which is the size of the *change* in $f$, not the size of the error in estimating it - the whole value of a tangent line is that it does one order better than that. When $f'' (a) = 0$ the error is even smaller, so $O(h^2)$ is an upper bound rather than an exact rate."
+  },
+  {
+   "id": "cal-9-ex-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A tank's water temperature is $T(t)$ degrees Celsius with $t$ in hours. Interpret $T'(3) = -2$ and $\\displaystyle\\int_0^5 T'(t)\\,dt = -7$ in plain words with units, and explain why the second quantity cannot correctly be described as a rate.",
+   "rubric": {
+    "required": [
+     "degree",
+     "hour",
+     "rate",
+     "net",
+     "chang"
+    ],
+    "optional": [
+     "Celsius",
+     "cool",
+     "instant",
+     "cancel",
+     "accumulat",
+     "fall"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "derivative-in-context",
+    "integral-in-context"
+   ],
+   "tags": [
+    "derivative-in-context",
+    "integral-in-context"
+   ],
+   "xp": 44,
+   "explain": "$T'(3) = -2$ means that three hours in, the water is cooling at $2$ degrees Celsius **per hour** - an instantaneous rate, attached to one moment, and negative because the temperature is falling. The integral's units are degrees Celsius per hour multiplied by hours, which cancels to degrees Celsius, so it is a temperature *change*: by the Fundamental Theorem it equals $T(5) - T(0) = -7$, meaning the water finished $7$ degrees cooler than it began. It cannot be a rate because the hours have cancelled; calling it a rate would claim a loss of $7$ degrees every hour, which is $35$ degrees over the same window. Note also what it does not say - the temperature may have risen at times, since only the net change is recorded."
+  },
+  {
+   "id": "cal-9-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Judge each argument and give the true value. (a) Since $\\displaystyle\\lim_{x\\to 0}\\frac{x^2\\sin(1/x)}{\\sin x}$ is $\\frac{0}{0}$, it equals $\\displaystyle\\lim_{x\\to 0}\\frac{2x\\sin(1/x)-\\cos(1/x)}{\\cos x}$, which does not exist, so the original limit does not exist. (b) $\\displaystyle\\lim_{x\\to\\infty}\\frac{e^x}{x^2} = \\lim_{x\\to\\infty}\\frac{e^x}{2x} = \\lim_{x\\to\\infty}\\frac{e^x}{2} = \\infty$.",
+   "answer": "(a) The application of the rule is allowed, since the form is 0/0, but the conclusion is illegitimate: L'Hopital only says that IF the limit of the derivative ratio exists THEN it equals the original limit. Non-existence of the new limit - caused by cos(1/x) oscillating - proves nothing. The true value is 0: write the expression as (x/sin x) times (x sin(1/x)); the first factor tends to 1 and the second is squeezed to 0 because |x sin(1/x)| <= |x|. (b) Legitimate. Each step is a genuine inf/inf form with non-zero denominator derivative, and the final limit exists in the extended sense, so the value is +infinity.",
+   "rubric": {
+    "required": [
+     "exist",
+     "squeeze",
+     "oscillat",
+     "legitimat",
+     "form"
+    ],
+    "optional": [
+     "indetermin",
+     "bounded",
+     "twice",
+     "conclu",
+     "infinity",
+     "factor"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "tags": [
+    "lhopitals-rule",
+    "theorem-hypotheses"
+   ],
+   "xp": 110,
+   "explain": "(a) applies the rule legally and then draws an illegal conclusion. L'Hopital is a one-way implication: if the new limit exists it equals the old one, but its failure to exist - here because $\\cos(1/x)$ oscillates without settling - tells you nothing whatever. The true limit is $0$, seen by factoring as $\\frac{x}{\\sin x}\\cdot x\\sin(1/x)$, where the first factor tends to $1$ and $|x\\sin(1/x)| \\le |x| \\to 0$ by the squeeze theorem. (b) is entirely legitimate: each stage is a genuine $\\frac{\\infty}{\\infty}$, the denominators' derivatives are non-zero, and the final limit exists in the extended sense, so the chain of equalities holds and the answer is $+\\infty$. The lesson is that an exponential beats every power, and that a failed L'Hopital is a dead end rather than a proof."
+  },
+  {
+   "id": "cal-9-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A stone dropped into a pond makes a circular ripple whose radius grows at a constant $0.5$ m/s. Set the relation up, find how fast the enclosed area grows when $r = 3$ m with units, and explain in one sentence why $\\frac{dA}{dt}$ is not constant even though $\\frac{dr}{dt}$ is.",
+   "answer": "Let A(t) = pi r(t)^2, which is true at every t. Differentiating gives dA/dt = 2 pi r (dr/dt) = 2 pi (3)(0.5) = 3 pi = 9.42 square metres per second. dA/dt is not constant because it is proportional to r, which is itself growing: the factor 2 pi r is the circumference, and the new area appears as a thin ring along it, so a wider ripple sweeps out more area per second at the same radial speed.",
+   "rubric": {
+    "required": [
+     "differenti",
+     "radius",
+     "circumfer",
+     "proportional",
+     "constant"
+    ],
+    "optional": [
+     "chain",
+     "area",
+     "instant",
+     "ring",
+     "grow",
+     "metre"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "related-rates-setup",
+    "derivative-in-context"
+   ],
+   "tags": [
+    "related-rates-setup",
+    "derivative-in-context"
+   ],
+   "xp": 110,
+   "explain": "$A(t) = \\pi r(t)^2$ holds at every instant, so it may be differentiated: $\\frac{dA}{dt} = 2\\pi r \\frac{dr}{dt} = 2\\pi(3)(0.5) = 3\\pi \\approx 9.42$ square metres per second. The reason $\\frac{dA}{dt}$ keeps changing is that the factor $2\\pi r$ is the **circumference**, and new area appears in a thin ring along that circumference - so as the ripple widens, the same radial speed paints a longer ring and delivers more area per second. That reading, $\\frac{dA}{dr} = 2\\pi r$, is worth carrying away: the derivative of area with respect to radius is the perimeter, and the derivative of a sphere's volume with respect to radius is its surface area, for exactly the same reason. Answering $\\pi(3)^2$, the area itself, is the usual slip."
+  }
+ ]
+}

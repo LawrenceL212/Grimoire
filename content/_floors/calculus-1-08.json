@@ -1,0 +1,928 @@
+{
+ "n": 8,
+ "name": "Accumulation",
+ "concepts": [
+  "antiderivatives",
+  "indefinite-integral",
+  "riemann-sums",
+  "definite-integral",
+  "integral-properties",
+  "ftc-part-1",
+  "ftc-part-2",
+  "substitution",
+  "area-between-curves"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "integration-workshop",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Accumulation",
+  "sections": [
+   {
+    "title": "Running the Derivative Backwards",
+    "body": "Every derivative rule you have learned can be read from right to left. An **antiderivative** of $f$ is any function $F$ with $F'(x) = f(x)$, so finding one means asking *what could I have differentiated to get this?* Since $(x^2)' = 2x$ and $(x^2 + 7)' = 2x$ equally well, antiderivatives never come alone.\n\nThey come in exactly a one-parameter family, and the Mean Value Theorem is what pins that down: if $F' = G'$ on an interval then $(F-G)' = 0$ everywhere on it, and a function with zero derivative on an interval cannot move, so $F - G$ is a constant. The **indefinite integral** $\\int f(x)\\,dx = F(x) + C$ is notation for that whole family, and the $+C$ is not decoration - drop it and you have named one member while claiming to have named all of them.\n\nThe word *interval* is doing real work. On the disconnected domain of $1/x$ the constant may differ on each side of the origin, which is why careful sources write $\\int \\frac{1}{x}\\,dx = \\ln|x| + C$ and mean one constant per branch.\n\nReversing the power rule gives $\\int x^n\\,dx = \\frac{x^{n+1}}{n+1} + C$ for every $n \\neq -1$. The exclusion is forced rather than chosen: at $n = -1$ the formula divides by zero, and the missing case is precisely the logarithm. Integration is linear - constants come out, sums split apart - so a polynomial or any sum of powers falls apart term by term, and one single $C$ covers the finished expression.",
+    "code": "ANTIDERIVATIVE:   F is an antiderivative of f   <=>   F'(x) = f(x)\n\n  f(x) = 2x     F(x) = x^2          (x^2)' = 2x         yes\n                F(x) = x^2 + 7      (x^2 + 7)' = 2x     also yes\n                F(x) = x^2 - 1/2    same derivative     also yes\n\nWHY EXACTLY ONE CONSTANT OF FREEDOM, AND NOT MORE?\n  If F' = G' on an interval then (F - G)' = 0 there,\n  and the Mean Value Theorem forces a function with zero derivative\n  on an interval to be constant.  So F - G = C.  Nothing else fits.\n\n  INDEFINITE INTEGRAL:   int 2x dx = x^2 + C      the whole family at once\n\nPOWER RULE, READ BACKWARDS\n  int x^n dx = x^(n+1)/(n+1) + C        for every n =/= -1\n  n = -1 would divide by zero; that case is the logarithm instead:\n  int x^(-1) dx = ln|x| + C\n\nWORKED:  int ( 3x^2 - 4/x^2 + sqrt(x) ) dx\n\n  rewrite as powers      3x^2 - 4x^(-2) + x^(1/2)\n  term by term           3 * x^3/3   - 4 * x^(-1)/(-1)   +   x^(3/2)/(3/2)\n                       = x^3         + 4/x               +   (2/3) x^(3/2)\n  one C for the lot    = x^3 + 4/x + (2/3) x^(3/2) + C\n\n  CHECK by differentiating:  3x^2 + 4*(-1)x^(-2) + (2/3)(3/2)x^(1/2)\n                           = 3x^2 - 4/x^2 + sqrt(x)      matches f",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "This is the entire justification for the +C, and it is a theorem, not a convention. Without the MVT you could not rule out some exotic non-constant function with zero derivative."
+     },
+     {
+      "line": 12,
+      "text": "Read the notation as a name for a family. An answer without +C names one curve and silently discards infinitely many others."
+     },
+     {
+      "line": 16,
+      "text": "The exclusion n = -1 is forced by the algebra: nothing in the power family differentiates to 1/x, so the logarithm has to be imported."
+     },
+     {
+      "line": 26,
+      "text": "Always differentiate your answer. Integration has no built-in error checking, but differentiation does - and it is the cheaper direction."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Apply the reversed power rule. Fill each blank with a single number (a fraction is fine).",
+     "template": "int x^7 dx    = x^___/___ + C\nint 5 dx      = ___x + C\nint x^(-2) dx = ___/x + C",
+     "blanks": [
+      "8",
+      "8",
+      "5",
+      "-1"
+     ],
+     "concepts": [
+      "antiderivatives",
+      "indefinite-integral"
+     ],
+     "explain": "Raising the exponent by one and dividing by the new exponent turns $x^7$ into $x^8/8$, and the constant $5$ is $5x^0$, which integrates to $5x$. The third is the one people get wrong: $\\int x^{-2}\\,dx = \\frac{x^{-1}}{-1} = -\\frac{1}{x} + C$, and the tempting answer $\\ln|x|$ belongs only to $x^{-1}$ itself, not to every negative power."
+    }
+   },
+   {
+    "title": "Rectangles, and What They Add Up To",
+    "body": "Area under a curved graph has no formula, so we manufacture one. Chop $[a,b]$ into $n$ strips of width $\\Delta x = \\frac{b-a}{n}$, pick a sample point $x_k^{*}$ in each, and add the rectangles: the **Riemann sum** $\\sum_{k=1}^{n} f(x_k^{*})\\,\\Delta x$. Each term is height times width, so each term is an approximate contribution and the sum is an approximate total.\n\nThe **definite integral** is what those sums converge to: $$\\int_a^b f(x)\\,dx = \\lim_{n \\to \\infty} \\sum_{k=1}^{n} f(x_k^{*})\\,\\Delta x.$$ For a continuous $f$ the limit exists and does not care which sample points you chose, which is exactly why the notation can afford to forget them. The elongated $S$ is a sum and the $dx$ is the width that shrank; the symbols are a fossil of the construction.\n\nNote what the sum actually accumulates. If $f$ is a rate, $f(x_k^{*})\\,\\Delta x$ is rate times elapsed amount, which is a quantity - so the integral of a velocity is a displacement and the integral of a flow rate is a volume. Area is the picture; **accumulated change** is the meaning, and it is the meaning that transfers to problems with no geometry in them at all.\n\nBecause a rectangle below the axis has negative height, the integral computes **signed** area: $\\int_{-2}^{2} x^3\\,dx = 0$ even though the enclosed region plainly has positive area. From the sums themselves come the properties - linearity, $\\int_a^a f = 0$, the reversal rule $\\int_b^a f = -\\int_a^b f$ from $\\Delta x$ changing sign, and additivity $\\int_a^c f + \\int_c^b f = \\int_a^b f$, which just says a chopped-up interval can be chopped anywhere first.",
+    "code": "AREA UNDER f(x) = x^2 ON [0, 2], BY RECTANGLES.   Exact answer will be 8/3.\n\nn = 4  ->  dx = (2 - 0)/4 = 1/2,   cut points 0, 0.5, 1, 1.5, 2\n\n  LEFT endpoints    heights f(0), f(0.5), f(1), f(1.5) = 0, .25, 1, 2.25\n                    sum = (0 + .25 + 1 + 2.25)(1/2)      = 7/4  = 1.75\n  RIGHT endpoints   heights f(0.5), f(1), f(1.5), f(2)   = .25, 1, 2.25, 4\n                    sum = (.25 + 1 + 2.25 + 4)(1/2)      = 15/4 = 3.75\n  MIDPOINTS         heights f(.25), f(.75), f(1.25), f(1.75)\n                    sum                                  = 21/8 = 2.625\n\nx^2 is increasing on [0,2], so LEFT under-shoots and RIGHT over-shoots,\nand the true value 8/3 = 2.666... is trapped:  7/4 < 8/3 < 15/4.\n\nNOW LET n RUN.   dx = 2/n,   right endpoint x_k = 2k/n\n\n  S_n = sum_{k=1..n} (2k/n)^2 (2/n) = (8/n^3) sum k^2\n      = (8/n^3) * n(n+1)(2n+1)/6\n      = 8/3 + 4/n + 4/(3n^2)\n\n  lim S_n  =  8/3          the two error terms die, and 8/3 is the integral\n  n -> oo\n\nPROPERTIES, ALL VISIBLE IN THE SUMS\n  int_a^b (cf + g)  = c int_a^b f + int_a^b g      linearity\n  int_a^a f = 0                                    no width, no area\n  int_b^a f = - int_a^b f                          dx changes sign\n  int_a^c f + int_c^b f = int_a^b f                additivity over intervals\n\nSIGNED AREA:  int_{-2}^{2} x^3 dx = 0, because the negative slab on [-2,0]\ncancels the positive slab on [0,2] exactly.  Zero integral, plenty of area.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 12,
+      "text": "Monotonicity is what makes left and right sums into rigorous bounds. Without it a left sum is merely an estimate with no guaranteed direction of error."
+     },
+     {
+      "line": 19,
+      "text": "The two error terms are the whole story: the approximation is wrong by roughly 4/n, so doubling the number of strips halves the error. That is why the limit, not the sum, is the definition."
+     },
+     {
+      "line": 28,
+      "text": "Additivity is what lets a problem be split at a sign change or at a crossing point, and it is the property every area-between-curves calculation leans on."
+     },
+     {
+      "line": 30,
+      "text": "If you want geometric area rather than signed area you must integrate |f|, which in practice means splitting at the roots and flipping the negative pieces."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Take $f(x) = x^3$ on $[0,1]$ with $n = 4$ equal strips. Compute the right-endpoint Riemann sum exactly as a fraction, compare it with the true value $\\int_0^1 x^3\\,dx = \\frac{1}{4}$, and say - with a reason - whether it must over- or under-estimate.",
+     "answer": "dx = 1/4 and the right endpoints are 1/4, 1/2, 3/4, 1. The sum is (1/4)[(1/64) + (8/64) + (27/64) + 1] = (1/4)(100/64) = 25/64 = 0.390625. Since 25/64 > 1/4, it overestimates. It must: x^3 is increasing on [0,1], so on each strip the right endpoint gives the largest value of f on that strip, and every rectangle therefore contains the region below the curve on its strip.",
+     "rubric": {
+      "required": [
+       "right",
+       "increas",
+       "overestimat",
+       "rectangl",
+       "width"
+      ],
+      "optional": [
+       "endpoint",
+       "strip",
+       "monoton",
+       "limit",
+       "sum",
+       "fraction"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "riemann-sums",
+      "definite-integral"
+     ],
+     "explain": "The arithmetic gives $\\frac{1}{4}\\left(\\frac{1+8+27+64}{64}\\right) = \\frac{25}{64}$, comfortably above $\\frac{1}{4}$. The reason matters more than the number: on an increasing function the right endpoint is the strip's maximum, so each rectangle covers the curve rather than sitting under it. The common mistake is to call every Riemann sum an approximation of unknown direction - for a monotone function the direction is guaranteed, and left and right sums bracket the answer."
+    }
+   },
+   {
+    "title": "Two Halves of One Theorem",
+    "body": "Fix $a$ and let the upper limit vary: $A(x) = \\int_a^x f(t)\\,dt$, the area accumulated so far. Push the limit forward by $h$ and you add a thin sliver of width $h$ whose height is close to $f(x)$, so $A(x+h) - A(x) \\approx f(x)\\,h$. Divide by $h$, let $h \\to 0$, and continuity squeezes the approximation into an equality: this is the **Fundamental Theorem, Part 1**, $$\\frac{d}{dx}\\int_a^x f(t)\\,dt = f(x).$$\n\nRead it slowly, because it is a genuine surprise. Integration was defined by a limit of sums with no reference to derivatives, yet accumulating $f$ and then differentiating returns $f$ untouched. It also settles existence: every continuous function *has* an antiderivative, namely its own accumulation function, even when no formula for it exists - $\\int_0^x e^{-t^2}\\,dt$ is a perfectly good function that no combination of elementary operations can express.\n\n**Part 2** runs the same equivalence the other way. If $F$ is any antiderivative of $f$ then $F$ and $A$ have the same derivative, so they differ by a constant; evaluating at $x = a$, where $A(a) = 0$, fixes that constant and gives $$\\int_a^b f(x)\\,dx = F(b) - F(a).$$ Which antiderivative you pick cannot matter, because the $+C$ appears twice and subtracts away.\n\nTogether they say differentiation and integration are inverse **processes**, and the two asymmetries are exactly what you would expect from inverses that lose and recover information. Differentiating destroys the constant, so integrating back can only return the family $F + C$. Integrating from $a$ to $b$ destroys everything except the two endpoint values, so applying $F$ to them recovers the total. Written as $\\int_a^b F'(x)\\,dx = F(b) - F(a)$ the same statement becomes the **net change theorem**: the accumulated rate of change over an interval is the net change in the quantity.",
+    "code": "PART 1.  Let A(x) = int_a^x f(t) dt   (area accumulated from a up to x).\n\n  A(x + h) - A(x)  =  the sliver of area between x and x + h\n                   ~  f(x) * h        one rectangle, height f(x), width h\n\n  [A(x+h) - A(x)] / h  ~  f(x)        and continuity of f makes it exact\n                                      in the limit h -> 0\n\n     A'(x) = f(x)         DIFFERENTIATING AN ACCUMULATION RETURNS THE RATE\n\n  With a chain rule on top, when the upper limit is g(x):\n     d/dx int_a^{g(x)} f(t) dt = f(g(x)) * g'(x)\n     d/dx int_1^{x^2} cos t dt = cos(x^2) * 2x\n  and a VARIABLE LOWER limit just flips sign, by the reversal rule:\n     d/dx int_x^5 e^(-t^2) dt = - e^(-x^2)\n\nPART 2.  If F is ANY antiderivative of f, then F' = A' = f, so F - A = C.\n  At x = a:  A(a) = 0, so C = F(a).  Hence A(x) = F(x) - F(a), and at x = b\n\n     int_a^b f(x) dx = F(b) - F(a)          usually written  [F(x)]_a^b\n\n  The +C cancels: (F(b) + C) - (F(a) + C) = F(b) - F(a).  Choice of\n  antiderivative is genuinely irrelevant.\n\nWORKED:  int_0^2 x^2 dx = [x^3/3]_0^2 = 8/3 - 0 = 8/3\n\n  The same 8/3 the rectangles were converging to on the last page, now\n  obtained with no rectangles at all.\n\nNET CHANGE:  int_a^b F'(x) dx = F(b) - F(a)\n  velocity integrates to displacement, flow rate to volume, marginal cost\n  to total cost.  Accumulating a rate gives the net change in the quantity.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 9,
+      "text": "Everything above this line is the proof in miniature: a sliver is nearly a rectangle, and continuity makes 'nearly' into 'exactly' once h vanishes."
+     },
+     {
+      "line": 14,
+      "text": "A variable lower limit is the commonest place to lose a sign. Flip it to an upper limit with the reversal rule first, then differentiate."
+     },
+     {
+      "line": 17,
+      "text": "This line is why Part 2 is a corollary rather than a separate miracle: it uses Part 1 plus the MVT fact that equal derivatives force a constant difference."
+     },
+     {
+      "line": 27,
+      "text": "Compare the labour. The limit definition took a summation formula and a limit; Part 2 took one substitution. That gap is the whole practical value of the theorem."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Differentiate each accumulation function, showing where the chain rule or a sign enters: (a) $\\displaystyle H(x) = \\int_1^{x^2} \\cos t\\,dt$, (b) $\\displaystyle K(x) = \\int_x^{5} e^{-t^2}\\,dt$.",
+     "answer": "(a) H'(x) = cos(x^2) * 2x = 2x cos(x^2), by Part 1 together with the chain rule for the upper limit g(x) = x^2. (b) Reverse the limits first: K(x) = - int_5^x e^(-t^2) dt, so K'(x) = -e^(-x^2). No elementary antiderivative of e^(-t^2) exists, and none is needed - Part 1 gives the derivative directly.",
+     "rubric": {
+      "required": [
+       "chain",
+       "upper",
+       "sign",
+       "revers",
+       "derivativ"
+      ],
+      "optional": [
+       "lower",
+       "limit",
+       "substitut",
+       "antiderivativ",
+       "accumulat",
+       "continuous"
+      ],
+      "minWords": 45
+     },
+     "concepts": [
+      "ftc-part-1"
+     ],
+     "explain": "Part 1 evaluates the integrand at the moving limit, so $H'$ is $\\cos$ of the upper limit times the derivative of that limit: $2x\\cos(x^2)$. Forgetting the factor $2x$ is the standard slip. In (b) the variable sits at the *bottom*, and $\\int_x^5 = -\\int_5^x$ turns it into the standard shape, so the answer is $-e^{-x^2}$ - negative because pushing the lower limit rightwards removes area rather than adding it."
+    }
+   },
+   {
+    "title": "Substitution, and the Region Between Two Curves",
+    "body": "The chain rule says $\\frac{d}{dx}F(g(x)) = F'(g(x))\\,g'(x)$, so any integrand that looks like $f(g(x))\\,g'(x)$ is already a chain-rule derivative waiting to be recognised. **Substitution** is that recognition made mechanical: set $u = g(x)$, write $du = g'(x)\\,dx$, and the integral collapses to $\\int f(u)\\,du$. The skill is spotting an inner function whose derivative is present as a factor, up to a constant you can adjust.\n\nFor a definite integral you have two honest options and one trap. Either substitute back to $x$ before evaluating at the original limits, or - much better - **change the limits** to $u$ values and never return: $\\int_a^b f(g(x))g'(x)\\,dx = \\int_{g(a)}^{g(b)} f(u)\\,du$. The trap is evaluating a $u$-expression at $x$-limits, which quietly computes a different number.\n\nWith integrals of a single curve understood, two curves cost nothing extra. If $f(x) \\ge g(x)$ on $[a,b]$, a vertical strip at $x$ has height $f(x) - g(x)$ and width $dx$, so $$\\text{area} = \\int_a^b \\big(f(x) - g(x)\\big)\\,dx.$$ Note that this is **top minus bottom**, not upper-curve-positive: the strip height is positive even when both curves are below the axis, because the axis was never part of the argument.\n\nTwo disciplines make it reliable. Find the intersections first - they are the limits, and solving $f = g$ is usually the hardest step. Then check who is on top on each piece and split at every crossing, integrating $|f - g|$ rather than $f - g$; a curve that overtakes its rival mid-interval will otherwise let a negative piece cancel a positive one and return an area that is too small.",
+    "code": "SUBSTITUTION = CHAIN RULE, BACKWARDS.\n  d/dx F(g(x)) = F'(g(x)) g'(x)     so    int f(g(x)) g'(x) dx = int f(u) du\n\nINDEFINITE:  int 2x sqrt(x^2 + 1) dx\n  u = x^2 + 1,   du = 2x dx          the 2x is already sitting there\n  = int sqrt(u) du = (2/3) u^(3/2) + C = (2/3)(x^2 + 1)^(3/2) + C\n  back-substitute, because the answer must be a function of x\n\nDEFINITE, CHANGING THE LIMITS:  int_1^3 dx/(2x + 1)\n  u = 2x + 1,  du = 2 dx,  dx = du/2\n  x = 1  ->  u = 3          the limits travel with the substitution\n  x = 3  ->  u = 7\n  = (1/2) int_3^7 du/u = (1/2)[ln u]_3^7 = (1/2)(ln 7 - ln 3)\n  = (1/2) ln(7/3)  ~  0.4236\n\n  TRAP:  (1/2)[ln u]_1^3 would evaluate a u-expression at x-limits.\n         Either change the limits, or go back to x first.  Never mix.\n\nAREA BETWEEN CURVES:  y = x^2  and  y = 2x - x^2\n  intersect:  x^2 = 2x - x^2  ->  2x^2 - 2x = 0  ->  x = 0, 1\n  who is on top on (0,1)?  at x = 1/2:  2x - x^2 = 3/4  >  x^2 = 1/4\n  area = int_0^1 [ (2x - x^2) - x^2 ] dx = int_0^1 (2x - 2x^2) dx\n       = [x^2 - (2/3)x^3]_0^1 = 1 - 2/3 = 1/3\n\nWHEN THE CURVES SWAP:  y = x and y = x^3 on [-1, 1]\n  they cross at x = -1, 0, 1, and the top curve CHANGES at 0:\n    on [-1, 0]:  x^3 >= x        area = int_{-1}^0 (x^3 - x) dx = 1/4\n    on [ 0, 1]:  x   >= x^3      area = int_0^1 (x - x^3) dx    = 1/4\n  total area = 1/2.   Integrating (x - x^3) straight across [-1,1]\n  would give 0 - the two halves cancel, and that is not the area.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Back-substitution is compulsory for an indefinite integral: an answer left in u is a function of the wrong variable."
+     },
+     {
+      "line": 11,
+      "text": "Changing the limits here is what removes the need to ever see x again, and it removes the classic evaluation error with it."
+     },
+     {
+      "line": 16,
+      "text": "This trap is worth more marks than any other single habit on this floor. Limits belong to a variable; if the variable changes, so must they."
+     },
+     {
+      "line": 21,
+      "text": "Testing one interior point is enough to settle who is on top, because the curves can only swap where they cross - and you have already found every crossing."
+     },
+     {
+      "line": 30,
+      "text": "A zero answer to an area question is almost always this mistake. Area is the integral of |f - g|, which means splitting at every crossing inside the interval."
+     }
+    ],
+    "checkpoint": {
+     "type": "problem",
+     "layer": "application",
+     "prompt": "Evaluate $\\displaystyle\\int_0^1 x^2\\,(x^3+5)^4\\,dx$ by substitution, changing the limits rather than substituting back. State the new limits explicitly and give the exact value.",
+     "answer": "Let u = x^3 + 5, so du = 3x^2 dx and x^2 dx = du/3. The limits travel: x = 0 gives u = 5, and x = 1 gives u = 6. The integral becomes (1/3) int_5^6 u^4 du = (1/15)[u^5]_5^6 = (6^5 - 5^5)/15 = (7776 - 3125)/15 = 4651/15, about 310.07.",
+     "rubric": {
+      "required": [
+       "substitut",
+       "limit",
+       "du",
+       "exact",
+       "value"
+      ],
+      "optional": [
+       "chain",
+       "five",
+       "six",
+       "constant",
+       "factor",
+       "power"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "substitution",
+      "definite-integral"
+     ],
+     "explain": "The factor $x^2$ is $\\frac{1}{3}$ of $du$, which is what makes the substitution work at all. Changing the limits to $5$ and $6$ means the antiderivative $u^5/5$ is evaluated where it should be; leaving the limits at $0$ and $1$ would return $\\frac{1}{15}$, a number with no relation to the problem. Expanding the quartic instead is legal but produces a degree-fourteen polynomial for no gain."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "calc1-8-gp-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Evaluate each definite integral with Part 2 of the Fundamental Theorem. Every answer here is an exact integer.",
+   "template": "int_0^3 x^2 dx      = ___\nint_0^pi sin x dx   = ___\nint_1^e (1/x) dx    = ___\nint_{-2}^{2} x^3 dx = ___",
+   "blanks": [
+    "9",
+    "2",
+    "1",
+    "0"
+   ],
+   "concepts": [
+    "definite-integral",
+    "ftc-part-2"
+   ],
+   "tags": [
+    "definite-integral",
+    "ftc-part-2"
+   ],
+   "xp": 36,
+   "hint": "Antiderivatives in order: $x^3/3$, $-\\cos x$, $\\ln|x|$, $x^4/4$.",
+   "explain": "$[x^3/3]_0^3 = 9$; $[-\\cos x]_0^{\\pi} = 1-(-1) = 2$; $[\\ln x]_1^{e} = 1 - 0 = 1$. The last is the instructive one: $[x^4/4]_{-2}^{2} = 4 - 4 = 0$, because the integral is **signed** area and the slab below the axis cancels the slab above. The enclosed region has area $8$, which is a different question - the integral of $|x^3|$, not of $x^3$."
+  },
+  {
+   "id": "calc1-8-gp-02",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of evaluating a definite integral by substitution into the order that never requires returning to the original variable.",
+   "fragments": [
+    "Choose u = g(x), an inner function whose derivative appears as a factor.",
+    "Differentiate to get du = g'(x) dx, and solve for the piece of the integrand it replaces.",
+    "Convert both limits: the lower becomes g(a) and the upper becomes g(b).",
+    "Rewrite the whole integral in u, with no x surviving anywhere.",
+    "Antidifferentiate in u and evaluate between the new limits."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "substitution"
+   ],
+   "tags": [
+    "substitution"
+   ],
+   "xp": 36,
+   "explain": "The choice of $u$ has to come first because every later step refers to it, and $du$ must exist before you can tell whether the substitution actually clears the integrand. Converting the limits before rewriting is a discipline rather than a necessity, but it is the step people skip - and once the integrand is in $u$ with $x$-limits still attached, the error is invisible until the final number is wrong."
+  },
+  {
+   "id": "calc1-8-gp-03",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "For $f(x) = x^2$ on $[0,2]$ with $n = 4$ equal strips, compute the right-endpoint Riemann sum exactly. Then state the exact value of $\\int_0^2 x^2\\,dx$, and explain why the sum lands on the side of it that it does.",
+   "answer": "dx = 1/2 and the right endpoints are 0.5, 1, 1.5, 2, so the sum is (1/2)(0.25 + 1 + 2.25 + 4) = (1/2)(7.5) = 15/4 = 3.75. The exact integral is [x^3/3]_0^2 = 8/3, about 2.667. The sum overestimates because x^2 is increasing on [0,2]: the right endpoint is the maximum of f on each strip, so every rectangle rises above the curve across its whole strip. The left sum is 7/4, an underestimate for the mirror-image reason, so 7/4 < 8/3 < 15/4.",
+   "rubric": {
+    "required": [
+     "right",
+     "increas",
+     "overestimat",
+     "strip",
+     "exact"
+    ],
+    "optional": [
+     "left",
+     "endpoint",
+     "width",
+     "maximum",
+     "bracket",
+     "rectangl"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "riemann-sums",
+    "definite-integral"
+   ],
+   "tags": [
+    "riemann-sums",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "$\\Delta x = \\frac{2-0}{4}$, and the right endpoints are $\\frac{1}{2}, 1, \\frac{3}{2}, 2$.",
+   "explain": "The number is $\\frac{15}{4}$ and the exact value $\\frac{8}{3}$, an error of about $41\\%$ - four rectangles is a poor approximation, and that is exactly why the definition takes a limit. The direction of the error is forced by monotonicity, not luck. A frequent wrong answer is $\\frac{15}{2}$, from forgetting to multiply by $\\Delta x$ at all, which totals heights rather than areas."
+  },
+  {
+   "id": "calc1-8-gp-04",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find $\\displaystyle\\int\\left(3x^2 - \\frac{4}{x^2} + \\sqrt{x}\\right)dx$, then verify your answer by differentiating it. Say why one constant of integration suffices for all three terms.",
+   "answer": "Rewrite as 3x^2 - 4x^(-2) + x^(1/2). Term by term: 3(x^3/3) = x^3; -4(x^(-1)/(-1)) = 4/x; x^(3/2)/(3/2) = (2/3)x^(3/2). So the integral is x^3 + 4/x + (2/3)x^(3/2) + C. Differentiating gives 3x^2 - 4x^(-2) + x^(1/2), which is the original integrand. One constant suffices because a sum of three arbitrary constants is itself just one arbitrary constant.",
+   "rubric": {
+    "required": [
+     "power",
+     "exponent",
+     "constant",
+     "differentiat",
+     "term"
+    ],
+    "optional": [
+     "linear",
+     "check",
+     "rewrite",
+     "negative",
+     "root",
+     "family"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "antiderivatives",
+    "indefinite-integral"
+   ],
+   "tags": [
+    "antiderivatives",
+    "indefinite-integral"
+   ],
+   "xp": 90,
+   "hint": "Rewrite every term as a power of $x$ first; $\\frac{4}{x^2}$ is $4x^{-2}$ and $\\sqrt{x}$ is $x^{1/2}$.",
+   "explain": "The middle term is where errors cluster: $\\int x^{-2}dx = \\frac{x^{-1}}{-1} = -\\frac{1}{x}$, so subtracting $4x^{-2}$ *adds* $\\frac{4}{x}$ and the sign flips twice. Writing $\\ln$ anywhere here is the other classic error - only the exponent $-1$ produces a logarithm. Three separate constants would be no more general than one, since $C_1+C_2+C_3$ ranges over exactly the same reals as $C$."
+  },
+  {
+   "id": "calc1-8-gp-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Use the Fundamental Theorem, Part 1, to differentiate: (a) $\\displaystyle G(x) = \\int_2^{x^3}\\frac{dt}{1+t^2}$, and (b) $\\displaystyle J(x) = \\int_x^{5} e^{-t^2}\\,dt$. Explain in each case what the theorem contributes and what the chain rule or reversal rule contributes.",
+   "answer": "(a) With g(x) = x^3, Part 1 plus the chain rule give G'(x) = 1/(1 + (x^3)^2) * 3x^2 = 3x^2/(1 + x^6). Part 1 supplies the evaluation of the integrand at the moving limit; the chain rule supplies the factor g'(x) = 3x^2. (b) The variable is the lower limit, so reverse: J(x) = - int_5^x e^(-t^2) dt and J'(x) = -e^(-x^2). The reversal rule supplies the minus sign; Part 1 supplies the rest. Neither integrand needs an elementary antiderivative, and e^(-t^2) has none.",
+   "rubric": {
+    "required": [
+     "chain",
+     "upper",
+     "lower",
+     "revers",
+     "antiderivativ"
+    ],
+    "optional": [
+     "sign",
+     "continuous",
+     "accumulat",
+     "limit",
+     "elementary",
+     "factor"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "ftc-part-1"
+   ],
+   "tags": [
+    "ftc-part-1"
+   ],
+   "xp": 90,
+   "hint": "$\\frac{d}{dx}\\int_a^{g(x)} f = f(g(x))g'(x)$, and a variable lower limit costs a minus sign.",
+   "explain": "In (a) the answer is $\\frac{3x^2}{1+x^6}$, and omitting the $3x^2$ is the single most common error on this theorem - Part 1 alone only covers a bare $x$ in the upper limit. In (b) the point is that $e^{-t^2}$ has no elementary antiderivative at all, so any attempt to evaluate first is doomed; Part 1 hands you the derivative without ever needing one, and the minus sign says that raising the lower limit removes accumulated area."
+  }
+ ],
+ "integration-workshop": [
+  {
+   "id": "calc1-8-ws-01",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\int_0^2 \\frac{x}{x^2+1}\\,dx$ by substitution, changing the limits. Give the exact value, and state what the answer would have been had you kept the limits $0$ and $2$ on the $u$-integral.",
+   "answer": "Let u = x^2 + 1, so du = 2x dx and x dx = du/2. Limits: x = 0 gives u = 1, x = 2 gives u = 5. The integral is (1/2) int_1^5 du/u = (1/2)[ln u]_1^5 = (1/2)(ln 5 - ln 1) = (1/2) ln 5, about 0.8047. Keeping the old limits would give (1/2)[ln u]_0^2 = (1/2)(ln 2 - ln 0), which is not even finite - the mismatch is not a small error but a meaningless expression.",
+   "rubric": {
+    "required": [
+     "substitut",
+     "limit",
+     "du",
+     "exact",
+     "half"
+    ],
+    "optional": [
+     "logarithm",
+     "mismatch",
+     "factor",
+     "infinite",
+     "travel",
+     "value"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "substitution",
+    "definite-integral"
+   ],
+   "tags": [
+    "substitution",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "The numerator $x$ is half of $du$; the new limits are $u(0)$ and $u(2)$.",
+   "explain": "The answer is $\\frac{1}{2}\\ln 5 \\approx 0.8047$. The half comes from $x\\,dx = \\frac{du}{2}$ and is the most-dropped factor in the whole topic. The second half of the question is the real lesson: $u$-limits and $x$-limits are not interchangeable, and here the mismatch produces $\\ln 0$, which fails loudly. Elsewhere the same slip produces a plausible wrong number instead, which is far worse."
+  },
+  {
+   "id": "calc1-8-ws-02",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the total area of the region enclosed between $y = x$ and $y = x^3$ on $[-1,1]$. Find every intersection, decide which curve is on top on each piece, and explain why $\\int_{-1}^{1}(x - x^3)\\,dx$ is not the answer.",
+   "answer": "Set x = x^3, so x(x^2 - 1) = 0 and the curves meet at x = -1, 0, 1. On (-1, 0) test x = -1/2: x^3 = -1/8 is above x = -1/2, so x^3 is on top. On (0, 1) test x = 1/2: x = 1/2 is above x^3 = 1/8, so x is on top. Area = int_{-1}^{0}(x^3 - x)dx + int_0^1 (x - x^3)dx = 1/4 + 1/4 = 1/2. The single integral int_{-1}^{1}(x - x^3)dx equals 0 because the integrand is odd: the piece on [-1,0] is negative and exactly cancels the piece on [0,1]. Area needs the absolute value of x - x^3, so the interval must be split at the crossing x = 0.",
+   "rubric": {
+    "required": [
+     "intersect",
+     "top",
+     "split",
+     "cancel",
+     "area"
+    ],
+    "optional": [
+     "odd",
+     "symmetr",
+     "sign",
+     "absolute",
+     "test",
+     "crossing"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "area-between-curves",
+    "integral-properties"
+   ],
+   "tags": [
+    "area-between-curves",
+    "integral-properties"
+   ],
+   "xp": 90,
+   "hint": "The curves cross at three points, and the top curve swaps at the middle one.",
+   "explain": "The area is $\\frac{1}{2}$, the two halves being $\\frac{1}{4}$ each by symmetry. The trap is that $\\int_{-1}^{1}(x-x^3)dx = 0$ is a *correct* integral of the *wrong* quantity: signed area, in which the stretch where $x^3$ is on top contributes negatively. Any area answer of zero should be read as a missed crossing, and the cure is always the same - solve $f = g$, split at every root inside the interval, and test a point on each piece."
+  },
+  {
+   "id": "calc1-8-ws-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove Part 2 of the Fundamental Theorem from Part 1: if $f$ is continuous on $[a,b]$ and $F$ is **any** antiderivative of $f$, then $\\int_a^b f(x)\\,dx = F(b) - F(a)$. Justify the step where you claim two functions differ by a constant, and say explicitly why the choice of antiderivative does not matter.",
+   "rubric": {
+    "required": [
+     "accumulat",
+     "antiderivativ",
+     "constant",
+     "derivativ",
+     "continu",
+     "evaluat"
+    ],
+    "optional": [
+     "mean value",
+     "interval",
+     "zero",
+     "cancel",
+     "choice",
+     "lower"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "ftc-part-2",
+    "ftc-part-1"
+   ],
+   "tags": [
+    "ftc-part-2",
+    "ftc-part-1"
+   ],
+   "xp": 90,
+   "hint": "Define $A(x) = \\int_a^x f(t)\\,dt$, compare it with $F$, and evaluate the comparison at $x = a$.",
+   "explain": "The proof is three moves. Define the accumulation function $A(x) = \\int_a^x f(t)dt$; Part 1 gives $A' = f = F'$, so $(F-A)' = 0$ on $[a,b]$ and the Mean Value Theorem - which needs the *interval*, and is the step most answers assert without justification - forces $F - A = C$. Setting $x = a$ uses $A(a) = 0$ to identify $C = F(a)$, so $A(x) = F(x) - F(a)$, and $x = b$ finishes it. The choice of antiderivative is irrelevant because any other is $F + C_0$, and $(F(b)+C_0) - (F(a)+C_0)$ leaves the constant nowhere to hide."
+  },
+  {
+   "id": "calc1-8-ws-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Differentiation and integration are called inverse operations, yet neither exactly undoes the other. Explain what each direction recovers and what it loses: differentiating an accumulation returns the integrand exactly, but integrating a derivative returns only a family, or only a difference of two values. Say what information is destroyed in each case and how the notation records that loss.",
+   "rubric": {
+    "required": [
+     "antiderivativ",
+     "constant",
+     "accumulat",
+     "differenti",
+     "recover",
+     "endpoint"
+    ],
+    "optional": [
+     "family",
+     "net change",
+     "information",
+     "signed",
+     "inverse",
+     "initial"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "ftc-part-1",
+    "ftc-part-2",
+    "antiderivatives"
+   ],
+   "tags": [
+    "ftc-part-1",
+    "ftc-part-2",
+    "antiderivatives"
+   ],
+   "xp": 36,
+   "explain": "One direction is clean: $\\frac{d}{dx}\\int_a^x f = f$ loses nothing, because accumulation records the whole history of $f$ and differentiating reads the current rate straight off it. The other direction is lossy in two different ways. Differentiation destroys the additive constant, so $\\int F'(x)dx$ can only return $F + C$ - and the notation admits this by carrying $C$ around. Meanwhile $\\int_a^b F'(x)dx$ collapses the entire interval to $F(b)-F(a)$: the net change survives, everything about the route between the endpoints does not. That is precisely why a definite integral of a velocity yields displacement and not distance travelled."
+  },
+  {
+   "id": "calc1-8-ws-05",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Suppose $\\int_1^5 f(x)\\,dx = 12$ and $\\int_1^3 f(x)\\,dx = 5$, with $f$ continuous. Using only the properties of the definite integral, find $\\int_3^5 f(x)\\,dx$, $\\int_5^1 f(x)\\,dx$, $\\int_3^3 f(x)\\,dx$ and $\\int_1^5\\big(2f(x)+3\\big)\\,dx$, naming the property used each time.",
+   "answer": "Additivity over adjacent intervals gives int_1^3 + int_3^5 = int_1^5, so int_3^5 f = 12 - 5 = 7. The reversal rule gives int_5^1 f = -int_1^5 f = -12. A degenerate interval has zero width, so int_3^3 f = 0. Linearity splits the last one: int_1^5 (2f + 3) = 2 int_1^5 f + 3 int_1^5 dx = 2(12) + 3(5 - 1) = 24 + 12 = 36.",
+   "rubric": {
+    "required": [
+     "additiv",
+     "revers",
+     "linear",
+     "zero",
+     "width"
+    ],
+    "optional": [
+     "constant",
+     "adjacent",
+     "interval",
+     "sign",
+     "length",
+     "rectangl"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "integral-properties",
+    "definite-integral"
+   ],
+   "tags": [
+    "integral-properties",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "The integral of the constant $3$ over $[1,5]$ is $3$ times the length of the interval, not $3$.",
+   "explain": "The results are $7$, $-12$, $0$ and $36$. The last carries the famous trap: $\\int_1^5 3\\,dx = 3 \\cdot 4 = 12$, not $3$, because a constant integrates to a rectangle whose width is the interval length. None of this needs a formula for $f$ - the properties come straight from the Riemann sums, which is why they hold for every continuous integrand."
+  },
+  {
+   "id": "calc1-8-ws-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "A particle moves along a line with velocity $v(t) = 3t^2 - 12t + 9$ metres per second for $0 \\le t \\le 4$. Find its **displacement** and the **total distance travelled** over that interval, and explain what makes the two answers differ.",
+   "answer": "Displacement is int_0^4 v dt = [t^3 - 6t^2 + 9t]_0^4 = 64 - 96 + 36 = 4 metres, by the net change theorem. For distance, find where v = 0: 3(t-1)(t-3) = 0 at t = 1 and t = 3. On [0,1] v > 0 and the integral is 4; on [1,3] v < 0 and the integral is -4; on [3,4] v > 0 and the integral is 4. Total distance is the integral of |v| over [0,4] = 4 + 4 + 4 = 12 metres. They differ because displacement is signed - the backwards leg subtracts - while distance adds every leg positively.",
+   "rubric": {
+    "required": [
+     "displacement",
+     "distance",
+     "sign",
+     "split",
+     "velocit"
+    ],
+    "optional": [
+     "net change",
+     "absolute",
+     "backwards",
+     "zero",
+     "metres",
+     "interval"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "definite-integral",
+    "ftc-part-2",
+    "integral-properties"
+   ],
+   "tags": [
+    "definite-integral",
+    "ftc-part-2",
+    "integral-properties"
+   ],
+   "xp": 90,
+   "hint": "Solve $v(t) = 0$ first; the sign of $v$ can only change there.",
+   "explain": "Displacement is $4$ m and distance is $12$ m. This is the net change theorem doing exactly what the lesson warned about: $\\int_0^4 v\\,dt$ keeps only the endpoint difference, so the two seconds spent reversing between $t=1$ and $t=3$ cancel the first second's progress. Distance requires the integral of $|v|$, which means finding the roots of $v$ and flipping the negative piece - the same split-at-the-crossing discipline as area between curves, in different clothes."
+  }
+ ],
+ "exam": [
+  {
+   "id": "calc1-8-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "By definition, $\\displaystyle\\int_a^b f(x)\\,dx$ is:",
+   "choices": [
+    "the antiderivative $F(x)$ of $f$, evaluated at $x = b$",
+    "$\\displaystyle\\lim_{n \\to \\infty}\\sum_{k=1}^{n} f(x_k^{*})\\,\\Delta x$, the limit of Riemann sums with $\\Delta x = \\frac{b-a}{n}$",
+    "the geometric area of the region between the graph of $f$ and the $x$-axis on $[a,b]$",
+    "the family of all functions whose derivative is $f$"
+   ],
+   "answer": 1,
+   "concepts": [
+    "definite-integral",
+    "riemann-sums"
+   ],
+   "tags": [
+    "definite-integral",
+    "riemann-sums"
+   ],
+   "xp": 18,
+   "explain": "The definite integral is *defined* as a limit of Riemann sums, with no mention of derivatives - which is what makes the Fundamental Theorem a theorem rather than a restatement. Option 3 is the tempting one, but the integral is **signed** area, so it disagrees with geometric area wherever $f$ is negative. Option 4 describes the indefinite integral, and option 1 forgets $F(a)$."
+  },
+  {
+   "id": "calc1-8-ex-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The notation $\\displaystyle\\int f(x)\\,dx = F(x) + C$ asserts that:",
+   "choices": [
+    "$F$ is the unique function with $F'(x) = f(x)$",
+    "$F(x) + C$ describes every function whose derivative is $f$ on the interval concerned",
+    "$F$ is the accumulated area under $f$ starting from $x = 0$",
+    "$C$ may be chosen freely to make the answer take any value at any point"
+   ],
+   "answer": 1,
+   "concepts": [
+    "indefinite-integral",
+    "antiderivatives"
+   ],
+   "tags": [
+    "indefinite-integral",
+    "antiderivatives"
+   ],
+   "xp": 18,
+   "explain": "An indefinite integral names a whole family, and the Mean Value Theorem guarantees the family is exactly $F + C$ on an interval - no wider and no narrower. Option 1 is the standard misconception that $+C$ is a formality; uniqueness is precisely what fails. Option 3 confuses this with the accumulation function of Part 1, which is one particular member of the family, the one vanishing at the lower limit."
+  },
+  {
+   "id": "calc1-8-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Set up $\\displaystyle\\int_1^3\\frac{dx}{2x+1}$ with the substitution $u = 2x+1$. Fill each blank with a single number.",
+   "template": "when x = 1,  u = ___\nwhen x = 3,  u = ___\ndu = ___ dx\nintegral becomes (1/___) int du/u over the new limits",
+   "blanks": [
+    "3",
+    "7",
+    "2",
+    "2"
+   ],
+   "concepts": [
+    "substitution",
+    "definite-integral"
+   ],
+   "tags": [
+    "substitution",
+    "definite-integral"
+   ],
+   "xp": 36,
+   "explain": "The limits travel with the substitution: $u(1) = 3$ and $u(3) = 7$, so the integral becomes $\\frac{1}{2}\\int_3^7 \\frac{du}{u} = \\frac{1}{2}\\ln\\frac{7}{3} \\approx 0.4236$. Leaving the limits as $1$ and $3$ would compute $\\frac{1}{2}\\ln 3$ instead - a perfectly plausible-looking number that answers a different question entirely."
+  },
+  {
+   "id": "calc1-8-ex-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Trace the substitution $u = x^3 + 5$ through $\\displaystyle\\int_0^1 x^2(x^3+5)^4\\,dx$. Give each requested quantity exactly; write the final value as a fraction.",
+   "steps": [
+    {
+     "label": "du, in the form (number) x^2 dx",
+     "expected": "3x^2 dx"
+    },
+    {
+     "label": "new lower limit u(0)",
+     "expected": "5"
+    },
+    {
+     "label": "new upper limit u(1)",
+     "expected": "6"
+    },
+    {
+     "label": "antiderivative in u, ignoring +C",
+     "expected": "u^5/15"
+    },
+    {
+     "label": "exact value of the integral",
+     "expected": "4651/15"
+    }
+   ],
+   "concepts": [
+    "substitution",
+    "definite-integral"
+   ],
+   "tags": [
+    "substitution",
+    "definite-integral"
+   ],
+   "xp": 72,
+   "explain": "Because $du = 3x^2dx$, the integrand carries $\\frac{1}{3}du$, and $\\frac{1}{3}\\int u^4du = \\frac{u^5}{15}$. Evaluating between $5$ and $6$ gives $\\frac{7776-3125}{15} = \\frac{4651}{15}$. The step that most often goes wrong is the fourth: dropping the $\\frac{1}{3}$ and reporting $u^5/5$ scales the whole answer by three, and no later step can reveal the mistake."
+  },
+  {
+   "id": "calc1-8-ex-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the steps for finding the total area enclosed between two curves $y = f(x)$ and $y = g(x)$ when you are not told which is on top.",
+   "fragments": [
+    "Solve f(x) = g(x) to find every intersection point.",
+    "Use consecutive intersections as the endpoints of each subinterval.",
+    "On each subinterval, test one interior point to see which curve is on top.",
+    "Integrate (top - bottom) over that subinterval, so each piece is positive.",
+    "Add the pieces to get the total enclosed area."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "area-between-curves"
+   ],
+   "tags": [
+    "area-between-curves"
+   ],
+   "xp": 36,
+   "explain": "Intersections come first because they are simultaneously the limits of integration and the only places the top curve can change. Testing an interior point is what turns each piece into a positive contribution; skip it and you are integrating a signed difference, which lets one region cancel another and reports an area smaller than the truth - often zero."
+  },
+  {
+   "id": "calc1-8-ex-06",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find $\\displaystyle\\int \\frac{x}{\\sqrt{x^2+9}}\\,dx$, then evaluate $\\displaystyle\\int_0^4 \\frac{x}{\\sqrt{x^2+9}}\\,dx$. Give both answers exactly.",
+   "answer": "Let u = x^2 + 9, so du = 2x dx and x dx = du/2. Then the integral is (1/2) int u^(-1/2) du = (1/2)(2u^(1/2)) + C = sqrt(x^2 + 9) + C. For the definite integral the limits become u(0) = 9 and u(4) = 25, giving [sqrt(u)]_9^25 = 5 - 3 = 2.",
+   "rubric": {
+    "required": [
+     "substitut",
+     "du",
+     "limit",
+     "root",
+     "back"
+    ],
+    "optional": [
+     "half",
+     "exact",
+     "power",
+     "twenty-five",
+     "nine",
+     "cancel"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "substitution",
+    "indefinite-integral"
+   ],
+   "tags": [
+    "substitution",
+    "indefinite-integral"
+   ],
+   "xp": 90,
+   "hint": "The numerator is half of $du$, and $\\int u^{-1/2}du = 2\\sqrt{u}$.",
+   "explain": "The two halves cancel neatly: $\\frac{1}{2} \\cdot 2\\sqrt{u} = \\sqrt{u}$, so the antiderivative is simply $\\sqrt{x^2+9}$ - which you should confirm by differentiating. The definite value is $5-3=2$. A common wrong answer is $\\sqrt{25} = 5$, from evaluating only at the upper limit; Part 2 always subtracts the value at $a$, and here that lower value is a substantial $3$."
+  },
+  {
+   "id": "calc1-8-ex-07",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Let $\\displaystyle F(x) = \\int_2^{x}\\big(t^2 - 3t + 2\\big)\\,dt$. Find $F'(x)$ without evaluating the integral, locate the critical points of $F$, and classify each as a local maximum or minimum of $F$ - justifying the classification from the sign of the integrand.",
+   "answer": "By Part 1, F'(x) = x^2 - 3x + 2 = (x-1)(x-2), so the critical points are x = 1 and x = 2. The second derivative is 2x - 3, which is -1 at x = 1 and +1 at x = 2, so F has a local maximum at x = 1 and a local minimum at x = 2. Reading the sign of the integrand directly: it is positive left of 1, negative between 1 and 2, and positive right of 2, so F rises, then falls, then rises.",
+   "rubric": {
+    "required": [
+     "critical",
+     "sign",
+     "maximum",
+     "minimum",
+     "integrand"
+    ],
+    "optional": [
+     "second",
+     "accumulat",
+     "increas",
+     "decreas",
+     "chang",
+     "factor"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "ftc-part-1",
+    "definite-integral"
+   ],
+   "tags": [
+    "ftc-part-1",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "Part 1 hands you $F'$ immediately; the shape of $F$ is then the sign chart of the integrand.",
+   "explain": "The whole point is that $F'$ is available for free: an accumulation function increases exactly where its integrand is positive. Factoring gives roots $1$ and $2$, with $F$ rising on $(-\\infty,1)$, falling on $(1,2)$ and rising again - a maximum at $1$ and a minimum at $2$. The tempting move is to evaluate the integral to $\\frac{x^3}{3}-\\frac{3x^2}{2}+2x-\\frac{2}{3}$ first; it works here, but it fails on any integrand without an elementary antiderivative, and Part 1 never needs it."
+  },
+  {
+   "id": "calc1-8-ex-08",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Find the area of the region enclosed between $y = x^2$ and $y = x^3$. Determine the interval yourself, state which curve is on top there, and give the exact area.",
+   "answer": "Set x^2 = x^3, so x^2(1 - x) = 0 and the curves meet at x = 0 and x = 1; those are the limits. Testing x = 1/2 gives x^2 = 1/4 and x^3 = 1/8, so x^2 is on top on (0,1). Area = int_0^1 (x^2 - x^3) dx = [x^3/3 - x^4/4]_0^1 = 1/3 - 1/4 = 1/12.",
+   "rubric": {
+    "required": [
+     "intersect",
+     "top",
+     "test",
+     "limit",
+     "area"
+    ],
+    "optional": [
+     "enclos",
+     "antiderivativ",
+     "cube",
+     "positive",
+     "subtract",
+     "exact"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "area-between-curves",
+    "definite-integral"
+   ],
+   "tags": [
+    "area-between-curves",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "The two curves meet where $x^2(1-x) = 0$; between those points, cubing a number below one makes it smaller.",
+   "explain": "The area is $\\frac{1}{12}$. Getting the order right is the whole difficulty: on $(0,1)$ cubing shrinks, so $x^3 < x^2$ and a strip has height $x^2 - x^3$. Reversing it gives $-\\frac{1}{12}$, and a negative area is always this mistake. Note also that $x=0$ is a tangential double root, so the curves touch rather than cross there - the top curve does not swap and no split is needed."
+  },
+  {
+   "id": "calc1-8-ex-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "$\\displaystyle\\int_{-2}^{2} x^3\\,dx = 0$, yet the region enclosed between $y = x^3$ and the $x$-axis on $[-2,2]$ plainly has positive area. Explain how both statements are true, what quantity the integral is actually computing, and what integral you would write to obtain the geometric area instead.",
+   "rubric": {
+    "required": [
+     "signed",
+     "negative",
+     "cancel",
+     "absolute",
+     "split",
+     "area"
+    ],
+    "optional": [
+     "odd",
+     "symmetr",
+     "rectangl",
+     "height",
+     "axis",
+     "root"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "definite-integral",
+    "integral-properties"
+   ],
+   "tags": [
+    "definite-integral",
+    "integral-properties"
+   ],
+   "xp": 36,
+   "explain": "A Riemann rectangle has signed height, so on $[-2,0]$, where $x^3 < 0$, every term of the sum is negative and the integral records a debt rather than an area. By oddness that debt is exactly $-4$ and the credit on $[0,2]$ is exactly $+4$, so the net is $0$ - a true statement about *signed* area. Geometric area is $\\int_{-2}^{2}|x^3|\\,dx = 2\\int_0^2 x^3\\,dx = 8$, obtained by splitting at the root and flipping the negative piece. The general habit: whenever the question says *area*, integrate the absolute value and split wherever the sign changes."
+  },
+  {
+   "id": "calc1-8-ex-10",
+   "type": "problem",
+   "layer": "application",
+   "prompt": "Evaluate $\\displaystyle\\int_0^{\\pi/2}\\sin^3 x\\,\\cos x\\,dx$ exactly. Name the substitution, give the transformed limits, and say why the factor $\\cos x$ is what makes the method work.",
+   "answer": "Let u = sin x, so du = cos x dx. The limits become u(0) = sin 0 = 0 and u(pi/2) = sin(pi/2) = 1. The integral is int_0^1 u^3 du = [u^4/4]_0^1 = 1/4. The cos x factor is essential: it is exactly du, so the substitution consumes the entire dx and leaves a pure u-integral. Without it the integrand would not be of the chain-rule form f(g(x))g'(x) and this substitution would fail.",
+   "rubric": {
+    "required": [
+     "substitut",
+     "sine",
+     "cosine",
+     "limit",
+     "chain",
+     "factor"
+    ],
+    "optional": [
+     "derivativ",
+     "power",
+     "unit",
+     "exact",
+     "quarter",
+     "inner"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "substitution",
+    "definite-integral"
+   ],
+   "tags": [
+    "substitution",
+    "definite-integral"
+   ],
+   "xp": 90,
+   "hint": "The derivative of the inner function $\\sin x$ is sitting right there as a factor.",
+   "explain": "The value is $\\frac{1}{4}$. Substitution is not a trick to be tried at random - it works precisely when the integrand has the form $f(g(x))g'(x)$, and here $\\cos x\\,dx$ is literally $du$. Note how tidy the new limits become: $0$ to $1$, because $\\sin$ carries the quarter period onto the unit interval. The tempting wrong move is $u = \\cos x$, which gives $du = -\\sin x\\,dx$ and leaves an unusable $\\sin^2 x$ behind."
+  }
+ ]
+}
