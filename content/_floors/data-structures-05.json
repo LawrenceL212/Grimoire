@@ -1,0 +1,474 @@
+{
+ "n": 5,
+ "name": "The Branching Vault",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "tree-terminology",
+  "binary-tree",
+  "traversal-order",
+  "level-order",
+  "bst-invariant",
+  "bst-insert-search",
+  "bst-delete",
+  "degenerate-tree"
+ ],
+ "sequence": ["lesson", "guided-practice", "implementation", "exam"],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Trees, and the words for their parts",
+    "body": "Every structure so far has been linear - one thing after another. A **tree** branches. One node is the **root**; every other node has exactly one **parent** and any number of **children**; a node with no children is a **leaf**. There are no cycles, and there is exactly one path from the root to any node, which is what makes a tree navigable without ever needing to remember where you have been.\n\nTwo measurements get confused constantly. The **depth** of a node is its distance from the root, so the root has depth 0. The **height** of a tree is the length of its longest root-to-leaf path. Depth is a property of a node; height is a property of a tree. Nearly every complexity claim about trees is really a claim about height, which is why so much effort goes into keeping height small.\n\nA **binary tree** restricts each node to at most two children, conventionally `left` and `right`. In JavaScript a node is just an object with a value and two links, and `null` marks the absence of a subtree exactly as it marked the end of a linked list.\n\nThe number to hold on to: a binary tree of height h holds at most 2^(h+1) - 1 nodes, so n nodes can be arranged in a tree of height as low as about log₂(n). A thousand nodes fit in a tree ten deep, a million in one twenty deep. That collapse from n to log n is the whole reason trees are worth the extra pointers - but only if the tree actually is that shape, which the last section of this floor is about.",
+    "code": "function node(value, left = null, right = null) {\n  return { value, left, right };\n}\n\n//        8\n//       / \\\n//      3   10\n//     / \\\n//    1   6\nconst tree = node(8,\n  node(3, node(1), node(6)),\n  node(10));\n\nfunction height(n) {\n  if (n === null) return 0;\n  return 1 + Math.max(height(n.left), height(n.right));\n}\n\nconsole.log(height(tree));  // 3",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 14, "text": "The empty tree is the base case, and choosing what it returns fixes the whole scale. Returning 0 here counts LEVELS, so a single node has height 1; returning -1 instead counts EDGES, and a single node has height 0. Both conventions are common - the only error is mixing them." },
+     { "line": 16, "text": "Recursion on a tree writes itself because the definition is recursive: a tree is a node plus two smaller trees. `Math.max` is what makes this the LONGEST path rather than some arbitrary one." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "countNodes",
+     "prompt": "Write `countNodes(root)` returning how many nodes the binary tree contains. A node is `{ value, left, right }`, and `null` is the empty tree.",
+     "starterCode": "function countNodes(root) {\n  // a tree is a node plus two smaller trees\n  return 0;\n}\n",
+     "tests": [
+      { "input": "null", "expected": 0 },
+      { "input": "{ value: 1, left: null, right: null }", "expected": 1 },
+      { "input": "{ value: 1, left: { value: 2, left: null, right: null }, right: { value: 3, left: null, right: null } }", "expected": 3 },
+      { "input": "{ value: 1, left: { value: 2, left: { value: 3, left: null, right: null }, right: null }, right: null }", "expected": 3 }
+     ],
+     "solution": "function countNodes(root) {\n  if (root === null) return 0;\n  return 1 + countNodes(root.left) + countNodes(root.right);\n}\n",
+     "hint": "One line: the empty tree has none, and any other tree has one plus whatever its two subtrees hold.",
+     "concepts": ["binary-tree", "tree-terminology"],
+     "tags": ["binary-tree"],
+     "explain": "The last two trees both hold three nodes but have different shapes - one balanced, one a chain. Counting cannot tell them apart, which is the point: the node count is fixed by what you inserted, while the height depends on the order you inserted it, and it is height that determines what the tree costs to search.",
+     "xp": 25
+    }
+   },
+   {
+    "title": "Four ways to visit every node",
+    "body": "Visiting every node is easy; the order you visit them in is the interesting part, and each order exists because some task needs exactly it.\n\nThree of them are depth-first and differ only in *when the node itself is handled* relative to its subtrees. **Pre-order** handles the node first, then left, then right - it sees a parent before either child, which is what you want to copy a tree or serialise it, because you cannot attach a child before its parent exists. **In-order** goes left, node, right - and on a binary search tree this yields the values in sorted order, which is the single most useful fact on this floor. **Post-order** goes left, right, node - it handles every child before its parent, which is what you want to free a tree or to compute something about a node from its subtrees, like height.\n\nThe fourth is **level-order**, or breadth-first: visit every node at depth 0, then every node at depth 1, and so on. It cannot be done by simple recursion, because recursion follows one branch to the bottom before considering another. It needs a **queue**: take a node, handle it, enqueue its children, repeat. Notice the pattern from the previous floor doing real work - a queue is exactly the structure that holds \"things I have discovered but not yet dealt with\" in arrival order.\n\nSwap that queue for a stack and you get a depth-first traversal instead. The frontier structure *is* the search order, which is a fact worth carrying into the graph floor, where it becomes the whole difference between breadth-first and depth-first search.",
+    "code": "function inorder(n, out = []) {\n  if (n === null) return out;\n  inorder(n.left, out);\n  out.push(n.value);\n  inorder(n.right, out);\n  return out;\n}\n\nfunction levelOrder(root) {\n  if (root === null) return [];\n  const out = [], queue = [root];\n  let head = 0;\n  while (head < queue.length) {\n    const n = queue[head++];\n    out.push(n.value);\n    if (n.left) queue.push(n.left);\n    if (n.right) queue.push(n.right);\n  }\n  return out;\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 4, "text": "Move this single line above the left call and you have pre-order; move it below the right call and you have post-order. The three depth-first traversals differ in nothing else." },
+     { "line": 12, "text": "A moving `head` index instead of `shift`, for the reason the queue floor gave: `shift` is O(n), and using it here would make an O(n) traversal quietly O(n squared)." }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const t = { value: 2,\n  left:  { value: 1, left: null, right: null },\n  right: { value: 3, left: null, right: null } };\n\nfunction pre(n, out) {\n  if (n === null) return out;\n  out.push(n.value);\n  pre(n.left, out);\n  pre(n.right, out);\n  return out;\n}\nconsole.log(pre(t, []).join(','));",
+     "lang": "javascript",
+     "answer": "2,1,3",
+     "concepts": ["traversal-order"],
+     "tags": ["traversal-order"],
+     "explain": "Pre-order pushes the node before descending, so the root comes out first: 2, then the left subtree, then the right. The tempting answer `1,2,3` is the IN-order result - correct for a different traversal, and on this tree it is also the sorted order, which is exactly the coincidence in-order exists to exploit.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "The binary search tree invariant",
+    "body": "A **binary search tree** is a binary tree carrying one extra promise: for every node, all values in its left subtree are smaller, and all values in its right subtree are larger. That is the **invariant**, and everything a BST can do follows from it.\n\nSearch becomes a decision rather than a scan. Compare the target with the node: if it is smaller go left, if larger go right, and if equal you have found it. Each comparison discards an entire subtree, which is binary search over a structure rather than over an array - and the cost is the number of comparisons, which is the depth you descend, bounded by the height of the tree.\n\nInsertion is the same walk, and stops one step later. Descend as if searching until you fall off the tree at a `null`, and attach the new node there. That position is forced: it is the only place the new value can sit without breaking the invariant for every node above it.\n\nRead the invariant carefully, because the strict version is easy to get wrong. It is not \"the left child is smaller than the node\" - it is that *every* value in the entire left subtree is smaller. A tree can satisfy the weak parent-child version at every node and still not be a search tree, and a validator that checks only immediate children will happily approve it. The correct check carries a permitted range down the tree, narrowing it at each step.",
+    "code": "function insert(node, v) {\n  if (node === null) return { value: v, left: null, right: null };\n  if (v < node.value) node.left = insert(node.left, v);\n  else if (v > node.value) node.right = insert(node.right, v);\n  return node;                      // equal: already present, do nothing\n}\n\nfunction contains(node, v) {\n  while (node !== null) {\n    if (v === node.value) return true;\n    node = v < node.value ? node.left : node.right;\n  }\n  return false;\n}\n\nfunction isBST(n, lo = -Infinity, hi = Infinity) {\n  if (n === null) return true;\n  if (n.value <= lo || n.value >= hi) return false;\n  return isBST(n.left, lo, n.value) && isBST(n.right, n.value, hi);\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 5, "text": "Doing nothing on equality is a design decision, not an oversight - it makes the tree a set. Storing duplicates needs a rule (always left, or a count per node), and picking no rule is how duplicates end up on both sides and searches start missing them." },
+     { "line": 19, "text": "The range narrows on the way down: everything in the left subtree must be below this node's value, everything in the right above it. This is what a check against immediate children alone cannot express." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "bstInsertAll",
+     "prompt": "Write `bstInsertAll(values)` which inserts each value of the array into an initially empty binary search tree, ignoring values already present, and returns the tree's in-order traversal as an array.",
+     "starterCode": "function bstInsertAll(values) {\n  let root = null;\n  // insert each value, then walk the finished tree in order\n  return [];\n}\n",
+     "tests": [
+      { "input": "[8, 3, 10, 1, 6]", "expected": [1, 3, 6, 8, 10] },
+      { "input": "[]", "expected": [] },
+      { "input": "[5, 5, 5]", "expected": [5] },
+      { "input": "[1, 2, 3, 4]", "expected": [1, 2, 3, 4] }
+     ],
+     "solution": "function bstInsertAll(values) {\n  let root = null;\n  const insert = (n, v) => {\n    if (n === null) return { value: v, left: null, right: null };\n    if (v < n.value) n.left = insert(n.left, v);\n    else if (v > n.value) n.right = insert(n.right, v);\n    return n;\n  };\n  const walk = (n, out) => {\n    if (n === null) return out;\n    walk(n.left, out);\n    out.push(n.value);\n    walk(n.right, out);\n    return out;\n  };\n  for (const v of values) root = insert(root, v);\n  return walk(root, []);\n}\n",
+     "hint": "Reassign the root from the insert call - the first insertion into an empty tree has to return the new node, because there is nothing to attach it to.",
+     "concepts": ["bst-invariant", "bst-insert-search", "traversal-order"],
+     "tags": ["bst-invariant"],
+     "explain": "In-order on a BST always emerges sorted, whatever order you inserted in, because the invariant says left-subtree, node, right-subtree is exactly smaller, this, larger at every step. The `[1,2,3,4]` case makes an uncomfortable point: it gives the same sorted output as the balanced tree while actually being a chain of four nodes - the output cannot reveal the shape, and the shape is what costs.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "Deletion, and the shape that ruins everything",
+    "body": "Deletion is the one BST operation that is genuinely fiddly, because removing a node leaves a hole that something must fill without breaking the invariant. There are three cases and they must be handled separately.\n\nA **leaf** just goes: replace it with `null`. A node with **one child** is replaced by that child, which slots in cleanly because everything in it already sits on the correct side of the deleted node's parent. A node with **two children** cannot be replaced by either child - both subtrees still need somewhere to hang. Instead, find its **in-order successor**, the smallest value in its right subtree, copy that value into the node, and delete the successor from the right subtree. The successor is the next value in sorted order, so it is the unique value that can sit in that position with every other value still on the correct side. And the successor is by construction the leftmost node of that subtree, so it has no left child, which means deleting it is one of the two easy cases.\n\nNow the failure this whole floor has been circling. All these operations cost the height of the tree, and a BST does not maintain its own height. Insert 1, 2, 3, 4, 5 in that order and every value goes right: the result is a linked list with extra pointers, height n, and O(n) search. Sorted input is not an exotic edge case - it is one of the most common ways data arrives, so the naive BST is at its worst precisely when it is most likely to be used.\n\nThat is the problem the next floor solves. A **self-balancing** tree does extra work on insertion and deletion to keep its height at O(log n) no matter what order the values arrive in.",
+    "code": "function minValue(n) {\n  while (n.left !== null) n = n.left;\n  return n.value;\n}\n\nfunction remove(n, v) {\n  if (n === null) return null;\n  if (v < n.value) { n.left = remove(n.left, v); return n; }\n  if (v > n.value) { n.right = remove(n.right, v); return n; }\n\n  if (n.left === null) return n.right;   // leaf, or right child only\n  if (n.right === null) return n.left;   // left child only\n\n  n.value = minValue(n.right);           // two children: take the successor\n  n.right = remove(n.right, n.value);\n  return n;\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 11, "text": "This one line covers two of the three cases at once. A leaf has a null right child too, so returning `n.right` returns null - exactly what removing a leaf requires." },
+     { "line": 15, "text": "The recursive call cannot loop forever: the successor is the leftmost node of the right subtree, so it has no left child, and it therefore hits one of the easy cases immediately." }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the search for the in-order successor of a node that has two children.",
+     "template": "function successorValue(node) {\n  let n = node.___;\n  while (n.___ !== null) n = n.left;\n  return n.value;\n}\n",
+     "blanks": ["right", "left"],
+     "concepts": ["bst-delete"],
+     "tags": ["bst-delete"],
+     "explain": "Step once into the RIGHT subtree - everything there is larger than the node - and then go left as far as possible, because the leftmost node of that subtree is its smallest value. Together that is the smallest value larger than the node, which is precisely the next value in sorted order and the only one that can take its place.",
+     "xp": 20
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-5-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const t = { value: 8,\n  left:  { value: 3, left: { value: 1, left: null, right: null },\n                     right: { value: 6, left: null, right: null } },\n  right: { value: 10, left: null, right: null } };\n\nfunction inorder(n, out) {\n  if (n === null) return out;\n  inorder(n.left, out);\n  out.push(n.value);\n  inorder(n.right, out);\n  return out;\n}\nconsole.log(inorder(t, []).join(','));",
+   "lang": "javascript",
+   "answer": "1,3,6,8,10",
+   "concepts": ["traversal-order", "bst-invariant"],
+   "tags": ["traversal-order"],
+   "explain": "In-order on a binary search tree emerges sorted, because the invariant guarantees left-then-node-then-right is smaller-then-this-then-larger at every node. This is the fact that makes a BST worth building over a hash table when you need ordered output - a hash table can find a key faster but cannot produce its keys in order at all.",
+   "xp": 20
+  },
+  {
+   "id": "ds-5-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Search for the value 6 in this binary search tree. Give the value at each node you visit, in order, starting at the root.\n\n```\n        8\n       / \\\n      3   10\n     / \\\n    1   6\n```",
+   "steps": [
+    { "label": "first node visited", "expected": "8" },
+    { "label": "second node visited", "expected": "3" },
+    { "label": "third node visited", "expected": "6" }
+   ],
+   "concepts": ["bst-insert-search", "bst-invariant"],
+   "tags": ["bst-insert-search"],
+   "explain": "Three comparisons find the value among five nodes, and each one discarded a whole subtree: 6 < 8 threw away everything to the right of 8, then 6 > 3 threw away the 1. That discarding is the entire advantage - a linear scan would have had no way to rule out the 10 without looking at it.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines into the order that produces a **post-order** traversal.",
+   "fragments": [
+    "if the node is null, return",
+    "recurse into the left child",
+    "recurse into the right child",
+    "handle the node itself"
+   ],
+   "answer": [0, 1, 2, 3],
+   "concepts": ["traversal-order"],
+   "tags": ["traversal-order"],
+   "explain": "Post-order handles the node last, after both subtrees, which is why it is the traversal for anything that computes a parent's answer from its children - height, size, freeing memory. Moving the node line to the top gives pre-order and between the two recursions gives in-order; nothing else about the function changes.",
+   "xp": 20
+  },
+  {
+   "id": "ds-5-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the level-order traversal. It must use a queue, and must not use `shift`.",
+   "template": "const out = [], queue = [root];\nlet head = 0;\nwhile (head ___ queue.length) {\n  const n = queue[head___];\n  out.push(n.value);\n  if (n.left) queue.___(n.left);\n  if (n.right) queue.push(n.right);\n}\n",
+   "blanks": ["<", "++", "push"],
+   "concepts": ["level-order"],
+   "tags": ["level-order"],
+   "explain": "The moving `head` index is a queue without the cost of `shift`, which would relocate every remaining element and turn an O(n) traversal into O(n squared). Children are pushed to the BACK, which is what makes the traversal go level by level - pushing to the front would turn the queue into a stack and produce a depth-first order instead.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function insert(n, v) {\n  if (n === null) return { value: v, left: null, right: null };\n  if (v < n.value) n.left = insert(n.left, v);\n  else if (v > n.value) n.right = insert(n.right, v);\n  return n;\n}\nfunction height(n) {\n  if (n === null) return 0;\n  return 1 + Math.max(height(n.left), height(n.right));\n}\nlet a = null;\nfor (const v of [1, 2, 3, 4, 5]) a = insert(a, v);\nlet b = null;\nfor (const v of [3, 2, 4, 1, 5]) b = insert(b, v);\nconsole.log(height(a) + ' ' + height(b));",
+   "lang": "javascript",
+   "answer": "5 3",
+   "concepts": ["degenerate-tree", "bst-insert-search"],
+   "tags": ["degenerate-tree"],
+   "explain": "The same five values give a chain of height 5 or a tree of height 3 depending only on the order they arrived. Sorted input sends every value right and produces a linked list with extra pointers, so searching it is O(n) - and sorted input is common rather than exotic, which is why an unbalanced BST is at its worst exactly when it is most likely to be used.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A validator checks that every node's left child is smaller than it and every node's right child is larger, and reports that a tree is a valid binary search tree. Explain why this check is not enough, and give a concrete tree it wrongly approves.",
+   "rubric": {
+    "required": ["subtree", "child", "range", "ancestor", "root"],
+    "optional": ["invariant", "bound", "Infinity", "narrow", "descend", "search"],
+    "minWords": 60
+   },
+   "concepts": ["bst-invariant"],
+   "tags": ["bst-invariant"],
+   "explain": "The invariant constrains every node in a subtree, not just the immediate child. Take root 10 with left child 5, and give that 5 a right child of 20: locally 5 < 10 and 20 > 5, so the weak check passes, yet 20 sits in 10's left subtree where everything must be below 10. The tree is broken in the way that matters - searching for 20 goes right from 10 and never finds it. The correct check carries a permitted range downwards, narrowing it at each step, so a node is compared against every ancestor's constraint rather than only its parent's.",
+   "xp": 35
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-5-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "treeHeight",
+   "prompt": "Write `treeHeight(root)` returning the height of a binary tree counted in **levels**, so the empty tree has height 0 and a single node has height 1.",
+   "starterCode": "function treeHeight(root) {\n  // the empty tree is the base case, and it fixes the whole scale\n  return 0;\n}\n",
+   "tests": [
+    { "input": "null", "expected": 0 },
+    { "input": "{ value: 1, left: null, right: null }", "expected": 1 },
+    { "input": "{ value: 1, left: { value: 2, left: { value: 3, left: null, right: null }, right: null }, right: null }", "expected": 3 },
+    { "input": "{ value: 1, left: { value: 2, left: null, right: null }, right: { value: 3, left: null, right: null } }", "expected": 2 },
+    { "input": "{ value: 1, left: null, right: { value: 2, left: null, right: { value: 3, left: null, right: { value: 4, left: null, right: null } } } }", "expected": 4 }
+   ],
+   "solution": "function treeHeight(root) {\n  if (root === null) return 0;\n  return 1 + Math.max(treeHeight(root.left), treeHeight(root.right));\n}\n",
+   "hint": "`Math.max` of the two subtree heights, plus one for the current node. Using addition instead of max would count nodes, not depth.",
+   "concepts": ["tree-terminology", "binary-tree"],
+   "tags": ["tree-terminology"],
+   "explain": "Tests 3 and 4 hold three nodes each and differ only in shape, giving heights of 3 and 2 - the clearest demonstration that height measures arrangement rather than quantity. Test 5 is the degenerate chain, whose height equals its node count, which is the shape every balanced tree exists to prevent.",
+   "xp": 30
+  },
+  {
+   "id": "ds-5-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "traverse",
+   "prompt": "Write `traverse(root, order)` returning the tree's values as an array, where `order` is one of `'pre'`, `'in'` or `'post'`. All three differ only in when the node's own value is recorded.",
+   "starterCode": "function traverse(root, order) {\n  const out = [];\n  // one recursion; the order decides where the push goes\n  return out;\n}\n",
+   "tests": [
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 'pre'", "expected": [2, 1, 3] },
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 'in'", "expected": [1, 2, 3] },
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 'post'", "expected": [1, 3, 2] },
+    { "input": "null, 'in'", "expected": [] },
+    { "input": "{ value: 5, left: null, right: null }, 'post'", "expected": [5] }
+   ],
+   "solution": "function traverse(root, order) {\n  const out = [];\n  const walk = (n) => {\n    if (n === null) return;\n    if (order === 'pre') out.push(n.value);\n    walk(n.left);\n    if (order === 'in') out.push(n.value);\n    walk(n.right);\n    if (order === 'post') out.push(n.value);\n  };\n  walk(root);\n  return out;\n}\n",
+   "hint": "Write the recursion once with three possible push sites, rather than three near-identical functions - it makes the only real difference between the traversals visible.",
+   "concepts": ["traversal-order", "binary-tree"],
+   "tags": ["traversal-order"],
+   "explain": "Writing all three in one function makes the point that they are not three algorithms but one algorithm with three choices of when to act. On this tree in-order gives sorted output because it happens to be a BST - on a tree that is not a search tree, in-order is still well defined and simply means nothing in particular.",
+   "xp": 35
+  },
+  {
+   "id": "ds-5-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "levelOrder",
+   "prompt": "Write `levelOrder(root)` returning the values of a binary tree in breadth-first order - every node at depth 0, then every node at depth 1, and so on. Use a queue; do not use `shift`.",
+   "starterCode": "function levelOrder(root) {\n  if (root === null) return [];\n  const out = [], queue = [root];\n  // take from the front, push children to the back\n  return out;\n}\n",
+   "tests": [
+    { "input": "null", "expected": [] },
+    { "input": "{ value: 1, left: null, right: null }", "expected": [1] },
+    { "input": "{ value: 1, left: { value: 2, left: null, right: null }, right: { value: 3, left: null, right: null } }", "expected": [1, 2, 3] },
+    { "input": "{ value: 1, left: { value: 2, left: { value: 4, left: null, right: null }, right: null }, right: { value: 3, left: null, right: null } }", "expected": [1, 2, 3, 4] },
+    { "input": "{ value: 1, left: null, right: { value: 2, left: null, right: { value: 3, left: null, right: null } } }", "expected": [1, 2, 3] }
+   ],
+   "solution": "function levelOrder(root) {\n  if (root === null) return [];\n  const out = [], queue = [root];\n  let head = 0;\n  while (head < queue.length) {\n    const n = queue[head++];\n    out.push(n.value);\n    if (n.left) queue.push(n.left);\n    if (n.right) queue.push(n.right);\n  }\n  return out;\n}\n",
+   "hint": "A moving index into the array is a queue with O(1) removal. Advance a `head` counter instead of calling `shift`.",
+   "concepts": ["level-order", "binary-tree"],
+   "tags": ["level-order"],
+   "explain": "Test 4 is the one that proves it is really breadth-first: node 4 sits below node 2 but is reported after node 3, because it is a level deeper. A depth-first traversal would report 4 immediately after 2. Swapping the queue for a stack is the entire difference - the frontier structure decides the search order.",
+   "xp": 35
+  },
+  {
+   "id": "ds-5-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "bstDepthOf",
+   "prompt": "Write `bstDepthOf(values, target)` which builds a binary search tree by inserting each value of `values` in order, ignoring duplicates, then returns the depth at which `target` sits - the root being depth 0 - or `-1` if it is not in the tree.",
+   "starterCode": "function bstDepthOf(values, target) {\n  let root = null;\n  // build the tree, then descend counting steps\n  return -1;\n}\n",
+   "tests": [
+    { "input": "[8, 3, 10, 1, 6], 6", "expected": 2 },
+    { "input": "[], 5", "expected": -1 },
+    { "input": "[5], 5", "expected": 0 },
+    { "input": "[1, 2, 3, 4], 4", "expected": 3 },
+    { "input": "[8, 3, 10], 7", "expected": -1 }
+   ],
+   "solution": "function bstDepthOf(values, target) {\n  let root = null;\n  const insert = (n, v) => {\n    if (n === null) return { value: v, left: null, right: null };\n    if (v < n.value) n.left = insert(n.left, v);\n    else if (v > n.value) n.right = insert(n.right, v);\n    return n;\n  };\n  for (const v of values) root = insert(root, v);\n  let depth = 0, cur = root;\n  while (cur !== null) {\n    if (cur.value === target) return depth;\n    cur = target < cur.value ? cur.left : cur.right;\n    depth++;\n  }\n  return -1;\n}\n",
+   "hint": "The search is a loop, not a scan: at each node go left or right by comparison, and count the steps you take.",
+   "concepts": ["bst-insert-search", "degenerate-tree"],
+   "tags": ["bst-insert-search"],
+   "explain": "Compare tests 1 and 4. Both hold four or five values, but the sorted input of test 4 puts its target at depth 3 while the balanced tree of test 1 reaches its target at depth 2 with more values in the tree. Depth is the number of comparisons, so this is the cost difference made visible. Test 5 matters too: the search for 7 falls off the tree at a null rather than finding a wrong answer, which is what makes the missing case detectable at all.",
+   "xp": 40
+  },
+  {
+   "id": "ds-5-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "isBST",
+   "prompt": "Write `isBST(root)` returning `true` if the tree satisfies the binary search tree invariant - **every** value in a node's left subtree is smaller than it and every value in its right subtree is larger, not merely its immediate children. Assume all values are distinct. The empty tree is valid.",
+   "starterCode": "function isBST(root) {\n  // carry a permitted range down the tree, narrowing it at each step\n  return true;\n}\n",
+   "tests": [
+    { "input": "null", "expected": true },
+    { "input": "{ value: 5, left: null, right: null }", "expected": true },
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }", "expected": true },
+    { "input": "{ value: 10, left: { value: 5, left: null, right: { value: 20, left: null, right: null } }, right: null }", "expected": false },
+    { "input": "{ value: 10, left: { value: 5, left: null, right: { value: 7, left: null, right: null } }, right: { value: 15, left: null, right: null } }", "expected": true }
+   ],
+   "solution": "function isBST(root) {\n  const check = (n, lo, hi) => {\n    if (n === null) return true;\n    if (n.value <= lo || n.value >= hi) return false;\n    return check(n.left, lo, n.value) && check(n.right, n.value, hi);\n  };\n  return check(root, -Infinity, Infinity);\n}\n",
+   "hint": "Pass a low and a high bound down the recursion, starting at -Infinity and Infinity. Going left tightens the high bound to the current value; going right tightens the low bound.",
+   "concepts": ["bst-invariant"],
+   "tags": ["bst-invariant"],
+   "explain": "Test 4 is the whole exercise. Node 20 is the right child of 5 and larger than it, and 5 is the left child of 10 and smaller than it, so every parent-child pair is locally correct - yet 20 sits in 10's left subtree, so a search for 20 goes right from the root and never finds it. Only a bound carried down from the ancestors catches this, which is why the range must narrow rather than reset at each node.",
+   "xp": 40
+  },
+  {
+   "id": "ds-5-i-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "removeValue",
+   "prompt": "This BST deletion handles leaves and single-child nodes correctly but corrupts the tree when the node has two children - it replaces the node with its left child and discards the right subtree entirely. Fix it, keeping the name `removeValue`. It returns the new root, and its result is checked by the in-order traversal of the resulting tree.",
+   "starterCode": "function removeValue(root, v) {\n  const remove = (n, v) => {\n    if (n === null) return null;\n    if (v < n.value) { n.left = remove(n.left, v); return n; }\n    if (v > n.value) { n.right = remove(n.right, v); return n; }\n    if (n.left === null) return n.right;\n    return n.left;                    // BUG: the right subtree is lost\n  };\n  const walk = (n, out) => {\n    if (n === null) return out;\n    walk(n.left, out);\n    out.push(n.value);\n    walk(n.right, out);\n    return out;\n  };\n  return walk(remove(root, v), []);\n}\n",
+   "tests": [
+    { "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 3", "expected": [1, 6, 8, 10] },
+    { "input": "{ value: 8, left: { value: 3, left: null, right: null }, right: { value: 10, left: null, right: null } }, 8", "expected": [3, 10] },
+    { "input": "{ value: 5, left: null, right: null }, 5", "expected": [] },
+    { "input": "{ value: 5, left: null, right: null }, 9", "expected": [5] },
+    { "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 8", "expected": [1, 3, 6, 10] }
+   ],
+   "solution": "function removeValue(root, v) {\n  const minValue = (n) => {\n    while (n.left !== null) n = n.left;\n    return n.value;\n  };\n  const remove = (n, v) => {\n    if (n === null) return null;\n    if (v < n.value) { n.left = remove(n.left, v); return n; }\n    if (v > n.value) { n.right = remove(n.right, v); return n; }\n    if (n.left === null) return n.right;\n    if (n.right === null) return n.left;\n    n.value = minValue(n.right);\n    n.right = remove(n.right, n.value);\n    return n;\n  };\n  const walk = (n, out) => {\n    if (n === null) return out;\n    walk(n.left, out);\n    out.push(n.value);\n    walk(n.right, out);\n    return out;\n  };\n  return walk(remove(root, v), []);\n}\n",
+   "hint": "A node with two children keeps its position and changes its value: take the smallest value in its right subtree, put it here, then delete that value from the right subtree.",
+   "concepts": ["bst-delete", "bst-invariant"],
+   "tags": ["bst-delete"],
+   "explain": "The buggy line returns `n.left` unconditionally once the node has a left child, so the entire right subtree becomes unreachable - tests 1 and 5 lose values outright. The fix cannot be to return the right child instead; both subtrees need somewhere to hang, so the node stays and takes the in-order successor's value. That successor is the leftmost node of the right subtree, so it has no left child and its own deletion falls into one of the easy cases, which is why the recursion terminates.",
+   "xp": 45
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-5-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which traversal of a binary search tree produces its values in sorted order?",
+   "choices": ["In-order", "Pre-order", "Post-order", "Level-order"],
+   "answer": 0,
+   "concepts": ["traversal-order", "bst-invariant"],
+   "tags": ["traversal-order"],
+   "explain": "In-order visits left, node, right - which the BST invariant says is exactly smaller, this, larger at every node. Pre-order reports the root first, which is right for copying a tree, and level-order reports by depth, which is right for finding the shallowest match; neither has any relationship to sorted order.",
+   "xp": 15
+  },
+  {
+   "id": "ds-5-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is the depth of the root of a tree?",
+   "choices": ["0", "1", "The height of the tree", "Undefined - only leaves have depth"],
+   "answer": 0,
+   "concepts": ["tree-terminology"],
+   "tags": ["tree-terminology"],
+   "explain": "Depth is distance from the root, so the root's distance from itself is 0. It is worth keeping separate from height, which is a property of the whole tree rather than of a node - most complexity claims about trees are really claims about height.",
+   "xp": 15
+  },
+  {
+   "id": "ds-5-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const t = { value: 1,\n  left:  { value: 2, left: { value: 4, left: null, right: null }, right: null },\n  right: { value: 3, left: null, right: null } };\n\nfunction post(n, out) {\n  if (n === null) return out;\n  post(n.left, out);\n  post(n.right, out);\n  out.push(n.value);\n  return out;\n}\nconsole.log(post(t, []).join(','));",
+   "lang": "javascript",
+   "answer": "4,2,3,1",
+   "concepts": ["traversal-order"],
+   "tags": ["traversal-order"],
+   "explain": "Post-order handles every child before its parent, so the deepest node 4 comes first and the root comes last. That ordering guarantee is what makes post-order the traversal for freeing a tree - a parent is only released once nothing below it still needs to be reached.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the bound-carrying validity check for a binary search tree.",
+   "template": "function check(n, lo, hi) {\n  if (n === null) return true;\n  if (n.value <= lo || n.value >= hi) return false;\n  return check(n.left, lo, n.___)\n      && check(n.right, n.___, hi);\n}\n",
+   "blanks": ["value", "value"],
+   "concepts": ["bst-invariant"],
+   "tags": ["bst-invariant"],
+   "explain": "Descending left tightens the upper bound to this node's value, and descending right tightens the lower bound to it - so every node is checked against every ancestor's constraint, not just its parent's. Passing `hi` unchanged into the left call would reduce this to the weak parent-child test that wrongly approves a broken tree.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of deleting a node with two children from a binary search tree into the order they must happen.",
+   "fragments": [
+    "locate the node to delete by descending from the root",
+    "step once into its right subtree",
+    "walk left as far as possible to find the in-order successor",
+    "copy the successor's value into the node being deleted",
+    "delete the successor from the right subtree"
+   ],
+   "answer": [0, 1, 2, 3, 4],
+   "concepts": ["bst-delete"],
+   "tags": ["bst-delete"],
+   "explain": "The successor must be found before its value is copied, and deleted after - copying first and then deleting by the old value would remove the wrong node, since two nodes now hold the same value. The recursive deletion is guaranteed to be easy because the leftmost node of a subtree has no left child.",
+   "xp": 25
+  },
+  {
+   "id": "ds-5-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Insert 5, 2, 8, 1, 3 into an initially empty binary search tree, in that order. After each insertion, give the height of the tree counted in levels, so a single node has height 1.",
+   "steps": [
+    { "label": "after inserting 5", "expected": "1" },
+    { "label": "after inserting 2", "expected": "2" },
+    { "label": "after inserting 8", "expected": "2" },
+    { "label": "after inserting 1", "expected": "3" },
+    { "label": "after inserting 3", "expected": "3" }
+   ],
+   "concepts": ["bst-insert-search", "tree-terminology"],
+   "tags": ["bst-insert-search"],
+   "explain": "Inserting 8 adds a node without adding height, because it fills a gap at an existing level - height only grows when a node is placed deeper than anything before it. This input happens to arrive in a favourable order; the same five values sorted would have produced a chain of height 5.",
+   "xp": 30
+  },
+  {
+   "id": "ds-5-x-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time complexity of searching an unbalanced binary search tree holding n values, and explain the input that causes it.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": ["sorted", "chain", "height", "linked"],
+    "optional": ["degenerate", "balance", "log", "order", "insert", "right"],
+    "minWords": 50
+   },
+   "concepts": ["degenerate-tree", "bst-insert-search"],
+   "tags": ["degenerate-tree"],
+   "explain": "Search costs the height of the tree, and an unbalanced BST does not control its own height. Inserting values in sorted order sends every one to the right, producing a chain of height n - a linked list with an extra unused pointer per node - so search degrades from O(log n) to O(n). The uncomfortable part is that sorted input is one of the commonest ways data arrives, so the structure fails in the case it is most likely to meet. That is precisely what self-balancing trees exist to prevent.",
+   "xp": 40
+  },
+  {
+   "id": "ds-5-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "kthSmallest",
+   "prompt": "Write `kthSmallest(root, k)` returning the k-th smallest value in a binary search tree, counting from 1, or `null` if the tree holds fewer than k values. Use the tree's ordering rather than collecting and sorting.",
+   "starterCode": "function kthSmallest(root, k) {\n  // which traversal already produces the values in order?\n  return null;\n}\n",
+   "tests": [
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 1", "expected": 1 },
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 3", "expected": 3 },
+    { "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, 4", "expected": null },
+    { "input": "null, 1", "expected": null },
+    { "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 3", "expected": 6 }
+   ],
+   "solution": "function kthSmallest(root, k) {\n  const out = [];\n  const walk = (n) => {\n    if (n === null) return;\n    walk(n.left);\n    out.push(n.value);\n    walk(n.right);\n  };\n  walk(root);\n  return k >= 1 && k <= out.length ? out[k - 1] : null;\n}\n",
+   "hint": "In-order already produces the values smallest first, so the k-th smallest is the k-th thing that traversal emits.",
+   "concepts": ["traversal-order", "bst-invariant"],
+   "tags": ["traversal-order", "bst-invariant"],
+   "explain": "The point is that no sorting is needed - the invariant already put the values in order, and in-order traversal reads them out. Test 3 is the guard: asking for the fourth smallest of three values must give `null` rather than `undefined`, and off-by-one errors here are easy because k counts from 1 while the array indexes from 0.",
+   "xp": 40
+  },
+  {
+   "id": "ds-5-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A hash table finds a key faster than a binary search tree does. Give two things a BST can do that a hash table cannot, and explain what makes each possible.",
+   "rubric": {
+    "required": ["order", "range", "sorted", "hash"],
+    "optional": ["in-order", "minimum", "successor", "invariant", "bucket", "unordered", "traversal"],
+    "minWords": 70
+   },
+   "concepts": ["bst-invariant", "traversal-order"],
+   "tags": ["bst-invariant"],
+   "explain": "A BST can produce its keys in sorted order by a single in-order traversal, and it can answer range queries - every key between two bounds - by descending to one bound and walking forwards. Both follow from the invariant, which relates each key to every other. A hash table deliberately destroys that relationship: hashing scatters keys so that neighbouring values land in unrelated buckets, which is exactly what makes lookup constant-time and exactly what makes ordered questions impossible to answer without examining every bucket. Related operations like finding the minimum, the maximum, or a key's successor are cheap in a tree and linear in a hash table for the same reason.",
+   "xp": 40
+  }
+ ]
+}
