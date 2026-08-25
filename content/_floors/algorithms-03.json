@@ -1,0 +1,1191 @@
+{
+ "n": 3,
+ "name": "The Sifting Chamber",
+ "concepts": [
+  "array-traversal",
+  "in-place",
+  "bubble-sort",
+  "selection-sort",
+  "insertion-sort",
+  "loop-invariant",
+  "quadratic-time",
+  "stability"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "analysis",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Arrays and the Elementary Sorts",
+  "sections": [
+   {
+    "title": "Arrays, Swaps, and What We Count",
+    "body": "An **array** is a block of slots numbered $0$ to $n-1$, and reading `xs[i]` costs the same whatever $i$ is. Every sort on this floor rearranges those slots using one primitive, the **swap**, which needs a temporary variable because the first assignment would otherwise destroy the value you still need.\n\nA sort is **in-place** when it needs only $O(1)$ extra memory - a few indices and one temporary - instead of a second array. All three sorts here are in-place; `slice()` appears only so the examples leave the caller's array alone.\n\nWe do not count seconds, we count **comparisons** and **swaps**. Two nested loops that pair every index with every later index run $n(n-1)/2$ times, and that single fact is where every $O(n^2)$ on this floor comes from.",
+    "code": "const xs = [4, 2, 7, 1];\n\nfunction swap(a, i, j) {\n  const t = a[i];\n  a[i] = a[j];\n  a[j] = t;\n}\n\nswap(xs, 0, 3);\nconsole.log(xs);\n\nlet comparisons = 0;\nfor (let i = 0; i < xs.length - 1; i++) {\n  for (let j = i + 1; j < xs.length; j++) {\n    comparisons++;\n  }\n}\nconsole.log(comparisons, xs.length * (xs.length - 1) / 2);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The temporary is not decoration: without it, a[i] = a[j] would overwrite the value we are about to need."
+     },
+     {
+      "line": 13,
+      "text": "The outer index stops one short of the end, because the inner loop always looks at a later slot."
+     },
+     {
+      "line": 18,
+      "text": "The counter and the closed form agree: 6 pairs for n = 4, which is 4 * 3 / 2."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const a = [3, 8, 5];\nconst b = a;\nconst c = a.slice();\na[0] = 1;\nconsole.log(b[0]);\nconsole.log(c[0]);\nconsole.log(a.length);",
+     "lang": "javascript",
+     "answer": "1\n3\n3",
+     "xp": 20,
+     "concepts": [
+      "array-traversal",
+      "in-place"
+     ],
+     "tags": [
+      "array-traversal",
+      "in-place"
+     ],
+     "explain": "`b` is another name for the same array, so an in-place write through `a` is visible through `b`. `slice()` built a separate block of slots - exactly the extra $O(n)$ space an in-place sort refuses to pay for."
+    }
+   },
+   {
+    "title": "Bubble Sort and the Sorted Tail",
+    "body": "**Bubble sort** walks left to right comparing each adjacent pair and swapping when they are out of order. One such pass necessarily drags the largest remaining value all the way to the right end, because once the walk picks that value up, nothing later can beat it.\n\nThat gives the **invariant**: after $i$ passes, the last $i$ slots hold the $i$ largest values in their final sorted positions, so the next pass can stop $i$ short. The invariant is also the termination argument - each pass shrinks the unsorted prefix by one, so at most $n-1$ passes can happen.\n\nThe `swapped` flag is a genuine improvement: a pass with no swaps proves nothing is out of order, so already-sorted input costs one pass and $n-1$ comparisons. Without the flag, bubble sort is $O(n^2)$ on every input, including a sorted one.",
+    "code": "function bubbleSort(input) {\n  const a = input.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let swapped = false;\n    for (let j = 0; j < a.length - 1 - i; j++) {\n      if (a[j] > a[j + 1]) {\n        const t = a[j];\n        a[j] = a[j + 1];\n        a[j + 1] = t;\n        swapped = true;\n      }\n    }\n    console.log(\"after pass \" + (i + 1) + \": \" + JSON.stringify(a));\n    if (!swapped) break;\n  }\n  return a;\n}\n\nconsole.log(bubbleSort([5, 1, 4, 2, 8]));\nconsole.log(bubbleSort([1, 2, 3, 4]));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The `- i` is the invariant made executable: the last i slots are already final, so do not look at them."
+     },
+     {
+      "line": 10,
+      "text": "One swap anywhere is enough to say the array might still be unsorted."
+     },
+     {
+      "line": 14,
+      "text": "A clean pass is a proof of sortedness, which is why sorted input finishes after one pass."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print? It performs exactly one pass of bubble sort, logging after each comparison.",
+     "code": "const a = [4, 9, 3, 7];\nfor (let j = 0; j < a.length - 1; j++) {\n  if (a[j] > a[j + 1]) {\n    const t = a[j];\n    a[j] = a[j + 1];\n    a[j + 1] = t;\n  }\n  console.log(JSON.stringify(a));\n}",
+     "lang": "javascript",
+     "answer": "[4,9,3,7]\n[4,3,9,7]\n[4,3,7,9]",
+     "xp": 20,
+     "concepts": [
+      "bubble-sort",
+      "loop-invariant"
+     ],
+     "tags": [
+      "bubble-sort",
+      "loop-invariant"
+     ],
+     "explain": "Watch 9 travel: it is picked up at j=1 and carried right by every later comparison. That is why one pass always ends with the maximum in the last slot even though the front of the array is still a mess."
+    }
+   },
+   {
+    "title": "Selection Sort: Find, Then Place",
+    "body": "**Selection sort** scans the whole unsorted suffix for the smallest value and swaps it into slot $i$. Its invariant is stronger than bubble sort's: after $i$ iterations, `a[0..i-1]` holds the $i$ smallest values in sorted order and none of them will ever move again.\n\nThe scan is unavoidable - to know the minimum you must look at every remaining element - so the comparison count is $(n-1) + (n-2) + \\cdots + 1 = n(n-1)/2$ **regardless of the input**. Sorted, reversed or shuffled, selection sort does the same work, which makes it $O(n^2)$ in the best case as well as the worst.\n\nWhat it buys is swaps: at most $n-1$ of them, one per outer iteration, which matters when moving an element is far more expensive than comparing two. The price is **stability** - that long-range swap can throw an equal-keyed element behind another one, so selection sort as written here is not stable.",
+    "code": "function selectionSort(input) {\n  const a = input.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let min = i;\n    for (let j = i + 1; j < a.length; j++) {\n      if (a[j] < a[min]) min = j;\n    }\n    const t = a[i];\n    a[i] = a[min];\n    a[min] = t;\n    console.log(\"i=\" + i + \" min=\" + min + \" -> \" + JSON.stringify(a));\n  }\n  return a;\n}\n\nconsole.log(selectionSort([29, 10, 14, 37, 13]));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "`min` starts at i, so a suffix whose smallest element is already in place still costs a full scan."
+     },
+     {
+      "line": 6,
+      "text": "Strict `<` keeps the earliest minimum, but the long-range swap below can still reorder equal keys."
+     },
+     {
+      "line": 11,
+      "text": "Each printed line shows the sorted prefix growing by exactly one permanently final slot."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the scan that finds the index of the smallest value in the unsorted suffix `a[i..n-1]`.",
+     "template": "let min = i;\nfor (let j = i + ___; j < a.length; j++) {\n  if (a[j] ___ a[min]) min = j;\n}",
+     "blanks": [
+      "1",
+      "<"
+     ],
+     "lang": "javascript",
+     "xp": 20,
+     "concepts": [
+      "selection-sort"
+     ],
+     "tags": [
+      "selection-sort"
+     ],
+     "explain": "Starting at `i + 1` is not an optimisation, it is the definition: slot `i` is already the incumbent minimum, so comparing it with itself is wasted work. Using `<` rather than `<=` keeps the leftmost of any tied values as the chosen minimum."
+    }
+   },
+   {
+    "title": "Insertion Sort: Shift Into Place",
+    "body": "**Insertion sort** treats `a[0..i-1]` as a sorted hand of cards and slides `a[i]` down into place, shifting larger values one slot right as it goes. Its invariant is weaker than selection sort's - the prefix is sorted, but a value in it may still be pushed right later - yet it suffices, because when $i$ reaches $n$ the prefix is the whole array.\n\nThe inner `while` stops the moment it meets a value that is not greater than the key, and that is the whole story of the best case: on already-sorted input it stops immediately every time, doing $n-1$ comparisons and zero shifts, so insertion sort runs in $O(n)$ there. On reversed input the key must travel past the entire prefix, giving $n(n-1)/2$ shifts and $O(n^2)$.\n\nBecause the guard is a strict `a[j] > key`, an element equal to the key halts the shift and the key settles **after** it - so equal keys keep their original relative order and insertion sort is **stable**.",
+    "code": "function insertionSort(input) {\n  const a = input.slice();\n  let shifts = 0;\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j + 1] = a[j];\n      j--;\n      shifts++;\n    }\n    a[j + 1] = key;\n  }\n  console.log(JSON.stringify(a) + \"  shifts=\" + shifts);\n  return a;\n}\n\ninsertionSort([5, 2, 4, 6, 1]);\ninsertionSort([1, 2, 3, 4, 5]);\ninsertionSort([5, 4, 3, 2, 1]);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`key` must be saved first: the shifting loop is about to overwrite slot i."
+     },
+     {
+      "line": 7,
+      "text": "Two guards. `j >= 0` stops at the left wall; `a[j] > key` stops at the insertion point - and its strictness is what makes the sort stable."
+     },
+     {
+      "line": 12,
+      "text": "After the loop, j+1 is the first slot the key is not smaller than, whether the loop ran zero times or i times."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `insertAt(sorted, key)` which takes an already-sorted array `sorted` and returns a **new** array holding every element of `sorted` plus `key`, still in ascending order. Use the shifting insertion step from the lesson, not a library sort. Do not modify `sorted`.",
+     "fn": "insertAt",
+     "starterCode": "function insertAt(sorted, key) {\n  const a = sorted.slice();\n  // make room at the end, then walk the key left\n  // while the value to its left is greater than key\n}",
+     "solution": "function insertAt(sorted, key) {\n  const a = sorted.slice();\n  a.push(key);\n  let j = a.length - 2;\n  while (j >= 0 && a[j] > key) {\n    a[j + 1] = a[j];\n    j--;\n  }\n  a[j + 1] = key;\n  return a;\n}",
+     "tests": [
+      {
+       "input": "[1, 3, 7], 5",
+       "expected": [
+        1,
+        3,
+        5,
+        7
+       ]
+      },
+      {
+       "input": "[], 4",
+       "expected": [
+        4
+       ]
+      },
+      {
+       "input": "[2, 4], 1",
+       "expected": [
+        1,
+        2,
+        4
+       ]
+      },
+      {
+       "input": "[2, 2, 9], 2",
+       "expected": [
+        2,
+        2,
+        2,
+        9
+       ]
+      }
+     ],
+     "xp": 50,
+     "concepts": [
+      "insertion-sort",
+      "in-place"
+     ],
+     "tags": [
+      "insertion-sort",
+      "in-place"
+     ],
+     "hint": "Push key onto the end, then let j start at the second-to-last index and walk left while a[j] > key.",
+     "explain": "This single step is the entire outer-loop body of insertion sort. Notice it does almost no work when `key` already belongs at the end - that early stop, repeated $n-1$ times, is precisely why sorted input costs $O(n)$."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-3-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? It counts how many index pairs a doubly nested scan visits.",
+   "code": "const xs = [3, 1, 2, 4, 6];\nlet comparisons = 0;\nfor (let i = 0; i < xs.length - 1; i++) {\n  for (let j = i + 1; j < xs.length; j++) {\n    comparisons++;\n  }\n}\nconsole.log(comparisons);\nconsole.log(xs.length * (xs.length - 1) / 2);",
+   "lang": "javascript",
+   "answer": "10\n10",
+   "xp": 20,
+   "concepts": [
+    "array-traversal",
+    "quadratic-time"
+   ],
+   "tags": [
+    "array-traversal",
+    "quadratic-time"
+   ],
+   "explain": "The nest visits every unordered pair of distinct indices exactly once, and there are $n(n-1)/2$ of them. Nothing in the body changes that count, so any algorithm shaped like this is already $\\Theta(n^2)$ before a single line of real work is written."
+  },
+  {
+   "id": "alg-3-g-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace one full left-to-right pass of bubble sort over `[5, 1, 4, 2, 8]`. For each comparison of `a[j]` with `a[j+1]`, give the array as it stands **after** that comparison has been handled. Write arrays as `[1, 4, 2, 5, 8]`.",
+   "steps": [
+    {
+     "label": "after j = 0 (compare 5 and 1)",
+     "expected": "[1, 5, 4, 2, 8]"
+    },
+    {
+     "label": "after j = 1 (compare 5 and 4)",
+     "expected": "[1, 4, 5, 2, 8]"
+    },
+    {
+     "label": "after j = 2 (compare 5 and 2)",
+     "expected": "[1, 4, 2, 5, 8]"
+    },
+    {
+     "label": "after j = 3 (compare 5 and 8)",
+     "expected": "[1, 4, 2, 5, 8]"
+    }
+   ],
+   "xp": 40,
+   "concepts": [
+    "bubble-sort",
+    "loop-invariant"
+   ],
+   "tags": [
+    "bubble-sort",
+    "loop-invariant"
+   ],
+   "explain": "The 5 is picked up at the first comparison and carried right until something beats it. That is the mechanism behind the invariant: whatever the walk is carrying at the end is the maximum of everything it walked over, so it lands in the final slot. The front, meanwhile, is still unsorted - `[1, 4, 2]` is the proof that one pass is not a sort."
+  },
+  {
+   "id": "alg-3-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bubblePass(xs)` performing exactly **one** left-to-right pass of bubble sort and returning the resulting array. Compare each adjacent pair `xs[j]`, `xs[j+1]` once, swapping when the left one is strictly greater. Return a new array; do not modify `xs`.",
+   "fn": "bubblePass",
+   "starterCode": "function bubblePass(xs) {\n  const a = xs.slice();\n  // one loop, j from 0 up to but not including a.length - 1\n  // swap a[j] and a[j + 1] when they are out of order\n  return a;\n}",
+   "solution": "function bubblePass(xs) {\n  const a = xs.slice();\n  for (let j = 0; j < a.length - 1; j++) {\n    if (a[j] > a[j + 1]) {\n      const t = a[j];\n      a[j] = a[j + 1];\n      a[j + 1] = t;\n    }\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[5, 1, 4, 2, 8]",
+     "expected": [
+      1,
+      4,
+      2,
+      5,
+      8
+     ]
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[3, 1]",
+     "expected": [
+      1,
+      3
+     ]
+    },
+    {
+     "input": "[2, 2, 1]",
+     "expected": [
+      2,
+      1,
+      2
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "bubble-sort",
+    "array-traversal",
+    "in-place"
+   ],
+   "tags": [
+    "bubble-sort",
+    "array-traversal",
+    "in-place"
+   ],
+   "hint": "The last valid j is a.length - 2, because the body reads a[j + 1].",
+   "explain": "The empty array is why the bound is written `j < a.length - 1` rather than a hand-counted number: at length 0 the condition is false immediately, so nothing reads past the end. The `[2, 2, 1]` case shows a strict `>` leaving equal values untouched - the seed of stability."
+  },
+  {
+   "id": "alg-3-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in the order that makes a correct insertion sort of the array `a`.",
+   "fragments": [
+    "for (let i = 1; i < a.length; i++) {",
+    "  const key = a[i];",
+    "  let j = i - 1;",
+    "  while (j >= 0 && a[j] > key) {",
+    "    a[j + 1] = a[j];",
+    "    j--;",
+    "  }",
+    "  a[j + 1] = key;",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "xp": 20,
+   "concepts": [
+    "insertion-sort"
+   ],
+   "tags": [
+    "insertion-sort"
+   ],
+   "explain": "Two orderings are tempting and both break the sort: saving `key` after the shifting has begun loses the value, and putting `a[j + 1] = key` inside the while loop writes the key down at every step instead of once at its resting place. The outer loop starts at 1 because a one-element prefix is already sorted."
+  }
+ ],
+ "implementation": [
+  {
+   "id": "alg-3-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bubbleSort(xs)` returning a new ascending-sorted array. Use bubble sort with the early-exit flag: if a pass performs no swaps, stop. Do not modify `xs` and do not call any built-in sort.",
+   "fn": "bubbleSort",
+   "starterCode": "function bubbleSort(xs) {\n  const a = xs.slice();\n  // outer loop: at most a.length - 1 passes\n  //   track whether this pass swapped anything\n  //   inner loop stops i slots short of the end\n  return a;\n}",
+   "solution": "function bubbleSort(xs) {\n  const a = xs.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let swapped = false;\n    for (let j = 0; j < a.length - 1 - i; j++) {\n      if (a[j] > a[j + 1]) {\n        const t = a[j];\n        a[j] = a[j + 1];\n        a[j + 1] = t;\n        swapped = true;\n      }\n    }\n    if (!swapped) break;\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[5, 1, 4, 2, 8]",
+     "expected": [
+      1,
+      2,
+      4,
+      5,
+      8
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[7]",
+     "expected": [
+      7
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[4, 3, 2, 1]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[3, 1, 3, 1]",
+     "expected": [
+      1,
+      1,
+      3,
+      3
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "bubble-sort",
+    "in-place",
+    "loop-invariant"
+   ],
+   "tags": [
+    "bubble-sort",
+    "in-place",
+    "loop-invariant"
+   ],
+   "hint": "Inner bound `j < a.length - 1 - i`: the last i slots are already final.",
+   "explain": "The `- i` saves roughly half the running time and costs nothing, because the invariant has already proved those slots are done. The flag is what separates $O(n^2)$-always from $O(n)$-on-sorted-input, and it is sound because a pass with no swaps proves no adjacent pair is out of order - which, for a total order, means the whole array is sorted."
+  },
+  {
+   "id": "alg-3-i-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `selectionSort(xs)` returning a new ascending-sorted array. On each outer iteration find the index of the smallest value in the unsorted suffix and swap it into place. Do not modify `xs` and do not call any built-in sort.",
+   "fn": "selectionSort",
+   "starterCode": "function selectionSort(xs) {\n  const a = xs.slice();\n  // for each i, scan a[i+1 .. end] for the index of the minimum\n  // then swap that element with a[i]\n  return a;\n}",
+   "solution": "function selectionSort(xs) {\n  const a = xs.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let min = i;\n    for (let j = i + 1; j < a.length; j++) {\n      if (a[j] < a[min]) min = j;\n    }\n    if (min !== i) {\n      const t = a[i];\n      a[i] = a[min];\n      a[min] = t;\n    }\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[29, 10, 14, 37, 13]",
+     "expected": [
+      10,
+      13,
+      14,
+      29,
+      37
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[2]",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[3, 3, 1]",
+     "expected": [
+      1,
+      3,
+      3
+     ]
+    },
+    {
+     "input": "[5, 4, 3, 2, 1]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "selection-sort",
+    "in-place"
+   ],
+   "tags": [
+    "selection-sort",
+    "in-place"
+   ],
+   "hint": "Track an index `min`, not a value - only the index tells you what to put back into the slot you vacate.",
+   "explain": "Tracking the index rather than the value is the whole trick: the minimum value tells you what to place, only its index tells you what to swap back. Note the already-sorted test runs exactly as slowly as the reversed one - the scan cannot be short-circuited, which is why selection sort has no best case."
+  },
+  {
+   "id": "alg-3-i-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insertionSort(xs)` returning a new ascending-sorted array using the shift-and-insert method from the lesson. The inner loop must stop as soon as it meets a value that is not greater than the key. Do not modify `xs` and do not call any built-in sort.",
+   "fn": "insertionSort",
+   "starterCode": "function insertionSort(xs) {\n  const a = xs.slice();\n  // for i from 1 up: save key = a[i], then walk j left from i - 1\n  // shifting greater values right, and drop key at a[j + 1]\n  return a;\n}",
+   "solution": "function insertionSort(xs) {\n  const a = xs.slice();\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j + 1] = a[j];\n      j--;\n    }\n    a[j + 1] = key;\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[5, 2, 4, 6, 1]",
+     "expected": [
+      1,
+      2,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[9]",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[5, 4, 3, 2, 1]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[2, 1, 2, 1]",
+     "expected": [
+      1,
+      1,
+      2,
+      2
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "insertion-sort",
+    "in-place",
+    "loop-invariant"
+   ],
+   "tags": [
+    "insertion-sort",
+    "in-place",
+    "loop-invariant"
+   ],
+   "hint": "Save the key before shifting; the loop is about to overwrite a[i].",
+   "explain": "The `j >= 0` guard is not paranoia - without it a key smaller than everything walks off the front, and `a[j]` is then `undefined`, where `undefined > key` is false, so the loop would stop by accident rather than by design. Note also that the sorted case does one comparison per element and no shifts: the same code that is $O(n^2)$ on reversed input is $O(n)$ here."
+  },
+  {
+   "id": "alg-3-i-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This insertion sort returns wrong answers. Exactly one line is wrong. Fix it so `insertionSort(xs)` returns a new ascending-sorted array.",
+   "fn": "insertionSort",
+   "starterCode": "function insertionSort(xs) {\n  const a = xs.slice();\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j] = a[j + 1];\n      j--;\n    }\n    a[j + 1] = key;\n  }\n  return a;\n}",
+   "solution": "function insertionSort(xs) {\n  const a = xs.slice();\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j + 1] = a[j];\n      j--;\n    }\n    a[j + 1] = key;\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[5, 2, 4, 6, 1]",
+     "expected": [
+      1,
+      2,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[3, 1]",
+     "expected": [
+      1,
+      3
+     ]
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[4, 4, 2]",
+     "expected": [
+      2,
+      4,
+      4
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "insertion-sort",
+    "loop-invariant"
+   ],
+   "tags": [
+    "insertion-sort",
+    "loop-invariant"
+   ],
+   "hint": "Which direction is the shift meant to go? Read the assignment inside the while loop out loud.",
+   "explain": "`a[j] = a[j + 1]` copies leftwards, dragging the gap the wrong way and duplicating whatever sat to the right. The shift must move the larger value **up** into the gap: `a[j + 1] = a[j]`. The already-sorted test still passes with the bug, because the while loop never runs there - which is exactly why sorted input is a useless test for this class of fault."
+  }
+ ],
+ "analysis": [
+  {
+   "id": "alg-3-a-01",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time complexity of selection sort on an array of $n$ elements and justify it by counting comparisons. Say explicitly what happens to that count when the input is already sorted.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "comparison",
+     "quadratic",
+     "input"
+    ],
+    "optional": [
+     "swap",
+     "scan",
+     "best case",
+     "minimum"
+    ],
+    "minWords": 35
+   },
+   "xp": 40,
+   "concepts": [
+    "selection-sort",
+    "quadratic-time"
+   ],
+   "tags": [
+    "selection-sort",
+    "quadratic-time"
+   ],
+   "explain": "Selection sort's comparison count is a constant of the algorithm, not of the data: iteration $i$ always scans the full remaining suffix, giving $(n-1)+(n-2)+\\cdots+1 = n(n-1)/2$ comparisons. So its best, average and worst cases are all $\\Theta(n^2)$ - unusual, and the reason it can never exploit near-sorted data the way insertion sort does. Its one genuine virtue is performing at most $n-1$ swaps."
+  },
+  {
+   "id": "alg-3-a-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the time complexity of insertion sort on input that is **already sorted ascending**, and explain in terms of the inner loop why it differs from the $O(n^2)$ worst case.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "inner",
+     "sorted",
+     "linear",
+     "one"
+    ],
+    "optional": [
+     "shift",
+     "comparison",
+     "reversed",
+     "guard"
+    ],
+    "minWords": 35
+   },
+   "xp": 40,
+   "concepts": [
+    "insertion-sort",
+    "quadratic-time"
+   ],
+   "tags": [
+    "insertion-sort",
+    "quadratic-time"
+   ],
+   "explain": "The inner `while` is guarded by `a[j] > key`. On sorted input that very first test fails every time, so each of the $n-1$ outer iterations costs one comparison and zero shifts: $\\Theta(n)$ overall. On reversed input the same guard holds all the way to the wall, so iteration $i$ costs $i$ shifts and the total is $n(n-1)/2$. The algorithm never changed - only the data decided which behaviour you got, which is why best case and worst case must be quoted separately rather than collapsed into one number."
+  },
+  {
+   "id": "alg-3-a-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Sorting `[[2, \"a\"], [1, \"b\"], [2, \"c\"], [1, \"d\"]]` by the first component, insertion sort yields `[[1,\"b\"],[1,\"d\"],[2,\"a\"],[2,\"c\"]]` but selection sort yields `[[1,\"b\"],[1,\"d\"],[2,\"c\"],[2,\"a\"]]`. Define stability, and explain the specific mechanism that makes selection sort unstable here.",
+   "rubric": {
+    "required": [
+     "stable",
+     "equal",
+     "order",
+     "swap"
+    ],
+    "optional": [
+     "adjacent",
+     "relative",
+     "key",
+     "distance"
+    ],
+    "minWords": 40
+   },
+   "xp": 20,
+   "concepts": [
+    "stability",
+    "selection-sort",
+    "insertion-sort"
+   ],
+   "tags": [
+    "stability",
+    "selection-sort",
+    "insertion-sort"
+   ],
+   "explain": "A sort is **stable** when records with equal keys come out in the order they went in. Bubble and insertion sort only ever exchange **adjacent** elements, and only on a strict inequality, so two equal keys are never moved past one another. Selection sort's swap is long-range: sending the minimum to slot $i$ hurls whatever occupied slot $i$ far to the right, jumping it over elements it originally preceded. Here `[2,\"a\"]` is thrown past `[2,\"c\"]` on the very first iteration. Stability matters whenever you sort by one field having already sorted by another - it is what makes multi-key sorting by repeated passes work at all."
+  },
+  {
+   "id": "alg-3-a-04",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that bubble sort is correct and that it terminates. State the loop invariant maintained by the outer loop, argue that one pass preserves it, and use it to conclude the array is sorted when the loop ends. Then give the termination argument separately.",
+   "rubric": {
+    "required": [
+     "invariant",
+     "largest",
+     "pass",
+     "terminat",
+     "sorted"
+    ],
+    "optional": [
+     "induction",
+     "adjacent",
+     "maximum",
+     "decreas",
+     "bound"
+    ],
+    "minWords": 60
+   },
+   "xp": 50,
+   "concepts": [
+    "loop-invariant",
+    "bubble-sort"
+   ],
+   "tags": [
+    "loop-invariant",
+    "bubble-sort"
+   ],
+   "explain": "The invariant is: before pass $i$, the final $i$ slots hold the $i$ largest elements in sorted order. Maintenance: a pass over `a[0..n-1-i]` compares every adjacent pair, and by induction on $j$ the value sitting at position $j$ after the comparison at $j$ is the maximum of the original `a[0..j]`; at the end of the pass that value is the maximum of the whole unsorted prefix, so it lands in slot $n-1-i$ and the invariant holds for $i+1$. Termination: the outer counter strictly increases and is bounded by $n-1$, so the loop cannot run forever, and the early-exit flag only ever ends it sooner. At exit the invariant with $i = n-1$ says the whole array is sorted. Correctness and termination are separate obligations - a variant that shrank the range only when a swap occurred could still be correct on every input it finished, yet fail to finish."
+  },
+  {
+   "id": "alg-3-a-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "All three sorts on this floor are in-place. Explain what in-place means in terms of auxiliary space, state the auxiliary space of these sorts in big-O, and describe one concrete situation where a sort needing a full extra array would be the wrong choice.",
+   "rubric": {
+    "required": [
+     "in-place",
+     "auxiliary",
+     "O(1)",
+     "extra"
+    ],
+    "optional": [
+     "constant",
+     "copy",
+     "memory",
+     "allocat"
+    ],
+    "minWords": 40
+   },
+   "xp": 20,
+   "concepts": [
+    "in-place",
+    "array-traversal"
+   ],
+   "tags": [
+    "in-place",
+    "array-traversal"
+   ],
+   "explain": "**Auxiliary** space is what the algorithm allocates beyond the input itself, so the input array does not count against it. Bubble, selection and insertion sort each use a fixed handful of variables - two indices, a temporary, a flag - and that number does not grow with $n$, so their auxiliary space is $O(1)$. A sort needing $O(n)$ extra is the wrong tool when the data already barely fits in memory, on a small embedded device with no heap to speak of, or when allocation itself is the expensive operation. Time, extra space and stability are the three axes of a sorting trade-off, and you rarely get all three at once."
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-3-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Selection sort has just finished $i$ iterations of its outer loop on an array of length $n$. Which statement is the invariant it maintains?",
+   "choices": [
+    "`a[0..i-1]` holds the i smallest values in sorted order, and none of them will move again.",
+    "`a[0..i-1]` is sorted, but any of those values may still be shifted right later.",
+    "`a[n-i..n-1]` holds the i largest values in sorted order.",
+    "Every adjacent pair in `a[0..i-1]` is in order, though the prefix may not be sorted overall."
+   ],
+   "answer": 0,
+   "xp": 10,
+   "concepts": [
+    "selection-sort",
+    "loop-invariant"
+   ],
+   "tags": [
+    "selection-sort",
+    "loop-invariant"
+   ],
+   "explain": "Option 2 is insertion sort's weaker invariant - its prefix is sorted but not final. Option 3 is bubble sort's, which builds the answer from the right end instead. Selection sort's is the strongest of the three: because it always chooses the global minimum of what remains, a placed element is finished forever."
+  },
+  {
+   "id": "alg-3-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Written in the standard way shown in this lesson, which of the three sorts is **not** stable?",
+   "choices": [
+    "Bubble sort",
+    "Selection sort",
+    "Insertion sort",
+    "All three are stable"
+   ],
+   "answer": 1,
+   "xp": 10,
+   "concepts": [
+    "stability"
+   ],
+   "tags": [
+    "stability"
+   ],
+   "explain": "Stability survives only if an element never jumps over an equal-keyed neighbour. Bubble and insertion sort exchange adjacent elements on a strict inequality, so equal keys are never reordered. Selection sort's swap moves an element an arbitrary distance, and that jump can carry it past an equal key that started ahead of it."
+  },
+  {
+   "id": "alg-3-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? It logs the array after each outer iteration of selection sort.",
+   "code": "function selectionSort(input) {\n  const a = input.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let min = i;\n    for (let j = i + 1; j < a.length; j++) {\n      if (a[j] < a[min]) min = j;\n    }\n    const t = a[i];\n    a[i] = a[min];\n    a[min] = t;\n    console.log(JSON.stringify(a));\n  }\n  return a;\n}\n\nselectionSort([4, 1, 3, 2]);",
+   "lang": "javascript",
+   "answer": "[1,4,3,2]\n[1,2,3,4]\n[1,2,3,4]",
+   "xp": 20,
+   "concepts": [
+    "selection-sort"
+   ],
+   "tags": [
+    "selection-sort"
+   ],
+   "explain": "The array is already sorted after the second iteration, yet a third still runs: the outer loop count is fixed at $n-1$ and nothing inside selection sort can detect that it is finished. That is the visible face of having no best case."
+  },
+  {
+   "id": "alg-3-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete bubble sort with its early exit. `swap(xs, p, q)` exchanges two slots.",
+   "template": "for (let i = 0; i < xs.length - 1; i++) {\n  let swapped = ___;\n  for (let j = 0; j < xs.length - 1 - ___; j++) {\n    if (xs[j] > xs[j + 1]) {\n      swap(xs, j, j + 1);\n      swapped = true;\n    }\n  }\n  if (!swapped) ___;\n}",
+   "blanks": [
+    "false",
+    "i",
+    "break"
+   ],
+   "lang": "javascript",
+   "xp": 20,
+   "concepts": [
+    "bubble-sort",
+    "loop-invariant"
+   ],
+   "tags": [
+    "bubble-sort",
+    "loop-invariant"
+   ],
+   "explain": "The flag must be reset at the top of every pass, not once before the outer loop, or a single early swap would keep it true forever and the exit would never fire. The `- i` encodes the invariant that the last $i$ slots are final, and `break` turns \"this pass changed nothing\" into a proof that the array is sorted."
+  },
+  {
+   "id": "alg-3-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace insertion sort on `[3, 7, 4, 9, 2]`. Give the whole array as it stands after each outer iteration `i` completes - that is, once the key has been dropped into place. Write arrays as `[3, 4, 7, 9, 2]`.",
+   "steps": [
+    {
+     "label": "after i = 1 (key 7)",
+     "expected": "[3, 7, 4, 9, 2]"
+    },
+    {
+     "label": "after i = 2 (key 4)",
+     "expected": "[3, 4, 7, 9, 2]"
+    },
+    {
+     "label": "after i = 3 (key 9)",
+     "expected": "[3, 4, 7, 9, 2]"
+    },
+    {
+     "label": "after i = 4 (key 2)",
+     "expected": "[2, 3, 4, 7, 9]"
+    }
+   ],
+   "xp": 40,
+   "concepts": [
+    "insertion-sort",
+    "loop-invariant"
+   ],
+   "tags": [
+    "insertion-sort",
+    "loop-invariant"
+   ],
+   "explain": "Iterations 1 and 3 do a single comparison and stop - the key was already in place. Iteration 4 does the opposite: key 2 walks past all four elements to the left wall, costing four shifts. Sum those per-iteration costs and you have the whole complexity story: cheap when the prefix is friendly, $i$ shifts when it is hostile, $n(n-1)/2$ when every iteration is."
+  },
+  {
+   "id": "alg-3-e-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case number of **swaps** bubble sort performs as a big-O bound, and describe the input that forces it. Contrast it with selection sort's swap count on that same input.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "reverse",
+     "swap",
+     "quadratic",
+     "adjacent"
+    ],
+    "optional": [
+     "selection",
+     "pass",
+     "comparison",
+     "movement"
+    ],
+    "minWords": 35
+   },
+   "xp": 40,
+   "concepts": [
+    "bubble-sort",
+    "quadratic-time"
+   ],
+   "tags": [
+    "bubble-sort",
+    "quadratic-time"
+   ],
+   "explain": "On reverse-sorted input every one of the $n(n-1)/2$ comparisons finds a pair out of order, so bubble sort swaps every single time: $\\Theta(n^2)$ swaps. Selection sort on that same input makes the same $n(n-1)/2$ comparisons but at most $n-1$ swaps, because it decides where an element belongs before it moves it. Comparisons and data movement are separate costs, and which one dominates depends entirely on how expensive it is to move a record."
+  },
+  {
+   "id": "alg-3-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why all three elementary sorts are $O(n^2)$ in the worst case, arguing from their loop structure rather than by quoting the result. Then say which one escapes that bound on favourable input, and why the other two cannot do the same.",
+   "rubric": {
+    "required": [
+     "nested",
+     "quadratic",
+     "comparison",
+     "insertion"
+    ],
+    "optional": [
+     "selection",
+     "invariant",
+     "early exit",
+     "guard"
+    ],
+    "minWords": 45
+   },
+   "xp": 20,
+   "concepts": [
+    "quadratic-time",
+    "bubble-sort",
+    "selection-sort",
+    "insertion-sort"
+   ],
+   "tags": [
+    "quadratic-time",
+    "bubble-sort",
+    "selection-sort",
+    "insertion-sort"
+   ],
+   "explain": "All three place one element per outer iteration and spend up to a linear scan doing it, so the nest is $n$ iterations times up to $n$ inner steps: $\\Theta(n^2)$. Halving that to $n(n-1)/2$ changes nothing asymptotically - constant factors do not move a bound. Insertion sort escapes because its inner loop is guarded by the data and can exit after one comparison; bubble sort with the flag gets a similar $O(n)$ on fully sorted input but nothing in between; selection sort cannot escape at all, because finding a minimum requires inspecting every candidate no matter how the data happens to be arranged."
+  },
+  {
+   "id": "alg-3-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insertionShifts(xs)` returning the **number of shifts** insertion sort performs on `xs`, where one shift is one execution of `a[j + 1] = a[j]` inside the inner loop. Do not count the final placement of the key, and do not modify `xs`.",
+   "fn": "insertionShifts",
+   "starterCode": "function insertionShifts(xs) {\n  const a = xs.slice();\n  let shifts = 0;\n  // run insertion sort, incrementing shifts once per inner-loop move\n  return shifts;\n}",
+   "solution": "function insertionShifts(xs) {\n  const a = xs.slice();\n  let shifts = 0;\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j + 1] = a[j];\n      j--;\n      shifts++;\n    }\n    a[j + 1] = key;\n  }\n  return shifts;\n}",
+   "tests": [
+    {
+     "input": "[5, 2, 4, 6, 1]",
+     "expected": 6
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[8]",
+     "expected": 0
+    },
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": 0
+    },
+    {
+     "input": "[5, 4, 3, 2, 1]",
+     "expected": 10
+    },
+    {
+     "input": "[2, 2, 2]",
+     "expected": 0
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "insertion-sort",
+    "quadratic-time"
+   ],
+   "tags": [
+    "insertion-sort",
+    "quadratic-time"
+   ],
+   "hint": "Increment the counter in the same place you do the shift - inside the while loop, not once per outer iteration.",
+   "explain": "The counter you just wrote is the running time made visible. Sorted input gives 0; the reversed five-element input gives $5 \\cdot 4 / 2 = 10$, the maximum possible - so one function measures both ends of the analysis. The all-equal case giving 0 is the same strict `>` that makes the sort stable: equal values never move past each other, so they never cost a shift."
+  },
+  {
+   "id": "alg-3-e-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `stableSortByKey(pairs)` where each element of `pairs` is a two-element array `[key, tag]`. Return a new array sorted ascending by `key`, with elements sharing a key kept in their original relative order. Use insertion sort; do not call any built-in sort.",
+   "fn": "stableSortByKey",
+   "starterCode": "function stableSortByKey(pairs) {\n  const a = pairs.slice();\n  // insertion sort comparing a[j][0] with key[0]\n  // the comparison you choose decides whether this is stable\n  return a;\n}",
+   "solution": "function stableSortByKey(pairs) {\n  const a = pairs.slice();\n  for (let i = 1; i < a.length; i++) {\n    const key = a[i];\n    let j = i - 1;\n    while (j >= 0 && a[j][0] > key[0]) {\n      a[j + 1] = a[j];\n      j--;\n    }\n    a[j + 1] = key;\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[[2, \"a\"], [1, \"b\"], [2, \"c\"], [1, \"d\"]]",
+     "expected": [
+      [
+       1,
+       "b"
+      ],
+      [
+       1,
+       "d"
+      ],
+      [
+       2,
+       "a"
+      ],
+      [
+       2,
+       "c"
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[1, \"x\"]]",
+     "expected": [
+      [
+       1,
+       "x"
+      ]
+     ]
+    },
+    {
+     "input": "[[3, \"p\"], [3, \"q\"], [3, \"r\"]]",
+     "expected": [
+      [
+       3,
+       "p"
+      ],
+      [
+       3,
+       "q"
+      ],
+      [
+       3,
+       "r"
+      ]
+     ]
+    },
+    {
+     "input": "[[5, \"m\"], [1, \"n\"]]",
+     "expected": [
+      [
+       1,
+       "n"
+      ],
+      [
+       5,
+       "m"
+      ]
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "stability",
+    "insertion-sort"
+   ],
+   "tags": [
+    "stability",
+    "insertion-sort"
+   ],
+   "hint": "The while guard must be `a[j][0] > key[0]`. Using `>=` would shift past equals and destroy stability.",
+   "explain": "Stability is not something added afterwards, it is one character in the comparison. With `>` the walk halts on the first equal key and the newer element settles to its right, preserving arrival order; with `>=` it keeps walking and lands to the left, reversing every run of equal keys. The three-equal-keys test would still come out sorted under `>=` - it would just read `r, q, p` - which is why stability needs a test of its own and is invisible to a plain sortedness check."
+  },
+  {
+   "id": "alg-3-e-10",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This bubble sort has an early-exit flag, but it returns arrays that are not sorted. Exactly one line is wrong. Fix it so `bubbleSort(xs)` returns a new ascending-sorted array.",
+   "fn": "bubbleSort",
+   "starterCode": "function bubbleSort(xs) {\n  const a = xs.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let swapped = false;\n    for (let j = 0; j < a.length - 1 - i; j++) {\n      if (a[j] > a[j + 1]) {\n        const t = a[j];\n        a[j] = a[j + 1];\n        a[j + 1] = t;\n        swapped = true;\n      }\n    }\n    if (swapped) break;\n  }\n  return a;\n}",
+   "solution": "function bubbleSort(xs) {\n  const a = xs.slice();\n  for (let i = 0; i < a.length - 1; i++) {\n    let swapped = false;\n    for (let j = 0; j < a.length - 1 - i; j++) {\n      if (a[j] > a[j + 1]) {\n        const t = a[j];\n        a[j] = a[j + 1];\n        a[j + 1] = t;\n        swapped = true;\n      }\n    }\n    if (!swapped) break;\n  }\n  return a;\n}",
+   "tests": [
+    {
+     "input": "[5, 1, 4, 2, 8]",
+     "expected": [
+      1,
+      2,
+      4,
+      5,
+      8
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[6]",
+     "expected": [
+      6
+     ]
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[4, 3, 2, 1]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[2, 1, 2, 1]",
+     "expected": [
+      1,
+      1,
+      2,
+      2
+     ]
+    }
+   ],
+   "xp": 50,
+   "concepts": [
+    "bubble-sort",
+    "loop-invariant",
+    "in-place"
+   ],
+   "tags": [
+    "bubble-sort",
+    "loop-invariant",
+    "in-place"
+   ],
+   "hint": "Read the exit condition as a sentence. Which pass proves the array is sorted - one that swapped, or one that did not?",
+   "explain": "`if (swapped) break` stops after the first pass that did any work, which is exactly backwards: a pass that swapped is proof the array was still unsorted. Only `!swapped` licenses the exit, because a full pass finding no adjacent pair out of order is a proof of total sortedness. Notice the already-sorted and single-element tests pass with the bug intact - a broken early exit is invisible unless your test data actually needs more than one pass."
+  }
+ ]
+}

@@ -1,0 +1,1100 @@
+{
+ "n": 7,
+ "name": "The Cistern of Crossings",
+ "concepts": [
+  "adjacency-list",
+  "visited-set",
+  "bfs-shortest-path",
+  "dfs",
+  "traversal-complexity"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "tracing",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Vertices, Edges, and Two Ways to Walk Them",
+  "sections": [
+   {
+    "title": "A Graph Is a Map From Names to Neighbours",
+    "body": "A **graph** is a set of vertices joined by edges, and the cheapest way to hold one in JavaScript is an **adjacency list**: a plain object whose keys are vertex names and whose values are arrays of neighbours.\n\nAn undirected edge appears **twice**, once in each endpoint's list, so summing every list length counts each edge twice and $E = \\frac{1}{2}\\sum_v \\deg(v)$.\n\nThe cost model follows from the shape: asking *who is next to C* is one property lookup plus a walk of that one list, while asking *is A next to D* costs $O(\\deg(A))$ because you must scan.\n\nAn adjacency list stores $V$ keys and $2E$ names, so it is $O(V + E)$ space, which is why it beats a $V \\times V$ matrix on the sparse graphs you actually meet.",
+    "code": "const CISTERN = {\n  A: [\"B\", \"C\"],\n  B: [\"A\", \"D\"],\n  C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"],\n  E: [\"C\", \"F\"],\n  F: [\"D\", \"E\"]\n};\n\nconsole.log(\"neighbours of C:\", CISTERN.C.join(\", \"));\nconsole.log(\"degree of C:\", CISTERN.C.length);\n\nlet ends = 0;\nfor (const node of Object.keys(CISTERN)) ends += CISTERN[node].length;\nconsole.log(\"V =\", Object.keys(CISTERN).length, \"E =\", ends / 2);\nconsole.log(\"is A adjacent to D?\", CISTERN.A.includes(\"D\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "This graph is the Cistern. Every trace on this floor walks it, so learn its shape."
+     },
+     {
+      "line": 10,
+      "text": "One key lookup, and the entire neighbour array is already in hand."
+     },
+     {
+      "line": 15,
+      "text": "14 list entries, 7 edges: every undirected edge is stored at both of its ends."
+     },
+     {
+      "line": 16,
+      "text": "A is not adjacent to D. Reaching D from A takes two edges, which is what BFS will tell us."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This adjacency list describes an undirected graph. What does the code print?",
+     "code": "const g = { N: [\"S\", \"E\"], S: [\"N\"], E: [\"N\", \"W\"], W: [\"E\"] };\nconsole.log(Object.keys(g).length);\nconsole.log(g.E.length);\nlet d = 0;\nfor (const k of Object.keys(g)) d += g[k].length;\nconsole.log(d / 2);\nconsole.log(g.W.includes(\"N\"));",
+     "lang": "javascript",
+     "answer": "4\n2\n3\nfalse",
+     "concepts": [
+      "adjacency-list"
+     ],
+     "explain": "Vertices are keys, so `Object.keys` counts $V$. Degrees sum to $2E$ in an undirected graph, so halving recovers the edge count without ever materialising an edge list. Adjacency is a membership test inside one array, and W's array holds only E."
+    }
+   },
+   {
+    "title": "The Visited Set Is Not an Optimisation",
+    "body": "Real graphs contain **cycles**, and a cycle means a walk can return to where it started. A traversal with no memory therefore never stops: it is not merely slow, it does not terminate.\n\nThe **visited set** is what makes traversal a finite algorithm. A vertex is marked the first time it is reached and skipped forever after.\n\nThat single rule is the termination argument. Every vertex is marked at most once, so the body of the loop runs at most $V$ times and each neighbour list is scanned at most once.\n\nIt also changes the answer, not just the runtime: without it a vertex is reported many times, once per distinct path that reaches it.",
+    "code": "const graph = { A: [\"B\", \"C\"], B: [\"A\"], C: [\"A\"] };\n\nfunction walk(node, budget) {\n  if (budget === 0) return [];\n  let out = [node];\n  for (const nb of graph[node]) out = out.concat(walk(nb, budget - 1));\n  return out;\n}\nconsole.log(\"no visited set, budget 4:\", walk(\"A\", 4).join(\" \"));\n\nfunction walkSafe(node, visited) {\n  if (visited.has(node)) return [];\n  visited.add(node);\n  let out = [node];\n  for (const nb of graph[node]) out = out.concat(walkSafe(nb, visited));\n  return out;\n}\nconsole.log(\"with a visited set:\", walkSafe(\"A\", new Set()).join(\" \"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The budget is scaffolding, not part of the algorithm. It is the only reason this returns at all."
+     },
+     {
+      "line": 9,
+      "text": "Prints A B A B C C A B C: A three times, B twice. Drop the budget and it recurses forever across the A-B edge."
+     },
+     {
+      "line": 12,
+      "text": "One line, and the walk becomes finite: a marked vertex is never expanded again."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "The graph `{ A: [\"B\"], B: [\"A\"] }` has one edge and no dead ends. Explain what a traversal with no visited set does on it, and why marking a vertex the first time it is reached makes the traversal stop.",
+     "concepts": [
+      "visited-set"
+     ],
+     "rubric": {
+      "required": [
+       "cycle",
+       "visited",
+       "stop",
+       "once"
+      ],
+      "optional": [
+       "infinite",
+       "mark",
+       "finite",
+       "bound",
+       "forever"
+      ],
+      "minWords": 30
+     },
+     "explain": "The A-B edge is a cycle of length two: expanding A reaches B, expanding B reaches A, forever. Termination is not a property of the graph, it is a property of the bookkeeping. Because each vertex is marked once and never expanded twice, the number of expansions is bounded above by $V$, which is finite."
+    }
+   },
+   {
+    "title": "BFS: a Queue Buys You Shortest Paths",
+    "body": "**Breadth-first search** keeps its frontier in a **queue**, so it removes vertices in the order they were discovered: first in, first out.\n\nThat one choice makes BFS visit the graph in layers, everything at distance 1 from the start, then everything at distance 2. Recording `dist[nb] = dist[node] + 1` at the moment of discovery therefore records the **fewest** edges, not merely some number of edges.\n\nThe reason is an invariant: the queue never holds vertices whose distances differ by more than one, and it holds them in non-decreasing order. So the first time a vertex is discovered it is discovered from a vertex one layer closer to the start, and a later, longer route is thrown away by the visited check.\n\nThis holds only when every edge costs the same. Give edges weights and the layer argument collapses, because a two-edge path can be cheaper than a one-edge path.",
+    "code": "const CISTERN = {\n  A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"]\n};\n\nfunction bfs(graph, start) {\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  const order = [];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    order.push(node);\n    for (const nb of graph[node]) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      queue.push(nb);\n    }\n  }\n  return { order, dist };\n}\n\nconst r = bfs(CISTERN, \"A\");\nconsole.log(\"visit order:\", r.order.join(\" \"));\nconsole.log(\"distances:\", JSON.stringify(r.dist));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The start is marked before the loop, or a cycle would queue it a second time."
+     },
+     {
+      "line": 12,
+      "text": "shift takes from the FRONT. Change this one call to pop and BFS becomes a depth-first walk with wrong distances."
+     },
+     {
+      "line": 16,
+      "text": "Marking at discovery, not at removal, is what stops two different neighbours queueing the same vertex twice."
+     },
+     {
+      "line": 17,
+      "text": "Set once and never revised: the first discovery is already the shortest."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "bfsDistances",
+     "prompt": "Write `bfsDistances(graph, start)` returning an object mapping every vertex reachable from `start` to its distance from `start` in edges. Vertices that cannot be reached must not appear as keys.",
+     "starterCode": "function bfsDistances(graph, start) {\n  const dist = { [start]: 0 };\n  // a queue, and a loop that discovers each vertex once\n}\n",
+     "tests": [
+      {
+       "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\"",
+       "expected": {
+        "A": 0,
+        "B": 1,
+        "C": 1,
+        "D": 2,
+        "E": 2,
+        "F": 3
+       }
+      },
+      {
+       "input": "{ A: [] }, \"A\"",
+       "expected": {
+        "A": 0
+       }
+      },
+      {
+       "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\"",
+       "expected": {
+        "A": 0,
+        "B": 1
+       }
+      }
+     ],
+     "solution": "function bfsDistances(graph, start) {\n  const dist = { [start]: 0 };\n  const queue = [start];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    for (const nb of graph[node] || []) {\n      if (nb in dist) continue;\n      dist[nb] = dist[node] + 1;\n      queue.push(nb);\n    }\n  }\n  return dist;\n}",
+     "concepts": [
+      "bfs-shortest-path"
+     ],
+     "explain": "The `dist` object doubles as the visited set, since a key exists exactly when the vertex has been discovered, so C is never re-dated when D reaches it a layer later. The isolated vertex C in the third graph never enters the queue, which is why it is correctly absent rather than recorded with some sentinel distance.",
+     "hint1": "A vertex is discovered once; `nb in dist` is your visited test."
+    }
+   },
+   {
+    "title": "DFS, and Why Both Cost $O(V + E)$",
+    "body": "**Depth-first search** swaps the queue for a **stack**, either explicit or the call stack via recursion. It follows one branch as far as it will go, then backtracks.\n\nDFS answers *is there a path* just as well as BFS, but its paths are not shortest. On the Cistern it reaches F fifth, along the route A, B, D, C, E, F, where BFS reports F at distance 3.\n\nBoth cost $O(V + E)$, for the same reason. The visited set lets each vertex be expanded once, contributing $O(V)$; expanding a vertex scans its list once, and $\\sum_v \\deg(v) = 2E$, contributing $O(E)$. Neither term dominates in general, so you must write both: on a sparse graph $E$ is near $V$, on a dense one $E$ is $\\Theta(V^2)$.\n\nThe real difference is **space**. BFS holds a whole layer, DFS holds one root-to-frontier path, and both are $O(V)$ in the worst case, but they are worst on different graphs.",
+    "code": "const CISTERN = {\n  A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"]\n};\n\nfunction dfsRecursive(graph, node, visited = new Set()) {\n  if (visited.has(node)) return [];\n  visited.add(node);\n  let order = [node];\n  for (const nb of graph[node]) order = order.concat(dfsRecursive(graph, nb, visited));\n  return order;\n}\n\nfunction dfsStack(graph, start) {\n  const visited = new Set();\n  const stack = [start];\n  const order = [];\n  while (stack.length > 0) {\n    const node = stack.pop();\n    if (visited.has(node)) continue;\n    visited.add(node);\n    order.push(node);\n    for (const nb of graph[node]) stack.push(nb);\n  }\n  return order;\n}\n\nconsole.log(\"recursive:\", dfsRecursive(CISTERN, \"A\").join(\" \"));\nconsole.log(\"stack:\", dfsStack(CISTERN, \"A\").join(\" \"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "One visited set is threaded through every call. A fresh set per call would recurse until the stack overflows."
+     },
+     {
+      "line": 20,
+      "text": "The stack version must test visited on POP: the same vertex can be pushed by several neighbours before any of them is popped."
+     },
+     {
+      "line": 23,
+      "text": "Pushing in list order means the LAST neighbour is explored first, which is why the two printed orders differ."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "Both functions perform a correct depth-first traversal of the Cistern from A. What are the two lines this prints?",
+     "code": "const CISTERN = {\n  A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"]\n};\n\nfunction dfsRecursive(graph, node, visited = new Set()) {\n  if (visited.has(node)) return [];\n  visited.add(node);\n  let order = [node];\n  for (const nb of graph[node]) order = order.concat(dfsRecursive(graph, nb, visited));\n  return order;\n}\n\nfunction dfsStack(graph, start) {\n  const visited = new Set();\n  const stack = [start];\n  const order = [];\n  while (stack.length > 0) {\n    const node = stack.pop();\n    if (visited.has(node)) continue;\n    visited.add(node);\n    order.push(node);\n    for (const nb of graph[node]) stack.push(nb);\n  }\n  return order;\n}\n\nconsole.log(\"recursive:\", dfsRecursive(CISTERN, \"A\").join(\" \"));\nconsole.log(\"stack:\", dfsStack(CISTERN, \"A\").join(\" \"));",
+     "lang": "javascript",
+     "answer": "recursive: A B D C E F\nstack: A C E F D B",
+     "concepts": [
+      "dfs"
+     ],
+     "explain": "Recursion descends into the first neighbour first; an explicit stack pops the last vertex pushed, so it enters C before B. Both are valid depth-first orders, which is the point: *the* DFS order is a property of the neighbour ordering and the container, never of the graph alone."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-7-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "The graph below is undirected. What does this print?",
+   "concepts": [
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-list"
+   ],
+   "xp": 20,
+   "explain": "Reading $V$, $E$ and a degree straight off an adjacency list is the reflex the rest of the floor depends on. The halving is not a trick: an undirected edge is physically stored twice, so the raw entry count is always $2E$.",
+   "code": "const g = { N: [\"S\", \"E\"], S: [\"N\"], E: [\"N\", \"W\", \"S\"], W: [\"E\"], };\ng.S.push(\"E\");\nconsole.log(Object.keys(g).length);\nlet ends = 0;\nfor (const k of Object.keys(g)) ends += g[k].length;\nconsole.log(ends);\nconsole.log(ends / 2);\nconsole.log(g.E.length > g.W.length);",
+   "lang": "javascript",
+   "answer": "4\n8\n4\ntrue"
+  },
+  {
+   "id": "alg-7-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete `addEdge` so that it records an undirected edge in an adjacency-list object, creating either endpoint's array if it does not exist yet.",
+   "concepts": [
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-list"
+   ],
+   "xp": 20,
+   "explain": "An undirected edge is two directed entries; writing only one half produces a graph that traverses correctly in one direction and silently loses paths in the other. The `||` guard is what lets you build a graph from an edge list without declaring the vertices first.",
+   "template": "function addEdge(graph, a, b) {\n  graph[a] = graph[a] || [];\n  graph[___] = graph[b] || [];\n  graph[a].push(___);\n  graph[b].push(___);\n}",
+   "blanks": [
+    "b",
+    "b",
+    "a"
+   ]
+  },
+  {
+   "id": "alg-7-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `edgeCount(graph)` returning the number of **undirected** edges in an adjacency list where every edge is stored at both endpoints. An empty graph has 0 edges.",
+   "concepts": [
+    "adjacency-list"
+   ],
+   "tags": [
+    "adjacency-list"
+   ],
+   "xp": 50,
+   "explain": "Counting stored entries and halving is $O(V + E)$ and needs no set of seen pairs. It is also a correctness check on your data: an odd total means some edge was recorded at only one endpoint, so the graph is malformed rather than merely small.",
+   "fn": "edgeCount",
+   "starterCode": "function edgeCount(graph) {\n  // every edge is stored twice\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }",
+     "expected": 7
+    },
+    {
+     "input": "{}",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [] }",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"] }",
+     "expected": 1
+    }
+   ],
+   "solution": "function edgeCount(graph) {\n  let ends = 0;\n  for (const node of Object.keys(graph)) ends += graph[node].length;\n  return ends / 2;\n}",
+   "hint1": "Sum every neighbour array's length, then divide by two."
+  },
+  {
+   "id": "alg-7-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the body of the BFS loop back in the order that makes distances correct. The loop header `while (queue.length > 0)` is already in place.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 20,
+   "explain": "Removing from the front before expanding is what makes the frontier a queue rather than a bag. Marking the neighbour visited *before* pushing it, in the same breath as setting its distance, is the step that keeps a vertex out of the queue twice and fixes its distance at its first discovery.",
+   "fragments": [
+    "const node = queue.shift();",
+    "order.push(node);",
+    "for (const nb of graph[node]) {",
+    "  if (visited.has(nb)) continue;",
+    "  visited.add(nb);",
+    "  dist[nb] = dist[node] + 1;",
+    "  queue.push(nb);",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "id": "alg-7-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "This is the Reliquary, a different graph from the Cistern. What does the depth-first walk print?",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs"
+   ],
+   "xp": 20,
+   "explain": "DFS commits to P's first neighbour Q and only comes back for S after the entire Q branch, including U three levels down, is exhausted. That is why S, a direct neighbour of the start, is reported last, and why DFS order says nothing about distance.",
+   "code": "const RELIQUARY = {\n  P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"],\n  S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"]\n};\n\nfunction dfs(graph, node, visited = new Set()) {\n  if (visited.has(node)) return [];\n  visited.add(node);\n  let order = [node];\n  for (const nb of graph[node]) order = order.concat(dfs(graph, nb, visited));\n  return order;\n}\n\nconsole.log(dfs(RELIQUARY, \"P\").join(\" \"));",
+   "lang": "javascript",
+   "answer": "P Q T R U S"
+  },
+  {
+   "id": "alg-7-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The Cistern contains the cycle A-B-D-C-A. Explain what the visited set does to that cycle during BFS from A, and why removing the set makes the traversal run forever rather than merely doing extra work.",
+   "concepts": [
+    "visited-set"
+   ],
+   "tags": [
+    "visited-set"
+   ],
+   "xp": 20,
+   "explain": "The distinction is the point: a visited set is usually described as an optimisation, but on any graph with a cycle it is a correctness and termination requirement. It converts an unbounded walk over a finite graph into a loop that runs at most $V$ times.",
+   "rubric": {
+    "required": [
+     "cycle",
+     "visited",
+     "forever",
+     "once"
+    ],
+    "optional": [
+     "queue",
+     "infinite",
+     "revisit",
+     "bound",
+     "stop"
+    ],
+    "minWords": 35
+   }
+  }
+ ],
+ "implementation": [
+  {
+   "id": "alg-7-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bfsOrder(graph, start)` returning an array of vertices in breadth-first order from `start`. Expand each vertex's neighbours in the order they appear in its list. Vertices in other components must not appear.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 50,
+   "explain": "Marking on discovery rather than on removal is the load-bearing decision: with marking at removal the same vertex can sit in the queue twice and be emitted twice. Reachability, not membership in the object, decides what comes out, which is why the isolated C never appears.",
+   "fn": "bfsOrder",
+   "starterCode": "function bfsOrder(graph, start) {\n  const visited = new Set([start]);\n  const queue = [start];\n  const order = [];\n  // shift, record, discover\n  return order;\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\"",
+     "expected": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+     ]
+    },
+    {
+     "input": "{ P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"], S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"] }, \"P\"",
+     "expected": [
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U"
+     ]
+    },
+    {
+     "input": "{ A: [] }, \"A\"",
+     "expected": [
+      "A"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\"",
+     "expected": [
+      "A",
+      "B"
+     ]
+    }
+   ],
+   "solution": "function bfsOrder(graph, start) {\n  const visited = new Set([start]);\n  const queue = [start];\n  const order = [];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    order.push(node);\n    for (const nb of graph[node] || []) {\n      if (!visited.has(nb)) {\n        visited.add(nb);\n        queue.push(nb);\n      }\n    }\n  }\n  return order;\n}",
+   "hint1": "`queue.shift()` removes from the front.",
+   "hint2": "Mark a neighbour visited at the moment you push it, not when you pop it."
+  },
+  {
+   "id": "alg-7-i-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `dfsOrder(graph, start)` returning an array of vertices in depth-first order from `start`, descending into each vertex's neighbours in list order. Recursion or an explicit stack are both fine, but the result must match a recursive descent.",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs"
+   ],
+   "xp": 50,
+   "explain": "Recursion is the easier way to get list-order DFS because the call stack backtracks for you. An explicit stack would need its pushes reversed to produce the same sequence, since a stack pops the last thing pushed, and that asymmetry is the whole difference between the two implementations.",
+   "fn": "dfsOrder",
+   "starterCode": "function dfsOrder(graph, start) {\n  const visited = new Set();\n  const order = [];\n  function walk(node) {\n    // mark, record, descend\n  }\n  walk(start);\n  return order;\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\"",
+     "expected": [
+      "A",
+      "B",
+      "D",
+      "C",
+      "E",
+      "F"
+     ]
+    },
+    {
+     "input": "{ P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"], S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"] }, \"P\"",
+     "expected": [
+      "P",
+      "Q",
+      "T",
+      "R",
+      "U",
+      "S"
+     ]
+    },
+    {
+     "input": "{ A: [] }, \"A\"",
+     "expected": [
+      "A"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\"",
+     "expected": [
+      "A",
+      "B"
+     ]
+    }
+   ],
+   "solution": "function dfsOrder(graph, start) {\n  const visited = new Set();\n  const order = [];\n  function walk(node) {\n    if (visited.has(node)) return;\n    visited.add(node);\n    order.push(node);\n    for (const nb of graph[node] || []) walk(nb);\n  }\n  walk(start);\n  return order;\n}",
+   "hint1": "Return immediately if the vertex is already in the visited set.",
+   "hint2": "One shared visited set for all calls, never a fresh one per call."
+  },
+  {
+   "id": "alg-7-i-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `shortestPathLength(graph, start, goal)` returning the number of edges on a shortest path between them: `0` when `start === goal`, and `-1` when `goal` is unreachable.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 50,
+   "explain": "Returning at the moment of discovery is safe precisely because BFS discovers in non-decreasing distance order, so no later route can be shorter. The `-1` case costs a full traversal of the start's component, which is the honest price of proving that no path exists.",
+   "fn": "shortestPathLength",
+   "starterCode": "function shortestPathLength(graph, start, goal) {\n  if (start === goal) return 0;\n  const dist = { [start]: 0 };\n  // BFS outward until you meet the goal\n  return -1;\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", \"F\"",
+     "expected": 3
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"C\", \"F\"",
+     "expected": 2
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", \"A\"",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\", \"C\"",
+     "expected": -1
+    }
+   ],
+   "solution": "function shortestPathLength(graph, start, goal) {\n  if (start === goal) return 0;\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    for (const nb of graph[node] || []) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      if (nb === goal) return dist[nb];\n      queue.push(nb);\n    }\n  }\n  return -1;\n}",
+   "hint1": "Store a distance the moment a vertex is discovered, then never touch it again.",
+   "hint2": "If the queue empties without meeting the goal, there is no path."
+  },
+  {
+   "id": "alg-7-i-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This is meant to be `shortestPathLength`, and on many graphs it even gives the right answer. On the Vault graph `{ A: [\"X\", \"B\"], X: [\"A\", \"G\"], B: [\"A\", \"C\"], C: [\"B\", \"D\"], D: [\"C\", \"G\"], G: [\"X\", \"D\"] }` it reports A to G as 4 when the answer is 2. Find the single wrong call and fix it.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 50,
+   "explain": "`pop` turns the frontier from a queue into a stack, so the search plunges down the long A-B-C-D branch and discovers G from D before X ever gets its turn. Since a vertex's distance is fixed at first discovery and never revised, one wrong container silently converts a shortest-path algorithm into an any-path algorithm.",
+   "fn": "shortestPathLength",
+   "starterCode": "function shortestPathLength(graph, start, goal) {\n  if (start === goal) return 0;\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  while (queue.length > 0) {\n    const node = queue.pop();\n    for (const nb of graph[node] || []) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      if (nb === goal) return dist[nb];\n      queue.push(nb);\n    }\n  }\n  return -1;\n}",
+   "tests": [
+    {
+     "input": "{ A: [\"X\", \"B\"], X: [\"A\", \"G\"], B: [\"A\", \"C\"], C: [\"B\", \"D\"], D: [\"C\", \"G\"], G: [\"X\", \"D\"] }, \"A\", \"G\"",
+     "expected": 2
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", \"F\"",
+     "expected": 3
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", \"A\"",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\", \"C\"",
+     "expected": -1
+    }
+   ],
+   "solution": "function shortestPathLength(graph, start, goal) {\n  if (start === goal) return 0;\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    for (const nb of graph[node] || []) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      if (nb === goal) return dist[nb];\n      queue.push(nb);\n    }\n  }\n  return -1;\n}",
+   "hint1": "Which end of the array does BFS remove from?"
+  },
+  {
+   "id": "alg-7-i-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `connectedComponents(graph)` returning how many connected components an undirected adjacency list has. An empty graph has 0.",
+   "concepts": [
+    "visited-set"
+   ],
+   "tags": [
+    "visited-set"
+   ],
+   "xp": 50,
+   "explain": "One visited set shared across every restart is what makes this $O(V + E)$ overall rather than $O(V \\cdot (V + E))$: each vertex is expanded in exactly one traversal, so the outer loop is free apart from its $V$ membership tests. The count of restarts is the count of components.",
+   "fn": "connectedComponents",
+   "starterCode": "function connectedComponents(graph) {\n  const visited = new Set();\n  let count = 0;\n  for (const start of Object.keys(graph)) {\n    // start a traversal only from an unvisited vertex\n  }\n  return count;\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }",
+     "expected": 1
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [], D: [\"E\"], E: [\"D\"] }",
+     "expected": 3
+    },
+    {
+     "input": "{}",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [] }",
+     "expected": 1
+    }
+   ],
+   "solution": "function connectedComponents(graph) {\n  const visited = new Set();\n  let count = 0;\n  for (const start of Object.keys(graph)) {\n    if (visited.has(start)) continue;\n    count++;\n    const stack = [start];\n    while (stack.length > 0) {\n      const node = stack.pop();\n      if (visited.has(node)) continue;\n      visited.add(node);\n      for (const nb of graph[node] || []) stack.push(nb);\n    }\n  }\n  return count;\n}",
+   "hint1": "Loop over every vertex, but only launch a traversal from one that is still unvisited.",
+   "hint2": "Do NOT reset the visited set between traversals."
+  },
+  {
+   "id": "alg-7-i-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time complexity of BFS over an adjacency list in terms of $V$ and $E$. Justify both terms: say how many times a single vertex is expanded and why, how the neighbour scanning totals $2E$, and what the cost is on a graph of many vertices with no edges at all.",
+   "concepts": [
+    "traversal-complexity"
+   ],
+   "tags": [
+    "traversal-complexity"
+   ],
+   "xp": 40,
+   "explain": "The two terms come from two different accountings: the visited set caps expansions at $V$, and $\\sum_v \\deg(v) = 2E$ caps the total neighbour scanning at $O(E)$. Neither absorbs the other, because a graph with many isolated vertices has $E \\ll V$ while a dense graph has $E = \\Theta(V^2)$.",
+   "answer": "O(V + E)",
+   "rubric": {
+    "required": [
+     "visited",
+     "once",
+     "degree",
+     "vertices",
+     "edges"
+    ],
+    "optional": [
+     "queue",
+     "sum",
+     "sparse",
+     "dense",
+     "adjacency",
+     "isolated"
+    ],
+    "minWords": 45
+   }
+  }
+ ],
+ "tracing": [
+  {
+   "id": "alg-7-t-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Run the BFS from the lesson on the Cistern `{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }` starting at A. After each iteration of the while loop (one shift plus all of that vertex's pushes), give the contents of the queue, front first, in the form `[C, D]`. Write `[]` for an empty queue.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 40,
+   "explain": "Watch the queue never hold two distances further apart than one: it is [1,1], then [1,2], then [2,2], then [2,3]. That monotone frontier is exactly the invariant that makes the first discovery of a vertex the shortest one, and it is what `pop` destroys.",
+   "steps": [
+    {
+     "label": "after shifting A",
+     "expected": "[B, C]"
+    },
+    {
+     "label": "after shifting B",
+     "expected": "[C, D]"
+    },
+    {
+     "label": "after shifting C",
+     "expected": "[D, E]"
+    },
+    {
+     "label": "after shifting D",
+     "expected": "[E, F]"
+    },
+    {
+     "label": "after shifting E",
+     "expected": "[F]"
+    },
+    {
+     "label": "after shifting F",
+     "expected": "[]"
+    }
+   ]
+  },
+  {
+   "id": "alg-7-t-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Run the recursive DFS on the same Cistern from A, descending into neighbours in list order. Each time a vertex is marked visited, give the chain of active calls from A down to it, outermost first, in the form `A B D`.",
+   "concepts": [
+    "dfs"
+   ],
+   "tags": [
+    "dfs"
+   ],
+   "xp": 40,
+   "explain": "On this graph DFS never backtracks until every vertex is marked, so the call chain grows to depth 6, the whole of $V$. That is the worst-case $O(V)$ stack space of DFS made concrete, and the reason deep graphs blow a real call stack while BFS on the same graph holds only a two-vertex layer.",
+   "steps": [
+    {
+     "label": "when the 1st vertex is marked",
+     "expected": "A"
+    },
+    {
+     "label": "when the 2nd vertex is marked",
+     "expected": "A B"
+    },
+    {
+     "label": "when the 3rd vertex is marked",
+     "expected": "A B D"
+    },
+    {
+     "label": "when the 4th vertex is marked",
+     "expected": "A B D C"
+    },
+    {
+     "label": "when the 5th vertex is marked",
+     "expected": "A B D C E"
+    },
+    {
+     "label": "when the 6th vertex is marked",
+     "expected": "A B D C E F"
+    }
+   ]
+  },
+  {
+   "id": "alg-7-t-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "BFS from A on the Cistern builds a tree: the parent of a vertex is whichever vertex was being expanded when it was first discovered. Give the BFS parent of each vertex below. Then compare with the DFS parents from the previous trace.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 40,
+   "explain": "BFS and DFS agree on B and D here but disagree on C and F, and the disagreement is the whole story: BFS attaches F to D at depth 3, DFS attaches it to E at depth 5. Both are spanning trees of the same graph; only the BFS one has depth equal to distance.",
+   "steps": [
+    {
+     "label": "parent of B",
+     "expected": "A"
+    },
+    {
+     "label": "parent of C",
+     "expected": "A"
+    },
+    {
+     "label": "parent of D",
+     "expected": "B"
+    },
+    {
+     "label": "parent of E",
+     "expected": "C"
+    },
+    {
+     "label": "parent of F",
+     "expected": "D"
+    }
+   ]
+  },
+  {
+   "id": "alg-7-t-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "BFS on the Cistern reports F at distance 3, and DFS reaches F only after A, B, D, C and E. Explain why swapping the queue for a stack loses the shortest-path guarantee, and say what has to be true of every edge's cost for the queue argument to work at all.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 20,
+   "explain": "A stack removes the most recently discovered vertex, so the search plunges instead of sweeping and the frontier no longer holds vertices in non-decreasing distance. The guarantee is also conditional on every edge having equal cost: with weights, a path of more edges can be cheaper, and the layer argument gives no information about cost.",
+   "rubric": {
+    "required": [
+     "queue",
+     "stack",
+     "shortest",
+     "same"
+    ],
+    "optional": [
+     "layer",
+     "frontier",
+     "weight",
+     "unweighted",
+     "distance",
+     "cost"
+    ],
+    "minWords": 40
+   }
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-7-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this breadth-first walk of the Reliquary print?",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 20,
+   "explain": "The three neighbours of P are drained before anything at distance 2 is touched, so S precedes T even though S is a dead end. That layered discipline is the queue's doing, and it is what makes the visit order and the distance order the same sequence.",
+   "code": "const RELIQUARY = {\n  P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"],\n  S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"]\n};\n\nfunction bfsOrder(graph, start) {\n  const visited = new Set([start]);\n  const queue = [start];\n  const order = [];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    order.push(node);\n    for (const nb of graph[node]) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      queue.push(nb);\n    }\n  }\n  return order;\n}\n\nconsole.log(bfsOrder(RELIQUARY, \"P\").join(\" \"));",
+   "lang": "javascript",
+   "answer": "P Q R S T U"
+  },
+  {
+   "id": "alg-7-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "You must find the fewest hops between two accounts in an unweighted friendship graph of 10 million users. Which is the correct instrument?",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 10,
+   "explain": "Both traversals find *a* path in $O(V + E)$, so the choice is decided by the guarantee, not the cost. Only the FIFO frontier discovers vertices in non-decreasing distance, and only on an unweighted graph does hop count equal path cost.",
+   "choices": [
+    "DFS, because recursion explores further per step and so reaches the target sooner",
+    "BFS, because a FIFO frontier discovers vertices in non-decreasing distance from the start",
+    "Either, since both visit every vertex exactly once and therefore both return the minimum",
+    "Neither: shortest paths always require sorting the vertices by degree first"
+   ],
+   "answer": 1
+  },
+  {
+   "id": "alg-7-e-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `nodesAtDistance(graph, start, d)` returning every vertex exactly `d` edges from `start`, as an array sorted with `.sort()`. Distance 0 is the start itself; an empty array when nothing sits at that distance.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 50,
+   "explain": "This is BFS with the distance map kept instead of discarded, and the layer you want is just a filter over it. Note that unreachable vertices never enter the map at all, so they can never be mistaken for members of a very distant layer.",
+   "fn": "nodesAtDistance",
+   "starterCode": "function nodesAtDistance(graph, start, d) {\n  const dist = { [start]: 0 };\n  // BFS, then collect the layer\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", 2",
+     "expected": [
+      "D",
+      "E"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", 0",
+     "expected": [
+      "A"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", 3",
+     "expected": [
+      "F"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\", 9",
+     "expected": []
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\", 1",
+     "expected": [
+      "B"
+     ]
+    }
+   ],
+   "solution": "function nodesAtDistance(graph, start, d) {\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  const out = [];\n  while (queue.length > 0) {\n    const node = queue.shift();\n    if (dist[node] === d) out.push(node);\n    for (const nb of graph[node] || []) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      queue.push(nb);\n    }\n  }\n  return out.sort();\n}",
+   "hint1": "Record `dist` on discovery, then keep the vertices whose distance equals d."
+  },
+  {
+   "id": "alg-7-e-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "BFS runs on the Reliquary `{ P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"], S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"] }` from P. Give the final distance recorded for each vertex, as a plain number.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 40,
+   "explain": "T is discovered by Q and would be discovered again by R one step later; the visited check discards that second, equal-length claim, which is why the distance map is written once per vertex and never revised. U at 3 is the eccentricity of P in this graph.",
+   "steps": [
+    {
+     "label": "dist of Q",
+     "expected": "1"
+    },
+    {
+     "label": "dist of R",
+     "expected": "1"
+    },
+    {
+     "label": "dist of S",
+     "expected": "1"
+    },
+    {
+     "label": "dist of T",
+     "expected": "2"
+    },
+    {
+     "label": "dist of U",
+     "expected": "3"
+    }
+   ]
+  },
+  {
+   "id": "alg-7-e-05",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "A **complete** graph has an edge between every pair of its $V$ vertices. Give the worst-case time of one BFS over it in terms of $V$ alone, and derive it: how many edges does a complete graph have, what is the degree of each vertex, and which of the two terms in $O(V + E)$ dominates?",
+   "concepts": [
+    "traversal-complexity"
+   ],
+   "tags": [
+    "traversal-complexity"
+   ],
+   "xp": 40,
+   "explain": "In a complete graph $E = V(V-1)/2$, so the $E$ term swallows the $V$ term and $O(V + E)$ collapses to $O(V^2)$. The formula has not changed; the graph has. This is exactly why the two terms must be written separately - on a sparse graph the same expression collapses the other way, to $O(V)$.",
+   "answer": "O(V^2)",
+   "rubric": {
+    "required": [
+     "complete",
+     "edges",
+     "degree",
+     "dominates"
+    ],
+    "optional": [
+     "dense",
+     "quadratic",
+     "sparse",
+     "adjacency",
+     "pair"
+    ],
+    "minWords": 40
+   }
+  },
+  {
+   "id": "alg-7-e-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the depth-first traversal so that it terminates on a cyclic graph and visits each vertex once.",
+   "concepts": [
+    "visited-set",
+    "dfs"
+   ],
+   "tags": [
+    "visited-set",
+    "dfs"
+   ],
+   "xp": 20,
+   "explain": "The guard must come before the mark, and the mark before the descent. Reverse either and a cycle either recurses forever or a vertex is emitted twice, which is the difference between a traversal and a walk.",
+   "template": "function dfs(graph, node, visited, order) {\n  if (visited.___(node)) return order;\n  visited.___(node);\n  order.push(node);\n  for (const nb of graph[node]) dfs(graph, nb, ___, order);\n  return order;\n}",
+   "blanks": [
+    "has",
+    "add",
+    "visited"
+   ]
+  },
+  {
+   "id": "alg-7-e-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `farthestDistance(graph, start)` returning the largest BFS distance from `start` to any vertex reachable from it. A vertex with no reachable neighbours gives 0; unreachable vertices are ignored entirely.",
+   "concepts": [
+    "bfs-shortest-path"
+   ],
+   "tags": [
+    "bfs-shortest-path"
+   ],
+   "xp": 50,
+   "explain": "This is the eccentricity of the start vertex, and BFS hands it over for free because the last layer discovered is the deepest one. Ignoring unreachable vertices is not a special case in the code: they never enter the queue, so they cannot contribute a maximum.",
+   "fn": "farthestDistance",
+   "starterCode": "function farthestDistance(graph, start) {\n  const dist = { [start]: 0 };\n  let best = 0;\n  // BFS and keep the largest distance you record\n  return best;\n}\n",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\"",
+     "expected": 3
+    },
+    {
+     "input": "{ P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"], S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"] }, \"P\"",
+     "expected": 3
+    },
+    {
+     "input": "{ A: [] }, \"A\"",
+     "expected": 0
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\"",
+     "expected": 1
+    },
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"D\"",
+     "expected": 2
+    }
+   ],
+   "solution": "function farthestDistance(graph, start) {\n  const visited = new Set([start]);\n  const dist = { [start]: 0 };\n  const queue = [start];\n  let best = 0;\n  while (queue.length > 0) {\n    const node = queue.shift();\n    if (dist[node] > best) best = dist[node];\n    for (const nb of graph[node] || []) {\n      if (visited.has(nb)) continue;\n      visited.add(nb);\n      dist[nb] = dist[node] + 1;\n      queue.push(nb);\n    }\n  }\n  return best;\n}",
+   "hint1": "Track a running maximum as you assign distances."
+  },
+  {
+   "id": "alg-7-e-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague argues that on a tree, which has no cycles, the visited set can be dropped from BFS to save memory. Judge that claim for a tree stored as an **undirected** adjacency list, and say when it would actually be safe.",
+   "concepts": [
+    "visited-set"
+   ],
+   "tags": [
+    "visited-set"
+   ],
+   "xp": 20,
+   "explain": "In an undirected adjacency list a tree edge is stored at both ends, so a child's list contains its parent and the traversal walks straight back up: functionally a cycle of length two. Dropping the set is safe only on a rooted, directed representation where edges point one way, and even then only if no vertex has two parents.",
+   "rubric": {
+    "required": [
+     "parent",
+     "both",
+     "undirected",
+     "directed",
+     "back"
+    ],
+    "optional": [
+     "cycle",
+     "tree",
+     "child",
+     "revisit",
+     "root"
+    ],
+    "minWords": 40
+   }
+  },
+  {
+   "id": "alg-7-e-09",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these statements into a correct argument that BFS terminates on any finite graph, from premise to conclusion.",
+   "concepts": [
+    "visited-set",
+    "traversal-complexity"
+   ],
+   "tags": [
+    "visited-set",
+    "traversal-complexity"
+   ],
+   "xp": 20,
+   "explain": "Termination is a counting argument, not an appeal to the graph being acyclic. The finiteness of $V$ plus the once-only marking bounds the number of pushes, which bounds the number of iterations, so the queue must empty.",
+   "fragments": [
+    "The graph has finitely many vertices V.",
+    "A vertex is pushed onto the queue only at the moment it is first marked visited.",
+    "A visited vertex is never marked again, so it is pushed at most once.",
+    "Therefore at most V pushes ever happen.",
+    "Each iteration of the while loop shifts exactly one vertex off the queue.",
+    "So the loop runs at most V times and the queue is eventually empty."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "id": "alg-7-e-10",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This depth-first traversal returns the right answer on a path graph but crashes on the Cistern. The bug is one expression. Fix it so the function returns the recursive DFS order.",
+   "concepts": [
+    "visited-set",
+    "dfs"
+   ],
+   "tags": [
+    "visited-set",
+    "dfs"
+   ],
+   "xp": 50,
+   "explain": "Handing each recursive call a brand-new visited set means nothing is ever remembered, so the A-B edge alone is enough to recurse forever until the call stack overflows. The visited set has to be one object threaded through the whole traversal; a per-call set is indistinguishable from no set at all.",
+   "fn": "dfsOrder",
+   "starterCode": "function dfsOrder(graph, start) {\n  function walk(node, visited) {\n    visited.add(node);\n    let order = [node];\n    for (const nb of graph[node] || []) {\n      order = order.concat(walk(nb, new Set()));\n    }\n    return order;\n  }\n  return walk(start, new Set());\n}",
+   "tests": [
+    {
+     "input": "{ A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"], D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"] }, \"A\"",
+     "expected": [
+      "A",
+      "B",
+      "D",
+      "C",
+      "E",
+      "F"
+     ]
+    },
+    {
+     "input": "{ P: [\"Q\", \"R\", \"S\"], Q: [\"P\", \"T\"], R: [\"P\", \"T\"], S: [\"P\"], T: [\"Q\", \"R\", \"U\"], U: [\"T\"] }, \"P\"",
+     "expected": [
+      "P",
+      "Q",
+      "T",
+      "R",
+      "U",
+      "S"
+     ]
+    },
+    {
+     "input": "{ A: [] }, \"A\"",
+     "expected": [
+      "A"
+     ]
+    },
+    {
+     "input": "{ A: [\"B\"], B: [\"A\"], C: [] }, \"A\"",
+     "expected": [
+      "A",
+      "B"
+     ]
+    }
+   ],
+   "solution": "function dfsOrder(graph, start) {\n  function walk(node, visited) {\n    if (visited.has(node)) return [];\n    visited.add(node);\n    let order = [node];\n    for (const nb of graph[node] || []) {\n      order = order.concat(walk(nb, visited));\n    }\n    return order;\n  }\n  return walk(start, new Set());\n}",
+   "hint1": "How many visited sets does a correct traversal create?"
+  }
+ ]
+}

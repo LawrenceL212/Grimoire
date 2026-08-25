@@ -1,0 +1,913 @@
+{
+ "n": 4,
+ "name": "The Halving Gate",
+ "concepts": [
+  "binary-search",
+  "sorted-precondition",
+  "loop-invariant",
+  "midpoint",
+  "off-by-one",
+  "recurrence-relations",
+  "divide-and-conquer"
+ ],
+ "cognitiveLevel": "recall",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "debugging",
+  "analysis",
+  "exam"
+ ],
+ "lesson": {
+  "title": "The Halving Gate",
+  "sections": [
+   {
+    "title": "The Sorted Precondition",
+    "body": "**Binary search** never looks at the data as a whole - it reads one element and throws away half the array. That is only sound if the array is **sorted**: order is what lets `xs[mid] < target` rule out every slot left of `mid` without reading a single one of them.\n\nSo sortedness is a **precondition**, not a preference. On an unsorted array the algorithm still terminates and still returns an answer, and the answer is simply wrong - the worst kind of failure, because nothing crashes.\n\nEach iteration carries a **window** `lo..hi` of slots that could still hold the target, and every probe cuts that window roughly in half.\n\nThe search stops in one of two ways: it lands on the target, or the window empties and the target was never there.",
+    "code": "const sorted = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91];\n\nfunction binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    console.log(\"window\", lo, \"..\", hi, \"probe\", mid, \"=\", xs[mid]);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}\n\nconsole.log(\"found at\", binarySearch(sorted, 23));\nconsole.log(\"found at\", binarySearch(sorted, 7));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "lo <= hi means the window still holds at least one slot; lo > hi means it is empty."
+     },
+     {
+      "line": 10,
+      "text": "xs[mid] < target rules out mid and everything left of it - that discard is the whole algorithm, and only sortedness makes it valid."
+     },
+     {
+      "line": 17,
+      "text": "Three probes locate 23 among ten values, and three more prove 7 is absent."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const xs = [10, 20, 30, 40, 50];\nlet lo = 0;\nlet hi = xs.length - 1;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  console.log(lo, hi, mid, xs[mid]);\n  if (xs[mid] === 10) break;\n  if (xs[mid] < 10) lo = mid + 1;\n  else hi = mid - 1;\n}",
+     "lang": "javascript",
+     "answer": "0 4 2 30\n0 1 0 10",
+     "concepts": [
+      "binary-search"
+     ],
+     "explain": "The first probe lands in the middle and 30 is too large, so the entire right half - the middle included - is discarded in one step without being read. Finding the very first element still costs two probes, because binary search never guesses where a value is, it only ever halves."
+    }
+   },
+   {
+    "title": "The Invariant and the Midpoint",
+    "body": "The **loop invariant** is the sentence that stays true before and after every iteration: *if the target is in `xs` at all, its index lies in `lo..hi`*. Each branch preserves it, because the half being discarded is provably all-too-small or all-too-large.\n\nThat invariant is what makes both return values correct. When the loop exits with `lo > hi` the window is empty, so by the invariant the target is absent - and `lo` is left sitting exactly where the target would have to be inserted to keep the array sorted.\n\nThe midpoint is written `lo + Math.floor((hi - lo) / 2)` rather than `Math.floor((lo + hi) / 2)`. The two agree in JavaScript, whose numbers are 64-bit doubles, but in a fixed-width integer language `lo + hi` can overflow to a negative index, while the subtracting form never leaves the window.\n\nThe property the midpoint really has to guarantee is $lo \\le mid \\le hi$, together with $mid < hi$ whenever $lo < hi$. Rounding **down** is what supplies it - round up and the window stops shrinking.",
+    "code": "const xs = [1, 3, 5, 7, 9, 11];\nconst target = 11;\nlet lo = 0;\nlet hi = xs.length - 1;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  console.log(\"lo\", lo, \"hi\", hi, \"mid\", mid, \"inside window:\", lo <= mid && mid <= hi);\n  if (xs[mid] === target) break;\n  if (xs[mid] < target) lo = mid + 1;\n  else hi = mid - 1;\n}\nconsole.log(\"lo stopped at\", lo);\n\nconst big = 2147483647;\nconsole.log(Math.floor((big + big) / 2));\nconsole.log(big + Math.floor((big - big) / 2));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The probe never escapes lo..hi - that containment is what guarantees progress."
+     },
+     {
+      "line": 12,
+      "text": "The loop broke on a hit here; had 11 been absent, lo would have stopped at the insertion point."
+     },
+     {
+      "line": 15,
+      "text": "In JavaScript both midpoint forms agree, because numbers are 64-bit doubles."
+     },
+     {
+      "line": 16,
+      "text": "In Java or C the line above overflows to a negative index; this form subtracts first and cannot."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the window shrinks correctly: the probe must round down, and a probe that is too small must discard the left half including mid itself.",
+     "template": "const mid = lo + Math.___((hi - lo) / 2);\nif (xs[mid] === target) return mid;\nif (xs[mid] < target) lo = ___;\nelse hi = mid - 1;",
+     "blanks": [
+      "floor",
+      "mid + 1"
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "midpoint",
+      "loop-invariant"
+     ],
+     "explain": "`mid + 1` rather than `mid` is what makes the window strictly smaller on every pass - `lo = mid` would leave a two-slot window unchanged forever. Rounding down is the other half of the same termination argument, since it keeps `mid < hi` while the window still has room to shrink."
+    }
+   },
+   {
+    "title": "Solving $T(n) = T(n/2) + O(1)$",
+    "body": "The cost of one call is a constant amount of comparing plus the cost of searching a window half the size, which is exactly the **recurrence** $T(n) = T(n/2) + O(1)$ with $T(1) = O(1)$.\n\nUnroll it and the shape appears: $T(n) = T(n/2) + 1 = T(n/4) + 2 = T(n/8) + 3 = \\dots = T(n/2^k) + k$.\n\nThe recursion bottoms out when $n/2^k = 1$, that is when $k = \\log_2 n$, so $T(n) = O(\\log n)$. The logarithm is not a guess - it is the count of halvings needed to drive $n$ down to $1$.\n\nThe base of that logarithm is absorbed by big-O, since changing base only multiplies by a constant, which is why nobody writes $O(\\log_2 n)$.",
+    "code": "function worstCaseProbes(n) {\n  let lo = 0;\n  let hi = n - 1;\n  let probes = 0;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    probes += 1;\n    lo = mid + 1;\n  }\n  return probes;\n}\n\nfor (const n of [1, 2, 4, 8, 16, 1000, 1000000]) {\n  console.log(n, worstCaseProbes(n), Math.floor(Math.log2(n)) + 1);\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Always taking the right half is the worst case: the window never holds the target and never collapses early."
+     },
+     {
+      "line": 14,
+      "text": "The measured probe count and floor(log2 n) + 1 agree at every size, a million included."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "retrieval",
+     "prompt": "Doubling the length of the array adds how much work to a binary search, and why?",
+     "rubric": {
+      "required": [
+       "one",
+       "half",
+       "log"
+      ],
+      "optional": [
+       "probe",
+       "recurrence"
+      ],
+      "minWords": 20
+     },
+     "concepts": [
+      "recurrence-relations"
+     ],
+     "explain": "Doubling n adds exactly one probe, because a single extra halving takes 2n back down to n. That is the practical meaning of a logarithm - cost grows with the number of doublings rather than with n - and it is why a million-element array costs only twenty probes."
+    }
+   },
+   {
+    "title": "The Divide-and-Conquer Shape",
+    "body": "Binary search is the thinnest member of a family. A **divide-and-conquer** algorithm splits a problem into $a$ subproblems of size $n/b$, solves them recursively, and combines the results in $f(n)$ time, giving $$T(n) = a\\,T(n/b) + f(n).$$\n\nBinary search has $a = 1$ - it recurses into **one** half and abandons the other - with $b = 2$ and $f(n) = O(1)$, so $T(n) = T(n/2) + O(1) = O(\\log n)$.\n\nThe maximum-finder below keeps **both** halves, so $a = 2$, $b = 2$, $f(n) = O(1)$, giving $T(n) = 2T(n/2) + O(1)$. Its recursion tree has $n$ leaves and about $2n$ nodes in total, so the cost is $O(n)$ - recursing does not make a linear scan faster.\n\nWhen the combine step itself costs $O(n)$ the recurrence becomes $T(n) = 2T(n/2) + O(n)$: each of the $\\log n$ levels does $O(n)$ work in total, so the whole thing is $O(n \\log n)$.\n\nThe exponent therefore lives in $a$ and $b$, and the extra logarithm lives in $f(n)$ - reading the recurrence tells you the cost before a line is written.",
+    "code": "let calls = 0;\n\nfunction maxOf(xs, lo, hi) {\n  calls += 1;\n  if (lo === hi) return xs[lo];\n  const mid = lo + Math.floor((hi - lo) / 2);\n  const left = maxOf(xs, lo, mid);\n  const right = maxOf(xs, mid + 1, hi);\n  return left > right ? left : right;\n}\n\nconst data = [3, 9, 4, 1, 7, 8, 2, 6];\nconsole.log(maxOf(data, 0, data.length - 1));\nconsole.log(\"calls\", calls);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "A one-slot window is the base case, and it is what stops the recursion."
+     },
+     {
+      "line": 8,
+      "text": "Both halves are solved, so a = 2 - unlike binary search, nothing is discarded."
+     },
+     {
+      "line": 14,
+      "text": "15 calls for 8 elements: 2n - 1 nodes in the tree, which is O(n), not O(log n)."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "let calls = 0;\nfunction sumOf(xs, lo, hi) {\n  calls += 1;\n  if (lo === hi) return xs[lo];\n  const mid = lo + Math.floor((hi - lo) / 2);\n  return sumOf(xs, lo, mid) + sumOf(xs, mid + 1, hi);\n}\nconsole.log(sumOf([1, 2, 3, 4], 0, 3));\nconsole.log(calls);",
+     "lang": "javascript",
+     "answer": "10\n7",
+     "concepts": [
+      "divide-and-conquer"
+     ],
+     "explain": "Four leaves and three internal nodes make seven calls - the $2n - 1$ shape of any recursion tree that keeps both halves. Splitting a sum in half is a legal divide-and-conquer, but with $a = 2$ and $b = 2$ it costs $O(n)$, exactly like the loop it replaced."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-4-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const xs = [4, 8, 15, 16, 23, 42];\nlet lo = 0;\nlet hi = xs.length - 1;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  console.log(lo, hi, mid, xs[mid]);\n  if (xs[mid] === 42) break;\n  if (xs[mid] < 42) lo = mid + 1;\n  else hi = mid - 1;\n}",
+   "lang": "javascript",
+   "answer": "0 5 2 15\n3 5 4 23\n5 5 5 42",
+   "concepts": [
+    "binary-search"
+   ],
+   "tags": [
+    "binary-search"
+   ],
+   "explain": "Six elements fall to three probes, and the windows are 6, 3 and 1 slots wide - each probe removes the probed slot as well as the half that cannot hold the target. The last window is a single slot, which is why `lo <= hi` rather than `lo < hi` is what lets the search see it at all.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks to complete one iteration of binary search over a sorted ascending array held in a closed window lo..hi.",
+   "template": "while (lo ___ hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  if (xs[mid] === target) return mid;\n  if (xs[mid] < target) lo = ___;\n  else hi = ___;\n}",
+   "blanks": [
+    "<=",
+    "mid + 1",
+    "mid - 1"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "binary-search",
+    "midpoint",
+    "off-by-one"
+   ],
+   "tags": [
+    "binary-search",
+    "off-by-one"
+   ],
+   "explain": "The three blanks are a matched set: a closed window needs `<=` to include its final slot, and both updates must step past `mid`, which has already been compared. Mixing conventions - `<` with `mid - 1`, or `<=` with `hi = mid` - is where nearly every broken binary search comes from.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one iteration of binary search back into the order that preserves the invariant.",
+   "fragments": [
+    "const mid = lo + Math.floor((hi - lo) / 2);",
+    "if (xs[mid] === target) return mid;",
+    "if (xs[mid] < target) lo = mid + 1;",
+    "else hi = mid - 1;"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "explain": "The midpoint has to exist before it can be compared, and the equality test has to run before either discard, or a hit sitting exactly on `mid` would be thrown out along with its half. The order is forced by the invariant, not by taste.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-g-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `binarySearch([1, 4, 9, 16, 25, 36, 49], 9)`. Give each probe index and the window that survives it, written as `lo, hi`.",
+   "code": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "probe 1: mid",
+     "expected": "3"
+    },
+    {
+     "label": "window after probe 1 (lo, hi)",
+     "expected": "0, 2"
+    },
+    {
+     "label": "probe 2: mid",
+     "expected": "1"
+    },
+    {
+     "label": "window after probe 2 (lo, hi)",
+     "expected": "2, 2"
+    },
+    {
+     "label": "probe 3: mid",
+     "expected": "2"
+    },
+    {
+     "label": "value returned",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "explain": "Every window here still contains index 2, which is the invariant made visible: the target's index is never outside `lo..hi`. Note the third window is a single slot - the search cannot finish until it has actually looked at it.",
+   "xp": 40
+  },
+  {
+   "id": "alg-4-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `binarySearch(xs, target)` over a sorted ascending array of numbers. Return the index of `target`, or `-1` if it is absent. Probe the middle and discard half the window each pass - do not scan.",
+   "fn": "binarySearch",
+   "starterCode": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (/* is the window still non-empty? */) {\n    // probe the middle, then discard the half that cannot hold the target\n  }\n  return -1;\n}",
+   "solution": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "tests": [
+    {
+     "input": "[2, 5, 8, 12, 16, 23, 38, 56, 72, 91], 23",
+     "expected": 5
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 1",
+     "expected": 0
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 9",
+     "expected": 4
+    },
+    {
+     "input": "[7], 7",
+     "expected": 0
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 4",
+     "expected": -1
+    },
+    {
+     "input": "[], 1",
+     "expected": -1
+    }
+   ],
+   "hint": "The loop condition is `lo <= hi`, and both updates step past `mid`.",
+   "concepts": [
+    "binary-search",
+    "midpoint"
+   ],
+   "tags": [
+    "binary-search"
+   ],
+   "explain": "The two edge cases are what catch a broken version: a one-element array only works if the loop still runs when `lo === hi`, and an empty array only works if it does not run at all - `hi` starts at `-1`, so the condition is false immediately and `-1` falls out without a single read.",
+   "xp": 50
+  },
+  {
+   "id": "alg-4-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`binarySearch([9, 2, 7, 1, 5], 1)` returns -1 even though 1 is in the array. Explain what the algorithm concluded, and why sortedness is a precondition rather than a preference.",
+   "rubric": {
+    "required": [
+     "sorted",
+     "half",
+     "discard",
+     "wrong"
+    ],
+    "optional": [
+     "invariant",
+     "precondition",
+     "silent"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "sorted-precondition",
+    "binary-search"
+   ],
+   "tags": [
+    "sorted-precondition"
+   ],
+   "explain": "The first probe reads `xs[2]`, which is 7; since 7 > 1 the whole right half is discarded - and index 3, where 1 actually sits, goes with it. The reasoning 'everything right of mid is larger' is a fact about sorted arrays only, so on unsorted input the discard is unjustified and the failure is silent: it terminates, returns a plausible answer, and never signals that its precondition was violated.",
+   "xp": 20
+  }
+ ],
+ "debugging": [
+  {
+   "id": "alg-4-d-01",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This binary search has an off-by-one in its loop condition: it returns -1 for `[7], 7` and for `[1, 3, 5, 7, 9], 9`. Fix it so it finds every present target.",
+   "fn": "binarySearch",
+   "starterCode": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo < hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "solution": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "tests": [
+    {
+     "input": "[7], 7",
+     "expected": 0
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 9",
+     "expected": 4
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 1",
+     "expected": 0
+    },
+    {
+     "input": "[2, 4, 6, 8], 8",
+     "expected": 3
+    },
+    {
+     "input": "[1, 3, 5, 7, 9], 4",
+     "expected": -1
+    },
+    {
+     "input": "[], 3",
+     "expected": -1
+    }
+   ],
+   "hint": "Ask what the window `lo..hi` still holds when `lo === hi`, and whether the loop ever looks at it.",
+   "concepts": [
+    "off-by-one",
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "off-by-one"
+   ],
+   "explain": "`hi` is an inclusive bound, so a window with `lo === hi` still holds one unexamined slot and `lo < hi` walks away from it. The bug hides on most inputs because the target is usually found before the window narrows to one - which is exactly why it survives casual testing and then fails on the last element.",
+   "xp": 50
+  },
+  {
+   "id": "alg-4-d-02",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`firstIndexOf(xs, target)` must return the index of the **first** occurrence in a sorted array that may contain duplicates, or -1. It currently answers 1 for `[2, 2, 2, 2], 2` instead of 0. Fix it without giving up the halving - a leftward scan from the hit is not a fix.",
+   "fn": "firstIndexOf",
+   "starterCode": "function firstIndexOf(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "solution": "function firstIndexOf(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  let best = -1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) {\n      best = mid;\n      hi = mid - 1;\n    } else if (xs[mid] < target) {\n      lo = mid + 1;\n    } else {\n      hi = mid - 1;\n    }\n  }\n  return best;\n}",
+   "tests": [
+    {
+     "input": "[2, 2, 2, 2], 2",
+     "expected": 0
+    },
+    {
+     "input": "[5, 5, 5, 5, 5, 9], 5",
+     "expected": 0
+    },
+    {
+     "input": "[1, 2, 2, 3], 2",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2, 3], 3",
+     "expected": 2
+    },
+    {
+     "input": "[1, 2, 3], 9",
+     "expected": -1
+    },
+    {
+     "input": "[], 1",
+     "expected": -1
+    }
+   ],
+   "hint": "A hit is not a reason to stop: record it, then keep searching the left half.",
+   "concepts": [
+    "off-by-one",
+    "loop-invariant",
+    "binary-search"
+   ],
+   "tags": [
+    "off-by-one",
+    "loop-invariant"
+   ],
+   "explain": "Returning on the first hit answers a different question - *is it here* rather than *where does it start* - because the midpoint of a run of duplicates is an arbitrary member of that run. Strengthening the invariant to 'best is the leftmost hit seen so far, and any earlier one lies in lo..hi' keeps the cost at $O(\\log n)$, whereas a leftward scan would degrade it to $O(n)$ on an array of equal values.",
+   "xp": 50
+  },
+  {
+   "id": "alg-4-d-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A student replaces `hi = mid - 1` with `hi = mid` but keeps the condition `lo <= hi`. Searching for 3 in `[5]` now hangs forever. Explain why, in terms of what each iteration has to guarantee.",
+   "rubric": {
+    "required": [
+     "shrink",
+     "same",
+     "terminate",
+     "mid"
+    ],
+    "optional": [
+     "progress",
+     "invariant",
+     "measure"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "off-by-one",
+    "loop-invariant",
+    "midpoint"
+   ],
+   "tags": [
+    "off-by-one",
+    "loop-invariant"
+   ],
+   "explain": "Termination needs a measure that strictly decreases, and here it is the window width `hi - lo + 1`. With `lo === hi === mid`, assigning `hi = mid` leaves the width the same, so the loop repeats an identical state forever. An invariant alone proves nothing about finishing - correctness and termination are two separate arguments, and this change keeps the first while destroying the second.",
+   "xp": 20
+  }
+ ],
+ "analysis": [
+  {
+   "id": "alg-4-a-01",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time complexity of binary search on a sorted array of $n$ elements, and justify it by writing down its recurrence and unrolling it.",
+   "answer": "O(log n)",
+   "rubric": {
+    "required": [
+     "recurrence",
+     "half",
+     "unroll",
+     "log"
+    ],
+    "optional": [
+     "constant",
+     "base case",
+     "probe"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "recurrence-relations",
+    "binary-search"
+   ],
+   "tags": [
+    "recurrence-relations",
+    "complexity"
+   ],
+   "explain": "The recurrence $T(n) = T(n/2) + O(1)$ unrolls to $T(n/2^k) + k$, and the base case $n/2^k = 1$ pins $k$ at $\\log_2 n$. The logarithm is a count of halvings, so its base is only a constant factor and big-O absorbs it - which is why $\\log_2$ and $\\log_{10}$ describe the same growth.",
+   "xp": 40
+  },
+  {
+   "id": "alg-4-a-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "An algorithm splits its input in half, solves both halves recursively, and spends $O(n)$ combining the results: $T(n) = 2T(n/2) + O(n)$. Give its complexity and justify it by the work done per level of the recursion tree.",
+   "answer": "O(n log n)",
+   "rubric": {
+    "required": [
+     "level",
+     "log",
+     "n",
+     "combine"
+    ],
+    "optional": [
+     "tree",
+     "depth",
+     "halving"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "recurrence-relations",
+    "divide-and-conquer"
+   ],
+   "tags": [
+    "recurrence-relations",
+    "divide-and-conquer"
+   ],
+   "explain": "Level $k$ holds $2^k$ subproblems of size $n/2^k$, so every level combines $O(n)$ in total however deep it sits, and halving bottoms out after $\\log_2 n$ levels. Compare $T(n) = 2T(n/2) + O(1)$, where the per-level work halves as you descend and the sum collapses to $O(n)$: the extra logarithm is bought entirely by the combine step.",
+   "xp": 40
+  },
+  {
+   "id": "alg-4-a-03",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that binary search always terminates on any array, sorted or not. Name the quantity that decreases, show it decreases on every iteration, and show it is bounded below.",
+   "rubric": {
+    "required": [
+     "decrease",
+     "window",
+     "mid",
+     "bounded",
+     "terminate"
+    ],
+    "optional": [
+     "measure",
+     "integer",
+     "invariant",
+     "floor"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "loop-invariant",
+    "binary-search",
+    "midpoint"
+   ],
+   "tags": [
+    "loop-invariant",
+    "proof"
+   ],
+   "explain": "The measure is the window width $hi - lo + 1$. Because rounding down gives $lo \\le mid \\le hi$, both updates - $lo = mid + 1$ and $hi = mid - 1$ - move a bound strictly past $mid$, so the width falls by at least one each pass. It is an integer bounded below by $0$, and the loop condition fails at $0$, so no infinite descent is possible. Notice this argument never mentions sortedness: an unsorted array still terminates, it just answers wrongly.",
+   "xp": 50
+  },
+  {
+   "id": "alg-4-a-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "For $n = 64$ in the worst case - the target is never found and the search always takes the right half - give the window width $hi - lo + 1$ after each probe, then the total number of probes.",
+   "code": "let lo = 0;\nlet hi = 63;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  lo = mid + 1;\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "width after probe 1",
+     "expected": "32"
+    },
+    {
+     "label": "width after probe 2",
+     "expected": "16"
+    },
+    {
+     "label": "width after probe 3",
+     "expected": "8"
+    },
+    {
+     "label": "width after probe 4",
+     "expected": "4"
+    },
+    {
+     "label": "width after probe 5",
+     "expected": "2"
+    },
+    {
+     "label": "width after probe 6",
+     "expected": "1"
+    },
+    {
+     "label": "width after probe 7",
+     "expected": "0"
+    },
+    {
+     "label": "total probes",
+     "expected": "7"
+    }
+   ],
+   "concepts": [
+    "recurrence-relations",
+    "binary-search"
+   ],
+   "tags": [
+    "recurrence-relations"
+   ],
+   "explain": "This is $T(n) = T(n/2) + O(1)$ written out as data: seven probes for $64 = 2^6$, matching $\\lfloor \\log_2 64 \\rfloor + 1$. The final step from width 1 to width 0 is the base case being consumed - and it is precisely the probe a `lo < hi` loop would skip.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-4-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does binary search require of its input, and what happens when the requirement is broken?",
+   "choices": [
+    "Distinct elements; duplicates cause an infinite loop",
+    "Sorted order; a violation gives a wrong answer with no error",
+    "A power-of-two length; other lengths throw a RangeError",
+    "Numeric elements; strings make the midpoint undefined"
+   ],
+   "answer": 1,
+   "concepts": [
+    "sorted-precondition"
+   ],
+   "tags": [
+    "sorted-precondition"
+   ],
+   "explain": "Order is the only precondition, and it is the thing that licenses discarding an unread half. Duplicates and odd lengths are harmless; a violated order costs nothing at run time and everything in correctness, which is why the precondition has to be guaranteed by the caller rather than detected by the search.",
+   "xp": 10
+  },
+  {
+   "id": "alg-4-e-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Unrolled, $T(n) = T(n/2) + O(1)$ with $T(1) = O(1)$ solves to:",
+   "choices": [
+    "$O(1)$",
+    "$O(\\log n)$",
+    "$O(n)$",
+    "$O(n \\log n)$"
+   ],
+   "answer": 1,
+   "concepts": [
+    "recurrence-relations"
+   ],
+   "tags": [
+    "recurrence-relations"
+   ],
+   "explain": "Each unrolling step adds a constant and halves $n$, so after $k$ steps the cost is $T(n/2^k) + k$ and the base case is reached at $k = \\log_2 n$. The recurrence, not the code, is what fixes the answer - anything with a single recursive call on half the input and constant extra work lands here.",
+   "xp": 10
+  },
+  {
+   "id": "alg-4-e-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const xs = [2, 4, 6, 8, 10, 12, 14, 16];\nlet lo = 0;\nlet hi = xs.length - 1;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  console.log(mid, xs[mid]);\n  if (xs[mid] === 5) break;\n  if (xs[mid] < 5) lo = mid + 1;\n  else hi = mid - 1;\n}\nconsole.log(\"lo\", lo, \"hi\", hi);",
+   "lang": "javascript",
+   "answer": "3 8\n1 4\n2 6\nlo 2 hi 1",
+   "concepts": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "binary-search"
+   ],
+   "explain": "The loop ends with `lo` one past `hi`, which is what an empty window looks like - and `lo` is 2, precisely where 5 belongs, between 4 and 6. A failed search is not wasted work: it hands back the insertion point for free.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-e-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the midpoint takes the form that cannot overflow a fixed-width integer.",
+   "template": "const mid = ___ + Math.floor((___ - lo) / 2);",
+   "blanks": [
+    "lo",
+    "hi"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "midpoint"
+   ],
+   "tags": [
+    "midpoint"
+   ],
+   "explain": "`hi - lo` is at most the array length, so adding it back to `lo` can never exceed `hi` - whereas `lo + hi` can approach twice the largest index and wraps negative in a 32-bit language. Rounding down is the second requirement, and it is what keeps `mid < hi` while the window still has room to shrink.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-e-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the steps that solve $T(n) = T(n/2) + O(1)$.",
+   "fragments": [
+    "$T(n) = T(n/2) + 1$",
+    "$T(n) = T(n/4) + 2$",
+    "$T(n) = T(n/2^k) + k$",
+    "the base case $T(1)$ is reached when $n/2^k = 1$, so $k = \\log_2 n$",
+    "$T(n) = O(\\log n)$"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "recurrence-relations"
+   ],
+   "tags": [
+    "recurrence-relations"
+   ],
+   "explain": "Unrolling is mechanical: substitute the recurrence into itself, spot the pattern in $k$, then let the base case decide how large $k$ can get. The base case is what converts a pattern into a number - without it the unrolling never stops and no bound ever appears.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-e-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `binarySearch([1, 4, 9, 16, 25, 36, 49], 36)`. Give each probe index and the surviving window as `lo, hi`.",
+   "code": "function binarySearch(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "probe 1: mid",
+     "expected": "3"
+    },
+    {
+     "label": "window after probe 1 (lo, hi)",
+     "expected": "4, 6"
+    },
+    {
+     "label": "probe 2: mid",
+     "expected": "5"
+    },
+    {
+     "label": "value returned",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "binary-search"
+   ],
+   "explain": "Two probes suffice because the second midpoint happens to land on the target - the $O(\\log n)$ bound is a ceiling on the worst case, never a promise about a particular search. The invariant holds throughout: index 5 sits inside both windows.",
+   "xp": 40
+  },
+  {
+   "id": "alg-4-e-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You run one binary search for each of $n$ queries against the same sorted array of $n$ elements. Give the total worst-case complexity and justify it.",
+   "answer": "O(n log n)",
+   "rubric": {
+    "required": [
+     "each",
+     "log",
+     "n",
+     "multiply"
+    ],
+    "optional": [
+     "independent",
+     "query",
+     "sorted"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "binary-search",
+    "recurrence-relations"
+   ],
+   "tags": [
+    "complexity",
+    "binary-search"
+   ],
+   "explain": "Independent repetitions multiply rather than compose, so $n$ searches at $O(\\log n)$ each is $O(n \\log n)$. That total is also the argument for sorting first: one sort plus $O(n \\log n)$ of searching beats $n$ linear scans at $O(n^2)$, which is why the sort pays for itself as soon as the queries outnumber a constant.",
+   "xp": 40
+  },
+  {
+   "id": "alg-4-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insertPosition(xs, target)` over a sorted ascending array of distinct numbers. Return the index of `target` if it is present, otherwise the index at which it would have to be inserted to keep the array sorted. Use halving, not a scan.",
+   "fn": "insertPosition",
+   "starterCode": "function insertPosition(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  // run the ordinary search, then ask what lo holds once the loop stops\n  return lo;\n}",
+   "solution": "function insertPosition(xs, target) {\n  let lo = 0;\n  let hi = xs.length - 1;\n  while (lo <= hi) {\n    const mid = lo + Math.floor((hi - lo) / 2);\n    if (xs[mid] === target) return mid;\n    if (xs[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return lo;\n}",
+   "tests": [
+    {
+     "input": "[1, 3, 5, 6], 5",
+     "expected": 2
+    },
+    {
+     "input": "[1, 3, 5, 6], 2",
+     "expected": 1
+    },
+    {
+     "input": "[1, 3, 5, 6], 7",
+     "expected": 4
+    },
+    {
+     "input": "[1, 3, 5, 6], 0",
+     "expected": 0
+    },
+    {
+     "input": "[], 4",
+     "expected": 0
+    },
+    {
+     "input": "[2], 2",
+     "expected": 0
+    }
+   ],
+   "hint": "The ordinary search already computes it - look at what `lo` holds when the loop exits.",
+   "concepts": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "tags": [
+    "binary-search",
+    "loop-invariant"
+   ],
+   "explain": "The invariant says the target, if present, lies in `lo..hi`; when that window empties, everything left of `lo` is smaller and everything from `lo` onward is larger, which is the definition of an insertion point. Returning `lo` instead of `-1` is a one-token change that turns a failed search into useful information - and on the empty array `lo` is still 0, which is the right answer.",
+   "xp": 50
+  },
+  {
+   "id": "alg-4-e-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the midpoint must round **down**, by describing what a two-slot window does under `Math.ceil` when the update is `hi = mid`.",
+   "rubric": {
+    "required": [
+     "round",
+     "down",
+     "shrink",
+     "loop"
+    ],
+    "optional": [
+     "terminate",
+     "window",
+     "progress",
+     "mid"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "midpoint",
+    "off-by-one"
+   ],
+   "tags": [
+    "midpoint"
+   ],
+   "explain": "Rounding down guarantees $mid < hi$ whenever $lo < hi$, so an update that keeps the left side genuinely moves the upper bound. Round up and a two-slot window puts `mid` on `hi`; with `hi = mid` the window is unchanged and the loop repeats forever. Which rounding is correct is not arbitrary - it is fixed by which side the update keeps.",
+   "xp": 20
+  },
+  {
+   "id": "alg-4-e-10",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "The recursive maximum-finder splits the range in half, recurses on both halves, and combines with a single comparison: $T(n) = 2T(n/2) + O(1)$. Give its complexity and explain why recursing does not beat a plain scan.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "leaves",
+     "both",
+     "half",
+     "linear"
+    ],
+    "optional": [
+     "tree",
+     "combine",
+     "scan",
+     "element"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "divide-and-conquer",
+    "recurrence-relations"
+   ],
+   "tags": [
+    "divide-and-conquer"
+   ],
+   "explain": "With $a = 2$ the recursion tree has $n$ leaves and about $2n - 1$ nodes, and every element must be read before the maximum is known, so nothing can do better than linear here. Binary search is fast because it **discards** a half, not because it divides one - $a = 1$ versus $a = 2$ is the whole difference between $O(\\log n)$ and $O(n)$.",
+   "xp": 40
+  }
+ ]
+}

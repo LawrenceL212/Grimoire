@@ -1,0 +1,428 @@
+{
+ "n": 10,
+ "name": "The Great Index",
+ "concepts": [
+  "tokenisation",
+  "inverted-index",
+  "term-frequency",
+  "inverse-document-frequency",
+  "tf-idf-ranking",
+  "query-parsing"
+ ],
+ "cognitiveLevel": "boss",
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "title": "Everything the Trial Needs",
+  "sections": [
+   {
+    "title": "Text Becomes Terms",
+    "body": "A search engine never searches text. It searches **terms**, and `tokenise` is the one function that decides what a term is: lowercase everything, cut at every run of characters that is not a letter or a digit, and throw the empty pieces away.\n\nThat single decision is the engine's entire vocabulary. `Cat`, `CAT` and `cat,` must collapse to the same term or a query for `cat` misses two documents in three, and the **query is tokenised by the same function** so that both sides of the comparison speak one language.\n\nThe rule is deliberately crude - `Don't` becomes `don` and `t`, and `mats` never meets `mat` - which is exactly why real engines add a stemmer. Crude is survivable; **inconsistent is not**, because an index built one way and queried another silently returns nothing at all.",
+    "code": "function tokenise(text) {\n  return String(text).toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\n}\n\nconsole.log(JSON.stringify(tokenise(\"The Cat sat on the MAT.\")));\nconsole.log(JSON.stringify(tokenise(\"Don't stop -- 42 sheep!\")));\nconsole.log(JSON.stringify(tokenise(\"   \")));\nconsole.log(JSON.stringify(tokenise(\"Cat CAT cat\")));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Lowercase first, then split. Doing it the other way round means writing the case rule twice."
+     },
+     {
+      "line": 5,
+      "text": "Splitting on a run of non-alphanumerics collapses \"mat.  The\" into two pieces rather than four, but a leading or trailing separator still yields an empty string - hence the filter."
+     },
+     {
+      "line": 6,
+      "text": "The apostrophe is a separator like any other, so this prints don and t as two terms. Deterministic, and visibly imperfect."
+     },
+     {
+      "line": 7,
+      "text": "Whitespace only: split gives two empty strings, the filter removes both, and the answer is an empty array rather than [\"\"]."
+     },
+     {
+      "line": 8,
+      "text": "Duplicates are kept. Term frequency is about to need that count."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `tokenise(text)`. Lowercase the text, split it on every run of characters that is not `a-z` or `0-9`, and return the non-empty pieces in order. Duplicates are kept.",
+     "fn": "tokenise",
+     "starterCode": "function tokenise(text) {\n  // lowercase, split on non-alphanumeric runs, drop the empties\n}\n",
+     "tests": [
+      {
+       "input": "\"The Cat sat on the MAT.\"",
+       "expected": [
+        "the",
+        "cat",
+        "sat",
+        "on",
+        "the",
+        "mat"
+       ]
+      },
+      {
+       "input": "\"Don't stop -- 42 sheep!\"",
+       "expected": [
+        "don",
+        "t",
+        "stop",
+        "42",
+        "sheep"
+       ]
+      },
+      {
+       "input": "\"   \"",
+       "expected": []
+      },
+      {
+       "input": "\"Cat CAT cat\"",
+       "expected": [
+        "cat",
+        "cat",
+        "cat"
+       ]
+      }
+     ],
+     "solution": "function tokenise(text) {\n  return String(text).toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\n}",
+     "explain": "Tokenising is a normalisation, not a clean-up: its job is to guarantee that one word written two ways lands on one term, so that a document and a query can be compared at all. The empty-string filter is the part people forget - splitting on a leading or trailing separator hands back \"\", and an empty term in a postings list would match every document containing a full stop.",
+     "concepts": [
+      "tokenisation"
+     ],
+     "xp": 50
+    }
+   },
+   {
+    "title": "The Inverted Index",
+    "body": "A forward index maps a document to its terms, which is precisely the wrong direction: answering `cat` would mean reading every document in the corpus. An **inverted index** maps a term to the documents that contain it, with a count - the term's **postings list**.\n\nBuilding it is one pass. Each of the $n$ tokens in the corpus is read once and incremented into one posting, so construction is $O(n)$ in the total token count, and the index is then reused by every query that follows.\n\nTwo more things must be stored alongside the postings: the **number of documents** $N$, which the IDF will need, and each document's **length** in tokens, which the term frequency will need. A term nobody wrote has no posting at all, so a lookup yields `undefined` rather than an empty object - guard it, or counting its postings throws.",
+    "code": "function tokenise(text) {\n  return String(text).toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\n}\n\nfunction buildIndex(documents) {\n  const index = { documentCount: documents.length, docLengths: {}, postings: {} };\n  for (const doc of documents) {\n    const tokens = tokenise(doc.text);\n    index.docLengths[doc.id] = tokens.length;\n    for (const term of tokens) {\n      if (!index.postings[term]) index.postings[term] = {};\n      index.postings[term][doc.id] = (index.postings[term][doc.id] || 0) + 1;\n    }\n  }\n  return index;\n}\n\nconst index = buildIndex([\n  { id: \"a\", text: \"the cat sat on the mat\" },\n  { id: \"b\", text: \"a dog sat on the log\" },\n  { id: \"c\", text: \"cat and dog and cat\" }\n]);\nconsole.log(JSON.stringify(index.docLengths));\nconsole.log(JSON.stringify(index.postings.cat));\nconsole.log(JSON.stringify(index.postings.the));\nconsole.log(JSON.stringify(index.postings.zebra));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "documentCount is captured here, at build time. Recomputing it later from the postings is wrong - a document containing no terms at all still counts."
+     },
+     {
+      "line": 9,
+      "text": "The length is the token count including duplicates, which is what makes tf a proportion of the document rather than of its vocabulary."
+     },
+     {
+      "line": 11,
+      "text": "Create the posting on first sight of the term. This one line is why the whole build stays a single pass."
+     },
+     {
+      "line": 12,
+      "text": "The || 0 handles the first occurrence in this document; every later one simply increments."
+     },
+     {
+      "line": 25,
+      "text": "\"the\" appears twice in a and once in b, so the posting carries counts, not merely membership."
+     },
+     {
+      "line": 26,
+      "text": "An unseen term is undefined, not {}. Every reader of postings has to expect that."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "The four documents below are indexed in order. After each one, give the **postings list for the term `the`** exactly as it stands - written `{docId:count, ...}` with the ids in the order they were first added, or `{}` if it has none yet.",
+     "code": "const documents = [\n  { id: \"a\", text: \"the cat sat on the mat\" },\n  { id: \"b\", text: \"a dog sat on the log\" },\n  { id: \"c\", text: \"cat and dog and cat\" },\n  { id: \"d\", text: \"the quiet mat\" }\n];",
+     "lang": "javascript",
+     "steps": [
+      {
+       "label": "postings.the after document a",
+       "expected": "{a:2}"
+      },
+      {
+       "label": "postings.the after document b",
+       "expected": "{a:2,b:1}"
+      },
+      {
+       "label": "postings.the after document c",
+       "expected": "{a:2,b:1}"
+      },
+      {
+       "label": "postings.the after document d",
+       "expected": "{a:2,b:1,d:1}"
+      }
+     ],
+     "explain": "Document c is the step that teaches the structure: it is indexed in full, it lengthens the corpus and it raises $N$ - and it leaves this postings list untouched, because it contains no `the`. That is the whole point of inverting the index. A query for `the` never looks at c at all, so the cost of answering it is the length of this list rather than the size of the corpus.",
+     "concepts": [
+      "inverted-index"
+     ],
+     "xp": 40
+    }
+   },
+   {
+    "title": "Weighing a Term: TF-IDF",
+    "body": "Counting matches ranks long documents first, and ranks a document that says `the` forty times above one that is actually about cats. **TF-IDF** repairs both halves. Term frequency divides the count by the document's length, giving a proportion rather than a total:\n\n$$\\mathrm{tf}(t,d) = \\frac{\\mathrm{count}(t,d)}{|d|}$$\n\nInverse document frequency asks how rare the term is across the corpus, where $N$ is the number of documents and $\\mathrm{df}(t)$ is how many of them contain $t$. We use the **natural logarithm**, `Math.log`, and saying so is not pedantry - a different base rescales every score in the engine, and a ranking is only reproducible once the base is pinned:\n\n$$\\mathrm{idf}(t) = \\ln\\frac{N}{\\mathrm{df}(t)}$$\n\nA term's weight in a document is $\\mathrm{tf} \\times \\mathrm{idf}$, and two boundary cases fall straight out of the formula. A term in **every** document has $\\mathrm{df} = N$, so $\\ln 1 = 0$ and it contributes nothing - the stop-word list you never had to write - and a term in **no** document would divide by zero, so define its IDF as $0$ rather than let an infinity into the sort.",
+    "code": "const index = {\n  documentCount: 4,\n  docLengths: { a: 6, b: 6, c: 5, d: 3 },\n  postings: { cat: { a: 1, c: 2 }, the: { a: 2, b: 1, d: 1 } }\n};\n\nfunction termFrequency(index, term, docId) {\n  const length = index.docLengths[docId];\n  if (!length) return 0;\n  const posting = index.postings[term];\n  return (posting && posting[docId] ? posting[docId] : 0) / length;\n}\n\nfunction inverseDocumentFrequency(index, term) {\n  const posting = index.postings[term];\n  const df = posting ? Object.keys(posting).length : 0;\n  return df === 0 ? 0 : Math.log(index.documentCount / df);\n}\n\nfunction show(term, id) {\n  const tf = termFrequency(index, term, id);\n  const idf = inverseDocumentFrequency(index, term);\n  return term + \" in \" + id + \": tf=\" + tf.toFixed(4) + \" idf=\" + idf.toFixed(4) +\n         \" tfidf=\" + (tf * idf).toFixed(4);\n}\n\nconsole.log(show(\"cat\", \"a\"));\nconsole.log(show(\"cat\", \"c\"));\nconsole.log(show(\"the\", \"a\"));\nconst everywhere = { documentCount: 4, docLengths: {}, postings: { on: { a: 1, b: 1, c: 1, d: 1 } } };\nconsole.log(\"a term in every document: idf=\" + inverseDocumentFrequency(everywhere, \"on\").toFixed(4));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 9,
+      "text": "A length of zero would divide by zero, and an unknown document id gives undefined - one guard covers both."
+     },
+     {
+      "line": 16,
+      "text": "df is just the size of the postings list. Nothing else has to be scanned to know it."
+     },
+     {
+      "line": 17,
+      "text": "df === 0 is the unseen term. Returning 0 keeps NaN and Infinity out of the ranking."
+     },
+     {
+      "line": 28,
+      "text": "cat is rarer than the, and c is shorter than a - both effects push c above a."
+     },
+     {
+      "line": 29,
+      "text": "the earns 0.0959 in a document it appears in twice: high tf, feeble idf."
+     },
+     {
+      "line": 31,
+      "text": "ln(4/4) = 0. A term everybody uses is worth exactly nothing, and no stop-word list was needed to decide it."
+     }
+    ],
+    "checkpoint": {
+     "type": "complexity",
+     "layer": "application",
+     "prompt": "Scoring a single-term query against a finished inverted index means visiting each document in that term's postings list and computing $\\mathrm{tf} \\times \\mathrm{idf}$ for it. State the cost in terms of $\\mathrm{df}$, the number of documents containing the term, and justify it: say what the query does *not* touch, and where the corpus-sized work went.",
+     "answer": "O(df)",
+     "rubric": {
+      "required": [
+       "posting",
+       "df",
+       "idf",
+       "index"
+      ],
+      "optional": [
+       "corpus",
+       "build",
+       "constant",
+       "scan",
+       "token"
+      ],
+      "minWords": 30
+     },
+     "explain": "The corpus-sized work did not vanish - it was paid once, at build time, in the $O(n)$ pass over every token, and every query since has been amortising it. IDF adds nothing to the bill because $\\mathrm{df}$ is the length of the very list being walked and $N$ was stored when the index was built, so no second pass over the documents is needed. This is the trade the inverted index exists to make: one expensive build in exchange for queries costing what the term is rare, not what the collection is large.",
+     "concepts": [
+      "term-frequency",
+      "inverse-document-frequency"
+     ],
+     "xp": 40
+    }
+   },
+   {
+    "title": "Parsing the Query, Ranking the Answer",
+    "body": "A query is text with **operators** in it. Splitting on whitespace first lets a leading `+` or `-` be read before the word is tokenised - `+cat mat -dog` means cat is required, mat is merely wanted, and dog disqualifies a document however well it scores otherwise.\n\nOnly the required and optional terms score; an excluded term is a filter and never a contribution. A document survives when it holds every required term, none of the excluded ones and at least one scoring term, and its score is then the sum of $\\mathrm{tf} \\times \\mathrm{idf}$ over those scoring terms.\n\nThe sort needs a **total order** or the engine is not deterministic, and exact ties are common - a term appearing in every document scores $0$ everywhere. So: score descending, and on a tie, document id ascending. What the caller is promised is the **order**, not the numbers, which is what lets the weighting change later without breaking every test.",
+    "code": "function tokenise(text) {\n  return String(text).toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\n}\n\nfunction parseQuery(query) {\n  const parsed = { required: [], optional: [], excluded: [] };\n  const seen = [];\n  for (const word of String(query).split(/\\s+/).filter(Boolean)) {\n    let bucket = \"optional\", rest = word;\n    if (word[0] === \"+\") { bucket = \"required\"; rest = word.slice(1); }\n    else if (word[0] === \"-\") { bucket = \"excluded\"; rest = word.slice(1); }\n    for (const term of tokenise(rest)) {\n      if (seen.indexOf(term) >= 0) continue;\n      seen.push(term);\n      parsed[bucket].push(term);\n    }\n  }\n  return parsed;\n}\n\nconst scored = [\n  { id: \"c\", score: 0.2773 },\n  { id: \"a\", score: 0.1155 },\n  { id: \"d\", score: 0.1155 }\n];\nscored.sort(function (x, y) {\n  if (y.score !== x.score) return y.score - x.score;\n  return x.id < y.id ? -1 : x.id > y.id ? 1 : 0;\n});\n\nconsole.log(JSON.stringify(parseQuery(\"+cat mat -dog\")));\nconsole.log(JSON.stringify(parseQuery(\"Cat, DOG!\")));\nconsole.log(JSON.stringify(parseQuery(\"the +the -the\")));\nconsole.log(JSON.stringify(scored.map(function (s) { return s.id; })));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Split on whitespace, not with tokenise - tokenise would eat the + and - before they could ever be read."
+     },
+     {
+      "line": 10,
+      "text": "The prefix is stripped, and what remains goes through tokenise, so query words are normalised exactly like document text."
+     },
+     {
+      "line": 13,
+      "text": "One word can yield several terms once tokenised, and they all inherit that word's bucket."
+     },
+     {
+      "line": 28,
+      "text": "The comparator falls through to the id only when the scores are equal, which makes the ordering total and the tests stable."
+     },
+     {
+      "line": 34,
+      "text": "a and d tie at 0.1155, so the id decides: a before d, on every single run."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `parseQuery(query)` returning `{ required, optional, excluded }`. Split the query on whitespace; a word starting with `+` is required, one starting with `-` is excluded, anything else is optional. Strip the prefix, tokenise the rest, and push each resulting term into that bucket. **A term already sitting in any bucket is skipped** - first occurrence wins.",
+     "fn": "parseQuery",
+     "starterCode": "function parseQuery(query) {\n  const parsed = { required: [], optional: [], excluded: [] };\n  // split on whitespace, read the prefix, then tokenise what is left\n  return parsed;\n}\n",
+     "tests": [
+      {
+       "input": "\"+cat mat -dog\"",
+       "expected": {
+        "required": [
+         "cat"
+        ],
+        "optional": [
+         "mat"
+        ],
+        "excluded": [
+         "dog"
+        ]
+       }
+      },
+      {
+       "input": "\"Cat, DOG!\"",
+       "expected": {
+        "required": [],
+        "optional": [
+         "cat",
+         "dog"
+        ],
+        "excluded": []
+       }
+      },
+      {
+       "input": "\"\"",
+       "expected": {
+        "required": [],
+        "optional": [],
+        "excluded": []
+       }
+      },
+      {
+       "input": "\"the +the -the\"",
+       "expected": {
+        "required": [],
+        "optional": [
+         "the"
+        ],
+        "excluded": []
+       }
+      }
+     ],
+     "solution": "function tokenise(text) {\n  return String(text).toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\n}\n\nfunction parseQuery(query) {\r\n  const parsed = { required: [], optional: [], excluded: [] };\r\n  const seen = [];\r\n  const raw = query === null || query === undefined ? \"\" : String(query);\r\n  for (const word of raw.split(/\\s+/).filter(Boolean)) {\r\n    let bucket = \"optional\", rest = word;\r\n    if (word[0] === \"+\") { bucket = \"required\"; rest = word.slice(1); }\r\n    else if (word[0] === \"-\") { bucket = \"excluded\"; rest = word.slice(1); }\r\n    for (const term of tokenise(rest)) {\r\n      if (seen.indexOf(term) >= 0) continue;\r\n      seen.push(term);\r\n      parsed[bucket].push(term);\r\n    }\r\n  }\r\n  return parsed;\r\n}",
+     "explain": "The prefix must be read before tokenising, because tokenise treats `+` and `-` as separators and would destroy the operator on its way past. The dedupe rule is what stops `the +the` being scored twice and, worse, stops a term being required and excluded at once - a contradiction the ranking loop has no sensible answer to, settled here by a rule the caller can predict rather than by whichever loop happens to run last.",
+     "concepts": [
+      "query-parsing"
+     ],
+     "xp": 50
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "alg-10-t-01",
+   "type": "project",
+   "layer": "application",
+   "harness": "function",
+   "prompt": "**The Trial.** Build a search engine as six pure functions. No storage, no network, no state kept between calls - the acceptance tests below are the whole specification, and nothing is hidden from you.\n\n`tokenise(text)` lowercases the text, splits it on every run of characters outside `a-z0-9`, and returns the non-empty pieces in order, duplicates kept.\n\n`buildIndex(documents)` takes an array of `{ id, text }` and returns exactly three keys.\n\n- `documentCount` - how many documents were given.\n- `docLengths` - `{ id: tokenCount }` for every document, counting duplicates, and `0` for a document with no terms.\n- `postings` - `{ term: { id: countInThatDocument } }`, holding only the documents in which that term actually occurs. A term nobody used has no key at all.\n\n`termFrequency(index, term, docId)` returns the count divided by that document's length, and `0` when the term, the document or the length is missing.\n\n`inverseDocumentFrequency(index, term)` returns $\\ln(N / \\mathrm{df})$, where $N$ is `index.documentCount` and $\\mathrm{df}$ is the size of the term's postings list. **The base is $e$ - use `Math.log`.** A term with $\\mathrm{df} = 0$ returns `0`, never `Infinity`.\n\n`parseQuery(query)` returns `{ required, optional, excluded }`, all arrays of terms. Split the query on whitespace; a word starting with `+` is required, one starting with `-` is excluded, anything else is optional. Strip that prefix, tokenise what remains, and push each term into that bucket - unless the term already sits in some bucket, in which case skip it, first occurrence winning.\n\n`search(index, query)` returns **an array of document ids, ranked** - no scores, no objects. The scoring terms are the required ones followed by the optional ones. A document is returned when it contains every required term, contains no excluded term, and contains at least one scoring term; its score is $\\sum \\mathrm{tf}(t,d)\\cdot\\mathrm{idf}(t)$ over the scoring terms. Rank by score **descending**, breaking ties on **document id ascending** so that the order is total. A query with no scoring terms returns `[]`.\n\nThe tests call `search`, and the index they hand it is sometimes one your `buildIndex` has just made and sometimes a literal written by hand - so `search` must read the documented structure rather than rebuild it. Two tests pass an index whose document ids are facts about your other functions; those check that the pieces you were told to build exist and agree.",
+   "fn": "search",
+   "starterCode": "",
+   "tests": [
+    {
+     "label": "search(buildIndex(corpus), \"cat\") ranks by tf-idf",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"cat\"",
+     "expected": [
+      "c",
+      "a"
+     ]
+    },
+    {
+     "label": "search(buildIndex(corpus), \"cat dog\") sums both terms",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"cat dog\"",
+     "expected": [
+      "c",
+      "a",
+      "b"
+     ]
+    },
+    {
+     "label": "the query is tokenised too: \"Cat, DOG!\"",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"Cat, DOG!\"",
+     "expected": [
+      "c",
+      "a",
+      "b"
+     ]
+    },
+    {
+     "label": "search(buildIndex(corpus), \"+cat -dog\") filters before it ranks",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"+cat -dog\"",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "label": "search(buildIndex(corpus), \"quiet mat\") - the rare term dominates",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"quiet mat\"",
+     "expected": [
+      "d",
+      "a"
+     ]
+    },
+    {
+     "label": "search(buildIndex(corpus), \"+sat +on\") - an exact tie breaks on id",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"+sat +on\"",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "label": "search reads a hand-written index it did not build",
+     "input": "{ documentCount: 3, docLengths: { p: 10, q: 5, r: 4 }, postings: { rust: { p: 3, q: 1 }, memory: { q: 2, r: 1 } } }, \"rust memory\"",
+     "expected": [
+      "q",
+      "p",
+      "r"
+     ]
+    },
+    {
+     "label": "search(buildIndex(corpus), \"zebra\") - term absent from the corpus",
+     "input": "buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]), \"zebra\"",
+     "expected": []
+    },
+    {
+     "label": "empty corpus, any query",
+     "input": "buildIndex([]), \"cat\"",
+     "expected": []
+    },
+    {
+     "label": "probe: the structure buildIndex produced",
+     "input": "(function () {\n  var ix = buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]);\n  var fmt = function (o) { return Object.keys(o).sort().map(function (k) { return k + \":\" + o[k]; }).join(\",\"); };\n  var facts = [\"documentCount=\" + ix.documentCount, \"docLengths=\" + fmt(ix.docLengths),\n               \"postings.cat=\" + fmt(ix.postings.cat), \"postings.the=\" + fmt(ix.postings.the),\n               \"terms=\" + Object.keys(ix.postings).sort().join(\"|\")];\n  var probe = { documentCount: facts.length, docLengths: {}, postings: { probe: {} } };\n  facts.forEach(function (f) { probe.docLengths[f] = 1; probe.postings.probe[f] = 1; });\n  return probe;\n})(), \"probe\"",
+     "expected": [
+      "docLengths=a:6,b:6,c:5,d:3",
+      "documentCount=4",
+      "postings.cat=a:1,c:2",
+      "postings.the=a:2,b:1,d:1",
+      "terms=a|and|cat|dog|log|mat|on|quiet|sat|the"
+     ]
+    },
+    {
+     "label": "probe: tokenise, tf, idf and parseQuery agree with the spec",
+     "input": "(function () {\n  var ix = buildIndex([{ id: \"a\", text: \"the cat sat on the mat\" }, { id: \"b\", text: \"a dog sat on the log\" }, { id: \"c\", text: \"cat and dog and cat\" }, { id: \"d\", text: \"the quiet mat\" }]);\n  var q = parseQuery(\"+cat dog -log\");\n  var facts = [\"tokenise=\" + tokenise(\"The Cat's mat, 2 mats!\").join(\"|\"),\n               \"tf=\" + termFrequency(ix, \"cat\", \"c\").toFixed(4),\n               \"idf=\" + inverseDocumentFrequency(ix, \"cat\").toFixed(4),\n               \"idfAll=\" + inverseDocumentFrequency(ix, \"the\").toFixed(4),\n               \"query=\" + q.required.join(\"|\") + \"/\" + q.optional.join(\"|\") + \"/\" + q.excluded.join(\"|\")];\n  var probe = { documentCount: facts.length, docLengths: {}, postings: { probe: {} } };\n  facts.forEach(function (f) { probe.docLengths[f] = 1; probe.postings.probe[f] = 1; });\n  return probe;\n})(), \"probe\"",
+     "expected": [
+      "idf=0.6931",
+      "idfAll=0.2877",
+      "query=cat/dog/log",
+      "tf=0.4000",
+      "tokenise=the|cat|s|mat|2|mats"
+     ]
+    }
+   ],
+   "solution": "function tokenise(text) {\r\n  const raw = text === null || text === undefined ? \"\" : String(text);\r\n  return raw.toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });\r\n}\r\n\r\nfunction buildIndex(documents) {\r\n  const docs = documents || [];\r\n  const index = { documentCount: docs.length, docLengths: {}, postings: {} };\r\n  for (const doc of docs) {\r\n    const tokens = tokenise(doc.text);\r\n    index.docLengths[doc.id] = tokens.length;\r\n    for (const term of tokens) {\r\n      if (!index.postings[term]) index.postings[term] = {};\r\n      index.postings[term][doc.id] = (index.postings[term][doc.id] || 0) + 1;\r\n    }\r\n  }\r\n  return index;\r\n}\r\n\r\nfunction termFrequency(index, term, docId) {\r\n  const length = index.docLengths[docId];\r\n  if (!length) return 0;\r\n  const posting = index.postings[term];\r\n  const count = posting ? posting[docId] || 0 : 0;\r\n  return count / length;\r\n}\r\n\r\nfunction inverseDocumentFrequency(index, term) {\r\n  const posting = index.postings[term];\r\n  const df = posting ? Object.keys(posting).length : 0;\r\n  if (df === 0) return 0;\r\n  return Math.log(index.documentCount / df);\r\n}\r\n\r\nfunction parseQuery(query) {\r\n  const parsed = { required: [], optional: [], excluded: [] };\r\n  const seen = [];\r\n  const raw = query === null || query === undefined ? \"\" : String(query);\r\n  for (const word of raw.split(/\\s+/).filter(Boolean)) {\r\n    let bucket = \"optional\", rest = word;\r\n    if (word[0] === \"+\") { bucket = \"required\"; rest = word.slice(1); }\r\n    else if (word[0] === \"-\") { bucket = \"excluded\"; rest = word.slice(1); }\r\n    for (const term of tokenise(rest)) {\r\n      if (seen.indexOf(term) >= 0) continue;\r\n      seen.push(term);\r\n      parsed[bucket].push(term);\r\n    }\r\n  }\r\n  return parsed;\r\n}\r\n\r\nfunction search(index, query) {\r\n  const parsed = parseQuery(query);\r\n  const scoring = parsed.required.concat(parsed.optional);\r\n  if (scoring.length === 0) return [];\r\n  const idf = {};\r\n  for (const term of scoring) idf[term] = inverseDocumentFrequency(index, term);\r\n  const hits = [];\r\n  for (const id of Object.keys(index.docLengths)) {\r\n    let allowed = true;\r\n    for (const term of parsed.required) {\r\n      if (termFrequency(index, term, id) === 0) allowed = false;\r\n    }\r\n    for (const term of parsed.excluded) {\r\n      if (termFrequency(index, term, id) > 0) allowed = false;\r\n    }\r\n    if (!allowed) continue;\r\n    let matched = 0, score = 0;\r\n    for (const term of scoring) {\r\n      const tf = termFrequency(index, term, id);\r\n      if (tf > 0) matched += 1;\r\n      score += tf * idf[term];\r\n    }\r\n    if (matched === 0) continue;\r\n    hits.push({ id: id, score: score });\r\n  }\r\n  hits.sort(function (a, b) {\r\n    if (b.score !== a.score) return b.score - a.score;\r\n    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;\r\n  });\r\n  return hits.map(function (h) { return h.id; });\r\n}",
+   "concepts": [
+    "tokenisation",
+    "inverted-index",
+    "term-frequency",
+    "inverse-document-frequency",
+    "tf-idf-ranking",
+    "query-parsing"
+   ],
+   "tags": [
+    "tokenisation",
+    "inverted-index",
+    "term-frequency",
+    "inverse-document-frequency",
+    "tf-idf-ranking",
+    "query-parsing"
+   ],
+   "explain": "Every rule lives in exactly one function, and the pipeline runs in one direction: text becomes terms, terms become an index, the index becomes a weighting, the weighting becomes an order. That is what makes the thing testable at all. Ranking is the only part a user ever sees and the part hardest to assert on directly, so the contract is the order and the index structure rather than the floating-point scores, and the probe tests reach the interior functions through the single entry point the harness calls.\n\nThe cost model is why any of this exists. Building the index is $O(n)$ over the corpus's total tokens, paid once; a query then walks only the postings lists of the terms it mentions, so answering `zebra` across a million documents costs almost nothing, because there is no list to walk. Scanning the documents per query would instead have made every search $O(n)$ forever.\n\nTwo details separate a working engine from a plausible one. Dividing by document length stops a long document winning merely by being long, and the logarithm in IDF makes a term appearing in every document worth exactly zero - $\\ln(N/N) = 0$ - so the stop-word list writes itself out of the corpus instead of out of your assumptions about English. The tie-break on id is not cosmetic either: without a total order the same query returns a different page on different runs, and neither a test nor a user can trust the result.",
+   "xp": 100
+  }
+ ]
+}

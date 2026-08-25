@@ -1,0 +1,1423 @@
+{
+ "n": 6,
+ "name": "The Branching Vault",
+ "concepts": [
+  "tree-nodes",
+  "bst-invariant",
+  "bst-insert",
+  "bst-search",
+  "tree-traversal",
+  "in-order-sorted",
+  "tree-height",
+  "unbalanced-bst"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "analysis",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Trees, Order, and the Cost of Shape",
+  "sections": [
+   {
+    "title": "A Node Is a Plain Object",
+    "body": "A **binary tree** needs no class: a node is an object with a `value` and two links, `left` and `right`, each holding either another node or `null`. The single node nothing points at is the **root**; a node whose links are both `null` is a **leaf**.\n\nBecause `left` and `right` are themselves trees - possibly empty ones - almost every tree function is recursive with `null` as its base case. `countNodes` below asks each subtree for its own count and adds one for itself.\n\nNothing here enforces order yet. This is only the shape: values, links, and a `null` that means *no subtree*.",
+    "code": "const tree = {\n  value: 8,\n  left:  { value: 3,  left: null, right: null },\n  right: { value: 10, left: null, right: null }\n};\n\nfunction isLeaf(n) {\n  return n.left === null && n.right === null;\n}\n\nfunction countNodes(n) {\n  if (n === null) return 0;\n  return 1 + countNodes(n.left) + countNodes(n.right);\n}\n\nconsole.log(tree.value);\nconsole.log(tree.left.value, tree.right.value);\nconsole.log(tree.left.left);\nconsole.log(isLeaf(tree), isLeaf(tree.left));\nconsole.log(countNodes(tree));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Just an object literal. No class, no library - a tree is a value like any other."
+     },
+     {
+      "line": 8,
+      "text": "A leaf is defined by its links, not by its depth: both children absent."
+     },
+     {
+      "line": 12,
+      "text": "`null` is the base case. Every recursive tree function needs one, or it walks off the edge."
+     },
+     {
+      "line": 14,
+      "text": "One for this node, plus whatever the two subtrees report. This is $O(n)$: each node is visited once."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `countLeaves(root)` returning how many leaves the tree holds - nodes whose `left` and `right` are both `null`. The empty tree has 0 leaves.",
+     "fn": "countLeaves",
+     "starterCode": "function countLeaves(root) {\n  // null is the base case\n  // a node with no children counts as 1\n  // otherwise ask both subtrees\n}",
+     "tests": [
+      {
+       "input": "null",
+       "expected": 0
+      },
+      {
+       "input": "{ value: 5, left: null, right: null }",
+       "expected": 1
+      },
+      {
+       "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }",
+       "expected": 3
+      }
+     ],
+     "solution": "function countLeaves(root) {\n  if (root === null) return 0;\n  if (root.left === null && root.right === null) return 1;\n  return countLeaves(root.left) + countLeaves(root.right);\n}",
+     "explain": "Two base cases carry the whole function: `null` contributes nothing and a leaf contributes exactly one. The recursive case never counts itself, which is why an internal node with a single child still reports only what its subtrees found.",
+     "hint": "Check `root === null` first, then the both-children-null case, then recurse on each side.",
+     "concepts": [
+      "tree-nodes"
+     ]
+    }
+   },
+   {
+    "title": "The Ordering Invariant",
+    "body": "A **binary search tree** adds one rule to that shape: for every node, every value in its left subtree is smaller than the node's value, and every value in its right subtree is larger. This is the **BST invariant**, and it constrains whole subtrees, not just immediate children.\n\nThe invariant turns a search into a sequence of decisions. `contains` compares once per node and then discards an entire subtree, never looking at it again - it cannot backtrack, it can only descend.\n\n`insert` is the same descent, and the place it falls off the tree into `null` is exactly where the new node belongs. Both functions do work proportional to the **depth they reach**, not to the number of nodes.",
+    "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction contains(root, value) {\n  if (root === null) return false;\n  if (value === root.value) return true;\n  if (value < root.value) return contains(root.left, value);\n  return contains(root.right, value);\n}\n\nlet tree = null;\nfor (const v of [8, 3, 10, 1, 6, 14]) tree = insert(tree, v);\n\nconsole.log(tree.value, tree.left.value, tree.right.value);\nconsole.log(tree.left.left.value, tree.left.right.value);\nconsole.log(contains(tree, 6), contains(tree, 7));\nconsole.log(contains(tree, 14), tree.right.left);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Falling off the tree into `null` is the answer: this empty spot is where the value belongs."
+     },
+     {
+      "line": 3,
+      "text": "Smaller goes left. Reassigning the link is what stitches the returned subtree back on."
+     },
+     {
+      "line": 4,
+      "text": "Equal values fall through to `return root` unchanged, so this tree holds a set."
+     },
+     {
+      "line": 11,
+      "text": "One comparison eliminates the entire other subtree. That is the whole gain."
+     },
+     {
+      "line": 17,
+      "text": "Inserted in the order 8, 3, 10, 1, 6, 14: root 8, then 3 and 10 as its children."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `smallest(root)` returning the smallest value in a BST, using the invariant rather than scanning every node. Return `null` for the empty tree.",
+     "fn": "smallest",
+     "starterCode": "function smallest(root) {\n  // the invariant puts the smallest value at the far left\n  // walk left while a left child exists\n}",
+     "tests": [
+      {
+       "input": "null",
+       "expected": null
+      },
+      {
+       "input": "{ value: 5, left: null, right: null }",
+       "expected": 5
+      },
+      {
+       "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }",
+       "expected": 1
+      }
+     ],
+     "solution": "function smallest(root) {\n  if (root === null) return null;\n  let cur = root;\n  while (cur.left !== null) cur = cur.left;\n  return cur.value;\n}",
+     "explain": "Every left step moves into a subtree whose values are all smaller than everything above it, so the first node with no left child has nothing smaller anywhere in the tree. No right link is ever followed, which is why this costs the height rather than the node count.",
+     "hint": "A loop that keeps doing `cur = cur.left` until `cur.left` is null.",
+     "concepts": [
+      "bst-invariant",
+      "bst-search"
+     ]
+    }
+   },
+   {
+    "title": "Three Walks, One Shape",
+    "body": "A **traversal** visits every node once; the three classic orders differ only in *when* a node records itself relative to its two recursive calls. **Pre-order** records before descending, **in-order** records between the two descents, and **post-order** records after both.\n\nOn a BST, in-order is special. The recursion emits everything smaller than the node, then the node, then everything larger - and by the invariant that is exactly ascending order, at every node, all the way down.\n\nSo an in-order walk of a BST is a sorted listing, and it costs $O(n)$ because each node is pushed exactly once. Pre-order and post-order visit the same nodes for the same cost but offer no such guarantee.",
+    "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction preOrder(n, out) {\n  if (n === null) return out;\n  out.push(n.value);\n  preOrder(n.left, out);\n  preOrder(n.right, out);\n  return out;\n}\n\nfunction inOrder(n, out) {\n  if (n === null) return out;\n  inOrder(n.left, out);\n  out.push(n.value);\n  inOrder(n.right, out);\n  return out;\n}\n\nfunction postOrder(n, out) {\n  if (n === null) return out;\n  postOrder(n.left, out);\n  postOrder(n.right, out);\n  out.push(n.value);\n  return out;\n}\n\nlet tree = null;\nfor (const v of [8, 3, 10, 1, 6, 14]) tree = insert(tree, v);\n\nconsole.log(preOrder(tree, []).join(\" \"));\nconsole.log(inOrder(tree, []).join(\" \"));\nconsole.log(postOrder(tree, []).join(\" \"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Pre-order: record, then left, then right. The root always comes out first."
+     },
+     {
+      "line": 17,
+      "text": "In-order: the push sits between the two calls. That single placement is what sorts the output."
+     },
+     {
+      "line": 24,
+      "text": "Post-order: both children are finished before the node is recorded, so the root comes out last."
+     },
+     {
+      "line": 34,
+      "text": "Sorted, from a tree nobody ever sorted. The invariant did the work at insert time."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `sortedValues(root)` returning an array of every value in the BST in ascending order, by walking it in-order. Do not call `.sort()`. The empty tree gives `[]`.",
+     "fn": "sortedValues",
+     "starterCode": "function sortedValues(root) {\n  const out = [];\n  // walk: left subtree, then this node, then right subtree\n  return out;\n}",
+     "tests": [
+      {
+       "input": "null",
+       "expected": []
+      },
+      {
+       "input": "{ value: 5, left: null, right: null }",
+       "expected": [
+        5
+       ]
+      },
+      {
+       "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }",
+       "expected": [
+        1,
+        3,
+        6,
+        8,
+        10,
+        14
+       ]
+      }
+     ],
+     "solution": "function sortedValues(root) {\n  const out = [];\n  function walk(n) {\n    if (n === null) return;\n    walk(n.left);\n    out.push(n.value);\n    walk(n.right);\n  }\n  walk(root);\n  return out;\n}",
+     "explain": "The output comes back sorted without a single comparison being made during the walk - the ordering was paid for when the tree was built, and the traversal only reads it back. Move the `push` above `walk(n.left)` and the same tree yields pre-order instead.",
+     "hint": "An inner `walk(n)` that returns on null, recurses left, pushes, then recurses right.",
+     "concepts": [
+      "tree-traversal",
+      "in-order-sorted"
+     ]
+    }
+   },
+   {
+    "title": "Height Is the Real Cost",
+    "body": "Define **height** as the number of edges on the longest root-to-leaf path: a single node has height $0$ and the empty tree has height $-1$. Search and insert cost $O(h)$, not $O(n)$ - the node count only bounds how good $h$ could possibly be.\n\nA tree of $n$ nodes can be as short as $h = \\lfloor \\log_2 n \\rfloor$, which is why a balanced BST searches in $O(\\log n)$. But nothing in `insert` enforces balance.\n\nFeed it already-sorted input and every value goes right, producing a chain of $n$ nodes with $h = n - 1$. The BST has degenerated into a linked list: same code, same invariant, catastrophically different shape, and search is back to $O(n)$.",
+    "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction height(n) {\n  if (n === null) return -1;\n  return 1 + Math.max(height(n.left), height(n.right));\n}\n\nfunction build(values) {\n  let root = null;\n  for (const v of values) root = insert(root, v);\n  return root;\n}\n\nconst balanced = build([4, 2, 6, 1, 3, 5, 7]);\nconst sorted   = build([1, 2, 3, 4, 5, 6, 7]);\n\nconsole.log(height(balanced), height(sorted));\nconsole.log(balanced.left.value, balanced.right.value);\nconsole.log(sorted.left, sorted.right.right.value);\nconsole.log(height(build([1])), height(null));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "Edge count, so the empty tree is -1 and a lone node is 0. State the convention or the numbers mean nothing."
+     },
+     {
+      "line": 18,
+      "text": "The same seven values, two insertion orders."
+     },
+     {
+      "line": 21,
+      "text": "2 against 6: both trees hold seven nodes, one is three times taller."
+     },
+     {
+      "line": 23,
+      "text": "The sorted build has no left child anywhere - a right-leaning chain, not a tree."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "prompt": "Write `height(root)` returning the number of edges on the longest root-to-leaf path. The empty tree is `-1` and a single node is `0`.",
+     "fn": "height",
+     "starterCode": "function height(root) {\n  // empty tree: -1\n  // otherwise 1 + the taller of the two subtrees\n}",
+     "tests": [
+      {
+       "input": "null",
+       "expected": -1
+      },
+      {
+       "input": "{ value: 5, left: null, right: null }",
+       "expected": 0
+      },
+      {
+       "input": "{ value: 1, left: null, right: { value: 2, left: null, right: { value: 3, left: null, right: null } } }",
+       "expected": 2
+      },
+      {
+       "input": "{ value: 4, left: { value: 2, left: null, right: null }, right: { value: 6, left: null, right: null } }",
+       "expected": 1
+      }
+     ],
+     "solution": "function height(root) {\n  if (root === null) return -1;\n  return 1 + Math.max(height(root.left), height(root.right));\n}",
+     "explain": "The `-1` for the empty tree is what makes `1 + Math.max(...)` come out as `0` for a leaf, so the convention is not decoration - it is the arithmetic. The third tree and the fourth hold three nodes each and differ in height, which is exactly the gap between $O(n)$ and $O(\\log n)$ behaviour.",
+     "hint": "One base case returning -1, then `1 + Math.max(height(root.left), height(root.right))`.",
+     "concepts": [
+      "tree-height"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-6-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const t = {\n  value: 7,\n  left: { value: 4, left: null, right: { value: 5, left: null, right: null } },\n  right: { value: 9, left: null, right: null }\n};\n\nconsole.log(t.left.value, t.right.value);\nconsole.log(t.left.right.value);\nconsole.log(t.left.left);\nconsole.log(t.right.left === null, t.left.right.right === null);",
+   "lang": "javascript",
+   "answer": "4 9\n5\nnull\ntrue true",
+   "explain": "Reading a tree is nothing but following named properties, and `null` is a real value you can print and compare - it is the marker for *no subtree*, not an error. Note that `t.left.left` prints `null` while `t.left.left.value` would throw, which is why every recursive tree function tests for `null` before touching `.value`.",
+   "xp": 20,
+   "tags": [
+    "tree-nodes"
+   ],
+   "concepts": [
+    "tree-nodes"
+   ]
+  },
+  {
+   "id": "alg-6-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `contains` searches a BST by descending, never scanning both sides.",
+   "template": "function contains(root, value) {\n  if (root === ___) return false;\n  if (value === root.value) return true;\n  if (value ___ root.value) return contains(root.___, value);\n  return contains(root.right, value);\n}",
+   "blanks": [
+    "null",
+    "<",
+    "left"
+   ],
+   "lang": "javascript",
+   "explain": "The comparison is the whole algorithm: `<` sends the search into the subtree that, by the invariant, is the only place the value could be. Reverse it and the function still terminates and still returns a boolean - it just answers `false` for values that are present, which is far worse than crashing.",
+   "xp": 20,
+   "tags": [
+    "bst-search",
+    "bst-invariant"
+   ],
+   "concepts": [
+    "bst-search",
+    "bst-invariant"
+   ]
+  },
+  {
+   "id": "alg-6-g-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `largest(root)` returning the largest value in a BST, or `null` for the empty tree. Use the invariant - do not visit every node.",
+   "fn": "largest",
+   "starterCode": "function largest(root) {\n  // the invariant puts the largest value at the far right\n}",
+   "tests": [
+    {
+     "input": "null",
+     "expected": null
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }",
+     "expected": 5
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: null, right: null }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }",
+     "expected": 14
+    },
+    {
+     "input": "{ value: 9, left: { value: 2, left: null, right: { value: 4, left: null, right: null } }, right: null }",
+     "expected": 9
+    }
+   ],
+   "solution": "function largest(root) {\n  if (root === null) return null;\n  let cur = root;\n  while (cur.right !== null) cur = cur.right;\n  return cur.value;\n}",
+   "explain": "The last test is the one that matters: a node with a left subtree and no right child is itself the maximum, so the loop must stop on a missing right link rather than assume it has reached a leaf. The cost is the length of the rightmost path, which is at most the height.",
+   "hint": "Walk right while `cur.right !== null`, then return `cur.value`.",
+   "xp": 50,
+   "tags": [
+    "bst-invariant",
+    "bst-search"
+   ],
+   "concepts": [
+    "bst-invariant",
+    "bst-search"
+   ]
+  },
+  {
+   "id": "alg-6-g-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nlet t = null;\nfor (const v of [5, 2, 8, 2, 5]) t = insert(t, v);\n\nfunction size(n) { return n === null ? 0 : 1 + size(n.left) + size(n.right); }\n\nconsole.log(t.value, t.left.value, t.right.value);\nconsole.log(t.left.left, t.left.right);\nconsole.log(size(t));",
+   "lang": "javascript",
+   "answer": "5 2 8\nnull null\n3",
+   "explain": "Both duplicate inserts fall through to the final `return root` without building anything, because the value is neither `<` nor `>` the node it lands on. That silent no-op is a design decision, not a bug: this BST stores a set, and storing multiplicity would mean adding a count field to the node.",
+   "xp": 20,
+   "tags": [
+    "bst-insert",
+    "bst-invariant"
+   ],
+   "concepts": [
+    "bst-insert",
+    "bst-invariant"
+   ]
+  },
+  {
+   "id": "alg-6-g-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The values `[8, 3, 10, 1, 6, 14]` are inserted in that order into an empty BST. Give the values in the order a **pre-order** traversal emits them, one per step.",
+   "code": "let tree = null;\nfor (const v of [8, 3, 10, 1, 6, 14]) tree = insert(tree, v);\npreOrder(tree, []);",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "1st value emitted",
+     "expected": "8"
+    },
+    {
+     "label": "2nd value emitted",
+     "expected": "3"
+    },
+    {
+     "label": "3rd value emitted",
+     "expected": "1"
+    },
+    {
+     "label": "4th value emitted",
+     "expected": "6"
+    },
+    {
+     "label": "5th value emitted",
+     "expected": "10"
+    },
+    {
+     "label": "6th value emitted",
+     "expected": "14"
+    }
+   ],
+   "explain": "Pre-order records a node before descending, so the sequence is a depth-first plunge: the whole left subtree is drained before the right one is entered at all. Because the root leads, replaying a pre-order listing through `insert` rebuilds this exact tree - replaying the in-order listing would not, since sorted input always builds a chain.",
+   "xp": 40,
+   "tags": [
+    "tree-traversal"
+   ],
+   "concepts": [
+    "tree-traversal"
+   ]
+  },
+  {
+   "id": "alg-6-g-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `contains(root, value)` returning `true` if the BST holds that value and `false` otherwise. Descend using the invariant; never look at both subtrees of a node.",
+   "fn": "contains",
+   "starterCode": "function contains(root, value) {\n  // null means the value is not here\n  // equal means found\n  // otherwise descend into the one side that could hold it\n}",
+   "tests": [
+    {
+     "input": "null, 4",
+     "expected": false
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, 5",
+     "expected": true
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 6",
+     "expected": true
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 7",
+     "expected": false
+    }
+   ],
+   "solution": "function contains(root, value) {\n  if (root === null) return false;\n  if (value === root.value) return true;\n  if (value < root.value) return contains(root.left, value);\n  return contains(root.right, value);\n}",
+   "explain": "The absent-value test is the important one: the search for 7 stops when it falls off the tree at a `null`, having compared against only 8, 3 and 6. A failed search costs the same as a successful one at the same depth, so the worst case for both is the height of the tree.",
+   "hint": "Three cases in order: null, equal, then one recursive call chosen by `<`.",
+   "xp": 50,
+   "tags": [
+    "bst-search"
+   ],
+   "concepts": [
+    "bst-search"
+   ]
+  },
+  {
+   "id": "alg-6-g-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these fragments into a function that appends a node's value **in-order** into `out`.",
+   "fragments": [
+    "function walk(n, out) {",
+    "  if (n === null) return out;",
+    "  walk(n.left, out);",
+    "  out.push(n.value);",
+    "  walk(n.right, out);",
+    "  return out;",
+    "}"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "lang": "javascript",
+   "explain": "Only one line moves between the three traversal orders - the `push`. Lifting it above the left recursion gives pre-order and dropping it below the right recursion gives post-order, out of the same four lines of control flow.",
+   "xp": 20,
+   "tags": [
+    "tree-traversal",
+    "in-order-sorted"
+   ],
+   "concepts": [
+    "tree-traversal",
+    "in-order-sorted"
+   ]
+  }
+ ],
+ "implementation": [
+  {
+   "id": "alg-6-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insert(root, value)` returning the root of the BST after adding `value`. Inserting into `null` returns a new node `{ value, left: null, right: null }`; a value already present must leave the tree unchanged.",
+   "fn": "insert",
+   "starterCode": "function insert(root, value) {\n  // empty spot: build the node here\n  // smaller: insert into the left subtree and reattach it\n  // larger: same on the right\n  // equal: change nothing\n  // always return the root\n}",
+   "tests": [
+    {
+     "input": "null, 5",
+     "expected": {
+      "value": 5,
+      "left": null,
+      "right": null
+     }
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, 3",
+     "expected": {
+      "value": 5,
+      "left": {
+       "value": 3,
+       "left": null,
+       "right": null
+      },
+      "right": null
+     }
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, 9",
+     "expected": {
+      "value": 5,
+      "left": null,
+      "right": {
+       "value": 9,
+       "left": null,
+       "right": null
+      }
+     }
+    },
+    {
+     "input": "{ value: 5, left: { value: 3, left: null, right: null }, right: null }, 3",
+     "expected": {
+      "value": 5,
+      "left": {
+       "value": 3,
+       "left": null,
+       "right": null
+      },
+      "right": null
+     }
+    }
+   ],
+   "solution": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}",
+   "explain": "Returning the root on every path is what makes the reattachment `root.left = insert(root.left, value)` work uniformly: the recursive call hands back either the unchanged subtree or a brand-new node, and the caller never needs to know which. Drop the final `return root` and every node above the insertion point is lost.",
+   "hint": "Four branches - null, less, greater, equal - and a single `return root` at the end.",
+   "xp": 50,
+   "tags": [
+    "bst-insert",
+    "bst-invariant"
+   ],
+   "concepts": [
+    "bst-insert",
+    "bst-invariant"
+   ]
+  },
+  {
+   "id": "alg-6-i-02",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`build([5, 2, 8, 1])` should return `[1, 2, 5, 8]` but returns `[8, 5, 2, 1]`. One pair of comparisons in `insert` sends values to the wrong subtree. Fix `insert` without changing `build` or `inOrder`.",
+   "fn": "build",
+   "starterCode": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.right = insert(root.right, value);\n  else if (value > root.value) root.left = insert(root.left, value);\n  return root;\n}\n\nfunction inOrder(n, out) {\n  if (n === null) return out;\n  inOrder(n.left, out);\n  out.push(n.value);\n  inOrder(n.right, out);\n  return out;\n}\n\nfunction build(values) {\n  let root = null;\n  for (const v of values) root = insert(root, v);\n  return inOrder(root, []);\n}",
+   "tests": [
+    {
+     "input": "[5, 2, 8, 1]",
+     "expected": [
+      1,
+      2,
+      5,
+      8
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[7]",
+     "expected": [
+      7
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[4, 4, 2]",
+     "expected": [
+      2,
+      4
+     ]
+    }
+   ],
+   "solution": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction inOrder(n, out) {\n  if (n === null) return out;\n  inOrder(n.left, out);\n  out.push(n.value);\n  inOrder(n.right, out);\n  return out;\n}\n\nfunction build(values) {\n  let root = null;\n  for (const v of values) root = insert(root, v);\n  return inOrder(root, []);\n}",
+   "explain": "A mirrored insert still builds a perfectly valid binary tree that never crashes - it just satisfies the reversed invariant, so the in-order walk reads it back descending. This is the failure mode to fear in tree code: the structure is intact and only the ordering contract is broken, so nothing throws and the bug surfaces as quietly wrong output.",
+   "hint": "Smaller values belong on the left. Swap the two subtree names in the comparisons.",
+   "xp": 50,
+   "tags": [
+    "bst-insert",
+    "bst-invariant",
+    "in-order-sorted"
+   ],
+   "concepts": [
+    "bst-insert",
+    "bst-invariant",
+    "in-order-sorted"
+   ]
+  },
+  {
+   "id": "alg-6-i-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `traverse(root, order)` where `order` is the string `\"pre\"`, `\"in\"` or `\"post\"`, returning the array of values in that traversal order. The empty tree gives `[]` for every order.",
+   "fn": "traverse",
+   "starterCode": "function traverse(root, order) {\n  const out = [];\n  // one recursive walker; the only difference between the three orders\n  // is WHERE the push sits relative to the two recursive calls\n  return out;\n}",
+   "tests": [
+    {
+     "input": "null, \"in\"",
+     "expected": []
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, \"post\"",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, \"pre\"",
+     "expected": [
+      8,
+      3,
+      1,
+      6,
+      10,
+      14
+     ]
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, \"in\"",
+     "expected": [
+      1,
+      3,
+      6,
+      8,
+      10,
+      14
+     ]
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, \"post\"",
+     "expected": [
+      1,
+      6,
+      3,
+      14,
+      10,
+      8
+     ]
+    }
+   ],
+   "solution": "function traverse(root, order) {\n  const out = [];\n  function walk(n) {\n    if (n === null) return;\n    if (order === \"pre\") out.push(n.value);\n    walk(n.left);\n    if (order === \"in\") out.push(n.value);\n    walk(n.right);\n    if (order === \"post\") out.push(n.value);\n  }\n  walk(root);\n  return out;\n}",
+   "explain": "Writing all three in one walker makes the real claim visible: the recursion is identical and only the position of the visit changes. All three cost $O(n)$ time and $O(h)$ extra space for the call stack, so the choice between them is never about cost - it is about what the order guarantees. Only `\"in\"` comes back sorted, and only on a BST.",
+   "hint": "One inner `walk(n)` with three guarded pushes: before the left call, between the calls, after the right call.",
+   "xp": 50,
+   "tags": [
+    "tree-traversal",
+    "in-order-sorted"
+   ],
+   "concepts": [
+    "tree-traversal",
+    "in-order-sorted"
+   ]
+  },
+  {
+   "id": "alg-6-i-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `bstSort(values)` which inserts every number of `values` into an initially empty BST and returns the in-order walk of the result. Duplicates are dropped. Do not call `.sort()`.",
+   "fn": "bstSort",
+   "starterCode": "function bstSort(values) {\n  // insert each value, then walk in-order\n}",
+   "tests": [
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[42]",
+     "expected": [
+      42
+     ]
+    },
+    {
+     "input": "[5, 2, 8, 1, 9, 3]",
+     "expected": [
+      1,
+      2,
+      3,
+      5,
+      8,
+      9
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4, 5]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[4, 4, 4, 2]",
+     "expected": [
+      2,
+      4
+     ]
+    }
+   ],
+   "solution": "function bstSort(values) {\n  function insert(root, value) {\n    if (root === null) return { value: value, left: null, right: null };\n    if (value < root.value) root.left = insert(root.left, value);\n    else if (value > root.value) root.right = insert(root.right, value);\n    return root;\n  }\n  let root = null;\n  for (const v of values) root = insert(root, v);\n  const out = [];\n  function walk(n) {\n    if (n === null) return;\n    walk(n.left);\n    out.push(n.value);\n    walk(n.right);\n  }\n  walk(root);\n  return out;\n}",
+   "explain": "This is a genuine sorting algorithm, and all of its cost is in the building phase: the walk is always $O(n)$, but the $n$ inserts total $O(n \\log n)$ only if the tree stays short. The already-sorted test case is the worst input, not the easiest - it builds a chain, so the inserts degrade to $\\Theta(n^2)$, which is why nobody ships an unbalanced BST as a sorter.",
+   "hint": "Reuse `insert` from earlier, then an in-order walk pushing into an array.",
+   "xp": 50,
+   "tags": [
+    "in-order-sorted",
+    "bst-insert",
+    "unbalanced-bst"
+   ],
+   "concepts": [
+    "in-order-sorted",
+    "bst-insert",
+    "unbalanced-bst"
+   ]
+  },
+  {
+   "id": "alg-6-i-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `shape(root)` returning the array `[nodeCount, height]`, where height is the number of edges on the longest root-to-leaf path and the empty tree gives `[0, -1]`.",
+   "fn": "shape",
+   "starterCode": "function shape(root) {\n  // return [count, height]\n  // remember: the empty tree is [0, -1]\n}",
+   "tests": [
+    {
+     "input": "null",
+     "expected": [
+      0,
+      -1
+     ]
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }",
+     "expected": [
+      1,
+      0
+     ]
+    },
+    {
+     "input": "{ value: 1, left: null, right: { value: 2, left: null, right: { value: 3, left: null, right: null } } }",
+     "expected": [
+      3,
+      2
+     ]
+    },
+    {
+     "input": "{ value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }",
+     "expected": [
+      3,
+      1
+     ]
+    },
+    {
+     "input": "{ value: 4, left: { value: 2, left: { value: 1, left: null, right: null }, right: { value: 3, left: null, right: null } }, right: { value: 6, left: { value: 5, left: null, right: null }, right: { value: 7, left: null, right: null } } }",
+     "expected": [
+      7,
+      2
+     ]
+    }
+   ],
+   "solution": "function shape(root) {\n  if (root === null) return [0, -1];\n  const l = shape(root.left);\n  const r = shape(root.right);\n  return [1 + l[0] + r[0], 1 + Math.max(l[1], r[1])];\n}",
+   "explain": "The third and fourth trees hold the same three nodes and differ in height, which is the entire point: $n$ constrains $h$ only from below, by $h \\ge \\lfloor \\log_2 n \\rfloor$, and never from above. The last case shows the best possible shape for seven nodes - height 2, since $2^3 - 1 = 7$.",
+   "hint": "One recursive call per side, then combine: counts add, heights take the max plus one.",
+   "xp": 50,
+   "tags": [
+    "tree-height",
+    "tree-nodes"
+   ],
+   "concepts": [
+    "tree-height",
+    "tree-nodes"
+   ]
+  },
+  {
+   "id": "alg-6-i-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `isBST(root)` returning `true` only if the whole tree satisfies the BST invariant - every value in a node's left subtree strictly smaller than it, every value on the right strictly larger. Checking only immediate children is not enough. The empty tree is `true`.",
+   "fn": "isBST",
+   "starterCode": "function isBST(root) {\n  // an inner helper carrying the range this subtree is allowed to hold\n  // is the standard approach; null can mean \"no bound on that side\"\n}",
+   "tests": [
+    {
+     "input": "null",
+     "expected": true
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }",
+     "expected": true
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }",
+     "expected": true
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: null, right: { value: 9, left: null, right: null } }, right: { value: 10, left: null, right: null } }",
+     "expected": false
+    },
+    {
+     "input": "{ value: 5, left: { value: 5, left: null, right: null }, right: null }",
+     "expected": false
+    }
+   ],
+   "solution": "function isBST(root) {\n  function ok(n, low, high) {\n    if (n === null) return true;\n    if (low !== null && n.value <= low) return false;\n    if (high !== null && n.value >= high) return false;\n    return ok(n.left, low, n.value) && ok(n.right, n.value, high);\n  }\n  return ok(root, null, null);\n}",
+   "explain": "The fourth test is the trap: 9 is correctly to the right of 3, so a check that only compares parents with their children says yes - but 9 sits in the left subtree of 8 while being larger than 8, so a search for 9 would descend right and never find it. The invariant is a claim about subtrees, so the check must carry a range downwards, tightening one bound at every step.",
+   "hint": "`ok(n, low, high)` returning true for null, recursing with `ok(n.left, low, n.value)` and `ok(n.right, n.value, high)`.",
+   "xp": 50,
+   "tags": [
+    "bst-invariant",
+    "tree-nodes"
+   ],
+   "concepts": [
+    "bst-invariant",
+    "tree-nodes"
+   ]
+  }
+ ],
+ "analysis": [
+  {
+   "id": "alg-6-a-01",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "A BST holds $n$ nodes and is perfectly balanced. Give the worst-case time of `contains(root, value)` as a function of $n$, and justify it in terms of what a single comparison buys you.",
+   "answer": "O(log n)",
+   "rubric": {
+    "required": [
+     "height",
+     "half",
+     "balanced"
+    ],
+    "optional": [
+     "logarithm",
+     "logarithmic",
+     "depth",
+     "comparison",
+     "subtree",
+     "descend",
+     "discard"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "explain": "The honest statement of the cost is $O(h)$ - the search does constant work per level and can only descend. Balance is what converts that into $O(\\log n)$: each comparison discards one subtree, in a balanced tree that subtree holds about half the remaining nodes, so the candidate set halves every step and reaches one after $\\log_2 n$ steps.",
+   "xp": 40,
+   "tags": [
+    "bst-search",
+    "tree-height"
+   ],
+   "concepts": [
+    "bst-search",
+    "tree-height"
+   ]
+  },
+  {
+   "id": "alg-6-a-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "The values $1, 2, 3, \\ldots, n$ are inserted in ascending order into an empty BST using the lesson's `insert`. Give the worst-case time of a single `contains` call on the resulting tree, and describe the shape that causes it.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "right",
+     "chain",
+     "height"
+    ],
+    "optional": [
+     "linked list",
+     "degenerate",
+     "unbalanced",
+     "linear",
+     "spine",
+     "list",
+     "left"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "explain": "Every value is larger than everything already in the tree, so every insert walks the full right spine and attaches at the bottom: no node ever acquires a left child. The result has $h = n - 1$, so it is a linked list wearing tree syntax, and the $O(h)$ bound - which was never a lie - now evaluates to $O(n)$. The invariant still holds perfectly; it is the shape, not the ordering, that failed.",
+   "xp": 40,
+   "tags": [
+    "unbalanced-bst",
+    "bst-search",
+    "tree-height"
+   ],
+   "concepts": [
+    "unbalanced-bst",
+    "bst-search",
+    "tree-height"
+   ]
+  },
+  {
+   "id": "alg-6-a-03",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the total time to **build** the tree in the previous question - all $n$ ascending inserts into an initially empty BST - and justify the total by summing the cost of the individual inserts.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "sum",
+     "insert",
+     "depth"
+    ],
+    "optional": [
+     "arithmetic",
+     "series",
+     "quadratic",
+     "chain",
+     "each",
+     "descend",
+     "total"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "explain": "The $i$-th insert walks past the $i-1$ nodes already in the chain, so the total is $0 + 1 + \\cdots + (n-1) = n(n-1)/2$, which is $\\Theta(n^2)$. This is why `bstSort` is quadratic on sorted input and $O(n \\log n)$ on well-mixed input: the algorithm never changed, only the shape its input produced. Reading the answer back out is $O(n)$ either way.",
+   "xp": 40,
+   "tags": [
+    "unbalanced-bst",
+    "bst-insert"
+   ],
+   "concepts": [
+    "unbalanced-bst",
+    "bst-insert"
+   ]
+  },
+  {
+   "id": "alg-6-a-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The values `[5, 2, 8, 1, 3, 9]` are inserted in that order into an empty BST. Give the values in the order a **post-order** traversal emits them.",
+   "code": "let tree = null;\nfor (const v of [5, 2, 8, 1, 3, 9]) tree = insert(tree, v);\npostOrder(tree, []);",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "1st value emitted",
+     "expected": "1"
+    },
+    {
+     "label": "2nd value emitted",
+     "expected": "3"
+    },
+    {
+     "label": "3rd value emitted",
+     "expected": "2"
+    },
+    {
+     "label": "4th value emitted",
+     "expected": "9"
+    },
+    {
+     "label": "5th value emitted",
+     "expected": "8"
+    },
+    {
+     "label": "6th value emitted",
+     "expected": "5"
+    }
+   ],
+   "explain": "Post-order finishes both children before recording a node, so a parent can never appear before any of its descendants and the root is always last. That property is what makes post-order the order for anything that must consume its children first - freeing a tree, computing subtree sizes, or evaluating an expression tree bottom-up.",
+   "xp": 40,
+   "tags": [
+    "tree-traversal"
+   ],
+   "concepts": [
+    "tree-traversal"
+   ]
+  },
+  {
+   "id": "alg-6-a-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "In-order traversal of a BST emits values in ascending order, but pre-order on the same tree does not. Explain what the in-order placement of the visit guarantees at every node that the pre-order placement does not.",
+   "rubric": {
+    "required": [
+     "left",
+     "right",
+     "invariant"
+    ],
+    "optional": [
+     "smaller",
+     "larger",
+     "ascending",
+     "sorted",
+     "between",
+     "subtree",
+     "before",
+     "after",
+     "root"
+    ],
+    "forbidden": [],
+    "minWords": 40
+   },
+   "explain": "In-order emits (everything left) then (this node) then (everything right), and the invariant says the left block lies entirely below the node and the right block entirely above it - so the node lands exactly between two blocks that are, by induction, already sorted. Pre-order emits the node first, ahead of a left subtree that is entirely smaller than it, so the very first pair of values is already out of order unless the root has no left child at all.",
+   "xp": 20,
+   "tags": [
+    "in-order-sorted",
+    "bst-invariant",
+    "tree-traversal"
+   ],
+   "concepts": [
+    "in-order-sorted",
+    "bst-invariant",
+    "tree-traversal"
+   ]
+  },
+  {
+   "id": "alg-6-a-06",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that in-order traversal of a binary search tree outputs its values in strictly ascending order. Use induction on the height of the tree, and state clearly which case is the base case and where the BST invariant is used.",
+   "rubric": {
+    "required": [
+     "induction",
+     "base",
+     "invariant",
+     "left"
+    ],
+    "optional": [
+     "hypothesis",
+     "empty",
+     "height",
+     "subtree",
+     "ascending",
+     "right",
+     "concatenation",
+     "smaller",
+     "larger"
+    ],
+    "forbidden": [],
+    "minWords": 70
+   },
+   "explain": "The proof is short because the invariant does the work. Base case: the empty tree emits nothing, which is vacuously ascending. Inductive step: for a node $v$ at height $h$, both subtrees have height less than $h$, so by hypothesis in-order emits each as an ascending sequence; the invariant says every value on the left is $< v$ and every value on the right is $> v$; therefore the concatenation (left, $v$, right) is ascending. The induction runs on height rather than node count because height is what strictly decreases when you step into a subtree.",
+   "xp": 50,
+   "tags": [
+    "in-order-sorted",
+    "bst-invariant"
+   ],
+   "concepts": [
+    "in-order-sorted",
+    "bst-invariant"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-6-e-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement is the BST invariant?",
+   "choices": [
+    "A node's left child is smaller than it and its right child is larger",
+    "Every value in a node's left subtree is smaller than the node, and every value in its right subtree is larger",
+    "Every leaf sits at the same depth, so the tree is balanced",
+    "The values appear in ascending order when each level is read left to right"
+   ],
+   "answer": 1,
+   "explain": "The first choice is the invariant weakened to immediate children, and that weaker rule is not enough: a value can be correctly placed relative to its parent and still sit in the wrong subtree three levels up, where a search will never look for it. Balance is a separate property the invariant says nothing about.",
+   "xp": 10,
+   "tags": [
+    "bst-invariant"
+   ],
+   "concepts": [
+    "bst-invariant"
+   ]
+  },
+  {
+   "id": "alg-6-e-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction inOrder(n, out) {\n  if (n === null) return out;\n  inOrder(n.left, out);\n  out.push(n.value);\n  inOrder(n.right, out);\n  return out;\n}\n\nfunction height(n) {\n  return n === null ? -1 : 1 + Math.max(height(n.left), height(n.right));\n}\n\nfunction build(vs) {\n  let r = null;\n  for (const v of vs) r = insert(r, v);\n  return r;\n}\n\nconst a = build([4, 2, 6, 1, 3, 5, 7]);\nconst b = build([1, 2, 3, 4, 5, 6, 7]);\n\nconsole.log(inOrder(a, []).join(\",\"));\nconsole.log(inOrder(b, []).join(\",\"));\nconsole.log(height(a), height(b));\nconsole.log(b.left, b.right.value);",
+   "lang": "javascript",
+   "answer": "1,2,3,4,5,6,7\n1,2,3,4,5,6,7\n2 6\nnull 2",
+   "explain": "Two trees with identical in-order output and wildly different heights - proof that the in-order listing does not determine the shape. That is exactly why a sorted array cannot simply be replayed through `insert` to rebuild a short tree: the ordering survives the round trip, the structure does not.",
+   "xp": 20,
+   "tags": [
+    "in-order-sorted",
+    "tree-height",
+    "unbalanced-bst"
+   ],
+   "concepts": [
+    "in-order-sorted",
+    "tree-height",
+    "unbalanced-bst"
+   ]
+  },
+  {
+   "id": "alg-6-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `height` returns the number of edges on the longest root-to-leaf path, with `-1` for the empty tree.",
+   "template": "function height(n) {\n  if (n === null) return ___;\n  return ___ + Math.___(height(n.left), height(n.right));\n}",
+   "blanks": [
+    "-1",
+    "1",
+    "max"
+   ],
+   "lang": "javascript",
+   "explain": "The `-1` is forced by the arithmetic, not by taste: a leaf must come out as 0, and `1 + max(-1, -1)` is the only way to get there. Return 0 for the empty tree instead and you have silently switched to counting nodes on the path rather than edges - a legitimate convention, but every stated bound then shifts by one.",
+   "xp": 20,
+   "tags": [
+    "tree-height"
+   ],
+   "concepts": [
+    "tree-height"
+   ]
+  },
+  {
+   "id": "alg-6-e-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A BST was built by inserting `[8, 3, 10, 1, 6, 14]` in that order. Trace `contains(root, 7)`: give the value at each node it compares against, then what the next call receives, then what it returns.",
+   "code": "let root = null;\nfor (const v of [8, 3, 10, 1, 6, 14]) root = insert(root, v);\ncontains(root, 7);",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "value at the 1st node compared",
+     "expected": "8"
+    },
+    {
+     "label": "value at the 2nd node compared",
+     "expected": "3"
+    },
+    {
+     "label": "value at the 3rd node compared",
+     "expected": "6"
+    },
+    {
+     "label": "what the 4th recursive call receives as root",
+     "expected": "null"
+    },
+    {
+     "label": "value returned by contains(root, 7)",
+     "expected": "false"
+    }
+   ],
+   "explain": "The search compares three of the six nodes and then falls off the tree, which is the whole economy of a BST: an unsuccessful search costs the depth of where the value *would* have gone, not a scan. The `null` it lands on is exactly the spot `insert(root, 7)` would fill - search and insert follow the identical path.",
+   "xp": 40,
+   "tags": [
+    "bst-search",
+    "bst-invariant"
+   ],
+   "concepts": [
+    "bst-search",
+    "bst-invariant"
+   ]
+  },
+  {
+   "id": "alg-6-e-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `depthOf(root, value)` returning the number of edges from the root to the node holding `value`, or `-1` if the value is absent. The root itself is at depth `0`. Search using the invariant.",
+   "fn": "depthOf",
+   "starterCode": "function depthOf(root, value) {\n  // descend, counting edges as you go\n  // running off the tree means the value is absent\n}",
+   "tests": [
+    {
+     "input": "null, 4",
+     "expected": -1
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, 5",
+     "expected": 0
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 6",
+     "expected": 2
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 10",
+     "expected": 1
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }, 7",
+     "expected": -1
+    }
+   ],
+   "solution": "function depthOf(root, value) {\n  let cur = root;\n  let d = 0;\n  while (cur !== null) {\n    if (value === cur.value) return d;\n    cur = value < cur.value ? cur.left : cur.right;\n    d += 1;\n  }\n  return -1;\n}",
+   "explain": "The depth a value sits at *is* the cost of finding it, so this function measures the very quantity every complexity claim on this floor is about. Writing it as a loop rather than a recursion is possible only because the search never backtracks - there is no work left to do on the way back up, which is not true of a search through a general binary tree.",
+   "hint": "A `while (cur !== null)` loop that increments a counter each time it steps down.",
+   "xp": 50,
+   "tags": [
+    "bst-search",
+    "tree-height"
+   ],
+   "concepts": [
+    "bst-search",
+    "tree-height"
+   ]
+  },
+  {
+   "id": "alg-6-e-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case time of an in-order traversal that collects all $n$ values of a BST into an array, and say why the tree's shape does not change that answer even though it changes the cost of `contains`.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "every node",
+     "once",
+     "shape"
+    ],
+    "optional": [
+     "visit",
+     "constant",
+     "push",
+     "stack",
+     "height",
+     "space",
+     "balanced",
+     "chain"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "explain": "A traversal has no decisions to make: it visits every node exactly once and does constant work there, so it is $\\Theta(n)$ on any shape. Search is different precisely because it *skips* - its cost is the length of the path it takes, so shape governs it. The one thing shape still controls here is the recursion stack, which is $O(h)$ and so degrades from $O(\\log n)$ to $O(n)$ on a chain.",
+   "xp": 40,
+   "tags": [
+    "tree-traversal",
+    "in-order-sorted"
+   ],
+   "concepts": [
+    "tree-traversal",
+    "in-order-sorted"
+   ]
+  },
+  {
+   "id": "alg-6-e-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A service keeps a BST of user ids and reimports its nightly backup, which is written out sorted by id. Lookups that used to be instant now take milliseconds each, though the code and the data are unchanged. Explain what the import did to the tree and why the invariant being intact does not save it.",
+   "rubric": {
+    "required": [
+     "sorted",
+     "chain",
+     "height",
+     "balanced"
+    ],
+    "optional": [
+     "degenerate",
+     "linked list",
+     "shuffle",
+     "linear",
+     "right",
+     "shape",
+     "rebalance",
+     "insertion order"
+    ],
+    "forbidden": [],
+    "minWords": 45
+   },
+   "explain": "Inserting in sorted order sends every value down the right spine, so the rebuilt tree is a chain of height $n-1$ and lookups became linear. The invariant is still perfectly satisfied, and that is the uncomfortable part: correctness is untouched and only cost collapsed, so no test that checks answers will ever catch it. The fixes are to shuffle the input, insert from the middle outwards, or use a tree that rebalances itself.",
+   "xp": 20,
+   "tags": [
+    "unbalanced-bst",
+    "bst-insert",
+    "tree-height"
+   ],
+   "concepts": [
+    "unbalanced-bst",
+    "bst-insert",
+    "tree-height"
+   ]
+  },
+  {
+   "id": "alg-6-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `valuesInRange(root, low, high)` returning, in ascending order, every value `v` in the BST with `low <= v && v <= high`. Use the invariant to skip subtrees that cannot contain any answer - do not walk the whole tree and filter.",
+   "fn": "valuesInRange",
+   "starterCode": "function valuesInRange(root, low, high) {\n  const out = [];\n  // an in-order walk, but only descend left when low < n.value\n  // and only descend right when n.value < high\n  return out;\n}",
+   "tests": [
+    {
+     "input": "null, 1, 10",
+     "expected": []
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }, 6, 9",
+     "expected": []
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, 3, 10",
+     "expected": [
+      3,
+      6,
+      8,
+      10
+     ]
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, 0, 20",
+     "expected": [
+      1,
+      3,
+      6,
+      8,
+      10,
+      14
+     ]
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: { value: 14, left: null, right: null } } }, 7, 7",
+     "expected": []
+    }
+   ],
+   "solution": "function valuesInRange(root, low, high) {\n  const out = [];\n  function walk(n) {\n    if (n === null) return;\n    if (low < n.value) walk(n.left);\n    if (low <= n.value && n.value <= high) out.push(n.value);\n    if (n.value < high) walk(n.right);\n  }\n  walk(root);\n  return out;\n}",
+   "explain": "The two guards are pure invariant reasoning: if `n.value <= low` then the entire left subtree lies below `low`, so there is nothing there worth visiting. That prunes the walk to $O(h + k)$ for $k$ results instead of $O(n)$, and it is the same pruning that makes a BST worth building in the first place. The result is already ascending because the skeleton is still an in-order walk.",
+   "hint": "In-order walk with `if (low < n.value)` guarding the left call and `if (n.value < high)` guarding the right one.",
+   "xp": 50,
+   "tags": [
+    "bst-invariant",
+    "tree-traversal",
+    "in-order-sorted"
+   ],
+   "concepts": [
+    "bst-invariant",
+    "tree-traversal",
+    "in-order-sorted"
+   ]
+  },
+  {
+   "id": "alg-6-e-09",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`sizeOf` should return the number of nodes but throws `RangeError: Maximum call stack size exceeded` on every non-empty tree. Fix it; `sizeOf(null)` must return `0`.",
+   "fn": "sizeOf",
+   "starterCode": "function sizeOf(n) {\n  if (n === undefined) return 0;\n  return 1 + sizeOf(n.left) + sizeOf(n.right);\n}",
+   "tests": [
+    {
+     "input": "null",
+     "expected": 0
+    },
+    {
+     "input": "{ value: 5, left: null, right: null }",
+     "expected": 1
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: null, right: null }, right: null }",
+     "expected": 2
+    },
+    {
+     "input": "{ value: 8, left: { value: 3, left: { value: 1, left: null, right: null }, right: { value: 6, left: null, right: null } }, right: { value: 10, left: null, right: null } }",
+     "expected": 5
+    }
+   ],
+   "solution": "function sizeOf(n) {\n  if (n === null) return 0;\n  return 1 + sizeOf(n.left) + sizeOf(n.right);\n}",
+   "explain": "The base case tests for the wrong absent-value: the tree marks a missing child with `null`, and `null === undefined` is `false` under strict equality, so the guard never fires and the recursion runs off the bottom of the tree. A base case that cannot match is not a base case, and on a recursive structure the symptom is always the stack, never a wrong number.",
+   "hint": "What value do a leaf's `left` and `right` actually hold?",
+   "xp": 50,
+   "tags": [
+    "tree-nodes"
+   ],
+   "concepts": [
+    "tree-nodes"
+   ]
+  },
+  {
+   "id": "alg-6-e-10",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A BST is built by inserting `[6, 4, 9, 2, 5, 8]` in that order. Order these values as a **post-order** traversal emits them.",
+   "fragments": [
+    "2",
+    "5",
+    "4",
+    "8",
+    "9",
+    "6"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "lang": "javascript",
+   "explain": "Work bottom-up: the left subtree rooted at 4 finishes first and emits 2, 5, 4; the right subtree rooted at 9 emits 8 then 9, since 8 is its left child; and the root 6 can only be emitted once both are done. A post-order listing always ends at the root, which is how you recognise one at a glance.",
+   "xp": 20,
+   "tags": [
+    "tree-traversal"
+   ],
+   "concepts": [
+    "tree-traversal"
+   ]
+  },
+  {
+   "id": "alg-6-e-11",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You must store $n$ keys in a BST and support lookup. Give the worst-case lookup cost of a tree built by inserting the keys already sorted, and contrast the height that build produces with the height expected from a random insertion order.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "sorted",
+     "height",
+     "random"
+    ],
+    "optional": [
+     "chain",
+     "balanced",
+     "linked list",
+     "shuffle",
+     "degenerate",
+     "linear",
+     "expected",
+     "logarithmic"
+    ],
+    "forbidden": [],
+    "minWords": 30
+   },
+   "explain": "Sorted input yields a chain with $h = n-1$ and therefore $O(n)$ lookups; a random insertion order gives an expected height of $\\Theta(\\log n)$ and so $O(\\log n)$ expected lookups. The difference lies entirely in the insertion order, not in the data, which is why real systems either randomise that order or use a structure that rebalances rather than trusting the input to arrive shuffled.",
+   "xp": 40,
+   "tags": [
+    "unbalanced-bst",
+    "tree-height",
+    "bst-search"
+   ],
+   "concepts": [
+    "unbalanced-bst",
+    "tree-height",
+    "bst-search"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,914 @@
+{
+ "n": 8,
+ "name": "The Vault of Remembered Work",
+ "concepts": [
+  "overlapping-subproblems",
+  "optimal-substructure",
+  "memoisation",
+  "tabulation",
+  "space-optimisation",
+  "coin-change"
+ ],
+ "cognitiveLevel": "transfer",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "debugging",
+  "implementation",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Paying Once for Work You Would Otherwise Repeat",
+  "sections": [
+   {
+    "title": "Two Signals: Overlapping Subproblems and Optimal Substructure",
+    "body": "Dynamic programming is not a data structure or a piece of syntax - it is a **response to a shape**, and the shape announces itself with two signals.\n\n**Overlapping subproblems**: the recursion tree asks the same question many times. Naive `fib(n)` makes $2F(n+1) - 1$ calls, which grows like $\\varphi^n$ - exponential - even though only $n+1$ distinct questions exist.\n\n**Optimal substructure**: an optimal answer to the whole is assembled from optimal answers to its parts, so a part can be solved once and reused without knowing which caller will want it.\n\nOne signal alone is not enough. Merge sort has optimal substructure but its halves never overlap, so caching them buys nothing - that is the test to run before reaching for a table.",
+    "code": "let calls = 0;\n\nfunction fib(n) {\n  calls += 1;\n  if (n < 2) return n;\n  return fib(n - 1) + fib(n - 2);\n}\n\nconsole.log(fib(10), calls);\ncalls = 0;\nconsole.log(fib(20), calls);\ncalls = 0;\nconsole.log(fib(25), calls);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "A counter, not a timer - cost measured in calls is the same number on every machine."
+     },
+     {
+      "line": 6,
+      "text": "Each call spawns two more and the tree is n deep, which is where the exponent comes from."
+     },
+     {
+      "line": 11,
+      "text": "Ten more steps of n multiplies the work by more than a hundred: 177 calls at n=10, 21891 at n=20."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? The first line is the value, the second is the number of calls made.",
+     "code": "let calls = 0;\n\nfunction fib(n) {\n  calls += 1;\n  if (n < 2) return n;\n  return fib(n - 1) + fib(n - 2);\n}\n\nconsole.log(fib(5));\nconsole.log(calls);",
+     "lang": "javascript",
+     "answer": "5\n15",
+     "concepts": [
+      "overlapping-subproblems"
+     ],
+     "explain": "Fifteen calls to answer six distinct questions ($n = 0 \\ldots 5$) is the overlap made visible - the count is exactly $2F(6) - 1$. It is that ratio of calls to distinct subproblems, not the raw count, that predicts whether a table will pay for itself."
+    }
+   },
+   {
+    "title": "Top-Down: Memoise the Recursion You Already Wrote",
+    "body": "**Memoisation** keeps the recursive shape and adds one table: before computing, look the argument up; after computing, store it. The recurrence you wrote first is the code that ships.\n\nThe cost argument is a counting argument, not an intuition. Every distinct `n` is computed **once**, because the second visit returns from the memo before recursing, so with $n+1$ subproblems and $O(1)$ work each the running time falls from exponential to $O(n)$ - paid for with $O(n)$ table space and $O(n)$ stack depth.\n\nUse `n in memo`, never `if (memo[n])`: `memo[0]` is `0`, which is falsy, so a truthiness test quietly refuses to believe the base case was ever cached.",
+    "code": "let calls = 0;\n\nfunction fib(n, memo) {\n  calls += 1;\n  if (n in memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fib(n - 1, memo) + fib(n - 2, memo);\n  return memo[n];\n}\n\nconsole.log(fib(25, {}), calls);\ncalls = 0;\nconsole.log(fib(50, {}), calls);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The cache hit is the whole optimisation - it returns before the two recursive calls, pruning an entire subtree."
+     },
+     {
+      "line": 7,
+      "text": "Compute, then store, then return - and both calls must receive this same memo object."
+     },
+     {
+      "line": 11,
+      "text": "49 calls at n=25, where the naive version needed 242785 - and the count is exactly 2n-1."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? The first line is `fib(6)`, the second is the number of calls made.",
+     "code": "let calls = 0;\n\nfunction fib(n, memo) {\n  calls += 1;\n  if (n in memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fib(n - 1, memo) + fib(n - 2, memo);\n  return memo[n];\n}\n\nconsole.log(fib(6, {}));\nconsole.log(calls);",
+     "lang": "javascript",
+     "answer": "8\n11",
+     "concepts": [
+      "memoisation"
+     ],
+     "explain": "Eleven is $2 \\cdot 6 - 1$: one call opens each level on the way down, and each level makes one extra call that lands on a memo hit instead of opening a subtree. Linear rather than exponential, from a one-line change to the recursion."
+    }
+   },
+   {
+    "title": "Bottom-Up: Tabulation, Then Throwing the Table Away",
+    "body": "**Tabulation** turns the recurrence around. Instead of asking for `fib(n)` and letting it descend, fill `dp[0]` and `dp[1]` and sweep upwards - by the time the loop needs `dp[i - 1]` it is already written.\n\nSame $O(n)$ time, same $O(n)$ space, but no recursion: no stack to overflow and no call overhead. The order of the sweep is what now guarantees dependencies are ready, doing the job the call stack used to do.\n\nThen look at what the loop actually reads: only `dp[i - 1]` and `dp[i - 2]`. Everything older is dead weight, so two variables carry the whole computation and space drops to $O(1)$. That reduction is available whenever the recurrence has a **fixed, bounded window** of back-references, and it is lost the moment you need to reconstruct the path rather than the value.",
+    "code": "function fibTable(n) {\n  if (n < 2) return n;\n  const dp = new Array(n + 1);\n  dp[0] = 0;\n  dp[1] = 1;\n  for (let i = 2; i <= n; i++) dp[i] = dp[i - 1] + dp[i - 2];\n  return dp[n];\n}\n\nfunction fibRolling(n) {\n  if (n < 2) return n;\n  let prev = 0;\n  let curr = 1;\n  for (let i = 2; i <= n; i++) {\n    const next = prev + curr;\n    prev = curr;\n    curr = next;\n  }\n  return curr;\n}\n\nconsole.log(fibTable(10), fibRolling(10));\nconsole.log(fibTable(50), fibRolling(50));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "i-1 and i-2 are already filled because the sweep is increasing. This ordering is the correctness argument."
+     },
+     {
+      "line": 15,
+      "text": "next is computed before prev is overwritten, or the sum would lose the operand it still needs."
+     },
+     {
+      "line": 23,
+      "text": "Both agree at n=50. The table needed 51 slots; the rolling version needed two."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the rolling version prints `55`.",
+     "template": "function fibRolling(n) {\n  if (n < 2) return n;\n  let prev = 0;\n  let curr = 1;\n  for (let i = 2; i <= n; i++) {\n    const next = ___ + ___;\n    prev = ___;\n    curr = next;\n  }\n  return curr;\n}\nconsole.log(fibRolling(10));",
+     "blanks": [
+      "prev",
+      "curr",
+      "curr"
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "space-optimisation"
+     ],
+     "explain": "The temporary exists purely to break a dependency: `prev` must be read into `next` before it is overwritten, and only then does `prev` take the old `curr`. Assign in the other order and the two variables collapse onto one value, so the sequence doubles instead of adding."
+    }
+   },
+   {
+    "title": "Two More Shapes: Stairs and Coins",
+    "body": "**Climbing stairs** - how many ways to reach step $n$ in strides of 1 or 2 - is Fibonacci wearing a hat. The last stride came from $n-1$ or from $n-2$, so `dp[n] = dp[n-1] + dp[n-2]`, with `dp[0] = 1` because doing nothing is one way to stand on step zero.\n\n**Coin change** is the first genuinely new shape. `dp[a]` is the fewest coins making exactly `a`, and the recurrence tries every denomination as the **last** coin: `dp[a] = 1 + min(dp[a - c])` over all `c <= a`.\n\nUnreachable amounts must start at `Infinity`, never `0` - a zero would look like a free perfect answer and poison every larger amount built on it. The table holds `amount + 1` entries and each scans `m` denominations, so the cost is $O(n \\cdot m)$ time and $O(n)$ space, where $n$ is the amount itself.",
+    "code": "function climbStairs(n) {\n  const dp = new Array(n + 1);\n  dp[0] = 1;\n  dp[1] = 1;\n  for (let i = 2; i <= n; i++) dp[i] = dp[i - 1] + dp[i - 2];\n  return dp[n];\n}\n\nfunction minCoins(coins, amount) {\n  const dp = new Array(amount + 1).fill(Infinity);\n  dp[0] = 0;\n  for (let a = 1; a <= amount; a++) {\n    for (const c of coins) {\n      if (c <= a && dp[a - c] + 1 < dp[a]) dp[a] = dp[a - c] + 1;\n    }\n  }\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}\n\nconsole.log(climbStairs(5), climbStairs(10));\nconsole.log(minCoins([1, 3, 4], 6), minCoins([2], 3));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "dp[0] = 1, not 0: the empty sequence of strides is a way of standing on step 0."
+     },
+     {
+      "line": 10,
+      "text": "Infinity is the identity for a minimisation - it loses to every real candidate and survives only where nothing works."
+     },
+     {
+      "line": 14,
+      "text": "The guard c <= a keeps the index in range; comparing before assigning keeps the running minimum."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Trace `minCoins([1, 5, 6], 11)` from the lesson code. Give the final value of each named table entry as a number.",
+     "concepts": [
+      "coin-change",
+      "tabulation"
+     ],
+     "steps": [
+      {
+       "label": "dp[1]",
+       "expected": "1"
+      },
+      {
+       "label": "dp[4]",
+       "expected": "4"
+      },
+      {
+       "label": "dp[5]",
+       "expected": "1"
+      },
+      {
+       "label": "dp[6]",
+       "expected": "1"
+      },
+      {
+       "label": "dp[11]",
+       "expected": "2"
+      }
+     ],
+     "explain": "dp[4] is 4 because only pennies reach it, while dp[11] is 2 because the 5 and the 6 combine exactly. The table earns its keep by never committing: on `[1, 3, 4]` at 6 a greedy grab at the largest coin takes 4 and then two 1s for three coins, where comparing every choice of last coin finds 3+3."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-8-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "What does this program print? Each line is a value followed by the number of calls that produced it.",
+   "code": "let calls = 0;\n\nfunction fib(n) {\n  calls += 1;\n  if (n < 2) return n;\n  return fib(n - 1) + fib(n - 2);\n}\n\nconsole.log(fib(15), calls);\ncalls = 0;\nconsole.log(fib(16), calls);",
+   "lang": "javascript",
+   "answer": "610 1973\n987 3193",
+   "concepts": [
+    "overlapping-subproblems"
+   ],
+   "tags": [
+    "overlapping-subproblems",
+    "recursion"
+   ],
+   "explain": "One extra step of `n` multiplied the work by about 1.618 - the golden ratio - because the call count is exactly $2F(n+1) - 1$ and Fibonacci itself grows geometrically. A cost that multiplies by a constant per unit of input is what exponential means, and it is why n=50 is unreachable this way.",
+   "hint": "The call count for fib(n) is 2F(n+1) - 1, where F is the Fibonacci sequence itself."
+  },
+  {
+   "id": "alg-8-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "xp": 40,
+   "prompt": "Trace `climbStairs(6)` using the lesson's tabulated version (`dp[0] = 1`, `dp[1] = 1`, then `dp[i] = dp[i-1] + dp[i-2]`). Give each entry as a number.",
+   "concepts": [
+    "tabulation"
+   ],
+   "tags": [
+    "tabulation",
+    "climbing-stairs"
+   ],
+   "steps": [
+    {
+     "label": "dp[2]",
+     "expected": "2"
+    },
+    {
+     "label": "dp[3]",
+     "expected": "3"
+    },
+    {
+     "label": "dp[4]",
+     "expected": "5"
+    },
+    {
+     "label": "dp[5]",
+     "expected": "8"
+    },
+    {
+     "label": "dp[6]",
+     "expected": "13"
+    }
+   ],
+   "explain": "The row is Fibonacci shifted by one, which is the point: stairs and Fibonacci share a recurrence and differ only in base case, so one table serves both. Filling left to right means every entry is read only after it is written, and that ordering is precisely what replaces the recursive call stack."
+  },
+  {
+   "id": "alg-8-g-03",
+   "type": "complexity",
+   "layer": "application",
+   "xp": 40,
+   "prompt": "State the worst-case time complexity of the naive recursive `fib(n)` with no memo, in terms of `n`, and justify it from the shape of the recursion tree. Write the answer in the form `O(2^n)`.",
+   "answer": "O(2^n)",
+   "concepts": [
+    "overlapping-subproblems"
+   ],
+   "tags": [
+    "overlapping-subproblems",
+    "complexity"
+   ],
+   "rubric": {
+    "required": [
+     "tree",
+     "branch",
+     "exponential",
+     "subproblem"
+    ],
+    "optional": [
+     "golden",
+     "1.618",
+     "depth",
+     "repeat"
+    ],
+    "minWords": 30
+   },
+   "explain": "Each call makes two more and the tree is n deep, so the node count is bounded above by $2^n$ and in truth grows like $\\varphi^n \\approx 1.618^n$ - both exponential, with $O(2^n)$ a correct if loose upper bound. The gap between $\\varphi^n$ nodes and only $n+1$ distinct arguments is exactly the waste that memoisation removes."
+  },
+  {
+   "id": "alg-8-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Complete the memoised Fibonacci so it prints `102334155` immediately instead of grinding for hours.",
+   "template": "function fib(n, memo) {\n  if (n ___ memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fib(n - 1, ___) + fib(n - 2, ___);\n  return memo[n];\n}\nconsole.log(fib(40, {}));",
+   "blanks": [
+    "in",
+    "memo",
+    "memo"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "memoisation"
+   ],
+   "tags": [
+    "memoisation"
+   ],
+   "explain": "Both recursive calls must be handed the **same** table; a fresh `{}` in either position still returns the right number while leaving the cost exponential, which is the hardest class of bug to notice. `in` is used rather than a truthiness test because `memo[0]` is `0` and would otherwise never count as cached."
+  },
+  {
+   "id": "alg-8-g-05",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "Binary search on a sorted array halves the problem and recurses into one side only. Explain whether memoising it would speed it up, and name which of the two dynamic-programming signals it fails.",
+   "concepts": [
+    "overlapping-subproblems",
+    "optimal-substructure"
+   ],
+   "tags": [
+    "overlapping-subproblems",
+    "optimal-substructure"
+   ],
+   "rubric": {
+    "required": [
+     "overlap",
+     "distinct",
+     "no",
+     "substructure"
+    ],
+    "optional": [
+     "cache",
+     "once",
+     "log"
+    ],
+    "minWords": 35
+   },
+   "explain": "Binary search visits each subproblem exactly once - the ranges it examines are nested and never repeat - so a cache would record nothing but misses and add pure overhead. Optimal substructure is present; overlap is not, and both signals are required before a table can pay for itself."
+  }
+ ],
+ "debugging": [
+  {
+   "id": "alg-8-d-01",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`fib` is meant to be memoised. `fib(0)` and `fib(1)` work, but `fib(30)` throws `call budget exceeded` - the harness allows 200 calls and this makes vastly more. The recurrence and the base case are both correct. Fix the memoisation without touching `tick`.",
+   "fn": "fib",
+   "starterCode": "let steps = 0;\n\nfunction tick() {\n  steps += 1;\n  if (steps > 200) throw new Error(\"call budget exceeded\");\n}\n\nfunction fibMemo(n, memo) {\n  tick();\n  if (n in memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fibMemo(n - 1, {}) + fibMemo(n - 2, {});\n  return memo[n];\n}\n\nfunction fib(n) {\n  steps = 0;\n  return fibMemo(n, {});\n}\n",
+   "solution": "let steps = 0;\n\nfunction tick() {\n  steps += 1;\n  if (steps > 200) throw new Error(\"call budget exceeded\");\n}\n\nfunction fibMemo(n, memo) {\n  tick();\n  if (n in memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fibMemo(n - 1, memo) + fibMemo(n - 2, memo);\n  return memo[n];\n}\n\nfunction fib(n) {\n  steps = 0;\n  return fibMemo(n, {});\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "10",
+     "expected": 55
+    },
+    {
+     "input": "30",
+     "expected": 832040
+    },
+    {
+     "input": "60",
+     "expected": 1548008755920
+    }
+   ],
+   "concepts": [
+    "memoisation"
+   ],
+   "tags": [
+    "memoisation",
+    "debugging"
+   ],
+   "hint": "Look at what each recursive call receives as its second argument.",
+   "explain": "Every recursive call was handed a brand-new empty table, so entries were written into objects discarded the moment the call returned and no lookup ever hit - the answers stayed correct while the cost stayed exponential. That is why the budget guard exists: a memo bug that returns wrong numbers is caught in a minute, and a memo bug that returns right numbers slowly is the one that reaches production."
+  },
+  {
+   "id": "alg-8-d-02",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "This space-optimised `fibRolling(n)` should return the nth Fibonacci number, so `fibRolling(10)` is `55`, but it returns `512`. The base cases and loop bounds are correct. Fix the update.",
+   "fn": "fibRolling",
+   "starterCode": "function fibRolling(n) {\n  if (n < 2) return n;\n  let prev = 0;\n  let curr = 1;\n  for (let i = 2; i <= n; i++) {\n    prev = curr;\n    curr = prev + curr;\n  }\n  return curr;\n}\n",
+   "solution": "function fibRolling(n) {\n  if (n < 2) return n;\n  let prev = 0;\n  let curr = 1;\n  for (let i = 2; i <= n; i++) {\n    const next = prev + curr;\n    prev = curr;\n    curr = next;\n  }\n  return curr;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "2",
+     "expected": 1
+    },
+    {
+     "input": "10",
+     "expected": 55
+    },
+    {
+     "input": "40",
+     "expected": 102334155
+    }
+   ],
+   "concepts": [
+    "space-optimisation"
+   ],
+   "tags": [
+    "space-optimisation",
+    "debugging"
+   ],
+   "hint": "After the first assignment runs, what two numbers does prev + curr actually add together?",
+   "explain": "Overwriting `prev` first destroys the older value the sum still needs, so `prev + curr` degenerates into `curr + curr` and the sequence doubles - 512 is $2^9$, not a Fibonacci number. Rolling two variables is only safe when the new value is computed while both old ones are still readable, which is exactly what the temporary buys."
+  },
+  {
+   "id": "alg-8-d-03",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`climbStairs(n)` counts the ways to climb `n` stairs in strides of 1 or 2. `climbStairs(0)` and `climbStairs(1)` return `1`, but `climbStairs(5)` returns `undefined` instead of `8`. Fix the sweep.",
+   "fn": "climbStairs",
+   "starterCode": "function climbStairs(n) {\n  const dp = new Array(n + 1);\n  dp[0] = 1;\n  dp[1] = 1;\n  for (let i = 2; i < n; i++) {\n    dp[i] = dp[i - 1] + dp[i - 2];\n  }\n  return dp[n];\n}\n",
+   "solution": "function climbStairs(n) {\n  const dp = new Array(n + 1);\n  dp[0] = 1;\n  dp[1] = 1;\n  for (let i = 2; i <= n; i++) {\n    dp[i] = dp[i - 1] + dp[i - 2];\n  }\n  return dp[n];\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 1
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "2",
+     "expected": 2
+    },
+    {
+     "input": "5",
+     "expected": 8
+    },
+    {
+     "input": "20",
+     "expected": 10946
+    }
+   ],
+   "concepts": [
+    "tabulation"
+   ],
+   "tags": [
+    "tabulation",
+    "debugging"
+   ],
+   "hint": "Which is the last index the loop writes, and which index does the return statement read?",
+   "explain": "A tabulated solution lives on a contract between the sweep and the read: the loop must write every index the answer depends on, and `i < n` stops one short of `dp[n]`. The `undefined` is the honest symptom of an entry that was never written, and the small inputs hid it because those answers come from the base cases alone."
+  }
+ ],
+ "implementation": [
+  {
+   "id": "alg-8-i-01",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `minCoins(coins, amount)` returning the fewest coins summing to exactly `amount`, or `-1` if no combination does. Coins may be reused without limit. `minCoins([1, 3, 4], 6)` is `2`, `minCoins([2], 3)` is `-1`, and `minCoins([5, 7], 0)` is `0`.",
+   "fn": "minCoins",
+   "starterCode": "function minCoins(coins, amount) {\n  // dp[a] = fewest coins that make exactly a, or Infinity if a is unreachable\n  const dp = new Array(amount + 1).fill(Infinity);\n  dp[0] = 0;\n  // fill dp[1] .. dp[amount], then answer from dp[amount]\n}\n",
+   "solution": "function minCoins(coins, amount) {\n  const dp = new Array(amount + 1).fill(Infinity);\n  dp[0] = 0;\n  for (let a = 1; a <= amount; a++) {\n    for (const c of coins) {\n      if (c <= a && dp[a - c] + 1 < dp[a]) dp[a] = dp[a - c] + 1;\n    }\n  }\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}\n",
+   "tests": [
+    {
+     "input": "[1, 3, 4], 6",
+     "expected": 2
+    },
+    {
+     "input": "[2], 3",
+     "expected": -1
+    },
+    {
+     "input": "[1, 5, 6], 11",
+     "expected": 2
+    },
+    {
+     "input": "[5, 7], 0",
+     "expected": 0
+    },
+    {
+     "input": "[1], 4",
+     "expected": 4
+    },
+    {
+     "input": "[1, 5, 10, 25], 63",
+     "expected": 6
+    }
+   ],
+   "concepts": [
+    "coin-change",
+    "tabulation",
+    "optimal-substructure"
+   ],
+   "tags": [
+    "coin-change",
+    "tabulation",
+    "optimal-substructure"
+   ],
+   "hint": "For each amount a, try every coin c <= a as the last coin and keep the smallest dp[a - c] + 1.",
+   "explain": "Greedy fails on `[1, 3, 4]` at 6 - it takes the 4 and then needs two 1s, three coins where 3+3 is two - because committing to the largest coin can strand the remainder. The table never commits: at every amount it compares all choices of last coin, which is the optimal-substructure argument written out as a loop."
+  },
+  {
+   "id": "alg-8-i-02",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `countWays(coins, amount)` returning how many distinct **combinations** of coins sum to `amount`, where order does not matter, so 1+2 and 2+1 count as one. `countWays([1, 2, 5], 5)` is `4` and `countWays([3], 0)` is `1`.",
+   "fn": "countWays",
+   "starterCode": "function countWays(coins, amount) {\n  // dp[a] = number of distinct combinations summing to a\n  const dp = new Array(amount + 1).fill(0);\n  dp[0] = 1;\n  // one coin denomination at a time, then sweep a upwards\n}\n",
+   "solution": "function countWays(coins, amount) {\n  const dp = new Array(amount + 1).fill(0);\n  dp[0] = 1;\n  for (const c of coins) {\n    for (let a = c; a <= amount; a++) {\n      dp[a] += dp[a - c];\n    }\n  }\n  return dp[amount];\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 5], 5",
+     "expected": 4
+    },
+    {
+     "input": "[2], 3",
+     "expected": 0
+    },
+    {
+     "input": "[3], 0",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2], 4",
+     "expected": 3
+    },
+    {
+     "input": "[1, 2, 3], 4",
+     "expected": 4
+    },
+    {
+     "input": "[], 7",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "coin-change",
+    "tabulation"
+   ],
+   "tags": [
+    "coin-change",
+    "tabulation"
+   ],
+   "hint": "Put the loop over denominations on the outside and the loop over amounts on the inside.",
+   "explain": "The loop order carries the entire meaning here. Denominations on the outside means every combination is counted in one fixed coin order, so 1+2 and 2+1 collapse into a single entry; swap the loops and the same recurrence counts **permutations** instead. Nothing about the formula changed - only the traversal decided which question you answered."
+  },
+  {
+   "id": "alg-8-i-03",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write `tribonacci(n)` for $T(0) = 0$, $T(1) = T(2) = 1$ and $T(k) = T(k-1) + T(k-2) + T(k-3)$, using $O(1)$ extra space - no array and no memo object. `tribonacci(10)` is `149` and `tribonacci(25)` is `1389537`.",
+   "fn": "tribonacci",
+   "starterCode": "function tribonacci(n) {\n  // T(0) = 0, T(1) = 1, T(2) = 1, T(k) = T(k-1) + T(k-2) + T(k-3)\n  // keep only the values you still need\n}\n",
+   "solution": "function tribonacci(n) {\n  if (n === 0) return 0;\n  if (n === 1 || n === 2) return 1;\n  let a = 0;\n  let b = 1;\n  let c = 1;\n  for (let i = 3; i <= n; i++) {\n    const next = a + b + c;\n    a = b;\n    b = c;\n    c = next;\n  }\n  return c;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "2",
+     "expected": 1
+    },
+    {
+     "input": "3",
+     "expected": 2
+    },
+    {
+     "input": "10",
+     "expected": 149
+    },
+    {
+     "input": "25",
+     "expected": 1389537
+    }
+   ],
+   "concepts": [
+    "space-optimisation",
+    "tabulation"
+   ],
+   "tags": [
+    "space-optimisation",
+    "tabulation"
+   ],
+   "hint": "Three rolling variables, and compute the new value before shifting any of them.",
+   "explain": "The window of back-references is three wide instead of two, so the same reduction applies with one more variable: the space a recurrence truly needs is the width of its window, not the size of its input. The shift must happen after the sum is computed, or the oldest value is destroyed while it is still an operand."
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-8-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "A recursive solution is a candidate for dynamic programming when it has which pair of properties?",
+   "choices": [
+    "Overlapping subproblems and optimal substructure",
+    "Tail recursion and a single base case",
+    "Logarithmic depth and a sorted input",
+    "Optimal substructure and disjoint subproblems"
+   ],
+   "answer": 0,
+   "concepts": [
+    "overlapping-subproblems",
+    "optimal-substructure"
+   ],
+   "tags": [
+    "overlapping-subproblems",
+    "optimal-substructure"
+   ],
+   "explain": "The last option describes divide and conquer, not dynamic programming - disjoint subproblems are exactly the case where a cache never hits. Both signals are needed: overlap is what makes caching worth doing, and optimal substructure is what makes reusing a stored sub-answer correct regardless of which caller asked."
+  },
+  {
+   "id": "alg-8-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "xp": 10,
+   "prompt": "Select every true statement about top-down memoisation compared with bottom-up tabulation on the same recurrence.",
+   "choices": [
+    "Memoisation consumes call-stack depth that tabulation does not",
+    "Tabulation may compute entries that memoisation would never reach",
+    "Memoisation changes the asymptotic time complexity relative to tabulation",
+    "Tabulation makes the rolling-window space reduction easy to see",
+    "Memoisation requires the subproblems to be solved in a known order"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "memoisation",
+    "tabulation"
+   ],
+   "tags": [
+    "memoisation",
+    "tabulation"
+   ],
+   "explain": "Both visit each distinct subproblem once, so the asymptotic time matches; the genuine trade is stack depth and laziness against sweep order. Memoisation needs no ordering at all - the recursion discovers its own dependencies - which is why it is the easier conversion whenever a correct fill order is awkward to state up front."
+  },
+  {
+   "id": "alg-8-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "What does this program print? Each line is a value followed by a call count.",
+   "code": "let naive = 0;\nlet smart = 0;\n\nfunction fibNaive(n) {\n  naive += 1;\n  if (n < 2) return n;\n  return fibNaive(n - 1) + fibNaive(n - 2);\n}\n\nfunction fibMemo(n, memo) {\n  smart += 1;\n  if (n in memo) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fibMemo(n - 1, memo) + fibMemo(n - 2, memo);\n  return memo[n];\n}\n\nconsole.log(fibNaive(15), naive);\nconsole.log(fibMemo(15, {}), smart);",
+   "lang": "javascript",
+   "answer": "610 1973\n610 29",
+   "concepts": [
+    "memoisation",
+    "overlapping-subproblems"
+   ],
+   "tags": [
+    "memoisation",
+    "overlapping-subproblems"
+   ],
+   "explain": "Identical answers, a 68-fold difference in work, and a gap that widens without bound as n grows - 1973 is $2F(16) - 1$ while 29 is $2 \\cdot 15 - 1$. The memo changed nothing about the recurrence; it changed how many times each distinct subproblem was permitted to be evaluated."
+  },
+  {
+   "id": "alg-8-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "xp": 20,
+   "prompt": "Arrange these fragments into a working tabulated `climbStairs(n)` that returns `1` for `n = 0` and `13` for `n = 6`.",
+   "fragments": [
+    "  for (let i = 2; i <= n; i++) dp[i] = dp[i - 1] + dp[i - 2];",
+    "function climbStairs(n) {",
+    "  return dp[n];",
+    "  const dp = [1, 1];",
+    "}"
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    2,
+    4
+   ],
+   "concepts": [
+    "tabulation"
+   ],
+   "tags": [
+    "tabulation"
+   ],
+   "explain": "Base cases before the sweep, sweep before the read - that dependency chain is the only ordering constraint, and satisfying it is what makes a bottom-up solution correct without any recursion to enforce it. `[1, 1]` seeds both base cases at once, and for n of 0 or 1 the loop simply never runs."
+  },
+  {
+   "id": "alg-8-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "xp": 40,
+   "prompt": "Trace the lesson's `fibRolling(7)`. It starts with `prev = 0` and `curr = 1` and loops `i` from 2 to 7. After each iteration give the two variables in the form `prev,curr` - for example `0,1`.",
+   "concepts": [
+    "space-optimisation"
+   ],
+   "tags": [
+    "space-optimisation"
+   ],
+   "steps": [
+    {
+     "label": "after i = 2",
+     "expected": "1,1"
+    },
+    {
+     "label": "after i = 3",
+     "expected": "1,2"
+    },
+    {
+     "label": "after i = 4",
+     "expected": "2,3"
+    },
+    {
+     "label": "after i = 5",
+     "expected": "3,5"
+    },
+    {
+     "label": "after i = 6",
+     "expected": "5,8"
+    },
+    {
+     "label": "after i = 7",
+     "expected": "8,13"
+    }
+   ],
+   "explain": "The pair is a sliding window over the sequence: after iteration `i` it holds $F(i-1)$ and $F(i)$, an invariant you can state before writing the loop and check after every pass. The full $O(n)$ table was never needed because nothing in this recurrence looks back further than two."
+  },
+  {
+   "id": "alg-8-x-06",
+   "type": "complexity",
+   "layer": "application",
+   "xp": 40,
+   "prompt": "Give the worst-case time complexity of the tabulated `minCoins(coins, amount)`, where `n` is the amount and `m` is the number of denominations. Write it in the form `O(n*m)`, justify it from the loop structure, and state the space cost.",
+   "answer": "O(n*m)",
+   "concepts": [
+    "coin-change",
+    "tabulation"
+   ],
+   "tags": [
+    "coin-change",
+    "tabulation",
+    "complexity"
+   ],
+   "rubric": {
+    "required": [
+     "outer",
+     "inner",
+     "amount",
+     "space"
+    ],
+    "optional": [
+     "nested",
+     "table",
+     "entry",
+     "denomination"
+    ],
+    "minWords": 30
+   },
+   "explain": "One entry per amount, one scan of the denominations per entry: the nested loops multiply to $O(nm)$ time with $O(n)$ space for the table. This is **pseudo-polynomial** - the cost is linear in the numeric value of the amount, not in the number of digits used to write it, so adding one digit multiplies the work by ten."
+  },
+  {
+   "id": "alg-8-x-07",
+   "type": "proof",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Prove that coin change has optimal substructure. Let $C(a)$ be the fewest coins summing to $a$, and suppose some optimal solution for $a$ uses a coin of denomination $c$; show its remaining coins form an optimal solution for $a - c$. Use a cut-and-paste (exchange) argument, then explain why this licenses the recurrence $C(a) = 1 + \\min_c C(a - c)$.",
+   "concepts": [
+    "optimal-substructure"
+   ],
+   "tags": [
+    "optimal-substructure",
+    "coin-change",
+    "proof"
+   ],
+   "rubric": {
+    "required": [
+     "contradiction",
+     "optimal",
+     "replace",
+     "remaining",
+     "smaller"
+    ],
+    "optional": [
+     "exchange",
+     "cut",
+     "assume",
+     "recurrence"
+    ],
+    "minWords": 60
+   },
+   "explain": "The argument is by contradiction: if the remainder were not optimal, swapping in a better solution for $a - c$ and re-adding the coin $c$ would beat a solution already assumed optimal, which is impossible. That is precisely what makes it safe to store one number per subproblem - the quality of a sub-answer does not depend on which larger problem asked for it, and without that property a cached value could be right for one caller and wrong for another."
+  },
+  {
+   "id": "alg-8-x-08",
+   "type": "explain",
+   "layer": "application",
+   "xp": 20,
+   "prompt": "A colleague memoises a function that reads a mutable global configuration object as well as its argument, keying the cache on the argument alone. Explain what goes wrong, and state the property a function must have before its results may be cached.",
+   "concepts": [
+    "memoisation"
+   ],
+   "tags": [
+    "memoisation",
+    "purity"
+   ],
+   "rubric": {
+    "required": [
+     "stale",
+     "pure",
+     "key",
+     "argument"
+    ],
+    "optional": [
+     "deterministic",
+     "state",
+     "global",
+     "wrong"
+    ],
+    "minWords": 40
+   },
+   "explain": "A cache is a standing claim that the arguments determine the result; a hidden input breaks that claim, and the table then serves answers computed under conditions that no longer hold. Purity - or at minimum keying on every input that can change the answer - is the precondition, which is the same reason dynamic programming is always stated over values rather than over mutable state."
+  },
+  {
+   "id": "alg-8-x-09",
+   "type": "code",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "Write the **top-down memoised** `minCoinsTopDown(coins, amount)`. The inner `best(rest)` must return the fewest coins summing to `rest`, or `Infinity` when impossible, and must consult `memo` before recursing; the outer function converts `Infinity` to `-1`. `minCoinsTopDown([1, 5, 10, 25], 300)` is `12` and must finish instantly.",
+   "fn": "minCoinsTopDown",
+   "starterCode": "function minCoinsTopDown(coins, amount) {\n  const memo = {};\n\n  function best(rest) {\n    // return the fewest coins summing to rest, or Infinity if impossible\n  }\n\n  const answer = best(amount);\n  return answer === Infinity ? -1 : answer;\n}\n",
+   "solution": "function minCoinsTopDown(coins, amount) {\n  const memo = {};\n\n  function best(rest) {\n    if (rest === 0) return 0;\n    if (rest in memo) return memo[rest];\n    let found = Infinity;\n    for (const c of coins) {\n      if (c <= rest) {\n        const sub = best(rest - c);\n        if (sub + 1 < found) found = sub + 1;\n      }\n    }\n    memo[rest] = found;\n    return found;\n  }\n\n  const answer = best(amount);\n  return answer === Infinity ? -1 : answer;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 3, 4], 6",
+     "expected": 2
+    },
+    {
+     "input": "[2], 3",
+     "expected": -1
+    },
+    {
+     "input": "[5, 7], 0",
+     "expected": 0
+    },
+    {
+     "input": "[1, 5, 10, 25], 300",
+     "expected": 12
+    },
+    {
+     "input": "[1, 5, 6], 11",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "memoisation",
+    "coin-change"
+   ],
+   "tags": [
+    "memoisation",
+    "coin-change"
+   ],
+   "hint": "Check `rest in memo` first, recurse on rest - c for every usable coin, and store the minimum before returning it.",
+   "explain": "Without the memo this recursion branches m ways to depth n and is hopeless at 300; with it, each of the 301 subproblems is evaluated once and the same recurrence runs in $O(nm)$. The memo must record `Infinity` as well - an unreachable amount is a real answer worth caching, and skipping it means re-exploring the same dead ends forever."
+  },
+  {
+   "id": "alg-8-x-10",
+   "type": "debug",
+   "layer": "application",
+   "xp": 50,
+   "prompt": "`solve(coinSets, amount)` answers `minCoins` for several coin sets at the same amount. `solve([[1, 3, 4], [2], [5]], 6)` should be `[2, 3, -1]` but returns `[2, 2, 2]`. Fix the caching.",
+   "fn": "solve",
+   "starterCode": "const cache = {};\n\nfunction minCoins(coins, amount) {\n  if (amount in cache) return cache[amount];\n  if (amount === 0) return 0;\n  let best = Infinity;\n  for (const c of coins) {\n    if (c <= amount) {\n      const rest = minCoins(coins, amount - c);\n      if (rest !== -1 && rest + 1 < best) best = rest + 1;\n    }\n  }\n  const result = best === Infinity ? -1 : best;\n  cache[amount] = result;\n  return result;\n}\n\nfunction solve(coinSets, amount) {\n  return coinSets.map((coins) => minCoins(coins, amount));\n}\n",
+   "solution": "function minCoins(coins, amount) {\n  const cache = {};\n\n  function go(rest) {\n    if (rest === 0) return 0;\n    if (rest in cache) return cache[rest];\n    let best = Infinity;\n    for (const c of coins) {\n      if (c <= rest) {\n        const sub = go(rest - c);\n        if (sub + 1 < best) best = sub + 1;\n      }\n    }\n    cache[rest] = best;\n    return best;\n  }\n\n  const answer = go(amount);\n  return answer === Infinity ? -1 : answer;\n}\n\nfunction solve(coinSets, amount) {\n  return coinSets.map((coins) => minCoins(coins, amount));\n}\n",
+   "tests": [
+    {
+     "input": "[[1, 3, 4], [2], [5]], 6",
+     "expected": [
+      2,
+      3,
+      -1
+     ]
+    },
+    {
+     "input": "[[1, 5, 6]], 11",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "[[3, 7]], 0",
+     "expected": [
+      0
+     ]
+    },
+    {
+     "input": "[[2], [1]], 3",
+     "expected": [
+      -1,
+      3
+     ]
+    },
+    {
+     "input": "[], 5",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "memoisation",
+    "coin-change"
+   ],
+   "tags": [
+    "memoisation",
+    "debugging"
+   ],
+   "hint": "What identifies a subproblem here - the amount alone, or the amount together with the coin set?",
+   "explain": "A cache key must name every input the answer depends on, and this one omitted the coin set, so answers computed for `[1, 3, 4]` were handed to a caller holding `[2]`. Scoping the cache inside `minCoins` fixes it by making each top-level call its own universe; keying on the denominations plus the amount is the alternative, and it is the one to reach for when reuse across calls is genuinely wanted."
+  }
+ ]
+}

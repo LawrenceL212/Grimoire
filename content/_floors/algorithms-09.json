@@ -1,0 +1,794 @@
+{
+ "n": 9,
+ "name": "The Shortest Road",
+ "concepts": [
+  "greedy-choice",
+  "exchange-argument",
+  "interval-scheduling",
+  "greedy-failure",
+  "dijkstra"
+ ],
+ "cognitiveLevel": "design",
+ "sequence": [
+  "lesson",
+  "unseen-challenge",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Greedy Choices and Shortest Roads",
+  "sections": [
+   {
+    "title": "What Makes a Greedy Choice Safe",
+    "body": "A **greedy** algorithm commits to the choice that looks best right now and never reconsiders it. That is only correct when two properties hold: the **greedy-choice property** - some optimal solution begins with the greedy pick - and **optimal substructure** - after removing that pick, what remains is the same problem on a smaller input.\n\nBoth have to be argued, not assumed. Greedy coin change on $\\{1,5,10,25\\}$ works because every optimal solution can be rewritten to take the largest coin first; nothing in the code tells you that.\n\nThe payoff is cost. One pass with no backtracking is $O(n)$ after a sort, against exponential search over subsets.",
+    "code": "function greedyCoins(coins, amount) {\n  const sorted = coins.slice().sort((a, b) => b - a);\n  const picked = [];\n  let rem = amount;\n  for (const c of sorted) {\n    while (c <= rem) { rem -= c; picked.push(c); }\n  }\n  return rem === 0 ? picked : null;\n}\n\nconsole.log(greedyCoins([1, 5, 10, 25], 63));\nconsole.log(greedyCoins([1, 5, 10, 25], 6));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Take the biggest coin as many times as it fits - the choice is never revisited, which is what makes this greedy."
+     },
+     {
+      "line": 8,
+      "text": "Returning null rather than looping: a greedy run can end holding a remainder it cannot pay."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "maxItemsUnderBudget",
+     "prompt": "Design `maxItemsUnderBudget(prices, budget)`: return the largest number of items you can buy without the total exceeding the budget. Decide the greedy order yourself. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[3, 1, 2, 5], 6",
+       "expected": 3
+      },
+      {
+       "input": "[], 10",
+       "expected": 0
+      },
+      {
+       "input": "[10], 5",
+       "expected": 0
+      },
+      {
+       "input": "[2, 2, 2], 5",
+       "expected": 2
+      }
+     ],
+     "solution": "function maxItemsUnderBudget(prices, budget) {\n  const sorted = prices.slice().sort((a, b) => a - b);\n  let spent = 0, count = 0;\n  for (const p of sorted) {\n    if (spent + p > budget) break;\n    spent += p;\n    count += 1;\n  }\n  return count;\n}",
+     "concepts": [
+      "greedy-choice"
+     ],
+     "explain": "Cheapest-first is safe here because the objective counts items, not value: any set of k items costs at least as much as the k cheapest, so if the greedy prefix will not fit, no set of that size fits either."
+    }
+   },
+   {
+    "title": "The Exchange Argument",
+    "body": "The standard proof that a greedy rule is safe is the **exchange argument**. Take any optimal solution $O$, find the first place it disagrees with the greedy solution $G$, and show the greedy choice can be swapped into $O$ without making it worse.\n\nRepeating the swap turns $O$ into $G$ one step at a time, so $G$ is optimal too. For **interval scheduling** - pick as many pairwise non-overlapping intervals as possible - the greedy rule is *earliest finishing time first*, and the exchange is: replacing $O$'s first interval by the one that finishes soonest can only leave more room for the rest.\n\nNote what is not proved: that greedy finds the same solution as $O$. Only that it finds one just as good.",
+    "code": "function selectEarliestFinish(intervals) {\n  const sorted = intervals.slice().sort((a, b) => a[1] - b[1]);\n  const chosen = [];\n  let lastEnd = -Infinity;\n  for (const iv of sorted) {\n    if (iv[0] >= lastEnd) { chosen.push(iv); lastEnd = iv[1]; }\n  }\n  return chosen;\n}\n\nconsole.log(selectEarliestFinish([[1, 4], [3, 5], [0, 6], [5, 7], [3, 9], [6, 10], [8, 11]]));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Sorting by finishing time, not by start or by length - the sort key is the whole algorithm."
+     },
+     {
+      "line": 6,
+      "text": "Compatible means starting no earlier than the last chosen finish, so touching intervals are allowed."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "firstToFinish",
+     "prompt": "Design `firstToFinish(intervals)`: each interval is a `[start, end]` pair. Return the interval that finishes soonest, breaking ties towards the earlier position in the input, or `null` for an empty array. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[[1, 5], [0, 3], [2, 4]]",
+       "expected": [
+        0,
+        3
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": null
+      },
+      {
+       "input": "[[7, 9]]",
+       "expected": [
+        7,
+        9
+       ]
+      },
+      {
+       "input": "[[0, 4], [1, 4]]",
+       "expected": [
+        0,
+        4
+       ]
+      }
+     ],
+     "solution": "function firstToFinish(intervals) {\n  let best = null;\n  for (const iv of intervals) {\n    if (best === null || iv[1] < best[1]) best = iv;\n  }\n  return best;\n}",
+     "concepts": [
+      "exchange-argument",
+      "interval-scheduling"
+     ],
+     "explain": "The strict `<` is what keeps a tie on the earlier interval, and this quantity is exactly what the exchange argument turns on: the earliest finish leaves the widest remaining window, so swapping it in never costs a later interval."
+    }
+   },
+   {
+    "title": "Where Greedy Falls Apart",
+    "body": "Change the coin system to $\\{1, 3, 4\\}$ and ask for $6$. Greedy takes $4$ and can then only pay the rest in ones, for three coins; the optimum is $3 + 3$, two coins.\n\nNothing is wrong with the code - the greedy-choice property simply fails for this coin set, because taking the largest coin destroys a better pairing. One counterexample is enough to kill a greedy rule, which is why hunting for one is the first thing to try.\n\nWhen greedy fails you fall back to searching the options, which costs vastly more. **Proving safety is what buys the speed.**",
+    "code": "function greedyCount(coins, amount) {\n  const sorted = coins.slice().sort((a, b) => b - a);\n  let n = 0, rem = amount;\n  for (const c of sorted) { while (c <= rem) { rem -= c; n += 1; } }\n  return rem === 0 ? n : -1;\n}\n\nfunction bestCount(coins, rem) {\n  if (rem === 0) return 0;\n  let best = Infinity;\n  for (const c of coins) {\n    if (c <= rem) {\n      const sub = bestCount(coins, rem - c);\n      if (sub + 1 < best) best = sub + 1;\n    }\n  }\n  return best;\n}\n\nconsole.log(greedyCount([1, 3, 4], 6), bestCount([1, 3, 4], 6));\nconsole.log(greedyCount([1, 3, 4], 8), bestCount([1, 3, 4], 8));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "The exhaustive version tries every coin at every step - correct for any coin set, and exponential in the amount."
+     },
+     {
+      "line": 20,
+      "text": "Prints 3 2: greedy is wrong at 6. The next line prints 2 2, so a passing example proves nothing."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "greedyCoinCount",
+     "prompt": "Design `greedyCoinCount(coins, amount)`: take the largest usable coin repeatedly and return how many coins that used, or `-1` if the greedy run ends with a remainder it cannot pay. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "[1, 3, 4], 6",
+       "expected": 3
+      },
+      {
+       "input": "[1, 5, 10, 25], 30",
+       "expected": 2
+      },
+      {
+       "input": "[1, 3, 4], 0",
+       "expected": 0
+      },
+      {
+       "input": "[2, 4], 5",
+       "expected": -1
+      }
+     ],
+     "solution": "function greedyCoinCount(coins, amount) {\n  const sorted = coins.slice().sort((a, b) => b - a);\n  let n = 0, rem = amount;\n  for (const c of sorted) {\n    while (c <= rem) { rem -= c; n += 1; }\n  }\n  return rem === 0 ? n : -1;\n}",
+     "concepts": [
+      "greedy-failure",
+      "greedy-choice"
+     ],
+     "explain": "The `[2, 4], 5` case matters most: greedy does not merely return a worse answer, it returns none at all. Telling 'greedy got stuck' apart from 'no combination exists' needs the exhaustive version, which is precisely what greedy refused to do."
+    }
+   },
+   {
+    "title": "Dijkstra Without a Priority Queue",
+    "body": "**Dijkstra** grows a set of settled vertices. Each round it settles the unsettled vertex with the smallest tentative distance - a greedy choice - then **relaxes** every edge leaving it: if `dist[u] + w` beats `dist[v]`, record the better route.\n\nThat choice is safe because weights are non-negative: any other route to that vertex must leave the settled set through some unsettled vertex that is already at least as far away, and extending it only adds more. This is also exactly why a negative edge breaks Dijkstra.\n\nWithout a heap, finding the minimum is a **linear scan** over all $V$ vertices, once per round: $O(V^2)$ of scanning plus $O(E)$ relaxations, and since $E \\le V^2$ that is $O(V^2)$ overall. A binary heap trades this for $O((V + E)\\log V)$, which only wins on sparse graphs.",
+    "code": "function dijkstra(graph, source) {\n  const nodes = Object.keys(graph);\n  const dist = {}, done = {};\n  for (const v of nodes) dist[v] = Infinity;\n  dist[source] = 0;\n  for (let k = 0; k < nodes.length; k++) {\n    let u = null;\n    for (const v of nodes) {\n      if (!done[v] && dist[v] < Infinity && (u === null || dist[v] < dist[u])) u = v;\n    }\n    if (u === null) break;\n    done[u] = true;\n    for (const edge of graph[u]) {\n      const w = edge[0], cost = edge[1];\n      if (dist[u] + cost < dist[w]) dist[w] = dist[u] + cost;\n    }\n  }\n  return dist;\n}\n\nconst g = { A: [[\"B\", 1], [\"C\", 4]], B: [[\"C\", 2], [\"D\", 5]], C: [[\"D\", 1]], D: [] };\nconsole.log(dijkstra(g, \"A\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "This inner loop is the missing priority queue: V comparisons per round, V rounds, hence the V-squared term."
+     },
+     {
+      "line": 11,
+      "text": "No reachable unsettled vertex remains, so everything still at Infinity is unreachable and the loop can stop early."
+     },
+     {
+      "line": 15,
+      "text": "Relaxation. Each directed edge is examined exactly once, in the round its tail is settled - that is the O(E) term."
+     }
+    ],
+    "checkpoint": {
+     "type": "design",
+     "layer": "application",
+     "fn": "closestUnvisited",
+     "prompt": "Design `closestUnvisited(dist, visited)`: `dist` maps vertex names to numbers, `visited` is an array of names already settled. Return the unvisited vertex with the smallest distance, breaking ties towards the earlier key, or `null` when every vertex is visited. Nothing is given to you.",
+     "starterCode": "",
+     "tests": [
+      {
+       "input": "{A: 0, B: 3, C: 1}, ['A']",
+       "expected": "C"
+      },
+      {
+       "input": "{A: 0}, ['A']",
+       "expected": null
+      },
+      {
+       "input": "{A: 0, B: 2}, []",
+       "expected": "A"
+      },
+      {
+       "input": "{A: 5, B: 5}, []",
+       "expected": "A"
+      }
+     ],
+     "solution": "function closestUnvisited(dist, visited) {\n  let best = null;\n  for (const v of Object.keys(dist)) {\n    if (visited.indexOf(v) !== -1) continue;\n    if (best === null || dist[v] < dist[best]) best = v;\n  }\n  return best;\n}",
+     "concepts": [
+      "dijkstra"
+     ],
+     "explain": "This single helper is the entire cost story of heap-free Dijkstra: called once per round, reading every vertex, so V rounds times V reads gives the V-squared term. The strict `<` also fixes the tie-break, which is what keeps the settle order deterministic."
+    }
+   }
+  ]
+ },
+ "unseen-challenge": [
+  {
+   "id": "alg-9-u-01",
+   "type": "design",
+   "layer": "application",
+   "fn": "scheduleMax",
+   "prompt": "Design `scheduleMax(intervals)`: each interval is a `[start, end]` pair, and intervals that merely touch - one ending exactly where the next begins - are compatible. Return the size of the largest set of pairwise non-overlapping intervals. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[[1, 3], [3, 5], [0, 7], [5, 9], [8, 10]]",
+     "expected": 3
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[[0, 1]]",
+     "expected": 1
+    },
+    {
+     "input": "[[1, 10], [2, 9], [3, 8]]",
+     "expected": 1
+    }
+   ],
+   "solution": "function scheduleMax(intervals) {\n  const sorted = intervals.slice().sort((a, b) => a[1] - b[1]);\n  let count = 0, lastEnd = -Infinity;\n  for (const iv of sorted) {\n    if (iv[0] >= lastEnd) { count += 1; lastEnd = iv[1]; }\n  }\n  return count;\n}",
+   "concepts": [
+    "interval-scheduling",
+    "greedy-choice"
+   ],
+   "tags": [
+    "interval-scheduling",
+    "greedy-choice"
+   ],
+   "xp": 100,
+   "explain": "Sorting by finish is the whole design; the scan afterwards is trivial. The first case punishes a start-time rule, since [0, 7] starts earliest and alone blocks two compatible intervals, and the last punishes a shortest-first rule."
+  },
+  {
+   "id": "alg-9-u-02",
+   "type": "design",
+   "layer": "application",
+   "fn": "minCoins",
+   "prompt": "Design `minCoins(coins, amount)`: return the fewest coins that make the amount exactly, or `-1` when no combination does. Greedy is not good enough here - your answer must be optimal for every coin set. Amounts stay under 100. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[1, 3, 4], 6",
+     "expected": 2
+    },
+    {
+     "input": "[2], 3",
+     "expected": -1
+    },
+    {
+     "input": "[1, 5, 10, 25], 30",
+     "expected": 2
+    },
+    {
+     "input": "[1, 3, 4], 0",
+     "expected": 0
+    }
+   ],
+   "solution": "function minCoins(coins, amount) {\n  const best = new Array(amount + 1).fill(Infinity);\n  best[0] = 0;\n  for (let a = 1; a <= amount; a++) {\n    for (const c of coins) {\n      if (c <= a && best[a - c] + 1 < best[a]) best[a] = best[a - c] + 1;\n    }\n  }\n  return best[amount] === Infinity ? -1 : best[amount];\n}",
+   "concepts": [
+    "greedy-failure"
+   ],
+   "tags": [
+    "greedy-failure"
+   ],
+   "xp": 100,
+   "explain": "Every amount has to consider every coin, because the choice that looks worst locally is the one that wins at 6. The price of correctness on an arbitrary coin set is O(amount x coins) work instead of a single pass - that gap is what a safety proof buys you when greedy does hold."
+  },
+  {
+   "id": "alg-9-u-03",
+   "type": "design",
+   "layer": "application",
+   "fn": "dijkstra",
+   "prompt": "Design `dijkstra(graph, source)`. `graph` maps each vertex name to an array of `[neighbour, weight]` pairs with non-negative weights, and every neighbour is itself a key. Return an object mapping every vertex to its shortest distance from the source, using `null` for unreachable vertices. Find the minimum by linear scan - no heap. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "{A: [['B',1],['C',4]], B: [['C',2],['D',5]], C: [['D',1]], D: []}, 'A'",
+     "expected": {
+      "A": 0,
+      "B": 1,
+      "C": 3,
+      "D": 4
+     }
+    },
+    {
+     "input": "{A: []}, 'A'",
+     "expected": {
+      "A": 0
+     }
+    },
+    {
+     "input": "{A: [['B',2]], B: [], C: []}, 'A'",
+     "expected": {
+      "A": 0,
+      "B": 2,
+      "C": null
+     }
+    },
+    {
+     "input": "{A: [['B',4],['C',1]], B: [['D',1]], C: [['B',2],['D',5]], D: [['E',3]], E: []}, 'A'",
+     "expected": {
+      "A": 0,
+      "B": 3,
+      "C": 1,
+      "D": 4,
+      "E": 7
+     }
+    }
+   ],
+   "solution": "function dijkstra(graph, source) {\n  const nodes = Object.keys(graph);\n  const dist = {}, done = {};\n  for (const v of nodes) dist[v] = Infinity;\n  dist[source] = 0;\n  for (let k = 0; k < nodes.length; k++) {\n    let u = null;\n    for (const v of nodes) {\n      if (!done[v] && dist[v] < Infinity && (u === null || dist[v] < dist[u])) u = v;\n    }\n    if (u === null) break;\n    done[u] = true;\n    for (const edge of graph[u]) {\n      const w = edge[0], cost = edge[1];\n      if (dist[u] + cost < dist[w]) dist[w] = dist[u] + cost;\n    }\n  }\n  const out = {};\n  for (const v of nodes) out[v] = dist[v] === Infinity ? null : dist[v];\n  return out;\n}",
+   "concepts": [
+    "dijkstra",
+    "greedy-choice"
+   ],
+   "tags": [
+    "dijkstra",
+    "greedy-choice"
+   ],
+   "xp": 100,
+   "explain": "The fourth graph separates a real implementation from a hop-counting walk: the direct edge A-B of weight 4 loses to the two-hop route through C, so B must not be settled before C. Unreachable vertices stay at Infinity forever, which is why the scan has to skip them instead of picking one and relaxing from nowhere."
+  },
+  {
+   "id": "alg-9-u-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "You run the heap-free Dijkstra on a graph with $V$ vertices and $E$ directed edges stored as adjacency lists. State the worst-case running time as a single big-O in $V$, and justify the two costs - finding the minimum and relaxing - separately.",
+   "answer": "O(V^2)",
+   "rubric": {
+    "required": [
+     "scan",
+     "minimum",
+     "relax"
+    ],
+    "optional": [
+     "round",
+     "adjacency",
+     "heap",
+     "dense",
+     "sparse",
+     "edge",
+     "once"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "dijkstra"
+   ],
+   "tags": [
+    "dijkstra",
+    "complexity"
+   ],
+   "xp": 40,
+   "explain": "Two costs add: V rounds each scanning V vertices for the minimum gives V^2, while every adjacency list is walked exactly once for E relaxations in total, so the honest bound is O(V^2 + E). Since E is at most V^2 in a simple graph the sum collapses to O(V^2) - relaxation is never the bottleneck here, which is exactly why a heap only pays off when the graph is sparse."
+  },
+  {
+   "id": "alg-9-u-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace the heap-free Dijkstra from `A` on this graph, where each entry lists `[neighbour, weight]`:\n\n- `A: [[B, 4], [C, 1]]`\n- `B: [[D, 1]]`\n- `C: [[B, 2], [D, 5]]`\n- `D: [[E, 3]]`\n- `E: []`\n\nWrite `inf` for a distance that is still infinite.",
+   "steps": [
+    {
+     "label": "tentative distances to B, C, D, E after settling A",
+     "expected": "4, 1, inf, inf"
+    },
+    {
+     "label": "the second vertex settled, and its final distance",
+     "expected": "C, 1"
+    },
+    {
+     "label": "tentative distance to B immediately after C is settled",
+     "expected": "3"
+    },
+    {
+     "label": "the order in which all five vertices are settled",
+     "expected": "A, C, B, D, E"
+    },
+    {
+     "label": "final distance to E",
+     "expected": "7"
+    }
+   ],
+   "concepts": [
+    "dijkstra",
+    "greedy-choice"
+   ],
+   "tags": [
+    "dijkstra",
+    "trace"
+   ],
+   "xp": 40,
+   "explain": "B is the vertex worth watching: it sits at 4 after the first round and drops to 3 once C is settled, which is legal only because B was still unsettled. D likewise improves from 6 to 4. Once a vertex is settled its distance is frozen, and with non-negative weights nothing later can beat it."
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-9-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function greedyCount(coins, amount) {\n  const sorted = coins.slice().sort((a, b) => b - a);\n  let n = 0, rem = amount;\n  for (const c of sorted) { while (c <= rem) { rem -= c; n += 1; } }\n  return rem === 0 ? n : -1;\n}\n\nfunction bestCount(coins, rem) {\n  if (rem === 0) return 0;\n  let best = Infinity;\n  for (const c of coins) {\n    if (c <= rem) {\n      const sub = bestCount(coins, rem - c);\n      if (sub + 1 < best) best = sub + 1;\n    }\n  }\n  return best;\n}\n\nfor (const a of [5, 6, 7, 8]) {\n  console.log(a + \": greedy=\" + greedyCount([1, 3, 4], a) + \" best=\" + bestCount([1, 3, 4], a));\n}",
+   "lang": "javascript",
+   "answer": "5: greedy=2 best=2\n6: greedy=3 best=2\n7: greedy=2 best=2\n8: greedy=2 best=2",
+   "concepts": [
+    "greedy-failure"
+   ],
+   "tags": [
+    "greedy-failure"
+   ],
+   "xp": 20,
+   "explain": "Three of the four amounts agree, and that is the point: a greedy rule can be right on nearly every input and still be wrong. Only 6 exposes it, because committing to 4 destroys the 3 + 3 pairing."
+  },
+  {
+   "id": "alg-9-e-02",
+   "type": "design",
+   "layer": "application",
+   "fn": "minRoomsNeeded",
+   "prompt": "Design `minRoomsNeeded(intervals)`: given `[start, end]` meeting times, return the fewest rooms that can host all of them, where a meeting ending at time t and one starting at t may share a room. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[[1, 4], [2, 5], [7, 9]]",
+     "expected": 2
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[[0, 1], [1, 2]]",
+     "expected": 1
+    },
+    {
+     "input": "[[1, 10], [2, 3], [3, 4], [5, 6]]",
+     "expected": 2
+    }
+   ],
+   "solution": "function minRoomsNeeded(intervals) {\n  const starts = intervals.map(iv => iv[0]).sort((a, b) => a - b);\n  const ends = intervals.map(iv => iv[1]).sort((a, b) => a - b);\n  let i = 0, j = 0, cur = 0, best = 0;\n  while (i < starts.length) {\n    if (starts[i] < ends[j]) {\n      cur += 1;\n      if (cur > best) best = cur;\n      i += 1;\n    } else {\n      cur -= 1;\n      j += 1;\n    }\n  }\n  return best;\n}",
+   "concepts": [
+    "interval-scheduling",
+    "greedy-choice"
+   ],
+   "tags": [
+    "interval-scheduling"
+   ],
+   "xp": 100,
+   "explain": "The answer is the largest number of meetings alive at one instant, and sweeping the sorted start and end times finds it without ever assigning a meeting to a named room. Comparing with `<` rather than `<=` is what lets a meeting reuse a room freed at exactly that moment."
+  },
+  {
+   "id": "alg-9-e-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You have invented a greedy rule for a new problem and it gives the right answer on twenty test cases. Say what is still missing, and describe the shape of the argument that would settle it.",
+   "rubric": {
+    "required": [
+     "exchange",
+     "optimal",
+     "counterexample"
+    ],
+    "optional": [
+     "swap",
+     "first",
+     "differ",
+     "worse",
+     "substructure",
+     "induction",
+     "proof"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "exchange-argument",
+    "greedy-choice"
+   ],
+   "tags": [
+    "exchange-argument"
+   ],
+   "xp": 20,
+   "explain": "Passing tests can only fail to find a counterexample; it never establishes the greedy-choice property. The exchange argument closes the gap: take an arbitrary optimal solution, find the first choice where it differs from greedy, show the greedy choice can be swapped in without loss, and repeat until the optimum has become the greedy answer."
+  },
+  {
+   "id": "alg-9-e-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case running time of earliest-finish-first interval scheduling on $n$ intervals, assuming a comparison sort, and justify which part of the algorithm dominates.",
+   "answer": "O(n log n)",
+   "rubric": {
+    "required": [
+     "sort",
+     "scan",
+     "dominates"
+    ],
+    "optional": [
+     "linear",
+     "single",
+     "pass",
+     "comparison",
+     "finish",
+     "greedy"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "interval-scheduling"
+   ],
+   "tags": [
+    "interval-scheduling",
+    "complexity"
+   ],
+   "xp": 40,
+   "explain": "The greedy part is one O(n) scan; sorting by finishing time dominates at O(n log n). That is typical of greedy algorithms - almost all the work goes into imposing the right order, after which each decision is a single comparison against the last commitment."
+  },
+  {
+   "id": "alg-9-e-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace earliest-finish-first on these intervals: `[1, 4]`, `[3, 5]`, `[0, 6]`, `[5, 7]`, `[3, 9]`, `[6, 10]`, `[8, 11]`. Touching intervals are compatible. Write intervals as `[a, b]` and separate a list with commas.",
+   "steps": [
+    {
+     "label": "the intervals in the order the sort produces",
+     "expected": "[1, 4], [3, 5], [0, 6], [5, 7], [3, 9], [6, 10], [8, 11]"
+    },
+    {
+     "label": "the first interval chosen",
+     "expected": "[1, 4]"
+    },
+    {
+     "label": "the value of lastEnd after that first choice",
+     "expected": "4"
+    },
+    {
+     "label": "every interval finally chosen",
+     "expected": "[1, 4], [5, 7], [8, 11]"
+    },
+    {
+     "label": "how many intervals were rejected",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "interval-scheduling",
+    "greedy-choice"
+   ],
+   "tags": [
+    "interval-scheduling",
+    "trace"
+   ],
+   "xp": 40,
+   "explain": "[0, 6] is the rejection that matters: it starts earliest of all, so a start-time greedy would have taken it and lost [1, 4] and [5, 7] both. Sorting by finish keeps lastEnd as small as possible after every commitment, which is the invariant the exchange argument exploits."
+  },
+  {
+   "id": "alg-9-e-06",
+   "type": "design",
+   "layer": "application",
+   "fn": "shortestPath",
+   "prompt": "Design `shortestPath(graph, source, target)`. `graph` maps each vertex to an array of `[neighbour, weight]` pairs with non-negative weights. Return the vertex names along a shortest path from source to target as an array, `[source]` when they are the same vertex, and `[]` when the target is unreachable. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "{A: [['B',1],['C',4]], B: [['C',2],['D',5]], C: [['D',1]], D: []}, 'A', 'D'",
+     "expected": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ]
+    },
+    {
+     "input": "{A: [['B',1]], B: []}, 'A', 'A'",
+     "expected": [
+      "A"
+     ]
+    },
+    {
+     "input": "{A: [['B',2]], B: [], C: []}, 'A', 'C'",
+     "expected": []
+    },
+    {
+     "input": "{A: [['B',4],['C',1]], B: [['D',1]], C: [['B',2],['D',5]], D: []}, 'A', 'D'",
+     "expected": [
+      "A",
+      "C",
+      "B",
+      "D"
+     ]
+    }
+   ],
+   "solution": "function shortestPath(graph, source, target) {\n  const nodes = Object.keys(graph);\n  const dist = {}, prev = {}, done = {};\n  for (const v of nodes) { dist[v] = Infinity; prev[v] = null; }\n  dist[source] = 0;\n  for (let k = 0; k < nodes.length; k++) {\n    let u = null;\n    for (const v of nodes) {\n      if (!done[v] && dist[v] < Infinity && (u === null || dist[v] < dist[u])) u = v;\n    }\n    if (u === null) break;\n    done[u] = true;\n    for (const edge of graph[u]) {\n      const w = edge[0], cost = edge[1];\n      if (dist[u] + cost < dist[w]) { dist[w] = dist[u] + cost; prev[w] = u; }\n    }\n  }\n  if (dist[target] === Infinity) return [];\n  const path = [];\n  let at = target;\n  while (at !== null) { path.push(at); at = prev[at]; }\n  return path.reverse();\n}",
+   "concepts": [
+    "dijkstra"
+   ],
+   "tags": [
+    "dijkstra"
+   ],
+   "xp": 100,
+   "explain": "Distances alone name no route, so every successful relaxation must also record who caused it; walking those predecessors back from the target and reversing rebuilds the path. The unreachable case has to be checked before that walk, since an untouched vertex has no predecessor to follow."
+  },
+  {
+   "id": "alg-9-e-07",
+   "type": "proof",
+   "layer": "application",
+   "prompt": "Prove that earliest-finish-first selects a maximum-size set of pairwise compatible intervals. Argue by exchange against an arbitrary optimal solution.",
+   "rubric": {
+    "required": [
+     "optimal",
+     "exchange",
+     "finish",
+     "compatible"
+    ],
+    "optional": [
+     "induction",
+     "first",
+     "differ",
+     "swap",
+     "size",
+     "contradiction",
+     "replace"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "exchange-argument",
+    "interval-scheduling"
+   ],
+   "tags": [
+    "exchange-argument",
+    "proof"
+   ],
+   "xp": 50,
+   "explain": "The engine of the proof is that greedy's k-th choice finishes no later than the optimal solution's k-th choice, by induction: if that holds through k, the optimal (k+1)-th interval is still compatible with greedy's prefix, so greedy's own pick finishes no later still. Greedy therefore never runs out of room first, and its set is at least as large - which shows equal size, never that the two sets are identical."
+  },
+  {
+   "id": "alg-9-e-08",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Why does a single negative-weight edge break Dijkstra, even on a graph with no negative cycle?",
+   "choices": [
+    "The distance array would hold negative numbers, which the comparison mishandles",
+    "Settling a vertex assumes no later route can be shorter, and a negative edge can falsify that",
+    "The linear scan cannot find a minimum among negative values",
+    "Relaxation would never terminate"
+   ],
+   "answer": 1,
+   "concepts": [
+    "dijkstra",
+    "greedy-choice"
+   ],
+   "tags": [
+    "dijkstra"
+   ],
+   "xp": 10,
+   "explain": "Dijkstra's greedy choice rests entirely on monotonicity - extending a path never shortens it - so the nearest unsettled vertex must already be final. A negative edge lets a longer prefix end up cheaper, and by then the vertex was frozen and is never revisited."
+  },
+  {
+   "id": "alg-9-e-09",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the relaxation step of Dijkstra for the edge from `u` to `v` with weight `w`.",
+   "template": "if (dist[u] + w ___ dist[v]) {\n  dist[v] = dist[u] ___ w;\n}",
+   "blanks": [
+    "<",
+    "+"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "dijkstra"
+   ],
+   "tags": [
+    "dijkstra"
+   ],
+   "xp": 20,
+   "explain": "Relaxation may only ever lower a distance, so the comparison is the strict one; the assignment must recompute the sum rather than copy `dist[u]`, because the route to v costs the route to u plus the edge."
+  },
+  {
+   "id": "alg-9-e-10",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one round of heap-free Dijkstra into the order it must happen.",
+   "fragments": [
+    "scan every unsettled vertex and take the one with the smallest tentative distance",
+    "mark that vertex settled - its distance is now final",
+    "walk its adjacency list, one edge at a time",
+    "if dist[u] + w beats dist[v], lower dist[v]"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "dijkstra",
+    "greedy-choice"
+   ],
+   "tags": [
+    "dijkstra"
+   ],
+   "xp": 20,
+   "explain": "Settling before relaxing is what makes the algorithm terminate: the settled vertex leaves the scan for good, so exactly V rounds finish the graph. Relaxing an edge back into an already settled vertex is also what a negative weight would need to do, and cannot."
+  },
+  {
+   "id": "alg-9-e-11",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Interval scheduling and heap-free Dijkstra both make a locally best choice and never take it back. Explain what plays the role of the exchange argument in Dijkstra: what property of the input makes settling the nearest unsettled vertex safe?",
+   "rubric": {
+    "required": [
+     "negative",
+     "settled",
+     "shortest"
+    ],
+    "optional": [
+     "monotone",
+     "prefix",
+     "longer",
+     "weight",
+     "final",
+     "frozen"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "exchange-argument",
+    "dijkstra"
+   ],
+   "tags": [
+    "exchange-argument",
+    "dijkstra"
+   ],
+   "xp": 20,
+   "explain": "Any rival route to the nearest unsettled vertex must first leave the settled set through some other unsettled vertex whose tentative distance is already at least as large, and non-negative weights mean the remainder of that route only adds to it. So no cheaper route can exist and the vertex may be frozen - the same swap-in-the-greedy-choice shape as the interval proof, resting on monotonicity rather than on finishing times."
+  },
+  {
+   "id": "alg-9-e-12",
+   "type": "design",
+   "layer": "application",
+   "fn": "canFinishAll",
+   "prompt": "Design `canFinishAll(jobs, deadline)`: each job is a positive duration, the jobs run one after another on a single machine, and you may choose the order. Return `true` if some order finishes every job by the deadline, measuring finish times from time zero. Nothing is given to you.",
+   "starterCode": "",
+   "tests": [
+    {
+     "input": "[3, 1, 2], 6",
+     "expected": true
+    },
+    {
+     "input": "[3, 1, 2], 5",
+     "expected": false
+    },
+    {
+     "input": "[], 0",
+     "expected": true
+    },
+    {
+     "input": "[7], 7",
+     "expected": true
+    }
+   ],
+   "solution": "function canFinishAll(jobs, deadline) {\n  let total = 0;\n  for (const j of jobs) total += j;\n  return total <= deadline;\n}",
+   "concepts": [
+    "greedy-choice"
+   ],
+   "tags": [
+    "greedy-choice"
+   ],
+   "xp": 100,
+   "explain": "The design insight is that the ordering is irrelevant here: the last job always finishes at the total duration, so every permutation ties and the greedy question dissolves into a sum. Recognising that a choice cannot matter is as much a part of design as proving that one is safe."
+  }
+ ]
+}

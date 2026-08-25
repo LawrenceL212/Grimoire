@@ -1,0 +1,778 @@
+{
+ "n": 1,
+ "name": "The Counting Step",
+ "concepts": [
+  "algorithm-definition",
+  "operation-counting",
+  "input-size",
+  "big-o",
+  "time-vs-space"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "First Contact",
+  "sections": [
+   {
+    "title": "What Makes a Procedure an Algorithm",
+    "body": "A recipe, a set of directions and a sorting routine are all **procedures**, but only some of them are **algorithms**. Three properties decide it: every step must be **definite** (unambiguous, with no room for judgement), the whole procedure must be **finite** (it halts on every legal input), and every step must be **effective** (a real operation the executor can actually carry out).\n\nFiniteness is the one that bites. Euclid's `gcd` halts because the remainder `a % b` is strictly smaller than `b`, so the second argument is a non-negative integer that decreases on every pass and cannot decrease forever.\n\nA loop whose guard moves *away* from false is a procedure, but not an algorithm - and no amount of speed matters for something that never returns an answer.",
+    "code": "function gcd(a, b) {\n  while (b !== 0) {\n    const r = a % b;\n    a = b;\n    b = r;\n  }\n  return a;\n}\n\nconsole.log(gcd(48, 18));\nconsole.log(gcd(17, 5));\n\nfunction neverStops(n) {\n  let steps = 0;\n  while (n > 0) {\n    n = n + 1;\n    steps = steps + 1;\n    if (steps === 5) return \"gave up after \" + steps + \" steps\";\n  }\n  return String(n);\n}\n\nconsole.log(neverStops(1));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The guard tests b against 0, and b is a non-negative integer that strictly decreases - so it must reach 0. That sentence is the entire termination proof."
+     },
+     {
+      "line": 3,
+      "text": "a % b is strictly less than b. This one fact is what makes the loop finite; nothing else in the function matters to termination."
+     },
+     {
+      "line": 16,
+      "text": "n moves away from the guard, not toward it. Without the escape hatch two lines down this would run forever, which is exactly what disqualifies it as an algorithm."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This counts how many passes of Euclid's loop run before it halts. What does it print? Write both lines.",
+     "code": "function gcdSteps(a, b) {\n  let steps = 0;\n  while (b !== 0) {\n    const r = a % b;\n    a = b;\n    b = r;\n    steps = steps + 1;\n  }\n  return steps;\n}\n\nconsole.log(gcdSteps(48, 18));\nconsole.log(gcdSteps(9, 0));",
+     "lang": "javascript",
+     "answer": "3\n0",
+     "explain": "The pairs go (48,18) to (18,12) to (12,6) to (6,0), so three passes. The second call shows that finiteness includes the case where the loop body never runs at all - zero is a perfectly good step count, and a procedure that halts immediately still halts.",
+     "concepts": [
+      "algorithm-definition",
+      "operation-counting"
+     ]
+    }
+   },
+   {
+    "title": "Count Operations, Not Seconds",
+    "body": "Timing a procedure with a clock measures your laptop, your language and whatever else was running - none of which is a property of the procedure. So we count **operations** instead: how many times the work inside the loop actually happens.\n\nThat count is not a single number. It is a **function of the input size**, written $n$ - the length of the array, the number of digits, the count of items. Values do not matter to the count; size does.\n\n`sumTo` below performs $n$ additions for input $n$, so its cost is $n$. The closed-form version does one multiply, one add and one divide however large $n$ gets, so its cost is $3$. Those two functions of $n$ - one that grows, one that does not - are what we are really comparing.",
+    "code": "function sumTo(n) {\n  let total = 0;\n  let ops = 0;\n  for (let i = 1; i <= n; i++) {\n    total = total + i;\n    ops = ops + 1;\n  }\n  return total + \" in \" + ops + \" ops\";\n}\n\nconsole.log(sumTo(5));\nconsole.log(sumTo(10));\nconsole.log(sumTo(100));\n\nfunction sumToFast(n) {\n  return (n * (n + 1)) / 2 + \" in 3 ops\";\n}\n\nconsole.log(sumToFast(100));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The counter is the point of the example. Every time the body runs we charge ourselves one operation."
+     },
+     {
+      "line": 12,
+      "text": "Ten times the input, ten times the work: 55 in 10 ops against 15 in 5 ops. The count tracks n exactly."
+     },
+     {
+      "line": 16,
+      "text": "Same answer, 3 operations, and it stays 3 for n = 100 or n = 100000000. This is the difference a growth function exposes and a stopwatch hides."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the counter so that `countOps(4)` returns `4` - the number of times the loop body runs.",
+     "template": "function countOps(n) {\n  let ops = ___;\n  for (let i = 0; i < n; i++) {\n    ops = ops ___ 1;\n  }\n  return ops;\n}",
+     "blanks": [
+      "0",
+      "+"
+     ],
+     "lang": "javascript",
+     "explain": "A counter has to start from nothing and grow by one per unit of work; that is the whole instrumentation trick, turning an invisible cost into a value you can print and compare. Starting at 1, or assigning instead of adding, both silently produce a number that looks plausible and is not the cost.",
+     "hint": "One blank is where the count starts, the other is how it grows.",
+     "concepts": [
+      "operation-counting",
+      "input-size"
+     ]
+    }
+   },
+   {
+    "title": "Big-O Is an Upper Bound on Growth",
+    "body": "Once the cost is a function of $n$, only its **shape** matters. **Big-O** keeps that shape and throws away everything else: constant factors and lower-order terms. So $3n + 7$ is $O(n)$, and $2n^2 + 100n$ is $O(n^2)$.\n\nRead $O(f(n))$ as *grows no faster than* $f(n)$ - it is an **upper bound**, not an exact count. That is why $O(n^2)$ is a perfectly true statement about a single loop, just a uselessly loose one; we always quote the tightest bound we can defend.\n\nThe shapes you meet first, ordered slowest-growing to fastest:\n\n- $O(1)$ - constant, the cost does not depend on $n$ at all\n- $O(\\log n)$ - halving, as in repeatedly cutting the input in two\n- $O(n)$ - one pass over the input\n- $O(n \\log n)$ - one pass for each halving level\n- $O(n^2)$ - a full pass over the input for every element of the input",
+    "code": "function halvingCost(n) {\n  let steps = 0;\n  while (n > 1) {\n    n = Math.floor(n / 2);\n    steps = steps + 1;\n  }\n  return steps;\n}\n\nfunction linearCost(arr) {\n  let ops = 0;\n  for (let i = 0; i < arr.length; i++) ops = ops + 1;\n  return ops;\n}\n\nfunction quadraticCost(arr) {\n  let ops = 0;\n  for (let i = 0; i < arr.length; i++)\n    for (let j = 0; j < arr.length; j++) ops = ops + 1;\n  return ops;\n}\n\nconst eight = [1, 2, 3, 4, 5, 6, 7, 8];\nconsole.log(halvingCost(8), halvingCost(1024));\nconsole.log(linearCost(eight), quadraticCost(eight));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Each pass throws away half of what is left, so the step count is the base-2 logarithm of n: 3 for 8, and only 10 for 1024."
+     },
+     {
+      "line": 19,
+      "text": "The inner loop runs a full n times for each of the n outer passes, so the two counts multiply rather than add."
+     },
+     {
+      "line": 25,
+      "text": "Prints 8 64. Doubling the array would give 16 and 256 - the linear count doubles, the quadratic one quadruples."
+     }
+    ],
+    "checkpoint": {
+     "type": "complexity",
+     "layer": "application",
+     "prompt": "Two loops run one after the other over the same array of length `n`. Give the tightest Big-O time bound, and justify it.",
+     "code": "function twoPasses(arr) {\n  let sum = 0;\n  for (let i = 0; i < arr.length; i++) sum = sum + arr[i];\n  let biggest = arr[0];\n  for (let i = 0; i < arr.length; i++) if (arr[i] > biggest) biggest = arr[i];\n  return [sum, biggest];\n}",
+     "lang": "javascript",
+     "answer": "O(n)",
+     "rubric": {
+      "required": [
+       "separate",
+       "constant"
+      ],
+      "optional": [
+       "add",
+       "2n",
+       "linear",
+       "nested",
+       "factor",
+       "drop",
+       "sequential"
+      ],
+      "minWords": 20
+     },
+     "explain": "The loops are sequential rather than nested, so their counts add instead of multiplying: n + n = 2n. Big-O then discards the constant factor 2, leaving O(n) - which is why splitting work into a second readable pass costs nothing asymptotically, while nesting that same pass would have cost everything.",
+     "hint": "Do the two counts add, or multiply?",
+     "concepts": [
+      "big-o",
+      "operation-counting",
+      "input-size"
+     ]
+    }
+   },
+   {
+    "title": "Time Cost and Space Cost Are Two Different Bills",
+    "body": "Every algorithm is charged twice: **time**, the operations it performs, and **space**, the memory it holds beyond the input it was handed. Both are measured the same way - as a growth function of $n$ - and both are reported, separately, because improving one very often worsens the other.\n\nThe two reversals below are both $O(n)$ in time. They differ entirely in space: `reverseCopy` allocates a second array of $n$ cells, so it is $O(n)$ **auxiliary space**, while `reverseInPlace` swaps within the array it was given and holds only a fixed handful of variables, so it is $O(1)$.\n\nBy convention we count only that **extra** space, never the input itself - otherwise every algorithm that so much as reads an array would be $O(n)$ and the measure would distinguish nothing. What `reverseInPlace` pays instead is that it destroys the caller's array, a real cost that Big-O does not show you.",
+    "code": "function reverseCopy(arr) {\n  const out = [];\n  for (let i = arr.length - 1; i >= 0; i--) out.push(arr[i]);\n  return out;\n}\n\nfunction reverseInPlace(arr) {\n  let i = 0;\n  let j = arr.length - 1;\n  while (i < j) {\n    const t = arr[i];\n    arr[i] = arr[j];\n    arr[j] = t;\n    i = i + 1;\n    j = j - 1;\n  }\n  return arr;\n}\n\nconst a = [1, 2, 3, 4, 5];\nconsole.log(reverseCopy(a).join(\",\"));\nconsole.log(a.join(\",\"));\nconsole.log(reverseInPlace(a).join(\",\"));\nconsole.log(a.join(\",\"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "This one line is the entire space cost: an array that will grow to n cells, held alongside the input."
+     },
+     {
+      "line": 8,
+      "text": "Two indices and one temporary, however large the array. That is what O(1) auxiliary space looks like."
+     },
+     {
+      "line": 22,
+      "text": "Prints 1,2,3,4,5 - reverseCopy left the caller's array untouched, which is exactly what those extra n cells bought."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print? Write both lines.",
+     "code": "function copyAll(arr) {\n  const out = [];\n  for (let i = 0; i < arr.length; i++) out.push(arr[i]);\n  return out;\n}\n\nconst a = [1, 2, 3];\nconst b = copyAll(a);\nb.push(4);\nconsole.log(a.length);\nconsole.log(b.length);",
+     "lang": "javascript",
+     "answer": "3\n4",
+     "explain": "The n cells that copyAll paid for are precisely what buys the independence: pushing onto b cannot disturb a, because b is a second region of memory rather than a second name for the first. Space here is not wasted, it is spent - on the guarantee that the caller's data survives the call.",
+     "concepts": [
+      "time-vs-space",
+      "operation-counting"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-1-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "function stepsUntilOne(n) {\n  let steps = 0;\n  while (n > 1) {\n    n = Math.floor(n / 2);\n    steps = steps + 1;\n  }\n  return steps;\n}\n\nconsole.log(stepsUntilOne(1));\nconsole.log(stepsUntilOne(8));\nconsole.log(stepsUntilOne(100));",
+   "lang": "javascript",
+   "answer": "0\n3\n6",
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "explain": "Input 100 is more than twelve times input 8 and costs only twice as much - that flatness is the signature of logarithmic growth, and it is visible from three data points without any algebra. Each pass discards half of what remains, so the count is simply how many times you can halve n before reaching 1.",
+   "hint": "Write down the sequence of values n takes: 100, 50, 25, and so on.",
+   "xp": 20
+  },
+  {
+   "id": "alg-1-g-02",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A cookbook says: **stir until it tastes right, then bake until done**. Name which of the three requirements for an algorithm this fails, explain what a machine executing it could not do, and rewrite one of the two steps so that it satisfies that requirement.",
+   "rubric": {
+    "required": [
+     "definite",
+     "step"
+    ],
+    "optional": [
+     "ambiguous",
+     "judgement",
+     "judgment",
+     "precise",
+     "unambiguous",
+     "finite",
+     "effective",
+     "measure",
+     "minutes",
+     "temperature",
+     "executor"
+    ],
+    "forbidden": [],
+    "minWords": 35
+   },
+   "concepts": [
+    "algorithm-definition"
+   ],
+   "tags": [
+    "algorithm-definition"
+   ],
+   "explain": "It fails definiteness: `tastes right` and `done` are judgements, not tests an executor can evaluate, so two faithful executions could disagree about when to stop. Notice the procedure is still finite and each step is effective - failing any one of the three requirements is enough, which is why the definition is a conjunction rather than a general impression.",
+   "hint": "Ask what test the executor is supposed to run at the end of each step, and whether two executors would agree on its result.",
+   "xp": 20
+  },
+  {
+   "id": "alg-1-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value of `ops` at the moment each outer pass finishes - that is, each time execution reaches the end of the outer loop body.",
+   "code": "let ops = 0;\nfor (let i = 0; i < 3; i++) {\n  for (let j = 0; j < 3; j++) {\n    ops = ops + 1;\n  }\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "end of outer pass i = 0",
+     "expected": "3"
+    },
+    {
+     "label": "end of outer pass i = 1",
+     "expected": "6"
+    },
+    {
+     "label": "end of outer pass i = 2",
+     "expected": "9"
+    }
+   ],
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "explain": "Each outer pass adds a full inner loop's worth of work, so the total climbs by n per pass and lands on n times n. That is the mechanical reason nested loops multiply while sequential loops add: the inner cost is paid over again for every single outer step.",
+   "hint": "The inner loop runs to completion before the outer counter moves at all.",
+   "xp": 40
+  },
+  {
+   "id": "alg-1-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "The array has `n` elements. Fill the first blank with how many times the loop body runs, and the second with the Big-O time bound written in the form `O(...)`.",
+   "template": "for (let i = 0; i < arr.length; i++) {\n  total = total + arr[i];\n}\n// the body runs ___ times, so the time cost is ___",
+   "blanks": [
+    "n",
+    "O(n)"
+   ],
+   "lang": "javascript",
+   "explain": "The loop is driven by the array's length and by nothing else, so the count is the input size itself - the values stored in the array never enter the calculation at all. Going from the exact count to the bound is then only a matter of dropping constants, of which here there are none.",
+   "hint": "The counter starts at 0 and stops the moment it reaches the length.",
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "alg-1-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Instrument a linear search. Write `countComparisons(arr, target)` which scans `arr` from left to right comparing each element with `target`, and **stops the instant it finds a match**. Return the number of comparisons made. `countComparisons([1, 2, 3], 3)` must return `3`, and `countComparisons([], 5)` must return `0`.",
+   "fn": "countComparisons",
+   "starterCode": "function countComparisons(arr, target) {\n  let comparisons = 0;\n  // scan left to right, charging one comparison per element,\n  // and stop as soon as arr[i] equals target\n  return comparisons;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3], 1",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2, 3], 3",
+     "expected": 3
+    },
+    {
+     "input": "[1, 2, 3], 9",
+     "expected": 3
+    },
+    {
+     "input": "[], 5",
+     "expected": 0
+    },
+    {
+     "input": "[4, 4, 4], 4",
+     "expected": 1
+    }
+   ],
+   "solution": "function countComparisons(arr, target) {\n  let comparisons = 0;\n  for (let i = 0; i < arr.length; i++) {\n    comparisons = comparisons + 1;\n    if (arr[i] === target) return comparisons;\n  }\n  return comparisons;\n}\n",
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "algorithm-definition"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "algorithm-definition"
+   ],
+   "explain": "The counter must be incremented before the equality test, because the comparison you are about to perform is itself the work being charged for. The revealing rows are the last two: an absent target costs the full n while a target in position 0 costs 1, so one input size admits a whole range of costs - which is why worst case and best case have to be named separately rather than blurred together.",
+   "hint1": "Increment the counter first, then test - the test is the operation you are counting.",
+   "hint2": "A `return` from inside the loop is what makes the scan stop early.",
+   "hint3": "An empty array never enters the loop, so 0 falls out with no special case.",
+   "xp": 50
+  },
+  {
+   "id": "alg-1-g-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the tightest Big-O time bound for `countComparisons` from the previous challenge, in terms of `n = arr.length`, and justify it. State explicitly which input produces that cost.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "worst",
+     "absent"
+    ],
+    "optional": [
+     "linear",
+     "once",
+     "every",
+     "element",
+     "upper bound",
+     "scan",
+     "early",
+     "best",
+     "guarantee"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "big-o",
+    "input-size",
+    "operation-counting"
+   ],
+   "tags": [
+    "big-o",
+    "input-size",
+    "operation-counting"
+   ],
+   "explain": "Big-O is an upper bound, so it must hold for the most expensive input of each size - the target being absent, which forces all n comparisons. The lucky case of matching at index 0 costs 1, but quoting O(1) would be a claim the algorithm cannot honour, and a bound that only sometimes holds is not a bound at all.",
+   "hint": "Which arrangement of arr and target makes the loop run the longest?",
+   "xp": 40
+  },
+  {
+   "id": "alg-1-g-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these growth shapes from slowest-growing to fastest-growing as `n` becomes large.",
+   "fragments": [
+    "O(1)",
+    "O(log n)",
+    "O(n)",
+    "O(n log n)",
+    "O(n^2)"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "big-o",
+    "input-size"
+   ],
+   "tags": [
+    "big-o",
+    "input-size"
+   ],
+   "explain": "The ordering is a claim about behaviour at large n, not at small n - at n = 2 an O(n^2) routine can easily beat an O(log n) one, and the ranking only becomes true as n grows. Each step up the list is a qualitative change in which input sizes remain feasible at all, not a constant-factor slowdown.",
+   "hint": "Ask what happens to each shape when n doubles: unchanged, plus one, doubled, or quadrupled?",
+   "xp": 20
+  },
+  {
+   "id": "alg-1-g-08",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "`cells` counts every array slot this program allocates. What does it print? Write both lines.",
+   "code": "let cells = 0;\n\nfunction buildTable(n) {\n  const rows = [];\n  for (let i = 0; i < n; i++) {\n    const row = [];\n    for (let j = 0; j < n; j++) {\n      row.push(0);\n      cells = cells + 1;\n    }\n    rows.push(row);\n  }\n  return rows;\n}\n\nbuildTable(3);\nconsole.log(cells);\nbuildTable(4);\nconsole.log(cells);",
+   "lang": "javascript",
+   "answer": "9\n25",
+   "concepts": [
+    "time-vs-space",
+    "operation-counting",
+    "input-size"
+   ],
+   "tags": [
+    "time-vs-space",
+    "operation-counting",
+    "input-size"
+   ],
+   "explain": "`cells` is never reset, so the second line is 9 + 16 rather than 16 - the running total is the point, because space is a bill that accumulates rather than a rate that resets. This routine happens to be O(n^2) in time and in space at once, which is unusual: most algorithms carry two different growth functions for the two costs.",
+   "hint": "cells is declared outside the function, so the second call keeps counting from where the first one stopped.",
+   "xp": 20
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-1-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "function ops(n) {\n  let count = 0;\n  for (let i = 0; i < n; i++) {\n    count = count + 1;\n  }\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n; j++) {\n      count = count + 1;\n    }\n  }\n  return count;\n}\n\nconsole.log(ops(0));\nconsole.log(ops(1));\nconsole.log(ops(4));",
+   "lang": "javascript",
+   "answer": "0\n2\n20",
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "explain": "The exact count is n + n^2, giving 0, 2 and 20. At n = 1 the two loops cost the same, which is why small inputs cannot tell you which term dominates; by n = 4 the quadratic term already carries 16 of the 20 operations, and that widening gap is exactly what Big-O is reporting when it discards the n.",
+   "hint": "Count the two loops separately, then add.",
+   "xp": 20
+  },
+  {
+   "id": "alg-1-e-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Trace the value of `n` after each pass of the loop, starting from `n = 20`. Give one line per pass, stopping when the loop stops.",
+   "code": "let n = 20;\nwhile (n > 1) {\n  n = Math.floor(n / 2);\n}",
+   "lang": "javascript",
+   "steps": [
+    {
+     "label": "after pass 1",
+     "expected": "10"
+    },
+    {
+     "label": "after pass 2",
+     "expected": "5"
+    },
+    {
+     "label": "after pass 3",
+     "expected": "2"
+    },
+    {
+     "label": "after pass 4",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "algorithm-definition"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "algorithm-definition"
+   ],
+   "explain": "`Math.floor` is what guarantees termination on odd values: 5 becomes 2 rather than 2.5, so n is always a strictly smaller integer and can never stall just above 1. Four passes for an input of 20 is the logarithmic shape in miniature - doubling the input to 40 would add exactly one more line.",
+   "hint1": "Halving 5 gives 2.5, and the floor of that is 2.",
+   "hint2": "The loop stops as soon as n is no longer greater than 1.",
+   "xp": 40
+  },
+  {
+   "id": "alg-1-e-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "A loop is measured and found to run exactly `3n + 7` times. Fill in its Big-O time bound, then the constant factor and the lower-order term that Big-O discarded to reach it.",
+   "template": "3n + 7  is  O(___)\ndiscarded: the constant factor ___ and the lower-order term ___",
+   "blanks": [
+    "n",
+    "3",
+    "7"
+   ],
+   "explain": "Both discards rest on the same argument: as n grows, 7 becomes negligible against 3n, and the factor 3 changes how steep the line is but not that it is a line. Big-O deliberately cannot tell 3n + 7 apart from 1000n, and that blindness is the price paid for a measure that survives a change of machine and language.",
+   "hint": "One blank is a multiplier, the other is an amount added on regardless of n.",
+   "concepts": [
+    "big-o",
+    "input-size"
+   ],
+   "tags": [
+    "big-o",
+    "input-size"
+   ],
+   "xp": 20
+  },
+  {
+   "id": "alg-1-e-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the tightest Big-O time bound for this function in terms of `n = arr.length`, and justify it by saying how many times the innermost line runs.",
+   "code": "function countPairs(arr) {\n  let pairs = 0;\n  for (let i = 0; i < arr.length; i++) {\n    for (let j = 0; j < arr.length; j++) {\n      pairs = pairs + 1;\n    }\n  }\n  return pairs;\n}",
+   "lang": "javascript",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "nested",
+     "inner"
+    ],
+    "optional": [
+     "multiply",
+     "quadratic",
+     "square",
+     "outer",
+     "every",
+     "doubl",
+     "n times"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "big-o",
+    "operation-counting",
+    "input-size"
+   ],
+   "tags": [
+    "big-o",
+    "operation-counting",
+    "input-size"
+   ],
+   "explain": "The inner loop pays its full n cost once per outer pass and there are n outer passes, so the counts multiply to n^2 instead of adding to 2n. The practical consequence is the one worth carrying: doubling the input quadruples the work, so an input ten times larger takes a hundred times as long.",
+   "hint": "For each single step of the outer loop, how many times does the innermost line run?",
+   "xp": 40
+  },
+  {
+   "id": "alg-1-e-05",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the tightest Big-O bound on the **auxiliary space** used by this function in terms of `n = arr.length` - the memory it holds beyond the array it was handed - and justify it.",
+   "code": "function reverseInPlace(arr) {\n  let i = 0;\n  let j = arr.length - 1;\n  while (i < j) {\n    const t = arr[i];\n    arr[i] = arr[j];\n    arr[j] = t;\n    i = i + 1;\n    j = j - 1;\n  }\n  return arr;\n}",
+   "lang": "javascript",
+   "answer": "O(1)",
+   "rubric": {
+    "required": [
+     "extra",
+     "swap"
+    ],
+    "optional": [
+     "constant",
+     "in place",
+     "three",
+     "variable",
+     "input",
+     "copy",
+     "new array",
+     "regardless",
+     "time"
+    ],
+    "forbidden": [],
+    "minWords": 25
+   },
+   "concepts": [
+    "time-vs-space",
+    "big-o",
+    "input-size"
+   ],
+   "tags": [
+    "time-vs-space",
+    "big-o",
+    "input-size"
+   ],
+   "explain": "Only three extra names ever exist - `i`, `j` and `t` - and that number does not move when the array grows a millionfold, which is what constant space means. The input array itself is not charged, because counting it would make every array-reading algorithm O(n) in space and the measure would stop distinguishing anything; note the same function is still O(n) in time, so the two bills genuinely differ.",
+   "hint": "Count the names the function creates, and ask whether that count depends on n.",
+   "xp": 40
+  },
+  {
+   "id": "alg-1-e-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Instrument the standard single-pass maximum. Write `countScans(arr)` which takes the first element as a running maximum and compares every **later** element against it, returning the number of those comparisons. `countScans([3, 1, 2])` must return `2`, while `countScans([])` and `countScans([5])` must both return `0`.",
+   "fn": "countScans",
+   "starterCode": "function countScans(arr) {\n  let comparisons = 0;\n  // seed the running maximum with arr[0], then compare every\n  // later element against it, charging one comparison each time\n  return comparisons;\n}\n",
+   "tests": [
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[5]",
+     "expected": 0
+    },
+    {
+     "input": "[3, 1, 2]",
+     "expected": 2
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": 3
+    },
+    {
+     "input": "[7, 7]",
+     "expected": 1
+    }
+   ],
+   "solution": "function countScans(arr) {\n  let comparisons = 0;\n  let biggest = arr[0];\n  for (let i = 1; i < arr.length; i++) {\n    comparisons = comparisons + 1;\n    if (arr[i] > biggest) biggest = arr[i];\n  }\n  return comparisons;\n}\n",
+   "concepts": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size",
+    "big-o"
+   ],
+   "explain": "The count is exactly n - 1 for every array of length n, and both zero cases fall out of starting the loop at index 1 rather than needing a guard. This is the cleanest illustration of why input size is the right variable: `[7, 7]`, `[1, 2]` and `[9, 0]` all cost the same, because the cost never once consulted a value - only a length.",
+   "hint1": "Start the loop counter at 1, not 0 - the first element is the seed, not a comparison.",
+   "hint2": "An array of length 0 or 1 never enters the loop at all, so no special case is needed.",
+   "hint3": "Charge the comparison on every pass, whether or not the running maximum changes.",
+   "xp": 50
+  },
+  {
+   "id": "alg-1-e-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This should return the number of times the innermost line runs, which is `n * n`. Instead it returns `1` for every `n` above zero. Fix it. `countBody(3)` must return `9` and `countBody(0)` must return `0`.",
+   "fn": "countBody",
+   "starterCode": "function countBody(n) {\n  let count = 0;\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n; j++) {\n      count = 1;\n    }\n  }\n  return count;\n}\n",
+   "tests": [
+    {
+     "input": "0",
+     "expected": 0
+    },
+    {
+     "input": "1",
+     "expected": 1
+    },
+    {
+     "input": "3",
+     "expected": 9
+    },
+    {
+     "input": "4",
+     "expected": 16
+    }
+   ],
+   "solution": "function countBody(n) {\n  let count = 0;\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n; j++) {\n      count = count + 1;\n    }\n  }\n  return count;\n}\n",
+   "concepts": [
+    "operation-counting",
+    "input-size"
+   ],
+   "tags": [
+    "operation-counting",
+    "input-size"
+   ],
+   "explain": "Assignment overwrites where accumulation adds, so the broken version reports the cost of the final iteration instead of the cost of all of them. Worth noticing: it agrees with the correct answer at n = 0 and n = 1, and a miscounted instrument that passes your smallest test cases is the ordinary way a false complexity claim gets published.",
+   "hint1": "Compare the assignment in the inner body with the counters written earlier on this floor.",
+   "hint2": "The body must add to what is already there rather than replace it.",
+   "xp": 50
+  },
+  {
+   "id": "alg-1-e-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague says a single pass over an array is `O(n^2)`. Explain why that statement is **not false**, why we nonetheless insist on `O(n)`, and what would be lost if loose bounds were accepted as answers.",
+   "rubric": {
+    "required": [
+     "upper bound",
+     "tightest",
+     "growth"
+    ],
+    "optional": [
+     "true",
+     "correct",
+     "loose",
+     "compare",
+     "useless",
+     "no faster",
+     "claim",
+     "information",
+     "distinguish"
+    ],
+    "forbidden": [],
+    "minWords": 40
+   },
+   "concepts": [
+    "big-o",
+    "input-size"
+   ],
+   "tags": [
+    "big-o",
+    "input-size"
+   ],
+   "explain": "Big-O asserts *grows no faster than*, and n genuinely grows no faster than n^2, so the loose claim is true - merely uninformative. We demand the tightest defensible bound because Big-O exists in order to let two algorithms be compared, and if every linear routine may be reported as quadratic then the notation separates nothing and answers no question at all.",
+   "hint": "Read O(f(n)) literally as a claim about growing no faster than f(n), then ask whether that claim is violated here.",
+   "xp": 20
+  },
+  {
+   "id": "alg-1-e-09",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which one of these facts about a procedure disqualifies it from being an algorithm?",
+   "choices": [
+    "It allocates a second array of n cells, doubling its memory use.",
+    "On some legal inputs its loop never reaches a stopping condition.",
+    "It is a hundred times slower than another procedure solving the same problem.",
+    "It uses only addition and comparison, never multiplication."
+   ],
+   "answer": 1,
+   "concepts": [
+    "algorithm-definition",
+    "time-vs-space",
+    "big-o"
+   ],
+   "tags": [
+    "algorithm-definition",
+    "time-vs-space",
+    "big-o"
+   ],
+   "explain": "Finiteness is part of the definition, whereas being slow, being memory-hungry or using a restricted operation set are all costs rather than disqualifications. The distinction matters because cost is something you optimise while correctness is something you either have or do not - a procedure that never halts has no cost worth measuring in the first place.",
+   "xp": 10
+  },
+  {
+   "id": "alg-1-e-10",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true of Big-O notation as introduced on this floor.",
+   "choices": [
+    "It states an upper bound on how a cost grows as the input size increases.",
+    "It reports the exact number of operations an algorithm performs.",
+    "Constant factors are discarded, so 3n and 500n are both O(n).",
+    "It is measured in seconds and therefore depends on the machine.",
+    "It can describe space cost as well as time cost."
+   ],
+   "answer": [
+    0,
+    2,
+    4
+   ],
+   "concepts": [
+    "big-o",
+    "time-vs-space",
+    "operation-counting"
+   ],
+   "tags": [
+    "big-o",
+    "time-vs-space",
+    "operation-counting"
+   ],
+   "explain": "The two false options are the two standing temptations: reading Big-O as an exact count, and reading it as a duration. It is neither - it is a claim about the shape of a growth function, which is what lets it survive a change of hardware and what lets it apply unchanged to memory as well as to time.",
+   "xp": 10
+  }
+ ]
+}

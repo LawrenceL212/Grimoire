@@ -1,0 +1,1323 @@
+{
+ "n": 5,
+ "name": "The Divided Hall",
+ "concepts": [
+  "merge-step",
+  "merge-sort",
+  "quicksort",
+  "partition",
+  "pivot-choice",
+  "recurrence-analysis",
+  "space-complexity",
+  "comparison-counting"
+ ],
+ "cognitiveLevel": "application",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "implementation",
+  "level-project",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Divide, Conquer, Combine",
+  "sections": [
+   {
+    "title": "The Merge Step",
+    "body": "Two arrays that are each already sorted can be fused into one sorted array in a single pass: look at the front of both, take the smaller, advance that side. Every comparison emits exactly one element, so merging arrays of length $p$ and $q$ costs at most $p + q - 1$ comparisons and always $\\Theta(p+q)$ time.\n\nThe two `while` loops at the end are not decoration - when one side runs dry the other still holds elements that are already in order, and they must be copied through.\n\nTaking from `a` on a **tie** (`<=` rather than `<`) is what makes the merge **stable**: equal elements keep the order they came in with.",
+    "code": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}\n\nconsole.log(merge([1, 4, 7], [2, 3, 9]));\nconsole.log(merge([], [5]));\nconsole.log(merge([1, 2], []));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "<= not <, so on a tie the element from a wins. That one character is the whole of stability."
+     },
+     {
+      "line": 8,
+      "text": "a still has elements, they are already sorted, and they are all larger - copy them straight through."
+     },
+     {
+      "line": 15,
+      "text": "An empty side means the main loop never ran at all; the drain loops carry the entire answer."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "merge",
+     "prompt": "Write `merge(a, b)` taking two arrays already sorted ascending and returning one new sorted array containing every element of both. Do not call the built-in `sort`.",
+     "starterCode": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  // walk both arrays, then drain whichever side is left\n  return out;\n}\n",
+     "tests": [
+      {
+       "input": "[1, 3, 5], [2, 4, 6]",
+       "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+       ]
+      },
+      {
+       "input": "[], [1, 2]",
+       "expected": [
+        1,
+        2
+       ]
+      },
+      {
+       "input": "[1, 2], []",
+       "expected": [
+        1,
+        2
+       ]
+      }
+     ],
+     "solution": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}",
+     "concepts": [
+      "merge-step"
+     ],
+     "explain": "The drain loops are the part people forget. Once one index reaches the end of its array the main loop stops, and everything still sitting in the other array is already sorted and larger than everything emitted so far, so it can be copied without a single further comparison."
+    }
+   },
+   {
+    "title": "Merge Sort Costs the Same Every Time",
+    "body": "Merge sort splits the array in half, sorts each half recursively, and merges the two results. That gives the recurrence $T(n) = 2T(n/2) + \\Theta(n)$: there are $\\log_2 n$ levels of splitting and each level does $\\Theta(n)$ work merging, so $T(n) = \\Theta(n \\log n)$.\n\nThe crucial word is **every**. The split is positional, not value-dependent, so the recursion tree has the same shape for sorted, reversed and shuffled input - best, average and worst case are all $\\Theta(n \\log n)$.\n\nThe run below counts comparisons on three arrangements of the same 64 values and stays under $n \\log_2 n = 384$ in all three.",
+    "code": "let comparisons = 0;\nfunction merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    comparisons++;\n    if (a[i] <= b[j]) out.push(a[i++]); else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}\nfunction mergeSort(a) {\n  if (a.length <= 1) return a;\n  const mid = Math.floor(a.length / 2);\n  return merge(mergeSort(a.slice(0, mid)), mergeSort(a.slice(mid)));\n}\nconst n = 64;\nconst sorted = [];\nfor (let i = 0; i < n; i++) sorted.push(i);\nconst reversed = sorted.slice().reverse();\nconst zigzag = sorted.filter(x => x % 2 === 0).concat(sorted.filter(x => x % 2 === 1));\nfor (const pair of [[\"sorted\", sorted], [\"reversed\", reversed], [\"zigzag\", zigzag]]) {\n  comparisons = 0;\n  mergeSort(pair[1]);\n  console.log(pair[0], comparisons, \"of at most\", n * Math.log2(n));\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 14,
+      "text": "The base case. One element is already sorted, and this is why the recursion terminates - every call is strictly shorter than its parent."
+     },
+     {
+      "line": 15,
+      "text": "The split is by position only. No arrangement of values can unbalance it, which is why merge sort has no bad input."
+     },
+     {
+      "line": 16,
+      "text": "slice copies. That copying is the O(n) extra space merge sort pays for."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "mergeSort",
+     "prompt": "Write `mergeSort(a)` returning a new array holding `a`'s numbers in ascending order. Split at the midpoint, recurse on both halves, merge the results. Do not call the built-in `sort`.",
+     "starterCode": "function merge(a, b) {\n  // your merge from the previous section\n}\n\nfunction mergeSort(a) {\n  // base case, then split, recurse, merge\n}\n",
+     "tests": [
+      {
+       "input": "[5, 3, 8, 1]",
+       "expected": [
+        1,
+        3,
+        5,
+        8
+       ]
+      },
+      {
+       "input": "[]",
+       "expected": []
+      },
+      {
+       "input": "[2, 2, 1]",
+       "expected": [
+        1,
+        2,
+        2
+       ]
+      }
+     ],
+     "solution": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}\n\nfunction mergeSort(a) {\n  if (a.length <= 1) return a.slice();\n  const mid = Math.floor(a.length / 2);\n  return merge(mergeSort(a.slice(0, mid)), mergeSort(a.slice(mid)));\n}",
+     "concepts": [
+      "merge-sort"
+     ],
+     "explain": "Without the `length <= 1` guard the recursion never bottoms out and the call stack overflows. That guard is what makes the descent finite: each call halves the length, so after log2(n) halvings you reach a length the base case accepts."
+    }
+   },
+   {
+    "title": "Partitioning: Quicksort's Whole Idea",
+    "body": "Quicksort does no work combining and all of its work dividing. **Partition** picks a pivot, then rearranges the range so everything smaller sits left of the pivot and everything larger sits right; the pivot is then in its final position forever.\n\nThe Lomuto scheme below takes the last element as pivot and keeps a boundary `i`, with everything before `i` known to be smaller. Each `j` step costs one comparison, so partitioning $m$ elements costs exactly $m - 1$ comparisons whatever the data.\n\nAfter partitioning you recurse on the two sides *excluding* the pivot - that exclusion is what shrinks the problem and guarantees termination.",
+    "code": "function partition(a, lo, hi) {\n  const pivot = a[hi];\n  let i = lo;\n  for (let j = lo; j < hi; j++) {\n    if (a[j] < pivot) {\n      const t = a[i]; a[i] = a[j]; a[j] = t;\n      i++;\n    }\n    console.log(\"j=\" + j, JSON.stringify(a), \"i=\" + i);\n  }\n  const t = a[i]; a[i] = a[hi]; a[hi] = t;\n  return i;\n}\nconst demo = [7, 2, 9, 4, 3, 8, 5];\nconst p = partition(demo, 0, demo.length - 1);\nconsole.log(JSON.stringify(demo), \"pivot landed at index\", p);",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "j stops before hi: the pivot must not be compared with itself, or it could be swapped away from the end."
+     },
+     {
+      "line": 11,
+      "text": "The final swap drops the pivot onto the boundary. Leave it out and the pivot never reaches its place - a favourite bug."
+     },
+     {
+      "line": 16,
+      "text": "5 lands at index 3, so 5 is now permanently correct and only the two sides are left to sort."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "partition",
+     "prompt": "Write `partition(a)` that Lomuto-partitions a copy of the non-empty array `a` around its last element and returns `{ index, arr }`, where `arr` is the rearranged copy and `index` is where the pivot ended up. Leave `a` itself untouched.",
+     "starterCode": "function partition(a) {\n  const arr = a.slice();\n  const hi = arr.length - 1;\n  // pivot is arr[hi]; keep a boundary i and sweep j\n  return { index: 0, arr: arr };\n}\n",
+     "tests": [
+      {
+       "input": "[7, 2, 9, 4, 3, 8, 5]",
+       "expected": {
+        "index": 3,
+        "arr": [
+         2,
+         4,
+         3,
+         5,
+         9,
+         8,
+         7
+        ]
+       }
+      },
+      {
+       "input": "[3, 1, 2]",
+       "expected": {
+        "index": 1,
+        "arr": [
+         1,
+         2,
+         3
+        ]
+       }
+      },
+      {
+       "input": "[4]",
+       "expected": {
+        "index": 0,
+        "arr": [
+         4
+        ]
+       }
+      }
+     ],
+     "solution": "function partition(a) {\n  const arr = a.slice();\n  const hi = arr.length - 1;\n  const pivot = arr[hi];\n  let i = 0;\n  for (let j = 0; j < hi; j++) {\n    if (arr[j] < pivot) {\n      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;\n      i++;\n    }\n  }\n  const t = arr[i]; arr[i] = arr[hi]; arr[hi] = t;\n  return { index: i, arr: arr };\n}",
+     "concepts": [
+      "partition"
+     ],
+     "explain": "Partition is not a sort - the two sides come out unordered among themselves. All it guarantees is one element placed correctly and a two-way split, and that single guarantee, repeated, is the whole of quicksort."
+    }
+   },
+   {
+    "title": "Pivot Choice and the Quadratic Cliff",
+    "body": "Quicksort's cost is decided entirely by how evenly the pivot splits the range. A pivot near the median gives $T(n) = 2T(n/2) + \\Theta(n) = \\Theta(n \\log n)$; a pivot that is always the minimum or maximum gives $T(n) = T(n-1) + \\Theta(n)$, which unrolls to $n + (n-1) + \\dots = \\Theta(n^2)$.\n\nTaking the **last element** as pivot is therefore a trap: on already-sorted input every partition peels off one element, and the run below does exactly $\\frac{n(n-1)}{2} = 19900$ comparisons at $n = 200$.\n\nTaking the middle element, or the median of first-middle-last, costs a constant extra per call and removes sorted input as an adversary - though for any fixed rule some input still forces $\\Theta(n^2)$.\n\nSo: merge sort when you need a guaranteed bound or stability and can afford $\\Theta(n)$ scratch space; quicksort when you want the smaller constant factor and in-place behaviour and can tolerate a rare bad case.",
+    "code": "let calls = 0;\nfunction quickSort(a, pick, lo, hi) {\n  if (lo === undefined) { lo = 0; hi = a.length - 1; }\n  if (lo >= hi) return a;\n  const k = pick(lo, hi);\n  let t = a[k]; a[k] = a[hi]; a[hi] = t;\n  const pivot = a[hi];\n  let i = lo;\n  for (let j = lo; j < hi; j++) {\n    calls++;\n    if (a[j] < pivot) { const s = a[i]; a[i] = a[j]; a[j] = s; i++; }\n  }\n  t = a[i]; a[i] = a[hi]; a[hi] = t;\n  quickSort(a, pick, lo, i - 1);\n  quickSort(a, pick, i + 1, hi);\n  return a;\n}\nconst n = 200;\nconst sorted = [];\nfor (let i = 0; i < n; i++) sorted.push(i);\nconst last = (lo, hi) => hi;\nconst middle = (lo, hi) => Math.floor((lo + hi) / 2);\nfor (const pair of [[\"last element\", last], [\"middle element\", middle]]) {\n  calls = 0;\n  quickSort(sorted.slice(), pair[1]);\n  console.log(pair[0] + \":\", calls, \"comparisons on already-sorted input\");\n}\nconsole.log(\"n*n/2 =\", (n * n) / 2, \" n*log2(n) =\", Math.round(n * Math.log2(n)));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Swap the chosen pivot to the end first, so the Lomuto loop below never has to change."
+     },
+     {
+      "line": 14,
+      "text": "lo..i-1 and i+1..hi both exclude i, so every recursive range is strictly shorter. That is the termination argument."
+     },
+     {
+      "line": 26,
+      "text": "Same array, same algorithm, only the pivot rule differs: 19900 comparisons against 1153."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This quicksort always takes the last element as its pivot, and is handed input that is already sorted. What number does it print?",
+     "code": "let comparisons = 0;\nfunction quickSort(a, lo, hi) {\n  if (lo === undefined) { lo = 0; hi = a.length - 1; }\n  if (lo >= hi) return a;\n  const pivot = a[hi];\n  let i = lo;\n  for (let j = lo; j < hi; j++) {\n    comparisons++;\n    if (a[j] < pivot) { const t = a[i]; a[i] = a[j]; a[j] = t; i++; }\n  }\n  const t = a[i]; a[i] = a[hi]; a[hi] = t;\n  quickSort(a, lo, i - 1);\n  quickSort(a, i + 1, hi);\n  return a;\n}\nquickSort([1, 2, 3, 4, 5]);\nconsole.log(comparisons);",
+     "lang": "javascript",
+     "answer": "10",
+     "concepts": [
+      "pivot-choice"
+     ],
+     "explain": "The pivot is always the largest remaining element, so each partition peels off exactly one element and the ranges shrink by one instead of halving: 4 + 3 + 2 + 1 = 10, which is n(n-1)/2 - the quadratic case in miniature."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-5-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}\n\nconsole.log(merge([1, 6], [2, 3, 9]));",
+   "lang": "javascript",
+   "answer": "[1,2,3,6,9]",
+   "concepts": [
+    "merge-step"
+   ],
+   "tags": [
+    "merge-step",
+    "merge"
+   ],
+   "explain": "Merging never re-sorts anything: it only ever appends the smaller of the two current heads, so the output order is fully determined by the two inputs already being sorted. After 6 loses to 2 and to 3 it still has to face 9.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-g-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `mergeBy(a, b, keyFn)`. Both arrays are already sorted ascending by `keyFn(element)`. Return one new array holding every element of both, sorted by the same key, and **stable**: when two elements have equal keys the one from `a` comes first.",
+   "fn": "mergeBy",
+   "starterCode": "function mergeBy(a, b, keyFn) {\n  const out = [];\n  let i = 0, j = 0;\n  // compare keys, not elements - and mind which side wins a tie\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "[{n:1},{n:4}], [{n:2},{n:3}], (o) => o.n",
+     "expected": [
+      {
+       "n": 1
+      },
+      {
+       "n": 2
+      },
+      {
+       "n": 3
+      },
+      {
+       "n": 4
+      }
+     ]
+    },
+    {
+     "input": "[], [{n:5}], (o) => o.n",
+     "expected": [
+      {
+       "n": 5
+      }
+     ]
+    },
+    {
+     "input": "[{n:2}], [], (o) => o.n",
+     "expected": [
+      {
+       "n": 2
+      }
+     ]
+    },
+    {
+     "input": "[{n:1,t:'a'}], [{n:1,t:'b'}], (o) => o.n",
+     "expected": [
+      {
+       "n": 1,
+       "t": "a"
+      },
+      {
+       "n": 1,
+       "t": "b"
+      }
+     ]
+    }
+   ],
+   "solution": "function mergeBy(a, b, keyFn) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (keyFn(a[i]) <= keyFn(b[j])) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}",
+   "hint": "Only two things change from the plain merge: compare keyFn(a[i]) with keyFn(b[j]), and keep <= so ties fall to a.",
+   "concepts": [
+    "merge-step"
+   ],
+   "tags": [
+    "merge-step",
+    "stability"
+   ],
+   "explain": "Stability is not a bonus property merge sort happens to have - it is a consequence of this one comparison operator. Flip `<=` to `<` and equal-keyed elements silently swap order, which breaks any code that sorts by one field expecting an earlier sort by another to survive.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete merge sort. The blanks are, in order: the largest length that needs no sorting, the number the length is divided by to find the midpoint, and the function that recombines the two sorted halves.",
+   "template": "function mergeSort(a) {\n  if (a.length <= ___) return a;\n  const mid = Math.floor(a.length / ___);\n  return ___(mergeSort(a.slice(0, mid)), mergeSort(a.slice(mid)));\n}",
+   "blanks": [
+    "1",
+    "2",
+    "merge"
+   ],
+   "concepts": [
+    "merge-sort"
+   ],
+   "tags": [
+    "merge-sort",
+    "recursion"
+   ],
+   "explain": "Dividing by 2 is what turns the recursion depth into log2(n); dividing by 1 would never shrink the problem and peeling off one element at a time would give n levels. The base case at length 1 is the only reason the descent stops at all.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-g-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "`mergeSort([8, 3, 5, 1, 9, 2])` splits at `mid = Math.floor(6 / 2) = 3`, recurses on the left half before the right, and merges on the way back up. Five merges happen in all. Give the array each merge returns, in the order the merges complete. Write arrays as `[1,2,3]`.",
+   "steps": [
+    {
+     "label": "1st merge to return",
+     "expected": "[3,5]"
+    },
+    {
+     "label": "2nd merge to return",
+     "expected": "[3,5,8]"
+    },
+    {
+     "label": "3rd merge to return",
+     "expected": "[2,9]"
+    },
+    {
+     "label": "4th merge to return",
+     "expected": "[1,2,9]"
+    },
+    {
+     "label": "5th merge to return",
+     "expected": "[1,2,3,5,8,9]"
+    }
+   ],
+   "concepts": [
+    "merge-sort"
+   ],
+   "tags": [
+    "merge-sort",
+    "recursion"
+   ],
+   "explain": "The merges complete bottom-up and left-first: the whole left half is finished before the right half is touched at all, because the left recursive call must return before the right one is even entered. Nothing merges until the recursion has bottomed out beneath it.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-g-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `quickSort(a)` returning a new array with `a`'s numbers ascending. Copy the array, then Lomuto-partition each range around its last element and recurse on the two sides, excluding the pivot. Do not call the built-in `sort`.",
+   "fn": "quickSort",
+   "starterCode": "function quickSort(a) {\n  const arr = a.slice();\n  function go(lo, hi) {\n    // stop when the range holds fewer than two elements\n    // partition, then recurse on lo..p-1 and p+1..hi\n  }\n  go(0, arr.length - 1);\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[7, 2, 9, 4, 3, 8, 5]",
+     "expected": [
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      9
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[1]",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "[3, 3, 3]",
+     "expected": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   ],
+   "solution": "function quickSort(a) {\n  const arr = a.slice();\n  function go(lo, hi) {\n    if (lo >= hi) return;\n    const pivot = arr[hi];\n    let i = lo;\n    for (let j = lo; j < hi; j++) {\n      if (arr[j] < pivot) { const t = arr[i]; arr[i] = arr[j]; arr[j] = t; i++; }\n    }\n    const t = arr[i]; arr[i] = arr[hi]; arr[hi] = t;\n    go(lo, i - 1);\n    go(i + 1, hi);\n  }\n  go(0, arr.length - 1);\n  return arr;\n}",
+   "hint": "`if (lo >= hi) return;` covers both the empty range and the single element, which is also what makes an empty input safe, since hi is then -1.",
+   "concepts": [
+    "quicksort",
+    "partition"
+   ],
+   "tags": [
+    "quicksort",
+    "partition"
+   ],
+   "explain": "The `[3,3,3]` case is the one that catches people: with `arr[j] < pivot` no equal element ever moves, the pivot lands at the far left of the range, and the recursion still shrinks only because the pivot index is excluded. Recursing on `lo..p` instead of `lo..p-1` would spin forever right here.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-g-06",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the worst-case running time of merge sort on an array of $n$ elements, and justify it from the recurrence. Say why no input can do worse.",
+   "answer": "O(n log n)",
+   "rubric": {
+    "required": [
+     "recurrence",
+     "levels",
+     "merge"
+    ],
+    "optional": [
+     "halve",
+     "midpoint",
+     "position",
+     "tree"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "merge-sort",
+    "recurrence-analysis"
+   ],
+   "tags": [
+    "merge-sort",
+    "complexity"
+   ],
+   "explain": "The recurrence T(n) = 2T(n/2) + Theta(n) has log2(n) levels with Theta(n) merging work at each, so the total is Theta(n log n). The reason there is no bad input is structural: the split is by index, so no arrangement of values can make the recursion tree lopsided - unlike quicksort, where the values themselves choose the shape of the tree.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-g-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Merge sort runs in $\\Theta(n \\log n)$ time but also needs $\\Theta(n)$ extra space, while quicksort sorts in place. Explain what specifically about the merge step forces that extra space, and why the recursion depth is not the dominant term.",
+   "rubric": {
+    "required": [
+     "merge",
+     "extra",
+     "array"
+    ],
+    "optional": [
+     "auxiliary",
+     "buffer",
+     "overwrite",
+     "depth",
+     "log",
+     "stack"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "space-complexity",
+    "merge-sort"
+   ],
+   "tags": [
+    "space-complexity",
+    "merge-sort"
+   ],
+   "explain": "A merge cannot write its output over its own inputs: the next value it needs might still be sitting in the cell it is about to overwrite. So it needs somewhere else to build the result, and the top-level merge alone handles all n elements. The recursion stack is only Theta(log n) frames deep, which is swamped by that Theta(n) buffer.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-g-08",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one call to `mergeSort(a)` in the order its steps execute.",
+   "fragments": [
+    "Merge the two sorted halves into one sorted array and return it",
+    "Split the array at its midpoint into a left half and a right half",
+    "Return the array unchanged if it holds fewer than two elements",
+    "Recursively sort the right half",
+    "Recursively sort the left half"
+   ],
+   "answer": [
+    2,
+    1,
+    4,
+    3,
+    0
+   ],
+   "concepts": [
+    "merge-sort"
+   ],
+   "tags": [
+    "merge-sort",
+    "divide-and-conquer"
+   ],
+   "explain": "The base-case test has to come first or the recursion never terminates, and the merge has to come last because it needs both halves already sorted. Everything expensive in merge sort happens on the way back up the tree, which is exactly the opposite of quicksort.",
+   "xp": 20
+  }
+ ],
+ "implementation": [
+  {
+   "id": "alg-5-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "An **inversion** is a pair of indices $i < j$ with `a[i] > a[j]`. Write `countInversions(a)` returning how many inversions `a` contains, in $O(n \\log n)$ time by piggy-backing on a merge sort. Return a number.",
+   "fn": "countInversions",
+   "starterCode": "function countInversions(a) {\n  let count = 0;\n  function sort(x) {\n    // merge sort, but when an element is taken from the right half,\n    // every element still left in the left half is inverted with it\n  }\n  sort(a);\n  return count;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 0
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[3, 2, 1]",
+     "expected": 3
+    },
+    {
+     "input": "[2, 4, 1, 3, 5]",
+     "expected": 3
+    },
+    {
+     "input": "[1, 1]",
+     "expected": 0
+    }
+   ],
+   "solution": "function countInversions(a) {\n  let count = 0;\n  function sort(x) {\n    if (x.length <= 1) return x;\n    const mid = Math.floor(x.length / 2);\n    const L = sort(x.slice(0, mid));\n    const R = sort(x.slice(mid));\n    const out = [];\n    let i = 0, j = 0;\n    while (i < L.length && j < R.length) {\n      if (L[i] <= R[j]) out.push(L[i++]);\n      else { count += L.length - i; out.push(R[j++]); }\n    }\n    while (i < L.length) out.push(L[i++]);\n    while (j < R.length) out.push(R[j++]);\n    return out;\n  }\n  sort(a);\n  return count;\n}",
+   "hint": "When you take R[j] while L still has elements from index i onward, all of L[i..] are greater than R[j]. That is `L.length - i` inversions found in one shot.",
+   "concepts": [
+    "merge-step",
+    "merge-sort"
+   ],
+   "tags": [
+    "merge-step",
+    "merge-sort",
+    "complexity"
+   ],
+   "explain": "The naive count is a double loop at O(n^2). What makes the merge version work is that the merge already knows an ordering fact the double loop would have to rediscover: when R[j] jumps ahead of the whole remaining left half, that is |L| - i inversions counted in constant time rather than one at a time. Use `<=` on the tie or equal values get counted as inversions.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-i-02",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This `merge` is wrong. `merge([1,3,5], [2,4,6])` should give `[1,2,3,4,5,6]` but gives `[1,2,3,4,5]`. Find and fix the fault.",
+   "fn": "merge",
+   "starterCode": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  return out;\n}\n",
+   "tests": [
+    {
+     "input": "[1, 3, 5], [2, 4, 6]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "input": "[], [1, 2]",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[1, 2], []",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[9], [1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3,
+      9
+     ]
+    }
+   ],
+   "solution": "function merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    if (a[i] <= b[j]) out.push(a[i++]);\n    else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}",
+   "hint": "The main loop stops as soon as either side is exhausted. Both sides need draining, not just one.",
+   "concepts": [
+    "merge-step"
+   ],
+   "tags": [
+    "merge-step",
+    "debugging"
+   ],
+   "explain": "Only one drain loop is present, so whenever `b` outlives `a` its tail is silently dropped. The `[9], [1,2,3]` case is the giveaway: the bug is invisible whenever the largest element happens to live in `a`, which is exactly why one hand-picked example is not a test suite.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-i-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `quickSortMedian3(a)` - quicksort that chooses its pivot as the **median of the first, middle and last** element of each range (`mid = Math.floor((lo + hi) / 2)`), swaps it to the end, then Lomuto-partitions as usual. Return a new sorted array; do not call the built-in `sort`.",
+   "fn": "quickSortMedian3",
+   "starterCode": "function quickSortMedian3(a) {\n  const arr = a.slice();\n  function medianIndex(lo, hi) {\n    // return the index of the median of arr[lo], arr[mid], arr[hi]\n  }\n  function go(lo, hi) {\n    // swap the median to hi, then partition and recurse\n  }\n  go(0, arr.length - 1);\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]",
+     "expected": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5, 1, 4, 2, 8]",
+     "expected": [
+      1,
+      2,
+      4,
+      5,
+      8
+     ]
+    },
+    {
+     "input": "[3, 3, 3, 1]",
+     "expected": [
+      1,
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "input": "[1]",
+     "expected": [
+      1
+     ]
+    }
+   ],
+   "solution": "function quickSortMedian3(a) {\n  const arr = a.slice();\n  function medianIndex(lo, hi) {\n    const mid = Math.floor((lo + hi) / 2);\n    const trio = [[arr[lo], lo], [arr[mid], mid], [arr[hi], hi]];\n    trio.sort(function (x, y) { return x[0] - y[0]; });\n    return trio[1][1];\n  }\n  function go(lo, hi) {\n    if (lo >= hi) return;\n    const k = medianIndex(lo, hi);\n    let t = arr[k]; arr[k] = arr[hi]; arr[hi] = t;\n    const pivot = arr[hi];\n    let i = lo;\n    for (let j = lo; j < hi; j++) {\n      if (arr[j] < pivot) { const s = arr[i]; arr[i] = arr[j]; arr[j] = s; i++; }\n    }\n    t = arr[i]; arr[i] = arr[hi]; arr[hi] = t;\n    go(lo, i - 1);\n    go(i + 1, hi);\n  }\n  go(0, arr.length - 1);\n  return arr;\n}",
+   "hint": "Sorting three [value, index] pairs and taking the middle one's index is the least fiddly way to get the median index.",
+   "concepts": [
+    "quicksort",
+    "pivot-choice"
+   ],
+   "tags": [
+    "quicksort",
+    "pivot-choice"
+   ],
+   "explain": "The already-sorted ten-element test is the whole point: a last-element pivot would spend 45 comparisons there and grow quadratically, while median-of-three picks the true middle and splits evenly. The three extra comparisons per call are O(1) and disappear into the constant factor.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-i-04",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Quicksort takes the last element of every range as its pivot. Give its worst-case running time on $n$ elements, name an input that achieves it, and derive the bound from the recurrence that input produces.",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "sorted",
+     "recurrence",
+     "pivot"
+    ],
+    "optional": [
+     "quadratic",
+     "unbalanced",
+     "largest",
+     "depth",
+     "sum"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "quicksort",
+    "recurrence-analysis",
+    "pivot-choice"
+   ],
+   "tags": [
+    "quicksort",
+    "complexity",
+    "pivot-choice"
+   ],
+   "explain": "Already-sorted input makes the last element the maximum every time, so each split is n-1 and 0 rather than two halves. That gives T(n) = T(n-1) + Theta(n), and summing n + (n-1) + ... + 1 gives n(n-1)/2 comparisons - quadratic. The average case is still Theta(n log n) because most pivots split at least somewhat evenly, but an average is not a guarantee.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-i-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace Lomuto partition on `[7, 2, 9, 4, 3, 8, 5]` with `lo = 0`, `hi = 6`, pivot `a[hi] = 5` and boundary `i` starting at 0. The loop runs `j` from 0 to 5, and when `a[j] < pivot` it swaps `a[i]` with `a[j]` then increments `i`. Give the whole array after each `j` iteration (written as `[1,2,3]`), then after the final pivot swap, then the index returned.",
+   "steps": [
+    {
+     "label": "after j = 0",
+     "expected": "[7,2,9,4,3,8,5]"
+    },
+    {
+     "label": "after j = 1",
+     "expected": "[2,7,9,4,3,8,5]"
+    },
+    {
+     "label": "after j = 2",
+     "expected": "[2,7,9,4,3,8,5]"
+    },
+    {
+     "label": "after j = 3",
+     "expected": "[2,4,9,7,3,8,5]"
+    },
+    {
+     "label": "after j = 4",
+     "expected": "[2,4,3,7,9,8,5]"
+    },
+    {
+     "label": "after j = 5",
+     "expected": "[2,4,3,7,9,8,5]"
+    },
+    {
+     "label": "after the final pivot swap",
+     "expected": "[2,4,3,5,9,8,7]"
+    },
+    {
+     "label": "index returned",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "partition"
+   ],
+   "tags": [
+    "partition",
+    "quicksort"
+   ],
+   "explain": "Notice the left region [2,4,3] is not sorted and never becomes sorted here - partition promises only that everything before index 3 is below 5 and everything after is above it. Notice too that j = 0, 2 and 5 change nothing: a scan step with no swap still costs a comparison, which is why the cost is hi - lo regardless of the data.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-i-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This quicksort returns `[2,1]` for `[2,1]` and leaves `[5,4,3,2,1]` completely untouched, yet it never crashes or hangs. One line is missing. Restore it.",
+   "fn": "quickSort",
+   "starterCode": "function quickSort(a) {\n  const arr = a.slice();\n  function go(lo, hi) {\n    if (lo >= hi) return;\n    const pivot = arr[hi];\n    let i = lo;\n    for (let j = lo; j < hi; j++) {\n      if (arr[j] < pivot) { const t = arr[i]; arr[i] = arr[j]; arr[j] = t; i++; }\n    }\n    go(lo, i - 1);\n    go(i + 1, hi);\n  }\n  go(0, arr.length - 1);\n  return arr;\n}\n",
+   "tests": [
+    {
+     "input": "[2, 1]",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "[7, 2, 9, 4, 3, 8, 5]",
+     "expected": [
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      9
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5, 4, 3, 2, 1]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[3, 3, 3]",
+     "expected": [
+      3,
+      3,
+      3
+     ]
+    }
+   ],
+   "solution": "function quickSort(a) {\n  const arr = a.slice();\n  function go(lo, hi) {\n    if (lo >= hi) return;\n    const pivot = arr[hi];\n    let i = lo;\n    for (let j = lo; j < hi; j++) {\n      if (arr[j] < pivot) { const t = arr[i]; arr[i] = arr[j]; arr[j] = t; i++; }\n    }\n    const t = arr[i]; arr[i] = arr[hi]; arr[hi] = t;\n    go(lo, i - 1);\n    go(i + 1, hi);\n  }\n  go(0, arr.length - 1);\n  return arr;\n}",
+   "hint": "After the sweep, index i is the boundary the pivot belongs on - but the pivot is still sitting at hi.",
+   "concepts": [
+    "partition",
+    "quicksort"
+   ],
+   "tags": [
+    "partition",
+    "quicksort",
+    "debugging"
+   ],
+   "explain": "Without the final swap the pivot never moves off `hi`, so the recursion on `lo..i-1` and `i+1..hi` is arranging elements around a boundary cell that holds the wrong value. It still terminates, because the ranges do shrink correctly, which is why the failure is silent wrong output rather than a crash - the most expensive kind of bug.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-i-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Quicksort is quoted as $O(n \\log n)$ **expected** rather than simply $O(n \\log n)$. Explain what the word expected is doing there, and why choosing the pivot more cleverly cannot remove the $\\Theta(n^2)$ worst case for any fixed deterministic rule.",
+   "rubric": {
+    "required": [
+     "average",
+     "worst",
+     "pivot",
+     "input"
+    ],
+    "optional": [
+     "random",
+     "adversary",
+     "split",
+     "median",
+     "unbalanced",
+     "guarantee"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "pivot-choice",
+    "recurrence-analysis",
+    "quicksort"
+   ],
+   "tags": [
+    "pivot-choice",
+    "complexity",
+    "quicksort"
+   ],
+   "explain": "Expected is an average - over inputs, or over the random choices of a randomised pivot - not a bound on every run. For any fixed deterministic rule an adversary can read the rule and construct the input that always hands it an extreme element, so the quadratic case survives. Randomising the pivot does not delete that case either; it only makes it impossible for an adversary to aim at it.",
+   "xp": 20
+  }
+ ],
+ "level-project": [
+  {
+   "id": "alg-5-p-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Build a comparison-counting benchmark harness.\n\nWrite `benchmark(sortFn, inputs)`. `sortFn(array, compare)` is any sort that makes all of its ordering decisions through the `compare` callback it is handed. `inputs` is an array of arrays of numbers.\n\nFor each input array, in order:\n\n- pass `sortFn` a **copy** of the array - the caller's arrays must not be modified - together with a fresh `compare(x, y)` that counts every call and returns `x - y`;\n- record how many times `compare` was called during that run;\n- check whether the array `sortFn` returned really is ascending, **without** using the counting comparator, so that your own check cannot inflate the count.\n\nReturn `{ runs, totalComparisons, maxComparisons }`, where `runs` is an array of `{ n, comparisons, sorted }` - one per input, in input order, with `n` the input length and `sorted` a boolean. `totalComparisons` sums every run and `maxComparisons` is the largest single run; both are `0` when `inputs` is empty.",
+   "fn": "benchmark",
+   "starterCode": "function benchmark(sortFn, inputs) {\n  const runs = [];\n  let total = 0, worst = 0;\n  for (const input of inputs) {\n    let comparisons = 0;\n    const compare = (x, y) => { /* count, then order */ };\n    const result = sortFn(input.slice(), compare);\n    // is result ascending? check it without calling compare\n  }\n  return { runs: runs, totalComparisons: total, maxComparisons: worst };\n}\n",
+   "tests": [
+    {
+     "input": "(function (a, cmp) { for (let i = 0; i < a.length; i++) for (let j = 0; j < a.length - 1 - i; j++) if (cmp(a[j], a[j + 1]) > 0) { const t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; } return a; }), [[3, 1, 2]]",
+     "expected": {
+      "runs": [
+       {
+        "n": 3,
+        "comparisons": 3,
+        "sorted": true
+       }
+      ],
+      "totalComparisons": 3,
+      "maxComparisons": 3
+     }
+    },
+    {
+     "input": "(function (a, cmp) { for (let i = 0; i < a.length; i++) for (let j = 0; j < a.length - 1 - i; j++) if (cmp(a[j], a[j + 1]) > 0) { const t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; } return a; }), []",
+     "expected": {
+      "runs": [],
+      "totalComparisons": 0,
+      "maxComparisons": 0
+     }
+    },
+    {
+     "input": "(function (a, cmp) { for (let i = 0; i < a.length; i++) for (let j = 0; j < a.length - 1 - i; j++) if (cmp(a[j], a[j + 1]) > 0) { const t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; } return a; }), [[], [1]]",
+     "expected": {
+      "runs": [
+       {
+        "n": 0,
+        "comparisons": 0,
+        "sorted": true
+       },
+       {
+        "n": 1,
+        "comparisons": 0,
+        "sorted": true
+       }
+      ],
+      "totalComparisons": 0,
+      "maxComparisons": 0
+     }
+    },
+    {
+     "input": "(function (a, cmp) { for (let i = 0; i < a.length; i++) for (let j = 0; j < a.length - 1 - i; j++) if (cmp(a[j], a[j + 1]) > 0) { const t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; } return a; }), [[4, 3, 2, 1], [1, 2]]",
+     "expected": {
+      "runs": [
+       {
+        "n": 4,
+        "comparisons": 6,
+        "sorted": true
+       },
+       {
+        "n": 2,
+        "comparisons": 1,
+        "sorted": true
+       }
+      ],
+      "totalComparisons": 7,
+      "maxComparisons": 6
+     }
+    },
+    {
+     "input": "(function (a, cmp) { if (a.length > 1) cmp(a[0], a[1]); return a; }), [[2, 1]]",
+     "expected": {
+      "runs": [
+       {
+        "n": 2,
+        "comparisons": 1,
+        "sorted": false
+       }
+      ],
+      "totalComparisons": 1,
+      "maxComparisons": 1
+     }
+    }
+   ],
+   "solution": "function benchmark(sortFn, inputs) {\n  const runs = [];\n  let total = 0, worst = 0;\n  for (const input of inputs) {\n    let comparisons = 0;\n    const compare = function (x, y) { comparisons++; return x - y; };\n    const result = sortFn(input.slice(), compare);\n    let sorted = true;\n    for (let i = 1; i < result.length; i++) {\n      if (result[i - 1] > result[i]) { sorted = false; break; }\n    }\n    runs.push({ n: input.length, comparisons: comparisons, sorted: sorted });\n    total += comparisons;\n    if (comparisons > worst) worst = comparisons;\n  }\n  return { runs: runs, totalComparisons: total, maxComparisons: worst };\n}",
+   "hint": "Declare `comparisons` fresh inside the loop, before you build `compare`, so each run closes over its own counter. `input.slice()` is the copy.",
+   "concepts": [
+    "comparison-counting",
+    "merge-sort",
+    "quicksort"
+   ],
+   "tags": [
+    "comparison-counting",
+    "benchmarking",
+    "complexity"
+   ],
+   "explain": "Counting comparisons rather than timing is what makes a sorting benchmark reproducible: wall-clock time depends on the machine, the JIT and cache behaviour, but the comparison count is a property of the algorithm and the input alone. The empty-`inputs` case matters because a maximum over nothing has no natural value - you must choose 0 rather than let -Infinity or undefined leak out. And verifying sortedness outside the counted comparator is the discipline that stops a measuring instrument from perturbing what it measures.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-5-e-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print? The counter is reset between the two merges.",
+   "code": "let c = 0;\nfunction merge(a, b) {\n  const out = [];\n  let i = 0, j = 0;\n  while (i < a.length && j < b.length) {\n    c++;\n    if (a[i] <= b[j]) out.push(a[i++]); else out.push(b[j++]);\n  }\n  while (i < a.length) out.push(a[i++]);\n  while (j < b.length) out.push(b[j++]);\n  return out;\n}\nc = 0; merge([1, 2, 3], [4, 5, 6]); console.log(c);\nc = 0; merge([1, 4], [2, 3]); console.log(c);",
+   "lang": "javascript",
+   "answer": "3\n3",
+   "concepts": [
+    "merge-step"
+   ],
+   "tags": [
+    "merge-step",
+    "complexity"
+   ],
+   "explain": "Each comparison emits exactly one element and the loop stops the moment either side empties, so merging p and q elements costs between min(p,q) and p+q-1 comparisons - never more. Here both cases exhaust one side after three emissions and the drain loops finish the rest for free.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-e-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the **auxiliary space** merge sort needs on an array of $n$ elements, beyond the input itself, and justify it. Account for both the merge buffers and the recursion stack.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "merge",
+     "buffer",
+     "stack"
+    ],
+    "optional": [
+     "log",
+     "depth",
+     "auxiliary",
+     "overwrite",
+     "copy",
+     "dominate"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "space-complexity",
+    "merge-sort"
+   ],
+   "tags": [
+    "space-complexity",
+    "merge-sort"
+   ],
+   "explain": "A merge cannot safely write over its own inputs, so it needs a buffer, and the outermost merge alone handles all n elements - Theta(n). The recursion stack is only Theta(log n) frames deep, so it is dominated. This is exactly the trade quicksort refuses to make: it partitions in place and spends only stack, which is why it wins when memory is the binding constraint.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-e-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `mergeSortBy(a, keyFn)` returning a new array holding `a`'s elements sorted ascending by `keyFn(element)`, and **stable** - equal keys keep their original relative order. Use merge sort; do not call the built-in `sort`. Keys may be numbers or strings.",
+   "fn": "mergeSortBy",
+   "starterCode": "function mergeSortBy(a, keyFn) {\n  // base case, split at the midpoint, recurse, then merge on the key\n}\n",
+   "tests": [
+    {
+     "input": "[{n:3},{n:1},{n:2}], (o) => o.n",
+     "expected": [
+      {
+       "n": 1
+      },
+      {
+       "n": 2
+      },
+      {
+       "n": 3
+      }
+     ]
+    },
+    {
+     "input": "[], (o) => o.n",
+     "expected": []
+    },
+    {
+     "input": "[{k:'b',i:1},{k:'a',i:2},{k:'b',i:3}], (o) => o.k",
+     "expected": [
+      {
+       "k": "a",
+       "i": 2
+      },
+      {
+       "k": "b",
+       "i": 1
+      },
+      {
+       "k": "b",
+       "i": 3
+      }
+     ]
+    },
+    {
+     "input": "[{n:5}], (o) => o.n",
+     "expected": [
+      {
+       "n": 5
+      }
+     ]
+    }
+   ],
+   "solution": "function mergeSortBy(a, keyFn) {\n  if (a.length <= 1) return a.slice();\n  const mid = Math.floor(a.length / 2);\n  const L = mergeSortBy(a.slice(0, mid), keyFn);\n  const R = mergeSortBy(a.slice(mid), keyFn);\n  const out = [];\n  let i = 0, j = 0;\n  while (i < L.length && j < R.length) {\n    if (keyFn(L[i]) <= keyFn(R[j])) out.push(L[i++]);\n    else out.push(R[j++]);\n  }\n  while (i < L.length) out.push(L[i++]);\n  while (j < R.length) out.push(R[j++]);\n  return out;\n}",
+   "hint": "Split before you compare anything, and let `<=` on the keys award ties to the left half - which is the earlier half of the original array.",
+   "concepts": [
+    "merge-sort",
+    "merge-step"
+   ],
+   "tags": [
+    "merge-sort",
+    "merge-step",
+    "stability"
+   ],
+   "explain": "Stability comes for free here only because the left half is always the earlier part of the original array and `<=` gives it the tie. That is a property of the split-and-merge structure; quicksort has no such invariant, since partitioning swaps elements across arbitrary distances and destroys the original relative order of equals.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-e-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "`mergeSort([5, 2, 4, 1])` splits at `mid = 2`, recurses on the left half before the right, and merges on the way back up. Give each merge's result in the order the merges complete, then how many merge calls happen in total. Write arrays as `[1,2,3]`.",
+   "steps": [
+    {
+     "label": "1st merge to return",
+     "expected": "[2,5]"
+    },
+    {
+     "label": "2nd merge to return",
+     "expected": "[1,4]"
+    },
+    {
+     "label": "3rd merge to return",
+     "expected": "[1,2,4,5]"
+    },
+    {
+     "label": "total merge calls",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "merge-sort"
+   ],
+   "tags": [
+    "merge-sort",
+    "recursion"
+   ],
+   "explain": "Three merges for four elements is no coincidence: every merge collapses two subarrays into one, so sorting n elements takes exactly n-1 merges, spread over log2(n) levels. Counting them is a cheap sanity check on any merge sort you write.",
+   "xp": 40
+  },
+  {
+   "id": "alg-5-e-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete Lomuto partition. In order the blanks are: the index the pivot is read from, the comparison that stops the sweep one short of the pivot, the operator that advances the boundary, and the index the pivot is finally swapped with.",
+   "template": "function partition(a, lo, hi) {\n  const pivot = a[___];\n  let i = lo;\n  for (let j = lo; j ___ hi; j++) {\n    if (a[j] < pivot) { swap(a, i, j); i___; }\n  }\n  swap(a, i, ___);\n  return i;\n}",
+   "blanks": [
+    "hi",
+    "<",
+    "++",
+    "hi"
+   ],
+   "concepts": [
+    "partition"
+   ],
+   "tags": [
+    "partition",
+    "quicksort"
+   ],
+   "explain": "`j < hi` rather than `j <= hi` keeps the pivot out of its own sweep - include it and the pivot could be swapped away from the end, leaving the final swap to move the wrong element. The boundary `i` only advances on a swap, which is what keeps `a[lo..i-1]` exactly the known-smaller region.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-e-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You must sort 50 million records on a machine with barely enough memory to hold them, and separately sort a few thousand integers inside a tight inner loop. Argue which of merge sort and quicksort fits each job, naming the property that decides it.",
+   "rubric": {
+    "required": [
+     "space",
+     "worst",
+     "stable"
+    ],
+    "optional": [
+     "guarantee",
+     "constant",
+     "cache",
+     "memory",
+     "pivot",
+     "place"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "merge-sort",
+    "quicksort",
+    "space-complexity"
+   ],
+   "tags": [
+    "merge-sort",
+    "quicksort",
+    "space-complexity"
+   ],
+   "explain": "The deciding properties are space and guarantees, not the n log n they share. Quicksort sorts in place with a small constant factor and good locality, so it wins the tight inner loop where an O(n) buffer would be waste; merge sort's O(n) buffer is what buys the guaranteed worst case and stability, and it is also the only one of the two that survives data too large for memory, because merging is inherently sequential.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-e-07",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A quicksort always takes the **last** element of a range as its pivot. Which input drives it to its $\\Theta(n^2)$ worst case?",
+   "choices": [
+    "An array already sorted in ascending order",
+    "An array whose elements alternate between high and low values",
+    "An array in which the median happens to sit last",
+    "An array of distinct values in a randomly chosen order"
+   ],
+   "answer": 0,
+   "concepts": [
+    "pivot-choice"
+   ],
+   "tags": [
+    "pivot-choice",
+    "quicksort",
+    "complexity"
+   ],
+   "explain": "Ascending input makes the last element the maximum of every range, so each partition splits into n-1 and 0 and the recursion depth becomes n instead of log n. A median pivot is the best possible case and random order gives the n log n average - the pathological input here is the one that looks most benign.",
+   "xp": 10
+  },
+  {
+   "id": "alg-5-e-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `medianOfThree(a, lo, hi)` returning the **index** of the median of the three values `a[lo]`, `a[mid]` and `a[hi]`, where `mid = Math.floor((lo + hi) / 2)`. Return one of `lo`, `mid` or `hi`. When those three indices coincide, return that index.",
+   "fn": "medianOfThree",
+   "starterCode": "function medianOfThree(a, lo, hi) {\n  const mid = Math.floor((lo + hi) / 2);\n  // return whichever of lo, mid, hi holds the middle value\n}\n",
+   "tests": [
+    {
+     "input": "[3, 1, 2], 0, 2",
+     "expected": 2
+    },
+    {
+     "input": "[1, 2, 3], 0, 2",
+     "expected": 1
+    },
+    {
+     "input": "[9, 1, 4, 7, 2], 0, 4",
+     "expected": 2
+    },
+    {
+     "input": "[5], 0, 0",
+     "expected": 0
+    },
+    {
+     "input": "[4, 9, 1, 7], 1, 3",
+     "expected": 3
+    }
+   ],
+   "solution": "function medianOfThree(a, lo, hi) {\n  const mid = Math.floor((lo + hi) / 2);\n  const trio = [[a[lo], lo], [a[mid], mid], [a[hi], hi]];\n  trio.sort(function (x, y) { return x[0] < y[0] ? -1 : (x[0] > y[0] ? 1 : 0); });\n  return trio[1][1];\n}",
+   "hint": "Pair each value with its index, order the three pairs, and read the index out of the middle one - far less error-prone than nested if-statements.",
+   "concepts": [
+    "pivot-choice"
+   ],
+   "tags": [
+    "pivot-choice",
+    "quicksort"
+   ],
+   "explain": "It must return an index, not a value, because the caller swaps that element to the end before partitioning and a value alone would not say which cell to swap. The `[5], 0, 0` case is the degenerate range quicksort meets at the bottom of the recursion, and solutions built from nested comparisons of three supposedly distinct positions usually break there.",
+   "xp": 50
+  },
+  {
+   "id": "alg-5-e-09",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one call to quicksort on the range `lo..hi` in the order its steps execute.",
+   "fragments": [
+    "Recursively quicksort the part to the right of the pivot",
+    "Choose a pivot element from the range",
+    "Return immediately if the range holds fewer than two elements",
+    "Partition the range so smaller elements sit left of the pivot and larger ones right",
+    "Recursively quicksort the part to the left of the pivot"
+   ],
+   "answer": [
+    2,
+    1,
+    3,
+    4,
+    0
+   ],
+   "concepts": [
+    "quicksort"
+   ],
+   "tags": [
+    "quicksort",
+    "divide-and-conquer"
+   ],
+   "explain": "All the work happens at the top, before the recursion - the opposite of merge sort, where the recursion comes first and the work is on the way back up. That is why quicksort needs no combine step at all: once partition returns, the pivot is already final and the two sides are wholly independent.",
+   "xp": 20
+  },
+  {
+   "id": "alg-5-e-10",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the **expected** running time of quicksort with a well-chosen pivot on $n$ elements, derive it from the recurrence a balanced split produces, and say in one line why this is not the same claim as merge sort's bound.",
+   "answer": "O(n log n)",
+   "rubric": {
+    "required": [
+     "recurrence",
+     "partition",
+     "worst"
+    ],
+    "optional": [
+     "balanced",
+     "levels",
+     "average",
+     "guarantee",
+     "log",
+     "pivot"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "quicksort",
+    "recurrence-analysis"
+   ],
+   "tags": [
+    "quicksort",
+    "complexity",
+    "recurrence-analysis"
+   ],
+   "explain": "A balanced split gives T(n) = 2T(n/2) + Theta(n) - the same recurrence as merge sort, hence the same Theta(n log n). The difference is that merge sort's split is guaranteed by construction while quicksort's depends on the pivot landing near the median, so quicksort's bound holds on average and its worst case is still Theta(n^2). Even a split as lopsided as 9:1 stays Theta(n log n), since it only changes the depth by a constant factor.",
+   "xp": 40
+  }
+ ]
+}

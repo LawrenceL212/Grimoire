@@ -1,0 +1,647 @@
+{
+ "n": 2,
+ "name": "The Hall of Growing Shadows",
+ "concepts": [
+  "loop-counting",
+  "nested-loops",
+  "sequential-loops",
+  "logarithmic-time",
+  "dropping-constants"
+ ],
+ "cognitiveLevel": "recognition",
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "exam"
+ ],
+ "lesson": {
+  "title": "Reading Growth Off the Page",
+  "sections": [
+   {
+    "title": "Counting What the Loop Repeats",
+    "body": "To name a function's complexity you do not time it - you count how many times its **innermost work** happens as a function of the input size $n$. Work that happens a fixed number of times no matter how big the input gets is **constant time**, written $O(1)$: reading `a[0]` costs the same on ten elements as on ten million.\n\nA single loop that visits every element once does its body $n$ times, so it is **linear**, $O(n)$. The reliable move is to put a counter in the body and watch the counter, because the counter is the thing the notation is about.\n\nWhat matters is the **shape of the loop bound**, not the body. A body that does five additions instead of one still runs $n$ times, and $5n$ and $n$ belong to the same class.",
+    "code": "function firstElement(a) {\n  return a[0];\n}\n\nlet steps = 0;\nfunction sumAll(a) {\n  let total = 0;\n  for (let i = 0; i < a.length; i++) {\n    steps++;\n    total += a[i];\n  }\n  return total;\n}\n\nconst ten = Array.from({ length: 10 }, (_, i) => i + 1);\nconst hundred = Array.from({ length: 100 }, (_, i) => i + 1);\n\nsteps = 0; sumAll(ten);\nconsole.log(\"n = 10   ->\", steps, \"steps\");\nsteps = 0; sumAll(hundred);\nconsole.log(\"n = 100  ->\", steps, \"steps\");\n\nconsole.log(\"firstElement costs one step either way:\", firstElement(ten), firstElement(hundred));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "No loop, no recursion: one indexing operation. This is O(1) - the input could be a billion long."
+     },
+     {
+      "line": 8,
+      "text": "The loop bound is a.length, so the body runs exactly n times. This bound is the whole story."
+     },
+     {
+      "line": 9,
+      "text": "The counter is the honest measure. Watch it, not the wall clock."
+     },
+     {
+      "line": 21,
+      "text": "Ten times the input, ten times the steps: 10 then 100. That straight-line relationship is what O(n) means."
+     }
+    ],
+    "checkpoint": {
+     "id": "alg-02-cp-1",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "let count = 0;\nconst items = [4, 8, 15, 16, 23, 42];\n\nfor (let i = 0; i < items.length; i++) {\n  count = count + 1;\n}\n\nconsole.log(count);\nconsole.log(items[0]);",
+     "lang": "javascript",
+     "answer": "6\n4",
+     "concepts": [
+      "loop-counting"
+     ],
+     "tags": [
+      "loop-counting"
+     ],
+     "xp": 20,
+     "explain": "The counter ends at the array's length because the loop bound is the array's length - that is exactly why the first print grows with the input and the second one does not. Indexing `items[0]` is one operation on an array of 6 or 6 million, which is the difference between O(n) and O(1) made concrete."
+    }
+   },
+   {
+    "title": "Loops Inside Loops Multiply",
+    "body": "When one loop sits inside another, the inner body runs once for **every pair** of outer and inner steps, so the counts **multiply**: $n$ outer passes times $n$ inner passes is $n^2$. Doubling the input therefore quadruples the work, which is the signature of **quadratic time**, $O(n^2)$.\n\nA triangular nesting - where the inner loop starts at `i + 1` and so shortens each pass - runs $\\frac{n(n-1)}{2}$ times. That is half of $n^2$ minus a linear term, and it is still $O(n^2)$: the constant $\\frac{1}{2}$ does not change how the curve bends.\n\nThe rule to read off the page is short. **Nested loops over the same $n$ multiply, and the exponent is the nesting depth.**",
+    "code": "function countPairs(n) {\n  let steps = 0;\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n; j++) {\n      steps++;\n    }\n  }\n  return steps;\n}\n\nfunction countTriangle(n) {\n  let steps = 0;\n  for (let i = 0; i < n; i++) {\n    for (let j = i + 1; j < n; j++) {\n      steps++;\n    }\n  }\n  return steps;\n}\n\nconsole.log(\"full    \", countPairs(5), countPairs(10), countPairs(20));\nconsole.log(\"triangle\", countTriangle(5), countTriangle(10), countTriangle(20));\nconsole.log(\"doubling n from 10 to 20 multiplied the work by\", countPairs(20) / countPairs(10));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "This inner loop restarts from 0 on every outer pass, so it runs n times, n times over."
+     },
+     {
+      "line": 14,
+      "text": "Starting at i + 1 shortens the inner loop every pass: n(n-1)/2 steps in total."
+     },
+     {
+      "line": 21,
+      "text": "25, 100, 400 - squaring the input size, exactly as n^2 predicts."
+     },
+     {
+      "line": 23,
+      "text": "Doubling n multiplied the work by 4. That factor of 4 is the fingerprint of a quadratic."
+     }
+    ],
+    "checkpoint": {
+     "id": "alg-02-cp-2",
+     "type": "complexity",
+     "layer": "application",
+     "prompt": "Give the time complexity of `hasDuplicate(a)` in terms of `n = a.length`, and justify it by counting the comparisons in the worst case.",
+     "code": "function hasDuplicate(a) {\n  for (let i = 0; i < a.length; i++) {\n    for (let j = i + 1; j < a.length; j++) {\n      if (a[i] === a[j]) return true;\n    }\n  }\n  return false;\n}",
+     "lang": "javascript",
+     "answer": "O(n^2)",
+     "rubric": {
+      "required": [
+       "nested",
+       "worst case"
+      ],
+      "optional": [
+       "quadratic",
+       "pair",
+       "constant"
+      ],
+      "minWords": 20
+     },
+     "concepts": [
+      "nested-loops"
+     ],
+     "tags": [
+      "nested-loops"
+     ],
+     "xp": 40,
+     "explain": "In the worst case - no duplicate at all - the comparison runs once for every unordered pair, which is n(n-1)/2 times. That is half a square minus a linear term, and both the 1/2 and the -n/2 are discarded, leaving O(n^2). The early `return true` only helps some inputs, and a complexity class is named by the worst case, not by the lucky one."
+    }
+   },
+   {
+    "title": "Halving Gives You a Logarithm",
+    "body": "A loop that **cuts the remaining work in half** each pass cannot run $n$ times, because after $k$ halvings only $n / 2^k$ is left. Solving $n / 2^k = 1$ gives $k = \\log_2 n$, so the loop runs about $\\log_2 n$ times and the function is $O(\\log n)$.\n\nThat is a startlingly flat curve: a million items need about 20 passes, a billion about 30. The base is left out of the notation because changing base only multiplies by a constant - $\\log_2 n$ and $\\log_{10} n$ differ by a fixed factor of about 3.32.\n\nThe pattern to recognise is **the loop variable being divided or multiplied**, not incremented. `i = i / 2` and `i = i * 2` both give $\\log n$ passes, while `i = i + 1` gives $n$.",
+    "code": "function halvings(n) {\n  let steps = 0;\n  while (n > 1) {\n    n = Math.floor(n / 2);\n    steps++;\n  }\n  return steps;\n}\n\nfor (const n of [1, 2, 8, 1000, 1000000]) {\n  console.log(\"n =\", n, \"-> halvings:\", halvings(n));\n}\n\nconst trail = [];\nlet m = 40;\nwhile (m > 1) {\n  m = Math.floor(m / 2);\n  trail.push(m);\n}\nconsole.log(\"40 halves down through\", trail.join(\" -> \"));",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The loop variable is divided, not decremented. That single character is what makes this logarithmic."
+     },
+     {
+      "line": 10,
+      "text": "0, 1, 3, 9, 19 steps. A million-fold jump in n costs 19 passes, not a million."
+     },
+     {
+      "line": 17,
+      "text": "Math.floor keeps the value a whole number, and it strictly decreases while above 1 - which is why the loop terminates."
+     },
+     {
+      "line": 20,
+      "text": "20 -> 10 -> 5 -> 2 -> 1: five passes for n = 40, and 2^5 = 32 is just under 40."
+     }
+    ],
+    "checkpoint": {
+     "id": "alg-02-cp-3",
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Trace `let i = 100;` under `while (i > 1) { i = Math.floor(i / 2); }`. Give the value of `i` after each pass, then the total number of passes.",
+     "steps": [
+      { "label": "i after pass 1", "expected": "50" },
+      { "label": "i after pass 2", "expected": "25" },
+      { "label": "i after pass 3", "expected": "12" },
+      { "label": "i after pass 4", "expected": "6" },
+      { "label": "i after pass 5", "expected": "3" },
+      { "label": "i after pass 6", "expected": "1" },
+      { "label": "total passes", "expected": "6" }
+     ],
+     "lang": "javascript",
+     "concepts": [
+      "logarithmic-time"
+     ],
+     "tags": [
+      "logarithmic-time"
+     ],
+     "xp": 40,
+     "explain": "Six passes for n = 100, and $\\log_2 100 \\approx 6.64$ - the floor division rounds the count down. Notice how cheap a hundred elements are, and that the flooring at pass 3 (25 becomes 12, not 12.5) never threatens termination, because the value strictly decreases on every single pass."
+    }
+   },
+   {
+    "title": "Adding, Dropping and the Dominant Term",
+    "body": "Two loops **one after another** do not multiply - their counts **add**. Two passes over the same array is $n + n = 2n$ steps, and $2n$ is $O(n)$, because a constant multiplier does not change the shape of the curve.\n\nWhen the added pieces have different shapes you keep only the **dominant term**: $n^2 + n$ is $O(n^2)$, since for large $n$ the square swamps everything under it. So $3n^2 + 50n + 700$ is $O(n^2)$ too, however large that 700 looks at $n = 5$.\n\nTwo rules finish the floor.\n\n- **Sequential work adds; nested work multiplies.**\n- **Drop constant factors, and drop every term but the fastest-growing one.**",
+    "code": "function mixedSteps(n) {\n  let steps = 0;\n  for (let i = 0; i < n; i++) {\n    steps++;\n  }\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n; j++) {\n      steps++;\n    }\n  }\n  return steps;\n}\n\nfor (const n of [10, 100, 1000]) {\n  const actual = mixedSteps(n);\n  console.log(\"n =\", n, \"steps =\", actual, \"n^2 =\", n * n, \"ratio =\", (actual / (n * n)).toFixed(4));\n}",
+    "lang": "javascript",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "n steps from this loop..."
+     },
+     {
+      "line": 6,
+      "text": "...plus n * n from this one. They are sequential, so the counts add: n^2 + n in total."
+     },
+     {
+      "line": 16,
+      "text": "The ratio to n^2 marches 1.1000, 1.0100, 1.0010 towards 1. The linear term is being swallowed."
+     }
+    ],
+    "checkpoint": {
+     "id": "alg-02-cp-4",
+     "type": "explain",
+     "layer": "application",
+     "prompt": "A function does exactly $3n^2 + 50n + 700$ operations. Explain why it is $O(n^2)$, and why that is still the right answer even though $50n + 700$ is far bigger than $3n^2$ when $n = 5$.",
+     "rubric": {
+      "required": [
+       "dominant",
+       "constant",
+       "large"
+      ],
+      "optional": [
+       "grows",
+       "lower-order",
+       "curve"
+      ],
+      "minWords": 30
+     },
+     "concepts": [
+      "dropping-constants",
+      "sequential-loops"
+     ],
+     "tags": [
+      "dropping-constants"
+     ],
+     "xp": 20,
+     "explain": "Big-O describes behaviour as $n$ grows without bound, not at any one small size. Past about $n = 30$ the quadratic term takes the lead and keeps pulling further ahead, so the lower-order terms and the factor 3 change only where the curve sits, never how it bends. Naming the class is about the shape of growth; the constants belong to benchmarking."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "alg-02-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "let steps = 0;\nconst n = 6;\n\nfor (let i = 0; i < n; i++) {\n  steps++;\n}\nconsole.log(steps);\n\nsteps = 0;\nfor (let i = 0; i < n; i++) {\n  for (let j = 0; j < n; j++) {\n    steps++;\n  }\n}\nconsole.log(steps);",
+   "lang": "javascript",
+   "answer": "6\n36",
+   "concepts": [
+    "loop-counting",
+    "nested-loops"
+   ],
+   "tags": [
+    "loop-counting",
+    "nested-loops"
+   ],
+   "xp": 20,
+   "explain": "Counting is the primitive skill under every complexity claim: one loop gives n, the same loop nested inside itself gives n times n. Six and thirty-six are not just two numbers here - they are the two growth classes you are learning to tell apart at a glance."
+  },
+  {
+   "id": "alg-02-gp-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Name the time complexity of `secondLargest(a)` in terms of `n = a.length`, and justify it by counting how many array elements the function inspects and how much work each one costs.",
+   "code": "function secondLargest(a) {\n  let best = -Infinity;\n  let second = -Infinity;\n  for (let i = 0; i < a.length; i++) {\n    if (a[i] > best) {\n      second = best;\n      best = a[i];\n    } else if (a[i] > second) {\n      second = a[i];\n    }\n  }\n  return second;\n}",
+   "lang": "javascript",
+   "answer": "O(n)",
+   "rubric": {
+    "required": [
+     "single",
+     "once",
+     "constant"
+    ],
+    "optional": [
+     "linear",
+     "branch",
+     "body"
+    ],
+    "minWords": 20
+   },
+   "concepts": [
+    "loop-counting",
+    "dropping-constants"
+   ],
+   "tags": [
+    "loop-counting"
+   ],
+   "xp": 40,
+   "explain": "A branching body is still a constant amount of work per element - at most two comparisons and two assignments - so the loop bound alone decides the class. This is the trap the floor is training away: complexity counts how many times a body runs, not how many lines are inside it."
+  },
+  {
+   "id": "alg-02-gp-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace `steps` in this triangular nesting for `n = 4`, starting from `steps = 0`. Give the value of `steps` at the end of each outer pass.\n\n`for (let i = 0; i < n; i++) { for (let j = i + 1; j < n; j++) { steps++; } }`",
+   "steps": [
+    { "label": "steps after i = 0", "expected": "3" },
+    { "label": "steps after i = 1", "expected": "5" },
+    { "label": "steps after i = 2", "expected": "6" },
+    { "label": "steps after i = 3", "expected": "6" }
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "nested-loops"
+   ],
+   "tags": [
+    "nested-loops"
+   ],
+   "xp": 40,
+   "explain": "The inner loop shrinks by one each pass - 3, then 2, then 1, then 0 - and 3 + 2 + 1 + 0 = 6 = n(n-1)/2. Watching the increments die away shows exactly where the factor of one half comes from, and why half a square is still a square."
+  },
+  {
+   "id": "alg-02-gp-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this loop runs in $O(\\log n)$ time: it must keep going while `i` is above 1, and shrink `i` by a factor of two on each pass.",
+   "template": "let i = n;\nlet steps = 0;\nwhile (i ___ 1) {\n  i = Math.floor(i / ___);\n  steps++;\n}\nconsole.log(steps);",
+   "blanks": [
+    ">",
+    "2"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "logarithmic-time"
+   ],
+   "tags": [
+    "logarithmic-time"
+   ],
+   "xp": 20,
+   "explain": "Dividing rather than decrementing is the single edit that turns a linear loop into a logarithmic one, and the `> 1` guard is what makes it terminate: `i` strictly decreases while it is above 1, so the loop cannot run forever. Writing `i - 2` in place of the division would give n/2 passes, which is still O(n)."
+  },
+  {
+   "id": "alg-02-gp-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `innerSteps(n)` returning how many times the innermost line runs in `for (let i = 0; i < n; i++) { for (let j = i + 1; j < n; j++) { /* here */ } }`. It must return `0` for `n = 0` and for `n = 1`.",
+   "fn": "innerSteps",
+   "starterCode": "function innerSteps(n) {\n  // count the inner body's executions - either simulate the two loops,\n  // or return the closed form you derived in the lesson\n}\n",
+   "solution": "function innerSteps(n) {\n  let steps = 0;\n  for (let i = 0; i < n; i++) {\n    for (let j = i + 1; j < n; j++) {\n      steps++;\n    }\n  }\n  return steps;\n}\n",
+   "tests": [
+    { "input": "0", "expected": 0 },
+    { "input": "1", "expected": 0 },
+    { "input": "2", "expected": 1 },
+    { "input": "5", "expected": 10 },
+    { "input": "10", "expected": 45 },
+    { "input": "20", "expected": 190 }
+   ],
+   "hint": "Either simulate the loops, or use n * (n - 1) / 2 - and check the two agree at n = 5.",
+   "lang": "javascript",
+   "concepts": [
+    "nested-loops",
+    "loop-counting"
+   ],
+   "tags": [
+    "nested-loops"
+   ],
+   "xp": 50,
+   "explain": "Both accepted answers - the simulation and `n * (n - 1) / 2` - produce identical numbers, which is the point: the closed form is what the nested loops *are*, and it is where the n^2 in O(n^2) becomes visible. The n = 0 and n = 1 cases matter because a loop that never enters still has a well-defined cost of zero."
+  },
+  {
+   "id": "alg-02-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Two functions both process an array of length `n`. One runs two separate loops one after the other; the other runs one loop nested inside another. Explain why the first is $O(n)$ and the second is $O(n^2)$.",
+   "rubric": {
+    "required": [
+     "add",
+     "multiply",
+     "nested"
+    ],
+    "optional": [
+     "2n",
+     "constant",
+     "sequential"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "sequential-loops",
+    "nested-loops"
+   ],
+   "tags": [
+    "sequential-loops"
+   ],
+   "xp": 20,
+   "explain": "Sequential loops finish one before the other starts, so their counts add: n + n = 2n, and the 2 is a constant factor that drops away. A nested loop restarts its whole run for every outer step, so the counts multiply into n * n. The layout on the page - side by side, or one inside the other - is what decides between addition and multiplication."
+  },
+  {
+   "id": "alg-02-gp-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these complexity classes in order from slowest-growing to fastest-growing.",
+   "fragments": [
+    "O(n^2)",
+    "O(1)",
+    "O(n)",
+    "O(log n)"
+   ],
+   "answer": [
+    1,
+    3,
+    2,
+    0
+   ],
+   "concepts": [
+    "dropping-constants",
+    "logarithmic-time"
+   ],
+   "tags": [
+    "dropping-constants"
+   ],
+   "xp": 20,
+   "explain": "The ordering is what makes the classes useful: at n = 1,000,000 these cost roughly 1 step, 20 steps, a million steps and a million million steps. Constant beats logarithmic beats linear beats quadratic for every large enough n, which is precisely why the dominant term is the only one worth naming."
+  }
+ ],
+ "exam": [
+  {
+   "id": "alg-02-ex-01",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Name the time complexity of `middleThree(a)` in terms of `n = a.length` and justify it.",
+   "code": "function middleThree(a) {\n  const mid = Math.floor(a.length / 2);\n  return [a[mid - 1], a[mid], a[mid + 1]];\n}",
+   "lang": "javascript",
+   "answer": "O(1)",
+   "rubric": {
+    "required": [
+     "constant",
+     "loop",
+     "length"
+    ],
+    "optional": [
+     "index",
+     "fixed",
+     "three"
+    ],
+    "minWords": 20
+   },
+   "concepts": [
+    "loop-counting"
+   ],
+   "tags": [
+    "loop-counting"
+   ],
+   "xp": 40,
+   "explain": "Reaching the middle of an array is not the same as walking to it: indexing is a single address computation, so three reads cost three steps whatever the length. Constant time means the step count contains no `n` at all - not that the function is short."
+  },
+  {
+   "id": "alg-02-ex-02",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Name the time complexity of `countDigits(n)` for a positive integer `n`, and justify it in terms of how `n` changes on each pass.",
+   "code": "function countDigits(n) {\n  let digits = 0;\n  while (n > 0) {\n    n = Math.floor(n / 10);\n    digits++;\n  }\n  return digits;\n}",
+   "lang": "javascript",
+   "answer": "O(log n)",
+   "rubric": {
+    "required": [
+     "divid",
+     "log",
+     "10"
+    ],
+    "optional": [
+     "base",
+     "constant",
+     "terminate"
+    ],
+    "minWords": 20
+   },
+   "concepts": [
+    "logarithmic-time"
+   ],
+   "tags": [
+    "logarithmic-time"
+   ],
+   "xp": 40,
+   "explain": "Dividing by 10 rather than 2 gives $\\log_{10} n$ passes, and $\\log_{10} n$ is $\\log_2 n$ divided by about 3.32 - a constant factor, which big-O discards, so the base never appears in the notation. Any loop whose variable is divided by a fixed constant greater than 1 is logarithmic."
+  },
+  {
+   "id": "alg-02-ex-03",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Name the time complexity of `report(a)` in terms of `n = a.length`. Your justification must account for both loops.",
+   "code": "function report(a) {\n  let total = 0;\n  for (let i = 0; i < a.length; i++) {\n    total += a[i];\n  }\n\n  let pairs = 0;\n  for (let i = 0; i < a.length; i++) {\n    for (let j = 0; j < a.length; j++) {\n      if (a[i] + a[j] === 0) pairs++;\n    }\n  }\n\n  return [total, pairs];\n}",
+   "lang": "javascript",
+   "answer": "O(n^2)",
+   "rubric": {
+    "required": [
+     "add",
+     "dominant",
+     "nested"
+    ],
+    "optional": [
+     "sequential",
+     "lower-order",
+     "drop"
+    ],
+    "minWords": 25
+   },
+   "concepts": [
+    "sequential-loops",
+    "nested-loops",
+    "dropping-constants"
+   ],
+   "tags": [
+    "sequential-loops",
+    "dropping-constants"
+   ],
+   "xp": 40,
+   "explain": "The two phases are sequential, so their costs add to $n^2 + n$, and then the linear term is dropped because the square dominates it for all large $n$. Deleting the first loop entirely would not change the answer - which is the practical lesson: optimising anything but the dominant term buys nothing asymptotically."
+  },
+  {
+   "id": "alg-02-ex-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "function steps(n) {\n  let c = 0;\n  for (let i = 1; i < n; i = i * 2) {\n    c++;\n  }\n  return c;\n}\n\nconsole.log(steps(1));\nconsole.log(steps(8));\nconsole.log(steps(64));",
+   "lang": "javascript",
+   "answer": "0\n3\n6",
+   "concepts": [
+    "logarithmic-time"
+   ],
+   "tags": [
+    "logarithmic-time"
+   ],
+   "xp": 20,
+   "explain": "Multiplying up to n is the mirror image of halving down from it and gives the same count: `i` takes the values 1, 2, 4 for n = 8, stopping when it reaches 8. Eight times the input cost three more passes rather than eight times as many - that is $\\log_2$ read straight off the output."
+  },
+  {
+   "id": "alg-02-ex-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Trace a binary search over the 16 indices `0..15` where the target always lies in the upper half of whatever range remains. Start with `lo = 0`, `hi = 15`; each pass computes `mid = Math.floor((lo + hi) / 2)` and then sets `lo = mid + 1`. Give `lo,hi` after each pass, then the number of passes until `lo > hi`.",
+   "steps": [
+    { "label": "after pass 1 (mid = 7)", "expected": "8,15" },
+    { "label": "after pass 2 (mid = 11)", "expected": "12,15" },
+    { "label": "after pass 3 (mid = 13)", "expected": "14,15" },
+    { "label": "after pass 4 (mid = 14)", "expected": "15,15" },
+    { "label": "after pass 5 (mid = 15)", "expected": "16,15" },
+    { "label": "passes until lo > hi", "expected": "5" }
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "logarithmic-time"
+   ],
+   "tags": [
+    "logarithmic-time"
+   ],
+   "xp": 40,
+   "explain": "The window width goes 16, 8, 4, 2, 1, 0 - halving each pass - so sixteen candidates are exhausted in five looks rather than sixteen. The halving is also the termination argument: a width that strictly shrinks and cannot go below zero must reach zero, so the loop provably ends."
+  },
+  {
+   "id": "alg-02-ex-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `halvingSteps(n)` returning how many times `n` can be replaced by `Math.floor(n / 2)` before it reaches 1 or below. `halvingSteps(1)` is `0` and `halvingSteps(8)` is `3`.",
+   "fn": "halvingSteps",
+   "starterCode": "function halvingSteps(n) {\n  // loop while n is above 1, halving and counting\n}\n",
+   "solution": "function halvingSteps(n) {\n  let steps = 0;\n  while (n > 1) {\n    n = Math.floor(n / 2);\n    steps++;\n  }\n  return steps;\n}\n",
+   "tests": [
+    { "input": "1", "expected": 0 },
+    { "input": "2", "expected": 1 },
+    { "input": "8", "expected": 3 },
+    { "input": "100", "expected": 6 },
+    { "input": "1000", "expected": 9 },
+    { "input": "1000000", "expected": 19 }
+   ],
+   "hint": "while (n > 1) { n = Math.floor(n / 2); steps++; }",
+   "concepts": [
+    "logarithmic-time",
+    "loop-counting"
+   ],
+   "tags": [
+    "logarithmic-time"
+   ],
+   "xp": 50,
+   "explain": "The function you just wrote *is* $\\lfloor \\log_2 n \\rfloor$, computed by a loop instead of a formula, and the counts it returns - 19 for a million - are why $O(\\log n)$ is treated as almost free. `n = 1` returning 0 is the edge case proving the loop is guarded at the top rather than run at least once."
+  },
+  {
+   "id": "alg-02-ex-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Someone claims that `for (let i = 0; i < n; i += 2) { ... }` is $O(\\log n)$ because it \"skips half the work\". Explain what is really happening and give the correct class.",
+   "rubric": {
+    "required": [
+     "half",
+     "constant",
+     "linear"
+    ],
+    "optional": [
+     "double",
+     "divid",
+     "remaining"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "dropping-constants",
+    "loop-counting"
+   ],
+   "tags": [
+    "dropping-constants"
+   ],
+   "xp": 20,
+   "explain": "Halving the work **once** is a constant factor; halving the **remaining** work on every pass is a logarithm. This loop runs n/2 times, and n/2 is O(n) - doubling n still doubles the cost, which a logarithmic loop never does. The tell is that `i` is incremented by a constant rather than divided by one."
+  },
+  {
+   "id": "alg-02-ex-08",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Two loops run one after another over the same array of length `n`. Complete the accounting: first the total step count as a multiple of `n`, then the complexity class, writing only what goes inside the brackets of `O(...)`.",
+   "template": "for (let i = 0; i < n; i++) { total += a[i]; }\nfor (let j = 0; j < n; j++) { biggest = Math.max(biggest, a[j]); }\n// steps: n + n = ___n\n// class: O(___)",
+   "blanks": [
+    "2",
+    "n"
+   ],
+   "lang": "javascript",
+   "concepts": [
+    "sequential-loops",
+    "dropping-constants"
+   ],
+   "tags": [
+    "sequential-loops"
+   ],
+   "xp": 20,
+   "explain": "Writing the count down before naming the class is the discipline that stops guesswork: 2n really is twice the work of n, yet both are straight lines, so both are O(n). Constants matter to a stopwatch and not to a growth class."
+  },
+  {
+   "id": "alg-02-ex-09",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these runs in $O(n^2)$ time, where `n = a.length`?",
+   "choices": [
+    "for (let i = 0; i < a.length; i++) { for (let j = 0; j < 10; j++) { total++; } }",
+    "for (let i = 0; i < a.length; i++) { for (let j = 0; j < a.length; j++) { total++; } }",
+    "for (let i = 1; i < a.length; i = i * 2) { total++; }",
+    "for (let i = 0; i < a.length; i++) { total++; } for (let j = 0; j < a.length; j++) { total++; }"
+   ],
+   "answer": 1,
+   "concepts": [
+    "nested-loops"
+   ],
+   "tags": [
+    "nested-loops"
+   ],
+   "xp": 10,
+   "explain": "Only the second nests one n-bounded loop inside another. The first is nested but its inner bound is the constant 10, giving 10n = O(n); the third doubles its counter, giving O(log n); the fourth is sequential, giving 2n = O(n). Nesting alone does not make a quadratic - both bounds have to depend on n."
+  },
+  {
+   "id": "alg-02-ex-10",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true of $f(n) = 4n^2 + 1000n + 9$.",
+   "choices": [
+    "It is O(n^2).",
+    "It is O(n), because 1000n is the largest term when n = 10.",
+    "The constant 9 is dropped because it does not grow with n.",
+    "The factor 4 is dropped because a constant multiplier does not change the growth class.",
+    "It cannot be bounded by n^3, since f has no cubic term."
+   ],
+   "answer": [
+    0,
+    2,
+    3
+   ],
+   "concepts": [
+    "dropping-constants",
+    "sequential-loops"
+   ],
+   "tags": [
+    "dropping-constants"
+   ],
+   "xp": 10,
+   "explain": "Big-O is a claim about large $n$, so which term is biggest at $n = 10$ is irrelevant - that is the classic error in the second option. The last option is false too: $O$ is an upper bound, so this function genuinely is $O(n^3)$ as well; $O(n^2)$ is simply the tightest bound, and the tightest one is what we mean when we name a class."
+  }
+ ]
+}
