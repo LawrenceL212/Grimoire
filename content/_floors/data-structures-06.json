@@ -1,0 +1,482 @@
+{
+ "n": 6,
+ "name": "The Weight of Order",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "heap-invariants",
+  "array-backed-tree",
+  "sift-up",
+  "sift-down",
+  "priority-queue",
+  "heapify",
+  "rotation",
+  "self-balancing"
+ ],
+ "sequence": ["lesson", "guided-practice", "implementation", "exam"],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A tree with no pointers",
+    "body": "A **binary heap** is a tree that keeps two promises, and it is worth being precise about both because they do different jobs.\n\nThe **shape** promise is that the tree is *complete*: every level is entirely full except possibly the last, which fills from the left. This is the promise that controls the height - a complete tree of n nodes has height ⌊log₂ n⌋ + 1 and cannot be otherwise, so unlike a binary search tree a heap can never degenerate. Nothing you insert can ruin its shape, because the shape is maintained by construction rather than by luck.\n\nThe **order** promise is that every node is at least as small as both its children, for a min-heap. Notice how much weaker this is than the BST invariant: it says nothing whatsoever about left versus right, only about parent versus child. So a heap does *not* store its values in sorted order and cannot answer \"is 7 in here?\" any faster than a plain array can. What it guarantees is one thing only - the smallest value is at the root, reachable in O(1).\n\nBecause the shape is completely regular, a heap needs no pointers at all. Lay the nodes out level by level in a plain array and arithmetic replaces the links: the children of index `i` sit at `2i + 1` and `2i + 2`, and the parent of `i` sits at `⌊(i - 1) / 2⌋`. That is why heaps are fast in practice as well as in theory - contiguous memory, no allocation per node, and the processor's cache doing the rest.",
+    "code": "//        1            index:  0  1  2  3  4\n//       / \\           array: [1, 3, 2, 7, 5]\n//      3   2\n//     / \\\n//    7   5\n\nconst parent = (i) => Math.floor((i - 1) / 2);\nconst left   = (i) => 2 * i + 1;\nconst right  = (i) => 2 * i + 2;\n\nconst heap = [1, 3, 2, 7, 5];\nconsole.log(heap[left(1)]);    // 7  - left child of 3\nconsole.log(heap[parent(4)]);  // 3  - parent of 5\nconsole.log(heap[0]);          // 1  - the minimum, always",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 7, "text": "Integer division is what makes this work: indices 3 and 4 both give parent 1, which is correct - they are siblings. Omitting the floor would give a fractional index and read `undefined`." },
+     { "line": 14, "text": "The only value whose position a heap guarantees. Everything else is merely somewhere below something larger, which is why a heap cannot be searched any faster than an array." }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the index arithmetic for an array-backed binary heap.",
+     "template": "const parent = (i) => Math.floor((i - ___) / 2);\nconst left   = (i) => 2 * i + ___;\n",
+     "blanks": ["1", "1"],
+     "concepts": ["array-backed-tree"],
+     "tags": ["array-backed-tree"],
+     "explain": "These formulae assume the root sits at index 0. An older convention wastes index 0 and puts the root at 1, which gives the tidier `2i` and `2i + 1` and a parent of `⌊i / 2⌋` - both are correct, and mixing them produces a heap that silently addresses the wrong nodes.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Sifting: how the promises are restored",
+    "body": "Inserting and removing both work the same way. Do the thing that preserves the *shape* promise, which will usually break the *order* promise, then walk one path to repair the order.\n\nTo **insert**, append the new value at the end of the array - the only position that keeps the tree complete. It may now be smaller than its parent, so **sift it up**: compare with the parent and swap if it is smaller, and repeat. The value climbs until its parent is smaller or it reaches the root. It touches one node per level, so it is O(log n).\n\nTo **remove the minimum**, take the root - that is the answer - and then face the problem that the root is now empty and cannot simply be left so. Move the *last* element into the root, which restores the shape, and **sift it down**: compare with both children, swap with the **smaller** of them, and repeat until both children are larger or there are none left. Also O(log n).\n\nThe detail that catches everyone is swapping with the smaller child. Swap with the larger one and the value you promoted is now above its own sibling, which is smaller than it - the invariant is broken at the very node you just fixed. The check has to consider both children and pick the minimum, not merely find any child that is smaller.\n\nBuilding a heap from an existing array is where the arithmetic becomes surprising. Sifting down every node from the middle backwards - **heapify** - is O(n), not O(n log n), because most nodes are near the bottom and have almost no distance to fall. Half the nodes are leaves and move not at all.",
+    "code": "function siftUp(heap, i) {\n  while (i > 0) {\n    const p = Math.floor((i - 1) / 2);\n    if (heap[p] <= heap[i]) break;\n    [heap[p], heap[i]] = [heap[i], heap[p]];\n    i = p;\n  }\n}\n\nfunction siftDown(heap, i) {\n  const n = heap.length;\n  for (;;) {\n    const l = 2 * i + 1, r = 2 * i + 2;\n    let smallest = i;\n    if (l < n && heap[l] < heap[smallest]) smallest = l;\n    if (r < n && heap[r] < heap[smallest]) smallest = r;\n    if (smallest === i) break;\n    [heap[i], heap[smallest]] = [heap[smallest], heap[i]];\n    i = smallest;\n  }\n}",
+   "lang": "javascript",
+    "annotations": [
+     { "line": 15, "text": "Both children are considered and the smallest of the three wins. Swapping with the first child that happens to be smaller would leave that child above its own smaller sibling, breaking the invariant at the node just repaired." },
+     { "line": 17, "text": "The termination test is that nothing moved. It is more robust than testing for a leaf, because it also stops correctly when only one child exists." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "heapPush",
+     "prompt": "Write `heapPush(heap, value)` which appends `value` to the array-backed min-heap and sifts it up into place, returning the resulting array. The input array is already a valid min-heap.",
+     "starterCode": "function heapPush(heap, value) {\n  const h = heap.slice();\n  h.push(value);\n  // walk up, swapping with the parent while it is larger\n  return h;\n}\n",
+     "tests": [
+      { "input": "[], 5", "expected": [5] },
+      { "input": "[1, 3, 2], 0", "expected": [0, 1, 2, 3] },
+      { "input": "[1, 3, 2], 9", "expected": [1, 3, 2, 9] },
+      { "input": "[2, 4], 3", "expected": [2, 4, 3] }
+     ],
+     "solution": "function heapPush(heap, value) {\n  const h = heap.slice();\n  h.push(value);\n  let i = h.length - 1;\n  while (i > 0) {\n    const p = Math.floor((i - 1) / 2);\n    if (h[p] <= h[i]) break;\n    const t = h[p]; h[p] = h[i]; h[i] = t;\n    i = p;\n  }\n  return h;\n}\n",
+     "hint": "Start at the last index and compare against the parent, stopping as soon as the parent is no larger - not after a fixed number of steps.",
+     "concepts": ["sift-up", "heap-invariants"],
+     "tags": ["sift-up"],
+     "explain": "The second test is the one that moves: 0 is appended at index 3, swaps with its parent 3 at index 1, then swaps with the root - two levels of climbing, giving `[0, 1, 2, 3]`. The third appends a large value that never moves at all, which is the common case and the reason insertion is cheap on average as well as in the worst case.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "The priority queue, and what it is for",
+    "body": "A heap is almost always used as a **priority queue**: a collection you add to in any order and take from in order of priority. An ordinary queue serves by arrival time; a priority queue serves by importance, whenever importance is not the same as arrival.\n\nCompare the alternatives honestly, because this is a real engineering decision. Keeping a sorted array gives O(1) removal of the minimum but O(n) insertion, since every insertion must shift elements to make room. Keeping an unsorted array gives O(1) insertion but O(n) removal, since the minimum must be searched for. A heap gives O(log n) for both, which is the right trade whenever the workload does both repeatedly - and it wins outright at the one thing that matters most, `peek` at the minimum, which is O(1).\n\nThe pattern that recurs everywhere is **top-k**: find the k largest of n items where n is huge. The trick is a **min**-heap of size k, which reads backwards at first. Push items in; whenever the heap exceeds k, remove the minimum. The smallest of the k best is the one to discard, so the heap's root is exactly the value on the boundary of the answer - and a single comparison against it decides whether a new item can possibly qualify. Memory is O(k) rather than O(n), which is what makes this work on a stream too large to store.\n\nThe same structure drives Dijkstra's algorithm and A\\*, where the queue holds \"places I could go next\" ordered by cost, and scheduling, where it holds pending tasks ordered by deadline. In each case the question is always the same one a heap answers in O(1): what is the most urgent thing I have?",
+    "code": "function topK(items, k) {\n  const heap = [];                       // min-heap of the k largest so far\n  for (const x of items) {\n    heapPush(heap, x);\n    if (heap.length > k) heapPop(heap);  // drop the smallest of the k+1\n  }\n  return heap.slice().sort((a, b) => a - b);\n}\n\n// The root is the WEAKEST member of the current answer, so one\n// comparison against it rejects most candidates immediately.\nconsole.log(topK([5, 1, 9, 3, 7], 3));  // [5, 7, 9]",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 5, "text": "A MIN-heap to find the MAXIMUM values. The root is the weakest item currently in the answer, so it is exactly the one to evict when a better candidate arrives." },
+     { "line": 6, "text": "Bounding the heap at k is what makes memory O(k) instead of O(n), which is the difference between processing a stream and needing to store it." }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "const heap = [1, 3, 2, 7, 5];\nconsole.log(heap[0]);\nconsole.log(heap.includes(5));\nconsole.log(heap.indexOf(5) === 4);",
+     "lang": "javascript",
+     "answer": "1\ntrue\ntrue",
+     "concepts": ["heap-invariants", "priority-queue"],
+     "tags": ["heap-invariants"],
+     "explain": "The root is the minimum, which the heap guarantees - but finding 5 required `includes` to scan the array, because the heap says nothing about where any non-root value sits. That is the honest limit of the structure: it answers \"what is the smallest?\" in O(1) and \"is this value present?\" no faster than a plain array.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Balance, and the rotation that buys it",
+    "body": "Back to the binary search tree, and the problem the last floor ended on: a BST does not control its own height, so sorted input degrades it into a chain with O(n) search. A heap avoids this by maintaining its shape directly, but a heap has given up ordering in exchange. To keep search *and* keep the height low, a BST must repair its shape as it goes.\n\nThe repair operation is a **rotation**. A rotation takes a parent and one child and exchanges their roles, reattaching the one subtree that changes sides. It is purely local - a handful of pointer assignments, O(1) - and, crucially, it *preserves the in-order traversal*. That is what makes it safe: the tree changes shape while the sorted sequence it represents stays identical, so every value is still findable by the same comparisons.\n\nA **self-balancing** tree adds a rule about how unbalanced it will tolerate being, then rotates whenever an insertion or deletion violates it. An **AVL tree** requires the heights of a node's two subtrees to differ by at most 1 - a strict rule, giving shorter trees and faster lookups at the cost of more rotations on write. A **red-black tree** enforces a looser colouring rule that bounds the height at twice the minimum - taller trees, but fewer rotations, which is why it is the usual choice for a general-purpose ordered map.\n\nWhat you buy is a guarantee rather than an improvement in the good case. A balanced BST is no faster than a lucky unbalanced one; it is that there is no longer an unlucky case, and no input - sorted, reversed, or adversarial - can make it O(n).",
+    "code": "//     y            rotate right at y           x\n//    / \\          ------------------->        / \\\n//   x   C                                    A   y\n//  / \\                                          / \\\n// A   B          in-order: A x B y C           B   C\n\nfunction rotateRight(y) {\n  const x = y.left;\n  y.left = x.right;   // B changes sides: it is > x and < y\n  x.right = y;\n  return x;           // x is the new root of this subtree\n}",
+    "lang": "javascript",
+    "annotations": [
+     { "line": 9, "text": "The single subtree that moves. B sits between x and y in sorted order, so it is equally valid as x's right subtree or y's left - which is exactly why the rotation preserves the in-order sequence." },
+     { "line": 11, "text": "The caller must reattach the returned node, because the subtree's root has changed. Forgetting this is the classic rotation bug: the rotation happens correctly and is then discarded." }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "isBalanced",
+     "prompt": "Write `isBalanced(root)` returning `true` if the tree satisfies the AVL condition - at **every** node, the heights of the two subtrees differ by at most 1. Height is counted in levels, so the empty tree is 0. The empty tree is balanced.",
+     "starterCode": "function isBalanced(root) {\n  // every node must satisfy it, not just the root\n  return true;\n}\n",
+     "tests": [
+      { "input": "null", "expected": true },
+      { "input": "{ value: 1, left: null, right: null }", "expected": true },
+      { "input": "{ value: 1, left: { value: 2, left: null, right: null }, right: { value: 3, left: null, right: null } }", "expected": true },
+      { "input": "{ value: 1, left: { value: 2, left: { value: 3, left: null, right: null }, right: null }, right: null }", "expected": false }
+     ],
+     "solution": "function isBalanced(root) {\n  const height = (n) => {\n    if (n === null) return 0;\n    return 1 + Math.max(height(n.left), height(n.right));\n  };\n  const check = (n) => {\n    if (n === null) return true;\n    if (Math.abs(height(n.left) - height(n.right)) > 1) return false;\n    return check(n.left) && check(n.right);\n  };\n  return check(root);\n}\n",
+     "hint": "Checking only the root is not enough - a tree can be balanced at the top and badly skewed further down.",
+     "concepts": ["self-balancing", "heap-invariants"],
+     "tags": ["self-balancing"],
+     "explain": "The last tree is a chain of three, where the root's subtrees have heights 2 and 0 - a difference of 2, so the AVL condition fails and a real AVL tree would rotate to fix it. The condition has to hold at every node: a tree whose root is perfectly balanced can still hide a long chain in one subtree, and it is that chain which makes the search slow.",
+     "xp": 30
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ds-6-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const heap = [1, 3, 2, 7, 5];\nconst left = (i) => 2 * i + 1;\nconst parent = (i) => Math.floor((i - 1) / 2);\nconsole.log(heap[left(1)]);\nconsole.log(heap[parent(3)] === heap[parent(4)]);",
+   "lang": "javascript",
+   "answer": "7\ntrue",
+   "concepts": ["array-backed-tree"],
+   "tags": ["array-backed-tree"],
+   "explain": "Index 1 holds 3, whose left child is at index 3 and holds 7. Indices 3 and 4 are siblings, so integer division sends both to parent index 1 - which is exactly what the floor is for, and why omitting it would give a fractional index and read `undefined`.",
+   "xp": 20
+  },
+  {
+   "id": "ds-6-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Starting from the min-heap `[1, 3, 2, 7, 5]`, push the value 0 and sift it up. Give the whole array after each swap, and finally the settled array.",
+   "steps": [
+    { "label": "after appending 0", "expected": "1,3,2,7,5,0" },
+    { "label": "after the first swap", "expected": "1,3,0,7,5,2" },
+    { "label": "after the second swap", "expected": "0,3,1,7,5,2" }
+   ],
+   "concepts": ["sift-up", "heap-invariants"],
+   "tags": ["sift-up"],
+   "explain": "0 is appended at index 5, whose parent is index 2 holding 2 - they swap. Now 0 sits at index 2, whose parent is index 0 holding 1 - they swap again, and 0 is the root. Two swaps for six elements: the climb touches one node per level, which is where O(log n) comes from.",
+   "xp": 30
+  },
+  {
+   "id": "ds-6-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of removing the minimum from a min-heap into the order they must happen.",
+   "fragments": [
+    "remember the root value - it is the answer",
+    "move the last element of the array into the root",
+    "shorten the array by one",
+    "compare the new root with both of its children",
+    "swap it with the smaller child and repeat until it settles"
+   ],
+   "answer": [0, 1, 2, 3, 4],
+   "concepts": ["sift-down", "heap-invariants"],
+   "tags": ["sift-down"],
+   "explain": "The last element is promoted to the root precisely because it is the only removal that keeps the tree complete - taking any other element would leave a hole in the middle of a level. Reading the root after overwriting it, rather than before, loses the answer entirely.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the child comparison inside `siftDown` for a min-heap.",
+   "template": "let smallest = i;\nif (l < n && heap[l] ___ heap[smallest]) smallest = l;\nif (r < n && heap[r] < heap[___]) smallest = r;\nif (smallest === i) break;\n",
+   "blanks": ["<", "smallest"],
+   "concepts": ["sift-down"],
+   "tags": ["sift-down"],
+   "explain": "The second comparison must be against `smallest`, not against `i` - that is what makes the two tests pick the minimum of all three rather than merely finding a child smaller than the parent. Comparing the right child against `i` instead can promote the larger child above its own smaller sibling, breaking the invariant at the node just repaired.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-g-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const a = [5, 1, 9];\nconst b = [1, 5, 9];\nconst isMinHeap = (h) => h.every((v, i) => {\n  const l = 2 * i + 1, r = 2 * i + 2;\n  return (l >= h.length || h[l] >= v) && (r >= h.length || h[r] >= v);\n});\nconsole.log(isMinHeap(a));\nconsole.log(isMinHeap(b));",
+   "lang": "javascript",
+   "answer": "false\ntrue",
+   "concepts": ["heap-invariants"],
+   "tags": ["heap-invariants"],
+   "explain": "`[5, 1, 9]` fails because the root 5 is larger than its child 1. `[1, 5, 9]` passes - and note it also happens to be sorted, which is a coincidence rather than a requirement: `[1, 9, 5]` is an equally valid min-heap, because the invariant constrains parent against child and says nothing about left against right.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-g-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "To find the 100 largest values in a stream of a billion numbers, the standard solution uses a **min**-heap of size 100. Explain why a min-heap and not a max-heap, and what the heap's root represents at each moment.",
+   "rubric": {
+    "required": ["smallest", "root", "evict", "k", "memory"],
+    "optional": ["stream", "compare", "discard", "boundary", "O(k)", "reject"],
+    "minWords": 60
+   },
+   "concepts": ["priority-queue", "heap-invariants"],
+   "tags": ["priority-queue"],
+   "explain": "The heap holds the best 100 seen so far, and the item you must be able to discard is the weakest of those - the smallest - so the root must be the minimum. That makes the root the boundary of the answer: a single O(1) comparison against it rejects any new value that cannot qualify, and only a value that beats it costs an O(log k) insertion. A max-heap would keep the largest item instantly available, which is exactly the item you never need to remove. Memory is O(k) rather than O(n), which is what makes this possible on a stream too large to store at all.",
+   "xp": 35
+  }
+ ],
+ "implementation": [
+  {
+   "id": "ds-6-i-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "isMinHeap",
+   "prompt": "Write `isMinHeap(arr)` returning `true` if the array is a valid array-backed min-heap - every element is no larger than its children at indices `2i + 1` and `2i + 2`. An empty array is a valid heap.",
+   "starterCode": "function isMinHeap(arr) {\n  // check each element against whichever children exist\n  return true;\n}\n",
+   "tests": [
+    { "input": "[]", "expected": true },
+    { "input": "[1]", "expected": true },
+    { "input": "[1, 3, 2, 7, 5]", "expected": true },
+    { "input": "[5, 1, 9]", "expected": false },
+    { "input": "[1, 9, 5]", "expected": true }
+   ],
+   "solution": "function isMinHeap(arr) {\n  for (let i = 0; i < arr.length; i++) {\n    const l = 2 * i + 1, r = 2 * i + 2;\n    if (l < arr.length && arr[l] < arr[i]) return false;\n    if (r < arr.length && arr[r] < arr[i]) return false;\n  }\n  return true;\n}\n",
+   "hint": "Guard each child index against the array length before reading it - most nodes near the end have one child or none.",
+   "concepts": ["heap-invariants", "array-backed-tree"],
+   "tags": ["heap-invariants"],
+   "explain": "The last test is the one that pins the invariant down: `[1, 9, 5]` has a left child larger than the right child and is still a perfectly valid min-heap, because the order promise relates parent to child and says nothing about siblings. Anyone who checks that the array is sorted, or that left is smaller than right, gets this wrong.",
+   "xp": 30
+  },
+  {
+   "id": "ds-6-i-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "heapPushAll",
+   "prompt": "Write `heapPushAll(values)` which starts from an empty min-heap and pushes each value in turn, sifting up after each, returning the final array.",
+   "starterCode": "function heapPushAll(values) {\n  const h = [];\n  // append, then climb while the parent is larger\n  return h;\n}\n",
+   "tests": [
+    { "input": "[]", "expected": [] },
+    { "input": "[5]", "expected": [5] },
+    { "input": "[3, 1]", "expected": [1, 3] },
+    { "input": "[5, 4, 3, 2, 1]", "expected": [1, 2, 4, 5, 3] },
+    { "input": "[1, 2, 3]", "expected": [1, 2, 3] }
+   ],
+   "solution": "function heapPushAll(values) {\n  const h = [];\n  for (const v of values) {\n    h.push(v);\n    let i = h.length - 1;\n    while (i > 0) {\n      const p = Math.floor((i - 1) / 2);\n      if (h[p] <= h[i]) break;\n      const t = h[p]; h[p] = h[i]; h[i] = t;\n      i = p;\n    }\n  }\n  return h;\n}\n",
+   "hint": "Break out of the climb as soon as the parent is no larger, rather than always walking to the root.",
+   "concepts": ["sift-up", "heap-invariants"],
+   "tags": ["sift-up"],
+   "explain": "Descending input in test 4 makes every insertion climb, which is the worst case for sifting up - and the result `[1, 2, 4, 5, 3]` is a valid heap that is emphatically not sorted, which is the point. Ascending input in test 5 makes no value move at all, because each arrives already larger than its parent.",
+   "xp": 35
+  },
+  {
+   "id": "ds-6-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "heapPop",
+   "prompt": "Write `heapPop(heap)` which removes and returns the minimum of a valid array-backed min-heap, and returns `null` if it is empty. Return an array of two things: `[minimum, resultingHeap]`. Do not mutate the input.",
+   "starterCode": "function heapPop(heap) {\n  if (heap.length === 0) return [null, []];\n  const h = heap.slice();\n  // the root is the answer; promote the last element and sift it down\n  return [null, h];\n}\n",
+   "tests": [
+    { "input": "[]", "expected": [null, []] },
+    { "input": "[5]", "expected": [5, []] },
+    { "input": "[1, 3, 2]", "expected": [1, [2, 3]] },
+    { "input": "[1, 3, 2, 7, 5]", "expected": [1, [2, 3, 5, 7]] },
+    { "input": "[1, 2]", "expected": [1, [2]] }
+   ],
+   "solution": "function heapPop(heap) {\n  if (heap.length === 0) return [null, []];\n  const h = heap.slice();\n  const min = h[0];\n  const last = h.pop();\n  if (h.length > 0) {\n    h[0] = last;\n    let i = 0;\n    for (;;) {\n      const l = 2 * i + 1, r = 2 * i + 2;\n      let smallest = i;\n      if (l < h.length && h[l] < h[smallest]) smallest = l;\n      if (r < h.length && h[r] < h[smallest]) smallest = r;\n      if (smallest === i) break;\n      const t = h[i]; h[i] = h[smallest]; h[smallest] = t;\n      i = smallest;\n    }\n  }\n  return [min, h];\n}\n",
+   "hint": "Pop the last element first, then only write it into the root if the array is still non-empty - otherwise a one-element heap promotes the value it just removed.",
+   "concepts": ["sift-down", "priority-queue"],
+   "tags": ["sift-down"],
+   "explain": "The single-element case in test 2 is the trap: popping the last element and then writing it back into index 0 resurrects the value you just removed. Test 4 exercises the real sift: 5 is promoted to the root, then swaps with its smaller child 2, giving `[2, 3, 5, 7]` - and swapping with 3 instead, merely because it was smaller than 5, would have left 3 above 2.",
+   "xp": 45
+  },
+  {
+   "id": "ds-6-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "heapSort",
+   "prompt": "Write `heapSort(values)` returning the values in ascending order by building a min-heap and repeatedly removing the minimum. Do not call `Array.prototype.sort`.",
+   "starterCode": "function heapSort(values) {\n  // build a heap, then drain it - each removal yields the next smallest\n  return [];\n}\n",
+   "tests": [
+    { "input": "[]", "expected": [] },
+    { "input": "[3, 1, 2]", "expected": [1, 2, 3] },
+    { "input": "[5, 5, 1]", "expected": [1, 5, 5] },
+    { "input": "[1, 2, 3, 4]", "expected": [1, 2, 3, 4] },
+    { "input": "[9, 7, 5, 3, 1, -2]", "expected": [-2, 1, 3, 5, 7, 9] }
+   ],
+   "solution": "function heapSort(values) {\n  const h = [];\n  for (const v of values) {\n    h.push(v);\n    let i = h.length - 1;\n    while (i > 0) {\n      const p = Math.floor((i - 1) / 2);\n      if (h[p] <= h[i]) break;\n      const t = h[p]; h[p] = h[i]; h[i] = t;\n      i = p;\n    }\n  }\n  const out = [];\n  while (h.length > 0) {\n    out.push(h[0]);\n    const last = h.pop();\n    if (h.length > 0) {\n      h[0] = last;\n      let i = 0;\n      for (;;) {\n        const l = 2 * i + 1, r = 2 * i + 2;\n        let smallest = i;\n        if (l < h.length && h[l] < h[smallest]) smallest = l;\n        if (r < h.length && h[r] < h[smallest]) smallest = r;\n        if (smallest === i) break;\n        const t = h[i]; h[i] = h[smallest]; h[smallest] = t;\n        i = smallest;\n      }\n    }\n  }\n  return out;\n}\n",
+   "hint": "Two phases: fill the heap, then empty it. Each removal hands you the next smallest value, so the output comes out sorted with no comparison of your own.",
+   "concepts": ["heapify", "priority-queue", "sift-down"],
+   "tags": ["heapify"],
+   "explain": "n insertions at O(log n) then n removals at O(log n) gives O(n log n), matching the best comparison sorts. The duplicate in test 3 matters: the invariant is `<=` rather than `<`, so equal values are perfectly legal and must not send the sift into a loop swapping them forever. Heap sort is also in-place in its usual formulation, which is its practical advantage over merge sort.",
+   "xp": 45
+  },
+  {
+   "id": "ds-6-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "topK",
+   "prompt": "Write `topK(items, k)` returning the `k` largest values of the array in **ascending** order, using a min-heap bounded at size `k` rather than sorting everything. If `k` is 0 or the array is empty, return an empty array; if `k` exceeds the array length, return every value sorted ascending.",
+   "starterCode": "function topK(items, k) {\n  // keep a min-heap of the best k so far; evict the root when it overflows\n  return [];\n}\n",
+   "tests": [
+    { "input": "[5, 1, 9, 3, 7], 3", "expected": [5, 7, 9] },
+    { "input": "[], 3", "expected": [] },
+    { "input": "[4, 2], 0", "expected": [] },
+    { "input": "[4, 2], 5", "expected": [2, 4] },
+    { "input": "[1, 1, 1], 2", "expected": [1, 1] }
+   ],
+   "solution": "function topK(items, k) {\n  if (k <= 0) return [];\n  const h = [];\n  const push = (v) => {\n    h.push(v);\n    let i = h.length - 1;\n    while (i > 0) {\n      const p = Math.floor((i - 1) / 2);\n      if (h[p] <= h[i]) break;\n      const t = h[p]; h[p] = h[i]; h[i] = t;\n      i = p;\n    }\n  };\n  const pop = () => {\n    const last = h.pop();\n    if (h.length > 0) {\n      h[0] = last;\n      let i = 0;\n      for (;;) {\n        const l = 2 * i + 1, r = 2 * i + 2;\n        let smallest = i;\n        if (l < h.length && h[l] < h[smallest]) smallest = l;\n        if (r < h.length && h[r] < h[smallest]) smallest = r;\n        if (smallest === i) break;\n        const t = h[i]; h[i] = h[smallest]; h[smallest] = t;\n        i = smallest;\n      }\n    }\n  };\n  for (const x of items) {\n    push(x);\n    if (h.length > k) pop();\n  }\n  const out = [];\n  while (h.length > 0) { out.push(h[0]); pop(); }\n  return out;\n}\n",
+   "hint": "Push first and evict afterwards if the heap is one too big - that way the evicted item is genuinely the smallest of the k+1 candidates.",
+   "concepts": ["priority-queue", "sift-down", "sift-up"],
+   "tags": ["priority-queue"],
+   "explain": "Pushing before checking the size is what makes the eviction correct: it compares the newcomer against the incumbents rather than rejecting it unseen. The memory bound is the real prize - O(k) instead of O(n) - which is why this works on a stream of a billion items where sorting is not an option at all. Test 4 asks for more than exists, which must degrade gracefully to sorting everything rather than looping or padding.",
+   "xp": 45
+  },
+  {
+   "id": "ds-6-i-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "siftDownFixed",
+   "prompt": "This `siftDown` swaps with the first child it finds smaller than the parent, rather than with the smaller of the two children. Fix it, keeping the name `siftDownFixed`. It takes an array and the index to sift from, and returns the resulting array.",
+   "starterCode": "function siftDownFixed(arr, i) {\n  const h = arr.slice();\n  for (;;) {\n    const l = 2 * i + 1, r = 2 * i + 2;\n    if (l < h.length && h[l] < h[i]) {\n      const t = h[i]; h[i] = h[l]; h[l] = t;   // BUG: takes the left child\n      i = l;                                   // without considering the right\n    } else if (r < h.length && h[r] < h[i]) {\n      const t = h[i]; h[i] = h[r]; h[r] = t;\n      i = r;\n    } else break;\n  }\n  return h;\n}\n",
+   "tests": [
+    { "input": "[5, 3, 1], 0", "expected": [1, 3, 5] },
+    { "input": "[1, 2, 3], 0", "expected": [1, 2, 3] },
+    { "input": "[3, 1], 0", "expected": [1, 3] },
+    { "input": "[9, 2, 4, 5, 6], 0", "expected": [2, 5, 4, 9, 6] },
+    { "input": "[7], 0", "expected": [7] }
+   ],
+   "solution": "function siftDownFixed(arr, i) {\n  const h = arr.slice();\n  for (;;) {\n    const l = 2 * i + 1, r = 2 * i + 2;\n    let smallest = i;\n    if (l < h.length && h[l] < h[smallest]) smallest = l;\n    if (r < h.length && h[r] < h[smallest]) smallest = r;\n    if (smallest === i) break;\n    const t = h[i]; h[i] = h[smallest]; h[smallest] = t;\n    i = smallest;\n  }\n  return h;\n}\n",
+   "hint": "Find the smallest of the three - parent, left, right - before swapping anything, and stop when that smallest is the parent itself.",
+   "concepts": ["sift-down", "heap-invariants"],
+   "tags": ["sift-down"],
+   "explain": "Test 1 exposes it exactly: with `[5, 3, 1]` the buggy version sees 3 < 5, swaps, and produces `[3, 5, 1]` - where the root 3 is now larger than its child 1, so the invariant is broken at the very node it just repaired. Choosing the minimum of all three first is the only correct rule, and comparing the right child against the running `smallest` rather than against the original parent is what implements it.",
+   "xp": 45
+  }
+ ],
+ "exam": [
+  {
+   "id": "ds-6-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does a min-heap guarantee about the position of a value that is not the minimum?",
+   "choices": [
+    "Only that it is somewhere below a value no larger than it",
+    "That it appears in sorted order after the root",
+    "That it is in the left subtree if it is below the median",
+    "That its index can be computed from its value"
+   ],
+   "answer": 0,
+   "concepts": ["heap-invariants"],
+   "tags": ["heap-invariants"],
+   "explain": "The order promise relates a node only to its parent and children, so all a non-root value gets is that everything above it is no larger. Nothing constrains left against right, which is why a heap cannot be searched faster than an array and why `[1, 9, 5]` and `[1, 5, 9]` are both valid heaps of the same values.",
+   "xp": 15
+  },
+  {
+   "id": "ds-6-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of a binary heap? Select all that apply.",
+   "choices": [
+    "It can be stored in an array with no pointers at all",
+    "Its height is O(log n) no matter what order values are inserted",
+    "Finding the minimum is O(1)",
+    "Finding an arbitrary value is O(log n)"
+   ],
+   "answer": [0, 1, 2],
+   "concepts": ["array-backed-tree", "heap-invariants"],
+   "tags": ["array-backed-tree"],
+   "explain": "The completeness promise fixes the height by construction, so unlike a BST a heap cannot degenerate whatever the input order, and that same regularity is what lets index arithmetic replace pointers. Searching for an arbitrary value is O(n), because the invariant gives no basis for choosing which subtree to descend into.",
+   "xp": 20
+  },
+  {
+   "id": "ds-6-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this print?",
+   "code": "const h = [2, 4, 3];\nconsole.log(h[2 * 0 + 1]);\nconsole.log(Math.floor((2 - 1) / 2));\nconsole.log(h[Math.floor((2 - 1) / 2)]);",
+   "lang": "javascript",
+   "answer": "4\n0\n2",
+   "concepts": ["array-backed-tree"],
+   "tags": ["array-backed-tree"],
+   "explain": "Index 2's parent computes as ⌊1/2⌋ = 0, the root - correct, since indices 1 and 2 are the root's two children. The floor is doing real work here: without it the index would be 0.5 and the read would give `undefined`.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the bounded top-k loop that keeps the `k` largest values seen so far.",
+   "template": "for (const x of items) {\n  heapPush(heap, x);\n  if (heap.length ___ k) heapPop(heap);\n}\n",
+   "blanks": [">"],
+   "concepts": ["priority-queue"],
+   "tags": ["priority-queue"],
+   "explain": "Strictly greater than k, so the heap is allowed to reach exactly k and only evicts once it holds one too many. Using `>=` would evict when the heap was already the right size and leave only k-1 values; evicting before pushing would reject the newcomer without ever comparing it against the incumbents.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a right rotation at node `y`, whose left child is `x`, into the order they must happen.",
+   "fragments": [
+    "remember x, the left child of y",
+    "make x's right subtree become y's new left subtree",
+    "make y become x's right child",
+    "return x as the new root of this subtree",
+    "let the caller reattach the returned node to its parent"
+   ],
+   "answer": [0, 1, 2, 3, 4],
+   "concepts": ["rotation", "self-balancing"],
+   "tags": ["rotation"],
+   "explain": "The subtree between x and y must be moved before y is reattached below x, or the link to it is overwritten and the subtree is lost. The last step is the one most often forgotten: the rotation is computed correctly, the new root is returned, and the caller drops it on the floor - so the tree is unchanged and the balancing silently does nothing.",
+   "xp": 25
+  },
+  {
+   "id": "ds-6-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Remove the minimum from the min-heap `[1, 3, 2, 7, 5]`. Give the whole array as comma-separated values after each stage.",
+   "steps": [
+    { "label": "after promoting the last element to the root and shortening", "expected": "5,3,2,7" },
+    { "label": "after the sift-down swap", "expected": "2,3,5,7" }
+   ],
+   "concepts": ["sift-down"],
+   "tags": ["sift-down"],
+   "explain": "5 is promoted to the root, then compared against both children 3 and 2. It must swap with 2, the smaller - swapping with 3 merely because 3 is smaller than 5 would leave 3 sitting above 2, breaking the invariant at the node just repaired. One swap settles it, since index 1's children are now beyond the array.",
+   "xp": 30
+  },
+  {
+   "id": "ds-6-x-07",
+   "type": "complexity",
+   "layer": "application",
+   "prompt": "Give the time complexity of building a heap from an unsorted array of n values by sifting down every node from the middle backwards, and explain why it is not what most people first guess.",
+   "answer": "O(n)",
+   "rubric": {
+    "required": ["leaves", "bottom", "half", "distance", "log"],
+    "optional": ["heapify", "sum", "level", "shallow", "insert", "series"],
+    "minWords": 55
+   },
+   "concepts": ["heapify"],
+   "tags": ["heapify"],
+   "explain": "The obvious guess is O(n log n) - n nodes each sifting O(log n) - but that assumes every node falls the full height, and almost none do. Half the nodes are leaves and cannot move at all; a quarter are one level up and fall at most one; an eighth fall at most two. Summing the distances gives a convergent series bounded by 2n, so heapify is O(n). This is why building a heap all at once beats inserting the values one at a time, which really is O(n log n) because each insertion climbs from the bottom where the tree is deepest.",
+   "xp": 40
+  },
+  {
+   "id": "ds-6-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "mergeSortedLists",
+   "prompt": "Write `mergeSortedLists(lists)` merging an array of already-ascending arrays into one ascending array, using a min-heap of the current front of each list rather than concatenating and sorting. An empty input, or lists that are all empty, gives an empty array.",
+   "starterCode": "function mergeSortedLists(lists) {\n  // the heap holds one candidate per list: [value, whichList, whichIndex]\n  return [];\n}\n",
+   "tests": [
+    { "input": "[[1, 4], [2, 3]]", "expected": [1, 2, 3, 4] },
+    { "input": "[]", "expected": [] },
+    { "input": "[[], []]", "expected": [] },
+    { "input": "[[1, 2, 3]]", "expected": [1, 2, 3] },
+    { "input": "[[5], [1, 9], [], [2]]", "expected": [1, 2, 5, 9] }
+   ],
+   "solution": "function mergeSortedLists(lists) {\n  const h = [];\n  const less = (a, b) => a[0] < b[0];\n  const push = (e) => {\n    h.push(e);\n    let i = h.length - 1;\n    while (i > 0) {\n      const p = Math.floor((i - 1) / 2);\n      if (!less(h[i], h[p])) break;\n      const t = h[p]; h[p] = h[i]; h[i] = t;\n      i = p;\n    }\n  };\n  const pop = () => {\n    const top = h[0];\n    const last = h.pop();\n    if (h.length > 0) {\n      h[0] = last;\n      let i = 0;\n      for (;;) {\n        const l = 2 * i + 1, r = 2 * i + 2;\n        let smallest = i;\n        if (l < h.length && less(h[l], h[smallest])) smallest = l;\n        if (r < h.length && less(h[r], h[smallest])) smallest = r;\n        if (smallest === i) break;\n        const t = h[i]; h[i] = h[smallest]; h[smallest] = t;\n        i = smallest;\n      }\n    }\n    return top;\n  };\n  for (let j = 0; j < lists.length; j++) {\n    if (lists[j].length > 0) push([lists[j][0], j, 0]);\n  }\n  const out = [];\n  while (h.length > 0) {\n    const [value, j, idx] = pop();\n    out.push(value);\n    if (idx + 1 < lists[j].length) push([lists[j][idx + 1], j, idx + 1]);\n  }\n  return out;\n}\n",
+   "hint": "The heap never holds more than one element per list. After taking a value, push that same list's next element - which is how the heap stays small however long the lists are.",
+   "concepts": ["priority-queue", "sift-up", "sift-down"],
+   "tags": ["priority-queue"],
+   "explain": "The heap holds at most one candidate per list, so it is O(k) in the number of lists rather than O(n) in the total values - the whole point, and what makes this the standard external merge for data that does not fit in memory. The empty list in test 5 must be skipped at seeding rather than pushed, or the heap holds an entry with nothing behind it.",
+   "xp": 50
+  },
+  {
+   "id": "ds-6-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Both a heap and a balanced binary search tree keep their height at O(log n), yet only one of them can produce its values in sorted order cheaply. Explain what each structure gives up to get what it has.",
+   "rubric": {
+    "required": ["invariant", "child", "sorted", "shape", "rotation"],
+    "optional": ["complete", "sibling", "in-order", "minimum", "search", "balance", "array"],
+    "minWords": 70
+   },
+   "concepts": ["self-balancing", "rotation", "heap-invariants"],
+   "tags": ["self-balancing", "heap-invariants"],
+   "explain": "A heap keeps its height by fixing its shape - it is always complete, so the height is forced by the node count and no input can spoil it. The price is a very weak order invariant, relating each node only to its children and saying nothing about left versus right, so a heap can find the minimum in O(1) and cannot produce sorted output or find an arbitrary value faster than a scan. A balanced BST keeps the strong ordering invariant, which is what makes in-order traversal sorted and range queries possible, and pays for its height with rotations - extra work on every insertion and deletion, plus the pointers and per-node allocation that a heap's array layout avoids entirely.",
+   "xp": 45
+  }
+ ]
+}
