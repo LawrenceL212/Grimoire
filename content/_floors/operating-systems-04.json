@@ -1,0 +1,906 @@
+{
+ "n": 4,
+ "name": "Making Translation Fast",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "tlb",
+  "tlb-hit-miss",
+  "locality",
+  "tlb-reach",
+  "multi-level-page-tables",
+  "inverted-page-table",
+  "tlb-flush",
+  "address-space-identifier"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "tlb-drills",
+  "table-design",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A cache for translations",
+    "body": "Paging bought placement freedom at a brutal price: the page table lives in memory, so every load, store and instruction fetch now costs **two** memory references instead of one. A program does not run half as fast because it is doing twice the work - it runs half as fast because the second reference sits on the critical path of the first, and nothing can start until translation finishes.\n\nThe **translation lookaside buffer** is the repair, and its name is a historical accident: it is not a buffer at all but a small, fully associative hardware cache of recently used virtual-page-to-frame mappings, sitting inside the memory-management unit. Perhaps 64 to 1536 entries, each holding a VPN, a PFN, protection bits, a valid bit and - as we shall see - an address-space tag.\n\nThe two paths are worth learning as paths, not as facts. On a **hit** the hardware extracts the VPN, finds it in the TLB, checks the protection bits, glues the untranslated offset back on and issues exactly one memory reference: the page table is never touched. On a **miss** the hardware walks the page table, installs the resulting mapping in the TLB, and then **retries the same instruction** - which now hits. That retry is why a miss costs the walk and nothing more, and why the miss path can afford to be slow.\n\nWho performs that walk is an architectural choice. CISC machines such as x86 do it in hardware: the CPU knows the page-table format and the register that points at it. RISC machines such as MIPS raise a TLB-miss trap and let the operating system do it in software, which is more flexible - the OS may use any data structure it likes - but demands care, since the miss handler's own code must never itself take a TLB miss.",
+    "code": "/* What the hardware does on every memory reference, once a TLB exists. */\nuint32_t translate(uint32_t virt)\n{\n    uint32_t vpn    = virt >> 12;\n    uint32_t offset = virt & 0xFFF;\n\n    struct tlb_entry e = tlb_lookup(vpn);   /* every entry compared at once */\n\n    if (e.valid && e.asid == current_asid) {        /* TLB HIT */\n        if (!permitted(e.protect))\n            raise_exception(PROTECTION_FAULT);\n        return (e.pfn << 12) | offset;              /* no page table touched */\n    }\n\n    /* TLB MISS: pay for the page table, install the entry, retry */\n    uint32_t pte = page_table[vpn];                 /* an extra memory read */\n    if (!(pte & PTE_VALID))\n        raise_exception(SEGMENTATION_FAULT);\n    tlb_insert(vpn, pte >> 12, pte & PTE_PROT_MASK);\n    return translate(virt);                         /* second time it hits */\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "Fully associative: every entry is compared against the VPN simultaneously, because there is no time to search."
+     },
+     {
+      "line": 12,
+      "text": "The hit path in full. One memory reference, and the page table is not consulted at all."
+     },
+     {
+      "line": 16,
+      "text": "The miss path's cost, in one line: the reference paging added and the TLB exists to avoid."
+     },
+     {
+      "line": 20,
+      "text": "The retry. The instruction is re-executed from the top and this time takes the hit path - which is why a miss costs the walk, not the walk plus a special case."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "State how many memory references a single data access costs in each situation. Count the reference that fetches the data itself.",
+     "steps": [
+      {
+       "label": "TLB hit",
+       "expected": "1"
+      },
+      {
+       "label": "TLB miss, linear (one-level) page table",
+       "expected": "2"
+      },
+      {
+       "label": "TLB miss, two-level page table",
+       "expected": "3"
+      },
+      {
+       "label": "TLB miss, four-level page table",
+       "expected": "5"
+      }
+     ],
+     "concepts": [
+      "tlb",
+      "tlb-hit-miss",
+      "multi-level-page-tables"
+     ],
+     "tags": [
+      "tlb",
+      "tlb-hit-miss"
+     ],
+     "explain": "A hit costs exactly what an unpaged machine costs, because the mapping is already in silicon and the offset never needed translating. Every level of page table adds one reference to the miss path, and the data fetch is always one more on top - so a four-level walk is four table reads plus the datum, which is five. The tempting answer for the hit case is 2, from remembering that paging costs an extra reference; the whole point of the TLB is that on a hit it does not."
+    }
+   },
+   {
+    "title": "Why it works at all: locality",
+    "body": "A cache of 64 entries covering an address space of a million pages should be useless, and it would be, were programs not extraordinarily repetitive about which pages they touch. **Spatial locality** says that having touched one byte a program will shortly touch a nearby one, and since a page is large - 4096 bytes holds a thousand ints - a single TLB entry serves an enormous run of consecutive accesses. **Temporal locality** says that a page touched now is likely to be touched again soon, which is what keeps a loop body, its stack frame and its counters resident across thousands of iterations.\n\nWatch a simple traversal. Twelve four-byte ints beginning at virtual address 76, on a machine with 16-byte pages: `a[0]` is alone at the tail of page 4, `a[1]` through `a[4]` fill page 5, `a[5]` through `a[8]` fill page 6, and `a[9]` through `a[11]` begin page 7. Four accesses miss, eight hit, and the program did nothing to earn it.\n\nThree things the programmer did not choose change that number. **Page size**: at 32 bytes the same array spans two pages, not four, so the misses fall from four to two. **Alignment**: start the array at 76 rather than 64 and it straddles four pages instead of three, buying an extra miss for nothing. **Repetition**: run the loop a second time and, if the pages are still resident, it costs no misses at all - the first pass warmed the TLB for every pass after it.\n\nThe consequence is the number that matters in practice. **TLB reach** is entries multiplied by page size: the total quantity of memory the TLB can address without a miss. Sixty-four entries at 4 KB reach 256 KB, which a modern working set exceeds without trying. Raise the page size and reach rises with it - the same 64 entries with 2 MB pages reach 128 MB - which is why large-page support exists and why databases and virtual machines reach for it.",
+    "code": "/* 12 four-byte ints, the first at virtual address 76, on a machine\n   with 16-byte pages.  a[0] sits alone on page 4; a[1..4] on page 5;\n   a[5..8] on page 6; a[9..11] on page 7. */\nint a[12];                       /* &a[0] == (int *)76 */\n\nint sum = 0;\nfor (int i = 0; i < 12; i++)\n    sum += a[i];                 /* one memory reference per iteration */\n\n/* TLB behaviour, in order:\n     a[0]  miss\n     a[1]  miss  a[2] hit  a[3] hit  a[4] hit\n     a[5]  miss  a[6] hit  a[7] hit  a[8] hit\n     a[9]  miss  a[10] hit a[11] hit\n   4 misses, 8 hits - a hit rate of two thirds.  The loop asked for\n   none of this; the entry simply outlives the access that filled it. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The array's virtual start address decides which pages it lands on, and nothing in the source says so."
+     },
+     {
+      "line": 8,
+      "text": "One memory reference per iteration, and the TLB decides whether it costs one or two."
+     },
+     {
+      "line": 15,
+      "text": "Four misses out of twelve. Every hit here was bought by spatial locality: the page fetched for one element served three more."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the TLB reach for each configuration. Reach is the number of entries multiplied by the page size.",
+     "template": "64 entries,   4 KB pages  ->  reach ___ KB\n64 entries,   2 MB pages  ->  reach ___ MB\n128 entries,  4 KB pages  ->  reach ___ KB",
+     "blanks": [
+      "256",
+      "128",
+      "512"
+     ],
+     "concepts": [
+      "tlb-reach",
+      "locality"
+     ],
+     "tags": [
+      "tlb-reach"
+     ],
+     "explain": "Reach is a straight product, and the striking thing is which factor moves it: doubling the entries doubles the reach from 256 KB to 512 KB, while changing the page size from 4 KB to 2 MB multiplies it by 512. TLB entries are expensive silicon on the critical path so they grow slowly; page size is free to change and is therefore the lever actually used when a workload's working set outruns the TLB."
+    }
+   },
+   {
+    "title": "Page tables that skip the holes",
+    "body": "The TLB fixes the time cost of paging, not the space cost. A 32-bit address space with 4 KB pages and 4-byte entries needs a linear page table of $2^{20} \\times 4$ bytes, which is 4 MB **per process**, and almost all of it describes pages that do not exist. Between the top of the heap and the bottom of the stack lies a vast invalid hole whose entries are dutifully stored, one per absent page.\n\nA **multi-level page table** exploits exactly that sparsity. Chop the linear table into page-sized pieces and add one level above it - a **page directory** - with one entry per piece, saying whether that piece exists and, if so, which frame holds it. A piece describing only invalid pages is simply never allocated, and the directory entry is marked invalid instead. The table is now allocated in proportion to how much of the address space is used, not how large it is.\n\nThe arithmetic is worth doing once. On a 32-bit machine with 4 KB pages the address splits into 10 bits of directory index, 10 bits of table index and 12 bits of offset; the directory holds 1024 entries in one 4 KB page, and each page table maps 1024 pages, or 4 MB. A process using 4 MB at the bottom of its address space and 8 KB of stack at the very top needs the directory plus two page tables: **three pages, 12 KB**, in place of 4 MB. The cost is one more memory reference on every TLB miss - which is affordable precisely because the TLB makes misses rare.\n\nAn **inverted page table** attacks the same problem from the other end: instead of one table per process indexed by page, keep **one table for the whole machine** indexed by frame, each entry recording which process and which virtual page currently occupies it. Its size depends on physical memory alone - 4 GB of frames is a million entries, whatever the process count - but the index is now the wrong way round, so finding a translation means searching, and a hash table over the entries is bolted on to make that tolerable. Whichever structure you choose, the TLB is unchanged: it caches finished translations and does not care where they came from.",
+    "code": "#define PDE_SHIFT 22             /* top 10 bits: index into the directory */\n#define PTE_SHIFT 12             /* next 10 bits: index within one table   */\n\nuint32_t walk(uint32_t virt, uint32_t *dir)\n{\n    uint32_t pdi = (virt >> PDE_SHIFT) & 0x3FF;\n    uint32_t pti = (virt >> PTE_SHIFT) & 0x3FF;\n    uint32_t off =  virt & 0xFFF;\n\n    uint32_t pde = dir[pdi];                 /* memory reference 1 */\n    if (!(pde & PDE_VALID))\n        raise_exception(SEGMENTATION_FAULT); /* a whole 4 MB region is absent */\n\n    uint32_t *table = frame_to_ptr(pde >> 12);\n    uint32_t pte = table[pti];               /* memory reference 2 */\n    if (!(pte & PTE_VALID))\n        raise_exception(SEGMENTATION_FAULT);\n\n    return ((pte >> 12) << 12) | off;        /* the data itself is reference 3 */\n}\n\n/* 0x00402ABC -> pdi 1, pti 2, offset 0xABC.\n   If that PTE holds frame 0x1F3, the physical address is 0x1F3ABC. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The top ten bits select one of 1024 directory entries; each covers 4 MB of the address space."
+     },
+     {
+      "line": 11,
+      "text": "This is where the saving lives. An invalid directory entry means 4 MB of absent address space costs one entry, not 1024."
+     },
+     {
+      "line": 15,
+      "text": "The second table read. Every level added trades space for one more reference on the miss path."
+     },
+     {
+      "line": 22,
+      "text": "0x00402ABC divided by 0x400000 is 1, so the directory index is 1; the next ten bits are 2; the low twelve are copied through untouched."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A 32-bit virtual address is split into 10 bits of page-directory index, 10 bits of page-table index and 12 bits of offset. Give the **page-directory index** in decimal for each address.",
+     "steps": [
+      {
+       "label": "0x00402ABC",
+       "expected": "1"
+      },
+      {
+       "label": "0x00000FFF",
+       "expected": "0"
+      },
+      {
+       "label": "0xC0001004",
+       "expected": "768"
+      }
+     ],
+     "concepts": [
+      "multi-level-page-tables"
+     ],
+     "tags": [
+      "multi-level-page-tables"
+     ],
+     "explain": "The directory index is the address shifted right by 22 bits, which is the same as asking which 4 MB region the address falls in: 0x402ABC is just past 4 MB, so it is region 1, and 0xC0001004 is 3 GB up, which is 3072 MB divided by 4 MB, or 768. Reading only the top *eight* bits because they look like a neat pair of hexadecimal digits is the usual slip - the split is 10/10/12 and cuts a hex digit in half, which is exactly why hexadecimal is awkward here."
+    }
+   },
+   {
+    "title": "The TLB is not part of the address space",
+    "body": "A TLB entry says \"virtual page 5 lives in frame 130\", and that sentence is only true of one process. Switch to another and its page 5 is somewhere else entirely, so the entries left behind are not stale in the sense of being out of date - they are actively **wrong**, and using them would hand one process another's memory. The hardware cannot notice, because a VPN alone carries no evidence of whose it is.\n\nThe blunt fix is to **flush** the whole TLB on every context switch, by clearing every valid bit. It is correct, it costs almost nothing to perform, and it is very expensive to live with: each process resumes with a cold TLB and pays a miss on every page it touches until its working set is re-established, and on a machine switching frequently the TLB may never get warm at all.\n\nThe better fix is to make the entries carry whose they are. An **address-space identifier** - the ASID, essentially a small process id - is stored in each TLB entry and compared against a current-ASID register on every lookup. Entries belonging to different processes now coexist, and a switch costs one register write rather than the loss of the entire cache. Because the field is small, typically 8 bits, the OS must recycle identifiers, and recycling one does require invalidating the entries that carry it.\n\nASIDs also make deliberate sharing expressible: two processes mapping the same read-only library page can hold two TLB entries with different ASIDs and the same PFN, and both are correct. Neither scheme touches the other hazard, though - within a single address space, if the OS unmaps a page, changes its permissions or reuses its frame, the TLB entry describing it is now a lie that the hardware will happily keep believing. Invalidating that entry is the operating system's job, which is why every architecture exposes an instruction to do it, and why a missed invalidation is one of the nastiest bugs in a kernel.",
+    "code": "/* Flush: correct, trivial to build, and it throws everything away. */\nvoid context_switch_flush(struct proc *next)\n{\n    tlb_flush_all();                  /* next process starts stone cold */\n    load_page_table_base(next->ptbr);\n    current = next;\n}\n\n/* ASIDs: each entry carries the address space it belongs to, so both\n   processes' translations coexist and neither is discarded. */\nvoid context_switch_asid(struct proc *next)\n{\n    write_asid_register(next->asid);  /* lookups now match only these tags */\n    load_page_table_base(next->ptbr);\n    current = next;\n}\n\n/* Neither saves you inside one address space: if the OS unmaps a page\n   or downgrades its permissions, it must invalidate that VPN by hand -\n   the hardware has no idea the page table underneath it changed. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "One instruction, and the entire cache of translations is gone. Correct, and the reason a frequently switching machine feels slow."
+     },
+     {
+      "line": 13,
+      "text": "The whole switch cost with ASIDs: change which tag lookups match. Nothing is discarded."
+     },
+     {
+      "line": 18,
+      "text": "The hazard neither scheme addresses: a page table edited underneath a live TLB entry. The kernel must invalidate that VPN by hand."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "For each event on a machine with an ASID-tagged TLB, state whether the whole TLB must be flushed. Answer `yes` or `no`.",
+     "steps": [
+      {
+       "label": "an ordinary context switch between two running processes",
+       "expected": "no"
+      },
+      {
+       "label": "the OS unmaps one page from the current process",
+       "expected": "no"
+      },
+      {
+       "label": "an ASID is recycled and handed to a newly created process",
+       "expected": "yes"
+      }
+     ],
+     "concepts": [
+      "tlb-flush",
+      "address-space-identifier"
+     ],
+     "tags": [
+      "tlb-flush",
+      "address-space-identifier"
+     ],
+     "explain": "ASIDs exist precisely so that an ordinary switch is a register write rather than a flush, and unmapping one page needs one targeted invalidation of that VPN, not a wholesale flush - a sledgehammer would work there but would throw away every other valid translation. Recycling is the case people miss: the identifier is only 8 bits, so when it is reused the old process's entries carrying that tag will match the new process's lookups, and they must be cleared first."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-4-g-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A machine has 4 KB pages and a hardware-managed TLB. Walk the two paths: for each event, state what the hardware does next, choosing from `check protection`, `walk page table`, `retry instruction`, `raise fault`.",
+   "steps": [
+    {
+     "label": "the VPN is found in the TLB and the entry is valid",
+     "expected": "check protection"
+    },
+    {
+     "label": "the VPN is not found in the TLB",
+     "expected": "walk page table"
+    },
+    {
+     "label": "the walk found a valid PTE and the mapping has been installed",
+     "expected": "retry instruction"
+    },
+    {
+     "label": "the walk found a PTE with its valid bit clear",
+     "expected": "raise fault"
+    }
+   ],
+   "concepts": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "explain": "The hit path still checks protection - a cached translation is not a licence to write a read-only page, and skipping that check would be a security hole rather than an optimisation. The miss path deliberately ends by re-executing the instruction rather than continuing from where it stopped, so there is only one translation path in the hardware and the second attempt simply hits. A PTE with the valid bit clear is an access to a page the process does not have, and that is a fault whatever the TLB says.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the three lines that split a 32-bit virtual address for a two-level page table with 4 KB pages and 1024-entry tables. Give the two shift amounts in decimal and the offset mask in hexadecimal as `0x` followed by three digits.",
+   "template": "uint32_t pdi = (virt >> ___) & 0x3FF;\nuint32_t pti = (virt >> ___) & 0x3FF;\nuint32_t off =  virt & ___;",
+   "blanks": [
+    "22",
+    "12",
+    "0xFFF"
+   ],
+   "concepts": [
+    "multi-level-page-tables"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "The offset is the low 12 bits because a 4 KB page holds 4096 bytes, and the table index starts immediately above it at bit 12. The directory index sits above the ten table-index bits, so it starts at bit 22 - not 20, which is the tempting answer from remembering that a 32-bit space has 2^20 pages and forgetting that those twenty bits are being split in half.",
+   "xp": 24
+  },
+  {
+   "id": "os-4-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "An array of 12 four-byte ints begins at virtual address 76. A loop reads every element once, in order, on a machine with 16-byte pages and a TLB that starts empty and has room for far more entries than this array needs. Give each count as a number.",
+   "steps": [
+    {
+     "label": "TLB misses",
+     "expected": "4"
+    },
+    {
+     "label": "TLB hits",
+     "expected": "8"
+    },
+    {
+     "label": "TLB misses if the page size were 32 bytes instead",
+     "expected": "2"
+    },
+    {
+     "label": "TLB misses at 16-byte pages if the array began at address 64",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "locality",
+    "tlb-hit-miss",
+    "tlb"
+   ],
+   "tags": [
+    "locality",
+    "tlb-hit-miss"
+   ],
+   "explain": "One miss per distinct page touched, and every subsequent element on that page rides free: starting at 76 the array covers pages 4, 5, 6 and 7, so four misses. Doubling the page size halves the number of pages spanned, and moving the start to 64 aligns the array so it fits in three pages rather than straddling four - the same twelve accesses, one fewer miss, bought purely by alignment. The tempting count for the first step is three, from reasoning that twelve ints occupy 48 bytes and 48 bytes is three 16-byte pages; so they are, but only if they start on a page boundary.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague objects that a 64-entry TLB covering an address space of a million pages is obviously hopeless, and that reported hit rates above 90% must be a measurement error. Explain why real programs achieve them anyway, naming the two forms of locality and saying what each one buys.",
+   "rubric": {
+    "required": [
+     "spatial",
+     "tempor",
+     "local",
+     "page",
+     "hit"
+    ],
+    "optional": [
+     "loop",
+     "stack",
+     "instruct",
+     "consecutive",
+     "working set",
+     "reach",
+     "reuse"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "locality",
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "locality",
+    "tlb"
+   ],
+   "explain": "The objection assumes accesses are spread uniformly over the address space, and they never are. Spatial locality means a single entry covers a whole page - four thousand bytes, a thousand ints - so one miss buys hundreds or thousands of hits from a sequential walk. Temporal locality means the handful of pages a loop actually uses, its code, its stack frame and its data, are re-referenced constantly and stay resident for the whole loop. The count that matters is not pages in the address space but pages in the working set, and that is usually small enough to fit - which is also why the hit rate collapses the moment a program's working set exceeds the TLB's reach.",
+   "xp": 24
+  }
+ ],
+ "tlb-drills": [
+  {
+   "id": "os-4-d-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A fully associative TLB holds 4 entries and evicts the least recently used entry. Pages are 4 KB, the TLB starts empty and one process runs throughout. The following virtual addresses are accessed in order. For each, answer `hit` or `miss`.",
+   "steps": [
+    {
+     "label": "0x10000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x10FFC",
+     "expected": "hit"
+    },
+    {
+     "label": "0x11004",
+     "expected": "miss"
+    },
+    {
+     "label": "0x12008",
+     "expected": "miss"
+    },
+    {
+     "label": "0x13000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x10010",
+     "expected": "hit"
+    },
+    {
+     "label": "0x14000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x11008",
+     "expected": "miss"
+    },
+    {
+     "label": "0x10020",
+     "expected": "hit"
+    }
+   ],
+   "concepts": [
+    "tlb",
+    "tlb-hit-miss",
+    "locality"
+   ],
+   "tags": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "explain": "Only the top 20 bits matter: 0x10000 and 0x10FFC are the same page 0x10, which is why the second access hits despite being 4092 bytes away - that is spatial locality made arithmetic. The interesting step is the seventh. Inserting page 0x14 into a full TLB evicts the least recently used entry, which by then is 0x11, so when 0x11008 arrives immediately afterwards it misses; page 0x10 survives because it was re-referenced at step six and is therefore the most recently used. Answering `hit` for the eighth access is the natural mistake - page 0x11 was loaded and nothing obviously removed it, but LRU removed it silently.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-d-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 32-bit machine uses 4 KB pages and a two-level page table split 10/10/12. The page directory's entry 1 points at a page table whose entry 2 holds frame 0x1F3 with the valid bit set. Directory entry 0 has its valid bit clear. Give the requested values for the virtual address 0x00402ABC, and then for 0x00000FFF. Write hexadecimal answers as `0x` followed by the digits, and `fault` where the access is illegal.",
+   "steps": [
+    {
+     "label": "0x00402ABC: page-directory index, in decimal",
+     "expected": "1"
+    },
+    {
+     "label": "0x00402ABC: page-table index, in decimal",
+     "expected": "2"
+    },
+    {
+     "label": "0x00402ABC: offset, in hexadecimal",
+     "expected": "0xABC"
+    },
+    {
+     "label": "0x00402ABC: physical address, in hexadecimal",
+     "expected": "0x1F3ABC"
+    },
+    {
+     "label": "0x00000FFF: physical address, in hexadecimal",
+     "expected": "fault"
+    }
+   ],
+   "concepts": [
+    "multi-level-page-tables"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "Shift right by 22 for the directory index, take the next ten bits for the table index, and copy the low twelve bits through untranslated - so the physical address ends in the same ABC the virtual address did, because a byte's position within a page never changes. The second address faults at the *first* level: directory entry 0 is invalid, so the entire lowest 4 MB of the address space has no page table at all and no second reference is even issued. That is the saving multi-level tables exist for, seen from the fault side - one invalid entry standing in for 1024 absent pages.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-d-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a hardware-managed TLB miss into the order the hardware performs them, beginning from the arrival of a virtual address.",
+   "fragments": [
+    "extract the VPN from the virtual address",
+    "search the TLB for that VPN and find no valid entry",
+    "read the page-table entry for that VPN from memory",
+    "check the PTE's valid bit and permissions",
+    "install the VPN-to-PFN mapping in the TLB",
+    "retry the instruction, which now hits in the TLB"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "explain": "The order that matters is the last two: the mapping is installed and the instruction is then restarted from the beginning, rather than the hardware finishing the access directly from the PTE it has just read. That restart is a deliberate simplification - there is exactly one path through translation, and the miss handler's only job is to make the fast path succeed next time. Checking permissions before installing also matters, since installing an entry for a page the process may not touch would cache a violation.",
+   "xp": 24
+  },
+  {
+   "id": "os-4-d-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "A workload streams through a 4 MB buffer. Fill in the numbers for a 64-entry TLB. Give plain integers with no units.",
+   "template": "reach with 4 KB pages          = ___ KB\npages needed to cover 4 MB     = ___\nreach with 2 MB pages, in MB   = ___",
+   "blanks": [
+    "256",
+    "1024",
+    "128"
+   ],
+   "concepts": [
+    "tlb-reach",
+    "locality"
+   ],
+   "tags": [
+    "tlb-reach"
+   ],
+   "explain": "Sixty-four entries at 4 KB reach 256 KB, but the buffer needs 1024 pages to describe it, so the TLB can hold one sixteenth of the mapping at a time and a single pass evicts what the next pass will want. Switching to 2 MB pages takes the reach to 128 MB, which covers the buffer thirty times over - the same hardware, the same program, and the miss rate falls to almost nothing. The number that catches people is the middle one: 4 MB divided by 4 KB is 1024, because the units differ by a factor of 1024, not by four.",
+   "xp": 24
+  }
+ ],
+ "table-design": [
+  {
+   "id": "os-4-t-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A process on a 32-bit machine with 4 KB pages and 4-byte page-table entries uses 4 MB of code and heap at the very bottom of its address space and 8 KB of stack at the very top. Nothing else is mapped. Give each quantity as a plain integer.",
+   "steps": [
+    {
+     "label": "size in bytes of a linear (one-level) page table for this process",
+     "expected": "4194304"
+    },
+    {
+     "label": "pages of memory that linear page table occupies",
+     "expected": "1024"
+    },
+    {
+     "label": "page-directory entries that must be valid under a two-level table",
+     "expected": "2"
+    },
+    {
+     "label": "pages of memory the two-level structure occupies, including the directory",
+     "expected": "3"
+    },
+    {
+     "label": "memory references a TLB miss costs under the two-level table, including the data fetch",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "multi-level-page-tables",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "A linear table must describe all 2^20 pages whether they exist or not, so it is 4 MB and occupies 1024 pages of real memory to map a process that uses only 1026. Under two levels, one directory entry covers the bottom 4 MB and one covers the top 4 MB, and the 4088 MB of nothing in between costs 1022 invalid entries inside a page that had to be allocated anyway - so the whole structure is the directory plus two page tables, three pages, 12 KB. The price is on the miss path, where a directory read and a table read precede the data. The trap is answering 1 for the third step: the stack lives at the top of the address space, in a different 4 MB region entirely, and needs its own page table.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-t-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A numerical kernel walks a 1024 x 1024 array of 4-byte ints. Each row is exactly 4096 bytes, matching the machine's page size, and the CPU has a 64-entry TLB. Traversing the array row by row runs fast. The same loop with the two indices swapped, so that it walks down columns, runs many times slower, and the performance counters show a TLB miss on essentially every single access - just over a million of them. Memory bandwidth, cache size and the instruction count are unchanged. Name the cause and explain the mechanism.",
+   "answer": "TLB thrashing: the column traversal's working set exceeds the TLB's reach",
+   "rubric": {
+    "required": [
+     "reach",
+     "local",
+     "page",
+     "evict",
+     "column",
+     "stride"
+    ],
+    "optional": [
+     "1024",
+     "spatial",
+     "working set",
+     "large page",
+     "huge page",
+     "block",
+     "tile",
+     "row"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "tlb-reach",
+    "locality",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "tlb-reach",
+    "locality"
+   ],
+   "explain": "Because a row is exactly one page, walking a column touches a different page at every step, with a stride of one whole page: the loop cycles through all 1024 pages, then begins the same cycle again for the next column. Sixty-four entries reach 256 KB, which is 64 of those 1024 pages, so by the time a page is wanted again it was evicted a thousand accesses ago and every one of the 1048576 accesses misses. The row-major version touches one new page per row - 1024 misses in total, a hit rate above 99.9% - because spatial locality is aligned with the traversal. The tempting diagnosis is the data cache, which is also thrashing here, but the counters name the TLB and the fixes differ: interchange the loops, block the traversal into tiles, or map the array with large pages so that 64 entries reach the whole 4 MB.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-t-03",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are specifying the translation hardware and its operating-system support for a 32-bit embedded machine that runs a few dozen small processes and context-switches thousands of times a second. Argue for a TLB backed by a multi-level page table, and cover: what the TLB caches, and what a hit and a miss each cost in memory references; why a linear page table is unaffordable here, with worked numbers for 4 KB pages and 4-byte entries; how a two-level table exploits sparsity; why an inverted page table is a different trade and what it costs to search; why flushing the TLB on every switch would be ruinous at this switch rate and what address-space identifiers do instead; and the one invalidation the operating system must still perform by hand. There are no tests here: your answer is marked against a rubric of the points it must cover.",
+   "rubric": {
+    "required": [
+     "translat",
+     "hit",
+     "miss",
+     "4 MB",
+     "spars",
+     "director",
+     "invert",
+     "flush",
+     "ASID",
+     "invalidat"
+    ],
+    "optional": [
+     "reach",
+     "local",
+     "reference",
+     "hash",
+     "frame",
+     "recycl",
+     "shar",
+     "cold",
+     "12 KB",
+     "protect"
+    ],
+    "minWords": 150
+   },
+   "concepts": [
+    "tlb",
+    "tlb-hit-miss",
+    "multi-level-page-tables",
+    "inverted-page-table",
+    "tlb-flush",
+    "address-space-identifier"
+   ],
+   "tags": [
+    "tlb",
+    "multi-level-page-tables",
+    "inverted-page-table",
+    "tlb-flush",
+    "address-space-identifier"
+   ],
+   "explain": "The three decisions are separable and each has a number behind it. The TLB turns a hit back into a single memory reference and confines paging's extra references to the miss path. A linear table costs 4 MB per process - dozens of processes would need hundreds of megabytes before a single instruction ran - whereas a two-level table allocates a page table only for the 4 MB regions actually in use, typically three or four pages per process. An inverted table would be sized by physical memory rather than by process count, which is attractive on a small machine, but its index is by frame, so every translation becomes a hash lookup rather than an indexed read. Thousands of switches a second is exactly the regime where flushing is ruinous: every process would resume cold and re-miss its whole working set, so ASID tags are what reduce the switch to a register write - and even with them, unmapping a page or changing its permissions demands an explicit invalidation of that VPN, because the hardware never sees the page table change.",
+   "xp": 120
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-4-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does a translation lookaside buffer hold?",
+   "choices": [
+    "Recently used mappings from virtual page number to physical frame number, with protection and validity bits",
+    "The most recently accessed bytes of memory, so that repeated loads of the same address are fast",
+    "The page table of the currently running process, copied into the CPU at each context switch",
+    "A queue of pending page faults waiting for the operating system to service them"
+   ],
+   "answer": 0,
+   "concepts": [
+    "tlb"
+   ],
+   "tags": [
+    "tlb"
+   ],
+   "explain": "The TLB caches translations, not data - it is consulted before memory is touched, and on a hit exactly one memory reference is then made, for the datum itself. The second option describes the data cache, a different structure that sits after translation. The third is impossible for the very reason multi-level tables exist: a page table is megabytes, and no CPU could copy one on every switch.",
+   "xp": 12
+  },
+  {
+   "id": "os-4-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of an inverted page table? Select all that apply.",
+   "choices": [
+    "It has one entry per physical frame rather than one per virtual page",
+    "A single table serves the whole machine rather than one per process",
+    "Each entry must record which process the frame currently belongs to",
+    "It removes the need for a TLB, because translation becomes a direct index"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "inverted-page-table"
+   ],
+   "tags": [
+    "inverted-page-table"
+   ],
+   "explain": "Indexing by frame is the defining inversion, and it is what makes one machine-wide table sufficient and its size a function of physical memory alone - but an entry then has to say whose virtual page it is holding, or the mapping means nothing. The final option reverses the consequence: inverting the index means a virtual address is no longer an index into anything, so a lookup becomes a search, usually through a hash table bolted alongside, and the TLB becomes more important rather than less.",
+   "xp": 12
+  },
+  {
+   "id": "os-4-x-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A fully associative TLB holds 3 entries and evicts the least recently used. Pages are 4 KB and the TLB starts empty. Answer `hit` or `miss` for each access in order.",
+   "steps": [
+    {
+     "label": "0x40000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x41000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x42000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x40008",
+     "expected": "hit"
+    },
+    {
+     "label": "0x43000",
+     "expected": "miss"
+    },
+    {
+     "label": "0x41004",
+     "expected": "miss"
+    },
+    {
+     "label": "0x40100",
+     "expected": "hit"
+    }
+   ],
+   "concepts": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "tlb",
+    "tlb-hit-miss"
+   ],
+   "explain": "After the fourth access the recency order is 0x41, 0x42, 0x40, so inserting 0x43 evicts 0x41 and the sixth access misses; page 0x40 survives to the end because it keeps being re-referenced. Answering `hit` at the sixth step is the natural error - the page was loaded and nothing obviously removed it, but LRU evicts the least recently *used*, not the least recently loaded, and 0x41 had not been touched since the second access.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-x-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Processes A and B are interleaved on a machine with a 4-entry fully associative TLB using LRU. The access sequence, as (process, virtual page number), is: (A, 0x0A), (A, 0x0B), (B, 0x0A), (B, 0x0C), (A, 0x0A), (A, 0x0B), (B, 0x0A). The TLB starts empty. Compare a machine that flushes the whole TLB on every context switch with one whose entries carry address-space identifiers.",
+   "steps": [
+    {
+     "label": "hits out of 7, flushing on every switch",
+     "expected": "0"
+    },
+    {
+     "label": "hits out of 7, with ASID-tagged entries",
+     "expected": "3"
+    },
+    {
+     "label": "the fifth access, (A, 0x0A), when flushing",
+     "expected": "miss"
+    },
+    {
+     "label": "the fifth access, (A, 0x0A), with ASIDs",
+     "expected": "hit"
+    },
+    {
+     "label": "entries evicted for lack of space in the ASID case",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "tlb-flush",
+    "address-space-identifier",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "tlb-flush",
+    "address-space-identifier"
+   ],
+   "explain": "Flushing gives seven misses out of seven: every switch empties the TLB, and because each process touches at most two pages before being switched away, no entry ever survives long enough to be reused. With ASIDs the four distinct (process, page) pairs fit exactly, so the last three accesses all hit and nothing is ever evicted for space - capacity was never the problem here, ownership was. The tempting answer for the first line is 1, from noticing that (A, 0x0B) follows (A, 0x0A) with no switch between them; but those are different pages, and 0x0B has not been seen before.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the sizes for a 32-bit address space with 4 KB pages and 4-byte page-table entries. Give plain integers.",
+   "template": "pages in the address space                    = 2^___\nbytes in a linear page table                 = ___ MB\nentries in a 4 KB page directory             = ___\naddress space one valid directory entry covers = ___ MB",
+   "blanks": [
+    "20",
+    "4",
+    "1024",
+    "4"
+   ],
+   "concepts": [
+    "multi-level-page-tables"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "Thirty-two address bits minus twelve offset bits leaves twenty bits of page number, so 2^20 pages at 4 bytes each is 4 MB. A directory is itself one page, and 4096 bytes of 4-byte entries is 1024 of them - which is also how many pages one page table maps, so each directory entry stands for 1024 x 4 KB, or 4 MB. That both numbers come out as '4' is a coincidence of this particular split, and worth deriving rather than memorising, because a machine with 8 KB pages gives different answers throughout.",
+   "xp": 24
+  },
+  {
+   "id": "os-4-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these in order of increasing cost in memory references for one data access on a machine with 4 KB pages, cheapest first.",
+   "fragments": [
+    "TLB hit",
+    "TLB miss with a linear page table",
+    "TLB miss with a two-level page table",
+    "TLB miss with a four-level page table"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "tlb-hit-miss",
+    "multi-level-page-tables"
+   ],
+   "tags": [
+    "tlb-hit-miss",
+    "multi-level-page-tables"
+   ],
+   "explain": "One reference, then two, three and five: each level of table adds one read to the miss path, and the data fetch is always the last one. The ordering is the whole argument of this floor in miniature - deeper tables are how the space cost of paging is paid down, and the TLB is what makes their extra references rare enough to accept.",
+   "xp": 24
+  },
+  {
+   "id": "os-4-x-07",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "On a 32-bit machine with a 10/10/12 split, give the page-directory index in decimal for each virtual address.",
+   "steps": [
+    {
+     "label": "0x7FE00000",
+     "expected": "511"
+    },
+    {
+     "label": "0x00402ABC",
+     "expected": "1"
+    },
+    {
+     "label": "0xC0001004",
+     "expected": "768"
+    }
+   ],
+   "concepts": [
+    "multi-level-page-tables"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "Shifting right by 22 bits is the same as asking which 4 MB region the address lies in: 0x7FE00000 is 2046 MB, and 2046 divided by 4 is 511. Working digit by digit in hexadecimal invites error because a 22-bit shift cuts a hex digit in half; converting to megabytes and dividing by four is both faster and harder to get wrong.",
+   "xp": 48
+  },
+  {
+   "id": "os-4-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain how a two-level page table can map the same address space as a linear one while using a small fraction of the memory, and state precisely what the arrangement costs. Refer to what makes an address space sparse and to what happens on a TLB miss.",
+   "rubric": {
+    "required": [
+     "spars",
+     "director",
+     "invalid",
+     "alloc",
+     "miss",
+     "reference"
+    ],
+    "optional": [
+     "hole",
+     "stack",
+     "heap",
+     "4 MB",
+     "level",
+     "TLB",
+     "region",
+     "sav"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "multi-level-page-tables",
+    "tlb-hit-miss"
+   ],
+   "tags": [
+    "multi-level-page-tables"
+   ],
+   "explain": "A linear table pays for every page of the address space whether it exists or not, and almost none of it does - a process's code, heap and stack occupy a few regions with an enormous invalid hole between them. Chopping the table into page-sized pieces and adding a directory above it means a piece describing only absent pages is never allocated at all, so the structure grows with what is used rather than with what could be addressed. The cost is one extra memory reference per level on the miss path, and that is acceptable only because the TLB makes misses rare; without it, deeper tables would simply multiply the price of every access.",
+   "xp": 24
+  },
+  {
+   "id": "os-4-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A database keeps a 6 GB in-memory index and touches it in an essentially random pattern. The machine's TLB has 1536 entries and the pages are 4 KB. Profiling shows the CPU spending a large fraction of its cycles on page-table walks even though the index is entirely resident in RAM and no page faults occur. Recommend a change, justify it with the arithmetic of TLB reach, and say honestly what your recommendation costs.",
+   "rubric": {
+    "required": [
+     "reach",
+     "large page",
+     "random",
+     "walk",
+     "wast",
+     "6 MB"
+    ],
+    "optional": [
+     "huge",
+     "2 MB",
+     "entries",
+     "local",
+     "fragment",
+     "internal",
+     "contigu",
+     "miss rate"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "tlb-reach",
+    "tlb",
+    "locality"
+   ],
+   "tags": [
+    "tlb-reach",
+    "tlb",
+    "locality"
+   ],
+   "explain": "The reach is 1536 x 4 KB, which is 6 MB - one thousandth of the index - and a random access pattern gives the TLB no locality to exploit, so nearly every access pays a full page-table walk while never faulting, exactly the symptom described. Mapping the index with 2 MB large pages raises the reach to 3 GB and brings most of the working set inside it. The costs are real and should be stated: large pages waste memory internally when a region is not a multiple of 2 MB, they need contiguous physical memory that a fragmented system may be unable to supply, and they make the granularity of paging, protection and copy-on-write far coarser. Adding RAM or a faster disc would change nothing here, because nothing was ever waiting on either.",
+   "xp": 48
+  }
+ ]
+}

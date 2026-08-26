@@ -1,0 +1,276 @@
+{
+ "n": 10,
+ "name": "The Trial of the Kernel",
+ "cognitiveLevel": "boss",
+ "concepts": [
+  "cpu-scheduling",
+  "scheduling-metrics",
+  "address-translation",
+  "paging",
+  "page-replacement",
+  "concurrency-bugs",
+  "condition-variables",
+  "crash-consistency",
+  "journaling"
+ ],
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The First Pillar: Time, Divided",
+    "body": "This floor is the paper, and the paper is closed-book. There is no starter code, no hint and no exam; there is one question, and it walks the whole dungeon from the scheduler to the journal. Everything you are asked to compute has a single right answer, and everything you are asked to argue is graded on the mechanism you name rather than on the length of the prose.\n\nStart where the dungeon started. The scheduler exists because one CPU must pretend to be many, and the pretence is measured by two numbers that pull against each other. **Turnaround** is $T_{completion} - T_{arrival}$, and it is what a batch job cares about. **Response** is $T_{firstrun} - T_{arrival}$, and it is what a person at a keyboard cares about. FIFO minimises overhead and nothing else: one long job at the head of the queue drags every short job behind it into a **convoy**. SJF fixes turnaround exactly and is unusable, because it must know a job's length before running it.\n\nPreemption is what buys the difference back. STCF preempts on arrival and is optimal for turnaround; round robin preempts on a timer and is close to optimal for response while being *worse* than FIFO for turnaround, since interleaving stretches every job across the whole run. The cost is real and is paid in context switches and in the cache and TLB state the next job must rebuild - which is why a quantum is measured in milliseconds and not in microseconds.\n\n**MLFQ** is how a real kernel gets both without an oracle. It infers what SJF had to be told: a job that yields before its slice ends is treated as interactive and kept high, a job that consumes a whole slice is demoted. Accounting for total time at a level rather than per slice closes the trick of yielding at 99% of the quantum, and a periodic **priority boost** stops long jobs starving when the interactive load never lets up.",
+    "code": "/* The two numbers the Trial asks for, written as code so that no\n   definition is left to memory or to argument. */\ntypedef struct {\n    int arrival;      /* when the job entered the system   */\n    int run;          /* how long it needs on the CPU      */\n    int first_run;    /* when it first got the CPU         */\n    int completion;   /* when its last instruction retired */\n} job;\n\nint turnaround(job j) { return j.completion - j.arrival; }\nint response(job j)   { return j.first_run  - j.arrival; }\n\n/* Round robin is this loop and nothing more. The timer interrupt is\n   what allows run_for to end a slice before the job is done. */\nvoid round_robin(int quantum) {\n    while (ready_count() > 0) {\n        job *j = ready_dequeue();\n        int slice = (j->remaining < quantum) ? j->remaining : quantum;\n        run_for(j, slice);\n        j->remaining -= slice;\n        if (j->remaining > 0)\n            ready_enqueue(j);      /* preempted, not finished */\n    }\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "Turnaround counts the waiting the job could not see, which is why a queue behind a long job is a defect and not merely a delay."
+     },
+     {
+      "line": 18,
+      "text": "A job never receives more than its remaining time, so a job's last slice is usually shorter than the quantum."
+     },
+     {
+      "line": 22,
+      "text": "This single branch is the whole difference between round robin and FIFO: the job rejoins the queue instead of running to completion."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Three jobs on one CPU under **STCF** (shortest time-to-completion first, preemptive; ties break towards the earlier arrival):\n\n- `P` arrives at 0 and needs 5\n- `Q` arrives at 2 and needs 2\n- `R` arrives at 4 and needs 1\n\nName the job holding the CPU over each interval.",
+     "steps": [
+      {
+       "label": "t = 0 to t = 2",
+       "expected": "P"
+      },
+      {
+       "label": "t = 2 to t = 4",
+       "expected": "Q"
+      },
+      {
+       "label": "t = 4 to t = 5",
+       "expected": "R"
+      },
+      {
+       "label": "t = 5 to t = 8",
+       "expected": "P"
+      }
+     ],
+     "explain": "At t = 2, Q needs 2 while P still needs 3, so STCF preempts P - that decision is the whole reason the name says time-to-completion rather than job length. Q finishes at 4 just as R arrives needing 1, so R goes next, and P resumes only at 5. The tempting answer lets P run to completion because it started first, which is FIFO's rule and not STCF's. Completion times are P = 8, Q = 4 and R = 5, so average turnaround is (8 + 2 + 1) / 3 = 11/3.",
+     "tags": [
+      "cpu-scheduling",
+      "scheduling-metrics"
+     ]
+    }
+   },
+   {
+    "title": "The Second Pillar: Every Address Is a Lie",
+    "body": "A process believes it owns memory from zero upwards. It does not, and the gap between the belief and the machine is bridged on every instruction fetch and every load and store. Paging is the form that bridge finally took, because fixed-size pages make placement trivial and external fragmentation impossible - the cost moves into the table instead.\n\nThe arithmetic never changes. With $2^{k}$-byte pages, the low $k$ bits of a virtual address are the **offset** and are copied through untranslated; everything above them is the **VPN**, which indexes the page table to yield a **PFN**. The physical address is that frame number concatenated with the original offset. Nothing else in the address is touched, and this is why an offset needs no bounds check: it cannot leave the page.\n\nA linear page table costs one extra memory reference per access, which would halve the machine, so the **TLB** caches recent translations. It works only because of locality: with 4 KB pages, a single entry covers a thousand consecutive integer accesses. A miss costs the walk, and a context switch costs the whole cache unless entries carry an address-space identifier.\n\nWhen physical memory runs out the policy question begins. **OPT** evicts the page whose next use lies furthest away and cannot be implemented, since it needs the future; it exists to tell you how far from optimal you are. **LRU** approximates it by assuming the recent past predicts the near future, and is defeated exactly where that assumption fails - a loop scanning slightly more data than fits will evict every page just before it is wanted again. **FIFO** ignores use entirely, which is why giving a FIFO system more memory can make it miss *more*: Belady's anomaly, and the reason a policy with the stack property is worth having.",
+    "code": "#define PAGE_SHIFT  12                    /* 4 KB pages */\n#define PAGE_SIZE   (1u << PAGE_SHIFT)\n#define OFFSET_MASK (PAGE_SIZE - 1u)\n#define PTE_VALID   0x1u\n\n/* A single-level linear page table: one entry per VPN, indexed\n   directly, with the frame number above the flag bits. */\nunsigned translate(unsigned *pt, unsigned vaddr, int *fault)\n{\n    unsigned vpn    = vaddr >> PAGE_SHIFT;\n    unsigned offset = vaddr & OFFSET_MASK;\n    unsigned pte    = pt[vpn];                /* PTBR + vpn * 4 */\n\n    if (!(pte & PTE_VALID)) { *fault = 1; return 0; }\n\n    unsigned pfn = pte >> PAGE_SHIFT;\n    *fault = 0;\n    return (pfn << PAGE_SHIFT) | offset;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "A shift, not a division: the page size is a power of two precisely so that splitting an address costs no arithmetic at all."
+     },
+     {
+      "line": 12,
+      "text": "This line is the extra memory reference a TLB exists to avoid; without a hit, every access becomes two."
+     },
+     {
+      "line": 14,
+      "text": "The valid bit is what makes a sparse address space affordable - an unmapped page costs an entry, not a frame."
+     },
+     {
+      "line": 18,
+      "text": "The offset arrives untranslated and leaves untranslated, so the low twelve bits of a virtual address and of its physical address are always identical."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "application",
+     "prompt": "4 KB pages, 32-bit virtual addresses, and a single-level page table in which VPN 2 holds a valid entry for PFN `0x11`. Translate the virtual address `0x00002A5C`. Give the VPN in decimal, and the offset and the physical address in hexadecimal with a `0x` prefix and no leading zeros.",
+     "template": "VPN = ___\noffset = ___\nphysical address = ___",
+     "blanks": [
+      "2",
+      "0xA5C",
+      "0x11A5C"
+     ],
+     "explain": "A 4 KB page means a 12-bit offset, so the split falls exactly three hexadecimal digits from the right: `0x00002` above it, `0xA5C` below. The VPN is therefore 2 and the offset is `0xA5C`. The physical address is the frame `0x11` shifted up twelve bits with that same offset dropped back in, giving `0x11A5C`. The usual wrong answer adds the offset to the frame number instead of concatenating them, which lands on the wrong page as soon as the offset exceeds the frame number.",
+     "tags": [
+      "address-translation",
+      "paging"
+     ]
+    }
+   },
+   {
+    "title": "The Third Pillar: The Invariant You Did Not Hold",
+    "body": "A lock does not protect a line of code. It protects an **invariant** - a statement about shared state that is false for a moment in the middle of an update and must be true again before anyone else may look. Every concurrency bug in this dungeon is that one bug seen from a different angle: some thread observed the state during that moment, or two threads reached it in an order nobody planned.\n\nThe taxonomy is worth naming because it tells you where to look. An **atomicity violation** is a sequence that had to be indivisible and was not, the read-modify-write of a shared counter being the smallest example. An **order violation** is a dependency that was assumed and never enforced, such as one thread dereferencing a pointer another thread has not yet assigned. A **deadlock** requires all four of mutual exclusion, hold-and-wait, no preemption and circular wait, so removing any one of them is a cure - a global lock ordering removes the last.\n\nCondition variables are where correct-looking code goes wrong most often. Under **Mesa semantics**, which is what pthreads gives you, a signal means *the condition was true a moment ago*, not *the condition is true now*: between the signal and the waiter actually reacquiring the mutex, another thread may run and undo it. So the test must be a `while` loop and never an `if`, and rechecking costs nothing in the case where the condition does hold.\n\nThe second trap is one condition variable serving two different waiting conditions. If producers and consumers sleep on the same variable, a consumer's signal can wake another consumer, which finds its condition still false and sleeps again - and the producer that should have been woken never was. Two condition variables fix this precisely; a broadcast fixes it wastefully, by waking everyone and letting the `while` loops sort out who should have been running.",
+    "code": "#define MAX 8\nint buf[MAX], fill = 0, use = 0, count = 0;\npthread_mutex_t m      = PTHREAD_MUTEX_INITIALIZER;\npthread_cond_t  empty  = PTHREAD_COND_INITIALIZER;   /* room to put      */\npthread_cond_t  filled = PTHREAD_COND_INITIALIZER;   /* something to get */\n\nvoid put(int v)\n{\n    pthread_mutex_lock(&m);\n    while (count == MAX)                    /* while, never if */\n        pthread_cond_wait(&empty, &m);\n    buf[fill] = v; fill = (fill + 1) % MAX; count++;\n    pthread_cond_signal(&filled);           /* wake a consumer */\n    pthread_mutex_unlock(&m);\n}\n\nint get(void)\n{\n    pthread_mutex_lock(&m);\n    while (count == 0)\n        pthread_cond_wait(&filled, &m);\n    int v = buf[use]; use = (use + 1) % MAX; count--;\n    pthread_cond_signal(&empty);            /* wake a producer */\n    pthread_mutex_unlock(&m);\n    return v;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Two condition variables, one per waiting condition: the structural fix rather than merely the tidy one."
+     },
+     {
+      "line": 10,
+      "text": "Rechecking on wake is the only defence against another thread having taken the slot between the signal and this thread reacquiring the mutex."
+     },
+     {
+      "line": 13,
+      "text": "The signal goes to the other side's variable, so a producer can never wake a producer."
+     },
+     {
+      "line": 22,
+      "text": "count changes only while the mutex is held, so no other thread ever observes the buffer half-updated."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the body of a correct `pthread` consumer in order, from acquiring the mutex to releasing it.",
+     "fragments": [
+      "pthread_cond_signal(&empty);",
+      "pthread_mutex_lock(&m);",
+      "int v = buf[use]; use = (use + 1) % MAX; count--;",
+      "while (count == 0)",
+      "    pthread_cond_wait(&filled, &m);",
+      "pthread_mutex_unlock(&m);"
+     ],
+     "answer": [
+      1,
+      3,
+      4,
+      2,
+      0,
+      5
+     ],
+     "explain": "The mutex is taken first because the condition being tested is shared state, and `pthread_cond_wait` requires the caller to hold it - the call releases the mutex atomically as it sleeps and reacquires it before returning. The `while` must wrap the wait rather than follow it, since the entire purpose is to retest after waking. The signal comes after the buffer has been updated but while the mutex is still held, so a woken producer cannot observe a half-finished consume.",
+     "tags": [
+      "condition-variables",
+      "concurrency-bugs"
+     ]
+    }
+   },
+   {
+    "title": "The Fourth Pillar: Surviving the Power Cut",
+    "body": "A file system update is almost never one write. Appending a block to a file changes the data block, the inode's size and pointer, and the allocation bitmap - three writes to three places, on a disk that may lose power between any two of them. The disk offers atomicity for a single sector and nothing more, so the file system has to build the rest itself.\n\nNot all of the resulting states are equally bad, and that asymmetry drives the whole design. A bitmap marked allocated with no inode pointing at the block merely leaks space: wasteful, and safe. An inode pointing at a block the bitmap calls free is a live grenade, because that block will be handed out again and two files will silently share it. Hence the ordering rule is always *point at nothing that is not yet safe*, and never the reverse.\n\n**fsck** repairs such damage after the fact by scanning every inode and rebuilding the bitmaps from what it finds. It is correct and it is hopeless at modern sizes, because the work is proportional to the whole disk rather than to the writes that were in flight. **Journalling** inverts that: write your intent to a log first, and recovery need only read the log.\n\nThe protocol's subtlety is the commit record. The journal body and the `TxEnd` must not be issued together, because a disk is free to reorder them and a `TxEnd` landing over a half-written body would make a torn transaction look complete on replay - hence the barrier between them. A checksum over the body, stored in the commit block, buys that write back: recovery recomputes it and rejects any transaction whose body does not match, so both may be issued at once. Data journalling writes everything twice; **ordered** journalling writes the data block to its final home *first* and journals only metadata, which cuts the cost while still guaranteeing that no pointer ever refers to stale bytes.",
+    "code": "/* Appending one block to a file is three writes that must appear\n   to happen together: the data D, the inode I, the bitmap B. */\n\njournal_write(TxBegin, D, I, B);   /* 1. intent, in the log        */\nbarrier();                         /*    wait for it to be durable */\njournal_write(TxEnd);              /* 2. the commit record         */\nbarrier();\ncheckpoint_write(D, I, B);         /* 3. the real locations        */\njournal_free(tx);                  /* 4. the log entry may go      */\n\n/* Recovery scans the log: a transaction with a TxBegin and a\n   matching TxEnd is replayed; one without a TxEnd is discarded. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The intent is written before anything at its real address, so the in-place data is never the only copy of a partial update."
+     },
+     {
+      "line": 5,
+      "text": "This barrier is the point of the whole protocol: without it, a reordered TxEnd can certify a body that never landed."
+     },
+     {
+      "line": 8,
+      "text": "Checkpointing is idempotent, so a crash during it is harmless - recovery simply replays the same blocks."
+     },
+     {
+      "line": 9,
+      "text": "Only after checkpointing may the log entry be reused; freeing it sooner would discard the only durable record of the update."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Order the steps of a data-journalling append, from first to last.",
+     "fragments": [
+      "write TxEnd, the commit record",
+      "write TxBegin plus the data, inode and bitmap blocks into the journal",
+      "free the journal entry for reuse",
+      "checkpoint the data, inode and bitmap blocks to their final locations"
+     ],
+     "answer": [
+      1,
+      0,
+      3,
+      2
+     ],
+     "explain": "Intent first, commitment second, real locations third, reclamation last. The commit record must follow the body on the disk and not merely in the program, or a reordering disk can leave behind a transaction that looks complete and is not. Checkpointing before the commit record would defeat the entire scheme, since in-place blocks would then be changing with no durable record of the finished state, and freeing the journal entry before checkpointing throws away the only copy recovery could replay.",
+     "tags": [
+      "crash-consistency",
+      "journaling"
+     ]
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "os-10-t-01",
+   "type": "design",
+   "layer": "application",
+   "capstone": true,
+   "prompt": "**The Trial of the Kernel.** One paper, closed book, no hints, and every part of it drawn from a different floor of this dungeon. Answer all five parts in the box below, and show the arithmetic that produces each number - a bare figure earns nothing, because the Trial is testing whether you can run the mechanism, not whether you can recall a result.\n\nAssume throughout: one CPU, no I/O, free context switches, and ties broken by earlier arrival and then alphabetically.\n\n**Part 1 - The scheduler (six numbers).** Four jobs:\n\n- `A` arrives at 0 and needs 8\n- `B` arrives at 1 and needs 4\n- `C` arrives at 3 and needs 2\n- `D` arrives at 9 and needs 6\n\nGive the **average turnaround** and the **average response** time under each of **FIFO**, **non-preemptive SJF**, and **round robin with a quantum of 2**. For round robin, a job arriving at the instant a slice ends joins the ready queue *ahead* of the job being preempted, and a job that finishes releases the CPU immediately.\n\nThen, in a paragraph: round robin's average turnaround here is no better than FIFO's, yet it is the right scheduler for an interactive workload. Say what it bought and what it paid for it, and say how MLFQ obtains SJF-like turnaround without ever being told a job's length.\n\n**Part 2 - The translation (three addresses).** 32-bit virtual addresses, 4 KB pages, and a single-level linear page table with 4-byte entries at `PTBR = 0x00200000`. The only valid entries are:\n\n- VPN 0 maps to PFN `0x03`\n- VPN 4 maps to PFN `0x07`\n- VPN 10 maps to PFN `0x1F`\n- VPN 11 maps to PFN `0x2A`\n\nFor each of `0x0000AF3C`, `0x00004070` and `0x0000C008`, give the VPN, the offset, the **address of the page-table entry** the hardware reads, and either the physical address or the fact that the access faults.\n\nThen say how many memory references the first translation costs on a TLB miss and on a TLB hit, and why a TLB of only sixty-four entries is enough to serve a program touching megabytes.\n\n**Part 3 - The replacement policy (four counts).** Physical memory starts empty. The reference string is\n\n`1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5`\n\nCount the **misses**, cold misses included, for **FIFO**, **LRU** and **OPT** with **three** frames, and then for **FIFO** with **four** frames. Name the phenomenon the last of those numbers demonstrates, explain in one sentence why LRU cannot exhibit it, and explain why LRU nonetheless does worse than FIFO on this particular string.\n\n**Part 4 - The bug.** This bounded buffer runs with one producer and **two** consumers.\n\n`#define MAX 1`\n`int buf[MAX], count = 0;`\n`pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;`\n`pthread_cond_t cv = PTHREAD_COND_INITIALIZER;`\n \n`void put(int v) {`\n`    pthread_mutex_lock(&m);`\n`    if (count == MAX)`\n`        pthread_cond_wait(&cv, &m);`\n`    buf[count++] = v;`\n`    pthread_cond_signal(&cv);`\n`    pthread_mutex_unlock(&m);`\n`}`\n \n`int get(void) {`\n`    pthread_mutex_lock(&m);`\n`    if (count == 0)`\n`        pthread_cond_wait(&cv, &m);`\n`    int v = buf[--count];`\n`    pthread_cond_signal(&cv);`\n`    pthread_mutex_unlock(&m);`\n`    return v;`\n`}`\n\nThere are two distinct defects. For each one: name it, give the exact interleaving of the three threads that exposes it - who holds the mutex, who is asleep, and what `count` is at each step - state the invariant it breaks, and give the fix. Then say why the second defect is not repaired by the fix for the first, and what a `broadcast` would and would not solve.\n\n**Part 5 - The crash.** Appending a block to a file writes the data block `D`, the inode `I` and the bitmap `B`. A data-journalling file system writes `TxBegin, D, I, B` into the log, waits, writes `TxEnd`, waits, checkpoints `D, I, B` into place, and then frees the log entry.\n\nSay what is on the disk and exactly what recovery does if power is lost (a) after the journal body but before `TxEnd`, (b) after `TxEnd` but during checkpointing, and (c) after the journal entry has been freed. Then argue why the barrier before `TxEnd` is not optional, and how a checksum in the commit block lets the two writes be issued together after all. Finish by saying which of the two possible inconsistencies - a leaked block, or a block claimed by an inode but marked free in the bitmap - the file system may tolerate and which it must never permit, and why ordered journalling still writes `D` before it journals the metadata.",
+   "explain": "A boss paper is graded on mechanism. Every number below falls out of running a rule step by step, and every argument is one instance of a single habit: name the invariant, then find the instant at which it does not hold.\n\n**Part 1.** FIFO runs A, B, C, D back to back, so `C` - which needs 2 - waits nine time units to begin; that is the convoy effect, and it is why FIFO's response time is so poor. SJF can reorder only at completion points, so it cannot rescue A's victims either: it takes C ahead of B at t = 8 and improves average turnaround by half a unit. Round robin cuts response to a third by touching every job early, and pays in turnaround, because interleaving stretches every job across the whole run - the tempting error is to expect round robin to win everywhere. MLFQ recovers SJF-like behaviour without an oracle by *observing* instead of being told: a job that relinquishes the CPU early stays high, a job that consumes whole slices is demoted, accounting is per level rather than per slice so that yielding at 99% of a quantum gains nothing, and a periodic boost keeps the demoted from starving.\n\n**Part 2.** A 4 KB page gives a 12-bit offset, so the split is exactly three hexadecimal digits from the right, and the offset passes through untouched - which is why the low three hex digits of a virtual address and of its physical address always agree. The entry's address is `PTBR + VPN * 4`; using the page size in place of the entry size is the standard slip here. `0x0000C008` is VPN 12, which has no valid entry, so the hardware raises a page fault and the operating system decides what happens next - the hardware does not. On a TLB miss the first translation costs two memory references, the entry and then the datum; on a hit, one. Sixty-four entries suffice because each covers 4 KB, so the TLB reaches 256 KB of *simultaneously active* pages, and a program touches far less than its total footprint in any short window.\n\n**Part 3.** This string is the classic demonstration that more memory does not always mean fewer faults. FIFO evicts by age, and age is uncorrelated with future use, so enlarging memory changes *which* pages are resident in a way that can be worse. LRU cannot do this because it has the stack property - the resident set with n frames is always a subset of the resident set with n + 1 frames - so no reference that hits with n frames can miss with more. LRU nevertheless loses to FIFO here because the string cycles through more distinct pages than fit, and a cyclic scan is exactly the pattern that turns recency into an anti-predictor: LRU evicts the page that is about to be wanted next, every time round. OPT is the unimplementable bound that says how much both policies left on the table.\n\n**Part 4.** The first defect is the `if`. Under Mesa semantics a signal means the condition *was* true, not that it is true now, so a woken consumer must recheck. Consumer one finds `count` at 0 and sleeps inside `pthread_cond_wait`, releasing the mutex. The producer then takes the mutex, puts an item, sets `count` to 1, signals and unlocks; consumer one is made runnable but does not yet hold the mutex. Consumer two, a fresh caller that was never asleep, acquires the mutex first, sees `count` at 1, skips its `if` entirely, takes the item, sets `count` back to 0, signals and unlocks. Only now does consumer one reacquire the mutex and return from the wait - straight past its `if`, executes `buf[--count]` with `count` at 0, drives it to -1 and reads outside the buffer. The invariant broken is that a consumer past its wait holds a non-empty buffer. The fix is `while` in both functions. The second defect is one condition variable serving two conditions: a consumer's signal can wake the other consumer instead of the sleeping producer, that consumer rechecks, finds the buffer empty and sleeps again, and now every thread is asleep with work outstanding. `while` does not repair this - it is precisely what sends the wrongly woken thread back to sleep - so the fix is two condition variables, one per condition. A `broadcast` also avoids the lost wakeup, because the right thread is always among those woken, but it wakes every thread so that all but one immediately sleep again: correctness bought at a thundering-herd price.\n\n**Part 5.** (a) The log holds a `TxBegin` and a body with no matching `TxEnd`, and nothing at the real addresses has changed, so recovery discards the transaction and the file system is exactly as it was before the append - the write is lost, which is permitted, because it was never acknowledged as durable. (b) The transaction is complete in the log, so recovery replays `D`, `I` and `B` to their final locations; replay is idempotent, so which of them had already landed does not matter. (c) There is nothing to replay and nothing to repair, because freeing the entry is the step that declares the update finished in place. The barrier before `TxEnd` is not optional because a disk may reorder the writes in its queue, and a `TxEnd` that reaches the platter before part of its own body leaves a transaction that *looks* valid and replays rubbish over live metadata - worse than the crash it was meant to survive. A checksum over the body, stored in the commit block, replaces the barrier with verification: recovery recomputes it and rejects any transaction whose body does not match, so both writes may be issued together and a rotation is saved. Of the two inconsistencies, a leaked block - marked allocated, referenced by nobody - is tolerable and later reclaimable; an inode pointing at a block the bitmap calls free must never occur, because that block will be allocated again and two files will silently share it. Ordered journalling writes `D` to its final location before journalling `I` and `B` for exactly that reason: metadata may be committed only once the bytes it points at are already there, or a crash can leave a valid-looking pointer aimed at another file's deleted contents.\n\n**Self-check - the numbers this paper must contain.**\n\n*Part 1.* FIFO: completions A = 8, B = 12, C = 14, D = 20; average turnaround **10.25**, average response **5.25**. SJF: completions A = 8, C = 10, B = 14, D = 20; average turnaround **9.75**, average response **4.75**. Round robin, quantum 2: completions C = 8, B = 10, A = 16, D = 20; average turnaround **10.25**, average response **1.75**.\n\n*Part 2.* `0x0000AF3C`: VPN **10**, offset **0xF3C**, entry at **0x00200028**, physical address **0x1FF3C**. `0x00004070`: VPN **4**, offset **0x070**, entry at **0x00200010**, physical address **0x07070**. `0x0000C008`: VPN **12**, offset **0x008**, entry at **0x00200030**, invalid - **page fault**. TLB miss: **2** memory references. TLB hit: **1**.\n\n*Part 3.* Three frames - FIFO **9** misses, LRU **10** misses, OPT **7** misses. Four frames - FIFO **10** misses. More memory and more misses is **Belady's anomaly**.\n\n*Part 4.* The defects are the `if` in place of `while` (Mesa semantics, a stolen item, `count` reaching -1) and a single condition variable for two conditions (a consumer wakes a consumer and the producer is never woken). The fixes are `while` in both functions and separate `empty` and `filled` condition variables.\n\n*Part 5.* (a) discard, nothing changed on disk; (b) replay the whole transaction, idempotently; (c) nothing to do. Tolerable: the leaked block. Never permitted: an inode pointing at a block the bitmap calls free.",
+   "xp": 300,
+   "concepts": [
+    "cpu-scheduling",
+    "scheduling-metrics",
+    "address-translation",
+    "paging",
+    "page-replacement",
+    "concurrency-bugs",
+    "condition-variables",
+    "crash-consistency",
+    "journaling"
+   ],
+   "tags": [
+    "cpu-scheduling",
+    "scheduling-metrics",
+    "address-translation",
+    "paging",
+    "page-replacement",
+    "concurrency-bugs",
+    "condition-variables",
+    "crash-consistency",
+    "journaling"
+   ],
+   "rubric": {
+    "required": [
+     "turnaround",
+     "respons",
+     "preempt",
+     "translat",
+     "offset",
+     "fault",
+     "evict",
+     "belady",
+     "while",
+     "signal",
+     "journal",
+     "commit"
+    ],
+    "optional": [
+     "convoy",
+     "starv",
+     "tlb",
+     "localit",
+     "checkpoint",
+     "ordered",
+     "fsck",
+     "deadlock",
+     "idempot",
+     "mesa",
+     "invariant",
+     "bitmap",
+     "broadcast",
+     "barrier",
+     "checksum",
+     "quantum"
+    ],
+    "minWords": 220
+   }
+  }
+ ]
+}

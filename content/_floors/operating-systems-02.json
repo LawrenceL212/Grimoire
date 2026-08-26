@@ -1,0 +1,1030 @@
+{
+ "n": 2,
+ "name": "Sharing the Only CPU",
+ "cognitiveLevel": "recognition",
+ "concepts": [
+  "limited-direct-execution",
+  "privilege-modes",
+  "system-calls",
+  "timer-interrupt",
+  "context-switch",
+  "turnaround-time",
+  "response-time",
+  "fifo-scheduling",
+  "convoy-effect",
+  "sjf-and-stcf",
+  "round-robin",
+  "mlfq"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "scheduling-drills",
+  "policy-design",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Direct execution, and the two things that go wrong",
+    "body": "The previous floor gave every process the illusion of owning the machine. The obvious way to run one is **direct execution**: load the program into memory, jump to its first instruction and let it run on the real CPU. That is not merely the fast way, it is the only way that is fast - any scheme where the OS inspects each instruction before it runs costs orders of magnitude, which is why emulators are slow and real operating systems are not.\n\nDirect execution alone gives the machine away, and it gives it away twice over. The first problem is **restricted operations**: a running process must be able to read a file or send a packet, yet it must not be able to read *any* file or scribble on the disk directly. The second is **regaining control**: once the OS has jumped into user code, the OS is not running any more, so how does it ever get the CPU back?\n\nThe answer to the first is the word *limited* in **limited direct execution**. The hardware carries a **mode bit**. In **user mode** the privileged instructions - issuing I/O, loading the page-table register, disabling interrupts - simply fault. In **kernel mode** everything is permitted. Crossing between them is not something a process may do at will; it happens by executing a **trap** instruction, which raises the privilege level and jumps *simultaneously*, to an address the process did not choose.\n\nIt did not choose it because at boot, in kernel mode, the OS installed a **trap table**: one entry per kind of trap, each holding the address of a handler. A system call is therefore not a call at all. The process puts a **system-call number** in a register - an index into a small fixed list of doors, not an address - traps, and the kernel decides what that number means. Let a process name the destination and the mode bit would be worth nothing, because user code could jump into the kernel wherever it pleased. On the way back the kernel executes **return-from-trap**, which restores the saved registers and drops the privilege level in one indivisible step.",
+    "code": "/* Limited direct execution. The \"direct\" is why it is fast: the process's\n   own instructions run on the real CPU, at full speed, unsupervised. */\nwhile (pc < end)\n    execute(*pc++);            /* no OS involvement at all */\n\n/* The \"limited\" is the whole trick. A privileged operation is not\n   forbidden - it is unreachable except through one door. */\nint fd = open(\"/tmp/log\", O_WRONLY);\n\n/* open() is a thin wrapper whose body is, in effect: */\nset_syscall_number(SYS_open);  /* which door, chosen from a fixed list */\ntrap();                        /* hardware: save regs, raise privilege,\n                                  jump to the trap table entry */\n/* ... the kernel runs, then executes return-from-trap ... */\n/* control resumes on the next line, back in user mode */\nreturn fd;",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Nothing here is checked, filtered or interpreted. This is the speed the whole design exists to preserve."
+     },
+     {
+      "line": 11,
+      "text": "A number, not an address. The kernel maps it to a handler through the trap table, so the set of reachable entry points is fixed at boot."
+     },
+     {
+      "line": 12,
+      "text": "One instruction that raises privilege and transfers control together. Splitting it in two would leave a window in which user code ran in kernel mode."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the three terms. Write the first as a single word, the second as a single word, and the third exactly as `return-from-trap`.",
+     "template": "The CPU carries a ___ bit deciding whether privileged instructions are allowed.\nUser code reaches the kernel by executing a ___ instruction.\nThe kernel hands control back by executing ___.",
+     "blanks": [
+      "mode",
+      "trap",
+      "return-from-trap"
+     ],
+     "explain": "The mode bit is hardware state rather than something the OS keeps in a variable, because the check has to happen on every instruction without any software involvement. The trap raises privilege and jumps in the same indivisible step, and return-from-trap undoes both the same way - if either could be split, user code would briefly run privileged.",
+     "tags": [
+      "privilege-modes",
+      "system-calls",
+      "limited-direct-execution"
+     ],
+     "concepts": [
+      "privilege-modes",
+      "system-calls",
+      "limited-direct-execution"
+     ]
+    }
+   },
+   {
+    "title": "Taking the CPU back, and handing it to someone else",
+    "body": "The second problem is harder, because it is not obvious the OS has any lever at all. The **cooperative** approach is to wait: a process gives up the CPU whenever it makes a system call, and a well-behaved program is expected to call `yield` now and then. This works right up until a process contains an infinite loop that makes no system calls, at which point the only remaining remedy is to reboot the machine. That is not a scheduling policy, it is a hope.\n\nThe real answer is a **timer interrupt**. At boot, in kernel mode, the OS programs a hardware timer to raise an interrupt every few milliseconds. The interrupt is not a request the process can decline; the hardware stops it, saves enough state to resume it, and jumps to the handler the trap table names. The OS regains the CPU whether the process wanted to give it up or not, and that single fact is what makes pre-emptive scheduling possible at all.\n\nInside the handler the OS decides whether to keep running the current process or switch. If it switches, it performs a **context switch**, and the thing worth remembering is that register state is saved *twice*, by two different parties. The hardware, on taking the interrupt, pushed the running process's **user registers** onto that process's kernel stack. Then software - a short routine, usually assembly - saves the **kernel registers** of the outgoing process into its process structure and loads the incoming process's from its own.\n\nThe last register restored is the stack pointer, and switching it is the moment of the switch: from the next instruction onward the kernel is running on a different process's stack, so return-from-trap pops that process's user registers and resumes it exactly where it left off. None of this is free - a switch costs on the order of a microsecond in direct work, plus the far larger indirect cost of a cache and TLB now full of the wrong process's data - and that cost is what stops us slicing time arbitrarily finely.",
+    "code": "/* Boot time, kernel mode: the OS arms the one thing that can take\n   the CPU back from a process that never asks for anything. */\nvoid boot(void) {\n    init_trap_table();            /* where to jump on trap and on interrupt */\n    start_timer(10 /* ms */);     /* fires whether the process likes it or not */\n    run_first_process();          /* return-from-trap into user mode */\n}\n\n/* Every 10 ms, in the timer handler, already in kernel mode: */\nvoid timer_interrupt(void) {\n    /* the hardware has already pushed the running process's user\n       registers onto that process's kernel stack and raised privilege */\n    proc_t *next = schedule();\n    if (next != current)\n        switch_context(&current->context, &next->context);\n    /* return-from-trap now pops next's user registers and drops to user mode */\n}\n\n/* switch_context is a dozen instructions of assembly: it saves the kernel\n   registers of the outgoing process into its process structure and loads\n   the incoming one's, stack pointer last. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Arming the timer is itself a privileged operation, and only the OS is ever in kernel mode at boot - so no process can disarm the thing that pre-empts it."
+     },
+     {
+      "line": 12,
+      "text": "The first of the two saves. It is done by hardware, into the kernel stack of the process being interrupted, before any OS instruction runs."
+     },
+     {
+      "line": 15,
+      "text": "The second save, done by software, into the process structures. Note the two arguments: one context is written, the other read."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the account of a context switch caused by a timer interrupt. The last blank is a number written as a word.",
+     "template": "The ___ saves the running process's user registers onto its kernel stack.\nSoftware then saves the outgoing process's kernel registers into its ___ structure.\nRegister state is therefore saved ___ times during one switch.",
+     "blanks": [
+      "hardware",
+      "process",
+      "two"
+     ],
+     "explain": "The split exists because the two saves have different jobs: the hardware save happens before any OS code runs at all and preserves what the interrupted process was doing, while the software save preserves where the kernel itself was, so that the switch routine can be returned into later. Assuming a single save is the usual mistake, and it makes the stack-pointer swap look like magic instead of the pivot it is.",
+     "tags": [
+      "context-switch",
+      "timer-interrupt"
+     ],
+     "concepts": [
+      "context-switch",
+      "timer-interrupt"
+     ]
+    }
+   },
+   {
+    "title": "Measuring a scheduler: turnaround and response",
+    "body": "Now that the OS can take the CPU back, it must decide who gets it, and any such decision needs a number to be judged against. Two numbers matter and they are not the same. **Turnaround time** is $T_{completion} - T_{arrival}$ - how long the job took from the user's point of view, end to end. **Response time** is $T_{firstrun} - T_{arrival}$ - how long the job sat there before anything happened at all.\n\nStart with **FIFO**: run jobs to completion in arrival order. It is trivially fair and it is fine when jobs are the same length. Give it three jobs arriving together, A needing 100 ms and B and C needing 10 ms each, and the turnaround times are 100, 110 and 120, averaging 110. The two short jobs waited a hundred milliseconds behind one long one for no reason except arrival order. This is the **convoy effect**, and you have met it at every supermarket till.\n\n**Shortest Job First** runs the same three jobs shortest-first, and the average turnaround falls to 50. Nothing was made faster - the total work is identical and the machine did not change - only the order did, which is worth pausing on, because it means average turnaround is as much a property of the queue as of the hardware. SJF is provably optimal for turnaround when all jobs arrive together.\n\nThat last condition is doing all the work. Let A arrive at 0 needing 100 and let B and C arrive at 10 needing 10 each: SJF, being non-pre-emptive, is already committed to A, and the average turnaround climbs back to 103.33. **Shortest Time-to-Completion First** adds pre-emption - which the timer has just made possible - and re-decides whenever a job arrives, bringing the average back to 50. Both policies, though, need to know how long each job will run, and a real operating system does not.",
+    "code": "/* Two numbers, and they are not the same number. */\nturnaround = completion - arrival;   /* how long the job took, end to end */\nresponse   = first_run  - arrival;   /* how long before it felt alive */\n\n/* FIFO. Three jobs arrive together: A needs 100, B and C need 10. */\n/*   A: 0 -> 100     B: 100 -> 110     C: 110 -> 120                */\n/*   turnaround 100, 110, 120  -> average 110                       */\n\n/* SJF runs exactly the same three jobs in the other order.         */\n/*   B: 0 -> 10      C: 10 -> 20       A: 20 -> 120                 */\n/*   turnaround 10, 20, 120    -> average 50                        */\n\n/* Nothing was made faster. The work is identical; only the queue changed. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A job can have an excellent response time and a dreadful turnaround time, or the reverse. Optimising one is not optimising the other."
+     },
+     {
+      "line": 7,
+      "text": "The convoy: each 10 ms job carries roughly 100 ms of waiting that has nothing whatever to do with its own work."
+     },
+     {
+      "line": 11,
+      "text": "110 down to 50 with no change to the machine. This is why scheduling is worth studying at all."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Three jobs arrive together at t = 0: A needs 100 ms, B needs 10 ms, C needs 10 ms. FIFO runs them in the order A, B, C. Give each turnaround time in milliseconds, and then the average.",
+     "steps": [
+      {
+       "label": "turnaround of A",
+       "expected": "100"
+      },
+      {
+       "label": "turnaround of B",
+       "expected": "110"
+      },
+      {
+       "label": "turnaround of C",
+       "expected": "120"
+      },
+      {
+       "label": "average turnaround",
+       "expected": "110"
+      }
+     ],
+     "explain": "Because all three arrive at zero, each turnaround is simply its completion time, and completion times accumulate down the queue. B's 110 is ten milliseconds of its own work sitting behind a hundred milliseconds of A's - the convoy - and it is that inherited wait, not any inefficiency in B, that the average is reporting.",
+     "tags": [
+      "fifo-scheduling",
+      "turnaround-time",
+      "convoy-effect"
+     ],
+     "concepts": [
+      "fifo-scheduling",
+      "turnaround-time",
+      "convoy-effect"
+     ]
+    }
+   },
+   {
+    "title": "Round robin, and a scheduler that learns",
+    "body": "Neither FIFO nor SJF has any answer for an interactive user, because both run a job to completion before the next one starts. **Round robin** does the opposite: run each job for a fixed **time slice**, or quantum, then switch to the next. With three 5 ms jobs and a 1 ms quantum the average response time is 1 ms rather than SJF's 5 ms, and the terminal feels alive.\n\nThe price is exact and unavoidable. Those same three jobs now finish at 13, 14 and 15 for an average turnaround of 14, against SJF's 10, because round robin stretches every job across the whole run. Any policy that is fair in the short term is bad for turnaround: sharing the CPU evenly means nobody finishes early. Shrinking the quantum improves response and costs nothing on paper - but each slice ends in a context switch, so a quantum near the switch cost spends most of the machine on switching. The quantum is chosen to **amortise** that cost: long enough that the switch is a small fraction of the slice, short enough to stay responsive.\n\nWhat we actually want is SJF's turnaround for the long jobs and round robin's response for the short ones, without being told in advance which is which. The **Multi-Level Feedback Queue** gets there by watching. It keeps several queues, each a priority level, and applies five rules. Rule 1: if A's priority exceeds B's, A runs. Rule 2: equal priorities round-robin between themselves. Rule 3: a new job enters at the **top** priority - an optimistic guess that it is short. Rule 4: once a job has used up its **allotment** of CPU time at a level, its priority drops one queue.\n\nThat is a scheduler that learns. A job that keeps consuming whole slices sinks and is treated as the long batch job it evidently is; a job that blocks for I/O after a millisecond never exhausts an allotment and stays near the top, getting excellent response. Two things then go wrong. Long jobs can **starve** if the upper queues never empty. And if rule 4 is written the naive way - as *give up the CPU before your slice ends and keep your priority* - a job can **game** it by issuing a needless I/O just before every slice expires, monopolising the top queue forever. Rule 5 fixes the first: every period $S$, move every job back to the top queue. Counting allotment as total CPU time used at a level, regardless of how many times the job relinquished the CPU, fixes the second.",
+    "code": "/* Round robin: slice the CPU instead of handing it over whole.        */\n/*   Three 5 ms jobs, 1 ms quantum: A B C A B C A B C ...              */\n/*   response   0,  1,  2 -> average  1   (SJF:  0,  5, 10 -> avg  5)  */\n/*   turnaround 13, 14, 15 -> average 14   (SJF:  5, 10, 15 -> avg 10) */\n\n/* MLFQ: guess a job's future from its past, then revise the guess. */\nproc_t *schedule(void) {\n    /* Rule 1: higher priority wins. Rule 2: equal priority round-robins. */\n    for (int q = TOP; q >= 0; q--)\n        if (!empty(queue[q]))\n            return rr_next(queue[q]);\n    return IDLE;\n}\n\nvoid on_tick(proc_t *p) {\n    /* Rule 3 already put p in the top queue when it arrived, optimistically. */\n    if (++p->used >= allotment[p->prio] && p->prio > 0)\n        p->prio--;                    /* Rule 4: allotment spent, you sink */\n    if (now % BOOST_PERIOD == 0)\n        for_each_process(raise_to_top);  /* Rule 5: everybody back to the top */\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Response improved fivefold and turnaround got forty per cent worse. The trade is not a quirk of this example; it is what short-term fairness costs."
+     },
+     {
+      "line": 17,
+      "text": "`used` counts total CPU time consumed at this level. Counting completed slices instead is the bug that lets a job game the scheduler with a needless I/O."
+     },
+     {
+      "line": 19,
+      "text": "The boost is the anti-starvation rule, and it also forgives a job that used to be CPU-bound and has since turned interactive."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "An MLFQ has three queues: Q2 (highest), Q1 and Q0 (lowest). The allotment at each level is 10 ms and there is no priority boost. Job A arrives at t = 0, needs 200 ms of CPU and runs alone on the machine. Name the queue A occupies at each moment, written as `Q2`, `Q1` or `Q0`.",
+     "steps": [
+      {
+       "label": "at t = 5",
+       "expected": "Q2"
+      },
+      {
+       "label": "at t = 15",
+       "expected": "Q1"
+      },
+      {
+       "label": "at t = 25",
+       "expected": "Q0"
+      },
+      {
+       "label": "at t = 150",
+       "expected": "Q0"
+      }
+     ],
+     "explain": "Rule 3 puts A at the top on arrival, and rule 4 drops it one level each time it spends a full 10 ms allotment, so it reaches the bottom after 20 ms and stays there - there is nowhere further to fall. The tempting answer for t = 150 is that A has fallen off the bottom or been penalised again, but the lowest queue is absorbing: from then on A simply round-robins with whatever else has sunk to join it.",
+     "tags": [
+      "mlfq",
+      "round-robin"
+     ],
+     "concepts": [
+      "mlfq",
+      "round-robin"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-2-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these events in the order they occur when a user process performs a system call under limited direct execution.",
+   "fragments": [
+    "The kernel, now in kernel mode, validates the arguments and performs the privileged work",
+    "The process, running in user mode, places a system-call number in a register and executes a trap instruction",
+    "The process resumes at the instruction after the trap, in user mode, with the result in a register",
+    "The hardware saves the caller's registers to its kernel stack, raises the privilege level, and jumps to the handler the trap table names for that number",
+    "The kernel executes return-from-trap, restoring the saved registers and lowering the privilege level"
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    4,
+    2
+   ],
+   "concepts": [
+    "limited-direct-execution",
+    "system-calls",
+    "privilege-modes"
+   ],
+   "tags": [
+    "limited-direct-execution",
+    "system-calls",
+    "privilege-modes"
+   ],
+   "explain": "The order is forced by who is privileged at each moment: the process cannot do the work itself, so it must trap first, and the trap must raise privilege and transfer control together or there would be an instant in which user code held kernel powers. Note that the process never names the handler's address - it names a number, and the trap table chosen at boot turns that number into an address. The common mistake is to imagine the trap as a function call into the kernel, which would put the destination under the caller's control and make the mode bit pointless.",
+   "xp": 20
+  },
+  {
+   "id": "os-2-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the description of how the kernel is entered safely. Each blank is a single word.",
+   "template": "At boot, in kernel mode, the OS installs a ___ table telling the hardware where to jump on each kind of trap.\nA user process supplies a system-call ___ rather than an address.\nThe instruction that installs the table is itself ___.",
+   "blanks": [
+    "trap",
+    "number",
+    "privileged"
+   ],
+   "concepts": [
+    "limited-direct-execution",
+    "system-calls",
+    "privilege-modes"
+   ],
+   "tags": [
+    "limited-direct-execution",
+    "system-calls"
+   ],
+   "explain": "Every part of this exists to keep the set of kernel entry points fixed and small. If a process could pass an address it would jump into the middle of the kernel with privilege already raised, and the mode bit would protect nothing; a number indexes a list the OS itself wrote. The installation must in turn be privileged, or a process could simply rewrite the table and point an entry at its own code.",
+   "xp": 20
+  },
+  {
+   "id": "os-2-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three jobs arrive together at t = 0: A needs 100 ms, B needs 10 ms, C needs 10 ms. A FIFO scheduler runs them in the order A, B, C. Give each value in milliseconds.",
+   "steps": [
+    {
+     "label": "turnaround of A",
+     "expected": "100"
+    },
+    {
+     "label": "turnaround of B",
+     "expected": "110"
+    },
+    {
+     "label": "turnaround of C",
+     "expected": "120"
+    },
+    {
+     "label": "average turnaround",
+     "expected": "110"
+    },
+    {
+     "label": "average response time",
+     "expected": "70"
+    }
+   ],
+   "concepts": [
+    "fifo-scheduling",
+    "convoy-effect",
+    "turnaround-time",
+    "response-time"
+   ],
+   "tags": [
+    "fifo-scheduling",
+    "convoy-effect",
+    "turnaround-time",
+    "response-time"
+   ],
+   "explain": "With every arrival at zero, turnaround is just completion time, so the three are 100, 110 and 120 for an average of 110. The response times are 0, 100 and 110, averaging 70 - and the gap between those two averages is the whole story of the convoy. B and C each do ten milliseconds of work and each spend about a hundred milliseconds behind A for no reason but arrival order. The tempting error is to average 100, 10 and 10, which is average *run* time and measures the workload rather than the scheduler.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague proposes running each process by simply jumping to its first instruction and letting it go, on the grounds that anything else is slower. Explain the two distinct problems this creates, name the mechanism that solves each, and say why the fast path survives both.",
+   "rubric": {
+    "required": [
+     "privileg",
+     "trap",
+     "restrict",
+     "timer",
+     "interrupt",
+     "control"
+    ],
+    "optional": [
+     "mode",
+     "kernel",
+     "cooperat",
+     "table",
+     "reboot",
+     "boot",
+     "yield"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "limited-direct-execution",
+    "privilege-modes",
+    "system-calls",
+    "timer-interrupt"
+   ],
+   "tags": [
+    "limited-direct-execution",
+    "privilege-modes",
+    "system-calls",
+    "timer-interrupt"
+   ],
+   "explain": "Your colleague is right about speed, and that is exactly why the design keeps direct execution and merely limits it. The first problem is restricted operations: a process needs I/O but must not be allowed to touch devices directly, solved by the mode bit plus a trap instruction that raises privilege and jumps to a boot-installed table entry in one step. The second is regaining control, a different problem with a different answer - waiting for the process to call back in is cooperative and fails against a loop that makes no calls, leaving reboot as the only remedy, so the OS arms a timer interrupt that fires regardless. The fast path survives both because neither mechanism sits between the process and the CPU: ordinary instructions still run unsupervised at full speed, and the cost is paid only at the boundary crossings.",
+   "xp": 20
+  }
+ ],
+ "scheduling-drills": [
+  {
+   "id": "os-2-s-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "The same three jobs arrive together at t = 0: A needs 100 ms, B needs 10 ms, C needs 10 ms. Now a Shortest Job First scheduler runs them. Give each value in milliseconds.",
+   "steps": [
+    {
+     "label": "turnaround of B",
+     "expected": "10"
+    },
+    {
+     "label": "turnaround of C",
+     "expected": "20"
+    },
+    {
+     "label": "turnaround of A",
+     "expected": "120"
+    },
+    {
+     "label": "average turnaround",
+     "expected": "50"
+    },
+    {
+     "label": "average response time",
+     "expected": "10"
+    }
+   ],
+   "concepts": [
+    "sjf-and-stcf",
+    "turnaround-time",
+    "response-time",
+    "convoy-effect"
+   ],
+   "tags": [
+    "sjf-and-stcf",
+    "turnaround-time",
+    "response-time"
+   ],
+   "explain": "The average turnaround falls from 110 to 50 without the machine doing a single instruction less - only the order changed. A pays for it, rising from 100 to 120, and that is the bargain SJF strikes: it makes one long job slightly worse off to make several short jobs dramatically better off, which lowers the mean because the mean is dominated by how many jobs waited rather than by how long any one of them ran.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-s-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Job A arrives at t = 0 and needs 100 ms. Jobs B and C both arrive at t = 10 and each need 10 ms. Compare non-pre-emptive Shortest Job First, which never interrupts a running job, with Shortest Time-to-Completion First, which re-decides whenever a job arrives. Ties are broken in favour of B. Give each turnaround time in milliseconds.",
+   "steps": [
+    {
+     "label": "SJF: turnaround of A",
+     "expected": "100"
+    },
+    {
+     "label": "SJF: turnaround of B",
+     "expected": "100"
+    },
+    {
+     "label": "SJF: turnaround of C",
+     "expected": "110"
+    },
+    {
+     "label": "STCF: turnaround of A",
+     "expected": "120"
+    },
+    {
+     "label": "STCF: turnaround of B",
+     "expected": "10"
+    },
+    {
+     "label": "STCF: turnaround of C",
+     "expected": "20"
+    },
+    {
+     "label": "STCF: average turnaround",
+     "expected": "50"
+    }
+   ],
+   "concepts": [
+    "sjf-and-stcf",
+    "turnaround-time",
+    "timer-interrupt"
+   ],
+   "tags": [
+    "sjf-and-stcf",
+    "turnaround-time"
+   ],
+   "explain": "Under SJF, A is already running when B and C turn up, and a non-pre-emptive scheduler is committed: B finishes at 110 having arrived at 10, giving 100, and C finishes at 120 for 110, an average of 103.33 against STCF's 50. STCF stops A at t = 10, clears both short jobs by t = 30 and returns to A, so B and C get turnarounds of 10 and 20 while A rises to 120. The point is that SJF's optimality depends entirely on all jobs arriving together, and the moment they do not, pre-emption - which exists only because the timer interrupt exists - is what recovers it.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-s-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three jobs arrive together at t = 0, each needing exactly 5 ms. Compare round robin with a 1 ms quantum, cycling A, B, C, against SJF running them in the order A, B, C. Ignore context-switch cost. Give each value in milliseconds.",
+   "steps": [
+    {
+     "label": "round robin: average response time",
+     "expected": "1"
+    },
+    {
+     "label": "round robin: average turnaround",
+     "expected": "14"
+    },
+    {
+     "label": "SJF: average response time",
+     "expected": "5"
+    },
+    {
+     "label": "SJF: average turnaround",
+     "expected": "10"
+    }
+   ],
+   "concepts": [
+    "round-robin",
+    "response-time",
+    "turnaround-time",
+    "sjf-and-stcf"
+   ],
+   "tags": [
+    "round-robin",
+    "response-time",
+    "turnaround-time"
+   ],
+   "explain": "Round robin's first runs are at 0, 1 and 2, so response averages 1 against SJF's 5; but the jobs now complete at 13, 14 and 15 rather than 5, 10 and 15, so turnaround rises from 10 to 14. This is not a flaw in this particular example. Any policy that shares the CPU evenly in the short term pushes every job's completion towards the end of the run, so it is close to the worst possible policy for turnaround precisely because it is the best for response. The tempting reading is that round robin is simply better because everyone starts sooner - it is better at one metric, and the same mechanism is what makes it worse at the other.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-s-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three jobs, each needing 12 ms of CPU, run under round robin with quantum q. A context switch costs 1 ms and one occurs between each pair of consecutive time slices, but not after the final slice. Give the number of context switches and the total elapsed time in milliseconds.",
+   "steps": [
+    {
+     "label": "q = 2: number of context switches",
+     "expected": "17"
+    },
+    {
+     "label": "q = 2: total elapsed time",
+     "expected": "53"
+    },
+    {
+     "label": "q = 4: number of context switches",
+     "expected": "8"
+    },
+    {
+     "label": "q = 4: total elapsed time",
+     "expected": "44"
+    },
+    {
+     "label": "q = 12: total elapsed time",
+     "expected": "38"
+    }
+   ],
+   "concepts": [
+    "context-switch",
+    "round-robin"
+   ],
+   "tags": [
+    "context-switch",
+    "round-robin"
+   ],
+   "explain": "With q = 2 each job takes six slices, so there are eighteen slices and seventeen switches, and 36 ms of real work costs 53 ms of machine time - nearly a third of the CPU spent switching rather than computing. At q = 4 that overhead falls to 8 ms, and at q = 12 the policy has degenerated into FIFO with just 2 ms. This is why the quantum is not simply made as small as possible: the switch cost is amortised over the slice, so halving the quantum roughly doubles the overhead. Real systems also pay a larger indirect cost - caches and TLB entries belonging to the wrong process - which this arithmetic does not even include.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-s-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these events in the order they occur when a timer interrupt causes the OS to switch from process A to process B.",
+   "fragments": [
+    "The scheduler decides that B should run instead of A",
+    "The timer fires, and the hardware saves A's user registers onto A's kernel stack, raises the privilege level and jumps to the interrupt handler",
+    "Process B resumes in user mode at the instruction it was interrupted on earlier",
+    "Return-from-trap pops B's user registers from B's kernel stack and lowers the privilege level",
+    "The switch routine saves A's kernel registers into A's process structure and restores B's from B's, switching the stack pointer last"
+   ],
+   "answer": [
+    1,
+    0,
+    4,
+    3,
+    2
+   ],
+   "concepts": [
+    "context-switch",
+    "timer-interrupt",
+    "privilege-modes"
+   ],
+   "tags": [
+    "context-switch",
+    "timer-interrupt"
+   ],
+   "explain": "The two saves happen at different times and by different agents, and the order tells you why. The hardware save comes first because it must happen before any OS instruction runs, otherwise the handler would destroy the very state it is meant to preserve. The software save comes after the scheduling decision, because there is no point saving kernel context if the answer turns out to be 'keep running A'. Switching the stack pointer is the pivot: from that instruction onwards the kernel is executing on B's stack, which is why the return-from-trap that follows finds B's registers rather than A's.",
+   "xp": 20
+  }
+ ],
+ "policy-design": [
+  {
+   "id": "os-2-p-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An MLFQ has three queues: Q2 (highest), Q1 and Q0 (lowest). The allotment at each level is 10 ms, the lowest queue round-robins with a 10 ms quantum, and there is no priority boost. Job A arrives at t = 0 and needs 200 ms. Job B arrives at t = 100 and needs 20 ms. Neither performs I/O. Answer with a queue name, a job name or a number of milliseconds as appropriate.",
+   "steps": [
+    {
+     "label": "queue A occupies at t = 25",
+     "expected": "Q0"
+    },
+    {
+     "label": "job running during 100-110",
+     "expected": "B"
+    },
+    {
+     "label": "queue B occupies at t = 115",
+     "expected": "Q1"
+    },
+    {
+     "label": "time at which B completes",
+     "expected": "120"
+    },
+    {
+     "label": "B's turnaround time",
+     "expected": "20"
+    },
+    {
+     "label": "CPU time A has received by t = 120",
+     "expected": "100"
+    }
+   ],
+   "concepts": [
+    "mlfq",
+    "round-robin",
+    "turnaround-time"
+   ],
+   "tags": [
+    "mlfq",
+    "round-robin",
+    "turnaround-time"
+   ],
+   "explain": "A sinks to Q0 by t = 20 because it spends a full allotment at each of the two levels above, and then runs undisturbed until B arrives. Rule 3 admits B at the top, so rule 1 pre-empts A immediately - which is the entire point: the scheduler has no idea B is short, but assuming it is costs at most one allotment if the guess turns out wrong. B spends 10 ms in Q2, drops to Q1, spends its second 10 ms there and finishes at 120 with a turnaround of 20 rather than the 120 that FIFO would have given it. A has still received exactly the 100 ms it ran before B arrived; being pre-empted delays a job but never takes completed work back.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-p-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The same MLFQ - three queues Q2, Q1, Q0, a 10 ms allotment at each level, a 10 ms round-robin quantum in Q0 - now applies rule 5, a priority boost every S = 50 ms that moves every job to Q2 and resets its allotment. Job A arrives at t = 0 needing 100 ms; job B arrives at t = 25 needing 100 ms. Where both sit in Q0, A is ahead of B in the round-robin order. Answer with a queue name, a job name or a number of milliseconds.",
+   "steps": [
+    {
+     "label": "job running during 25-35",
+     "expected": "B"
+    },
+    {
+     "label": "queue B occupies at t = 40",
+     "expected": "Q1"
+    },
+    {
+     "label": "queue A occupies at t = 49",
+     "expected": "Q0"
+    },
+    {
+     "label": "queue A occupies at t = 51",
+     "expected": "Q2"
+    },
+    {
+     "label": "CPU time A has received by t = 50",
+     "expected": "30"
+    },
+    {
+     "label": "CPU time B has received by t = 50",
+     "expected": "20"
+    }
+   ],
+   "concepts": [
+    "mlfq",
+    "timer-interrupt",
+    "response-time"
+   ],
+   "tags": [
+    "mlfq",
+    "timer-interrupt",
+    "response-time"
+   ],
+   "explain": "A has already sunk to Q0 by t = 20, so B's arrival at the top pre-empts it at once, and B spends 25 to 35 in Q2 and 35 to 45 in Q1 before joining A at the bottom. A then runs from 45 until the boost, having accumulated 25 + 5 = 30 ms against B's 20. The boost at t = 50 is the interesting line: without it, a steady stream of new arrivals would keep the upper queues occupied and A could starve indefinitely, since rule 1 never looks at a lower queue while a higher one is non-empty. Resetting everyone to Q2 guarantees a lower bound on progress and, as a bonus, forgives a job whose behaviour has changed from CPU-bound to interactive.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-p-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A hobby operating system schedules processes only when they make a system call, on the assumption that every program will call `yield` periodically. It runs beautifully for weeks. Then a user compiles a program containing `while (1) { x++; }`, runs it, and the machine stops responding entirely - the shell, the clock and the network all freeze, and only the reset button helps. Name the cause and explain why the design made this outcome inevitable.",
+   "answer": "no timer interrupt",
+   "rubric": {
+    "required": [
+     "timer",
+     "interrupt",
+     "cooperat",
+     "yield",
+     "control",
+     "reboot"
+    ],
+    "optional": [
+     "pre-empt",
+     "preempt",
+     "system call",
+     "boot",
+     "privileg",
+     "trust",
+     "loop"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "timer-interrupt",
+    "limited-direct-execution",
+    "system-calls",
+    "privilege-modes"
+   ],
+   "tags": [
+    "timer-interrupt",
+    "limited-direct-execution",
+    "system-calls"
+   ],
+   "explain": "The scheduler is cooperative, so the OS regains the CPU only when a process hands it back through a system call, and this loop makes none - no I/O, no `yield`, not even a memory allocation. The OS is therefore not running, and code that is not running cannot schedule anything, which is why every other subsystem freezes with it rather than just the offending program. The tempting diagnosis is a bug in the loop or a priority inversion, but nothing is wrong with the program at all: it is a perfectly legal computation, and a design that depends on every program being polite has no defence against an impolite one that need not even be malicious. The fix is structural rather than a patch to the scheduler - arm a hardware timer at boot so that an interrupt returns control on a fixed period whether the process cooperates or not.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-p-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An MLFQ implements rule 4 as: a job that uses its entire time slice drops one queue, but a job that relinquishes the CPU before its slice ends keeps its current priority. A developer notices that their batch job runs far faster if, just before each 10 ms slice would expire, it issues a 1 ms read of a file it does not need. Long-running jobs on the same machine now make almost no progress. Name what the developer is doing and explain the flaw in rule 4 that permits it.",
+   "answer": "gaming the scheduler",
+   "rubric": {
+    "required": [
+     "priorit",
+     "slice",
+     "allot",
+     "starv",
+     "total"
+    ],
+    "optional": [
+     "relinquish",
+     "queue",
+     "interactiv",
+     "monopol",
+     "account",
+     "sink",
+     "demot"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "mlfq",
+    "round-robin",
+    "context-switch"
+   ],
+   "tags": [
+    "mlfq",
+    "round-robin"
+   ],
+   "explain": "Rule 4 as written infers 'interactive' from a single observation - did this job finish its slice? - and that observation is entirely under the job's control. By giving up the CPU with a millisecond to spare, the job never once uses a whole slice, so it never sinks, and it retains top priority while consuming roughly ninety per cent of every slice it is given. Rule 1 then does the rest: while a top-queue job is runnable the genuinely long jobs below it are never even considered, so they starve. The tempting reading is that the developer found a clever optimisation, but the gain is taken directly from the other jobs and nothing on the machine goes faster in aggregate. The repair lies in the accounting rather than the rule: track the total CPU time a job has consumed at its current level and demote it once that reaches the allotment, however many times it relinquished the CPU along the way.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-p-05",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are specifying the CPU scheduler for a developer workstation that concurrently runs a compile farm of long batch jobs, an interactive shell, and a video call that must not stutter. Argue for a multi-level feedback queue. State which metric each of the three workloads actually cares about; explain why FIFO, SJF, STCF and plain round robin each fail on at least one of them, including the fact that SJF and STCF need a job's length in advance; give the rules your scheduler uses, including how allotment is accounted for and why, and how you would choose the boost period and the quantum; and be honest about what each choice costs. There are no tests here: your answer is marked against a rubric of the points it must cover.",
+   "rubric": {
+    "required": [
+     "turnaround",
+     "respons",
+     "allot",
+     "boost",
+     "starv",
+     "quantum",
+     "priorit",
+     "context switch"
+    ],
+    "optional": [
+     "convoy",
+     "pre-empt",
+     "preempt",
+     "oracle",
+     "interactiv",
+     "batch",
+     "demot",
+     "amortis",
+     "game"
+    ],
+    "minWords": 140
+   },
+   "concepts": [
+    "mlfq",
+    "round-robin",
+    "sjf-and-stcf",
+    "fifo-scheduling",
+    "turnaround-time",
+    "response-time",
+    "context-switch",
+    "convoy-effect"
+   ],
+   "tags": [
+    "mlfq",
+    "round-robin",
+    "sjf-and-stcf",
+    "turnaround-time",
+    "response-time",
+    "context-switch"
+   ],
+   "explain": "The argument has a shape worth learning. The three workloads want different numbers: the compile farm wants low average turnaround, the shell and the call want low response time, and no single figure describes all three. FIFO delivers the convoy - a thirty-second compile in front of a keystroke - while SJF and STCF give excellent turnaround but require an oracle that says how long each job will run, which no real OS has, and both still make the video call wait behind whatever is running. Round robin fixes response and ruins turnaround by stretching every job to the end of the run. The MLFQ replaces the oracle with observation: admit every job at the top optimistically, demote it when it spends its allotment at a level, and let jobs that block for I/O stay high without any special case for them. Account allotment as total CPU time consumed at that level rather than as slices completed, or a job games the scheduler by relinquishing the CPU a millisecond early forever. Boost every job to the top periodically, with $S$ chosen short enough that a long job's worst-case wait is tolerable and long enough that it does not throw away the classification you spent effort learning. Choose a quantum that amortises the context switch - a few milliseconds, tens or hundreds of times the switch cost - and say plainly that a shorter one buys response and spends the machine on switching and cold caches. An answer that stops at 'use an MLFQ' has skipped every interesting half.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-2-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is a job's turnaround time?",
+   "choices": [
+    "The time from the job's arrival until it first runs",
+    "The time from the job's arrival until it completes",
+    "The time the job spends actually executing on the CPU",
+    "The interval between two consecutive context switches"
+   ],
+   "answer": 1,
+   "concepts": [
+    "turnaround-time"
+   ],
+   "tags": [
+    "turnaround-time"
+   ],
+   "explain": "Turnaround is $T_{completion} - T_{arrival}$, so it includes every millisecond the job spent waiting for someone else. The first option is response time, and confusing the two is the mistake this whole floor is built around - a job can have superb response and dreadful turnaround, which is exactly what round robin produces. The third describes run time, a property of the job rather than of the scheduler, and no scheduling policy can improve it.",
+   "xp": 10
+  },
+  {
+   "id": "os-2-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these happen during a context switch triggered by a timer interrupt? Select all that apply.",
+   "choices": [
+    "The hardware saves the interrupted process's user registers onto its kernel stack",
+    "Software saves the outgoing process's kernel registers into its process structure",
+    "The kernel stack pointer is switched to the incoming process's kernel stack",
+    "The outgoing process's program is reloaded from disk"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "context-switch",
+    "timer-interrupt"
+   ],
+   "tags": [
+    "context-switch",
+    "timer-interrupt"
+   ],
+   "explain": "Register state is saved twice by two different agents, and the stack-pointer swap is the pivot between outgoing and incoming process. Nothing is read from disk: the outgoing process's memory stays exactly where it is, which is what makes a switch cost microseconds rather than milliseconds - and it is also why the real expense is indirect, in the caches and TLB entries the incoming process now finds full of the wrong data.",
+   "xp": 10
+  },
+  {
+   "id": "os-2-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the two scheduling metrics. Each blank is a single word drawn from `arrival`, `completion`, `first_run`.",
+   "template": "turnaround = ___ - arrival\nresponse   = first_run - ___",
+   "blanks": [
+    "completion",
+    "arrival"
+   ],
+   "concepts": [
+    "turnaround-time",
+    "response-time"
+   ],
+   "tags": [
+    "turnaround-time",
+    "response-time"
+   ],
+   "explain": "Both metrics subtract arrival, because both ask how long the job has been waiting from the user's point of view rather than from the machine's. What differs is the end point, and that single difference is what pulls scheduling policies in opposite directions: shortening the wait before the first run means switching often, and switching often pushes every completion later.",
+   "xp": 20
+  },
+  {
+   "id": "os-2-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Four jobs run under Shortest Time-to-Completion First on one CPU. A arrives at t = 0 needing 10 ms, B arrives at t = 2 needing 4 ms, C arrives at t = 4 needing 1 ms, D arrives at t = 6 needing 5 ms. Put the jobs in the order they complete.",
+   "fragments": [
+    "A (arrives at 0, needs 10 ms)",
+    "B (arrives at 2, needs 4 ms)",
+    "C (arrives at 4, needs 1 ms)",
+    "D (arrives at 6, needs 5 ms)"
+   ],
+   "answer": [
+    2,
+    1,
+    3,
+    0
+   ],
+   "concepts": [
+    "sjf-and-stcf",
+    "turnaround-time"
+   ],
+   "tags": [
+    "sjf-and-stcf",
+    "turnaround-time"
+   ],
+   "explain": "STCF compares remaining time, not original length, and re-decides on every arrival. A runs from 0 to 2 and is pre-empted by B, which has 4 left against A's 8; C arrives at 4 with 1 against B's remaining 2, so C pre-empts and finishes at 5; B resumes and finishes at 7; D, arriving at 6 with 5, beats A's remaining 8 and finishes at 12; A finishes last, at 20. Sorting by original length happens to give the same answer here, which is the trap - it is remaining time that decides, and A's early two milliseconds are exactly the sort of thing that makes the two rules diverge.",
+   "xp": 20
+  },
+  {
+   "id": "os-2-x-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three jobs arrive together at t = 0: A needs 8 ms, B needs 4 ms, C needs 4 ms. Compare round robin with a 2 ms quantum, cycling A, B, C, against FIFO running them in the order A, B, C. Ignore context-switch cost. Give each value in milliseconds.",
+   "steps": [
+    {
+     "label": "round robin: completion time of B",
+     "expected": "10"
+    },
+    {
+     "label": "round robin: completion time of A",
+     "expected": "16"
+    },
+    {
+     "label": "round robin: average response time",
+     "expected": "2"
+    },
+    {
+     "label": "FIFO: average turnaround",
+     "expected": "12"
+    },
+    {
+     "label": "FIFO: response time of C",
+     "expected": "12"
+    }
+   ],
+   "concepts": [
+    "round-robin",
+    "fifo-scheduling",
+    "response-time",
+    "turnaround-time"
+   ],
+   "tags": [
+    "round-robin",
+    "fifo-scheduling",
+    "response-time",
+    "turnaround-time"
+   ],
+   "explain": "The round-robin schedule is A, B, C, A, B, C, A, A in 2 ms slices, so B completes at 10, C at 12 and A at 16, with first runs at 0, 2 and 4 for an average response of 2. FIFO completes at 8, 12 and 16 for an average turnaround of 12, against round robin's 12.67 - slightly worse, as always - while C's response falls from 12 to 4. Notice how small the turnaround penalty is compared with the earlier example of three equal 5 ms jobs: when the jobs are of comparable length there is less for round robin to spoil, which is the practical reason it is a reasonable default in a queue of similar tasks and a poor one in a queue containing a single giant job.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An MLFQ has three queues Q2 (highest), Q1 and Q0 (lowest), an allotment of 10 ms at each level, a 10 ms round-robin quantum in Q0 and no priority boost. Jobs A and B both arrive at t = 0, each needing 200 ms, and A is ahead of B in every queue's round-robin order. Neither performs I/O. Answer with a queue name, a job name or a number of milliseconds.",
+   "steps": [
+    {
+     "label": "queue A occupies at t = 25",
+     "expected": "Q1"
+    },
+    {
+     "label": "job running during 30-40",
+     "expected": "B"
+    },
+    {
+     "label": "queue A occupies at t = 45",
+     "expected": "Q0"
+    },
+    {
+     "label": "queue B occupies at t = 45",
+     "expected": "Q0"
+    },
+    {
+     "label": "CPU time A has received by t = 60",
+     "expected": "30"
+    }
+   ],
+   "concepts": [
+    "mlfq",
+    "round-robin"
+   ],
+   "tags": [
+    "mlfq",
+    "round-robin"
+   ],
+   "explain": "Rule 2 alternates them at each level: A takes 0 to 10 in Q2 and drops, B takes 10 to 20 and drops, A takes 20 to 30 in Q1 and drops, B takes 30 to 40 and drops, and from 40 onwards both round-robin in Q0. The trap is answering Q0 for A at t = 25 - A has been demoted once, not twice, because B held the CPU between 10 and 20, and demotion is charged for CPU time consumed rather than for wall-clock time elapsed. By t = 60 A has run three slices of 10 ms, for a total of 30.",
+   "xp": 40
+  },
+  {
+   "id": "os-2-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why lowering the time-slice length improves average response time but worsens both average turnaround time and the machine's throughput. Say what actually bounds how small a useful quantum can be.",
+   "rubric": {
+    "required": [
+     "quantum",
+     "respons",
+     "turnaround",
+     "context switch",
+     "overhead",
+     "amortis"
+    ],
+    "optional": [
+     "slice",
+     "cache",
+     "TLB",
+     "fair",
+     "throughput",
+     "indirect",
+     "stretch"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "round-robin",
+    "response-time",
+    "turnaround-time",
+    "context-switch"
+   ],
+   "tags": [
+    "round-robin",
+    "response-time",
+    "turnaround-time",
+    "context-switch"
+   ],
+   "explain": "A shorter quantum means every runnable job gets its first slice sooner, so response falls - it is bounded below by roughly the quantum times the number of runnable jobs. The same evenness is what harms turnaround: sharing the CPU finely stretches every job across the whole run so that completions cluster at the end instead of arriving one at a time, and a policy that is perfectly fair in the short term is close to the worst possible one for average turnaround. Throughput is a separate loss, because every slice boundary is a context switch that does no useful work; the switch cost is amortised over the slice, so as the quantum approaches that cost the fraction of the machine spent switching approaches a half. The real bound is tighter than the arithmetic suggests, because the direct cost of saving registers is dwarfed by the indirect cost of resuming a process whose cache and TLB entries have been evicted by whoever ran in between.",
+   "xp": 20
+  },
+  {
+   "id": "os-2-x-08",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A media appliance runs about twenty threads. Its scheduler currently uses a 200 ms round-robin quantum, chosen because a context switch costs roughly 0.2 ms and the team wanted overhead under one part in a thousand. Users report that button presses take up to four seconds to register, though throughput measurements look excellent. Assess the team's reasoning, recommend a quantum, and say what your recommendation costs and what it does not fix.",
+   "rubric": {
+    "required": [
+     "quantum",
+     "respons",
+     "overhead",
+     "context switch",
+     "trade",
+     "priorit"
+    ],
+    "optional": [
+     "turnaround",
+     "amortis",
+     "interactiv",
+     "MLFQ",
+     "boost",
+     "cache",
+     "throughput",
+     "starv"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "round-robin",
+    "response-time",
+    "context-switch",
+    "mlfq"
+   ],
+   "tags": [
+    "round-robin",
+    "response-time",
+    "context-switch",
+    "mlfq"
+   ],
+   "explain": "The team optimised the one metric their measurements showed. With twenty threads and a 200 ms quantum, worst-case response is nineteen slices of waiting - about 3.8 seconds - which matches the complaint exactly, so the fault is not a bug anywhere but the quantum itself. A few milliseconds is the right order: at 5 ms the worst case falls below 100 ms while overhead rises to about 0.2 in 5.2, roughly four per cent, which is a real cost and should be stated rather than hidden, and the indirect cache and TLB cost makes the true figure higher still. The deeper point is that no single quantum serves both a decoder thread that wants throughput and a button handler that wants response, so the honest recommendation is a shorter quantum *and* priorities - an MLFQ that lets the interactive threads stay near the top while the batch work sinks - with a boost so that the sunk threads cannot starve. Changing the quantum alone improves the worst case but still gives every thread an equal share whether it needs one or not.",
+   "xp": 40
+  }
+ ]
+}

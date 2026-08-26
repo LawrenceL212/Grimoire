@@ -1,0 +1,946 @@
+{
+ "n": 8,
+ "name": "The Deep Archive",
+ "cognitiveLevel": "transfer",
+ "concepts": [
+  "device-protocol",
+  "interrupts-vs-polling",
+  "dma",
+  "disk-geometry",
+  "sequential-vs-random",
+  "flash-ssd",
+  "inode-structure",
+  "directories-as-files",
+  "hard-vs-soft-links",
+  "crash-consistency",
+  "journaling"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "disk-and-device-lab",
+  "file-system-forensics",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "How the CPU talks to a device",
+    "body": "A device is not a magic peripheral; it is a small pile of registers the CPU can read and write, and a protocol saying in what order. Almost every device exposes the same three: a **status** register saying whether it is busy, a **command** register saying what to do, and a **data** register carrying the operand. The canonical driver therefore does four things - wait until not busy, write the parameters, issue the command, wait until not busy again - and the whole of the I/O stack exists to hide those four steps behind `read()`.\n\nThe two waits are the problem. **Polling** means spinning on the status register, which burns a processor for the whole of a millisecond-scale disk operation while a runnable process sits in the ready queue. **Interrupts** let the driver block the caller and hand the CPU to somebody else; the device raises a line when it finishes, the CPU traps, and the handler wakes the sleeper. Interrupts are not free, though - the trap, the handler and the two context switches cost single-digit microseconds - so for a device that finishes faster than that overhead, polling is genuinely the cheaper choice, and at very high completion rates interrupts can **livelock** the machine, which is why fast NICs and NVMe drives coalesce interrupts or poll under load.\n\nEven with interrupts, step 3a is still theft: `outsl` makes the CPU copy the block a word at a time, so moving 4 KB costs about a thousand loads and stores, and moving 1 GB costs roughly a quarter of a second of pure copying. **Direct memory access** replaces it with a separate engine: the CPU tells the DMA controller an address and a length, the controller moves the bytes across the bus on its own, and it raises the interrupt when the transfer is done. The CPU's involvement drops from *proportional to the data* to *constant per request*, which is what makes a modern device's bandwidth reachable at all.",
+    "code": "/* The device protocol: three registers and one loop. */\nvoid disk_rw(struct buf *b, int write) {\n    while (inb(DEV_STATUS) & BUSY)          /* 1. wait until idle */\n        ;\n    outdw(DEV_LBA, b->blockno);             /* 2. the parameters first */\n    outb(DEV_COMMAND, write ? CMD_WRITE : CMD_READ);   /* 3. the trigger */\n\n    if (write)\n        outsl(DEV_DATA, b->data, BSIZE / 4);   /* 4a. PIO: the CPU copies */\n    /* 4b. or dma_setup(b->data, BSIZE) before the command, and the engine\n       moves the bytes instead, in either direction */\n\n    while (inb(DEV_STATUS) & BUSY)          /* 5. wait for completion */\n        ;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The first wait is pure overhead - the CPU is spinning to learn something it could be told. Replacing it with sleep-until-interrupt is what lets another process run during the wait."
+     },
+     {
+      "line": 5,
+      "text": "Parameters go into the data-side registers *before* the command that consumes them. The protocol is ordered, and a driver that issues the command first operates on whatever the last request left behind."
+     },
+     {
+      "line": 9,
+      "text": "Programmed I/O: this single line is BSIZE/4 = 1024 word transfers executed by the processor for one 4 KB block. DMA deletes this line and pays one setup cost instead."
+     },
+     {
+      "line": 13,
+      "text": "The second wait is the one worth an interrupt: on a disk it is the millisecond-scale one, whereas the first is usually short."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the four steps of the programmed-I/O protocol into the order a correct driver must perform them.",
+     "fragments": [
+      "Poll the status register until the device reports it is no longer busy",
+      "Write the request's parameters - block number, buffer address, length - into the data registers",
+      "Write the opcode into the command register, which starts the operation",
+      "Wait for completion, by polling status again or by sleeping until the device interrupts"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "concepts": [
+      "device-protocol"
+     ],
+     "tags": [
+      "device-protocol"
+     ],
+     "explain": "The first wait is not politeness, it is correctness: a device that is still busy will either ignore the new parameters or apply them to the request in flight. Writing the command last is equally forced, because the command is the trigger - anything not already in the data registers when it lands is simply not part of the request.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "The cost of a seek",
+    "body": "A hard disk is a stack of rotating platters and an arm that must be over the right track before any byte moves, so the time for one request is the sum of three unequal terms: **seek** (move the arm), **rotation** (wait for the sector to come round), and **transfer** (the bytes actually stream past the head). On disk D above, a single random 4 KB read costs $4 + 2 + 0.04 = 6.04$ ms, and $6.00$ of those $6.04$ milliseconds are positioning. The transfer is under one per cent of the work.\n\nThat is the whole argument for sequentiality. Reading 256 blocks scattered across the disk pays the positioning cost 256 times, for 1546.24 ms; reading the same 256 blocks contiguously pays it once, for 16.24 ms - a factor of 95, and it grows with the length of the run. It is not a constant factor to be optimised away later: it is the reason file systems fight to keep a file's blocks adjacent, the reason a disk scheduler reorders and merges requests, and the reason a database writes a sequential log instead of updating records where they lie.\n\nFlash deletes the arm and with it the seek, so an SSD's random and sequential *reads* are within a small factor of each other - but it introduces an asymmetry of its own. A flash page (4 KB) can be programmed only from the erased state, and erasure works only on a whole **block** of many pages - 64 of them, 256 KB, in the figures used on this floor. Overwriting one page in place therefore means reading the block's 64 pages, erasing (about 2 ms - the slowest operation flash has), and programming all 64 back: about 19.6 ms to change 4 KB.\n\nNo SSD does that. The **flash translation layer** writes the new page to some already-erased location, updates a mapping table so the logical address now points there, and marks the old page dead for a garbage collector to reclaim in bulk later. Writes become sequential appends whatever the host asked for, which is why the same 4 KB write costs one 250 µs program instead - and why the costs an SSD does have are the indirect ones: **write amplification** from garbage collection, and a finite erase count per block that wear levelling must spread out.",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Average rotational delay is half a rotation, because on average the sector you want is half a turn away. At 15,000 RPM a full turn is 4 ms, so this is 2 ms."
+     },
+     {
+      "line": 6,
+      "text": "Scattered: every block pays seek plus rotation. The multiplication by `blocks` is where the orders of magnitude come from."
+     },
+     {
+      "line": 7,
+      "text": "Contiguous: the positioning terms are outside the multiplication - paid once, then amortised over the whole run."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Using disk D above (average seek 4 ms, 15,000 RPM, 0.04 ms per 4 KB block), give the cost of one random 4 KB read. Answer each step in milliseconds, to two decimal places.",
+     "steps": [
+      {
+       "label": "seek time",
+       "expected": "4.00"
+      },
+      {
+       "label": "average rotational delay",
+       "expected": "2.00"
+      },
+      {
+       "label": "transfer time",
+       "expected": "0.04"
+      },
+      {
+       "label": "total service time",
+       "expected": "6.04"
+      }
+     ],
+     "concepts": [
+      "disk-geometry"
+     ],
+     "tags": [
+      "disk-geometry"
+     ],
+     "explain": "The rotational term is half a rotation, not a whole one - 60000/15000 = 4 ms per turn, so 2 ms on average - and taking the full rotation is the commonest slip. Notice the shape of the answer more than the number: positioning is 6.00 ms and the data itself 0.04 ms, so this request is 99.3 per cent waiting.",
+     "xp": 30
+    },
+    "code": "/* Disk D: average seek 4 ms, 15,000 RPM, one 4 KB block in 0.04 ms. */\n#define SEEK_MS  4.0\n#define ROT_MS   (60000.0 / 15000 / 2)   /* half a rotation = 2 ms */\n#define XFER_MS  0.04\n\ndouble scattered(int blocks) { return blocks * (SEEK_MS + ROT_MS + XFER_MS); }\ndouble contiguous(int blocks) { return SEEK_MS + ROT_MS + blocks * XFER_MS; }\n\n/* 256 blocks = 1 MB:  scattered 1546.24 ms,  contiguous 16.24 ms - 95x. */"
+   },
+   {
+    "title": "The file system on disk",
+    "body": "A file system is a way of interpreting an array of blocks, and the interpretation is deliberately boring: a superblock describing the layout, two bitmaps recording which inodes and which data blocks are free, a table of fixed-size **inodes**, and the data blocks themselves. The inode is the file - its type, size, permissions, link count and the addresses of its blocks. The *name* is not in there at all.\n\nBlock addresses use a multi-level scheme because file sizes are wildly skewed: most files are tiny and a few are enormous. Twelve direct pointers cover the first 48 KB with no extra reads at all; beyond that an **indirect** block holds $4096/4 = 1024$ further pointers (4 MB), a double indirect block holds 1024 of those (4 GB), and a triple indirect block reaches 4 TB. The cost is paid only by the files that need it - a small file is one inode read, a byte at offset 5,000,000 costs three reads after the inode, because the double indirect block and then the second-level indirect block must be fetched before the data block is even known.\n\nA **directory** is an ordinary file whose data blocks hold `(inum, name)` pairs, which is why opening `/etc/hosts` on a cold cache is a walk: read the root inode, read its data to find `etc`, read the `etc` inode, read its data to find `hosts`, read the `hosts` inode. Five reads before the first byte of the file, and each is a name-to-inode lookup performed by the file system, never by the disk.\n\nBecause the name lives in the directory and the file lives in the inode, a file can have several names. A **hard link** is a second directory entry pointing at the same inode number; `nlink` counts them, `unlink` decrements it, and the blocks are freed only when it reaches zero - so there is no such thing as \"the original\", and the count cannot span file systems, since inode numbers are only meaningful within one. A **symbolic link** is a different animal: a file of its own, of type symlink, whose data is a path string. It may point anywhere, including across file systems and at nothing at all - a dangling symlink is a perfectly consistent file system, whereas a dangling hard link is corruption.",
+    "code": "struct dinode {              /* 128 bytes, one slot in the inode table */\n    uint16 type;             /* regular file, directory, or symlink     */\n    uint16 nlink;            /* how many directory entries point here   */\n    uint32 size;\n    uint32 addrs[12];        /* direct pointers: the first 48 KB        */\n    uint32 indirect;         /* 1024 more blocks:            4 MB       */\n    uint32 double_indirect;  /* 1024 x 1024 blocks:          4 GB       */\n    uint32 triple_indirect;  /* 1024^3 blocks:               4 TB       */\n};\n\nstruct dirent {              /* a directory is just a file of these     */\n    uint32 inum;\n    char   name[NAME_MAX];\n};",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`nlink`, not an owner or a name: the inode does not know what it is called. Deleting a name decrements this, and only the last one frees the blocks."
+     },
+     {
+      "line": 5,
+      "text": "Twelve direct pointers is a deliberate bet that most files are small. A 40 KB file needs no indirect blocks at all, so reading any of it costs the inode plus one data read."
+     },
+     {
+      "line": 8,
+      "text": "Triple indirection is why the maximum file size is about 4 TB with these parameters - and why the deepest blocks cost four reads to locate rather than one."
+     },
+     {
+      "line": 12,
+      "text": "A directory entry is a name bound to an inode number. Two entries carrying the same `inum` are a hard link; nothing distinguishes which was created first."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "With 4096-byte blocks, 4-byte pointers, 12 direct pointers and 1024 pointers per indirect block, work out where byte offset 4,300,000 of a file lives. Give digits only for the block index, and one word - direct, single, double or triple - for the region.",
+     "template": "block index = 4300000 / 4096 = ___\n/* direct covers 0..11, single indirect covers 12..1035 */\n/* so this offset lands in the ___ indirect region */\n",
+     "blanks": [
+      "1049",
+      "double"
+     ],
+     "concepts": [
+      "inode-structure"
+     ],
+     "tags": [
+      "inode-structure"
+     ],
+     "explain": "Block 1049 is only thirteen blocks past the end of the single indirect region, which ends at index 1035 - the boundary is 12 + 1024 = 1036, and off-by-one here is the usual mistake because it is tempting to think the indirect block covers indices 0 to 1023. The practical consequence is abrupt: byte 4,243,455 costs two reads to locate and byte 4,300,000 costs three.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "Surviving the crash",
+    "body": "Appending one block to a file is three writes - the data block D, the inode I, and the data bitmap B - and a crash can land between any of them. The interesting failures are the partial ones. B alone leaves a block marked in use that nothing references: a space leak, ugly but safe. I alone is far worse: the inode points at a block the bitmap says is free, so the file reads garbage now and shares that block with whatever is allocated next. I and B without D gives perfectly consistent metadata pointing at whatever the block used to contain, which is a confidentiality bug as much as a correctness one.\n\nThe old repair was **fsck**: on mount after a crash, scan the file system and rebuild the truth by inspection - every inode read, every pointer followed, the bitmaps recomputed from scratch. It works, and its cost is the reason it was abandoned. fsck's running time is proportional to the *size of the file system*, not to the amount of work that was in flight when the power went. On a 2 TB file system with one inode per 16 KB, just streaming the 16 GB inode table at 100 MB/s is 164 seconds, before a single indirect block is followed - all to repair three writes.\n\n**Journalling** buys back proportionality with **write-ahead logging**: before touching the real structures, write a description of the intended update to a small circular log, and write a commit record only once that description is safely down. The commit record is the atomic point. A crash before it means the transaction never happened, and recovery ignores it; a crash after it means recovery can *replay* the logged blocks to their real homes, however many times it needs to, because replaying an idempotent overwrite twice is harmless. Recovery reads a few megabytes of log rather than terabytes of disk - on the numbers above, 0.08 s instead of 164 s.\n\nThe barrier before the commit record is not a detail. If a disk reorders TxE ahead of the blocks it commits, recovery will confidently replay a transaction whose contents are garbage, which is worse than no journal at all. The other design choice is what to log: **data journalling** logs D as well, so every byte is written twice, while **ordered journalling** writes D to its final home *before* the transaction commits and logs only metadata - one write of the data instead of two (262 block writes rather than 518 for a 1 MB append), at the cost of a weaker guarantee about the file's contents after recovery.",
+    "code": "/* Appending one block touches three places: data, inode, data bitmap.\n   Write-ahead logging: describe the change, commit it, only then apply it. */\njournal_write(TxB(tid));        /* 1. transaction begin: what we will do  */\njournal_write(I_v2);\njournal_write(B_v2);\njournal_write(D);               /* data journalling only; ordered mode\n                                   writes D to its final home first      */\nbarrier();                      /* 2. TxE must not reach disk early       */\njournal_write(TxE(tid));        /* 3. the commit record - the atomic point */\n\ncheckpoint(I_v2, B_v2, D);      /* 4. now overwrite the real structures    */\nfree_transaction(tid);          /* 5. and only now may the log be reused   */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The log is written first and the real structures last. That ordering is the entire mechanism - the name write-ahead logging is a description of it."
+     },
+     {
+      "line": 8,
+      "text": "Without the barrier a disk free to reorder may commit a transaction whose logged blocks have not landed, and recovery will replay rubbish over correct metadata."
+     },
+     {
+      "line": 9,
+      "text": "Everything before this line is deniable and everything after it is guaranteed. Crash before TxE and the transaction never existed; crash after it and recovery finishes the job."
+     },
+     {
+      "line": 12,
+      "text": "The log space cannot be reclaimed until the checkpoint is durable, or a crash could find a transaction that is neither in the log nor on disk."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the stages of one data-journalling transaction into the order the file system must perform them.",
+     "fragments": [
+      "Write TxB and the updated blocks (I, B, D) into the journal",
+      "Wait for those journal writes to be durable, then write the TxE commit record",
+      "Checkpoint: write I, B and D to their real locations in the file system",
+      "Mark the transaction free so the log space can be reused"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "concepts": [
+      "journaling"
+     ],
+     "tags": [
+      "journaling"
+     ],
+     "explain": "Each barrier exists to prevent one specific bad recovery. Committing before the contents are durable lets recovery replay garbage; checkpointing before committing lets a crash leave half-applied changes with no record of the intent; and freeing the log before the checkpoint is durable loses the only copy of a transaction that has not yet reached its real home.",
+     "xp": 30
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-8-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the driver so that it uses the device protocol correctly and hands the bulk copy to the DMA engine rather than the processor.",
+   "template": "void disk_read(struct buf *b) {\n    while (inb(DEV_STATUS) & ___)      /* wait until the device is idle */\n        ;\n    outdw(DEV_LBA, b->blockno);        /* parameters first */\n    ___(b->data, BSIZE);               /* arrange the transfer engine */\n    outb(DEV_COMMAND, ___);            /* the trigger goes last */\n    sleep(b);                          /* the interrupt will wake us */\n}\n",
+   "blanks": [
+    "BUSY",
+    "dma_setup",
+    "CMD_READ"
+   ],
+   "concepts": [
+    "device-protocol",
+    "dma"
+   ],
+   "tags": [
+    "device-protocol",
+    "dma"
+   ],
+   "explain": "The command register is written last because writing it is what starts the device: anything not already in place is not part of the request, so a driver that issues the command before the LBA reads a block chosen by whatever was left in the register. `sleep` in place of a second polling loop is what converts the millisecond wait into useful work for another process, and the DMA setup is what stops the CPU copying 1024 words per block by hand.",
+   "xp": 36
+  },
+  {
+   "id": "os-8-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Disk D has an average seek of 4 ms, rotates at 15,000 RPM, and transfers a 4 KB block in 0.04 ms. A process reads 8 blocks. Give each time in milliseconds to two decimal places.",
+   "steps": [
+    {
+     "label": "service time of one random 4 KB read",
+     "expected": "6.04"
+    },
+    {
+     "label": "total for 8 blocks scattered across the disk",
+     "expected": "48.32"
+    },
+    {
+     "label": "total for the same 8 blocks laid out contiguously",
+     "expected": "6.32"
+    },
+    {
+     "label": "milliseconds the scattered layout costs extra",
+     "expected": "42.00"
+    }
+   ],
+   "concepts": [
+    "disk-geometry",
+    "sequential-vs-random"
+   ],
+   "tags": [
+    "disk-geometry",
+    "sequential-vs-random"
+   ],
+   "explain": "The contiguous run pays seek and rotation once and then 8 x 0.04 ms of transfer, so it is 6.32 ms; the scattered version pays 6.00 ms of positioning eight times over. The tempting wrong answer for the contiguous case is 6.04 x 8 with a small discount, which misses the point: positioning moves outside the multiplication entirely, which is why the gap widens without limit as the run gets longer.",
+   "xp": 60
+  },
+  {
+   "id": "os-8-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A process calls `open(\"/etc/hosts\", O_RDONLY)` on a completely cold cache. Put the file system's disk reads into the order they must happen.",
+   "fragments": [
+    "Read the root directory's inode, whose number is fixed and known",
+    "Read the root directory's data block, to find the entry named `etc`",
+    "Read the inode of `etc`, using the inode number that entry gave",
+    "Read the data block of `etc`, to find the entry named `hosts`",
+    "Read the inode of `hosts`, and install it in the process's file table"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "directories-as-files",
+    "inode-structure"
+   ],
+   "tags": [
+    "directories-as-files",
+    "inode-structure"
+   ],
+   "explain": "The alternation is forced: an inode must be read before its data blocks can be located, and a directory's data must be read before the next inode number is known, so the two cannot be overlapped or reordered. Note that the root's inode number is a constant - it has to be, because the walk needs somewhere to start that is not itself found by a lookup.",
+   "xp": 36
+  },
+  {
+   "id": "os-8-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "An SSD has 4 KB pages, erase blocks of 64 pages, a page read of 25 us, a page program of 250 us and a block erase of 2000 us. A naive controller with no flash translation layer overwrites one 4 KB page in place by reading the block out, erasing it, and programming every page back. Give each figure in microseconds, digits only.",
+   "steps": [
+    {
+     "label": "cost of reading the 64 pages out",
+     "expected": "1600"
+    },
+    {
+     "label": "cost of erasing the block",
+     "expected": "2000"
+    },
+    {
+     "label": "cost of programming 64 pages back",
+     "expected": "16000"
+    },
+    {
+     "label": "total cost of the 4 KB overwrite",
+     "expected": "19600"
+    },
+    {
+     "label": "cost if the FTL instead programmes the page to a free location",
+     "expected": "250"
+    }
+   ],
+   "concepts": [
+    "flash-ssd"
+   ],
+   "tags": [
+    "flash-ssd"
+   ],
+   "explain": "Programming dominates, not the erase everybody remembers: 16,000 of the 19,600 microseconds are spent rewriting 63 pages that nobody asked to change. That is why the FTL never overwrites in place - redirecting the write to an already-erased page turns a 19.6 ms read-modify-erase-program cycle into a single 250 us program, at the price of a mapping table and a garbage collector to reclaim the dead page later.",
+   "xp": 60
+  }
+ ],
+ "disk-and-device-lab": [
+  {
+   "id": "os-8-l-01",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A storage team moves a database from disk D to an NVMe drive that completes a 4 KB read in about 10 us. The driver still blocks the caller and waits for a completion interrupt; the trap, handler and pair of context switches cost roughly 14 us of CPU per request. At the 500,000 requests per second the drive can sustain, the machine spends all its time in interrupt context and application throughput collapses. Explain why the interrupt-driven design that was obviously right for the disk is wrong here, and describe what the driver should do instead.",
+   "rubric": {
+    "required": [
+     "poll",
+     "interrupt",
+     "overhead",
+     "latenc",
+     "livelock",
+     "context switch"
+    ],
+    "optional": [
+     "coalesc",
+     "hybrid",
+     "batch",
+     "napi",
+     "sleep",
+     "throughput",
+     "microsecond"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "interrupts-vs-polling",
+    "device-protocol"
+   ],
+   "tags": [
+    "interrupts-vs-polling",
+    "device-protocol"
+   ],
+   "explain": "Interrupts are an optimisation with a fixed price, and they pay only when the wait they replace is longer than that price. On disk D the wait is 6040 us and the interrupt path costs 14 us, so blocking is obviously right; on this drive the wait is 10 us and the interrupt costs more than the operation itself, so the driver should spin on the completion queue and never sleep at all. The high rate makes it worse rather than better: at 500,000 completions per second the handler alone demands about seven seconds of CPU per second, and the classic symptom is livelock, where the system does nothing but take interrupts. Real drivers therefore go hybrid - poll while the queue is busy, coalesce or re-enable interrupts when it goes idle. The tempting non-fix is a faster interrupt handler, which shaves a constant that is already smaller than the number of interrupts is large.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-l-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A driver for a new 10 Gb/s capture card was written by copying an old ISA driver. It is correct, and it uses interrupts rather than polling, but under load one core sits at 100 per cent in kernel mode and the profile is dominated by a single instruction inside `outsl`. Kernel CPU time is exactly proportional to the number of bytes moved and completely insensitive to the number of requests. Name the cause and say what fixes it.",
+   "answer": "The driver moves the data with programmed I/O - the CPU copies every word between the device's data register and memory - so it should be rewritten to hand the buffer to the DMA engine and let the device transfer the data itself",
+   "rubric": {
+    "required": [
+     "programmed",
+     "dma",
+     "copy",
+     "cpu",
+     "per byte",
+     "engine"
+    ],
+    "optional": [
+     "outsl",
+     "bus",
+     "interrupt",
+     "setup",
+     "constant",
+     "bandwidth",
+     "descriptor"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "dma",
+    "device-protocol"
+   ],
+   "tags": [
+    "dma"
+   ],
+   "explain": "The shape of the measurement identifies the mechanism before any code is read: interrupt cost scales with the number of requests, and this cost scales with bytes, so the culprit must be the data movement rather than the notification. Programmed I/O costs one load and one store per word - 1024 pairs for a single 4 KB block, around a quarter of a second of CPU for every gigabyte - which is exactly the missing core. DMA makes the CPU's per-request work constant: describe the buffer, start the engine, and be interrupted once at the end. The tempting misdiagnosis is interrupt storm, and the profile refutes it, because that would scale with request count and would not live inside the copy loop.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-l-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "On disk D (4 ms average seek, 15,000 RPM, 0.04 ms per 4 KB block) an application issues 100 4 KB reads. Work out the cost of three layouts: fully scattered; fully contiguous; and the case where the I/O scheduler discovers the 100 requests form 10 runs of 10 adjacent blocks, so it pays positioning once per run. Give milliseconds to two decimal places, except the final step.",
+   "steps": [
+    {
+     "label": "100 scattered reads",
+     "expected": "604.00"
+    },
+    {
+     "label": "100 contiguous reads",
+     "expected": "10.00"
+    },
+    {
+     "label": "10 runs of 10 adjacent blocks",
+     "expected": "64.00"
+    },
+    {
+     "label": "speedup of the merged layout over the scattered one, to two decimal places",
+     "expected": "9.44"
+    }
+   ],
+   "concepts": [
+    "disk-geometry",
+    "sequential-vs-random"
+   ],
+   "tags": [
+    "disk-geometry",
+    "sequential-vs-random"
+   ],
+   "explain": "Each run costs 4 + 2 + 10 x 0.04 = 6.40 ms, so ten runs are 64.00 ms against 604.00 ms scattered - 9.44 times faster without moving a single block, purely by reordering requests. The instructive part is the gap that remains: merging recovers a factor of nine, but the fully contiguous layout is another six times faster still, because ten seeks are nine more than necessary. Scheduling can only exploit locality that the file system's allocator has already created, which is why block placement and request merging are two halves of one argument.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-l-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A logging service replaces its disks with SSDs and writes 4 KB records to random offsets in a large preallocated file, calling `fsync` after each. Throughput is far below the drive's rating, latency is erratic with periodic multi-millisecond spikes, and the SMART wear indicator has moved further in three months than the vendor's endurance figure predicts for three years at this data rate. Name the cause and say what change to the write pattern fixes it.",
+   "answer": "Write amplification: small scattered writes leave the erase blocks part-live, so garbage collection must copy surviving pages and erase whole blocks, multiplying the flash actually written far beyond the bytes the application wrote",
+   "rubric": {
+    "required": [
+     "amplif",
+     "erase",
+     "garbage",
+     "block",
+     "sequenti",
+     "wear"
+    ],
+    "optional": [
+     "ftl",
+     "page",
+     "live",
+     "copy",
+     "append",
+     "trim",
+     "collect",
+     "endur"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "flash-ssd",
+    "sequential-vs-random"
+   ],
+   "tags": [
+    "flash-ssd"
+   ],
+   "explain": "The wear figure is the tell: the drive is physically writing several times the data the application produced. Because flash erases 256 KB blocks but programs 4 KB pages, random small writes scatter dead pages through blocks that are otherwise still live, so the garbage collector must relocate the survivors before it can erase - and every relocation is another program cycle charged to the block's finite erase budget. The latency spikes are that collection running under the write. The fix is to make the writes large and sequential, appending records into a log so that whole erase blocks die together and can be erased with nothing to copy out. The tempting misdiagnosis is that the SSD's random writes are slow like a disk's, but there is no seek here - the cost is entirely erase-before-write and the collection it forces.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-l-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague argues that since disk D transfers at roughly 100 MB/s, a job reading 1 MB should take about 10 ms regardless of how the file is laid out, and that worrying about contiguity is premature optimisation. Using the disk's own cost model, explain what that argument gets wrong and what it implies for how a file system should allocate blocks.",
+   "rubric": {
+    "required": [
+     "seek",
+     "rotat",
+     "positio",
+     "sequenti",
+     "random",
+     "amortis"
+    ],
+    "optional": [
+     "1546",
+     "16.24",
+     "allocat",
+     "contigu",
+     "bandwidth",
+     "transfer",
+     "order of magnitude"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "sequential-vs-random",
+    "disk-geometry"
+   ],
+   "tags": [
+    "sequential-vs-random"
+   ],
+   "explain": "The quoted bandwidth is the transfer term only, and it is reached exactly when positioning is amortised over a long run - 1 MB contiguous costs 4 + 2 + 10.24 = 16.24 ms, which is close to the colleague's estimate. The same megabyte as 256 scattered 4 KB blocks costs 1546.24 ms, ninety-five times more, because each block pays 6 ms of seek and rotation for 0.04 ms of data. A disk therefore has no single speed; it has a bandwidth that depends on request size and adjacency. That is why file systems place a file's blocks together and group files with their directory, and why the interesting failure of a file system is fragmentation rather than any shortage of raw bandwidth.",
+   "xp": 40
+  }
+ ],
+ "file-system-forensics": [
+  {
+   "id": "os-8-f-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A file system uses 4096-byte blocks, 4-byte block pointers, and inodes with 12 direct pointers, one indirect, one double indirect and one triple indirect block. A process reads the byte at offset 5,000,000 of a large file. The inode is already in memory; nothing else is cached. Give digits only, or one word where a word is asked for.",
+   "steps": [
+    {
+     "label": "pointers held in one indirect block",
+     "expected": "1024"
+    },
+    {
+     "label": "index of the block holding this byte",
+     "expected": "1220"
+    },
+    {
+     "label": "region: direct, single, double or triple",
+     "expected": "double"
+    },
+    {
+     "label": "index within the double indirect region",
+     "expected": "184"
+    },
+    {
+     "label": "disk reads needed to fetch the data block",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "inode-structure"
+   ],
+   "tags": [
+    "inode-structure"
+   ],
+   "explain": "Block 1220 is past the direct range (0-11) and past the single indirect range (12-1035), so it is the 184th block of the double indirect region, reached through entry 0 of the double indirect block and entry 184 of the second-level indirect block it names. The three reads are that pair of indirect blocks plus the data itself, and the count is the whole reason indirection is graduated: the same read costs one disk access if the offset had been under 48 KB. The common miscount is to forget that only one of the 1024 entries of the double indirect block is followed, and to charge for reading 1024 pointer blocks.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-f-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An operator frees space on a full volume by running `rm /var/lib/app/huge.db`, a 40 GB file. `rm` returns successfully and the name is gone from the directory, but `df` still reports the volume full and keeps reporting it full for hours. `ls -l` on a second path, `/var/lib/app/archive/huge.db`, shows a file of the same size with a link count of 1. Name the cause and say how to confirm it.",
+   "answer": "The blocks are still referenced: another hard link to the same inode remains, so unlink only decremented nlink and the space is freed only when the last name is removed and no process still holds the file open",
+   "rubric": {
+    "required": [
+     "hard link",
+     "inode",
+     "nlink",
+     "directory entr",
+     "unlink",
+     "open"
+    ],
+    "optional": [
+     "refcount",
+     "count",
+     "lsof",
+     "same inode",
+     "symlink",
+     "reach",
+     "zero"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "hard-vs-soft-links",
+    "directories-as-files"
+   ],
+   "tags": [
+    "hard-vs-soft-links",
+    "directories-as-files"
+   ],
+   "explain": "`rm` does not delete files, it removes names: a directory entry is a name bound to an inode number, and unlinking decrements the inode's link count. The blocks go back to the free list only when that count reaches zero *and* no open file descriptor still references the inode - which is why a deleted-but-open log file can hold gigabytes with no name at all. Confirm it by comparing inode numbers with `ls -i` on both paths, or by looking for a deleted file with an open handle. A symbolic link would behave completely differently here: it holds a path, not a reference, so removing the target would free the space immediately and leave the link dangling.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-f-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A file system with no journal appends one block to a file, which requires three writes: the data block D, the updated inode I, and the updated data bitmap B. The machine loses power with only some of them on disk. For each case, answer with exactly one of: `consistent`, `leak` (a block marked used that nothing references), or `dangling` (an inode pointing at a block the bitmap calls free).",
+   "steps": [
+    {
+     "label": "only D reached the disk",
+     "expected": "consistent"
+    },
+    {
+     "label": "only B reached the disk",
+     "expected": "leak"
+    },
+    {
+     "label": "only I reached the disk",
+     "expected": "dangling"
+    },
+    {
+     "label": "B and D reached the disk, not I",
+     "expected": "leak"
+    },
+    {
+     "label": "I and D reached the disk, not B",
+     "expected": "dangling"
+    },
+    {
+     "label": "I and B reached the disk, not D",
+     "expected": "consistent"
+    }
+   ],
+   "concepts": [
+    "crash-consistency"
+   ],
+   "tags": [
+    "crash-consistency"
+   ],
+   "explain": "Only the two metadata writes decide consistency: D alone changes nothing anyone can reach, and I with B is structurally sound even though the file now contains whatever the block held before - consistent, but a stale-data disclosure, which is exactly the flaw metadata-only journalling has to reason about. A leak wastes space and is repairable by recomputing the bitmap; a dangling pointer is the dangerous one, because the block is simultaneously readable through the file and available for reallocation to a different file. The tempting answer for case six is `dangling`, but the bitmap and inode agree there, so nothing is inconsistent - only unlucky.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-f-04",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A mail server appends 1 MB messages to files on a journalling file system. In data-journalling mode each append costs 518 block writes; in ordered mode it costs 262, because the data is written once to its final location before the metadata transaction commits. The operations team wants to switch to ordered mode; the security team objects that a crash could then leave a message file containing another user's deleted data. Recommend a mode, and justify it by explaining exactly what each one guarantees after recovery.",
+   "rubric": {
+    "required": [
+     "journal",
+     "commit",
+     "metadata",
+     "order",
+     "replay",
+     "twice",
+     "recover"
+    ],
+    "optional": [
+     "write-ahead",
+     "barrier",
+     "checkpoint",
+     "stale",
+     "throughput",
+     "bandwidth",
+     "idempot",
+     "consistent"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "journaling",
+    "crash-consistency"
+   ],
+   "tags": [
+    "journaling",
+    "crash-consistency"
+   ],
+   "explain": "Both modes guarantee the same thing about structure: after recovery the metadata is consistent, because the commit record is atomic and the logged blocks can be replayed idempotently to their real homes. They differ in what they promise about contents. Data journalling writes every byte twice - once to the log and once at checkpoint - which is where the 518 comes from, and in exchange the file's data is recovered along with its metadata. Ordered mode logs only metadata and enforces one ordering rule instead: the data block must be durable before the transaction that points at it commits, so an inode that survives recovery can never point at a block whose new contents did not. That rule is precisely the answer to the security team's objection - the stale-data exposure belongs to unordered metadata journalling, not to ordered mode - so ordered mode is the right recommendation here, at half the write traffic. The genuine cost of ordered mode is subtler: a partially written message can be recovered as a truncated file rather than not at all, so the application still needs its own record of what was completely delivered.",
+   "xp": 72
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-8-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does direct memory access change about an I/O request?",
+   "choices": [
+    "A separate engine moves the data between device and memory, so the CPU's work per request stops depending on the size of the transfer",
+    "The device raises an interrupt instead of the driver polling the status register",
+    "The device is mapped into the process's address space so user code can address it directly",
+    "Data is transferred without passing through main memory at all"
+   ],
+   "answer": 0,
+   "concepts": [
+    "dma"
+   ],
+   "tags": [
+    "dma"
+   ],
+   "explain": "Choice two is the interrupt-versus-polling question, which is about how completion is *announced* and is independent of who copies the bytes - a driver can poll a DMA transfer or take an interrupt for a programmed-I/O one. DMA is about the copy: without it the CPU executes a load and a store per word, so 4 KB costs about 1024 word transfers and a gigabyte costs roughly a quarter of a second of pure copying.",
+   "xp": 18
+  },
+  {
+   "id": "os-8-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which statements are true of a hard link, as opposed to a symbolic link? Select all that apply.",
+   "choices": [
+    "It is a directory entry naming the same inode number as an existing name",
+    "It increments the inode's link count, and the file's blocks are freed only when that count reaches zero",
+    "It cannot cross a file-system boundary, because inode numbers are meaningful only within one file system",
+    "It can be created before the file it names exists, and simply fails to resolve until then",
+    "It stores a path string as its data, which the kernel follows on each lookup"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "hard-vs-soft-links"
+   ],
+   "tags": [
+    "hard-vs-soft-links"
+   ],
+   "explain": "The last two describe a symbolic link, which is a file in its own right whose contents are a path - it may therefore dangle, point across file systems, and be created pointing at nothing. A hard link is not a file at all but a reference, which is why there is no meaningful notion of \"the original name\": every name is an equal directory entry pointing at one inode.",
+   "xp": 18
+  },
+  {
+   "id": "os-8-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the rotational arithmetic for a disk spinning at 10,000 RPM. Give whole numbers of milliseconds, digits only.",
+   "template": "full rotation = 60000 ms per minute / 10000 RPM = ___ ms\naverage rotational delay = half a rotation = ___ ms\n",
+   "blanks": [
+    "6",
+    "3"
+   ],
+   "concepts": [
+    "disk-geometry"
+   ],
+   "tags": [
+    "disk-geometry"
+   ],
+   "explain": "Average rotational delay is half a rotation because the sector you want is, on average, half a turn away when the head arrives. Using the full rotation time doubles every random-request estimate you make, which is the difference between a plausible model and one that predicts half the throughput the disk actually delivers.",
+   "xp": 36
+  },
+  {
+   "id": "os-8-x-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Disk D again: 4 ms average seek, 15,000 RPM, 0.04 ms per 4 KB block. A backup reads 256 blocks (1 MB). Give milliseconds to two decimal places, and the final ratio to two decimal places.",
+   "steps": [
+    {
+     "label": "positioning cost per request when the blocks are scattered",
+     "expected": "6.00"
+    },
+    {
+     "label": "total for 256 scattered blocks",
+     "expected": "1546.24"
+    },
+    {
+     "label": "total for 256 contiguous blocks",
+     "expected": "16.24"
+    },
+    {
+     "label": "scattered time divided by contiguous time",
+     "expected": "95.21"
+    }
+   ],
+   "concepts": [
+    "sequential-vs-random",
+    "disk-geometry"
+   ],
+   "tags": [
+    "sequential-vs-random"
+   ],
+   "explain": "The contiguous case is 4 + 2 + 256 x 0.04 = 16.24 ms, of which 10.24 ms is real data movement; the scattered case is 256 x 6.04 ms, of which 10.24 ms is still real data movement and everything else is the arm and the platter. Two orders of magnitude separate identical amounts of data, which is why layout is a first-order design concern on a mechanical disk rather than a tuning detail.",
+   "xp": 60
+  },
+  {
+   "id": "os-8-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the writes of one ordered-mode (metadata) journalling append into the order the file system must issue them.",
+   "fragments": [
+    "Write the data block D to its final location in the file system",
+    "Write TxB and the updated inode and bitmap blocks into the journal",
+    "Write the TxE commit record, once the previous journal writes are durable",
+    "Checkpoint the inode and bitmap blocks to their real locations"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "journaling"
+   ],
+   "tags": [
+    "journaling"
+   ],
+   "explain": "Writing D first is what makes ordered mode safe: the metadata that points at the block commits only after the block's new contents are durable, so recovery can never expose an inode pointing at stale data. The commit record still has to follow the logged metadata, and the checkpoint still has to follow the commit - dropping either barrier reintroduces the crash windows the journal exists to close.",
+   "xp": 36
+  },
+  {
+   "id": "os-8-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Same inode layout as the lesson: 4096-byte blocks, 12 direct pointers, 1024 pointers per indirect block. A process reads the byte at offset 100,000, with the inode already in memory and nothing else cached. Give digits only, or one word where a word is asked for.",
+   "steps": [
+    {
+     "label": "index of the block holding this byte",
+     "expected": "24"
+    },
+    {
+     "label": "region: direct, single, double or triple",
+     "expected": "single"
+    },
+    {
+     "label": "index within that region",
+     "expected": "12"
+    },
+    {
+     "label": "disk reads needed to fetch the data block",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "inode-structure"
+   ],
+   "tags": [
+    "inode-structure"
+   ],
+   "explain": "100,000 / 4096 = 24, which is past the twelve direct pointers, so it is the twelfth entry of the single indirect block - and reaching it costs the indirect block plus the data block. The commonest slip is to report the region index as 24 rather than 24 - 12, which quietly points the read 48 KB further into the file.",
+   "xp": 60
+  },
+  {
+   "id": "os-8-x-07",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A 2 TB volume with one inode per 16 KB of space is mounted after an unclean shutdown. The mount takes 40 minutes, during which the disk shows a long steady sequential read followed by scattered activity, and the only work outstanding at the moment of the crash was a handful of small appends. The same volume on a colleague's machine recovers in under a second. Name what the slow machine is doing and what the fast one has that it does not.",
+   "answer": "The slow machine is running fsck, whose cost is proportional to the size of the file system rather than to the work in flight; the fast one has a journal and only replays the small write-ahead log",
+   "rubric": {
+    "required": [
+     "fsck",
+     "scan",
+     "propor",
+     "size",
+     "journal",
+     "replay"
+    ],
+    "optional": [
+     "inode table",
+     "bitmap",
+     "recover",
+     "commit",
+     "log",
+     "16",
+     "164",
+     "consistent"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "crash-consistency",
+    "journaling"
+   ],
+   "tags": [
+    "crash-consistency",
+    "journaling"
+   ],
+   "explain": "fsck rebuilds the truth by inspection: it reads every inode, follows every pointer and recomputes the bitmaps, so streaming the 16 GB inode table of this volume alone is about 164 seconds at 100 MB/s before any indirect block is followed - the long sequential read, then the scattered one. Nothing in that cost depends on how much was in flight, which is the flaw: three unfinished writes are repaired by examining two terabytes. A journal replaces inspection with intent, so recovery reads a few megabytes of log, replays the committed transactions to their real homes, and stops. The tempting misdiagnosis is a slow or failing disk, but the profile is exactly that of a full-volume scan, and the identical volume recovers instantly where a journal exists.",
+   "xp": 72
+  },
+  {
+   "id": "os-8-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "An SSD has no moving parts, so random and sequential reads cost almost the same. Explain why random and sequential *writes* nevertheless do not, and what the flash translation layer does about it.",
+   "rubric": {
+    "required": [
+     "erase",
+     "block",
+     "page",
+     "amplif",
+     "garbage",
+     "map"
+    ],
+    "optional": [
+     "translat",
+     "sequenti",
+     "wear",
+     "level",
+     "live",
+     "copy",
+     "log",
+     "trim"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "flash-ssd"
+   ],
+   "tags": [
+    "flash-ssd"
+   ],
+   "explain": "A page can only be programmed from the erased state, and erasure happens a whole block at a time - 64 pages here - so an in-place overwrite of 4 KB would mean reading out 64 pages, erasing, and programming them all back, about 19.6 ms. The FTL avoids that by never overwriting: it programs the new data to an already-erased page and remaps the logical address, which makes every write an append. The cost simply moves - dead pages accumulate, and garbage collection must copy the still-live pages out of a block before erasing it, so scattered small writes leave blocks part-live and amplify the flash actually written. Sequential writes let whole blocks die together and be erased with nothing to relocate, which is why write amplification, not seek time, is the number that matters on flash.",
+   "xp": 40
+  },
+  {
+   "id": "os-8-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You are writing the driver for a device that completes a request in about 8 us and is used in short bursts a few times a second, on a machine where a completion interrupt costs about 14 us of CPU. A reviewer insists that polling is always wrong because it wastes the processor. Decide what the driver should do and defend it, naming the quantity that decides the question in general.",
+   "rubric": {
+    "required": [
+     "poll",
+     "interrupt",
+     "overhead",
+     "compar",
+     "wait",
+     "cpu"
+    ],
+    "optional": [
+     "hybrid",
+     "spin",
+     "coalesc",
+     "context switch",
+     "idle",
+     "8",
+     "14",
+     "burst"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "interrupts-vs-polling",
+    "device-protocol"
+   ],
+   "tags": [
+    "interrupts-vs-polling",
+    "device-protocol"
+   ],
+   "explain": "The deciding quantity is the device's completion time compared with the cost of the interrupt path, not any principle about wasting the processor. Here the wait is 8 us and the interrupt costs 14 us, so sleeping wastes more CPU than spinning does - polling is both faster and cheaper, and the burstiness means the spin happens rarely enough that no other work is starved. The reviewer's rule was formed on devices like disks, where the wait is milliseconds and the interrupt path is microseconds, and there it is right by three orders of magnitude. The general answer is a hybrid: spin for about as long as the device usually takes, then fall back to sleeping, which is cheap when the device is fast and safe when it is not.",
+   "xp": 72
+  }
+ ]
+}

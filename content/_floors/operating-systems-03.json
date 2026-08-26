@@ -1,0 +1,853 @@
+{
+ "n": 3,
+ "name": "The Address Space Illusion",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "address-spaces",
+  "base-and-bounds",
+  "segmentation",
+  "external-fragmentation",
+  "free-space-management",
+  "paging",
+  "page-table",
+  "address-translation"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "translation-drills",
+  "memory-design",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Every process wakes up at address zero",
+    "body": "A program compiled on your machine believes its first instruction lives at some fixed address and that its heap grows upward from a place it was told about at link time. Run two copies of it at once and both believe exactly the same thing, yet they must not touch the same physical bytes. The **address space** is the operating system's answer: each process is handed a private, contiguous-looking range of addresses starting at zero, and the OS keeps the map from that fiction to real memory.\n\nThe reason is not politeness. Early machines ran one program at a time in real memory, and the moment more than one process shares a machine you need three things at once - **relocation**, so a program can be placed anywhere; **protection**, so one process cannot read or scribble on another; and **transparency**, so the program need not know any of this happened.\n\n**Base and bounds** delivers all three with two registers. The base register holds where this process's memory actually starts; the bounds register holds how large its address space is. On every reference the hardware checks `virt < bounds` and then computes `base + virt`. That is it - an add and a compare, cheap enough to sit in the critical path of every load and store.\n\nThe virtual address is therefore never a real address, and the illusion is maintained by hardware the process cannot see. Change the base register and the whole process moves, physically, without a single instruction in it noticing - which is precisely what makes moving a running process possible at all. The cost is that the entire address space must live in one contiguous physical run, and we are about to find out why that is expensive.",
+    "code": "/* What the hardware does on every single memory reference,\n   under the simplest relocation scheme there is. */\nuint64_t translate(uint64_t virt, uint64_t base, uint64_t bounds)\n{\n    if (virt >= bounds)\n        raise_exception(PROTECTION_FAULT);  /* the process overreached */\n    return base + virt;                     /* one add, done in silicon */\n}\n\n/* With base = 32768 and bounds = 4096: */\ntranslate(0,    32768, 4096);   /* -> 32768 */\ntranslate(1000, 32768, 4096);   /* -> 33768 */\ntranslate(4096, 32768, 4096);   /* -> fault: 4096 is not below bounds */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The check comes first - translating and then checking would leak one access outside the address space. Note the `>=`: with bounds 4096 the legal virtual addresses are 0 to 4095."
+     },
+     {
+      "line": 7,
+      "text": "One addition. Every load, store and instruction fetch pays exactly this."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A process runs with base = 32768 and bounds = 4096. Give the physical address for each virtual address, or write `fault` if the reference is illegal.",
+     "steps": [
+      {
+       "label": "virtual 0",
+       "expected": "32768"
+      },
+      {
+       "label": "virtual 1000",
+       "expected": "33768"
+      },
+      {
+       "label": "virtual 4095",
+       "expected": "36863"
+      },
+      {
+       "label": "virtual 4096",
+       "expected": "fault"
+      }
+     ],
+     "concepts": [
+      "base-and-bounds",
+      "address-translation"
+     ],
+     "tags": [
+      "base-and-bounds"
+     ],
+     "explain": "Every legal translation is the same single addition, so the arithmetic is never the hard part - the boundary is. Bounds is a size, not a largest legal address, so 4095 is the last byte inside the space and 4096 is one past the end. Reading bounds as an address is the standard off-by-one here, and it is the same mistake that turns a safe loop into a buffer overrun."
+    }
+   },
+   {
+    "title": "One base is one too few",
+    "body": "Base and bounds relocates the address space as one lump, and that lump is mostly nothing. Code sits at the bottom, the heap grows upward above it, the stack grows downward from the top, and between them lies a vast unused hole that exists so that both may grow. A process with a 16 KB address space using 2 KB of code, 3 KB of heap and 2 KB of stack still costs 16 KB of physical memory, because the hole is copied too.\n\n**Segmentation** is the obvious repair: give each logically distinct region its own base and bounds pair instead of one for the whole space. Now the hole is never placed anywhere, because it is not part of any segment. A virtual address is split - here the top two bits name the segment and the rest is an offset within it - and the hardware indexes a small segment table to find that segment's base and size.\n\nThe stack needs one extra bit of state, because it grows the wrong way. Its offsets count backwards from the top of the segment, so the hardware subtracts the segment size from the offset to get a negative displacement and adds that to the base. Address 15360 in a 16 KB space is 1024 bytes below the top, so with a stack base of 28672 it lands at 27648.\n\nSegmentation also makes sharing natural - two processes can point their code segment at the same physical bytes, marked read-only - and it makes out-of-bounds faults precise, since running off the end of the heap is caught by the heap's own size. What it does not fix is the shape of what it asks for. Physical memory now holds segments of every conceivable size, and when they come and go they leave gaps: this is **external fragmentation**, and it is the reason the next two sections exist.",
+    "code": "struct segment { uint64_t base; uint64_t size; int grows_down; };\n\n/* The top two bits of a 14-bit virtual address choose the segment. */\nstruct segment table[4] = {\n    [0] = { .base = 32768, .size = 2048, .grows_down = 0 },  /* code  */\n    [1] = { .base = 34816, .size = 3072, .grows_down = 0 },  /* heap  */\n    [3] = { .base = 28672, .size = 2048, .grows_down = 1 },  /* stack */\n};\n\nuint64_t translate(uint16_t virt)\n{\n    struct segment *s = &table[virt >> 12];\n    int off = (int)(virt & 0xFFF);\n    if (s->grows_down)\n        off -= 4096;                         /* 15360 becomes -1024 */\n    if (off >= (int)s->size || -off > (int)s->size)\n        raise_exception(SEGMENTATION_FAULT);\n    return s->base + off;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Two bits give four segment numbers; this table leaves entry 2 unused, so addresses in it fault."
+     },
+     {
+      "line": 12,
+      "text": "`virt >> 12` on a 14-bit address yields 0, 1, 2 or 3 - the segment number."
+     },
+     {
+      "line": 15,
+      "text": "The negative-offset trick: 15360 & 0xFFF is 3072, and 3072 - 4096 = -1024."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Using the segment table above (code base 32768 size 2048; heap base 34816 size 3072; stack base 28672 size 2048, growing down), translate these 14-bit virtual addresses. Write `fault` if the reference is illegal.",
+     "steps": [
+      {
+       "label": "virtual 100 (segment 00)",
+       "expected": "32868"
+      },
+      {
+       "label": "virtual 4200 (segment 01)",
+       "expected": "34920"
+      },
+      {
+       "label": "virtual 7500 (segment 01)",
+       "expected": "fault"
+      }
+     ],
+     "concepts": [
+      "segmentation",
+      "address-translation"
+     ],
+     "tags": [
+      "segmentation"
+     ],
+     "explain": "Strip the top two bits to get the offset, check it against that segment's own size, then add that segment's own base: 4200 is heap offset 104, so 34816 + 104 = 34920. 7500 is heap offset 3404, which is past the heap's 3072 bytes even though the address is comfortably inside the 16 KB address space - the whole point of segmentation is that each region is bounded separately, so a legal-looking address can still be illegal."
+    }
+   },
+   {
+    "title": "Managing the holes",
+    "body": "Once memory is handed out in variable-sized pieces, the allocator's real job is bookkeeping the gaps. A **free list** records each unused run as an address and a length. Satisfying a request means finding a run large enough and **splitting** it: the request takes the front, and what remains stays on the list as a smaller free block. Freeing does the reverse - **coalescing** - because two adjacent free runs that stay separate can never together serve a request larger than either.\n\nWhich run to split is a policy, and the three classical answers all lose somewhere. **First fit** takes the first block that is large enough: fast, no scan of the whole list, but it chews up the blocks near the head of the list. **Best fit** takes the smallest block that is large enough: it wastes the least on this request, but must scan everything and leaves behind slivers too small ever to be used. **Worst fit** takes the largest block, on the theory that the leftover will be big enough to be useful - in practice it also scans everything, and destroys the large blocks you were saving.\n\nThe `malloc` header is what makes freeing possible at all. `free(ptr)` is given one pointer and no size, so the allocator stores the block's size in a small header immediately before the returned pointer and steps backwards to read it. That is also why asking for one byte costs rather more than one byte.\n\nNo policy escapes the underlying problem. With variable sizes, memory that is free but scattered cannot satisfy a large request: an allocator can hold 40 KB free in six pieces and still fail a 12 KB request. Coalescing helps only where the free runs happen to touch. External fragmentation is not a bug in a policy - it is what variable-sized allocation is.",
+    "code": "struct header { size_t size; int free; struct header *next; };\n\n/* First fit: take the first block large enough, and split the rest off. */\nstruct header *first_fit(struct header *list, size_t want)\n{\n    for (struct header *h = list; h; h = h->next) {\n        if (!h->free || h->size < want)\n            continue;\n        if (h->size >= want + sizeof(struct header) + 1) {\n            struct header *rest = (struct header *)((char *)(h + 1) + want);\n            rest->size = h->size - want - sizeof(struct header);\n            rest->free = 1;\n            rest->next = h->next;\n            h->next = rest;\n            h->size = want;                  /* the split */\n        }\n        h->free = 0;\n        return h;\n    }\n    return NULL;                             /* no block big enough */\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The header the allocator hides just below every returned pointer; `free` reads the size back from it."
+     },
+     {
+      "line": 9,
+      "text": "Split only if the remainder can hold a header and at least one usable byte - otherwise hand over the whole block."
+     },
+     {
+      "line": 15,
+      "text": "The split itself: this block shrinks to the requested size, and the rest becomes a new free block."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A free list holds three blocks in address order: 20 bytes at address 1000, 15 bytes at 2000, 30 bytes at 3000. A request for 12 bytes arrives (ignore header overhead). Give the **address** of the block each policy chooses.",
+     "steps": [
+      {
+       "label": "first fit",
+       "expected": "1000"
+      },
+      {
+       "label": "best fit",
+       "expected": "2000"
+      },
+      {
+       "label": "worst fit",
+       "expected": "3000"
+      }
+     ],
+     "concepts": [
+      "free-space-management"
+     ],
+     "tags": [
+      "free-space-management"
+     ],
+     "explain": "First fit stops at the first block that fits and leaves an 8-byte remainder; best fit scans the whole list for the tightest fit, the 15-byte block, and leaves a 3-byte sliver that will probably never be used again; worst fit takes the 30-byte block and leaves 18. The tempting reading is that best fit is simply best - it does waste least on this request, but it is the policy that manufactures the slivers, and it pays a full scan of the list to do it."
+    }
+   },
+   {
+    "title": "Fixed-size pieces, and the table they need",
+    "body": "External fragmentation comes from variable sizes, so **paging** removes variable sizes. Physical memory is cut into fixed-size **page frames**, the address space into **pages** of the same size, and any page may go in any frame. A request for a page can now be satisfied by any free frame at all, so a free frame list never needs a fit policy and placement never fails while frames remain.\n\nTranslation is no longer arithmetic but a lookup. A virtual address splits into a **virtual page number** and an **offset**: with 4 KB pages the low 12 bits are the offset and everything above is the VPN. The VPN indexes the process's **page table** to find the **physical frame number**; the offset is copied through untouched, because a page and a frame are the same size and a byte's position within them is identical. So 0x00003ABC has VPN 0x3 and offset 0xABC, and if the page table maps page 3 to frame 0x1F the physical address is 0x1FABC - the offset digits are literally the same digits.\n\nTwo costs replace the one that was removed. The first is **internal fragmentation**: a process needing 4097 bytes gets two whole pages, and the last 4095 bytes of the second are wasted inside the allocation rather than between allocations. It is bounded by under one page per region, which is a far better bargain than an unbounded external hole.\n\nThe second is size, and it is severe. A 32-bit address space with 4 KB pages has $2^{20}$ pages, so a page table with a 4-byte entry each is 4 MB - **per process**. A hundred processes would need 400 MB of page tables before running a single instruction, and unlike two segment registers this cannot live in the CPU, so it sits in memory and every translation now costs an extra memory reference. Later floors spend themselves entirely on undoing those two costs.",
+    "code": "#define PAGE_SHIFT 12                /* 4096-byte pages */\n#define PAGE_SIZE  (1u << PAGE_SHIFT)\n#define OFFSET_MASK (PAGE_SIZE - 1)\n\nuint32_t translate(uint32_t virt, uint32_t *page_table)\n{\n    uint32_t vpn    = virt >> PAGE_SHIFT;        /* which page */\n    uint32_t offset = virt & OFFSET_MASK;        /* where in it */\n    uint32_t pte    = page_table[vpn];           /* one memory read */\n\n    if (!(pte & PTE_VALID))\n        raise_exception(SEGMENTATION_FAULT);\n\n    uint32_t pfn = pte >> PAGE_SHIFT;            /* which frame */\n    return (pfn << PAGE_SHIFT) | offset;         /* offset is untouched */\n}\n\n/* 0x00003ABC -> vpn 0x3, offset 0xABC; if pfn is 0x1F, the\n   physical address is 0x1FABC. Only the top digits change. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "A shift, not a division: the VPN is simply the address with the offset bits discarded."
+     },
+     {
+      "line": 8,
+      "text": "The mask keeps the low 12 bits - the byte's position within its page."
+     },
+     {
+      "line": 9,
+      "text": "This is the extra memory reference paging costs on every access, and the reason the TLB exists."
+     },
+     {
+      "line": 15,
+      "text": "The offset is OR'd in unchanged. Only the page-number half of the address is ever translated."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the two lines that split a 32-bit virtual address into its page number and its offset, for 4096-byte pages.",
+     "template": "uint32_t vpn    = virt ___ 12;\nuint32_t offset = virt ___ 0xFFF;",
+     "blanks": [
+      ">>",
+      "&"
+     ],
+     "concepts": [
+      "paging",
+      "address-translation"
+     ],
+     "tags": [
+      "paging"
+     ],
+     "explain": "The offset is the low 12 bits because $2^{12} = 4096$, so masking with 0xFFF keeps exactly the position within the page, and shifting right by 12 discards those bits to leave the page number. Swapping the two is the common slip: masking the address with 0xFFF tells you where in the page, never which page."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-3-g-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A process is loaded with base = 32768 and bounds = 4096. For each virtual address give the physical address the hardware produces, or `fault` if the reference is rejected.",
+   "steps": [
+    {
+     "label": "virtual 0",
+     "expected": "32768"
+    },
+    {
+     "label": "virtual 3000",
+     "expected": "35768"
+    },
+    {
+     "label": "virtual 4095",
+     "expected": "36863"
+    },
+    {
+     "label": "virtual 5000",
+     "expected": "fault"
+    }
+   ],
+   "concepts": [
+    "base-and-bounds",
+    "address-translation"
+   ],
+   "tags": [
+    "base-and-bounds",
+    "address-translation"
+   ],
+   "explain": "Each legal address is base + virtual and nothing more, which is why base-and-bounds costs one add per reference. 5000 is refused not because there is no memory there - the machine has plenty - but because this process was promised only 4096 bytes, and the bounds register is that promise. The physical addresses from 36864 upwards are perfectly real and may well belong to another process; the check is what stops this one reaching them.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the bounds check and the translation in the MMU's relocation path. The first blank is a comparison operator, the second an arithmetic operator.",
+   "template": "if (virt ___ bounds)\n    raise_exception(PROTECTION_FAULT);\nreturn base ___ virt;",
+   "blanks": [
+    ">=",
+    "+"
+   ],
+   "concepts": [
+    "base-and-bounds",
+    "address-spaces"
+   ],
+   "tags": [
+    "base-and-bounds"
+   ],
+   "explain": "Bounds is the *size* of the address space, so the legal virtual addresses are 0 through bounds - 1 and the fault condition is `>=`. Writing `>` admits one byte past the end, which is exactly the kind of one-byte overrun that lets a process read the beginning of its neighbour. The translation is an addition rather than a subtraction because a virtual address is a displacement from the start of the process's memory, and base is where that start physically is.",
+   "xp": 24
+  },
+  {
+   "id": "os-3-g-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 14-bit address space (16 KB) uses segmentation. The top two bits select the segment: 00 code (base 32768, size 2048), 01 heap (base 34816, size 3072), 11 stack (base 28672, size 2048, growing downwards). Translate each virtual address, writing `fault` for an illegal reference.",
+   "steps": [
+    {
+     "label": "virtual 4200",
+     "expected": "34920"
+    },
+    {
+     "label": "virtual 7000",
+     "expected": "37720"
+    },
+    {
+     "label": "virtual 7500",
+     "expected": "fault"
+    },
+    {
+     "label": "virtual 15360",
+     "expected": "27648"
+    },
+    {
+     "label": "virtual 14000",
+     "expected": "fault"
+    }
+   ],
+   "concepts": [
+    "segmentation",
+    "address-translation"
+   ],
+   "tags": [
+    "segmentation",
+    "address-translation"
+   ],
+   "explain": "Heap addresses give up their top two bits and are checked against 3072: 4200 is offset 104 and 7000 is offset 2904, both legal, while 7500 is offset 3404 and runs off the end of the heap. The stack is the one that catches people. Its offsets are negative displacements from the base: 15360 has offset 3072, which becomes 3072 - 4096 = -1024, so the physical address is 28672 - 1024 = 27648. By the same rule 14000 has offset 1712, hence -2384, which is further below the base than the stack's 2048 bytes allow - a legal-looking address in the middle of the space, rejected because each segment is bounded on its own.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague argues that segmentation is pointless because base-and-bounds already relocates a process anywhere in physical memory. Explain what segmentation buys, using the shape of a real address space to make the case, and name the cost it introduces.",
+   "rubric": {
+    "required": [
+     "sparse",
+     "heap",
+     "stack",
+     "hole",
+     "segment",
+     "fragment"
+    ],
+    "optional": [
+     "shar",
+     "grow",
+     "protect",
+     "contigu",
+     "unused",
+     "read-only"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "segmentation",
+    "address-spaces",
+    "external-fragmentation",
+    "base-and-bounds"
+   ],
+   "tags": [
+    "segmentation",
+    "address-spaces",
+    "base-and-bounds"
+   ],
+   "explain": "An address space is sparse by design: the hole between the heap and the stack exists so that both can grow, and under base-and-bounds that hole is copied into physical memory byte for byte, so a process using 7 KB of a 16 KB space still occupies 16 KB. Segmentation places each region separately, so nothing is reserved for the hole, and it gains precise per-region bounds and the ability to share a read-only code segment between processes. The tempting objection - that both schemes relocate equally well - is true and beside the point; relocation was never the thing being paid for. The cost is that physical memory now holds runs of many different sizes, and as segments come and go the free space breaks into scattered gaps that no single large request can use.",
+   "xp": 24
+  }
+ ],
+ "translation-drills": [
+  {
+   "id": "os-3-t-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 64-byte address space is divided into 16-byte pages, so a virtual address is 6 bits: 2 bits of VPN and 4 bits of offset. The page table is `[3, 7, 5, 2]`, mapping page 0 to frame 3, page 1 to frame 7, page 2 to frame 5 and page 3 to frame 2. Give the physical address for each virtual address, in decimal.",
+   "steps": [
+    {
+     "label": "virtual 0",
+     "expected": "48"
+    },
+    {
+     "label": "virtual 21",
+     "expected": "117"
+    },
+    {
+     "label": "virtual 43",
+     "expected": "91"
+    },
+    {
+     "label": "virtual 63",
+     "expected": "47"
+    }
+   ],
+   "concepts": [
+    "paging",
+    "address-translation",
+    "page-table"
+   ],
+   "tags": [
+    "paging",
+    "address-translation"
+   ],
+   "explain": "Split, look up, recombine. Virtual 21 is 010101: VPN 01 is page 1, offset 0101 is 5, page 1 lives in frame 7, so the physical address is 7 x 16 + 5 = 117. Virtual 63 is the highest address in the space and lands at 2 x 16 + 15 = 47, which is *lower* than where virtual 0 lands - a good demonstration that paging preserves no ordering at all between virtual and physical addresses. Multiplying the whole virtual address by something, or adding a base to it, is the habit left over from the previous two schemes and gives the wrong answer every time.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-t-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 32-bit virtual address space uses 4 KB pages, so the low 12 bits are the offset. Virtual address 0x00003ABC is translated, and the page table entry for its page holds frame number 0x1F with the valid bit set. Answer in hexadecimal with a `0x` prefix, except for the final step which is a decimal count.",
+   "steps": [
+    {
+     "label": "the offset",
+     "expected": "0xABC"
+    },
+    {
+     "label": "the virtual page number",
+     "expected": "0x3"
+    },
+    {
+     "label": "the physical frame number",
+     "expected": "0x1F"
+    },
+    {
+     "label": "the physical address",
+     "expected": "0x1FABC"
+    },
+    {
+     "label": "how many bits of the virtual address the translation replaced",
+     "expected": "20"
+    }
+   ],
+   "concepts": [
+    "page-table",
+    "address-translation",
+    "paging"
+   ],
+   "tags": [
+    "page-table",
+    "address-translation"
+   ],
+   "explain": "With 4 KB pages the offset is exactly the low three hex digits, since each hex digit is 4 bits and 12 / 4 = 3 - which is why paging is so much easier to read in hexadecimal than in decimal. The offset digits ABC are carried through untouched and only the page-number half is replaced, giving 0x1FABC. The last step is the point of the exercise: 20 of the 32 bits are translated and 12 are not, so the page table's entire job is mapping one 20-bit number to another.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-t-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps the hardware takes on a single memory reference under paging into the order in which they actually happen.",
+   "fragments": [
+    "Read the page table entry at that location, which is a real memory access",
+    "Extract the VPN from the top bits of the virtual address",
+    "Concatenate the frame number with the untranslated offset",
+    "Check the entry's valid bit and raise a fault if it is clear",
+    "Add the VPN, scaled by the entry size, to the page table base register",
+    "Issue the access to the resulting physical address"
+   ],
+   "answer": [
+    1,
+    4,
+    0,
+    3,
+    2,
+    5
+   ],
+   "concepts": [
+    "page-table",
+    "paging",
+    "address-translation"
+   ],
+   "tags": [
+    "page-table",
+    "paging"
+   ],
+   "explain": "The VPN has to be extracted before it can be used as an index, the index has to be turned into an address using the page table base register before anything can be read, and the valid bit must be checked before the frame number is trusted - checking after the access would be checking too late. The step that surprises people is the third: the page table lives in memory, so every translated reference costs a second, hidden memory access, and that cost is what motivates every mechanism on the floors that follow.",
+   "xp": 24
+  },
+  {
+   "id": "os-3-t-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the arithmetic for the size of a linear page table on a 32-bit address space with 4 KB pages and 4-byte page table entries. Give the first two blanks as plain integers (the exponents), and the last as a whole number of megabytes.",
+   "template": "pages    = 2^32 / 2^12 = 2^___\nPT bytes = 2^___ * 4 = ___ MB per process",
+   "blanks": [
+    "20",
+    "20",
+    "4"
+   ],
+   "concepts": [
+    "page-table",
+    "paging"
+   ],
+   "tags": [
+    "page-table"
+   ],
+   "explain": "Dividing the address space by the page size counts the pages: $2^{32}/2^{12} = 2^{20}$, just over a million. Every one of those pages needs an entry whether or not the process ever touches it, because the table is indexed directly by page number, so the table costs $2^{20} \\times 4 = 4$ MB for every process on the machine. A hundred processes would burn 400 MB of page tables before executing an instruction - and the fact that almost every one of those entries is invalid is exactly what the later multi-level schemes exploit.",
+   "xp": 24
+  }
+ ],
+ "memory-design": [
+  {
+   "id": "os-3-m-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 100-byte heap starts as one free block: address 0, length 100. Ignore header overhead, and assume the allocator uses first fit and splits from the front of the block it chooses. After each operation, give the free list as `addr:len` pairs separated by a comma and a space, in address order.",
+   "steps": [
+    {
+     "label": "after alloc(20)",
+     "expected": "20:80"
+    },
+    {
+     "label": "after alloc(30)",
+     "expected": "50:50"
+    },
+    {
+     "label": "after alloc(10)",
+     "expected": "60:40"
+    },
+    {
+     "label": "after freeing the 30-byte block at 20",
+     "expected": "20:30, 60:40"
+    },
+    {
+     "label": "after freeing the 20-byte block at 0",
+     "expected": "0:50, 60:40"
+    }
+   ],
+   "concepts": [
+    "free-space-management"
+   ],
+   "tags": [
+    "free-space-management"
+   ],
+   "explain": "Each allocation splits the front off the free block and the remainder stays on the list, so the single block simply walks forward and shrinks. The last two steps are where coalescing earns its keep: freeing the block at 20 puts a 30-byte run back on a list with no free neighbour, but freeing the block at 0 produces a run that ends exactly where that one begins, so the two merge into 0:50. Left unmerged they would be a 20 and a 30 that could never together serve a 40-byte request, even with 50 contiguous bytes sitting free.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-m-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A long-running server allocates and frees objects of many different sizes. After several days, `malloc(12288)` fails. Instrumenting the allocator shows 40 KB of free space spread over six blocks, the largest of which is 10 KB, and the process is nowhere near its memory limit. Name the cause and explain why simply having more free space would not necessarily fix it.",
+   "answer": "external fragmentation",
+   "rubric": {
+    "required": [
+     "contigu",
+     "fragment",
+     "coalesc",
+     "adjacen",
+     "variable"
+    ],
+    "optional": [
+     "split",
+     "sliver",
+     "polic",
+     "pag",
+     "fixed",
+     "compact"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "external-fragmentation",
+    "free-space-management"
+   ],
+   "tags": [
+    "external-fragmentation",
+    "free-space-management"
+   ],
+   "explain": "An allocator can only satisfy a request from a single contiguous run, so 40 KB free in six pieces of at most 10 KB cannot serve a 12 KB request - the space exists but not in the shape required. Coalescing only merges free blocks that are physically adjacent, and here the free blocks are separated by live allocations, so nothing merges. The tempting diagnosis is a leak, because the symptom is a failing allocation in a long-running process, but a leak would show the free total shrinking, whereas here the free total stays healthy while the largest block does not. This is the unavoidable consequence of variable-sized allocation, and adding memory only postpones it.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-m-03",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are specifying the memory subsystem for a small operating system on a 32-bit machine that must run dozens of processes of unpredictable size. Argue for fixed-size paging over segmentation. State which problem the fixed size removes and why, name the new form of waste it introduces and what bounds it, describe how a virtual address is split and translated, and be honest about the space cost of a linear page table with worked numbers for 4 KB pages and 4-byte entries. There are no tests here: your answer is marked against a rubric of the points it must cover.",
+   "rubric": {
+    "required": [
+     "fixed",
+     "frame",
+     "extern",
+     "intern",
+     "offset",
+     "translat",
+     "page table",
+     "4 MB"
+    ],
+    "optional": [
+     "contigu",
+     "valid",
+     "sparse",
+     "memory reference",
+     "free list",
+     "placement",
+     "TLB"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "paging",
+    "page-table",
+    "address-spaces",
+    "external-fragmentation"
+   ],
+   "tags": [
+    "paging",
+    "page-table",
+    "address-spaces"
+   ],
+   "hint": "Work outwards from one sentence: external fragmentation is caused by variable sizes, so make every piece the same size. Then account honestly for what that decision costs.",
+   "explain": "The argument has a shape worth learning. External fragmentation exists because a request must be met by one contiguous run of exactly the size asked for; make every piece the same size and any free frame serves any request, so placement never fails while frames remain and no fit policy is needed at all. The new waste is internal - the tail of the last page of each region - but it is bounded by under one page per region rather than being unbounded and scattered, which is a far better bargain. Translation becomes a lookup rather than an addition: the top 20 bits index the page table for a frame number and the low 12 bits pass through untouched. The honest part is the cost: $2^{20}$ entries at 4 bytes is 4 MB of page table per process, so dozens of processes cost hundreds of megabytes, and the table lives in memory so each reference costs a second one. An answer that stops at 'paging is better' has skipped the only interesting half.",
+   "xp": 120
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-3-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is a process's address space?",
+   "choices": [
+    "The private range of addresses, starting at zero, that a process sees, mapped by the OS onto real memory",
+    "The set of physical memory addresses the process currently occupies",
+    "The region of the kernel that stores a process's registers between context switches",
+    "The largest amount of memory the process is permitted to allocate"
+   ],
+   "answer": 0,
+   "concepts": [
+    "address-spaces"
+   ],
+   "tags": [
+    "address-spaces"
+   ],
+   "explain": "The defining property is that it is a fiction: it always begins at zero, it is the same fiction for every process, and the mapping onto physical memory is maintained by hardware the process cannot observe. The second option describes the physical footprint, which is exactly the thing the address space hides - and the two need not even be contiguous once paging is in play.",
+   "xp": 12
+  },
+  {
+   "id": "os-3-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of paging with fixed-size pages? Select all that apply.",
+   "choices": [
+    "Any free physical frame can hold any page",
+    "It eliminates external fragmentation of physical memory",
+    "It can waste space inside the last page of a region",
+    "It makes a linear page table smaller than a segment table"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "paging",
+    "external-fragmentation"
+   ],
+   "tags": [
+    "paging",
+    "external-fragmentation"
+   ],
+   "explain": "Uniform size is what makes any frame interchangeable, and interchangeability is what removes external fragmentation - there is no longer such a thing as a gap of the wrong size. The waste moves inside the allocation instead, into the tail of the final page. The last option inverts the truth: a segment table has a handful of entries, while a linear page table has one per page of the address space whether used or not, which is precisely the problem paging creates.",
+   "xp": 12
+  },
+  {
+   "id": "os-3-x-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A process has base = 65536 and bounds = 8192. Give the physical address for each virtual address, or `fault`.",
+   "steps": [
+    {
+     "label": "virtual 0",
+     "expected": "65536"
+    },
+    {
+     "label": "virtual 4096",
+     "expected": "69632"
+    },
+    {
+     "label": "virtual 8191",
+     "expected": "73727"
+    },
+    {
+     "label": "virtual 8192",
+     "expected": "fault"
+    }
+   ],
+   "concepts": [
+    "base-and-bounds",
+    "address-translation"
+   ],
+   "tags": [
+    "base-and-bounds"
+   ],
+   "explain": "Add the base, and reject anything not strictly below the bounds: 65536 + 8191 = 73727 is the last legal byte, and 8192 is one past the end of the space. If you produced 73728 for the third step you read bounds as the highest legal address rather than as a size, which is the same off-by-one that makes array loops overrun.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-x-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Segmentation with the top two bits selecting the segment in a 14-bit space: 00 code (base 32768, size 2048), 01 heap (base 34816, size 3072), 11 stack (base 28672, size 2048, growing downwards). Translate each, writing `fault` for an illegal reference.",
+   "steps": [
+    {
+     "label": "virtual 1000",
+     "expected": "33768"
+    },
+    {
+     "label": "virtual 2048",
+     "expected": "fault"
+    },
+    {
+     "label": "virtual 16383",
+     "expected": "28671"
+    }
+   ],
+   "concepts": [
+    "segmentation",
+    "address-translation"
+   ],
+   "tags": [
+    "segmentation",
+    "address-translation"
+   ],
+   "explain": "Virtual 1000 is code offset 1000, inside 2048, so 32768 + 1000 = 33768. Virtual 2048 is still segment 00 - the top two bits do not change until 4096 - and its offset 2048 is one past the code segment's size, so it faults even though nothing looks unusual about the address. Virtual 16383 is stack offset 4095, that is -1 from the base, so 28672 - 1 = 28671: the very top of the address space sits one byte below the stack's base in physical memory, which is what growing downwards means.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-x-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 32-bit address space with 4 KB pages. Virtual address 0x0000C123 is translated and the page table maps its page to frame 0x2A0, valid. Give hexadecimal answers with a `0x` prefix.",
+   "steps": [
+    {
+     "label": "the offset",
+     "expected": "0x123"
+    },
+    {
+     "label": "the virtual page number",
+     "expected": "0xC"
+    },
+    {
+     "label": "the physical address",
+     "expected": "0x2A0123"
+    }
+   ],
+   "concepts": [
+    "paging",
+    "page-table",
+    "address-translation"
+   ],
+   "tags": [
+    "paging",
+    "page-table"
+   ],
+   "explain": "Three hex digits of offset, everything above is the page number, and the frame number simply takes the place of the page number: 0x2A0 followed by 123. It is worth noticing that the physical address here has more significant digits than the virtual one - the frame number is wider than the page number it replaced, which is exactly how a machine addresses more physical memory than any single process can see.",
+   "xp": 48
+  },
+  {
+   "id": "os-3-x-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the two sentences about free space management with a single word each.",
+   "template": "Carving a request out of a larger free block and leaving the remainder on the list is called ___.\nMerging two free blocks that are physically adjacent into one larger block is called ___.",
+   "blanks": [
+    "splitting",
+    "coalescing"
+   ],
+   "concepts": [
+    "free-space-management"
+   ],
+   "tags": [
+    "free-space-management"
+   ],
+   "explain": "The pair is deliberately symmetric: allocation splits, freeing coalesces, and an allocator that does the first without the second grinds its free list into dust that can never serve a large request. Coalescing is only possible between blocks that touch, which is why it mitigates external fragmentation without ever curing it.",
+   "xp": 24
+  },
+  {
+   "id": "os-3-x-07",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these events so that they describe how external fragmentation arises in a segmented physical memory.",
+   "fragments": [
+    "A new request for a large segment fails despite ample free space in total",
+    "Physical memory is filled with segments of many different sizes",
+    "Some segments are freed, leaving gaps scattered between the survivors",
+    "Later segments are placed in the gaps large enough to hold them, splitting them further"
+   ],
+   "answer": [
+    1,
+    2,
+    3,
+    0
+   ],
+   "concepts": [
+    "external-fragmentation",
+    "segmentation"
+   ],
+   "tags": [
+    "external-fragmentation",
+    "segmentation"
+   ],
+   "explain": "The sequence matters because each step makes the next worse: variable sizes produce gaps, gaps get partially reused, and the leftovers get smaller with every reuse until no single run is large enough for a big request. The failure at the end is not a shortage of memory, it is a shortage of contiguous memory - which is why the eventual answer is to stop requiring contiguity at all.",
+   "xp": 24
+  },
+  {
+   "id": "os-3-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why paging eliminates external fragmentation while no segmentation policy can, and state precisely what paging costs in exchange. Refer to sizes, to what happens to the offset during translation, and to the size of a linear page table.",
+   "rubric": {
+    "required": [
+     "fixed",
+     "frame",
+     "variable",
+     "offset",
+     "intern",
+     "page table",
+     "translat"
+    ],
+    "optional": [
+     "contigu",
+     "4 MB",
+     "waste",
+     "bound",
+     "memory reference",
+     "lookup"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "paging",
+    "external-fragmentation",
+    "page-table",
+    "address-translation"
+   ],
+   "tags": [
+    "paging",
+    "external-fragmentation",
+    "page-table",
+    "address-translation"
+   ],
+   "explain": "External fragmentation is a consequence of variable sizes rather than of any allocation policy, so no fit policy can remove it - best fit merely chooses which slivers to create. Fixed-size frames make every free frame interchangeable, so a request for n pages is satisfiable whenever n frames are free anywhere, contiguous or not. The exchange is threefold: internal waste in the tail of the last page, bounded at under one page per region; a translation that is now a table lookup rather than an addition, with the offset passing through untouched and only the page number replaced; and a linear page table of one entry per page of the address space, which for a 32-bit space with 4 KB pages and 4-byte entries is 4 MB per process, held in memory and therefore costing an extra memory reference on every access.",
+   "xp": 24
+  },
+  {
+   "id": "os-3-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "An embedded team reports that their allocator behaves perfectly in testing but that devices in the field fail an allocation after roughly a fortnight of uptime, always for one large buffer, while total free memory stays around a third of the heap. They propose switching the allocator's policy from first fit to best fit. Assess the proposal and say what you would do instead.",
+   "rubric": {
+    "required": [
+     "fragment",
+     "contigu",
+     "best fit",
+     "sliver",
+     "polic",
+     "fixed"
+    ],
+    "optional": [
+     "coalesc",
+     "pool",
+     "pag",
+     "uptime",
+     "largest",
+     "compact",
+     "variable"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "free-space-management",
+    "external-fragmentation",
+    "paging"
+   ],
+   "tags": [
+    "free-space-management",
+    "external-fragmentation"
+   ],
+   "explain": "The symptom is the signature of external fragmentation: the failure needs time to develop, it strikes the largest request, and the total free figure stays healthy while the largest contiguous run does not. Switching to best fit does not address that and may worsen it, because best fit leaves behind the smallest possible remainders - slivers too small to serve anything later - so the free space becomes even more finely divided. The productive answers all attack the variable sizes rather than the policy: allocate that large buffer once at start-up and keep it, serve the common sizes from fixed-size pools so those allocations become interchangeable, or track the largest free block as a health metric so the failure is predicted rather than discovered. Measuring the largest contiguous run instead of the free total is what turns this from a field failure into a monitored one.",
+   "xp": 48
+  }
+ ]
+}

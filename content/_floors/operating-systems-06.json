@@ -1,0 +1,1126 @@
+{
+ "n": 6,
+ "name": "Threads and the Race",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "thread-vs-process",
+  "shared-address-space",
+  "race-condition",
+  "critical-section",
+  "mutual-exclusion",
+  "atomicity",
+  "spin-lock",
+  "test-and-set",
+  "compare-and-swap",
+  "interrupt-masking",
+  "lock-granularity"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "interleaving-lab",
+  "lock-design",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "One address space, many stacks",
+    "body": "A process is two things bundled together: an address space, and a thread of control running through it. **Threads** take that bundle apart. Creating a second thread inside a process gives you a second program counter and a second set of registers running through the *same* address space - the same code, the same globals, the same heap, the same open files.\n\nOnly two things are private. Each thread gets its own **stack**, so that its local variables and its chain of return addresses do not collide with anyone else's; and each thread gets its own register state, saved and restored on a context switch exactly as a process's is. Everything else is common property, which is why an address space with threads in it is drawn with several stacks scattered through the middle of it rather than one tidy stack at the top.\n\nThe reason to want this is parallelism and overlap. Two threads on two cores work on one data set without the copying, the marshalling and the explicit messages that two processes would need, and a thread that blocks on a slow disk read does not stop the others. A context switch between threads of the same process is cheaper too, because the address space does not change: the page table stays put and the TLB need not be flushed.\n\nAnd that shared address space is the whole bill, paid at once. Two processes that both hold a variable called `counter` hold two different variables and cannot possibly interfere. Two threads that both hold `counter` hold **one** variable, and the scheduler may switch between them at any instruction boundary it likes. What was structurally impossible has become the default hazard.",
+    "code": "#include <pthread.h>\n#include <stdio.h>\n\nint counter = 0;                    /* one object, both threads see it */\n\nvoid *worker(void *arg) {\n    char *name = (char *) arg;\n    int i;                          /* one copy per thread, on its stack */\n    for (i = 0; i < 3; i++)\n        counter = counter + 1;      /* the shared object, touched unguarded */\n    printf(\"%s finished, counter reads %d\\n\", name, counter);\n    return NULL;\n}\n\nint main(void) {\n    pthread_t t1, t2;\n    pthread_create(&t1, NULL, worker, \"A\");\n    pthread_create(&t2, NULL, worker, \"B\");\n    pthread_join(t1, NULL);         /* main blocks until t1 has returned */\n    pthread_join(t2, NULL);\n    printf(\"final: %d\\n\", counter); /* 6 if we are lucky; 2 to 6 in truth */\n    return 0;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "One `counter`, at one address, for the whole process. Two processes doing this would have two counters and no problem at all."
+     },
+     {
+      "line": 8,
+      "text": "`i` lives on the calling thread's own stack, so each thread has its own. This is the line nobody worries about, and it is the only one that is genuinely safe."
+     },
+     {
+      "line": 10,
+      "text": "Six increments are issued in total. The final value is anywhere from 2 to 6, and which one you get depends on where the timer interrupt happens to land."
+     },
+     {
+      "line": 19,
+      "text": "`pthread_join` is the only synchronisation in this program. It orders the end of the threads against `main`, and orders nothing at all between the threads themselves."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "For each part of a multi-threaded process, write exactly `shared` if all threads see one copy, or `private` if every thread has its own.",
+     "template": "code (text) segment: ___\nglobal variables: ___\nthe heap: ___\nthe stack: ___\nthe register set and program counter: ___\nthe file descriptor table: ___\n",
+     "blanks": [
+      "shared",
+      "shared",
+      "shared",
+      "private",
+      "private",
+      "shared"
+     ],
+     "concepts": [
+      "thread-vs-process",
+      "shared-address-space"
+     ],
+     "tags": [
+      "thread-vs-process"
+     ],
+     "explain": "Only the stack and the register state are per-thread, and they are per-thread for the same reason: they record where a particular thread is in its own execution, which no other thread has any business overwriting. Everything reachable through the address space - globals, heap, code - is one copy. The file descriptor table catches people out because it feels like an execution detail, but it belongs to the process, which is why one thread closing a descriptor closes it for all of them."
+    }
+   },
+   {
+    "title": "The race, one instruction at a time",
+    "body": "`counter = counter + 1` looks indivisible because it is one line. The processor does not see lines. It sees a **load** that copies the value out of memory into a register, an **add** that changes the register while memory sits untouched, and a **store** that writes the register back - and a timer interrupt may land in either of the two gaps.\n\nWhen it does, the interrupted thread's register is saved into its context and the other thread runs. If that other thread loads the same variable, it loads the value that is still in memory - the *stale* one, because the first thread's update is sitting in a saved register where nobody can see it. Both threads then compute the same new value and both store it. Two increments happened; the variable moved by one. This is a **lost update**, and it is the canonical shape of a **race condition**: a result that depends on the order in which threads happened to be scheduled.\n\nThe damage is not bounded by one. With two threads each incrementing a counter a thousand times, the maximum is the 2000 you expected and the minimum is **2** - and every value in between is reachable by some schedule. The counter is not merely a little bit wrong; the answer carries no information about how much work was done.\n\nWhat makes races unpleasant to hunt is that the buggy schedules are rare. The window between the load and the store is a few nanoseconds wide, so the program passes its tests, passes review, and corrupts data in production under load or on a machine with more cores. A test that passes tells you nothing here: you have not shown the race cannot happen, only that this particular run did not hit it.",
+    "code": "/* One line of C. Three instructions, and the timer interrupt may land\n   between any two of them:\n\n       mov 0x8049a1c, %eax      LOAD  : counter -> register\n       add $0x1, %eax           ADD   : register + 1; memory untouched\n       mov %eax, 0x8049a1c      STORE : register -> counter               */\n\ncounter = counter + 1;\n\n/* An interleaving that loses an update. counter starts at 50.\n\n   Thread 1        Thread 2        counter   T1.eax   T2.eax\n   ---------------------------------------------------------\n   LOAD                              50        50       -\n   ADD                               50        51       -\n   -- interrupt: T1's registers are saved into its context --\n                   LOAD              50        51       50\n                   ADD               50        51       51\n                   STORE             51        51       51\n   -- interrupt: T2's context saved, T1's eax restored to 51 --\n   STORE                             51        51       51\n\n   Two increments ran to completion. counter went from 50 to 51.        */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The add touches only the register. Between this instruction and the store, the new value exists nowhere that another thread can see."
+     },
+     {
+      "line": 8,
+      "text": "One line of source, and the source is what misleads you. Nothing in C promises that a statement is indivisible."
+     },
+     {
+      "line": 17,
+      "text": "T2 loads 50, not 51, because 51 exists only in T1's saved register. This single line is the whole bug."
+     },
+     {
+      "line": 21,
+      "text": "T1's store overwrites T2's identical result with the same number, which is why nothing looks corrupted afterwards - the value is simply too small."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "`counter` starts at 7. Two threads each run one `counter = counter + 1`, decomposed into LOAD, ADD, STORE. The schedule is: T1 LOAD, T1 ADD, [switch], T2 LOAD, T2 ADD, T2 STORE, [switch], T1 STORE. Give the value of `counter` in memory after each of the six instructions.",
+     "steps": [
+      {
+       "label": "after T1 LOAD",
+       "expected": "7"
+      },
+      {
+       "label": "after T1 ADD",
+       "expected": "7"
+      },
+      {
+       "label": "after T2 LOAD",
+       "expected": "7"
+      },
+      {
+       "label": "after T2 ADD",
+       "expected": "7"
+      },
+      {
+       "label": "after T2 STORE",
+       "expected": "8"
+      },
+      {
+       "label": "after T1 STORE",
+       "expected": "8"
+      }
+     ],
+     "concepts": [
+      "race-condition",
+      "atomicity"
+     ],
+     "tags": [
+      "race-condition"
+     ],
+     "explain": "Memory changes on stores and on nothing else, so four of the six steps leave `counter` exactly where it was. The instructive step is T2's LOAD: it reads 7, not 8, because T1's 8 is in a saved register rather than in memory. Both stores therefore write 8, and two increments move the counter by one."
+    }
+   },
+   {
+    "title": "What a lock must promise",
+    "body": "The region of code that must not be interleaved - here, the three instructions of the increment - is a **critical section**. What we need over it is **mutual exclusion**: a guarantee that at most one thread is inside at a time, so that the section behaves as though it were a single indivisible step. That property is **atomicity**, and since the hardware refuses to give it to us for arbitrary code, we build it.\n\nA **lock** is the tool. It is an ordinary variable holding the state of the region - free, or held by someone - with `lock()` at the entry and `unlock()` at the exit. `lock()` returns only when the caller owns the region; every other thread reaching the entry waits. Note what the lock does *not* do: it puts no order on the threads, so it does not make the program deterministic. It only guarantees that whatever order occurs, one thread finishes the section before the next begins.\n\nJudge any lock on three things. **Correctness** - does it actually exclude, on every schedule and on every core? **Fairness** - does every waiting thread eventually get in, or can one starve while others repeatedly overtake it? **Performance** - what does it cost when uncontended, when contended on one core, and when contended across many? These pull against each other, which is why there is more than one lock in the world.\n\nThe cheapest idea is to remove the thing that causes interleaving: switch interrupts off around the section, as in the second function below. On a single processor this genuinely works, and the kernel does use it in short, internal, interrupt-related places. As a general facility it fails on every count. It needs a privileged instruction, so it cannot be handed to user code - a thread that masked interrupts and looped would own the machine. It hides too much: a lost timer tick, a missed disk completion, a long critical section that delays every device on the machine. And on a multiprocessor it does not even work, because masking interrupts on *this* core says nothing about the thread running on the one next to it.",
+    "code": "#include <pthread.h>\n\nstatic pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;\nstatic int counter = 0;\n\nvoid increment(void) {\n    pthread_mutex_lock(&lock);      /* entry: at most one thread gets past */\n    counter = counter + 1;          /* the critical section */\n    pthread_mutex_unlock(&lock);    /* exit: hand the region to a waiter */\n}\n\n/* The kernel's first and most tempting answer, on a uniprocessor only. */\nvoid increment_by_masking(void) {\n    disable_interrupts();           /* no timer, so no context switch */\n    counter = counter + 1;\n    enable_interrupts();\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The entry point. Every path into the critical section must go through it, including the error paths - one early `return` that skips the unlock is a deadlock waiting for its first contended run."
+     },
+     {
+      "line": 8,
+      "text": "The critical section is the data's invariant, not a line count. Anything that must not be seen half-done belongs inside; anything that need not be belongs outside, where it does not cost other threads their turn."
+     },
+     {
+      "line": 13,
+      "text": "On a multiprocessor this function excludes nobody. The thread on the next core never wanted an interrupt in order to run."
+     },
+     {
+      "line": 14,
+      "text": "This is a privileged instruction. Handing it to user code hands over the machine, which is the first of three reasons interrupt masking is not a general lock."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "A colleague proposes replacing every `pthread_mutex_lock` in a user-space server with a pair of calls that disable and re-enable interrupts, arguing that it is faster because it never blocks. Give the reasons this cannot be adopted.",
+     "rubric": {
+      "required": [
+       "privileg",
+       "multiprocess",
+       "core",
+       "interrupt",
+       "user"
+      ],
+      "optional": [
+       "mask",
+       "timer",
+       "starv",
+       "monopol",
+       "device",
+       "kernel",
+       "lost",
+       "short"
+      ],
+      "minWords": 60
+     },
+     "concepts": [
+      "interrupt-masking",
+      "mutual-exclusion"
+     ],
+     "tags": [
+      "interrupt-masking"
+     ],
+     "explain": "Three separate objections, and the fatal one is the last. Disabling interrupts is privileged, so a user-space server cannot execute it at all; if it could, a thread that masked and then looped would monopolise the processor with no timer left to preempt it; and even in the kernel it excludes only the threads on this core, so on any multiprocessor the thread running beside you walks straight into the critical section. The tempting reading is that it is a fast lock with awkward permissions, but on more than one core it is not a lock at all."
+    }
+   },
+   {
+    "title": "Building a lock from one atomic instruction",
+    "body": "You cannot build mutual exclusion out of ordinary loads and stores at reasonable cost, because the test of the flag and the setting of the flag are themselves two instructions with a gap between them - the very problem we are trying to solve, moved one level down. Hardware breaks the regress by providing a single instruction that does both: **test-and-set** returns the old value of a word and writes a new one, indivisibly.\n\nThat is enough for a lock. `lock()` spins calling test-and-set with 1. If it gets 0 back, the flag was free and this thread has just taken it - and no other thread can have taken it too, because only one call can be the one that saw 0. If it gets 1 back it has changed nothing that matters and simply tries again. This **spin lock** is correct and tiny. It is not fair - a waiting thread has no queue position and may be overtaken indefinitely - and on a single processor it is close to the worst thing you could do, since a spinner burns its entire quantum waiting for a holder that cannot run until the spinner is preempted.\n\n**Compare-and-swap** is the more general primitive: it writes only if the word still holds the value you expected, and returns what it actually found. Used as a lock it behaves exactly like test-and-set. Used directly it does more, because the return value tells the thread whether its whole read-modify-write was based on stale data, so it can retry the update rather than hold a lock at all. That is the basis of lock-free structures - and note that retrying is not free either, since under heavy contention threads can spend most of their time losing races.\n\nThe last decision is **granularity**: how much data one lock protects. A single lock over a whole hash table is trivially correct and trivially serialising - it makes the table a one-thread-at-a-time object, and the ceiling on throughput is one critical section after another however many cores you own. One lock per bucket lets threads touching different buckets proceed together and multiplies that ceiling, at the cost of more memory, more acquisitions per operation, and the real hazard: any operation touching two buckets now takes two locks, and two threads taking them in opposite orders will deadlock. Coarse locks are slow and safe; fine locks are fast and easy to get wrong.",
+    "code": "/* What the hardware provides. On x86 this is one instruction (xchg);\n   the C below only describes what it does - it is not an implementation. */\nint TestAndSet(int *ptr, int new) {\n    int old = *ptr;                 /* fetch the old value ...            */\n    *ptr = new;                     /* ... and store the new one, as one  */\n    return old;                     /*     indivisible step               */\n}\n\ntypedef struct { int flag; } lock_t;\n\nvoid init(lock_t *l)   { l->flag = 0; }\nvoid lock(lock_t *l)   { while (TestAndSet(&l->flag, 1) == 1) ; /* spin */ }\nvoid unlock(lock_t *l) { l->flag = 0; }\n\n/* Compare-and-swap does the same job but reports what it found, so a\n   thread can retry a whole update instead of only acquiring a lock. */\nint CompareAndSwap(int *ptr, int expected, int new) {\n    int actual = *ptr;\n    if (actual == expected) *ptr = new;\n    return actual;\n}\n\nvoid atomic_increment(int *v) {\n    int old;\n    do { old = *v; } while (CompareAndSwap(v, old, old + 1) != old);\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "These three lines are the whole point, and they are not three lines in hardware. Written as C they would themselves race; as one instruction they cannot."
+     },
+     {
+      "line": 12,
+      "text": "Getting 0 back means the flag was free and you are the one who took it. The return value is the proof of ownership - which is why a plain store could never do this job."
+     },
+     {
+      "line": 19,
+      "text": "The difference from test-and-set is the conditional store. It lets a thread say `only if nobody has touched this since I read it`, which is what makes retry possible."
+     },
+     {
+      "line": 25,
+      "text": "If another thread got in between the read and the swap, the returned value differs from `old`, the loop goes round and the update is recomputed from the current value. Nothing is lost, but nothing is bounded either."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A test-and-set spin lock starts with `flag` at 0. The schedule is: T1 calls TestAndSet(&flag, 1); T2 calls TestAndSet(&flag, 1); T2 calls TestAndSet(&flag, 1) again; T1 calls unlock(); T2 calls TestAndSet(&flag, 1). For each call give the returned value and the value of `flag` afterwards, written as `returned, flag` - for example `1, 1`. For the unlock, give just the value of `flag`.",
+     "steps": [
+      {
+       "label": "T1's first TestAndSet",
+       "expected": "0, 1"
+      },
+      {
+       "label": "T2's first TestAndSet",
+       "expected": "1, 1"
+      },
+      {
+       "label": "T2's second TestAndSet",
+       "expected": "1, 1"
+      },
+      {
+       "label": "T1's unlock",
+       "expected": "0"
+      },
+      {
+       "label": "T2's next TestAndSet",
+       "expected": "0, 1"
+      }
+     ],
+     "concepts": [
+      "test-and-set",
+      "spin-lock"
+     ],
+     "tags": [
+      "test-and-set"
+     ],
+     "explain": "A spinning thread's calls are not no-ops - each one really does write 1 - but since the flag was already 1 the write changes nothing, which is exactly why spinning is safe. The whole acquisition rests on the single call that returns 0: only one call can observe a free flag, so only one thread can believe it holds the lock. The tempting error is to expect a spinning call to return 0 because the caller is waiting; the return value describes the flag before the write, not the caller's intent."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-6-g-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "`total` starts at 20. Two threads each perform one `total = total + 1`, decomposed into LOAD, ADD, STORE. The schedule is: T1 LOAD, T2 LOAD, T2 ADD, T2 STORE, T1 ADD, T1 STORE. Give the value held in memory by `total` after each instruction.",
+   "steps": [
+    {
+     "label": "after T1 LOAD",
+     "expected": "20"
+    },
+    {
+     "label": "after T2 LOAD",
+     "expected": "20"
+    },
+    {
+     "label": "after T2 ADD",
+     "expected": "20"
+    },
+    {
+     "label": "after T2 STORE",
+     "expected": "21"
+    },
+    {
+     "label": "after T1 ADD",
+     "expected": "21"
+    },
+    {
+     "label": "after T1 STORE",
+     "expected": "21"
+    }
+   ],
+   "concepts": [
+    "race-condition",
+    "shared-address-space"
+   ],
+   "tags": [
+    "race-condition"
+   ],
+   "hint": "Only a STORE changes memory. A thread's ADD works on the value it loaded, however long ago that was.",
+   "explain": "T1 was preempted after its LOAD, so it is holding a 20 in a register while the world moves on without it. When it finally runs its ADD it computes 21 from that stale 20 - not from the 21 now in memory - and its STORE writes 21 over a 21. Both increments completed and the total rose by one. The common slip is to give 22 for the final step, on the assumption that T1's ADD re-reads memory; it does not, because the LOAD already happened.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the vocabulary of mutual exclusion with the term each description names.",
+   "template": "the region of code that must not be interleaved: ___ section\nthe guarantee that at most one thread is inside it: ___ exclusion\nthe property of appearing to happen as one indivisible step: ___\nan outcome that depends on the scheduler's choices: a ___ condition\nthe hardware instruction that returns the old value and writes a new one: ___\n",
+   "blanks": [
+    "critical",
+    "mutual",
+    "atomicity",
+    "race",
+    "test-and-set"
+   ],
+   "concepts": [
+    "critical-section",
+    "mutual-exclusion",
+    "atomicity",
+    "race-condition",
+    "test-and-set"
+   ],
+   "tags": [
+    "critical-section",
+    "mutual-exclusion"
+   ],
+   "hint": "All five are named in this floor's lesson, in the order the ideas were introduced.",
+   "explain": "The distinction worth holding on to is between the critical section, which is a piece of your code, and mutual exclusion, which is a property enforced over it. Atomicity is what the pair buys you: the section is not really indivisible, it merely cannot be observed part-done. Test-and-set is the hardware's contribution, and it is a single instruction precisely because a two-instruction test-then-set would need a lock of its own.",
+   "xp": 30
+  },
+  {
+   "id": "os-6-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the events of one successful acquisition of a test-and-set spin lock into the order they happen, for a thread that arrives while the lock is already held.",
+   "fragments": [
+    "the thread calls TestAndSet(&flag, 1) and gets 1 back",
+    "seeing 1, it loops and calls TestAndSet again, still getting 1",
+    "the holder finishes its critical section and calls unlock, storing 0 into flag",
+    "the thread's next TestAndSet returns 0, having written 1",
+    "the thread leaves the spin loop and enters the critical section"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "spin-lock",
+    "test-and-set"
+   ],
+   "tags": [
+    "spin-lock"
+   ],
+   "hint": "The step that releases the waiter is performed by the other thread, not by the waiter.",
+   "explain": "The acquisition is the single call that returns 0, and it both tests and takes the lock in one indivisible action - there is no moment between them for another thread to slip in. Everything before it is wasted processor time, which is the spin lock's whole character: it converts waiting into burning cycles. Note that nothing here guarantees this thread is the one that succeeds after the unlock; a newly arriving thread may take it first, and that is exactly the unfairness a spin lock does not fix.",
+   "xp": 30
+  },
+  {
+   "id": "os-6-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Two threads each execute `counter = counter + 1` exactly 1000 times, with no synchronisation at all, on a counter starting at 0. Give the number of increments issued, and the highest and lowest final values that some schedule can produce.",
+   "template": "increments issued in total: ___\nhighest possible final value: ___\nlowest possible final value: ___\n",
+   "blanks": [
+    "2000",
+    "2000",
+    "2"
+   ],
+   "concepts": [
+    "race-condition",
+    "atomicity"
+   ],
+   "tags": [
+    "race-condition"
+   ],
+   "hint": "The final value is always one more than something a thread loaded. Ask how small that loaded value can be made, given that the load must happen late.",
+   "explain": "The highest is the answer you wanted, and it needs only that no thread is ever preempted between a load and its store. The lowest is 2, not 1000 and not 1: the last store to land writes one more than whatever its thread loaded, so to finish at 2 one thread must still be holding a stale 1 when everything else has run. Every value from 2 to 2000 is reachable by some schedule, which is the real lesson - an unsynchronised counter does not merely undercount by a predictable margin, it carries no information about how much work was done.",
+   "xp": 30
+  }
+ ],
+ "interleaving-lab": [
+  {
+   "id": "os-6-i-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A shared `balance` starts at 100. Three threads A, B and C each run one `balance = balance + 1` as LOAD, ADD, STORE. The schedule is: A LOAD, A ADD, B LOAD, B ADD, B STORE, C LOAD, C ADD, C STORE, A STORE. Give the value in memory after each of the nine instructions.",
+   "steps": [
+    {
+     "label": "after A LOAD",
+     "expected": "100"
+    },
+    {
+     "label": "after A ADD",
+     "expected": "100"
+    },
+    {
+     "label": "after B LOAD",
+     "expected": "100"
+    },
+    {
+     "label": "after B ADD",
+     "expected": "100"
+    },
+    {
+     "label": "after B STORE",
+     "expected": "101"
+    },
+    {
+     "label": "after C LOAD",
+     "expected": "101"
+    },
+    {
+     "label": "after C ADD",
+     "expected": "101"
+    },
+    {
+     "label": "after C STORE",
+     "expected": "102"
+    },
+    {
+     "label": "after A STORE",
+     "expected": "101"
+    }
+   ],
+   "concepts": [
+    "race-condition",
+    "shared-address-space",
+    "atomicity"
+   ],
+   "tags": [
+    "race-condition",
+    "shared-address-space"
+   ],
+   "hint": "A has been holding a register since the very first instruction. Ask what is in it when A is finally allowed to store.",
+   "explain": "The last step is the one that matters and the one most people get wrong: the balance goes *down*, from 102 to 101, because A stores the 101 it computed from a value it read eight instructions ago. Three increments were issued and the balance rose by one, so two updates were lost - B's is lost as well, silently overwritten by C's identical arithmetic. This is why a race is worse than an off-by-one: a stale store can move shared state backwards, and nothing in the data afterwards records that it happened.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-i-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An account `balance` starts at 200. Thread A runs a deposit (LOAD, ADD 50, STORE) and thread B runs a withdrawal (LOAD, SUBTRACT 30, STORE), with no lock. The schedule is: A LOAD, A ADD, B LOAD, B SUBTRACT, B STORE, A STORE. Give the value of `balance` in memory after each instruction, then the value it should have held.",
+   "steps": [
+    {
+     "label": "after A LOAD",
+     "expected": "200"
+    },
+    {
+     "label": "after A ADD 50",
+     "expected": "200"
+    },
+    {
+     "label": "after B LOAD",
+     "expected": "200"
+    },
+    {
+     "label": "after B SUBTRACT 30",
+     "expected": "200"
+    },
+    {
+     "label": "after B STORE",
+     "expected": "170"
+    },
+    {
+     "label": "after A STORE",
+     "expected": "250"
+    },
+    {
+     "label": "the correct balance after both operations",
+     "expected": "220"
+    }
+   ],
+   "concepts": [
+    "race-condition",
+    "critical-section"
+   ],
+   "tags": [
+    "race-condition",
+    "critical-section"
+   ],
+   "hint": "Each thread writes back a value derived from what it read, not from what is there now.",
+   "explain": "The withdrawal vanishes completely: A's store of 250 overwrites B's 170 with a figure computed before the withdrawal existed, and the customer is 30 better off than the ledger says. Reverse the last two instructions and the deposit vanishes instead - the same code, the same inputs, a different answer, which is the definition of a race. Note that no arithmetic is wrong anywhere; the fault is entirely that a read-modify-write was allowed to be observed part-done, which is precisely what a critical section around each operation would forbid.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-i-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A logging library keeps a shared `messages_written` count and appends to a shared buffer with no lock. It has run correctly for two years on single-core embedded hardware and passes its full test suite on the new eight-core board. In production on the new board the count drifts low - a few per million - and once a day a log line appears with two messages interleaved character by character. Name the cause and explain why the platform change exposed it.",
+   "answer": "an existing data race, previously hidden because a single core made the interleaving window rare and never truly concurrent",
+   "rubric": {
+    "required": [
+     "race",
+     "core",
+     "shar",
+     "lock",
+     "interleav",
+     "preempt"
+    ],
+    "optional": [
+     "atomic",
+     "critical",
+     "parallel",
+     "load",
+     "store",
+     "test",
+     "window",
+     "quantum",
+     "concurren"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "race-condition",
+    "shared-address-space",
+    "thread-vs-process"
+   ],
+   "tags": [
+    "race-condition",
+    "thread-vs-process"
+   ],
+   "hint": "The code did not change. Ask what a second core allows that a single core, with the same threads, never did.",
+   "explain": "The bug was always there; the hardware merely stopped hiding it. On one core two threads interleave only when the timer interrupt lands in the few-nanosecond window between a load and its store, so the race fires rarely enough to look like correctness. On eight cores the threads run genuinely simultaneously, so overlapping the critical region needs no interrupt at all and the window is hit constantly - hence a low but steady drift, and occasionally two appends running through the buffer at once. The tempting misdiagnosis is a compiler or toolchain fault, because 'it worked before the port' points that way, but a compiler bug would not produce a rate that scales with load, and a passing test suite proves nothing here: it shows only that these particular runs missed the window.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-i-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two threads run `atomic_increment` on a shared `v` holding 7, using the loop `do { old = *v; } while (CompareAndSwap(v, old, old + 1) != old);`. The schedule is: A reads `old`; B reads `old`; B calls CompareAndSwap; A calls CompareAndSwap; A re-reads `old`; A calls CompareAndSwap again. For each read give the thread's `old` and then `v`; for each CompareAndSwap give its return value and then `v`. Write each answer as two numbers separated by a comma.",
+   "steps": [
+    {
+     "label": "A reads old",
+     "expected": "7, 7"
+    },
+    {
+     "label": "B reads old",
+     "expected": "7, 7"
+    },
+    {
+     "label": "B's CompareAndSwap(v, 7, 8)",
+     "expected": "7, 8"
+    },
+    {
+     "label": "A's CompareAndSwap(v, 7, 8)",
+     "expected": "8, 8"
+    },
+    {
+     "label": "A re-reads old",
+     "expected": "8, 8"
+    },
+    {
+     "label": "A's CompareAndSwap(v, 8, 9)",
+     "expected": "8, 9"
+    },
+    {
+     "label": "final value of v after both increments",
+     "expected": "9"
+    }
+   ],
+   "concepts": [
+    "compare-and-swap",
+    "atomicity"
+   ],
+   "tags": [
+    "compare-and-swap",
+    "atomicity"
+   ],
+   "hint": "CompareAndSwap always returns what it found. It writes only when what it found equals what was expected.",
+   "explain": "A's first CompareAndSwap is the whole point: it returns 8 rather than 7, which is not equal to A's `old`, so it writes nothing and the loop goes round. That returned 8 is the difference between compare-and-swap and test-and-set - it reports the current value, so the retry recomputes the increment from fresh data and no update is lost. The result is 9, the correct answer, without a lock anywhere; the price is that A did the work twice, and under heavy contention a thread can retry many times, so lock-free is not the same thing as wait-free or even fast.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-i-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A developer argues that `counter++` must be safe because it is a single expression. Explain why the argument fails, what the processor actually executes, and why a `volatile` qualifier would not fix it either.",
+   "rubric": {
+    "required": [
+     "load",
+     "store",
+     "atomic",
+     "register",
+     "instruct",
+     "volatile"
+    ],
+    "optional": [
+     "interrupt",
+     "preempt",
+     "stale",
+     "race",
+     "memory",
+     "compiler",
+     "cach",
+     "lock",
+     "core"
+    ],
+    "minWords": 75
+   },
+   "concepts": [
+    "atomicity",
+    "shared-address-space",
+    "critical-section"
+   ],
+   "tags": [
+    "atomicity",
+    "shared-address-space"
+   ],
+   "hint": "Count the instructions the expression compiles to, then ask what `volatile` actually promises the compiler.",
+   "explain": "Source syntax has no relationship to instruction boundaries: `counter++` compiles to a load into a register, an arithmetic operation on that register, and a store back, and the thread may be preempted - or simply run beside another core - in either gap, so a second thread can load the same stale value. `volatile` is the classic false fix because it sounds like it means 'shared'. It only forbids the compiler from caching the value in a register across statements and from reordering the accesses it governs; it still emits a load, an arithmetic operation and a store, so the read-modify-write remains three separately observable steps. What is needed is either a lock around the section or a genuinely atomic read-modify-write instruction, because atomicity is a property of the hardware operation, not of how briefly the source describes it.",
+   "xp": 30
+  }
+ ],
+ "lock-design": [
+  {
+   "id": "os-6-d-01",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A team must protect a short critical section inside a device driver that also runs on a four-core machine. One engineer proposes masking interrupts around it; another proposes a test-and-set spin lock. Assess both. Say where each is correct and where each is not, what a spin lock costs on a single core versus on four, and what the two mechanisms together are actually used for in a driver.",
+   "rubric": {
+    "required": [
+     "interrupt",
+     "core",
+     "spin",
+     "quantum",
+     "short",
+     "mask",
+     "handler"
+    ],
+    "optional": [
+     "waste",
+     "preempt",
+     "fair",
+     "starv",
+     "privileg",
+     "test-and-set",
+     "block",
+     "cycle",
+     "deadlock",
+     "atomic"
+    ],
+    "minWords": 100
+   },
+   "concepts": [
+    "interrupt-masking",
+    "spin-lock",
+    "mutual-exclusion"
+   ],
+   "tags": [
+    "interrupt-masking",
+    "spin-lock"
+   ],
+   "hint": "Ask what each mechanism excludes. One excludes the interrupt handler on this core; the other excludes threads on other cores. A driver usually needs both.",
+   "explain": "The two mechanisms exclude different things, which is why the choice is not either/or. Masking interrupts stops the handler on *this* core from re-entering the section but says nothing about the other three cores, so alone it is not mutual exclusion on this machine. A spin lock excludes the threads on other cores but does not stop this core's own interrupt handler, which - if it takes the same lock while a thread on this core holds it - deadlocks the core instantly against itself. Real drivers therefore take both: mask locally, then spin. On the cost side, spinning is only ever reasonable when the section is short and there is somewhere else for the holder to run: on four cores a spinner burns a few hundred cycles while the holder finishes on another core, but on one core it burns its entire remaining quantum waiting for a holder that cannot possibly run until the spinner is preempted. The tempting simplification is 'spin locks are always wasteful'; the honest answer is that they are wasteful exactly when the holder is not running.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-d-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A shared hash table is protected by one global lock. Each operation costs 10,000 ns in total, of which exactly 250 ns is spent inside the critical section. Assume the cores are identical and otherwise idle, and that keys are spread evenly over buckets. Give each figure as a plain number with no units and no thousands separators.",
+   "steps": [
+    {
+     "label": "operations per second one core can perform",
+     "expected": "100000"
+    },
+    {
+     "label": "serial fraction of one operation, as a percentage",
+     "expected": "2.5"
+    },
+    {
+     "label": "greatest speedup any number of cores can achieve with the global lock",
+     "expected": "40"
+    },
+    {
+     "label": "operations per second the single global lock can sustain, whatever the core count",
+     "expected": "4000000"
+    },
+    {
+     "label": "number of cores at which the global lock becomes the bottleneck",
+     "expected": "40"
+    },
+    {
+     "label": "operations per second sustainable with 16 independent per-bucket locks",
+     "expected": "64000000"
+    }
+   ],
+   "concepts": [
+    "lock-granularity",
+    "critical-section"
+   ],
+   "tags": [
+    "lock-granularity",
+    "critical-section"
+   ],
+   "hint": "A lock held for 250 ns can be handed on at most 1,000,000,000 / 250 times a second, and that number does not change when you buy more cores.",
+   "explain": "Two independent calculations meet at the same answer, which is the point. From the throughput side, a 250 ns critical section can be entered at most 4,000,000 times a second, and a core producing one operation per 10,000 ns manages 100,000 a second, so the fortieth core is the one that saturates the lock. From Amdahl's side, 250 of 10,000 ns is a 2.5 per cent serial fraction, and the ceiling on speedup is $1/0.025 = 40$ - the same 40. Splitting into 16 independent bucket locks multiplies the lock ceiling by 16 to 64,000,000, because sixteen critical sections can now be occupied at once. The tempting error is to expect fine-grained locking to raise the single-core figure; it does not, and in fact lowers it slightly through extra acquisitions - it only raises the ceiling.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-d-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An in-memory cache uses one mutex around a hash table. On four cores it serves 380,000 requests a second. Moved to 32 cores it serves 340,000 - fewer than before - while every core shows high system time and the profiler attributes most of it to the lock acquisition path. Each request spends about 1 per cent of its time in the critical section. Name the cause and explain both why throughput stopped rising and why it fell.",
+   "answer": "contention on a single coarse-grained lock, whose serialised critical section caps throughput while the cost of contending grows with the core count",
+   "rubric": {
+    "required": [
+     "contention",
+     "coarse",
+     "granular",
+     "serial",
+     "cach",
+     "scal"
+    ],
+    "optional": [
+     "Amdahl",
+     "bucket",
+     "shard",
+     "ceiling",
+     "bounce",
+     "spin",
+     "overhead",
+     "queue",
+     "line",
+     "core"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "lock-granularity",
+    "critical-section",
+    "spin-lock"
+   ],
+   "tags": [
+    "lock-granularity",
+    "critical-section",
+    "spin-lock"
+   ],
+   "hint": "Work out the ceiling implied by a 1 per cent critical section, then ask what 32 cores do to each other while queueing for one word of memory.",
+   "explain": "A 1 per cent serial fraction caps speedup at 100 regardless of cores, so throughput was always going to flatten - but flattening does not explain a fall, and the fall is the real finding. Beyond a certain point the cost of contending exceeds the work being protected: every core attempting the atomic acquisition drags the lock's cache line to itself, so the line bounces between 32 caches and each acquisition costs far more than it did with four contenders, while the holder itself is slowed by the traffic. That is why system time rises and the profiler points at the acquisition path rather than at the table. The cure is granularity - shard the table so that independent keys take independent locks - and the tempting wrong cure is a faster lock implementation, which lowers the constant but leaves the single serialised region, and therefore the ceiling, exactly where it was.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-d-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design a shared counter for a server on 32 cores that is incremented millions of times a second and read - exactly, not approximately - roughly once a second. Set out the data layout, how an increment proceeds, how an exact read is obtained, and which atomic primitive each step needs. Justify your choice of granularity against a single mutex and against a single compare-and-swap loop, and state honestly what your design costs and where it could still go wrong. No code is required; the description must be precise enough to implement.",
+   "rubric": {
+    "required": [
+     "shard",
+     "sum",
+     "atomic",
+     "contention",
+     "cach",
+     "read",
+     "core"
+    ],
+    "optional": [
+     "compare-and-swap",
+     "false sharing",
+     "padding",
+     "line",
+     "mutex",
+     "lock",
+     "granular",
+     "exact",
+     "aggregate",
+     "spin",
+     "index",
+     "scal"
+    ],
+    "minWords": 130
+   },
+   "concepts": [
+    "lock-granularity",
+    "compare-and-swap",
+    "spin-lock",
+    "atomicity",
+    "test-and-set"
+   ],
+   "tags": [
+    "lock-granularity",
+    "compare-and-swap",
+    "atomicity",
+    "test-and-set",
+    "spin-lock"
+   ],
+   "explain": "The shape the workload asks for is one counter per core - an array of 32 sub-counters, each padded to its own cache line - with an increment doing an atomic add to the entry for the core it is running on, and a read summing all 32. That trade is explicit: writes become almost uncontended, since each core touches a line no other core wants, while reads become 32 times more expensive and are the rare operation. A single mutex or a single compare-and-swap loop both concentrate every increment on one word, so the cache line holding it bounces between all 32 cores and throughput collapses under exactly the load described; the compare-and-swap loop is worse than it looks, because failure means retrying, so contention causes more traffic rather than less. The padding is not an optimisation but the point - without it several sub-counters share a cache line and the contention returns in a form invisible in the source, which is false sharing. The honest costs are memory, the cost of finding the current core's index, and the fact that summing without stopping the writers yields a total that was never simultaneously true of all shards. If 'exact' means a consistent snapshot rather than a correct sum of completed increments, the shards must be locked or a sequence-number scheme used, and that must be said rather than glossed over.",
+   "xp": 150
+  },
+  {
+   "id": "os-6-d-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "State the three properties by which any lock implementation is judged, and for the test-and-set spin lock say how it fares on each. Then explain why a thread must never be descheduled and forgotten inside a critical section, and what that implies about how long a critical section ought to be.",
+   "rubric": {
+    "required": [
+     "correct",
+     "fair",
+     "perform",
+     "starv",
+     "spin",
+     "short",
+     "preempt"
+    ],
+    "optional": [
+     "mutual",
+     "quantum",
+     "waste",
+     "cycle",
+     "queue",
+     "ticket",
+     "overtak",
+     "core",
+     "convoy",
+     "holder"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "mutual-exclusion",
+    "spin-lock",
+    "thread-vs-process",
+    "critical-section"
+   ],
+   "tags": [
+    "mutual-exclusion",
+    "spin-lock",
+    "thread-vs-process"
+   ],
+   "hint": "Correctness, fairness, performance - and the spin lock scores very differently on each of the three.",
+   "explain": "Correctness, fairness and performance, and the spin lock's honest scorecard is: correct, unfair, and fast or catastrophic depending on the core count. It is correct because only one test-and-set can observe a free flag. It is unfair because a waiter holds no queue position, so an arriving thread may take the lock ahead of one that has spun for a million cycles and may keep doing so indefinitely - that is starvation, and it is what ticket locks exist to fix. Its performance is excellent uncontended, acceptable when contended across cores with a short section, and disastrous on a single core, where each spinner burns a whole quantum waiting for a holder that cannot run. That last case is the general rule in miniature: while a thread sits inside a critical section, every other thread wanting that data makes no progress, so the holder being preempted converts one thread's pause into everyone's. Hence critical sections should hold only what genuinely must be indivisible - never blocking I/O, never work that could have been done before the lock was taken.",
+   "xp": 30
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-6-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which definition of a **critical section** is correct?",
+   "choices": [
+    "any region of code that accesses a shared resource and must not be executed by more than one thread at a time",
+    "the part of the kernel that runs with interrupts disabled",
+    "a thread's private stack, which no other thread may read",
+    "the portion of a program that dominates its running time"
+   ],
+   "answer": 0,
+   "concepts": [
+    "critical-section"
+   ],
+   "tags": [
+    "critical-section"
+   ],
+   "explain": "A critical section is defined by the invariant it maintains over shared data, not by where it sits or how long it runs. The interrupt-disabled answer confuses a section with one particular way of protecting one, and only on a uniprocessor at that. The stack is the one part of a thread that needs no protection, since nobody else touches it, and the last choice describes the hot path - a performance notion with no bearing on correctness.",
+   "xp": 15
+  },
+  {
+   "id": "os-6-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every item that all threads of one process share.",
+   "choices": [
+    "the code (text) segment",
+    "global variables",
+    "the heap",
+    "the stack",
+    "the register set and program counter",
+    "the page table"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    5
+   ],
+   "concepts": [
+    "thread-vs-process",
+    "shared-address-space"
+   ],
+   "tags": [
+    "shared-address-space"
+   ],
+   "explain": "Threads share the address space, so everything that *is* the address space - code, globals, heap, and the page table that describes them - is common, which is exactly why a switch between threads of one process need not flush the TLB. The stack and the register state are private because they record where a particular thread is in its own execution. The page table is the one people hesitate over, but it must be shared: if the threads had different page tables they would not have the same address space, and they would be processes.",
+   "xp": 15
+  },
+  {
+   "id": "os-6-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in each blank with a single term from this floor.",
+   "template": "A read-modify-write that another thread can observe part-done lacks ___.\nThe instruction that writes only if the word still holds an expected value is ___.\nA lock that waits by looping rather than sleeping is a ___ lock.\nProtecting more data with one lock is called ___ granularity.\n",
+   "blanks": [
+    "atomicity",
+    "compare-and-swap",
+    "spin",
+    "coarse"
+   ],
+   "concepts": [
+    "atomicity",
+    "compare-and-swap",
+    "spin-lock",
+    "lock-granularity"
+   ],
+   "tags": [
+    "atomicity",
+    "compare-and-swap"
+   ],
+   "explain": "Compare-and-swap is the conditional one - test-and-set writes unconditionally and merely tells you what was there - and that conditionality is what makes retry loops possible. Coarse granularity trades throughput for the ease of getting it right; fine granularity does the reverse and introduces the possibility of two threads taking two locks in two different orders.",
+   "xp": 30
+  },
+  {
+   "id": "os-6-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "`counter` starts at 4. Thread T1 performs two increments and thread T2 performs one, each as LOAD, ADD, STORE. The schedule is: T1 LOAD, T1 ADD, T1 STORE, T2 LOAD, T2 ADD, T1 LOAD, T1 ADD, T1 STORE, T2 STORE. Give the value in memory after each instruction, then the value it should have held.",
+   "steps": [
+    {
+     "label": "after T1 LOAD",
+     "expected": "4"
+    },
+    {
+     "label": "after T1 ADD",
+     "expected": "4"
+    },
+    {
+     "label": "after T1 STORE",
+     "expected": "5"
+    },
+    {
+     "label": "after T2 LOAD",
+     "expected": "5"
+    },
+    {
+     "label": "after T2 ADD",
+     "expected": "5"
+    },
+    {
+     "label": "after T1's second LOAD",
+     "expected": "5"
+    },
+    {
+     "label": "after T1's second ADD",
+     "expected": "5"
+    },
+    {
+     "label": "after T1's second STORE",
+     "expected": "6"
+    },
+    {
+     "label": "after T2 STORE",
+     "expected": "6"
+    },
+    {
+     "label": "the correct final value",
+     "expected": "7"
+    }
+   ],
+   "concepts": [
+    "race-condition",
+    "atomicity"
+   ],
+   "tags": [
+    "race-condition"
+   ],
+   "explain": "T1's first increment is untouched by anyone and lands cleanly, which is why races are so easy to miss: most of the work is fine. The loss happens because T2 loads 5 and is then held off while T1 loads the same 5 and stores 6; T2's store of its own 6 overwrites T1's with the identical number. Three increments were issued and the counter moved by two. The tempting answer for the ninth step is 7, on the assumption that T2's store adds to whatever is there - it does not, it writes the register.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A test-and-set spin lock has `flag` at 1, held by T1. Give the returned value and the resulting flag, written as `returned, flag`, for each event: T2 spins once; T3 spins once; T1 unlocks (give the flag only); T3 spins again; T2 spins again.",
+   "steps": [
+    {
+     "label": "T2's TestAndSet while held",
+     "expected": "1, 1"
+    },
+    {
+     "label": "T3's TestAndSet while held",
+     "expected": "1, 1"
+    },
+    {
+     "label": "T1's unlock",
+     "expected": "0"
+    },
+    {
+     "label": "T3's next TestAndSet",
+     "expected": "0, 1"
+    },
+    {
+     "label": "T2's next TestAndSet",
+     "expected": "1, 1"
+    }
+   ],
+   "concepts": [
+    "test-and-set",
+    "spin-lock"
+   ],
+   "tags": [
+    "test-and-set",
+    "spin-lock"
+   ],
+   "explain": "T3 acquires and T2 keeps spinning, even though T2 arrived first - the trace is a small demonstration that a test-and-set lock has no queue and therefore no fairness guarantee at all. Each unsuccessful call still writes 1 over a 1, which is harmless, and that harmlessness is why the loop can be so simple. The one call that returns 0 is the acquisition; there is no separate 'take the lock' step, because there could not be one without reopening the race.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The kernel of a new operating system protects all its internal data with a single pair of disable-interrupts and enable-interrupts calls, and the design worked on the prototype board. The product ships on a four-core processor and corrupts kernel structures under load. Explain what went wrong and what must replace the mechanism.",
+   "rubric": {
+    "required": [
+     "core",
+     "interrupt",
+     "local",
+     "spin",
+     "atomic",
+     "exclu"
+    ],
+    "optional": [
+     "mask",
+     "handler",
+     "test-and-set",
+     "compare-and-swap",
+     "uniprocess",
+     "parallel",
+     "granular",
+     "hardware",
+     "concurren"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "interrupt-masking",
+    "mutual-exclusion",
+    "spin-lock"
+   ],
+   "tags": [
+    "interrupt-masking",
+    "mutual-exclusion"
+   ],
+   "explain": "Masking interrupts prevents this core from being interrupted and nothing more. On the single-core prototype that was sufficient, because preventing preemption on the only core prevented every possible interleaving; on four cores the other three carry on executing kernel code, so two cores can be inside the same critical section simultaneously with no interrupt involved anywhere. The replacement must be built on a hardware atomic instruction - test-and-set or compare-and-swap - because only an operation that is indivisible across the whole memory system can exclude a thread on another core. In practice the local masking is kept as well, since it is still the only thing that excludes this core's own interrupt handler, so the fix is a lock plus masking rather than a lock instead of it. The tempting conclusion is that the prototype code was simply wrong; it was correct for the machine it was written for, which is why the assumption has to be found rather than merely the bug.",
+   "xp": 30
+  },
+  {
+   "id": "os-6-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A queue is protected by a mutex. A profiler shows that threads spend 40 per cent of their time waiting for it, and the critical section is found to contain the dequeue, a `write()` of the item to a log file on disk, and a call to `free()`. Throughput does not improve when the mutex is replaced with a faster spin lock; it gets worse. Name the cause and explain both observations.",
+   "answer": "the critical section is far too long because blocking I/O was placed inside it, so the lock is held across a disk write",
+   "rubric": {
+    "required": [
+     "critical section",
+     "I/O",
+     "hold",
+     "block",
+     "spin",
+     "outside"
+    ],
+    "optional": [
+     "disk",
+     "write",
+     "quantum",
+     "waste",
+     "sleep",
+     "shorten",
+     "milli",
+     "contention",
+     "free",
+     "yield"
+    ],
+    "minWords": 75
+   },
+   "concepts": [
+    "critical-section",
+    "lock-granularity",
+    "spin-lock"
+   ],
+   "tags": [
+    "critical-section",
+    "lock-granularity"
+   ],
+   "explain": "The `write()` is the fault: a disk write takes on the order of milliseconds and the lock is held throughout, so every other thread waits on hardware it has no interest in, and the holder is descheduled while blocked - still holding the lock. The fix is to shorten the section, not to speed up the lock: dequeue under the mutex, then log and free outside it. The second observation is the confirmation, and it is why the spin lock made things worse rather than merely failing to help. A blocking mutex at least lets a waiter sleep and yield the core to someone useful, whereas a spin lock has each waiter burn its whole quantum looping on a flag whose holder is asleep on a disk request. Spinning is only ever right when the holder is running and will be finished in less time than a context switch costs, and a thread blocked on I/O is the exact opposite of that.",
+   "xp": 60
+  },
+  {
+   "id": "os-6-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You are reviewing a proposal to replace a bank ledger's single global mutex with one mutex per account, on the grounds that transfers between unrelated accounts should proceed in parallel. Argue for and against, and set out precisely what the transfer operation must now do that it did not have to do before.",
+   "rubric": {
+    "required": [
+     "granular",
+     "two lock",
+     "order",
+     "deadlock",
+     "parallel",
+     "invariant"
+    ],
+    "optional": [
+     "contention",
+     "throughput",
+     "account",
+     "consistent",
+     "acquire",
+     "address",
+     "identifier",
+     "scal",
+     "audit",
+     "sum",
+     "release"
+    ],
+    "minWords": 100
+   },
+   "concepts": [
+    "lock-granularity",
+    "critical-section",
+    "mutual-exclusion"
+   ],
+   "tags": [
+    "lock-granularity",
+    "mutual-exclusion"
+   ],
+   "explain": "The case for is straightforward and real: with one lock per account, transfers touching disjoint accounts contend for nothing, and the throughput ceiling rises from one transfer at a time to as many as there are cores. The case against is that a transfer is not an operation on one account. It must hold both accounts' locks for the whole of the debit and the credit, or another thread can observe the money in neither place; and once an operation takes two locks, two transfers running in opposite directions - A to B and B to A - can each take one and wait forever for the other. The discipline that fixes it is a global ordering: always acquire in a fixed order, such as ascending account identifier or address, so a cycle is impossible. The proposal must also say what happens to any operation that reads the whole ledger - an audit that sums the balances now has no single lock to take and must either take all of them in that same order or accept a total that was never simultaneously true. That is the real trade: fine granularity buys parallelism and charges for it in invariants that the programmer, rather than the lock, must now maintain.",
+   "xp": 60
+  }
+ ]
+}

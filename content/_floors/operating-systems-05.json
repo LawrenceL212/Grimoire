@@ -1,0 +1,993 @@
+{
+ "n": 5,
+ "name": "Beyond Physical Memory",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "swap-space",
+  "present-bit",
+  "page-fault-path",
+  "demand-paging",
+  "optimal-replacement",
+  "fifo-replacement",
+  "belady-anomaly",
+  "lru-replacement",
+  "clock-algorithm",
+  "thrashing",
+  "working-set"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "policy-traces",
+  "memory-pressure",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "One more bit, and memory stops being a limit",
+    "body": "Every mechanism so far has assumed the address space fits in RAM. Drop that assumption and the address space becomes what it always pretended to be: a description of memory the process *might* touch, backed wherever the operating system finds convenient. The kernel reserves a region of disk - **swap space** - and treats physical frames as a cache over it.\n\nThe entire trick is one bit in the page-table entry. The **present bit** says whether this page is currently in a frame. If it is clear, the frame-number field is free to mean something else entirely: which swap slot holds the page. Hardware that finds a valid page with `present == 0` raises a **page fault** and hands control to the kernel, which is the only party that knows what disks are.\n\nNote what is *not* happening here. A page fault is not an error, and it is not the same event as an invalid access: `valid == 0` means the page was never part of the address space and the process is buggy, while `present == 0` means the page is real and simply elsewhere. Conflating the two is the commonest confusion in this material, and the two bits exist precisely to keep them apart.\n\nThe fault path is then mechanical: read the swap slot out of the entry, obtain a free frame - possibly by evicting somebody, which is the next three sections - issue the disk read, block the faulting process while the disk works, update the page-table entry and the TLB, and **retry the instruction**. Because the instruction restarts rather than resumes, the process sees only a delay. A very large delay: a memory reference costs about 100 ns and a disk read about 10 ms, five orders of magnitude apart, which is why **demand paging** - fetch a page only when it is actually referenced - is worth the complexity. Pages never touched are never read.",
+    "code": "/* A page-table entry once memory can be overcommitted. The present bit\n   is the whole trick: one bit that says \"this page is not in RAM\". */\ntypedef struct {\n    unsigned pfn      : 20;   /* frame number - OR a swap slot, see below */\n    unsigned present  : 1;    /* 1 = in a frame, 0 = on disk */\n    unsigned valid    : 1;    /* 1 = this page belongs to the address space */\n    unsigned dirty    : 1;    /* written since it was paged in */\n    unsigned reference: 1;    /* touched since the OS last cleared this */\n    unsigned writable : 1;\n} pte_t;\n\n/* Hardware raises a page fault; this runs in the kernel, on the CPU that\n   faulted, with the faulting instruction not yet retired. */\nvoid handle_page_fault(unsigned va)\n{\n    pte_t *pte = walk(current->page_dir, va);\n\n    if (!pte->valid)\n        return kill_with(SIGSEGV);        /* never mapped: a real bug */\n\n    unsigned frame = get_free_frame();    /* may run the replacement policy */\n    swap_in(pte->pfn, frame);             /* BLOCKS - milliseconds of disk */\n\n    pte->pfn     = frame;\n    pte->present = 1;\n    tlb_insert(va >> 12, frame);\n    retry_instruction();                  /* start over; now it succeeds */\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The same 20 bits mean a frame number when present is 1 and a swap slot when it is 0. Nothing else in the entry has to change for a page to move to disk and back."
+     },
+     {
+      "line": 19,
+      "text": "This is the invalid case, not the fault case. It ends in a signal because the address space never contained this page; a present-bit fault ends in a disk read because it did."
+     },
+     {
+      "line": 22,
+      "text": "Blocking here is the whole cost. The process is descheduled and the CPU runs somebody else, which is why demand paging degrades throughput gracefully - until it does not."
+     },
+     {
+      "line": 27,
+      "text": "Retry, exactly as on a TLB miss: the instruction runs again from the beginning and this time the hardware finds the page present."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "A process touches a page whose entry has `valid == 1` and `present == 0`. Put the steps that follow into the order they happen.",
+     "fragments": [
+      "hardware walks the page table, finds present == 0 and raises a page fault",
+      "the kernel's fault handler reads the swap slot number out of the entry",
+      "the kernel finds a free frame, running the replacement policy if none is free",
+      "the disk read is issued and the faulting process blocks",
+      "the entry's frame number and present bit are updated and the TLB is filled",
+      "the faulting instruction is retried and completes"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "concepts": [
+      "page-fault-path",
+      "present-bit",
+      "demand-paging"
+     ],
+     "explain": "The free frame must be found before the read is issued, because the read needs somewhere to land - and finding it may itself require evicting and writing back another page. The tempting reordering is to put the TLB fill after the retry, but the retry only succeeds because the entry and the TLB already describe a present page.",
+     "xp": 30,
+     "tags": [
+      "page-fault-path",
+      "present-bit",
+      "demand-paging"
+     ]
+    }
+   },
+   {
+    "title": "Choosing a victim: the perfect policy and the naive one",
+    "body": "Once frames are a cache, every miss is a **replacement** decision, and the cost model is brutal. With a memory reference at $T_M = 100$ ns and a disk access at $T_D = 10$ ms, the average time is $AMAT = (1 - P_{miss}) \\cdot T_M + P_{miss} \\cdot T_D$. At a 90% hit rate that is about 1 ms per access - ten thousand times slower than memory. At 99.9% it is about 10 µs, still a hundredfold slowdown. Hit rates that would delight a cache designer are catastrophic here, so a policy is judged on the misses it avoids, not the hits it scores.\n\nThe baseline is **OPT**: evict the page that will be referenced furthest in the future. It provably minimises faults, and it is unimplementable, because it requires knowing the future. That is not a defect - it is the point. OPT exists to tell you how much of a policy's fault count is the workload's doing and how much is the policy's.\n\n**FIFO** is the naive answer: a queue of arrivals, evict the head. It costs nothing on a hit, and that is exactly what is wrong with it - a page referenced on every single access is evicted the moment it reaches the front, because FIFO never learns that it is hot. On the reference string `0 1 2 0 1 3 0 3 1 2 1` with three frames, OPT takes 5 faults and FIFO takes 7.\n\nFIFO also has a property no sane policy should have. Give it **more memory and it can fault more**: on `1 2 3 4 1 2 5 1 2 3 4 5`, FIFO takes 9 faults with three frames and 10 with four. This is **Belady's anomaly**. It happens because FIFO's contents are not a **stack**: the set of pages held with three frames is not guaranteed to be a subset of the set held with four, so a larger cache can hold a genuinely different and worse collection. LRU and OPT are stack policies and cannot do this - LRU takes 10 faults on that string with three frames and 8 with four, monotonically better.",
+    "code": "/* FIFO replacement: a queue of resident pages, evict from the head.\n   No bookkeeping on a hit at all - which is exactly its problem. */\nint fifo_fault(int page)\n{\n    if (resident(page))\n        return 0;                          /* hit: the queue does not move */\n\n    if (queue_full())\n        evict(dequeue());                  /* oldest arrival, however hot */\n    enqueue(page);\n    return 1;                              /* one fault */\n}\n\n/* Reference string 1 2 3 4 1 2 5 1 2 3 4 5\n     3 frames -> 9 faults\n     4 frames -> 10 faults      <- more memory, MORE faults\n   That is Belady's anomaly, and FIFO really does exhibit it. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The hit path does nothing. That single omission is the whole difference between FIFO and LRU, and the entire reason FIFO evicts hot pages."
+     },
+     {
+      "line": 9,
+      "text": "Oldest arrival, not least useful. The queue records when a page came in and never records that it has been wanted a thousand times since."
+     },
+     {
+      "line": 16,
+      "text": "Verified by simulation, not by intuition: four frames really is worse here. Any argument that more cache must mean fewer misses is assuming the stack property, which FIFO does not have."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Run **FIFO** with 3 frames over `0 1 2 0 1 3 0 3 1 2 1`, starting empty. Give the running total of page faults after each reference listed.",
+     "steps": [
+      {
+       "label": "after reference 1 (page 0)",
+       "expected": "1"
+      },
+      {
+       "label": "after reference 3 (page 2)",
+       "expected": "3"
+      },
+      {
+       "label": "after reference 5 (page 1)",
+       "expected": "3"
+      },
+      {
+       "label": "after reference 6 (page 3)",
+       "expected": "4"
+      },
+      {
+       "label": "after reference 7 (page 0)",
+       "expected": "5"
+      },
+      {
+       "label": "after reference 11 (page 1)",
+       "expected": "7"
+      }
+     ],
+     "concepts": [
+      "fifo-replacement"
+     ],
+     "explain": "Reference 6 evicts page 0 - the oldest arrival - even though it was touched only two references earlier, so reference 7 faults on a page that was resident moments before. Answering 5 at the end is the usual slip: 5 is OPT's and LRU's count on this string, and the gap of two is precisely what FIFO's empty hit path costs.",
+     "xp": 60,
+     "tags": [
+      "fifo-replacement"
+     ]
+    }
+   },
+   {
+    "title": "LRU, and why the real system approximates it",
+    "body": "**LRU** evicts the page least recently used, betting that the recent past predicts the near future. On real workloads that bet pays: programs have temporal locality, and LRU on `0 1 2 0 1 3 0 3 1 2 1` matches OPT exactly at 5 faults. It is also a stack policy, so more memory never hurts it.\n\nThe problem is not the idea, it is the accounting. Exact LRU means updating a timestamp or a list position on **every memory reference** - not every fault, every reference. That is hardware work on the fast path, and then eviction has to scan every frame to find the minimum. On a machine with four million frames, doing that per fault is absurd. A policy that is a few per cent better and a hundred times more expensive to consult is not better.\n\nSo the hardware provides one bit instead of a clock value: the **reference bit**, set on every access and cleared only by the kernel. It cannot tell you *when* a page was used, only whether it has been used since you last looked - and that turns out to be enough. The **clock algorithm** sweeps a hand round the frames: a page with its reference bit set gets a second chance, the bit is cleared and the hand moves on; the first page found with the bit already clear is the victim. Pages in active use keep resetting their own bit and are never caught; a page nobody wants sits with a clear bit and is taken on the next sweep.\n\nClock is not LRU and does not claim to be - it distinguishes *used recently* from *not used recently* and no more, so it can evict a page more recently touched than one it spares. It costs one bit per frame and no work at all on a hit. The **dirty bit** refines it further: a clean victim costs one disk read to replace, a dirty one costs a write *and* a read, so a sweep may prefer clean pages. And when locality is absent - a loop over 5 pages in 4 frames - LRU and clock and FIFO all achieve a 0% hit rate, evicting each page exactly one reference before it is wanted, while **random** would get some of them by luck. There is no policy that beats a workload with no locality; there are only policies that fail less absurdly.",
+    "code": "/* Clock: LRU's reference bit, sampled by a rotating hand.\n   The bit is set by hardware on every access and cleared only here. */\nunsigned hand;                    /* the only state the policy keeps */\n\nint clock_evict(void)\n{\n    for (;;) {\n        if (frames[hand].reference == 0) {   /* not touched since last sweep */\n            int victim = hand;\n            hand = (hand + 1) % NFRAMES;\n            return victim;\n        }\n        frames[hand].reference = 0;          /* second chance, then move on */\n        hand = (hand + 1) % NFRAMES;\n    }\n}\n\n/* Refinement: prefer a clean victim. Evicting a dirty page costs a write\n   to swap before the read the fault was waiting for - two I/Os, not one -\n   so a sweep may skip dirty pages and let a background thread write them\n   back, turning them clean before the hand comes round again. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "One integer for the entire policy. Compare with exact LRU, which needs a per-frame timestamp updated by hardware on every load and store."
+     },
+     {
+      "line": 8,
+      "text": "A clear bit is the only evidence clock ever uses: this page has not been touched since the hand last passed. It says nothing about how long ago that was."
+     },
+     {
+      "line": 13,
+      "text": "Clearing the bit is what makes the sweep terminate. If every frame is referenced, the first pass clears every bit and the second pass evicts the frame the hand started on - degenerating to FIFO, which is the sensible fallback."
+     },
+     {
+      "line": 18,
+      "text": "Two I/Os against one. On a fault the process is already blocked, so halving the I/O on the critical path is worth passing over a slightly colder victim."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Three frames, clock replacement, hand starting at frame 0, all frames empty and filled left to right. Reference string `0 1 2 0 3 1 4 2 0 3`. For each reference below give the page **evicted**, or `hit`, or `none` if it filled an empty frame.",
+     "steps": [
+      {
+       "label": "reference 3 (page 2)",
+       "expected": "none"
+      },
+      {
+       "label": "reference 4 (page 0)",
+       "expected": "hit"
+      },
+      {
+       "label": "reference 5 (page 3)",
+       "expected": "0"
+      },
+      {
+       "label": "reference 6 (page 1)",
+       "expected": "hit"
+      },
+      {
+       "label": "reference 7 (page 4)",
+       "expected": "2"
+      },
+      {
+       "label": "reference 8 (page 2)",
+       "expected": "1"
+      }
+     ],
+     "concepts": [
+      "clock-algorithm"
+     ],
+     "explain": "At reference 5 every bit is set, so the hand clears all three and evicts the page in the frame it started on. At reference 7 the hand stands on page 1, whose bit was re-set by reference 6, so page 1 gets its second chance and page 2 is taken instead - even though page 2 was referenced more recently than page 3. Expecting LRU's victim is the natural error: clock only ever sees one bit.",
+     "xp": 60,
+     "tags": [
+      "clock-algorithm"
+     ]
+    }
+   },
+   {
+    "title": "When there is not enough memory at all",
+    "body": "Every policy above assumes the pages a process actually needs will mostly fit. When they do not, the machine **thrashes**: each fault evicts a page that is about to be referenced, so the next reference faults, and the system spends its time moving pages rather than running instructions. The signature is unmistakable and counter-intuitive - CPU utilisation near zero, disk utilisation near 100%, and admitting more processes makes it worse. A scheduler that reads low CPU utilisation as *idle* and admits more work drives the machine straight off the cliff.\n\nDenning's answer names the quantity that matters. The **working set** $WS(t, \\Delta)$ is the set of distinct pages referenced in the last $\\Delta$ references; its size is how much memory the process needs *right now* in order to run without thrashing. The sum of the working sets over runnable processes is the machine's true demand. If that sum exceeds the number of frames, no replacement policy can save you, because the deficit is arithmetic and not a matter of choosing better victims.\n\nWhat does help is **admission control**: refuse to run everything at once. Suspend a process entirely, swap its pages out, and give the rest enough frames to hold their working sets; run the suspended one later when memory frees up. This is the honest response - a smaller number of processes making progress beats all of them making none. Modern Linux mostly declines to do it and invokes the out-of-memory killer instead, which is a blunter version of the same admission decision.\n\nThe last lever is to stop paying one fault per page. **Prefetching** exploits the fact that the expensive part of a disk access is getting there: having sought to a swap slot, reading its neighbours costs almost nothing extra. So the kernel **clusters** - grouping swap writes so related pages land together, then reading a run of them per fault. Prefetching is a bet on spatial locality, and like every bet it is sometimes wrong: a wrong guess wastes bandwidth and, worse, a frame that something else wanted.",
+    "code": "/* Thrashing is not a bug in the replacement policy. It is the policy\n   working correctly on a machine that is simply too small. */\n\n/* Working set: the distinct pages referenced in the last D references. */\nint working_set_size(int *refs, int t, int D)\n{\n    int seen[NPAGES] = {0}, n = 0;\n    for (int i = (t - D + 1 > 0 ? t - D + 1 : 0); i <= t; i++)\n        if (!seen[refs[i]]++) n++;\n    return n;\n}\n\n/* Admission control: if the working sets do not fit, do not run them all. */\nvoid balance(void)\n{\n    int demand = 0;\n    for (proc_t *p = runnable; p; p = p->next)\n        demand += p->ws_size;\n\n    while (demand > NFRAMES)                 /* oversubscribed */\n        demand -= suspend_one_process();     /* swap a whole process out */\n}\n\n/* Demand paging brings in one page per fault. Prefetching (clustering)\n   reads neighbouring swap slots in the same request: nearly free once the\n   arm has moved, wasted only if the guess is wrong. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "D is a window over references, not over seconds. That is what makes the working set a property of the program's behaviour rather than of the machine's speed."
+     },
+     {
+      "line": 18,
+      "text": "Summing working sets, not address-space sizes. A process with a 4 GB address space and a 12 MB working set costs the machine 12 MB."
+     },
+     {
+      "line": 21,
+      "text": "Suspending one process is the only move that actually reduces demand. Every alternative - a cleverer victim, a bigger swap file - redistributes a deficit that arithmetic says cannot be met."
+     },
+     {
+      "line": 24,
+      "text": "The seek dominates, so the second, third and fourth pages of a cluster are nearly free. That asymmetry is the whole justification for guessing."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the description of a thrashing machine and of the quantity that predicts it.",
+     "template": "A thrashing system shows CPU utilisation near ___ and disk utilisation near ___.\nThe set of distinct pages a process referenced in its last D references is its ___ ___.\nWhen the sum of those over runnable processes exceeds the number of frames, the only real fix is to ___ a process.\n",
+     "blanks": [
+      "zero",
+      "100%",
+      "working",
+      "set",
+      "suspend"
+     ],
+     "concepts": [
+      "thrashing",
+      "working-set"
+     ],
+     "explain": "The utilisation figures are the diagnostic that matters, because they are the pair that misleads: a nearly idle CPU normally means admit more work, and here it means exactly the opposite. The fix is subtractive because the deficit is arithmetic - the frames demanded exceed the frames that exist, and no ordering of victims changes that sum.",
+     "xp": 30,
+     "tags": [
+      "thrashing",
+      "working-set"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-5-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the events of a page fault on a page that currently lives in swap into the order the machine performs them.",
+   "fragments": [
+    "the MMU finds valid == 1, present == 0 and traps to the kernel",
+    "the kernel decides which resident page to evict, since no frame is free",
+    "the victim is written back to swap, but only if its dirty bit is set",
+    "the faulting page is read from its swap slot into the freed frame",
+    "the page-table entry is rewritten with the new frame and present == 1",
+    "the instruction that faulted is retried from the beginning"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "page-fault-path",
+    "demand-paging",
+    "swap-space"
+   ],
+   "explain": "The write-back sits between choosing the victim and reading the new page, and it happens only for a dirty victim - a clean page already has an identical copy in swap, so overwriting its frame loses nothing. Putting the read before the eviction is the tempting order, but the read needs a frame to land in and there is none until the victim leaves.",
+   "xp": 30,
+   "tags": [
+    "page-fault-path",
+    "demand-paging",
+    "swap-space"
+   ]
+  },
+  {
+   "id": "os-5-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the two bits that separate a real bug from an ordinary fault, and the two the replacement policy consults.",
+   "template": "valid == 0 means the page was never mapped, so the kernel sends ___ .\npresent == 0 with valid == 1 means the page is in ___ space and must be read back.\nThe bit hardware sets on every access, and the kernel clears, is the ___ bit.\nThe bit that decides whether an eviction costs one disk I/O or two is the ___ bit.\n",
+   "blanks": [
+    "SIGSEGV",
+    "swap",
+    "reference",
+    "dirty"
+   ],
+   "concepts": [
+    "present-bit",
+    "swap-space",
+    "clock-algorithm"
+   ],
+   "explain": "Two bits are needed because two different things can be wrong with an address and only one of them is the process's fault. The reference bit is an approximation of recency and the dirty bit is a statement about cost - confusing them leads to the idea that clock spares dirty pages for recency reasons, when the reason is purely the extra write.",
+   "xp": 30,
+   "tags": [
+    "present-bit",
+    "swap-space",
+    "clock-algorithm"
+   ]
+  },
+  {
+   "id": "os-5-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Run **LRU** with 3 frames over `0 1 2 0 1 3 0 3 1 2 1`, starting empty. Give the running total of page faults after each reference listed.",
+   "steps": [
+    {
+     "label": "after reference 3 (page 2)",
+     "expected": "3"
+    },
+    {
+     "label": "after reference 4 (page 0)",
+     "expected": "3"
+    },
+    {
+     "label": "after reference 6 (page 3)",
+     "expected": "4"
+    },
+    {
+     "label": "after reference 7 (page 0)",
+     "expected": "4"
+    },
+    {
+     "label": "after reference 9 (page 1)",
+     "expected": "4"
+    },
+    {
+     "label": "after reference 11 (page 1)",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "lru-replacement"
+   ],
+   "explain": "At reference 6 LRU evicts page 2, untouched since reference 3, so pages 0 and 1 both survive and reference 7 hits - exactly where FIFO faulted. The one fault LRU cannot avoid is at reference 10, and OPT cannot avoid it either: five is the best any policy achieves on this string.",
+   "xp": 60,
+   "tags": [
+    "lru-replacement"
+   ]
+  },
+  {
+   "id": "os-5-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Run **OPT** with 3 frames over `0 1 2 0 1 3 0 3 1 2 1`, starting empty. At each fault listed give the page it evicts, or `none` if a frame was free.",
+   "steps": [
+    {
+     "label": "fault 1 (page 0)",
+     "expected": "none"
+    },
+    {
+     "label": "fault 3 (page 2)",
+     "expected": "none"
+    },
+    {
+     "label": "fault 4 (page 3)",
+     "expected": "2"
+    },
+    {
+     "label": "fault 5 (page 2)",
+     "expected": "0"
+    },
+    {
+     "label": "total faults",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "optimal-replacement"
+   ],
+   "explain": "At reference 6 the resident pages 0, 1 and 2 are next needed at references 7, 9 and 10, so page 2 is furthest away and goes. At reference 10, page 0 is never referenced again at all, which is as far in the future as a page can be. OPT's count is the floor: if a policy beats 5 here, the simulation is wrong.",
+   "xp": 60,
+   "tags": [
+    "optimal-replacement"
+   ]
+  }
+ ],
+ "policy-traces": [
+  {
+   "id": "os-5-p-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Reference string `1 2 3 4 1 2 5 1 2 3 4 5`, starting empty. Run **FIFO** twice - once with 3 frames, once with 4 - and report the figures below.",
+   "steps": [
+    {
+     "label": "3 frames: total faults",
+     "expected": "9"
+    },
+    {
+     "label": "3 frames: page evicted when 5 is first referenced",
+     "expected": "4"
+    },
+    {
+     "label": "4 frames: total faults",
+     "expected": "10"
+    },
+    {
+     "label": "4 frames: page evicted when 5 is first referenced",
+     "expected": "1"
+    },
+    {
+     "label": "4 frames: does the final reference to 5 hit or fault?",
+     "expected": "fault"
+    }
+   ],
+   "concepts": [
+    "fifo-replacement",
+    "belady-anomaly"
+   ],
+   "explain": "With three frames the early churn happens to leave 1 and 2 resident when they are next wanted, and 5 survives to the end, so three references hit. With four frames the hits come earlier - 1 and 2 at references 5 and 6 - and every page is then evicted just before its next use, so only two hit in total. More memory produced more faults; that is Belady's anomaly, and it is possible because FIFO's three-frame contents are not a subset of its four-frame contents. Expecting four frames to be weakly better is the reflex to unlearn: that guarantee comes from the stack property, which FIFO lacks.",
+   "xp": 60,
+   "tags": [
+    "fifo-replacement",
+    "belady-anomaly"
+   ]
+  },
+  {
+   "id": "os-5-p-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Same string, `1 2 3 4 1 2 5 1 2 3 4 5`, starting empty. Now run **LRU** and **OPT** at both frame counts and report the fault totals.",
+   "steps": [
+    {
+     "label": "LRU, 3 frames",
+     "expected": "10"
+    },
+    {
+     "label": "LRU, 4 frames",
+     "expected": "8"
+    },
+    {
+     "label": "OPT, 3 frames",
+     "expected": "7"
+    },
+    {
+     "label": "OPT, 4 frames",
+     "expected": "6"
+    },
+    {
+     "label": "At 3 frames, which faults more - FIFO or LRU?",
+     "expected": "LRU"
+    }
+   ],
+   "concepts": [
+    "lru-replacement",
+    "optimal-replacement",
+    "belady-anomaly"
+   ],
+   "explain": "Both LRU and OPT improve when given a fourth frame, as stack policies must: their k-frame contents are always a subset of their (k+1)-frame contents, so every hit at the smaller size is still a hit at the larger one. The surprise is the last step - on this particular string LRU is worse than FIFO at three frames. Belady's anomaly is about one policy compared with itself at two sizes, not about one policy always beating another, and those two claims are easy to conflate.",
+   "xp": 60,
+   "tags": [
+    "lru-replacement",
+    "optimal-replacement",
+    "belady-anomaly"
+   ]
+  },
+  {
+   "id": "os-5-p-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three frames, **clock** replacement, hand starting at frame 0, all frames empty and filled left to right. Reference string `0 1 2 0 3 1 4 2 0 3`. Give the page evicted at each reference below, and the total faults.",
+   "steps": [
+    {
+     "label": "reference 5 (page 3) evicts",
+     "expected": "0"
+    },
+    {
+     "label": "reference 7 (page 4) evicts",
+     "expected": "2"
+    },
+    {
+     "label": "reference 8 (page 2) evicts",
+     "expected": "1"
+    },
+    {
+     "label": "reference 9 (page 0) evicts",
+     "expected": "3"
+    },
+    {
+     "label": "reference 10 (page 3) evicts",
+     "expected": "4"
+    },
+    {
+     "label": "total faults",
+     "expected": "8"
+    }
+   ],
+   "concepts": [
+    "clock-algorithm",
+    "lru-replacement"
+   ],
+   "explain": "Twice the hand spares a page LRU would have taken and takes one LRU would have kept: at reference 7, page 1 had its bit re-set by the reference before, so page 2 goes instead. Exact LRU faults nine times on this string and clock faults eight, which is a useful corrective - an approximation is not systematically worse, it is merely different, and on any given string either can win.",
+   "xp": 60,
+   "tags": [
+    "clock-algorithm",
+    "lru-replacement"
+   ]
+  },
+  {
+   "id": "os-5-p-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A process makes the references `2 6 1 5 7 7 7 7 5 1 6 2 3 4 1 2 3 4 4 4 3 4 4 4 1 1 1` at positions 1 to 27. With a working-set window of $\\Delta = 10$, give $|WS(t, 10)|$ at each position below.",
+   "steps": [
+    {
+     "label": "t = 5",
+     "expected": "5"
+    },
+    {
+     "label": "t = 10",
+     "expected": "5"
+    },
+    {
+     "label": "t = 14",
+     "expected": "7"
+    },
+    {
+     "label": "t = 18",
+     "expected": "6"
+    },
+    {
+     "label": "t = 21",
+     "expected": "4"
+    },
+    {
+     "label": "t = 27",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "working-set",
+    "thrashing"
+   ],
+   "explain": "The window at t = 14 straddles two phases - the tail of the 5/6/7 locality and the head of the 1/2/3/4 one - so it names seven pages the process does not simultaneously need, which is exactly why the working set peaks at a phase change and then subsides. A machine with six frames runs this process happily up to t = 13 and again from t = 18 onwards, and thrashes in between; sizing memory to the average rather than the peak is how that transient becomes a stall.",
+   "xp": 60,
+   "tags": [
+    "working-set",
+    "thrashing"
+   ]
+  },
+  {
+   "id": "os-5-p-05",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A numerical kernel walks the same 5-page array over and over. Given 4 frames it measures a hit rate of exactly 0% - every single reference faults - under LRU, and again under clock. The engineer concludes the LRU implementation is broken. Name the real cause, and explain why switching to **random** replacement measurably improves the hit rate.",
+   "answer": "A cyclic reference pattern one page larger than the cache, so LRU evicts each page exactly one reference before it is next needed",
+   "rubric": {
+    "required": [
+     "loop",
+     "evict",
+     "recen",
+     "random",
+     "localit"
+    ],
+    "optional": [
+     "cyclic",
+     "worst",
+     "thrash",
+     "clock",
+     "fifo"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "lru-replacement",
+    "clock-algorithm",
+    "thrashing"
+   ],
+   "explain": "LRU is behaving perfectly; the workload is adversarial to it. In a cycle of 5 pages through 4 frames the least recently used page is always the one about to be referenced, so LRU's rule picks the worst possible victim every time - and clock, sweeping frames whose bits are all set, degenerates to the same order. Random has no rule to exploit, so it keeps some pages by luck and scores a non-zero hit rate: one of the few cases where knowing nothing beats knowing the recent past.",
+   "xp": 60,
+   "tags": [
+    "lru-replacement",
+    "clock-algorithm",
+    "thrashing"
+   ]
+  }
+ ],
+ "memory-pressure": [
+  {
+   "id": "os-5-m-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A batch server runs 12 jobs. Monitoring shows CPU utilisation at 3%, the swap device 99% busy, and job completion times an order of magnitude above normal. The operator, seeing an idle CPU, starts four more jobs; everything gets dramatically worse. Name the condition, explain what the extra jobs did, and say what should be done instead.",
+   "answer": "Thrashing - the combined working sets exceed physical memory, and admitting more processes deepens the deficit",
+   "rubric": {
+    "required": [
+     "thrash",
+     "working",
+     "frame",
+     "fault",
+     "suspend"
+    ],
+    "optional": [
+     "admission",
+     "utilisation",
+     "deficit",
+     "swap",
+     "disk"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "thrashing",
+    "working-set",
+    "page-fault-path"
+   ],
+   "explain": "The 3% figure is not idleness, it is the CPU waiting on a disk every process is queued behind - the one situation where low utilisation means the machine is over-subscribed rather than under-used. Each new job needs its own working set of frames, taken from processes that were already short, so the fault rate climbs and the CPU falls further. The only move that reduces demand is subtractive: suspend processes until the surviving working sets fit in the frames that exist.",
+   "xp": 60,
+   "tags": [
+    "thrashing",
+    "working-set",
+    "page-fault-path"
+   ]
+  },
+  {
+   "id": "os-5-m-02",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A colleague configures a fleet of servers with zero swap space, arguing that swapping is slow so removing it removes the slowness, and that RAM is cheap anyway. Assess this. What behaviour does the machine lose, what does it gain, and what happens now when memory is over-committed?",
+   "rubric": {
+    "required": [
+     "swap",
+     "evict",
+     "fault",
+     "kill",
+     "demand"
+    ],
+    "optional": [
+     "anonym",
+     "clean",
+     "file",
+     "thrash",
+     "latency",
+     "present",
+     "reclaim"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "swap-space",
+    "demand-paging",
+    "present-bit"
+   ],
+   "explain": "With no swap the kernel loses the ability to evict anonymous pages - heap and stack, which have nowhere else to live - so under pressure it can only reclaim clean file-backed pages and re-read them from the filesystem on the next fault. Demand paging itself is untouched, because executables and mapped files still page in on a present-bit fault from their own files. What is gained is a bound on tail latency; what is lost is the graceful middle, so over-commitment stops meaning slow and starts meaning the out-of-memory killer picks a process to destroy.",
+   "xp": 60,
+   "tags": [
+    "swap-space",
+    "demand-paging",
+    "present-bit"
+   ]
+  },
+  {
+   "id": "os-5-m-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Exact LRU is not implemented in any general-purpose operating system, yet clock - a cruder approximation of it - is everywhere. Explain what makes exact LRU unaffordable, and what clock gives up in exchange for being affordable.",
+   "rubric": {
+    "required": [
+     "referenc",
+     "every",
+     "scan",
+     "approximat",
+     "hand",
+     "bit"
+    ],
+    "optional": [
+     "timestamp",
+     "hardware",
+     "clear",
+     "frame",
+     "cost",
+     "victim"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "lru-replacement",
+    "clock-algorithm"
+   ],
+   "explain": "The cost is not in the eviction, it is in the bookkeeping: exact LRU must update per-page recency on every memory reference, on the hardware fast path, and then scan every frame to find the minimum - work proportional to physical memory on each fault. Clock replaces the recency value with a single hardware-set reference bit and the scan with a hand that stops at the first clear one, so it does nothing at all on a hit. What it gives up is ordering: it can say used-since-last-sweep or not, and nothing finer, so it will sometimes evict a page touched more recently than one it spares.",
+   "xp": 30,
+   "tags": [
+    "lru-replacement",
+    "clock-algorithm"
+   ]
+  },
+  {
+   "id": "os-5-m-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design the replacement and fetch policy for a kernel whose swap device is a fast SSD with expensive writes: a read costs 100 µs, a write costs 800 µs and wears the device. You have per-frame reference and dirty bits and a background thread you may use. Describe victim selection, how the dirty bit changes it, what you prefetch and on what evidence, and how the kernel detects that no choice of victim can help.",
+   "rubric": {
+    "required": [
+     "clock",
+     "referenc",
+     "dirty",
+     "clean",
+     "background",
+     "prefetch",
+     "working",
+     "suspend"
+    ],
+    "optional": [
+     "sweep",
+     "cluster",
+     "writeback",
+     "seek",
+     "thrash",
+     "hand",
+     "wear",
+     "sequential"
+    ],
+    "minWords": 110
+   },
+   "concepts": [
+    "clock-algorithm",
+    "demand-paging",
+    "present-bit",
+    "page-fault-path"
+   ],
+   "explain": "The asymmetry is the whole design: a clean victim costs one read on the fault path and a dirty one costs a write plus a read, so the sweep should prefer clean frames while a background thread writes dirty pages back early, converting them to clean before the hand arrives - which also spreads the writes out instead of bursting them onto the critical path. Prefetching is a weaker bet on an SSD than on a disk, because there is no seek to amortise, so it should follow observed sequential access rather than being applied always. And no arrangement of victims fixes a working-set sum larger than the frame count, so the design must include the fault-rate threshold at which it stops choosing victims and starts suspending processes.",
+   "xp": 150,
+   "tags": [
+    "clock-algorithm",
+    "demand-paging",
+    "present-bit",
+    "page-fault-path"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-5-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does the **present bit** in a page-table entry indicate?",
+   "choices": [
+    "That the page has been written to since it was last paged in",
+    "That the page currently occupies a physical frame rather than living in swap",
+    "That the page is part of this process's address space at all",
+    "That the page has been referenced since the kernel last cleared the bit"
+   ],
+   "answer": 1,
+   "concepts": [
+    "present-bit"
+   ],
+   "explain": "The other three describe the dirty bit, the valid bit and the reference bit respectively. The pairing that matters is present with valid: valid says whether the page exists in the address space, present says whether it happens to be in RAM right now, and only the second of those can be false without the process being buggy.",
+   "xp": 15,
+   "tags": [
+    "present-bit"
+   ]
+  },
+  {
+   "id": "os-5-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of the following are true of **OPT**, the optimal replacement policy?",
+   "choices": [
+    "It evicts the page whose next reference is furthest in the future",
+    "It provably minimises the number of page faults for a given reference string",
+    "It can be implemented if the kernel keeps a long enough reference history",
+    "It is a stack policy, so more frames never increase its fault count",
+    "It is used in production kernels for read-only pages"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "optimal-replacement"
+   ],
+   "explain": "OPT needs the future, and no length of history supplies it - the third option tempts because recency-based policies really are built from history, but they approximate OPT rather than achieving it. The fourth is true and often overlooked: OPT is a stack policy, which is why it serves as a well-behaved baseline against which FIFO's anomaly stands out.",
+   "xp": 15,
+   "tags": [
+    "optimal-replacement"
+   ]
+  },
+  {
+   "id": "os-5-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the average-access-time model for demand paging. Give the third blank in nanoseconds and the fourth as a whole number.",
+   "template": "AMAT = (1 - Pmiss) * ___ + Pmiss * ___\nWith a memory access of 100 ns and a disk access of 10 ms, a 99% hit rate gives an AMAT of ___ ns.\nThat is roughly a ___-fold slowdown against memory speed.\n",
+   "blanks": [
+    "TM",
+    "TD",
+    "100099",
+    "1001"
+   ],
+   "concepts": [
+    "demand-paging",
+    "page-fault-path"
+   ],
+   "explain": "0.99 x 100 + 0.01 x 10,000,000 = 99 + 100,000 = 100,099 ns, and dividing by the 100 ns baseline gives about 1001. The lesson buried in the arithmetic is that the miss term swamps the hit term at any hit rate a cache designer would call good, which is why paging systems chase the last fraction of a per cent.",
+   "xp": 30,
+   "tags": [
+    "demand-paging",
+    "page-fault-path"
+   ]
+  },
+  {
+   "id": "os-5-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order these three policies by the number of faults they take on `1 2 3 4 1 2 5 1 2 3 4 5` with **3 frames**, fewest faults first.",
+   "fragments": [
+    "OPT",
+    "FIFO",
+    "LRU"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "optimal-replacement",
+    "fifo-replacement",
+    "lru-replacement"
+   ],
+   "explain": "OPT takes 7, FIFO 9 and LRU 10. OPT is first by definition, but the order of the other two is the point: LRU loses to FIFO on this string. A policy's average advantage over real workloads is not a guarantee on any particular one, and a benchmark of a single reference string proves nothing about either.",
+   "xp": 30,
+   "tags": [
+    "optimal-replacement",
+    "fifo-replacement",
+    "lru-replacement"
+   ]
+  },
+  {
+   "id": "os-5-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Three frames, **FIFO**, starting empty. Reference string `7 0 1 2 0 3 0 4 2 3 0 3 2`. Give the running fault total after each reference listed.",
+   "steps": [
+    {
+     "label": "after reference 3 (page 1)",
+     "expected": "3"
+    },
+    {
+     "label": "after reference 5 (page 0)",
+     "expected": "4"
+    },
+    {
+     "label": "after reference 8 (page 4)",
+     "expected": "7"
+    },
+    {
+     "label": "after reference 11 (page 0)",
+     "expected": "10"
+    },
+    {
+     "label": "after reference 13 (page 2)",
+     "expected": "10"
+    }
+   ],
+   "concepts": [
+    "fifo-replacement"
+   ],
+   "explain": "Reference 5 hits because page 0 is still in the queue, but reference 6 evicts it anyway - FIFO's queue position never moved when it hit. Only the last two references hit after that, which is why the total sits at 10 out of 13; LRU takes 9 and OPT takes 7 on the same string.",
+   "xp": 60,
+   "tags": [
+    "fifo-replacement"
+   ]
+  },
+  {
+   "id": "os-5-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three frames, **clock**, hand starting at frame 0, all frames empty and filled left to right. Reference string `1 2 3 1 4 1 5 2 1 3`. Give the page evicted at each reference below, and the total faults.",
+   "steps": [
+    {
+     "label": "reference 5 (page 4) evicts",
+     "expected": "1"
+    },
+    {
+     "label": "reference 6 (page 1) evicts",
+     "expected": "2"
+    },
+    {
+     "label": "reference 7 (page 5) evicts",
+     "expected": "3"
+    },
+    {
+     "label": "reference 8 (page 2) evicts",
+     "expected": "4"
+    },
+    {
+     "label": "reference 10 (page 3) evicts",
+     "expected": "5"
+    },
+    {
+     "label": "total faults",
+     "expected": "8"
+    }
+   ],
+   "concepts": [
+    "clock-algorithm"
+   ],
+   "explain": "Every frame's bit is set when reference 5 arrives, so the hand clears all three and evicts the page in the frame it started on - page 1, which had just been referenced. That is clock at its most FIFO-like, and it is why it takes 8 faults here where LRU takes 7: with every bit set the one bit carries no information, and the sweep falls back to position.",
+   "xp": 60,
+   "tags": [
+    "clock-algorithm"
+   ]
+  },
+  {
+   "id": "os-5-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Belady's anomaly is often stated as 'more memory can mean more faults'. Explain the property FIFO lacks that permits this, and why LRU and OPT are immune to it.",
+   "rubric": {
+    "required": [
+     "stack",
+     "subset",
+     "fifo",
+     "frame",
+     "evict"
+    ],
+    "optional": [
+     "anomal",
+     "monoton",
+     "recen",
+     "arrival",
+     "future"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "belady-anomaly",
+    "fifo-replacement",
+    "lru-replacement"
+   ],
+   "explain": "A stack policy guarantees that the set of pages held with k frames is always a subset of the set held with k+1 frames, so every hit at the smaller size is still a hit at the larger one and the fault count can only fall. LRU and OPT satisfy this because their victim depends on the reference string alone - the k most recently used pages are a subset of the k+1 most recently used - while FIFO's victim depends on arrival order, which a different frame count changes, so the two configurations drift into genuinely different and incomparable contents.",
+   "xp": 30,
+   "tags": [
+    "belady-anomaly",
+    "fifo-replacement",
+    "lru-replacement"
+   ]
+  },
+  {
+   "id": "os-5-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A service is fast for hours, then a nightly report starts and every request slows by 50x while the swap device saturates. When the report finishes, speed returns without a restart. The service's own resident set never grew. Name the cause and explain why the service degraded even though its own memory demand never changed.",
+   "answer": "Global replacement under memory over-commitment - the report's working set pushes the machine's total demand past the frame count, so the service's pages are evicted and it thrashes",
+   "rubric": {
+    "required": [
+     "working",
+     "evict",
+     "frame",
+     "fault",
+     "thrash"
+    ],
+    "optional": [
+     "global",
+     "suspend",
+     "admission",
+     "resident",
+     "swap",
+     "localit"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "thrashing",
+    "working-set",
+    "swap-space"
+   ],
+   "explain": "Replacement is global: the policy chooses victims from all frames, so a newcomer with a large working set takes frames from an innocent neighbour rather than from itself. The service's demand was constant and its supply collapsed, which is why nothing in its own metrics explains the slowdown and why it recovers by itself the moment the report exits. Per-process frame allocation, or a working-set-based admission rule, would have contained the damage to the report.",
+   "xp": 60,
+   "tags": [
+    "thrashing",
+    "working-set",
+    "swap-space"
+   ]
+  }
+ ]
+}

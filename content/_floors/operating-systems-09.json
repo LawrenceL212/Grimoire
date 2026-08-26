@@ -1,0 +1,1008 @@
+{
+ "n": 9,
+ "name": "The Systems Design Floor",
+ "cognitiveLevel": "design",
+ "concepts": [
+  "thrashing",
+  "priority-inversion",
+  "convoy-effect",
+  "livelock",
+  "deadlock",
+  "tlb-thrashing",
+  "scheduler-selection",
+  "replacement-policy-choice",
+  "lock-granularity"
+ ],
+ "sequence": [
+  "lesson",
+  "symptom-clinic",
+  "policy-selection",
+  "design-review",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The symptom is not the mechanism",
+    "body": "Every failure in this dungeon so far arrived labelled. In production nothing is labelled: you are handed a symptom - *throughput collapsed*, *one request never returned*, *the machine is pinned at 100% and finishing nothing* - and several mechanisms with **opposite** remedies produce each of them. The skill this floor asks for is refusing to prescribe before taking the one measurement that separates the candidates.\n\nThat measurement is almost always *what is the machine doing while it fails*. A collapse with the CPU near idle, the disk saturated and the major-fault rate rising as load rises is **thrashing**: the sum of the working sets no longer fits, and every thread you add makes it worse. A collapse with the CPU at 100% and nothing completing is **livelock**: threads are running, retrying and undoing one another. A stall with *nothing* running and threads blocked is **deadlock**, a cycle in the wait-for graph that no amount of waiting resolves. One thread waiting far longer than its lock holder needs, while unrelated work runs, is **priority inversion**. Everything queued behind a single long holder, with the queue outliving the hold, is a **convoy**. A slowdown with the CPU at 100%, the last-level cache miss rate unchanged and page-walk cycles enormous is **TLB thrash**: the data fits, the *translations* do not.\n\nTwo of those pairs are dangerous precisely because the right response to one is the wrong response to the other. More threads cure a latency problem caused by too little concurrency and destroy a thrashing system. More memory cures thrashing and does nothing whatever for TLB reach. A review that skips the measurement has a coin-flip chance of deepening the incident, and the incident will not say which happened for hours.",
+    "code": "/* What the counters say, before anyone proposes a fix. */\ntypedef struct {\n    double cpu_busy;      /* fraction of wall time on the CPU        */\n    double disk_busy;     /* fraction of wall time the disk is busy  */\n    long   major_faults;  /* page-ins from swap, per second          */\n    long   runnable;      /* threads in the run queue                */\n    long   blocked;       /* threads asleep on a lock                */\n    long   retries;       /* failed trylock-and-release attempts     */\n} snapshot;\n\nconst char *triage(snapshot s)\n{\n    if (s.disk_busy > 0.9 && s.cpu_busy < 0.2 && s.major_faults > 1000)\n        return \"thrashing: the working sets do not fit\";\n    if (s.cpu_busy < 0.05 && s.runnable == 0 && s.blocked > 0)\n        return \"deadlock: nobody is running and nobody will wake\";\n    if (s.cpu_busy > 0.95 && s.retries > 1000)\n        return \"livelock: running hard, completing nothing\";\n    return \"no verdict - measure something else\";\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "Thrashing is the one collapse where the CPU is idle. If the CPU is busy, look elsewhere before buying memory."
+     },
+     {
+      "line": 17,
+      "text": "Livelock and deadlock sit at opposite ends of this counter: livelock burns the CPU, deadlock leaves it empty."
+     }
+    ],
+    "checkpoint": {
+     "type": "diagnose",
+     "layer": "application",
+     "prompt": "A service degrades under load: the CPU sits at 3%, the disk is 100% busy, the run queue is empty and the major-fault rate has gone from 40 to 11,000 per second. An engineer proposes doubling the worker pool because \"the CPU is clearly not the bottleneck\". Name the mechanism and say what their fix would do.",
+     "answer": "Thrashing - the combined working sets exceed physical memory, so each thread's pages evict another's; adding threads adds working sets and deepens the collapse",
+     "rubric": {
+      "required": [
+       "thrash",
+       "working set",
+       "memor",
+       "fault",
+       "worse",
+       "fewer"
+      ],
+      "optional": [
+       "admission",
+       "swap",
+       "evict",
+       "resident",
+       "disk",
+       "concurren"
+      ],
+      "minWords": 55
+     },
+     "concepts": [
+      "thrashing"
+     ],
+     "tags": [
+      "thrashing"
+     ],
+     "explain": "The idle CPU is the whole tell. Under thrashing the CPU is starved because nearly every thread is blocked on a page-in, so the utilisation figure that looks like spare capacity is really the shape of the disease. Adding workers adds another resident set to a machine that could not hold the ones it had, raising the fault rate further - the classic curve where throughput falls as multiprogramming rises. The correct direction is the uncomfortable one: admit fewer jobs, or give the machine more memory."
+    }
+   },
+   {
+    "title": "Choosing a scheduler is choosing which metric to sacrifice",
+    "body": "No scheduler is best; each is a decision about which number you will let get worse. Turnaround time - completion minus arrival - rewards running the shortest work first. Response time - first run minus arrival - rewards switching often. The two pull against each other, and every real policy sits somewhere on that line.\n\nTake four jobs: $A$ arriving at 0 needing 8, $B$ at 1 needing 4, $C$ at 2 needing 2, $D$ at 3 needing 1. FIFO gives an average turnaround of 10.75 and an average response of 7.00. STCF - shortest time-to-completion first, pre-emptive - gives 6.50 and 0.25, because a shorter arrival always pre-empts a longer incumbent. Round robin with a one-tick slice gives 8.50 and 0.75: it stops $A$ monopolising the CPU, but interleaving stretches every job, so its turnaround is worse than STCF's here. Fair sharing is not free; it is paid for in turnaround.\n\nThe catch is that STCF must know run lengths in advance and nothing does. **MLFQ** is the practical answer: assume a new job is short, start it in the top queue, and demote it as it consumes its allotment, so a job's *observed* behaviour stands in for the oracle. Two of its rules exist purely to defend the scheme against itself. Demotion counts cumulative allotment rather than a single slice, or a job that yields just before each slice expires keeps top priority for ever; and a periodic boost returns everything to the top queue, which is the only guarantee a long job in the bottom queue ever runs again.\n\nSo the choice is a workload argument, not a taste. Batch pipelines with known sizes and nobody waiting want turnaround, so shortest-first. Mixed interactive machines want MLFQ. A proportional-share obligation - a tenant who has paid for 30% - wants lottery or stride, because MLFQ has no vocabulary for a share. Hard deadlines want EDF and admission control, because neither fairness nor responsiveness is the same claim as *before 10 ms*.",
+    "code": "/* MLFQ, as rules rather than as five hundred lines. */\n#define QUEUES 4\n\nvoid mlfq_tick(job *j, int elapsed_ms)\n{\n    /* R1/R2: run the highest non-empty queue, round-robin within it. */\n    j->used_ms += elapsed_ms;\n\n    /* R4: demote on total allotment used, not on a single time slice,\n       or a job that yields just before each slice expires keeps the\n       top queue for ever. */\n    if (j->used_ms >= allotment[j->queue] && j->queue < QUEUES - 1) {\n        j->queue += 1;\n        j->used_ms = 0;\n    }\n}\n\nvoid mlfq_boost(job *all, int n)\n{\n    /* R5: periodically lift everything back to the top queue. This is\n       the whole defence against starving a long job, and the only way\n       a batch job that turns interactive is ever re-classified. */\n    for (int i = 0; i < n; i++) {\n        all[i].queue = 0;\n        all[i].used_ms = 0;\n    }\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 12,
+      "text": "Demote on cumulative allotment, never on one slice. This is the anti-gaming rule in a single condition."
+     },
+     {
+      "line": 23,
+      "text": "The boost is the only reason a job in the bottom queue is guaranteed to run again."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Jobs A (arrives 0, needs 8), B (arrives 1, needs 4), C (arrives 2, needs 2) and D (arrives 3, needs 1) run under STCF, re-deciding every tick, with ties going to the earlier arrival. Give each job's completion time, then the average turnaround time to two decimal places.",
+     "steps": [
+      {
+       "label": "C completes at",
+       "expected": "4"
+      },
+      {
+       "label": "D completes at",
+       "expected": "5"
+      },
+      {
+       "label": "B completes at",
+       "expected": "8"
+      },
+      {
+       "label": "A completes at",
+       "expected": "15"
+      },
+      {
+       "label": "average turnaround",
+       "expected": "6.50"
+      }
+     ],
+     "concepts": [
+      "scheduler-selection"
+     ],
+     "tags": [
+      "scheduler-selection"
+     ],
+     "explain": "Each arrival is shorter than the remaining time of whatever is running, so every arrival pre-empts: C runs 2 to 4, D arrives at 3 with 1 left against C's remaining 1 and loses the tie on arrival, so it runs 4 to 5, B resumes to 8, and A - untouched since tick 1 - finishes at 15. Turnarounds are 15, 7, 2 and 2, averaging 6.50. The tempting error is to call A's turnaround 8: run length is not turnaround, and A pays for every pre-emption it suffered."
+    }
+   },
+   {
+    "title": "Memory policy: locality, reach and the point of collapse",
+    "body": "A replacement policy is a bet on the future made from the past, and LRU is the bet that what was touched recently will be touched again. It is an excellent bet on most workloads and a catastrophic one on a loop larger than memory. Cycle through pages 1, 2, 3, 4 with three frames and LRU scores **zero** hits out of twelve, because it evicts precisely the page needed next; optimal replacement scores 6, and so does the perverse-sounding MRU, which keeps part of the loop resident instead of losing all of it. This is why scan resistance is a real feature: one nightly full-table sweep can evict an entire cache under a policy that considers only recency.\n\n**Clock** exists because true LRU must reorder a list on every reference, which is unaffordable in the fault path. It sweeps a hand across the frames, clearing a use bit and evicting the first frame whose bit is already clear, so a page gets exactly one second chance. When every use bit is set - a hot, uniformly touched working set - clock degenerates to FIFO, and that is the honest price of the approximation.\n\nBelow some amount of memory, no policy helps at all. Once the sum of the active working sets exceeds physical memory the fault rate rises super-linearly and the machine spends its time paging rather than computing. The direction of blame matters: this is not a bad policy, and moving swap to a faster disk buys a constant factor against an exponential. The fixes are admission control - run fewer things - or more memory.\n\nTranslation has its own capacity problem, measured in *bytes of address space* rather than in entries. A 64-entry TLB over 4 KiB pages **reaches** 256 KiB. A sequential pass over a 2 MiB array therefore misses on all 512 of its pages on every pass, and at a four-level walk of roughly 400 cycles that is 204,800 cycles of pure translation per pass. Back the same array with one 2 MiB huge page and it needs a single entry: one miss, 400 cycles, a 512-fold reduction - paid for in internal fragmentation, coarser swapping and more expensive copy-on-write faults.",
+    "code": "/* Clock: LRU's ordering, without LRU's bookkeeping. */\nint clock_evict(frame *f, int n, int *hand)\n{\n    for (;;) {\n        if (f[*hand].use == 0) {          /* untouched since the last sweep */\n            int victim = *hand;\n            *hand = (*hand + 1) % n;\n            return victim;\n        }\n        f[*hand].use = 0;                 /* a second chance, and only one */\n        *hand = (*hand + 1) % n;\n    }\n}\n\n/* Reach is the quiet twin of this problem. The TLB is a cache of\n   translations, so its capacity is measured in bytes of address space:\n       reach = entries * page_size\n   64 entries x 4 KiB = 256 KiB. A 2 MiB sweep misses on all 512 of its\n   pages, every pass, however well the data cache behaves. */\nsize_t tlb_reach(size_t entries, size_t page_size)\n{\n    return entries * page_size;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "A clear bit means \"not referenced since the hand last passed\" - a one-bit approximation of recency."
+     },
+     {
+      "line": 10,
+      "text": "If every bit is set, the hand clears its way round and evicts the frame it started on: clock has become FIFO."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "A TLB holds 64 entries over 4 KiB pages. A thread sweeps a 2 MiB array sequentially, over and over. Give the TLB reach in KiB, the number of pages the array occupies, the number of TLB misses in one full pass in steady state, and then the misses per pass if the array is backed by a single 2 MiB huge page.",
+     "steps": [
+      {
+       "label": "TLB reach in KiB",
+       "expected": "256"
+      },
+      {
+       "label": "pages in the array",
+       "expected": "512"
+      },
+      {
+       "label": "TLB misses per pass with 4 KiB pages",
+       "expected": "512"
+      },
+      {
+       "label": "TLB misses per pass with a 2 MiB page",
+       "expected": "1"
+      }
+     ],
+     "concepts": [
+      "tlb-thrashing"
+     ],
+     "tags": [
+      "tlb-thrashing"
+     ],
+     "explain": "Reach is entries times page size: $64 \\times 4\\text{ KiB} = 256\\text{ KiB}$, an eighth of the array, so by the time the sweep wraps round every entry it needs has long been evicted and each of the 512 pages faults again. The tempting answer is 64 misses - one per entry - which assumes the TLB retains something useful between passes; it retains only the last 256 KiB, which is exactly what the next pass touches last. One huge page holds the whole array in a single entry, and that is the entire argument for huge pages."
+    }
+   },
+   {
+    "title": "Reviewing a locking scheme before it ships",
+    "body": "Most concurrency defects are visible in the acquisition pattern alone, before a single thread runs. A review has a short checklist, and the code opposite fails the first item on it.\n\n**Is there a total order on the locks, and does every path obey it?** `lookup` takes the resize lock then the bucket mutex; `insert` takes the bucket mutex then the resize lock. That is a two-lock cycle waiting for a concurrent lookup and insert, and no test that exercises one path at a time will ever find it. **What is held across what?** A lock held over I/O, a callback, or any code you do not own turns one thread's stall into everyone's - and if that callback re-enters the structure, a non-recursive mutex deadlocks against itself. **Does the granularity match the contention?** One global mutex is trivially correct and produces convoys: a holder that runs long, or is pre-empted while holding, leaves a queue that persists after the release, because the woken threads simply re-queue in the same order behind the same holder. Per-bucket locks cure that and buy the ordering problem above, plus a resize that must exclude every bucket at once.\n\n**Does the retry strategy have a backoff?** Replacing ordered acquisition with `trylock` and release-on-failure removes deadlock by removing the no-pre-emption condition, and if every thread retries immediately the result is livelock: full CPU, zero completions, nothing blocked. Randomised backoff is not a nicety, it is what makes the scheme terminate. **Do priorities mix?** If threads of different priority share a mutex, a low-priority holder pre-empted by an unrelated medium-priority thread blocks a high-priority waiter for as long as the medium thread cares to run - unbounded priority inversion, whose standard cure is priority inheritance.\n\nThe cost side is never zero. Finer locks mean more atomic operations, more cache-line ping-pong between cores, and a correctness argument that must be made per operation rather than once. \"Take the big lock\" is still right for anything off the hot path, and a review that recommends sharding a lock without a contention measurement is guessing.",
+    "code": "/* A scheme submitted for review. Read the acquisition orders. */\nstruct table {\n    pthread_rwlock_t resize;      /* held for writing while rehashing */\n    bucket buckets[NBUCKETS];     /* each with its own mutex          */\n};\n\nint lookup(struct table *t, key k)\n{\n    pthread_rwlock_rdlock(&t->resize);\n    bucket *b = bucket_for(t, k);\n    pthread_mutex_lock(&b->m);            /* resize, then bucket */\n    int v = bucket_find(b, k);\n    pthread_mutex_unlock(&b->m);\n    pthread_rwlock_unlock(&t->resize);\n    return v;\n}\n\nint insert(struct table *t, key k, int v)\n{\n    bucket *b = bucket_for(t, k);\n    pthread_mutex_lock(&b->m);            /* bucket, then resize */\n    bucket_put(b, k, v);\n    pthread_rwlock_rdlock(&t->resize);    /* to read the load factor */\n    int full = t->count > NBUCKETS * 4;\n    pthread_rwlock_unlock(&t->resize);\n    pthread_mutex_unlock(&b->m);\n    return full;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Order on this path: resize, then bucket."
+     },
+     {
+      "line": 21,
+      "text": "Order on this path: bucket, then resize. Two paths, two orders, one cycle."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "application",
+     "prompt": "The reviewed code takes its two locks in opposite orders on its two paths. Give the exact interleaving of one `lookup` and one `insert` that hangs, and explain why the defect survives a stress test that runs a million lookups and then a million inserts.",
+     "rubric": {
+      "required": [
+       "order",
+       "bucket",
+       "resiz",
+       "hold",
+       "circular",
+       "concurrent"
+      ],
+      "optional": [
+       "cycle",
+       "wait-for",
+       "read",
+       "phase",
+       "total order",
+       "invers"
+      ],
+      "minWords": 60
+     },
+     "concepts": [
+      "deadlock"
+     ],
+     "tags": [
+      "deadlock"
+     ],
+     "explain": "The insert takes the bucket mutex and is pre-empted before it asks for the resize lock; meanwhile a lookup takes the resize lock for reading and asks for that same bucket. Now the lookup holds resize and wants the bucket, the insert holds the bucket and wants resize, and the wait-for graph has a cycle. A phased stress test never has both paths in flight at once, so no thread ever holds one lock while another holds the second: the hazard is a property of the ordering *across concurrent paths*, and serialising the phases quietly removes the only condition that matters."
+    }
+   }
+  ]
+ },
+ "symptom-clinic": [
+  {
+   "id": "os-9-s-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A batch image pipeline was scaled from 8 worker threads to 32 on the same machine. Throughput fell from 410 to 31 jobs per second. CPU utilisation fell from 88% to 6%, the disk is at 100% with a deep read queue, the major-fault rate rose from 12 to 9,400 per second, and the sum of the workers' resident sets is roughly three times physical memory. Name the mechanism, and prescribe a fix that will actually raise throughput.",
+   "answer": "Thrashing: the combined working sets exceed physical memory, so the machine spends its time paging; the fix is to cut concurrency back by admission control until the resident sets fit, or to add memory",
+   "rubric": {
+    "required": [
+     "thrash",
+     "working set",
+     "memor",
+     "admission",
+     "fewer",
+     "fault"
+    ],
+    "optional": [
+     "resident",
+     "page",
+     "swap",
+     "idle",
+     "disk",
+     "multiprogramming",
+     "queue"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "thrashing"
+   ],
+   "tags": [
+    "thrashing"
+   ],
+   "explain": "Every number here points the same way: an idle CPU with a saturated disk means the threads are blocked on page-ins rather than computing, and a fault rate up by nearly three orders of magnitude while resident demand is triple the RAM is the definition of thrashing. The tempting reading is that an idle CPU proves spare capacity and invites still more threads, which is exactly backwards: throughput falls as multiprogramming rises past the point where the working sets fit. The fix is admission control - cap the concurrency so the sum of resident sets sits inside memory - and only then, if throughput is still short, buy memory. A faster swap device buys a constant factor against a super-linear fault curve.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-s-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A flight-control board runs three threads under strict priorities: a high-priority controller, a medium-priority telemetry compressor that is CPU-bound for hundreds of milliseconds at a time, and a low-priority logger. The controller and the logger share a mutex over a small buffer that is held for under 1 ms. Once or twice a day the controller misses its deadline by hundreds of milliseconds and the watchdog resets the board. The mutex is never held long, and no lock cycle exists. Name the mechanism and the standard fix.",
+   "answer": "Unbounded priority inversion: the low-priority logger is pre-empted by the medium-priority compressor while holding the mutex, so the high-priority controller waits for the compressor; priority inheritance on the mutex is the fix",
+   "rubric": {
+    "required": [
+     "invers",
+     "prior",
+     "medium",
+     "hold",
+     "pre-empt",
+     "inherit"
+    ],
+    "optional": [
+     "ceiling",
+     "unbounded",
+     "block",
+     "deadline",
+     "logger",
+     "mutex",
+     "boost"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "priority-inversion"
+   ],
+   "tags": [
+    "priority-inversion"
+   ],
+   "explain": "The hold time is a red herring: what bounds the controller's wait is not the length of the critical section but the run time of a thread that has nothing to do with the mutex at all. The logger holds the lock, the compressor pre-empts it because it outranks it, and the controller - which outranks both - waits behind a thread it should have pre-empted. That is why the inversion is called unbounded: the delay is whatever the medium-priority thread chooses to take. Priority inheritance lifts the holder to the waiter's priority for the duration of the critical section, so the compressor cannot pre-empt it and the wait shrinks to the true hold time. A priority ceiling does the same thing pre-emptively at acquisition.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-s-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A key-value store guards everything with one global mutex. Median latency is 0.4 ms and p99 is 220 ms. A background compaction runs every few seconds and holds that mutex for about 200 ms. Latency stays bad for hundreds of milliseconds *after* the compaction releases the lock, and profiling shows the same threads acquiring and releasing in the same repeating order with high context-switch counts and low CPU utilisation. Name the mechanism, and explain why the tail does not recover the instant the lock is released.",
+   "answer": "A lock convoy: the long hold builds a queue of blocked threads, and after release each woken thread runs briefly, re-acquires and blocks the next, so the queue sustains itself with a context switch per operation long after the long holder has gone",
+   "rubric": {
+    "required": [
+     "convoy",
+     "queue",
+     "hold",
+     "wake",
+     "switch",
+     "granular"
+    ],
+    "optional": [
+     "global",
+     "fifo",
+     "handoff",
+     "sleep",
+     "tail",
+     "shard",
+     "compaction",
+     "batch"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "convoy-effect",
+    "lock-granularity"
+   ],
+   "tags": [
+    "convoy-effect"
+   ],
+   "explain": "One 200 ms hold explains a 220 ms p99 but not a recovery that takes hundreds of milliseconds more. The queue built during the hold is the lasting damage: every release wakes the next waiter, which does a few microseconds of work and then finds the lock taken again by another queued thread, so the system converts an uncontended, cheap lock into a sleep-and-wake handoff with a context switch per operation and no batching in the cache. The convoy is self-sustaining while arrivals keep it fed. The fixes address the cause, not the tail: shorten or chunk the compaction so no hold is long, and shard the lock so unrelated keys never queue behind each other.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-s-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "After a deadlock incident a team replaced ordered lock acquisition with this rule: take the first mutex, `pthread_mutex_trylock` the second, and on failure release the first and start over immediately. The deadlocks stopped. Under heavy contention the service now pins every core at 100%, the transaction rate falls to nearly zero, no thread is blocked and every thread is runnable. Name the mechanism and prescribe a fix that keeps the deadlock freedom.",
+   "answer": "Livelock: the threads repeatedly grab and release in lock-step and none completes; add randomised exponential backoff before each retry (or return to a total lock order) so the symmetry is broken",
+   "rubric": {
+    "required": [
+     "livelock",
+     "retry",
+     "releas",
+     "backoff",
+     "random",
+     "progress"
+    ],
+    "optional": [
+     "symmetr",
+     "trylock",
+     "runnable",
+     "starv",
+     "order",
+     "bound",
+     "deadlock",
+     "spin"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "livelock"
+   ],
+   "tags": [
+    "livelock"
+   ],
+   "explain": "The counters separate this from deadlock cleanly: a deadlocked system has blocked threads and an idle CPU, while here every thread is runnable and the CPU is saturated. Trylock-and-release does remove deadlock, because it removes the no-pre-emption condition - a thread never holds while waiting - but nothing in the scheme guarantees progress. Two threads that keep colliding at the same moment keep failing at the same moment, and immediate retry preserves the symmetry that caused the collision. Randomised backoff breaks it, and the randomisation is the load-bearing part: a fixed delay just re-synchronises the collision at a slower rate. The underlying cure is to restore a total order on the locks so no retry is needed.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-s-05",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A lookup service grew its in-memory hash table from 4 MiB to 64 MiB, with random access across the whole table. Throughput fell 3.4x. The last-level cache miss rate is essentially unchanged, the CPU is pinned at 100%, instructions per cycle have halved, and the hardware counter for cycles with a page walk active has gone from 2% to 61% of all cycles. The machine has ample free memory and no swapping. Name the mechanism and prescribe a fix.",
+   "answer": "TLB thrash: the table now far exceeds the TLB's reach, so most random accesses cost a multi-level page walk; back the table with huge pages (or shrink the hot set / improve access locality) to raise reach",
+   "rubric": {
+    "required": [
+     "tlb",
+     "reach",
+     "walk",
+     "huge",
+     "translat",
+     "random"
+    ],
+    "optional": [
+     "entr",
+     "page size",
+     "4 kib",
+     "locality",
+     "fragment",
+     "cache",
+     "prefetch"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "tlb-thrashing"
+   ],
+   "tags": [
+    "tlb-thrashing"
+   ],
+   "explain": "No swapping and free memory rule out thrashing in the paging sense, and an unchanged cache miss rate rules out a data-locality regression - the data was always fetched from memory. What changed is that the number of distinct translations in play went from something a TLB can hold to something it cannot: with 4 KiB pages, a thousand-entry TLB reaches roughly 4 MiB, which covered the old table entirely and covers 1/16 of the new one, so nearly every random probe pays a four-level walk. That is exactly what the 61% page-walk cycles counter is reporting. Huge pages multiply reach by 512 for the same entry count; the cost is internal fragmentation and coarser memory management, which a service with ample free memory can afford.",
+   "xp": 88
+  }
+ ],
+ "policy-selection": [
+  {
+   "id": "os-9-p-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Four jobs: A (arrives 0, needs 8), B (arrives 1, needs 4), C (arrives 2, needs 2), D (arrives 3, needs 1). Compute the average turnaround time and average response time under FIFO, then under round robin with a one-tick slice, where a job arriving at tick $t$ joins the run queue behind any job already waiting and a running job is re-queued at the end of its slice. Give every figure to two decimal places.",
+   "steps": [
+    {
+     "label": "FIFO average turnaround",
+     "expected": "10.75"
+    },
+    {
+     "label": "FIFO average response",
+     "expected": "7.00"
+    },
+    {
+     "label": "RR average turnaround",
+     "expected": "8.50"
+    },
+    {
+     "label": "RR average response",
+     "expected": "0.75"
+    },
+    {
+     "label": "which policy would you deploy on an interactive shell server - fifo or rr?",
+     "expected": "rr"
+    }
+   ],
+   "concepts": [
+    "scheduler-selection"
+   ],
+   "tags": [
+    "scheduler-selection"
+   ],
+   "explain": "FIFO completes A, B, C, D at 8, 12, 14 and 15, so turnarounds are 8, 11, 12 and 12 - average 10.75 - and responses are 0, 7, 10 and 11, average 7.00. Round robin completes D at 6, C at 8, B at 11 and A at 15, giving turnarounds 15, 10, 6 and 3 for an average of 8.50, while first runs at 0, 1, 3 and 5 give responses of 0, 0, 1 and 2, average 0.75. The pair of numbers is the entire argument: round robin cut response by more than nine tenths and, on this workload, happened to improve turnaround too because FIFO put the longest job first. Change A to arrive last and FIFO's turnaround beats RR's - which is why quoting one metric for a scheduler, without the workload, says nothing.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-p-02",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design the scheduling policy for a shared build machine. The workload is: dozens of interactive shells and editors issuing bursts of a few milliseconds; compile jobs running for 20 to 90 minutes at full CPU; and one log-shipping daemon that must be serviced within 50 ms or it drops records. Run lengths are not declared in advance, and users will try to keep their own jobs fast. Specify the policy, its parameters, and how it treats each of the three classes. Then defend it against the named alternative a colleague proposes: strict fixed priorities with the shipper highest, shells next and compiles lowest.",
+   "rubric": {
+    "required": [
+     "feedback",
+     "queue",
+     "boost",
+     "allotment",
+     "starv",
+     "respon",
+     "turnaround",
+     "prior"
+    ],
+    "optional": [
+     "quantum",
+     "slice",
+     "demot",
+     "interactiv",
+     "batch",
+     "gam",
+     "yield",
+     "reserv",
+     "share",
+     "deadline",
+     "invers"
+    ],
+    "minWords": 130
+   },
+   "concepts": [
+    "scheduler-selection"
+   ],
+   "tags": [
+    "scheduler-selection"
+   ],
+   "explain": "The workload rules out the simple answers: nobody declares run lengths, so shortest-first is unavailable, and a single round-robin quantum cannot serve both a 50 ms deadline and hour-long compiles efficiently. Multi-level feedback is the fit - short bursts stay in the top queue and get near-instant response, compiles exhaust their allotment and sink, with a short top quantum (a few ms) and longer quanta lower down to cut switching overhead on the batch work. Two rules do the defending: demotion on cumulative allotment, so a shell that yields early cannot game its way into permanent top priority, and a periodic boost, so a compile is never starved by an endless stream of interactive bursts. Strict priorities fail on both counts: compiles at the bottom starve outright whenever shells are busy, there is no way back up for a job whose behaviour changes, and a shipper that shares any lock with a lower-priority thread inherits an unbounded priority inversion. If the 50 ms bound is hard rather than soft, the honest answer is a reservation or a real-time class for that one thread on top of MLFQ for everything else - and admission control, since no general-purpose scheduler promises a deadline.",
+   "xp": 220
+  },
+  {
+   "id": "os-9-p-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You size the page cache policy for a video edge node with 8 GB of cache. Daytime traffic concentrates on roughly 20 GB of popular titles with a long tail; every night a re-encode job reads the entire 400 GB catalogue once, sequentially. With plain LRU the hit rate is 71% by day and takes about forty minutes to recover after each nightly job. Choose a policy, say what it does to both phases, and defend it against the colleague who says \"LRU is optimal for locality, just make the cache bigger\".",
+   "rubric": {
+    "required": [
+     "scan",
+     "lru",
+     "evict",
+     "frequen",
+     "hit",
+     "recover",
+     "cost"
+    ],
+    "optional": [
+     "admission",
+     "segment",
+     "ghost",
+     "arc",
+     "two queue",
+     "resist",
+     "sequential",
+     "bypass",
+     "clock",
+     "tail",
+     "recency"
+    ],
+    "minWords": 110
+   },
+   "concepts": [
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "replacement-policy-choice"
+   ],
+   "explain": "The nightly scan is the whole problem: 400 GB of single-use pages, each of them the most recently used thing in the cache the moment it is read, so pure LRU evicts the entire popular set in favour of data that will never be touched again, and the forty-minute recovery is the cache re-learning what it already knew. The fix is any policy that distinguishes *touched once* from *touched repeatedly*: a frequency or segmented scheme where a page must be referenced twice before it is promoted out of a small probationary segment, or simply marking the re-encode job's reads as non-cacheable so the scan bypasses the cache. Making the cache bigger is the expensive non-fix: at 8 GB it holds 40% of the popular set and at 40 GB it would hold all of it, but the scan is fifty times larger again, so LRU still discards everything nightly. The cost of scan resistance is worse behaviour when the working set genuinely shifts - a newly popular title must now be touched twice before it is protected.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-p-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A thread repeatedly cycles through pages 1, 2, 3, 4 in that order with three page frames available. Over twelve references LRU produces zero hits, optimal replacement produces six, and MRU also produces six. Explain what LRU does at each fault that makes it fail so completely, why MRU rescues this workload, and what conclusion a designer should and should not draw about MRU.",
+   "rubric": {
+    "required": [
+     "loop",
+     "evict",
+     "zero",
+     "next",
+     "mru",
+     "resident",
+     "recency",
+     "pattern"
+    ],
+    "optional": [
+     "optim",
+     "futur",
+     "cyclic",
+     "fit",
+     "clock",
+     "hybrid",
+     "detect",
+     "workload"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "replacement-policy-choice"
+   ],
+   "explain": "In a cyclic reference pattern the least recently used page is precisely the page that will be needed soonest: after 1, 2, 3 the frames hold all three, and the fault on 4 evicts 1 - which is the very next reference. Every subsequent reference repeats that, so the hit count is exactly zero, the worst possible score, and it is LRU's own assumption that produces it. MRU evicts the page just touched, which in a loop is the page that will be needed *last*, so it sacrifices one page repeatedly and keeps two resident, scoring six. The conclusion to draw is that recency is a heuristic tied to an assumed access pattern, and a policy must be chosen against the real trace rather than against an average. The conclusion not to draw is that MRU is good: on the ordinary workloads where locality holds, MRU is close to the worst policy available. Systems that use it use it only for detected sequential or cyclic streams, alongside a recency policy for everything else.",
+   "xp": 44
+  }
+ ],
+ "design-review": [
+  {
+   "id": "os-9-d-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Review the hash table from the lesson's fourth section. `lookup` takes the resize read lock and then the bucket mutex; `insert` takes the bucket mutex and then the resize read lock; the rehash takes the resize write lock and then every bucket mutex in index order. The team reports that lookups and inserts alone run for weeks, but the service hangs within minutes of enabling background rehashing. Name the defect, and give the three-thread interleaving that hangs, being explicit about which thread holds what.",
+   "answer": "Lock-order inversion producing a circular wait: insert holds a bucket mutex and waits for the resize read lock, a queued rehash writer makes that read lock block, and the writer waits for the bucket mutex the insert holds",
+   "rubric": {
+    "required": [
+     "order",
+     "invers",
+     "circular",
+     "bucket",
+     "resiz",
+     "writer",
+     "hold"
+    ],
+    "optional": [
+     "read",
+     "queue",
+     "cycle",
+     "wait-for",
+     "rehash",
+     "block",
+     "total order",
+     "starv"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "deadlock",
+    "lock-granularity"
+   ],
+   "tags": [
+    "deadlock"
+   ],
+   "explain": "Two readers never conflict, which is why lookups and inserts alone survive: a reader-writer lock grants concurrent read locks, so insert's second acquisition always succeeds while only readers are about. Enable the writer and the picture changes, because a fair rwlock blocks new readers once a writer is queued. Insert holds bucket 7 and requests the resize read lock; the rehash writer is queued, so that request blocks; the writer holds the resize write lock and walks the buckets until it requests bucket 7, which insert holds. The cycle is insert to writer to insert, with any waiting lookup piled on behind. The defect is entirely visible in the source - two paths, two orders - and the fix is a single total order, most naturally resize before bucket everywhere, with the load factor read under an atomic counter rather than under the resize lock.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-d-02",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "Propose the locking scheme you would ship for that hash table. It must serve mostly lookups, some inserts, and a rare rehash; it must be deadlock-free by construction rather than by testing; and it must not convoy under a read-heavy load. State the acquisition order, what each lock protects, how the rehash excludes everyone, and name two costs your scheme pays that a single global mutex would not.",
+   "rubric": {
+    "required": [
+     "order",
+     "acquir",
+     "bucket",
+     "resiz",
+     "granular",
+     "cost",
+     "convoy"
+    ],
+    "optional": [
+     "atomic",
+     "counter",
+     "read",
+     "shard",
+     "cache line",
+     "invariant",
+     "false sharing",
+     "epoch",
+     "release",
+     "contention",
+     "test"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "lock-granularity"
+   ],
+   "tags": [
+    "lock-granularity"
+   ],
+   "explain": "The shippable answer is dull on purpose: one total order - resize lock first, bucket mutex second, on every path without exception - so circular wait is impossible by construction and needs no test to establish. The resize lock protects the bucket array itself, the identity and number of buckets; each bucket mutex protects that bucket's chain. The rehash takes the resize lock for writing, which excludes every reader before any bucket is touched, so it need not hold bucket mutexes at all beyond the moment of relinking. The load factor moves to an atomic counter so insert never needs a second lock for a statistic. The costs are real and worth naming: two atomic acquisitions per lookup instead of one, with the rwlock's own cache line bouncing between cores on every read, and a correctness argument that must now be made for every operation and every future operation, rather than once for the big lock. If lookups are hot enough that even the read lock convoys, the next step is an epoch or RCU scheme where readers take no lock at all - which trades the last of the simplicity for reclamation that must be deferred.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-d-03",
+   "type": "design",
+   "layer": "application",
+   "prompt": "A single 64 GB machine runs a latency-sensitive request service whose working set is about 40 GB, and a nightly analytics batch that reads 300 GB and would like as much memory as it can get. During the batch, the service's p99 rises from 4 ms to 900 ms and major faults appear in the service's own process. Design the memory policy for this machine: what limits, what page-cache treatment for the batch, what page size for the service, and what you would measure to confirm it worked. Defend the design against the proposal to add 200 GB of fast NVMe swap and let the kernel sort it out.",
+   "rubric": {
+    "required": [
+     "working set",
+     "thrash",
+     "admission",
+     "limit",
+     "swap",
+     "huge",
+     "resident",
+     "measur"
+    ],
+    "optional": [
+     "cgroup",
+     "fault",
+     "scan",
+     "cache",
+     "evict",
+     "reach",
+     "tlb",
+     "bypass",
+     "direct",
+     "reserve",
+     "p99",
+     "constant factor"
+    ],
+    "minWords": 140
+   },
+   "concepts": [
+    "thrashing",
+    "tlb-thrashing",
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "thrashing"
+   ],
+   "explain": "The service's 40 GB working set fits in 64 GB and the batch's does not, so the design's job is to stop the batch's single-use pages from evicting the service's live ones. That means a hard memory limit on the batch - a cgroup cap of, say, 16 GB - so its page cache pressure is contained, plus reading the 300 GB with a cache-bypassing or drop-behind path so a sequential scan never competes for residency at all. The service should be pinned resident and, given a 40 GB working set with random access, backed by huge pages so its translations fit in the TLB's reach; that is a separate problem from paging and is not solved by any amount of memory. Confirmation is a measurement, not a feeling: major faults in the service back to zero, p99 back to single-digit milliseconds during the batch window, and the batch's own runtime bounded. The swap proposal loses because thrashing is a super-linear fault curve and a faster device is a constant factor against it: NVMe swap would move p99 from 900 ms to perhaps 90 ms, which is still twenty times the target, while leaving the actual cause - two working sets competing for one memory - entirely in place.",
+   "xp": 220
+  },
+  {
+   "id": "os-9-d-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A strict-priority uniprocessor with no priority inheritance. At tick 0 thread L (low) starts; at tick 1 it acquires a mutex whose critical section needs 10 ticks of CPU. At tick 2 thread H (high) requests the same mutex and blocks. At tick 3 thread M (medium, holding no locks) becomes runnable and needs 100 ticks. Give the ticks of the critical section L has completed at the moment M pre-empts it, the tick at which M finishes, the tick at which L releases the mutex, and the total number of ticks H spends blocked. Then give what H's blocked time would have been with priority inheritance.",
+   "steps": [
+    {
+     "label": "ticks of the critical section L has done when M pre-empts it",
+     "expected": "2"
+    },
+    {
+     "label": "tick at which M finishes",
+     "expected": "103"
+    },
+    {
+     "label": "tick at which L releases the mutex",
+     "expected": "111"
+    },
+    {
+     "label": "ticks H spends blocked without inheritance",
+     "expected": "109"
+    },
+    {
+     "label": "ticks H would spend blocked with inheritance",
+     "expected": "9"
+    }
+   ],
+   "concepts": [
+    "priority-inversion"
+   ],
+   "tags": [
+    "priority-inversion"
+   ],
+   "explain": "L runs ticks 1 to 3, so two ticks of the ten-tick critical section are done when M arrives and pre-empts it; M holds the CPU from 3 to 103; L then needs its remaining 8 ticks and releases at 111; H requested at tick 2, so it waited 109 ticks for a critical section only 10 ticks long. With inheritance L runs at H's priority from tick 2, M cannot pre-empt it, the section completes at 11 and H waits 9. The tempting wrong answer is 10 - the length of the critical section - which forgets that H arrived one tick after L entered it. The 109-versus-9 gap is the entire case for inheritance: without it the bound on a high-priority thread's wait is set by threads that never touch the lock.",
+   "xp": 88
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-9-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement defines priority inversion?",
+   "choices": [
+    "A high-priority thread is blocked on a resource held by a low-priority thread, which is itself pre-empted by an unrelated medium-priority thread",
+    "A scheduler assigns priorities in the reverse of the order the threads were created",
+    "A low-priority thread never runs because higher-priority threads are always ready",
+    "Two threads each hold a lock the other needs, so neither can proceed"
+   ],
+   "answer": 0,
+   "concepts": [
+    "priority-inversion"
+   ],
+   "tags": [
+    "priority-inversion"
+   ],
+   "explain": "The defining feature is a thread of middle priority delaying a thread of high priority indirectly, through a resource it does not even use. The third option is starvation, which is a scheduler behaving as designed rather than a defect in resource ordering, and the fourth is deadlock, which is a cycle in the wait-for graph and cannot be fixed by inheritance.",
+   "xp": 22
+  },
+  {
+   "id": "os-9-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of the clock replacement algorithm? Select all that apply.",
+   "choices": [
+    "It approximates LRU using one use bit per frame rather than an ordering of all frames",
+    "A page whose use bit is set survives the hand's first visit and has its bit cleared",
+    "When every use bit is set, its eviction choice is the same as FIFO's",
+    "It is guaranteed never to evict a page that will be referenced again"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "replacement-policy-choice"
+   ],
+   "explain": "Clock exists to get most of LRU's quality at a per-frame bit instead of a list reordered on every reference, and the second chance is exactly one visit long. When no bit is clear the hand clears its way round and evicts where it began, which is the frame that entered longest ago - FIFO. The last option describes optimal replacement, which needs the future and exists only as a yardstick.",
+   "xp": 22
+  },
+  {
+   "id": "os-9-x-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Three frames managed by clock, all initially empty, the hand at frame 0, filling frames in index order. The reference string is 1, 2, 3, 1, 4, 1, 5, 2, 1. Give the frame contents in index order after each listed reference, written like `4,2,3`, and finally the total number of hits over the whole string.",
+   "steps": [
+    {
+     "label": "after reference 4",
+     "expected": "4,2,3"
+    },
+    {
+     "label": "after the next reference to 1",
+     "expected": "4,1,3"
+    },
+    {
+     "label": "after reference 5",
+     "expected": "4,1,5"
+    },
+    {
+     "label": "after reference 2",
+     "expected": "2,1,5"
+    },
+    {
+     "label": "total hits",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "replacement-policy-choice"
+   ],
+   "explain": "After 1, 2, 3 every use bit is set and the hand is back at frame 0, so the fault on 4 clears all three bits on its way round and evicts frame 0 - clock behaving exactly as FIFO. That leaves only frame 0's bit set, so the fault on 1 takes frame 1 and 5 takes frame 2. Just two references hit: the 1 at position four and the 1 at the end. True LRU scores three on this string, because it would never have evicted the 1 that had just been referenced; the missing hit is the measurable price of the one-bit approximation.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-x-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A machine has a 1024-entry data TLB. Give the TLB reach in MiB with 4 KiB pages, the reach in GiB with 2 MiB pages, and then, for a workload randomly probing a 1 GiB table with 4 KiB pages, the fraction of that table covered by the TLB expressed as a percentage to three decimal places.",
+   "steps": [
+    {
+     "label": "reach in MiB with 4 KiB pages",
+     "expected": "4"
+    },
+    {
+     "label": "reach in GiB with 2 MiB pages",
+     "expected": "2"
+    },
+    {
+     "label": "percentage of a 1 GiB table covered, 4 KiB pages",
+     "expected": "0.391"
+    }
+   ],
+   "concepts": [
+    "tlb-thrashing"
+   ],
+   "tags": [
+    "tlb-thrashing"
+   ],
+   "explain": "Reach is entries times page size, so $1024 \\times 4\\text{ KiB} = 4\\text{ MiB}$ and $1024 \\times 2\\text{ MiB} = 2\\text{ GiB}$. Against a 1 GiB table the small-page TLB covers $4/1024 = 0.390625\\%$, so a uniformly random probe hits the TLB about four times in a thousand and nearly every access pays a page walk. The same table under 2 MiB pages fits inside the reach twice over, which is why a change that touches no application code at all can double throughput.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-x-05",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A cache library holds a non-recursive mutex over the whole structure and invokes a user-supplied eviction callback while holding it. One customer's callback records the evicted key by calling `cache_get` on the same cache. That customer's process stops dead on the first eviction: one thread is blocked, the CPU is idle, and there is only one lock in the entire program. Name the defect and prescribe the library fix, not the customer workaround.",
+   "answer": "Self-deadlock from re-entrant acquisition of a non-recursive mutex, caused by calling unknown user code while holding the lock; the library must drop the lock before invoking the callback (or defer callbacks until after release)",
+   "rubric": {
+    "required": [
+     "re-ent",
+     "non-recursive",
+     "hold",
+     "callback",
+     "releas",
+     "deadlock"
+    ],
+    "optional": [
+     "defer",
+     "queue",
+     "recursive mutex",
+     "invariant",
+     "unknown",
+     "block",
+     "self",
+     "convoy"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "deadlock",
+    "lock-granularity"
+   ],
+   "tags": [
+    "deadlock"
+   ],
+   "explain": "A cycle of one is still a cycle: the thread waits for a mutex that it holds itself, and a non-recursive mutex has no way to notice. The root cause is not the customer's callback but the library's decision to run code it does not own inside its critical section - which also means an arbitrarily long hold, and a convoy in any program whose callback merely does I/O. Swapping in a recursive mutex is the tempting fix and the wrong one: it makes the hang disappear while letting the callback observe the cache mid-eviction, with the invariant the lock exists to protect not holding. The library should collect the evicted entries, release the lock, then invoke the callbacks.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-x-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "An operator watching a thrashing machine sees the CPU at 4% and concludes there is spare capacity, so raises the worker count. Explain why throughput falls further, and what shape the curve of throughput against degree of multiprogramming has.",
+   "rubric": {
+    "required": [
+     "working set",
+     "memor",
+     "fault",
+     "idle",
+     "block",
+     "multiprogramming",
+     "fall"
+    ],
+    "optional": [
+     "thrash",
+     "peak",
+     "disk",
+     "resident",
+     "evict",
+     "admission",
+     "collapse",
+     "super-linear"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "thrashing"
+   ],
+   "tags": [
+    "thrashing"
+   ],
+   "explain": "The idle CPU is not spare capacity, it is the symptom: the workers are blocked on page-ins, so the processor has nothing runnable to run. Each additional worker brings its own working set into a memory that already cannot hold the existing ones, so every process's pages are evicted sooner, the fault rate climbs and the fraction of time any given worker is runnable falls again. Throughput against multiprogramming rises to a peak while the working sets still fit, then falls sharply once they do not - and the operator is pushing rightwards along the falling side. The counter-intuitive move, cutting concurrency, walks back towards the peak.",
+   "xp": 44
+  },
+  {
+   "id": "os-9-x-07",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A low-latency audio workstation runs one thread that must fill a 128-sample buffer every 2.9 ms without exception, alongside ordinary desktop applications and an occasional file export that saturates every core. The default fair-share scheduler gives the audio thread its share on average and drops a buffer perhaps twice an hour. Recommend a scheduling arrangement and defend it against simply giving the audio thread the largest fair-share weight available.",
+   "rubric": {
+    "required": [
+     "deadline",
+     "real-time",
+     "prior",
+     "share",
+     "average",
+     "guarantee",
+     "period"
+    ],
+    "optional": [
+     "edf",
+     "reserv",
+     "budget",
+     "invers",
+     "inherit",
+     "starv",
+     "admission",
+     "lock",
+     "page",
+     "jitter",
+     "throttl"
+    ],
+    "minWords": 110
+   },
+   "concepts": [
+    "scheduler-selection"
+   ],
+   "tags": [
+    "scheduler-selection"
+   ],
+   "explain": "A share is a statement about the long run and a buffer deadline is a statement about every single period, so no weight makes the guarantee - a large weight simply makes the thread's average generous while still permitting one 5 ms delay per hour, and a dropped buffer is audible whatever the average was. The arrangement that fits is a real-time class for that one thread: a fixed-priority or EDF band above every ordinary thread, with a period and a small CPU budget, admitted only because the budget is a tiny fraction of one core. Two details make or break it. The real-time thread must not share a lock with a normal-priority thread without priority inheritance, or the export thread's convoy becomes an unbounded inversion; and its buffers should be locked resident, since a major fault is far longer than the whole period. Keep a throttle on the real-time class so a runaway audio thread cannot lock the machine out.",
+   "xp": 88
+  },
+  {
+   "id": "os-9-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why a lock convoy persists after the long-holding thread has finished and left, and say what distinguishes a convoy from ordinary contention in a profile.",
+   "rubric": {
+    "required": [
+     "queue",
+     "wake",
+     "switch",
+     "acquir",
+     "block",
+     "persist",
+     "throughput"
+    ],
+    "optional": [
+     "fifo",
+     "handoff",
+     "sleep",
+     "spin",
+     "convoy",
+     "order",
+     "batch",
+     "cache",
+     "uncontended",
+     "tail"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "convoy-effect"
+   ],
+   "tags": [
+    "convoy-effect"
+   ],
+   "explain": "The long hold builds a queue, and the queue is self-sustaining: each release wakes the next waiter, which does its brief work and releases to the thread behind it, while the thread that just finished comes round the loop and joins the back. Every acquisition now costs a block and a wake-up rather than an uncontended atomic, so the lock's effective throughput collapses to the context-switch rate and the group stays synchronised indefinitely. In a profile the signature is that pattern rather than the raw wait time: an enormous number of voluntary context switches, low CPU utilisation, and threads acquiring in a stable repeating order. Ordinary contention shows spin or wait time roughly proportional to load and no such lock-step ordering.",
+   "xp": 44
+  },
+  {
+   "id": "os-9-x-09",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A team replaces LRU with FIFO in a buffer pool to save bookkeeping, then adds a fourth frame to each pool on the grounds that more memory cannot hurt. On their replay of the reference string 0, 1, 2, 3, 0, 1, 4, 0, 1, 2, 3, 4 the fault count goes from 9 with three frames to 10 with four. They suspect a bug in the new frame allocation code. Name the real cause and say what property of the policy permits it.",
+   "answer": "Belady's anomaly: FIFO is not a stack algorithm, so the set of pages it holds with n frames is not guaranteed to be a subset of the set it holds with n+1, and more frames can therefore produce more faults",
+   "rubric": {
+    "required": [
+     "belad",
+     "anomal",
+     "fifo",
+     "stack",
+     "subset",
+     "frame"
+    ],
+    "optional": [
+     "lru",
+     "recency",
+     "inclusion",
+     "monoton",
+     "optim",
+     "clock",
+     "bug",
+     "replay"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "replacement-policy-choice"
+   ],
+   "tags": [
+    "replacement-policy-choice"
+   ],
+   "explain": "There is no bug: those counts are exactly right, and the effect has a name. Stack algorithms such as LRU and optimal have the inclusion property - whatever they keep in $n$ frames they also keep in $n+1$ - so adding memory can never increase faults for them. FIFO orders by arrival rather than by any measure of usefulness, so a larger pool changes *which* pages are resident in ways that are not a superset of the smaller pool's, and on some traces that is worse. The practical lesson is about the policy, not the trace: FIFO's cheapness costs a guarantee people assume they have, which is one of the reasons real systems reach for clock instead.",
+   "xp": 88
+  }
+ ]
+}

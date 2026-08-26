@@ -1,0 +1,951 @@
+{
+ "n": 7,
+ "name": "The Hall of Coordination",
+ "cognitiveLevel": "transfer",
+ "concepts": [
+  "condition-variables",
+  "wait-in-while-loop",
+  "producer-consumer",
+  "binary-semaphore",
+  "counting-semaphore",
+  "reader-writer-locks",
+  "coffman-conditions",
+  "lock-ordering"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "synchronisation-lab",
+  "deadlock-clinic",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Waiting for a condition, not for a lock",
+    "body": "A lock answers one question: may I touch this data now? It cannot answer the other question a concurrent program constantly asks - *has something happened yet?* A thread that must wait until a child has finished, until a buffer holds an item, until a disk request has completed, has nothing useful to do, and spinning on a shared flag burns a whole CPU to discover nothing.\n\nA **condition variable** is an explicit queue of sleeping threads attached to a state change. `pthread_cond_wait(&c, &m)` puts the caller on that queue and, atomically with going to sleep, *releases the mutex* - then reacquires it before returning. `pthread_cond_signal(&c)` wakes one waiter. The atomic release is the whole trick: without it the waiter would either sleep holding the lock, so nobody could ever change the state it is waiting for, or release first and risk the change happening in the gap before it sleeps, leaving it asleep with nobody left to wake it.\n\nTwo rules follow, and neither is negotiable. **Always hold the lock when calling wait or signal**, because the state you are testing and the sleep must not be separated by a window in which another thread can act. **Always wait in a `while` loop, never an `if`**, because POSIX condition variables have Mesa semantics: a signal makes the waiter *runnable*, it does not hand it the CPU or the invariant. Between the signal and the waiter actually running, some third thread can acquire the mutex and undo the very condition that was signalled - so on waking, the only safe move is to test the predicate again.\n\nThe cost of a condition variable is that it holds no memory. Signalling when no one is waiting does nothing at all; the signal is not saved. That is why the shared state, never the signal, is the source of truth - and why `thr_join` below still works when the child finishes first.",
+    "code": "int done = 0;\npthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;\npthread_cond_t  c = PTHREAD_COND_INITIALIZER;\n\nvoid thr_exit(void) {\n    pthread_mutex_lock(&m);\n    done = 1;\n    pthread_cond_signal(&c);\n    pthread_mutex_unlock(&m);\n}\n\nvoid thr_join(void) {\n    pthread_mutex_lock(&m);\n    while (done == 0)\n        pthread_cond_wait(&c, &m);\n    pthread_mutex_unlock(&m);\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The state changes *before* the signal, and both happen under the lock. Signalling first would wake a thread that then re-tests `done`, still sees 0, and sleeps again - possibly for ever, since the signal was not saved."
+     },
+     {
+      "line": 14,
+      "text": "`while`, not `if`. Even in this two-thread case the loop costs nothing, and it is the only version that survives a third thread, a spurious wakeup, or a signal that another waiter consumed first."
+     },
+     {
+      "line": 15,
+      "text": "`pthread_cond_wait` takes the mutex because it must release it while sleeping and reacquire it before returning. The line after it therefore runs with the lock held again, exactly as though the wait had never happened."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the waiting half of the join, so that it is correct under Mesa semantics.",
+     "template": "void thr_join(void) {\n    pthread_mutex_lock(&m);\n    ___ (done == 0)\n        pthread_cond_wait(&c, ___);\n    pthread_mutex_unlock(&m);\n}\n",
+     "blanks": [
+      "while",
+      "&m"
+     ],
+     "concepts": [
+      "condition-variables",
+      "wait-in-while-loop"
+     ],
+     "tags": [
+      "wait-in-while-loop"
+     ],
+     "explain": "`if` compiles and usually appears to work, which is what makes it dangerous: it is only wrong when a signalled thread is overtaken before it runs, which is rare, timing-dependent and impossible to reproduce on demand. Passing the mutex is not bookkeeping either - `wait` must release it atomically with sleeping, so a version that took no mutex could not exist without reintroducing the lost-wakeup race.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "The bounded buffer, done properly",
+    "body": "Producer/consumer is the shape almost every real coordination problem takes: one side generates work, the other consumes it, and a fixed-size buffer between them decouples their speeds. The buffer being bounded is what creates *two* waiting conditions rather than one - consumers wait when it is empty, producers wait when it is full - and getting from a plausible solution to a correct one takes two separate corrections.\n\nThe first correction is the `while` loop, for the reason the previous section gave. With a single producer and a single consumer an `if` survives; add a second consumer and it fails, because the signalled consumer can be overtaken by another consumer that takes the item, so the first wakes to an empty buffer and reads rubbish.\n\nThe second correction is subtler and is why the code below has **two** condition variables. With one shared queue, a consumer's signal can wake another *consumer* instead of the producer. Suppose a one-slot buffer, one producer and two consumers: both consumers sleep on the empty buffer; the producer fills it, signals, wakes the first consumer, then loops round, finds the buffer full and sleeps; the woken consumer takes the item and signals - waking the second consumer rather than the producer; that consumer re-tests, finds the buffer empty and sleeps again. All three threads are now asleep with no one left to signal. The program is deadlocked, and nothing about it looks wrong.\n\nTwo condition variables fix this by construction: producers only ever sleep on `empty` and are only ever woken by consumers, consumers only ever sleep on `fill` and are only ever woken by producers. The rule generalises - **one condition variable per condition being waited for.** `pthread_cond_broadcast` is the blunt alternative, waking everyone so that whoever can proceed does; it is always correct and costs a stampede of threads that mostly re-test and go back to sleep.",
+    "code": "int buffer[MAX];\nint fill_ptr = 0, use_ptr = 0, count = 0;\n\npthread_mutex_t m     = PTHREAD_MUTEX_INITIALIZER;\npthread_cond_t  empty = PTHREAD_COND_INITIALIZER;   /* producers wait here */\npthread_cond_t  fill  = PTHREAD_COND_INITIALIZER;   /* consumers wait here */\n\nvoid producer(int value) {\n    pthread_mutex_lock(&m);\n    while (count == MAX)\n        pthread_cond_wait(&empty, &m);\n    buffer[fill_ptr] = value;\n    fill_ptr = (fill_ptr + 1) % MAX;\n    count++;\n    pthread_cond_signal(&fill);\n    pthread_mutex_unlock(&m);\n}\n\nint consumer(void) {\n    pthread_mutex_lock(&m);\n    while (count == 0)\n        pthread_cond_wait(&fill, &m);\n    int value = buffer[use_ptr];\n    use_ptr = (use_ptr + 1) % MAX;\n    count--;\n    pthread_cond_signal(&empty);\n    pthread_mutex_unlock(&m);\n    return value;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Two queues, named for the condition a sleeper is waiting for. The `empty` queue holds producers waiting for a free slot; the `fill` queue holds consumers waiting for an item. Sharing one queue is what lets a consumer wake a consumer."
+     },
+     {
+      "line": 10,
+      "text": "`count == MAX` is the producer's predicate and it is re-tested on every wakeup. Waking does not mean a slot is free - it means a slot *was* free at some point, which is a different and much weaker claim."
+     },
+     {
+      "line": 15,
+      "text": "The producer signals `fill`, the queue only consumers sleep on, so this wakeup can never be wasted on another producer. That directedness is the entire benefit of the second condition variable."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A bounded buffer with `MAX = 3` starts empty and uses the code above. Give the value of `count` after each operation. If an operation must block, give the unchanged value of `count`.",
+     "steps": [
+      {
+       "label": "producer put",
+       "expected": "1"
+      },
+      {
+       "label": "producer put",
+       "expected": "2"
+      },
+      {
+       "label": "consumer get",
+       "expected": "1"
+      },
+      {
+       "label": "producer put",
+       "expected": "2"
+      },
+      {
+       "label": "producer put",
+       "expected": "3"
+      },
+      {
+       "label": "producer put (buffer full)",
+       "expected": "3"
+      }
+     ],
+     "concepts": [
+      "producer-consumer"
+     ],
+     "tags": [
+      "producer-consumer"
+     ],
+     "explain": "The last put finds `count == MAX`, so it waits on `empty` and changes nothing - the count stays at 3 until a consumer makes room. A blocked producer is not an error condition or a dropped item: back-pressure is the whole purpose of bounding the buffer, and it is what stops a fast producer from consuming unbounded memory.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Semaphores: one primitive, two jobs",
+    "body": "A **semaphore** is an integer with two atomic operations and a waiting queue. `sem_wait` decrements it and blocks the caller while the value is negative; `sem_post` increments it and wakes one waiter if any are queued. The initial value decides everything about what the semaphore is for, and the sign carries information: when the value is negative, its magnitude is exactly the number of threads waiting.\n\nInitialised to 1, it is a **binary semaphore** - a lock. One thread's `sem_wait` takes the value to 0 and it proceeds; the next takes it to -1 and sleeps; the holder's `sem_post` returns it to 0 and releases one sleeper. Initialised to 0, the same primitive expresses **ordering**: a parent that calls `sem_wait` before the child has called `sem_post` goes to -1 and sleeps, and a child that posts first leaves the value at 1 so the parent's later wait succeeds immediately. Unlike a condition variable, a semaphore *remembers* - which is why an ordering semaphore needs no separate state variable and no `while` loop.\n\nInitialised to N, it is a **counting semaphore** and its value is a count of available resources. The bounded buffer becomes three semaphores and no explicit predicate at all: `empty` starts at MAX, `full` at 0, and a binary `mutex` at 1.\n\nThe ordering of the two waits in `put` is not stylistic. Take the mutex first and then block on `empty` and you have gone to sleep holding the lock; the consumer that would free a slot cannot get the mutex, and both threads wait for ever. **The mutex must be the innermost acquisition** - the general rule being never to sleep on anything while holding a lock that the thread which would wake you also needs.\n\nThe **reader/writer** problem is the classic counting-semaphore application: many readers may share the data, but a writer needs it alone. The usual solution keeps a reader count under a small lock and has only the *first* reader acquire the write lock and only the *last* reader release it - so readers pay a lock acquisition each but do not exclude one another. Its well-known flaw is that a steady stream of readers never lets the count fall to zero, so a waiting writer starves indefinitely.",
+    "code": "sem_t empty, full, mutex;\n\nsem_init(&empty, 0, MAX);   /* MAX slots are free */\nsem_init(&full,  0, 0);     /* nothing to consume yet */\nsem_init(&mutex, 0, 1);     /* a binary semaphore used as a lock */\n\nvoid put(int value) {\n    sem_wait(&empty);\n    sem_wait(&mutex);\n    buffer[fill_ptr] = value;\n    fill_ptr = (fill_ptr + 1) % MAX;\n    sem_post(&mutex);\n    sem_post(&full);\n}\n\nint get(void) {\n    sem_wait(&full);\n    sem_wait(&mutex);\n    int value = buffer[use_ptr];\n    use_ptr = (use_ptr + 1) % MAX;\n    sem_post(&mutex);\n    sem_post(&empty);\n    return value;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "`full` starts at 0 because nothing has been produced. A consumer arriving first drives it to -1 and sleeps, and the magnitude of the negative value is the number of consumers queued."
+     },
+     {
+      "line": 8,
+      "text": "`empty` is waited on *before* `mutex`. Reverse these two lines and a producer that finds the buffer full falls asleep holding the mutex, so no consumer can ever drain it - a two-line change that deadlocks the program."
+     },
+     {
+      "line": 13,
+      "text": "`full` is posted after the mutex is released. Posting while still holding the lock is merely wasteful rather than wrong: the woken consumer would immediately block on a mutex the poster has not yet dropped."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A semaphore is initialised to 2. Four threads A, B, C and D operate on it in this order. Give the semaphore's value after each operation.",
+     "steps": [
+      {
+       "label": "A calls sem_wait",
+       "expected": "1"
+      },
+      {
+       "label": "B calls sem_wait",
+       "expected": "0"
+      },
+      {
+       "label": "C calls sem_wait",
+       "expected": "-1"
+      },
+      {
+       "label": "A calls sem_post",
+       "expected": "0"
+      },
+      {
+       "label": "D calls sem_wait",
+       "expected": "-1"
+      },
+      {
+       "label": "B calls sem_post",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "counting-semaphore"
+     ],
+     "tags": [
+      "counting-semaphore"
+     ],
+     "explain": "The value never clamps at zero: it goes negative and the magnitude counts the sleepers, which is how `sem_post` knows there is somebody to wake. Reading the fourth step as 'back to 2 because A is done' is the tempting error - A's post is consumed by C, which was already queued, so the resource is handed straight on rather than returned to the free pool.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Deadlock, and the one cure that is used in practice",
+    "body": "Deadlock is a set of threads each holding something another needs, so none can proceed. Coffman showed it requires **four** conditions simultaneously, and breaking any one of them prevents it: **mutual exclusion** (a resource can be held exclusively), **hold-and-wait** (a thread holds one resource while requesting another), **no pre-emption** (a resource cannot be taken back by force), and **circular wait** (a cycle in the wait-for graph).\n\nEach condition suggests a cure, and three of them are unattractive. Removing mutual exclusion means lock-free data structures built from atomic compare-and-swap - genuinely deadlock-free, and hard enough to get right that mostly only library authors attempt it. Removing hold-and-wait means acquiring every lock you will ever need at once under one global lock, which needs the whole set known in advance and destroys concurrency. Removing no pre-emption means `pthread_mutex_trylock` and releasing everything on failure - correct, but it introduces livelock, where threads repeatedly grab and back off in lockstep and make no progress, so it needs randomised delay to be practical.\n\n**Avoidance** is the fourth option and belongs to textbooks rather than kernels: given advance knowledge of every thread's maximum resource demand, an algorithm such as Banker's schedules only into safe states. Real systems do not have that knowledge. **Detection** is the pragmatic cousin - build the wait-for graph periodically, look for a cycle, and recover by killing or restarting a victim. Databases do exactly this, because aborting a transaction is a cheap and already-supported operation; an operating system usually has no equivalent way to unwind a thread.\n\nWhich leaves **lock ordering**, and it is the answer nearly every real codebase uses. Define a total order over all locks and require every thread to acquire in that order; a cycle would need some thread to acquire out of order, so no cycle can form. When there is no natural order - two accounts, two nodes, two files of the same kind - use the addresses of the lock objects, which are arbitrary but consistent, and that is enough. The cost is discipline: the ordering is a global invariant that no single function can enforce on its own, and it is easy to break by calling out of a critical section into code that takes locks you cannot see.",
+    "code": "void transfer(account_t *from, account_t *to, int amount) {\n    pthread_mutex_lock(&from->lock);\n    pthread_mutex_lock(&to->lock);        /* the circular wait lives here */\n    from->balance -= amount;\n    to->balance   += amount;\n    pthread_mutex_unlock(&to->lock);\n    pthread_mutex_unlock(&from->lock);\n}\n\nvoid transfer_ordered(account_t *from, account_t *to, int amount) {\n    account_t *first  = (from < to) ? from : to;\n    account_t *second = (from < to) ? to   : from;\n    pthread_mutex_lock(&first->lock);\n    pthread_mutex_lock(&second->lock);\n    from->balance -= amount;\n    to->balance   += amount;\n    pthread_mutex_unlock(&second->lock);\n    pthread_mutex_unlock(&first->lock);\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`transfer(a, b)` and `transfer(b, a)` running concurrently acquire the two locks in opposite orders, and each can hold one while waiting for the other. That is circular wait, and the code is correct in every single-threaded test you can write."
+     },
+     {
+      "line": 11,
+      "text": "Comparing the pointers imposes a total order that has no meaning but is consistent everywhere, which is all an ordering has to be. Every thread now takes the lower-addressed lock first, so no cycle can form."
+     },
+     {
+      "line": 14,
+      "text": "This still deadlocks on `transfer(a, a)`, where `first` and `second` are the same lock and a non-recursive mutex blocks on itself. Self-transfer needs an explicit early return - a reminder that an ordering removes circular wait between distinct locks and nothing else."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the reasoning for adopting a lock ordering into the order in which it is actually made.",
+     "fragments": [
+      "observe that two threads acquire the same pair of locks in different orders",
+      "note that this permits a cycle in the wait-for graph, which is Coffman's circular wait",
+      "define a total order over the locks - by role, or by address where there is no natural one",
+      "require every thread to acquire locks in that order, releasing in any order it likes",
+      "conclude that no cycle can form, because a cycle would need some thread to acquire out of order"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4
+     ],
+     "concepts": [
+      "lock-ordering",
+      "coffman-conditions"
+     ],
+     "tags": [
+      "lock-ordering"
+     ],
+     "explain": "The argument runs from the observed hazard to the invariant that excludes it, and the last step is what makes lock ordering a proof rather than a habit: a cycle requires at least one thread to have acquired in decreasing order, so forbidding that forbids the cycle. Note the ordering constrains only acquisition - release order is free, which is why the discipline costs so little at runtime.",
+     "xp": 35
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-7-g-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A parent uses `thr_join` and a child uses `thr_exit` from the lesson, with `done` starting at 0. The child runs to completion **before** the parent ever calls `thr_join`. Give the value of `done` after each event, and for the final step answer yes or no.",
+   "steps": [
+    {
+     "label": "child locks m",
+     "expected": "0"
+    },
+    {
+     "label": "child sets done and signals",
+     "expected": "1"
+    },
+    {
+     "label": "child unlocks m",
+     "expected": "1"
+    },
+    {
+     "label": "parent locks m and tests the predicate",
+     "expected": "1"
+    },
+    {
+     "label": "does the parent call cond_wait? (yes/no)",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "condition-variables"
+   ],
+   "tags": [
+    "condition-variables"
+   ],
+   "explain": "The signal went to an empty queue and was discarded - condition variables keep no memory of it - yet the join still works, because the parent consults `done` rather than the signal. This is why the shared state is the source of truth: a version that slept unconditionally and waited for a signal would hang for ever here, and would appear to work only when the child happened to be slow.",
+   "xp": 60
+  },
+  {
+   "id": "os-7-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the consumer so that it sleeps on the right queue, re-tests its own predicate, and wakes the right thread.",
+   "template": "int consumer(void) {\n    pthread_mutex_lock(&m);\n    while (count == ___)\n        pthread_cond_wait(&___, &m);\n    int value = do_get();\n    pthread_cond_signal(&___);\n    pthread_mutex_unlock(&m);\n    return value;\n}\n",
+   "blanks": [
+    "0",
+    "fill",
+    "empty"
+   ],
+   "concepts": [
+    "producer-consumer",
+    "wait-in-while-loop"
+   ],
+   "tags": [
+    "producer-consumer"
+   ],
+   "explain": "A consumer waits for an item, so it sleeps on `fill`, and it signals `empty` to tell a producer a slot has opened. Sleeping and signalling on the same variable is the classic error: it lets a consumer's signal wake another consumer, and with two consumers that is exactly the interleaving that puts every thread to sleep at once.",
+   "xp": 36
+  },
+  {
+   "id": "os-7-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A mutex is built from a semaphore initialised to 1. Threads A, B and C use it in this order. Give the semaphore's value after each operation.",
+   "steps": [
+    {
+     "label": "A calls sem_wait",
+     "expected": "0"
+    },
+    {
+     "label": "B calls sem_wait",
+     "expected": "-1"
+    },
+    {
+     "label": "C calls sem_wait",
+     "expected": "-2"
+    },
+    {
+     "label": "A calls sem_post",
+     "expected": "-1"
+    },
+    {
+     "label": "B calls sem_post",
+     "expected": "0"
+    },
+    {
+     "label": "C calls sem_post",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "binary-semaphore"
+   ],
+   "tags": [
+    "binary-semaphore"
+   ],
+   "explain": "Only A is in the critical section; the value of -2 says two threads are queued behind it, and each post hands the lock straight to a sleeper rather than returning the value to 1. The value reaches 1 again only when the last holder leaves with nobody waiting, which is exactly the definition of an unheld lock.",
+   "xp": 60
+  },
+  {
+   "id": "os-7-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the body of `rwlock_acquire_readlock` into the order in which it must run.",
+   "fragments": [
+    "sem_wait(&rw->lock) - take the small lock guarding the reader count",
+    "rw->readers++",
+    "if (rw->readers == 1) sem_wait(&rw->writelock) - the first reader excludes writers",
+    "sem_post(&rw->lock) - release the small lock so other readers can enter"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "reader-writer-locks",
+    "counting-semaphore"
+   ],
+   "tags": [
+    "reader-writer-locks"
+   ],
+   "explain": "The counter must be incremented and tested under its own lock, or two readers arriving together could both see themselves as the first and both try to take the write lock. Only the transition from zero to one readers touches `writelock`, which is what lets readers share: the second and later readers pay one quick lock acquisition and nothing more.",
+   "xp": 36
+  },
+  {
+   "id": "os-7-g-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A reader/writer lock as in the previous question. Events arrive in this order: R1 acquires a read lock, R2 acquires a read lock, W requests the write lock, R3 acquires a read lock. Give the reader count after each event, then say whether W is running or blocked.",
+   "steps": [
+    {
+     "label": "after R1 acquires",
+     "expected": "1"
+    },
+    {
+     "label": "after R2 acquires",
+     "expected": "2"
+    },
+    {
+     "label": "after W requests the write lock",
+     "expected": "2"
+    },
+    {
+     "label": "after R3 acquires",
+     "expected": "3"
+    },
+    {
+     "label": "is W running or blocked?",
+     "expected": "blocked"
+    }
+   ],
+   "concepts": [
+    "reader-writer-locks"
+   ],
+   "tags": [
+    "reader-writer-locks"
+   ],
+   "explain": "R3 arrives after W and sails past it, because `writelock` is already held by R1 on behalf of all readers and R3, not being the first reader, never touches `writelock` at all. The waiting writer is invisible to arriving readers, and while readers keep overlapping the count never reaches zero - this is reader starvation, and it is a property of the design rather than of bad luck.",
+   "xp": 60
+  }
+ ],
+ "synchronisation-lab": [
+  {
+   "id": "os-7-l-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A bounded buffer with one producer and two consumers uses `if (count == 0) pthread_cond_wait(&fill, &m);` instead of a `while`. It runs correctly for hours, then a consumer returns a stale value from an empty buffer. Name the underlying cause and give the interleaving that produces it.",
+   "answer": "Mesa semantics: the signalled consumer is only made runnable, and the other consumer takes the item before it runs, so the predicate is false again by the time it returns from wait",
+   "rubric": {
+    "required": [
+     "mesa",
+     "runnab",
+     "while",
+     "test",
+     "signal",
+     "consum"
+    ],
+    "optional": [
+     "predicate",
+     "empty",
+     "atomic",
+     "wake",
+     "hoare",
+     "count"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "wait-in-while-loop",
+    "condition-variables"
+   ],
+   "tags": [
+    "wait-in-while-loop"
+   ],
+   "explain": "Under Mesa semantics a signal is a hint that the condition held at some past moment, not a handover of the invariant. The producer signals, consumer one becomes runnable but does not run; consumer two acquires the mutex first, consumes the only item and leaves `count` at 0; consumer one then returns from `wait`, and with an `if` there is no second test, so it reads a slot that holds nothing. The `while` costs one extra comparison in the common case and is the only version that is correct. The tempting misdiagnosis is a missing lock or a memory-visibility problem - but the mutex is held correctly throughout, and it is the staleness of the signal, not the visibility of the data, that breaks.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-l-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A one-slot bounded buffer uses a single condition variable `cond` for both waiting conditions, with correct `while` loops and correct locking everywhere. With one producer and two consumers it eventually stops dead with all three threads asleep. Name the cause, give the interleaving, and name the two fixes.",
+   "answer": "One condition variable shared by both roles lets a consumer's signal wake another consumer instead of the producer, so the only thread that could make progress is never woken",
+   "rubric": {
+    "required": [
+     "condition variable",
+     "consum",
+     "produc",
+     "wake",
+     "asleep",
+     "broadcast"
+    ],
+    "optional": [
+     "two condition",
+     "queue",
+     "signal",
+     "deadlock",
+     "empty",
+     "full"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "condition-variables",
+    "producer-consumer"
+   ],
+   "tags": [
+    "condition-variables"
+   ],
+   "explain": "Both consumers sleep on the empty buffer. The producer fills it, signals, wakes consumer one, then loops, finds the buffer full and sleeps on the same queue behind consumer two. Consumer one takes the item and signals - and the queue head is consumer two, not the producer, so a consumer is woken; it re-tests, finds the buffer empty and sleeps again, as does consumer one. All three now sleep and no signal will ever come. The fix is one condition variable per condition, so producers are only woken by consumers and consumers only by producers; `pthread_cond_broadcast` also works, by waking everyone at the cost of a stampede of threads that mostly go straight back to sleep. Note that the `while` loops are not the bug here - they are correct, and they are what makes the failure a silent deadlock rather than corrupted data.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-l-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The semaphore bounded buffer from the lesson, with `MAX = 3`, `empty` at 3 and `full` at 0. Four producers each call `put` once, then one consumer calls `get`. Give the pair `empty,full` - written exactly like `2,1` - after each producer's `put` completes or blocks, then after the consumer's `get`, then after the blocked producer resumes and finishes its `put`.",
+   "steps": [
+    {
+     "label": "after P1's put",
+     "expected": "2,1"
+    },
+    {
+     "label": "after P2's put",
+     "expected": "1,2"
+    },
+    {
+     "label": "after P3's put",
+     "expected": "0,3"
+    },
+    {
+     "label": "P4 calls put and blocks on empty",
+     "expected": "-1,3"
+    },
+    {
+     "label": "after the consumer's get",
+     "expected": "0,2"
+    },
+    {
+     "label": "after P4 resumes and finishes its put",
+     "expected": "0,3"
+    }
+   ],
+   "concepts": [
+    "counting-semaphore",
+    "producer-consumer"
+   ],
+   "tags": [
+    "counting-semaphore"
+   ],
+   "explain": "`empty` and `full` are not two views of one counter that must always sum to MAX - they are one resource count each, and while a producer is queued their sum is 2 rather than 3, because that producer has already claimed a slot it has not yet filled. The consumer's `sem_post(&empty)` takes the value from -1 to 0 and hands the slot directly to P4, which is why P4's completion adds to `full` without decrementing `empty` again: it did that before it slept. Expecting `empty` to stop at 0 is the usual error, and it loses exactly the information `sem_post` needs in order to know somebody is waiting.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-l-04",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A cache in a web server is guarded by the reader/writer lock from the lesson. Under load the read rate never drops to zero and the invalidation thread, which needs the write lock, has not run in forty minutes - stale entries are being served. Explain why the lock's own design causes this, and describe a change that lets the writer through without abandoning shared reading.",
+   "rubric": {
+    "required": [
+     "starv",
+     "readers",
+     "writer",
+     "count",
+     "zero",
+     "arriv"
+    ],
+    "optional": [
+     "fair",
+     "queue",
+     "turnstile",
+     "block new readers",
+     "throughput",
+     "overlap",
+     "first reader"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "reader-writer-locks"
+   ],
+   "tags": [
+    "reader-writer-locks"
+   ],
+   "explain": "The write lock is released only when the reader count falls to zero, and an arriving reader that is not the first never consults `writelock` at all - so a waiting writer is invisible to new readers, and overlapping reads keep the count permanently above zero. The standard repair makes arriving readers pass through a turnstile semaphore that a waiting writer holds: readers already inside finish and drain the count normally, but new readers queue behind the writer, so the count reaches zero in bounded time. Shared reading is untouched in the common case, since the turnstile is uncontended when no writer is waiting. The tempting non-fix is to make the writer retry more aggressively or to raise its priority - neither helps, because the writer is not losing a race, it is waiting on a condition that arriving readers actively prevent from ever occurring.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-l-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A parent thread must not proceed until its child has finished. A colleague proposes a semaphore initialised to 0, with the child calling `sem_post` and the parent `sem_wait`, and objects that this cannot be right because it has no `while` loop and no shared state variable. Explain why the semaphore version is correct in both orderings, and what a condition variable would need in its place.",
+   "rubric": {
+    "required": [
+     "zero",
+     "remember",
+     "negativ",
+     "order",
+     "state",
+     "while"
+    ],
+    "optional": [
+     "lost wakeup",
+     "predicate",
+     "queue",
+     "post",
+     "wait",
+     "signal",
+     "discard"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "binary-semaphore",
+    "condition-variables"
+   ],
+   "tags": [
+    "binary-semaphore"
+   ],
+   "explain": "A semaphore carries state - its value - so a `sem_post` that arrives before anyone waits is not lost: it leaves the value at 1 and the parent's later `sem_wait` succeeds immediately. Parent first drives the value to -1 and sleeps until the child's post wakes it. Both orderings work, and no predicate is needed because the count is the predicate. A condition variable is stateless by comparison: a signal delivered to an empty queue is discarded, so the same handshake needs an explicit `done` flag, the mutex that guards it, and a `while` loop testing it - which is precisely the `thr_join` from the lesson. The colleague's instinct is right in general and wrong here: the `while` loop exists to re-test a predicate that another thread can falsify, and the semaphore initialised to zero has no such predicate to falsify.",
+   "xp": 40
+  }
+ ],
+ "deadlock-clinic": [
+  {
+   "id": "os-7-d-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Three threads and three mutexes. T1 takes A then B, T2 takes B then C, T3 takes C then A. They interleave in this order: T1 takes A, T2 takes B, T3 takes C, T1 requests B, T2 requests C, T3 requests A. For each of the last three requests answer `blocks` or `proceeds`, then give the number of threads in the wait-for cycle.",
+   "steps": [
+    {
+     "label": "T1 requests B",
+     "expected": "blocks"
+    },
+    {
+     "label": "T2 requests C",
+     "expected": "blocks"
+    },
+    {
+     "label": "T3 requests A",
+     "expected": "blocks"
+    },
+    {
+     "label": "how many threads are in the wait-for cycle?",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "coffman-conditions"
+   ],
+   "tags": [
+    "coffman-conditions"
+   ],
+   "explain": "The wait-for graph is T1 to T2 to T3 back to T1 - a cycle of three - and every thread holds one lock while requesting another, so all four Coffman conditions hold at once. Deadlock is not confined to pairs, which is why the two-thread mental picture misleads: a detector must look for a cycle of any length, and a codebase can satisfy 'never take these two locks in the wrong order' for every pair while still forming a three-way cycle.",
+   "xp": 60
+  },
+  {
+   "id": "os-7-d-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A banking service runs `transfer(from, to, amount)` exactly as written in the lesson's first function. It has passed every test, including a stress test with a thousand threads all transferring from account A to account B. In production it hangs within a day. Name the cause, and say why the stress test could never have found it.",
+   "answer": "Circular wait from inconsistent lock ordering: transfer(a,b) and transfer(b,a) running concurrently each hold one account lock and request the other",
+   "rubric": {
+    "required": [
+     "circular",
+     "order",
+     "opposite",
+     "hold",
+     "concurrent",
+     "test"
+    ],
+    "optional": [
+     "coffman",
+     "address",
+     "cycle",
+     "wait-for",
+     "pair",
+     "direction",
+     "reverse"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "lock-ordering",
+    "coffman-conditions"
+   ],
+   "tags": [
+    "lock-ordering"
+   ],
+   "explain": "The function locks `from` then `to`, so the acquisition order depends on the arguments rather than on any global rule. Two concurrent calls in opposite directions each take one lock and wait for the other, closing a two-thread cycle. The stress test drove enormous concurrency but only ever in one direction, so every thread acquired A then B - a consistent order, and therefore no cycle possible. This is the characteristic shape of a deadlock bug: the hazard is a property of the combination of call sites, so no amount of load on a single call pattern exposes it, and the fix is a global invariant, such as ordering by lock address, that no individual function can establish alone.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-d-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You maintain a graph store where an edge operation must lock two nodes, and node objects have no natural ordering. Propose a deadlock-free acquisition scheme, justify why it removes circular wait, name the case your scheme must special-case, and say what you would do instead if node locks had to be acquired one at a time as a traversal discovers them.",
+   "rubric": {
+    "required": [
+     "order",
+     "address",
+     "circular",
+     "same",
+     "trylock",
+     "releas"
+    ],
+    "optional": [
+     "identifier",
+     "total order",
+     "livelock",
+     "backoff",
+     "random",
+     "retry",
+     "cycle",
+     "invariant"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "lock-ordering"
+   ],
+   "tags": [
+    "lock-ordering"
+   ],
+   "explain": "With no natural order, any consistent one will do: compare the lock addresses or stable node identifiers and always take the lower first. That removes circular wait because a cycle needs some thread to have acquired in decreasing order. The case to special-case is a self-edge, where both nodes are the same node and a non-recursive mutex would block on itself - test for equality and take the lock once. A traversal that discovers nodes as it goes cannot pre-sort them, so ordering does not apply; there the tool is `trylock`, releasing everything already held on failure and retrying, which attacks no pre-emption instead. That trade is worth naming: it swaps a deadlock for a possible livelock, so the retry needs randomised backoff, and it costs repeated work every time an attempt is abandoned.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-d-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "For each of the four Coffman conditions, name a technique that removes it, then explain why lock ordering dominates in practice while avoidance is essentially absent from real systems.",
+   "rubric": {
+    "required": [
+     "mutual",
+     "hold",
+     "circular",
+     "order",
+     "avoidance",
+     "advance"
+    ],
+    "optional": [
+     "pre-empt",
+     "preempt",
+     "trylock",
+     "lock-free",
+     "compare-and-swap",
+     "livelock",
+     "banker",
+     "detection",
+     "database",
+     "victim",
+     "concurrency"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "coffman-conditions"
+   ],
+   "tags": [
+    "coffman-conditions"
+   ],
+   "explain": "Mutual exclusion is removed by lock-free structures built on compare-and-swap - correct, and hard enough that it is left to library authors. Hold-and-wait is removed by acquiring the whole lock set atomically under a global lock, which needs the set known in advance and serialises everything. No pre-emption is removed by `trylock` with release-and-retry, which trades deadlock for livelock and needs randomised backoff. Circular wait is removed by a total order on locks, and it wins because it costs nothing at runtime, needs no advance knowledge, and leaves concurrency untouched - it is purely a discipline on the order of acquisition. Avoidance in the Banker's-algorithm sense requires every thread's maximum future demand up front and a scheduler willing to refuse safe-looking requests; general-purpose systems have neither, which is why detection with a victim, as databases do by aborting a transaction, is the only dynamic scheme that sees real use.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-7-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Under Mesa semantics, what does `pthread_cond_signal` guarantee to the woken thread?",
+   "choices": [
+    "That it becomes runnable and will reacquire the mutex before returning from `wait`, and nothing more",
+    "That the condition it was waiting for is true when it resumes",
+    "That it runs immediately, before the signalling thread continues",
+    "That no other thread can acquire the mutex until it has finished"
+   ],
+   "answer": 0,
+   "concepts": [
+    "condition-variables"
+   ],
+   "tags": [
+    "condition-variables"
+   ],
+   "explain": "Choice two describes Hoare semantics, in which the signaller hands over the lock and the invariant directly; almost no real system implements it, because it forces an immediate context switch. Under Mesa the signal is a hint about the past, so between the signal and the waiter running, another thread may acquire the mutex and falsify the condition - which is precisely why the predicate must be re-tested in a `while` loop.",
+   "xp": 18
+  },
+  {
+   "id": "os-7-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are Coffman conditions for deadlock? Select all that apply.",
+   "choices": [
+    "Mutual exclusion - a resource can be held exclusively",
+    "Hold-and-wait - a thread holds one resource while requesting another",
+    "No pre-emption - a held resource cannot be taken back by force",
+    "Circular wait - a cycle exists in the wait-for graph",
+    "Priority inversion - a low-priority thread holds a lock a high-priority thread needs"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "coffman-conditions"
+   ],
+   "tags": [
+    "coffman-conditions"
+   ],
+   "explain": "The four are jointly necessary, so breaking any one prevents deadlock entirely - which is why the list is a menu of cures rather than a taxonomy. Priority inversion is a real and serious scheduling pathology, but the threads involved all eventually run: it delays progress rather than making it impossible, so it is not deadlock.",
+   "xp": 18
+  },
+  {
+   "id": "os-7-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete `put` for the semaphore bounded buffer so that it neither corrupts the buffer nor sleeps holding the lock.",
+   "template": "void put(int value) {\n    sem_wait(&___);\n    sem_wait(&mutex);\n    do_fill(value);\n    sem_post(&mutex);\n    sem_post(&___);\n}\n",
+   "blanks": [
+    "empty",
+    "full"
+   ],
+   "concepts": [
+    "counting-semaphore",
+    "binary-semaphore"
+   ],
+   "tags": [
+    "counting-semaphore"
+   ],
+   "explain": "A producer consumes a free slot and produces an item, so it waits on `empty` and posts `full`. The order matters as much as the names: with `mutex` taken first, a producer that finds the buffer full sleeps while holding the lock the consumer needs in order to drain it, and both threads then wait for ever.",
+   "xp": 36
+  },
+  {
+   "id": "os-7-x-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A semaphore is initialised to 1. Give its value after each of these operations, performed in order by distinct threads: wait, wait, wait, post, post.",
+   "steps": [
+    {
+     "label": "after the first wait",
+     "expected": "0"
+    },
+    {
+     "label": "after the second wait",
+     "expected": "-1"
+    },
+    {
+     "label": "after the third wait",
+     "expected": "-2"
+    },
+    {
+     "label": "after the first post",
+     "expected": "-1"
+    },
+    {
+     "label": "after the second post",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "binary-semaphore"
+   ],
+   "tags": [
+    "binary-semaphore"
+   ],
+   "explain": "The negative magnitude is the number of threads asleep on the semaphore, which is how `sem_post` knows whether it must wake anyone. A trace that floors the value at 0 loses that count, and an implementation that did so would leave woken threads permanently queued.",
+   "xp": 60
+  },
+  {
+   "id": "os-7-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the events of the classic one-condition-variable deadlock into the order in which they occur. The buffer holds one slot; there is one producer and two consumers, all with correct `while` loops.",
+   "fragments": [
+    "both consumers find the buffer empty and sleep on the single condition variable",
+    "the producer fills the slot, signals, and wakes the first consumer",
+    "the producer loops round, finds the buffer full, and sleeps behind the second consumer",
+    "the first consumer takes the item and signals, waking the second consumer rather than the producer",
+    "the second consumer re-tests, finds the buffer empty and sleeps again, leaving every thread asleep"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "producer-consumer",
+    "condition-variables"
+   ],
+   "tags": [
+    "producer-consumer"
+   ],
+   "explain": "The fatal step is the fourth: a signal from a consumer lands on a queue that contains consumers, so the one thread able to make progress is never woken. Two condition variables make the wakeup directed - producers sleep only on `empty`, consumers only on `fill` - and `broadcast` fixes it by brute force, waking everyone so that whoever can proceed does.",
+   "xp": 36
+  },
+  {
+   "id": "os-7-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A reader/writer lock. R1 and R2 hold read locks, a writer W is blocked, and the readers now release. Give the reader count after each release, then say which release frees the write lock.",
+   "steps": [
+    {
+     "label": "after R1 releases",
+     "expected": "1"
+    },
+    {
+     "label": "after R2 releases",
+     "expected": "0"
+    },
+    {
+     "label": "which release frees the write lock? (R1/R2)",
+     "expected": "R2"
+    }
+   ],
+   "concepts": [
+    "reader-writer-locks"
+   ],
+   "tags": [
+    "reader-writer-locks"
+   ],
+   "explain": "Only the last reader out posts `writelock`, mirroring the rule that only the first reader in takes it. R1's release changes nothing for the writer, which is why a stream of overlapping readers can keep the count above zero indefinitely and starve W - the writer waits not for any particular reader but for the count to reach zero.",
+   "xp": 60
+  },
+  {
+   "id": "os-7-x-07",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "In a semaphore bounded buffer someone has swapped the first two lines of `put`, so that it reads `sem_wait(&mutex); sem_wait(&empty);`. Once the buffer fills, the whole program stops. Name the cause and explain why no consumer can rescue it.",
+   "answer": "The producer sleeps on empty while holding the mutex, and the consumer needs that same mutex to remove an item, so neither can proceed",
+   "rubric": {
+    "required": [
+     "mutex",
+     "hold",
+     "sleep",
+     "consum",
+     "innermost",
+     "deadlock"
+    ],
+    "optional": [
+     "empty",
+     "full",
+     "order",
+     "circular",
+     "slot",
+     "wake"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "binary-semaphore",
+    "producer-consumer"
+   ],
+   "tags": [
+    "binary-semaphore"
+   ],
+   "explain": "The producer blocks on `empty` while still holding `mutex`. The only thread that can make `empty` positive is a consumer, and the consumer's first act after `sem_wait(&full)` is to take `mutex` - which the sleeping producer holds. Each waits for the other, and the general rule the swap violates is that the mutex must be the innermost acquisition: never sleep on a condition while holding a lock needed by the thread that would signal it. Blaming the buffer size or the initial value of `empty` is the tempting misreading, but the same two lines deadlock at any capacity as soon as the buffer fills.",
+   "xp": 72
+  },
+  {
+   "id": "os-7-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why a thread must hold the mutex when it calls `pthread_cond_wait`, and why the call releases that mutex itself rather than expecting the caller to unlock first.",
+   "rubric": {
+    "required": [
+     "atomic",
+     "releas",
+     "predicate",
+     "wake",
+     "sleep",
+     "reacquir"
+    ],
+    "optional": [
+     "lost",
+     "gap",
+     "window",
+     "signal",
+     "race",
+     "test",
+     "state"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "condition-variables",
+    "wait-in-while-loop"
+   ],
+   "tags": [
+    "condition-variables"
+   ],
+   "explain": "The predicate is shared state, so testing it requires the lock; and the test and the decision to sleep must be a single indivisible act. Unlocking first would open a window in which another thread changes the state and signals before the caller is on the queue - the lost wakeup, after which the caller sleeps for ever with the condition already true. Sleeping while holding the lock is no better: nobody could then acquire it to change the state or to signal. Only releasing atomically with going to sleep avoids both, and `wait` reacquires the mutex before returning so that the code after it can re-test the predicate safely.",
+   "xp": 40
+  }
+ ]
+}

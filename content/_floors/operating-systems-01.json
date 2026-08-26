@@ -1,0 +1,961 @@
+{
+ "n": 1,
+ "name": "The Machine That Pretends",
+ "cognitiveLevel": "recognition",
+ "concepts": [
+  "virtualisation",
+  "concurrency",
+  "persistence",
+  "process-abstraction",
+  "process-states",
+  "fork-exec-wait",
+  "user-kernel-mode",
+  "system-calls"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "process-tracing",
+  "kernel-boundary",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Three problems, one machine",
+    "body": "An operating system is not a program you run. It is the program that runs everything else, and it exists because the bare machine is a hostile place to put more than one program. That machine offers one CPU that executes one instruction stream, one flat array of physical memory that any instruction may address, and storage that keeps only what was deliberately written to it. Everything the OS does answers one of three problems that follow from those facts.\n\n**Virtualisation** is the first and the largest. The OS takes one physical resource and presents many virtual ones: a virtual CPU for every process, so ten programs each behave as though they had the machine; a private address space for every process, so each may believe its memory starts at zero. None of this is free - every virtual thing costs bookkeeping, and the machine spends real time maintaining the fiction rather than doing your work.\n\n**Concurrency** is the problem virtualisation creates. Once many things run at once and can be interrupted between any two instructions, sequences that look indivisible are not: a counter increment is a load, an add and a store, and another process may run in the gaps. The OS suffers this worse than anyone, because it is itself a concurrent program handling interrupts from devices that do not wait to be asked.\n\n**Persistence** is the third, and it is different in kind. Memory forgets everything when power goes; a file system must not. That means the OS has to write data in an order that survives a crash halfway through, which is why writes are buffered for speed and then forced with `fsync` for safety - and why a program that never forces its writes can report success on data that is not yet anywhere durable.",
+    "code": "/* cpu.c - the CPU illusion in a dozen lines.\n   Run four copies at once:  ./cpu A & ./cpu B & ./cpu C & ./cpu D &\n   One physical CPU, four programs, none of them aware of the others. */\n#include <stdio.h>\n#include <unistd.h>\n\nint main(int argc, char *argv[])\n{\n    if (argc != 2) { fprintf(stderr, \"usage: cpu <string>\\n\"); return 1; }\n    while (1) {\n        printf(\"%s\\n\", argv[1]);   /* each copy prints about once a second */\n        sleep(1);                  /* and each believes it owns the machine */\n    }\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Nothing in this program mentions the other copies, checks a schedule, or yields. The illusion is complete precisely because the program contains no code to maintain it - that work is entirely the kernel's."
+     },
+     {
+      "line": 12,
+      "text": "`sleep` is where the process gives the CPU up, which is why four copies interleave neatly. Remove it and they still interleave, but only because a timer interrupt takes the CPU away from each in turn - and that is the more interesting case."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "For each operating system feature, name which of the three problems it exists to solve. Answer with exactly one of `virtualisation`, `concurrency` or `persistence`.",
+     "steps": [
+      {
+       "label": "each process gets a private address space starting at zero",
+       "expected": "virtualisation"
+      },
+      {
+       "label": "a lock protects a counter shared between two threads",
+       "expected": "concurrency"
+      },
+      {
+       "label": "a journal entry is written before the file system is updated",
+       "expected": "persistence"
+      },
+      {
+       "label": "one CPU is time-sliced between ten running programs",
+       "expected": "virtualisation"
+      }
+     ],
+     "concepts": [
+      "virtualisation",
+      "concurrency",
+      "persistence"
+     ],
+     "tags": [
+      "virtualisation"
+     ],
+     "explain": "Virtualisation is always the same shape - one physical resource made to look like many - so both the address space and the time slice belong to it. Concurrency is the problem that appears only because virtualisation succeeded: things now overlap. Persistence stands apart because it is not about sharing at all, but about surviving the loss of power, and the tempting mistake is to file the journal under concurrency because it also involves ordering.",
+     "xp": 25
+    }
+   },
+   {
+    "title": "The process, and the three states it lives in",
+    "body": "A **program** is inert: bytes on a disk describing instructions and initial data. A **process** is that program plus everything the machine needs to keep it going, and the OS's central abstraction is exactly the list of what that turns out to be.\n\nThere are three parts and they are worth memorising, because the list is not arbitrary - it is precisely what must be saved and restored so that a stopped process cannot tell it was ever stopped. First, its **address space**: the memory it can address, holding code, static data, a heap that grows one way and a stack that grows the other. Second, its **registers**: the general-purpose registers, and especially the program counter, which says which instruction is next, and the stack pointer, which says where its frames are. Third, its **open files**, the descriptors it may read and write, with 0, 1 and 2 conventionally standard input, output and error. The kernel keeps all of this in a **process control block**, one per process, and switching between processes is little more than saving one such record and restoring another.\n\nA process is at any moment in one of three states. **Running** means it is on a CPU executing instructions. **Ready** means it could run and the scheduler has simply not chosen it. **Blocked** means it cannot use a CPU even if offered one, because it is waiting for something else - a disk read, a key press, a child to exit.\n\nOnly four transitions exist, and the two that do not exist teach more than the ones that do. Ready to running is *scheduled*; running to ready is *descheduled*; running to blocked happens when the process itself initiates a wait; blocked to ready happens when the awaited event completes. There is no ready-to-blocked edge, because a process must be running to ask to wait, and no blocked-to-running edge, because the scheduler picks only from the ready set. Blocked exists as a separate state for exactly one reason: a process waiting on a disk would otherwise be chosen over and over to accomplish nothing.",
+    "code": "/* What the kernel keeps about one process - close to xv6's struct proc. */\nenum proc_state { UNUSED, READY, RUNNING, BLOCKED, ZOMBIE };\n\nstruct context {                 /* the registers saved across a switch */\n    uint64_t pc, sp;\n    uint64_t regs[16];\n};\n\nstruct proc {\n    enum proc_state state;\n    int             pid;\n    struct context  ctx;         /* restored when this process runs again */\n    pagetable_t     pgdir;       /* its private address space */\n    struct file    *ofile[16];   /* open files: 0 stdin, 1 stdout, 2 stderr */\n    struct proc    *parent;      /* who will collect its exit status */\n};",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The program counter and stack pointer are the two registers that make the abstraction work: together they say which instruction is next and where the local variables are, so restoring them resumes a process mid-expression without its knowledge."
+     },
+     {
+      "line": 14,
+      "text": "Open files belong to the process, not to the program. This is why a shell can redirect a command's output by changing the descriptor before the program it is about to run even exists."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "One process is created and runs to completion. Give its state immediately after each event. Answer with exactly one of `ready`, `running`, `blocked` or `done`.",
+     "steps": [
+      {
+       "label": "the kernel has created it but not yet scheduled it",
+       "expected": "ready"
+      },
+      {
+       "label": "the scheduler has just picked it",
+       "expected": "running"
+      },
+      {
+       "label": "it calls read() on a file not in the cache",
+       "expected": "blocked"
+      },
+      {
+       "label": "the disk interrupt reports the data has arrived",
+       "expected": "ready"
+      },
+      {
+       "label": "the scheduler picks it again",
+       "expected": "running"
+      },
+      {
+       "label": "it calls exit()",
+       "expected": "done"
+      }
+     ],
+     "concepts": [
+      "process-states",
+      "process-abstraction"
+     ],
+     "tags": [
+      "process-states"
+     ],
+     "explain": "The fourth step is the one people get wrong: an I/O completion makes a process runnable, not running. The interrupt handler moves it into the ready set and returns; whether it gets a CPU next is the scheduler's decision and may be some time away. Answering `running` there collapses the ready state entirely, and with it the whole distinction between being able to run and actually running.",
+     "xp": 25
+    }
+   },
+   {
+    "title": "fork, exec and wait - and why they are three calls",
+    "body": "Unix creates processes with a call that is strange the first time you meet it. `fork()` makes a near-copy of the calling process - its own address space, its own copy of the descriptors - and then **returns twice**: in the child it returns 0, and in the parent it returns the child's process id. The child does not start at `main`; it continues from the same point in the same code, which is why the return value is the only thing distinguishing the two copies.\n\n`exec()` does something no other call does: it replaces the current process's image with a different program. Same process id, same open descriptors, but new code, new heap and a fresh stack. It does not return on success - there is nothing left to return to, because the code that called it has been overwritten.\n\n`wait()` blocks the parent until one of its children exits, and collects the exit status. A child that has exited but not yet been waited for is a **zombie**: nearly all of it is gone, but the kernel keeps its status because someone may still ask for it.\n\nWhy is creating a process not one call? Because the gap between `fork` and `exec` is where all the interesting work happens. In that gap the child is running the parent's code with the child's identity, and it can rearrange its environment before the new program exists to have an opinion about it. Redirection is the classic case: the child closes descriptor 1 and opens a file, which takes slot 1 because `open` returns the lowest free descriptor - and then `exec`s a program that writes to standard output knowing nothing about any of this. A single combined `spawn` call would have to accept every possible adjustment as an argument. The cost of the design is a full address-space copy that is usually discarded microseconds later, which is why real systems implement `fork` with copy-on-write rather than by copying anything at all.",
+    "code": "int rc = fork();                    /* one call, two returns */\nif (rc < 0) {\n    exit(1);                        /* fork failed - no child exists */\n} else if (rc == 0) {               /* the child sees 0 */\n    close(STDOUT_FILENO);\n    open(\"./out.txt\", O_CREAT | O_WRONLY | O_TRUNC, 0644);\n    char *args[] = { \"wc\", \"p3.c\", NULL };\n    execvp(args[0], args);          /* returns only if it failed */\n    printf(\"execvp failed\\n\");\n} else {                            /* the parent sees the child's pid */\n    int status;\n    int who = wait(&status);\n    printf(\"child %d finished\\n\", who);\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The whole trick of shell redirection. Descriptor 1 was just closed, so it is the lowest free number, so `open` returns it - and the file quietly becomes standard output for whatever runs next."
+     },
+     {
+      "line": 9,
+      "text": "This line runs only on failure. On success there is no code left to return to, because `execvp` has overwritten the very instructions that called it."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A program contains `fork(); fork(); printf(\"A\\n\");` and nothing else. Give the counts asked for, as plain integers.",
+     "steps": [
+      {
+       "label": "processes in existence after the first fork returns",
+       "expected": "2"
+      },
+      {
+       "label": "processes in existence after the second fork returns",
+       "expected": "4"
+      },
+      {
+       "label": "lines of A printed in total",
+       "expected": "4"
+      },
+      {
+       "label": "lines printed if a third fork is added before the printf",
+       "expected": "8"
+      }
+     ],
+     "concepts": [
+      "fork-exec-wait",
+      "process-abstraction"
+     ],
+     "tags": [
+      "fork-exec-wait"
+     ],
+     "explain": "Each `fork` doubles the population, because every process reaching that line - parent and previously created children alike - splits in two, so $n$ forks in sequence leave $2^n$ processes. The common wrong answer of 3 comes from imagining the parent forking twice while the first child does nothing; but the child continues from the same point in the same code, so it meets the second `fork` too.",
+     "xp": 25
+    }
+   },
+   {
+    "title": "Two modes and the one door between them",
+    "body": "If a user program could execute any instruction, there would be no operating system worth the name: it could reprogram the interrupt table, disable the timer and never give the CPU back, or read another process's memory by rewriting the page table. So the hardware carries a **mode bit**. In **user mode**, privileged instructions - direct device I/O, changing the page table root, disabling interrupts - do not merely misbehave, they raise an exception. In **kernel mode**, everything is permitted.\n\nThe obvious question is how a process ever gets service, given that it cannot do the privileged things itself. Not by calling kernel code: a plain jump to a kernel address would run that code with the caller's privilege, which protects nothing at all. Instead it executes a **trap** instruction. The hardware saves the caller's registers onto a **kernel stack**, raises the privilege level, and jumps - and this is the essential part - to an address the kernel chose at boot and installed in a **trap table**, never to an address the user supplied. The user program says *which service* it wants by putting a system-call number in a register; it does not and cannot say *where* to go. Returning is the mirror image: a return-from-trap instruction restores the saved registers and lowers the privilege level in one step, and the process resumes at the instruction after the trap, no wiser.\n\nSo the **system call** is the only door between the two worlds, and the kernel owns both its position and its lock. `open`, `read`, `write`, `fork`, `exec` and `exit` are not library functions in any interesting sense; each is a thin wrapper around a trap.\n\nThat door is expensive to walk through - a mode switch, register saves, and a cold effect on caches and the TLB - which is why libraries buffer. Writing one mebibyte in 512-byte chunks means 2048 `write` calls; routing the same bytes through a 4 KiB buffer means 256. Eight times fewer crossings for identical output, and that ratio is the entire reason `printf` sits in front of `write`.",
+    "code": "/* The libc wrapper for a system call is three or four instructions. */\nssize_t write(int fd, const void *buf, size_t count)\n{\n    long ret;\n    __asm__ volatile (\n        \"syscall\"                    /* the trap: user mode -> kernel mode */\n        : \"=a\" (ret)                 /* what the kernel handed back */\n        : \"a\" (SYS_write),           /* which service is wanted */\n          \"D\" (fd), \"S\" (buf), \"d\" (count)\n        : \"rcx\", \"r11\", \"memory\");\n    if (ret < 0) { errno = -ret; return -1; }\n    return ret;\n}",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "One instruction, and the machine is in kernel mode executing code the kernel published. Note what is absent: no address of any kernel function appears here, because the caller is never permitted to name one."
+     },
+     {
+      "line": 8,
+      "text": "The system-call number is how a user program chooses a service. It is an index the kernel validates, not a pointer it trusts - which is the difference between a controlled door and an open one."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the two halves of the kernel boundary.",
+     "template": "regs.rax = SYS_write;    /* say which service is wanted */\n___;                     /* the instruction that raises the privilege level */\n\n/* the hardware jumps to an address installed at boot in the\n   ___ table, and never to an address supplied by the caller */\n",
+     "blanks": [
+      "syscall",
+      "trap"
+     ],
+     "concepts": [
+      "system-calls",
+      "user-kernel-mode"
+     ],
+     "tags": [
+      "system-calls"
+     ],
+     "explain": "The two blanks are the two halves of the guarantee. The trap instruction is what changes the mode - a program cannot set the mode bit directly, or the bit would protect nothing - and the trap table is what fixes the destination, so the caller chooses a service by number but never chooses an address. Remove either half and user code could enter the kernel wherever it liked, in kernel mode.",
+     "xp": 25
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "os-1-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "You type `./prog` at the shell. Put the steps the operating system takes into the order they must happen, ending with the program's first instruction.",
+   "fragments": [
+    "read the program's code and static data from disk",
+    "allocate an address space and load the code and data into it",
+    "allocate a stack and place the arguments to main on it",
+    "allocate a heap region for later growth",
+    "open descriptors 0, 1 and 2 for standard input, output and error",
+    "set the program counter to the entry point and enter the process"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "process-abstraction"
+   ],
+   "tags": [
+    "process-abstraction"
+   ],
+   "explain": "The order follows from the definition of a process: everything in its machine state must exist before its first instruction runs, because that instruction may immediately push a frame, call `malloc` or write to standard output. Setting the program counter is necessarily last - it is the moment the inert program becomes a running process, and nothing can be prepared after it.",
+   "xp": 25
+  },
+  {
+   "id": "os-1-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "For each transition, say whether it is possible for a process. Answer `yes` or `no`.",
+   "steps": [
+    {
+     "label": "running to ready",
+     "expected": "yes"
+    },
+    {
+     "label": "running to blocked",
+     "expected": "yes"
+    },
+    {
+     "label": "blocked to ready",
+     "expected": "yes"
+    },
+    {
+     "label": "blocked to running",
+     "expected": "no"
+    },
+    {
+     "label": "ready to blocked",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "process-states"
+   ],
+   "tags": [
+    "process-states"
+   ],
+   "explain": "The two impossible edges follow from who performs the transition. A blocked process cannot go straight to running because only the scheduler grants a CPU and it chooses from the ready set - so an I/O completion makes a process runnable, never running. And a ready process cannot become blocked, because blocking is something a process does to itself by executing a call, and a ready process is executing nothing at all.",
+   "xp": 35
+  },
+  {
+   "id": "os-1-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the parent-and-child skeleton so that the child replaces itself with a new program and the parent waits for it.",
+   "template": "int rc = fork();\nif (rc == ___) {\n    char *args[] = { \"ls\", NULL };\n    ___(args[0], args);      /* become a different program */\n} else {\n    int status;\n    ___(&status);            /* block until the child is gone */\n}\n",
+   "blanks": [
+    "0",
+    "execvp",
+    "wait"
+   ],
+   "concepts": [
+    "fork-exec-wait"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "`fork` returns 0 only in the child, so that comparison is the sole way two identical copies tell themselves apart - testing for a positive value would select the parent's branch instead. `execvp` overwrites this process's image rather than starting a new process, and `wait` is what keeps the parent from racing ahead and from leaving a zombie behind.",
+   "xp": 25
+  },
+  {
+   "id": "os-1-g-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague argues that virtualisation is pure overhead: the machine has one CPU and a fixed amount of memory whichever way you slice it, so pretending otherwise can only cost time. Explain what the pretence buys that justifies the cost, and name a concrete cost it imposes.",
+   "rubric": {
+    "required": [
+     "virtual",
+     "process",
+     "protect",
+     "address space",
+     "schedul",
+     "overhead"
+    ],
+    "optional": [
+     "illusion",
+     "context switch",
+     "utilis",
+     "block",
+     "isolat",
+     "concurren",
+     "bookkeep"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "virtualisation",
+    "process-abstraction"
+   ],
+   "tags": [
+    "virtualisation"
+   ],
+   "explain": "The colleague is right about the resources and wrong about the goal. Virtualisation is not trying to create CPU cycles; it is trying to make one machine usable by many programs each written as though alone, and to stop any one of them reading or corrupting another - protection and transparency, not throughput. It also raises utilisation rather than lowering it: while one process is blocked on a disk its virtual CPU costs nothing and a real one runs somebody else, which a single-program machine simply cannot do. The costs are real and worth naming honestly - saving and restoring machine state on every context switch, kernel memory for a control block per process, and a scheduling decision the hardware would otherwise never have to make.",
+   "xp": 30
+  }
+ ],
+ "process-tracing": [
+  {
+   "id": "os-1-p-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two processes share one CPU. The scheduler runs a process until it blocks or exits, and prefers P0 when both are ready at the start. P0 needs 4 ticks of CPU, then a disk read taking 3 ticks, then 2 more ticks, then exits. P1 needs 5 ticks of CPU and no I/O. Give the state of **P0** during each tick listed, using `running`, `ready` or `blocked`.",
+   "steps": [
+    {
+     "label": "tick 1",
+     "expected": "running"
+    },
+    {
+     "label": "tick 4",
+     "expected": "running"
+    },
+    {
+     "label": "tick 5",
+     "expected": "blocked"
+    },
+    {
+     "label": "tick 7",
+     "expected": "blocked"
+    },
+    {
+     "label": "tick 8",
+     "expected": "ready"
+    },
+    {
+     "label": "tick 9",
+     "expected": "ready"
+    },
+    {
+     "label": "tick 10",
+     "expected": "running"
+    },
+    {
+     "label": "tick 11",
+     "expected": "running"
+    }
+   ],
+   "concepts": [
+    "process-states",
+    "concurrency",
+    "virtualisation"
+   ],
+   "tags": [
+    "process-states",
+    "concurrency"
+   ],
+   "explain": "P0 uses ticks 1 to 4, then blocks for the disk over ticks 5, 6 and 7, and the completion at the end of tick 7 makes it ready - not running. Ticks 8 and 9 are the point of the exercise: P1 already holds the CPU and this scheduler does not take it away, so a process perfectly able to run waits two more ticks for a reason that has nothing to do with it. Reading `ready` as `running` there compresses the run to nine ticks and hides the queueing delay entirely; it really takes eleven, of which P0 spends six running, three blocked and two merely waiting its turn.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-p-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Consider `fork(); printf(\"X\\n\"); fork(); printf(\"Y\\n\");` with no other statements and no `wait`. Give each count as a plain integer.",
+   "steps": [
+    {
+     "label": "processes running when the first printf executes",
+     "expected": "2"
+    },
+    {
+     "label": "lines of X printed in total",
+     "expected": "2"
+    },
+    {
+     "label": "processes in existence after the second fork",
+     "expected": "4"
+    },
+    {
+     "label": "lines of Y printed in total",
+     "expected": "4"
+    },
+    {
+     "label": "lines printed in total",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "fork-exec-wait",
+    "concurrency"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "The two forks do not have the same effect, because the printfs sit between them. Two processes reach the first `printf`, so X appears twice; both then fork, so four processes reach the second and Y appears four times, for six lines rather than eight. The trap is doubling everything at the end - but the X lines were printed while the population was still two, and nothing reprints them. Note also that the six lines may appear in any order, since no `wait` imposes one.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-p-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A process with pid 3720 calls `int rc = fork();` and the new child is given pid 3721. Both then run `printf(\"rc=%d pid=%d\\n\", rc, (int)getpid());`. Give the value each expression has in each process, as a plain integer.",
+   "steps": [
+    {
+     "label": "rc in the parent",
+     "expected": "3721"
+    },
+    {
+     "label": "rc in the child",
+     "expected": "0"
+    },
+    {
+     "label": "getpid() in the parent",
+     "expected": "3720"
+    },
+    {
+     "label": "getpid() in the child",
+     "expected": "3721"
+    }
+   ],
+   "concepts": [
+    "fork-exec-wait",
+    "process-abstraction"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "One call, two returns, and the asymmetry is deliberate: the parent is told which child it made, because it will need that pid to wait for it, while the child needs no such information and receives 0 - a value no real pid ever takes, so the test is unambiguous. The tempting error is to expect the child's `rc` to be its own pid, which would leave the two copies genuinely indistinguishable and the whole idiom unusable.",
+   "xp": 35
+  },
+  {
+   "id": "os-1-p-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The kernel is about to switch the CPU from process A to process B. For each item, say whether it must be saved as part of A's machine state before the switch. Answer `yes` or `no`.",
+   "steps": [
+    {
+     "label": "A's program counter",
+     "expected": "yes"
+    },
+    {
+     "label": "A's stack pointer",
+     "expected": "yes"
+    },
+    {
+     "label": "A's general-purpose registers",
+     "expected": "yes"
+    },
+    {
+     "label": "the bytes of A's heap",
+     "expected": "no"
+    },
+    {
+     "label": "which page table is A's",
+     "expected": "yes"
+    },
+    {
+     "label": "A's table of open file descriptors",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "process-abstraction",
+    "virtualisation"
+   ],
+   "tags": [
+    "process-abstraction"
+   ],
+   "explain": "The rule is not 'everything belonging to A' but 'everything B is about to overwrite'. Registers are the scarce shared thing - there is one set of them and B is about to use it - so they must be copied out. A's heap and its descriptor table are already private per-process structures that B never touches, so they simply stay where they are; copying them would make a context switch cost time proportional to the size of the address space, which is exactly what the design avoids. The page table root is a register too, which is why it sits on the yes side while the memory it describes does not.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-p-05",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A build script forks a child to compile a source file, and the parent immediately proceeds to link the resulting object file. It works on a fast machine and fails intermittently on a loaded one, complaining that the object file is missing or truncated. The child's compile command is correct. What is the cause?",
+   "answer": "the parent never calls wait, so it runs concurrently with the child instead of after it",
+   "rubric": {
+    "required": [
+     "wait",
+     "concurren",
+     "child",
+     "parent",
+     "order"
+    ],
+    "optional": [
+     "race",
+     "exit status",
+     "interleav",
+     "schedul",
+     "zombie",
+     "nondetermin"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "fork-exec-wait",
+    "concurrency"
+   ],
+   "tags": [
+    "fork-exec-wait",
+    "concurrency"
+   ],
+   "explain": "`fork` returns in the parent as soon as the child exists, not when it finishes, so without `wait` the two run concurrently and the linker may open the object file while the compiler is still writing it - or before it exists at all. The intermittency is the signature: on an idle machine the child usually finishes inside the parent's own startup work, and on a loaded one the scheduler simply does not give it that head start. The fix is `wait(&status)` before linking, which both imposes the ordering and yields the exit status, so a failed compile is not silently linked against.",
+   "xp": 45
+  }
+ ],
+ "kernel-boundary": [
+  {
+   "id": "os-1-k-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a single system call into the order the machine performs them, from the kernel's preparation to the user program's resumption.",
+   "fragments": [
+    "at boot, in kernel mode, the kernel installs the trap table",
+    "the user program places a system-call number in a register",
+    "the user program executes the trap instruction",
+    "the hardware saves the caller's registers onto the kernel stack and raises the privilege level",
+    "the hardware jumps to the handler address recorded in the trap table",
+    "the kernel validates the call number and performs the service",
+    "return-from-trap restores the saved registers and lowers the privilege level",
+    "the user program continues at the instruction after the trap"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "concepts": [
+    "system-calls",
+    "user-kernel-mode"
+   ],
+   "tags": [
+    "system-calls"
+   ],
+   "explain": "Two of these orderings carry the whole security argument. The trap table is installed at boot, while only the kernel is running, so by the time any user program exists the destinations are already fixed and cannot be nominated by the caller. And the privilege is raised by the same hardware step that transfers control, not by an instruction the program could issue on its own - if a program could raise its own privilege and then jump, the mode bit would protect nothing.",
+   "xp": 30
+  },
+  {
+   "id": "os-1-k-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A developer moving from a bare-metal embedded board to Linux ports a driver routine that writes a byte straight to a device register with an `out` instruction at a fixed I/O address. Compiled and run as an ordinary user program, it dies immediately, with no output at all, and the device is never touched. What is the cause?",
+   "answer": "the process is in user mode, so the privileged I/O instruction raises an exception and the kernel kills it",
+   "rubric": {
+    "required": [
+     "user mode",
+     "privileg",
+     "kernel",
+     "trap",
+     "system call"
+    ],
+    "optional": [
+     "mode bit",
+     "exception",
+     "device",
+     "driver",
+     "protect",
+     "isolat",
+     "permission"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "user-kernel-mode",
+    "system-calls"
+   ],
+   "tags": [
+    "user-kernel-mode"
+   ],
+   "explain": "On the bare-metal board the code was the only thing running and was therefore effectively in kernel mode; under an operating system it is an ordinary process with the mode bit clear, and direct device I/O is precisely one of the instructions that mode bit forbids. The hardware raises an exception, control goes to the kernel, and the kernel kills the process - which is why the death is immediate and the device untouched, rather than the device being written and something failing afterwards. The port has to go through the door: reach the device through a system call on a device file, or move the routine into a kernel module that legitimately runs in kernel mode.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-k-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A logging library calls `write` once per log line, each line about 512 bytes, and produces one mebibyte of logs per minute. Profiling shows the process spending a surprising fraction of its time in the kernel. Explain why the number of calls matters rather than the number of bytes, work out how many `write` calls per minute it makes now and how many it would make through a 4 KiB user-space buffer, and state honestly what the buffering costs when the machine crashes.",
+   "rubric": {
+    "required": [
+     "trap",
+     "2048",
+     "256",
+     "buffer",
+     "crash",
+     "fsync"
+    ],
+    "optional": [
+     "mode switch",
+     "kernel",
+     "cache",
+     "TLB",
+     "durab",
+     "batch",
+     "flush",
+     "eight"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "system-calls",
+    "persistence",
+    "user-kernel-mode"
+   ],
+   "tags": [
+    "system-calls",
+    "persistence"
+   ],
+   "explain": "A mebibyte is 1048576 bytes, so 512-byte writes cost $1048576 / 512 = 2048$ traps a minute, while a 4 KiB buffer holds eight lines and reduces that to $1048576 / 4096 = 256$ - eight times fewer crossings for byte-for-byte identical output. Each crossing costs a mode switch, a register save and restore, and a cold effect on caches and the TLB, which is why the time appears in the kernel rather than in the logging code. The honest cost is on the other side: with buffering, up to eight lines the application believes it has written are sitting in user memory and vanish in a crash, and even after `write` returns the data is only in the kernel's page cache. Only `fsync` forces it to the device, and it is slow precisely because it cannot be batched - which is the trade every logger must make deliberately rather than by accident.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-k-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are writing the section of a small kernel's design document that justifies the user/kernel split to a sceptical reviewer who wants user programs to call kernel routines directly for speed. Argue the design. State what the mode bit forbids and why each forbidden thing would otherwise defeat the OS; explain why a plain jump to a kernel address is not an acceptable substitute for a trap; describe what the trap instruction does that the caller cannot do for itself, including where the destination comes from and when it was decided; and account for the cost of a crossing and how libraries reduce the number of them. There are no tests here: your answer is marked against a rubric of the points it must cover.",
+   "rubric": {
+    "required": [
+     "mode",
+     "privileg",
+     "trap",
+     "kernel stack",
+     "boot",
+     "system call",
+     "buffer",
+     "protect"
+    ],
+    "optional": [
+     "interrupt",
+     "page table",
+     "number",
+     "validat",
+     "register",
+     "virtualis",
+     "timer",
+     "return-from-trap"
+    ],
+    "minWords": 130
+   },
+   "concepts": [
+    "user-kernel-mode",
+    "system-calls",
+    "virtualisation"
+   ],
+   "tags": [
+    "user-kernel-mode",
+    "system-calls",
+    "virtualisation"
+   ],
+   "hint": "Work outwards from the reviewer's proposal and ask what it would let a malicious program do. Each answer to that question is one of the privileged instructions, and each privileged instruction is one of the OS's guarantees.",
+   "explain": "The argument has a shape worth learning. Each privileged instruction maps to a guarantee: disabling interrupts would let a program keep the CPU for ever and destroy the virtual CPU; changing the page table root would let it read any process's memory and destroy the private address space; direct device I/O would let it bypass the file system's permissions entirely. The reviewer's direct call fails not because of where it goes but because of what it does not do - it does not change the mode, so the kernel code runs unprivileged and faults; and if it did change the mode, then any address in the kernel could be entered at any offset, including the middle of a routine just past the point where it checked its arguments. The trap answers both: in one uninterruptible step it saves the caller's registers on a kernel stack the user cannot reach, raises the privilege level, and transfers to a handler recorded in a table the kernel installed at boot, so the caller selects a service by number and never nominates an address. The cost is real - a mode switch, register saves, cache and TLB effects - and the right response is not to widen the door but to walk through it less often, which is exactly what a buffered `printf` in front of `write` is for: one mebibyte in 512-byte pieces is 2048 crossings, and through a 4 KiB buffer only 256.",
+   "xp": 110
+  }
+ ],
+ "exam": [
+  {
+   "id": "os-1-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does it mean to say an operating system **virtualises** a resource?",
+   "choices": [
+    "It presents one physical resource as many virtual ones, each easier to use than the whole",
+    "It simulates the hardware in software so that programs need not be compiled for the machine",
+    "It moves the resource from hardware into a file so that it survives a reboot",
+    "It hides the resource entirely so that no program may use it"
+   ],
+   "answer": 0,
+   "concepts": [
+    "virtualisation"
+   ],
+   "tags": [
+    "virtualisation"
+   ],
+   "explain": "Virtualisation is a transformation, not an emulation: one CPU becomes a virtual CPU per process, one physical memory becomes an address space per process. The tempting second choice describes an emulator or an interpreter, which is a different idea altogether - the instructions of a virtualised process run natively on the real CPU, and the illusion is about who owns the resource rather than what it is.",
+   "xp": 15
+  },
+  {
+   "id": "os-1-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are part of a process's machine state - the things that must be preserved so it can be stopped and resumed without noticing? Select all that apply.",
+   "choices": [
+    "Its address space, holding code, static data, heap and stack",
+    "Its registers, including the program counter and stack pointer",
+    "Its open file descriptors",
+    "The scheduling policy the kernel uses to choose among processes"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "process-abstraction"
+   ],
+   "tags": [
+    "process-abstraction"
+   ],
+   "explain": "The first three are exactly the standard list, and the test for membership is whether resuming the process without the item would be detectable - lose the program counter and it cannot continue, lose a descriptor and its next `write` fails. The scheduling policy is a property of the kernel and is shared by every process, so it belongs to no one process's state; changing it alters when a process runs, never what it computes.",
+   "xp": 20
+  },
+  {
+   "id": "os-1-x-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Name the state a process is in for each description. Answer with exactly one of `running`, `ready` or `blocked`.",
+   "steps": [
+    {
+     "label": "executing instructions on a CPU right now",
+     "expected": "running"
+    },
+    {
+     "label": "able to run, but the scheduler has chosen someone else",
+     "expected": "ready"
+    },
+    {
+     "label": "waiting for a disk read to complete",
+     "expected": "blocked"
+    },
+    {
+     "label": "waiting for a child process to exit",
+     "expected": "blocked"
+    },
+    {
+     "label": "just descheduled at the end of its time slice",
+     "expected": "ready"
+    }
+   ],
+   "concepts": [
+    "process-states"
+   ],
+   "tags": [
+    "process-states"
+   ],
+   "explain": "The distinction that matters is between not running because nobody chose you and not running because you could not use a CPU if you were chosen. Waiting on a child is the same kind of waiting as waiting on a disk - the process asked to wait, and nothing it can do will make the wait shorter - so it is blocked, not ready, and the scheduler must not consider it at all until the child exits.",
+   "xp": 35
+  },
+  {
+   "id": "os-1-x-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A program runs `int rc = fork(); if (rc == 0) { fork(); } printf(\"Z\\n\");` and nothing else. Give each count as a plain integer.",
+   "steps": [
+    {
+     "label": "processes in existence after the first fork",
+     "expected": "2"
+    },
+    {
+     "label": "processes that execute the inner fork",
+     "expected": "1"
+    },
+    {
+     "label": "processes in existence when the printf runs",
+     "expected": "3"
+    },
+    {
+     "label": "lines of Z printed in total",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "fork-exec-wait"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "The guard changes everything. Only the child sees `rc == 0`, so only it forks again, and the population goes 1, 2, 3 rather than doubling to 4 - the original parent skips the inner call entirely. All three processes then reach the `printf`, which sits outside the `if`, so Z appears three times. Answering 4 is the reflex of counting forks instead of asking which processes reach them.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the shell's redirection idiom, run in the child between fork and exec.",
+   "template": "close(STDOUT_FILENO);\nopen(\"./out.txt\", O_CREAT | O_WRONLY | O_TRUNC, 0644);\n/* this works because open returns the ___ free descriptor,\n   and it must happen before ___, which discards this code */\n",
+   "blanks": [
+    "lowest",
+    "execvp"
+   ],
+   "concepts": [
+    "fork-exec-wait",
+    "process-abstraction"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "Descriptor 1 has just been freed, so the lowest-free-descriptor rule hands it straight back to `open` and the file silently becomes standard output. The ordering is not stylistic: after `execvp` the code performing the redirection no longer exists, and the new program has no idea it was redirected - which is exactly the property that lets a shell redirect programs that know nothing about shells.",
+   "xp": 25
+  },
+  {
+   "id": "os-1-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps a shell takes to run `ls > out.txt` into the order they happen.",
+   "fragments": [
+    "the shell calls fork, producing a child running the shell's own code",
+    "in the child, close descriptor 1",
+    "in the child, open out.txt, which takes descriptor 1",
+    "in the child, exec the ls program, replacing the shell's image",
+    "in the parent, wait for the child to exit",
+    "the shell prints its prompt again"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "fork-exec-wait",
+    "process-abstraction"
+   ],
+   "tags": [
+    "fork-exec-wait"
+   ],
+   "explain": "Every redirection step sits in the gap between `fork` and `exec`, and that gap is the reason the two are separate calls at all: the child is the shell's code with the child's identity, free to rearrange descriptors before the program that will use them exists. Doing the `close` and `open` before the `fork` would redirect the shell itself, and doing them after the `exec` is impossible, because the code that would do it has been overwritten.",
+   "xp": 30
+  },
+  {
+   "id": "os-1-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the hardware, and not the operating system, must be the thing that enforces the user/kernel distinction - and what specifically the OS could no longer guarantee if the mode bit did not exist.",
+   "rubric": {
+    "required": [
+     "hardware",
+     "privileg",
+     "mode",
+     "trap",
+     "interrupt",
+     "protect"
+    ],
+    "optional": [
+     "timer",
+     "page table",
+     "kernel",
+     "isolat",
+     "device",
+     "schedul",
+     "boot"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "user-kernel-mode",
+    "virtualisation"
+   ],
+   "tags": [
+    "user-kernel-mode"
+   ],
+   "explain": "The OS is only software, and software cannot restrain software running on the same CPU: while a user program holds the CPU the kernel is not executing and can check nothing. Only the hardware is present on every instruction, so only the hardware can refuse one. Without the mode bit the two guarantees that define an OS both collapse - a program could disable the timer interrupt and keep the CPU for ever, destroying the virtual CPU, and it could load its own page table root or address devices directly, destroying isolation between address spaces and the file system's permissions with it. The mode bit is also what makes the trap meaningful, since a controlled entry point is only worth having when the uncontrolled ones are refused.",
+   "xp": 30
+  },
+  {
+   "id": "os-1-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A recorder writes 100 records of 512 bytes each with `fprintf`, through the default 4096-byte stdio buffer, and prints `saved` after the last one. The machine loses power immediately after `saved` appears. On reboot the file holds 96 complete records. Every record was formatted correctly. What is the cause, and why exactly 96?",
+   "answer": "the last four records were still in the user-space stdio buffer and had never reached the kernel or the device",
+   "rubric": {
+    "required": [
+     "buffer",
+     "flush",
+     "persist",
+     "fsync",
+     "crash",
+     "96"
+    ],
+    "optional": [
+     "4096",
+     "stdio",
+     "page cache",
+     "durab",
+     "write",
+     "eight",
+     "power"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "persistence",
+    "system-calls"
+   ],
+   "tags": [
+    "persistence"
+   ],
+   "explain": "Eight 512-byte records fill the 4096-byte buffer, so stdio issues a `write` only on every eighth record. One hundred records are 51200 bytes, which is twelve full buffers - 49152 bytes, or exactly 96 records - plus a remainder of four still sitting in user memory when the power went. Printing `saved` proves nothing: the program had merely finished calling `fprintf`. The deeper point is that flushing the buffer would only have moved those bytes into the kernel's page cache, which is also volatile, so durability needs `fflush` followed by `fsync` - and the reason nobody does that per record is the cost of the very crossing the buffer exists to avoid.",
+   "xp": 45
+  },
+  {
+   "id": "os-1-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "Two processes each run the same loop incrementing a shared counter one thousand times. The final total is sometimes 2000, often less, and never more. Explain what concurrency problem this is, why virtualisation is what created it, and why the outcome varies between runs on the same machine with the same input.",
+   "rubric": {
+    "required": [
+     "interleav",
+     "increment",
+     "schedul",
+     "atomic",
+     "virtualis",
+     "nondetermin"
+    ],
+    "optional": [
+     "load",
+     "store",
+     "lost update",
+     "race",
+     "timer",
+     "context switch",
+     "lock"
+    ],
+    "minWords": 75
+   },
+   "concepts": [
+    "concurrency",
+    "virtualisation"
+   ],
+   "tags": [
+    "concurrency"
+   ],
+   "explain": "An increment is not one action but three - load the counter, add one, store it back - and a process may be descheduled between any two instructions. If both load the same value before either stores, two increments produce one, so updates are lost and the total can only ever come out too low, never too high. Virtualisation created the problem directly: giving each process the illusion of its own CPU means the kernel takes the real one away at moments neither process chose, so the interleaving is decided by timer interrupts and scheduling decisions that differ from run to run. That is why the same program on the same input gives different answers - the nondeterminism is in the schedule, not in the code, which is exactly what makes such bugs so hard to reproduce.",
+   "xp": 45
+  }
+ ]
+}
