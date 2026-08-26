@@ -95,12 +95,31 @@ class Result:
         self.warnings.append((where, msg))
 
 
-def band_for(n, total):
-    """Proportional cognitive band. Last floor is boss, the one before design."""
+# Curriculum stage -> the cognitive demand that stage IS. A Stage 4 floor asks
+# for design judgement whether it sits at position 26 or 30.
+STAGE_BAND = {0: "recognition", 1: "recall", 2: "application",
+              3: "transfer", 4: "design", 5: "design", 6: "design"}
+
+
+def band_for(n, total, stage=None):
+    """The cognitive band a floor must declare.
+
+    Proportional position was the right model while every dungeon was ten
+    floors long. It breaks over a dungeon that spans absolute beginner to
+    professional: at 30 floors it yields ten consecutive `transfer` floors and
+    a single `design` one, which says nothing useful about any of them.
+
+    So once a floor declares its curriculum `stage`, the stage decides - the
+    demand of a floor is a property of what it asks, not of where it sits.
+    Floors without a stage keep the proportional behaviour, so v3 dungeons are
+    unaffected. The last floor is always the boss.
+    """
     if not total or total < 2:
         return "application"
     if n >= total:
         return "boss"
+    if stage is not None and stage in STAGE_BAND:
+        return STAGE_BAND[stage]
     if n == total - 1:
         return "design"
     pos = n / total
@@ -273,7 +292,7 @@ def check_floor(fl, i, total, dungeon_id, discipline, res, curriculum=3):
         res.warn(where, "no floor name")
 
     level = fl.get("cognitiveLevel")
-    expected = band_for(i + 1, total)
+    expected = band_for(i + 1, total, fl.get("stage"))
     if level is None:
         res.err(where, "no `cognitiveLevel`")
         level = expected
