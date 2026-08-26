@@ -1,0 +1,1077 @@
+{
+ "n": 4,
+ "name": "Finding the Way",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "ip-header",
+  "ttl",
+  "fragmentation",
+  "forwarding-vs-routing",
+  "longest-prefix-match",
+  "distance-vector",
+  "count-to-infinity",
+  "split-horizon",
+  "link-state",
+  "dijkstra",
+  "interior-vs-exterior",
+  "bgp-policy",
+  "icmp",
+  "traceroute"
+ ],
+ "sequence": [
+  "lesson",
+  "header-drills",
+  "forwarding-and-probing",
+  "routing-protocols",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The datagram, field by field",
+    "body": "IP promises very little on purpose. A **datagram** is handed to the network with a destination address on it and no guarantee that it will arrive, arrive once, or arrive in order - and because IP promises so little, almost any link technology can carry it. Every field in the twenty-byte header exists to make that weak promise work across machines that agree on nothing else, so it is worth knowing what each one buys.\n\n`Version` and `IHL` say how to parse the rest: `IHL` counts 32-bit words, so its minimum of 5 means the usual 20-byte header and its maximum of 15 means 60 bytes with options. `Total Length` is 16 bits and counts header **plus** payload, capping a datagram at 65,535 bytes. `Protocol` is the demultiplexing key for the layer above - 1 for ICMP, 6 for TCP, 17 for UDP - and the `Header Checksum` covers the header alone, never the data, which is why a corrupt payload is the transport layer's problem and not IP's.\n\n**TTL** is a hop count, not a time. Every router decrements it and discards the datagram when it reaches zero, which is the only thing standing between a transient routing loop and a packet that circulates forever. It costs something: because TTL changes at every hop, the header checksum must be recomputed at every hop too, and that is one reason IPv6 dropped the header checksum entirely.\n\nWhen the next link's **MTU** is smaller than the datagram, a router may **fragment** it. The payload is cut at 8-byte boundaries, each piece gets a copy of the header, the `Identification` field is copied so the pieces can be matched up, `Fragment Offset` records where the piece starts in units of 8 bytes, and the `MF` flag is set on every piece but the last. Reassembly happens **only at the destination**, because the pieces may take different routes - and since losing any one fragment destroys the whole datagram, modern senders set `DF` and discover the path MTU instead.",
+    "code": "IPv4 header, 20 bytes with no options. Bit offsets across each 32-bit word.\n\n 0                   1                   2                   3\n 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1\n+-------+-------+---------------+-------------------------------+\n|Version|  IHL  |    DSCP/ECN   |          Total Length         |\n+-------+-------+---------------+-----+-------------------------+\n|         Identification        |Flags|      Fragment Offset    |\n+---------------+---------------+-----+-------------------------+\n|      TTL      |    Protocol   |         Header Checksum       |\n+---------------+---------------+-------------------------------+\n|                         Source Address                        |\n+---------------------------------------------------------------+\n|                      Destination Address                      |\n+---------------------------------------------------------------+\n\nA real header, byte for byte:\n\n  45 00 00 3c  1c 46 40 00  40 06 9c bc  c0 a8 00 68  c0 a8 00 01\n\n  45        version 4, IHL 5 words -> 20 bytes of header\n  00        DSCP 0, ECN 0\n  00 3c     total length 60, so 60 - 20 = 40 bytes of payload\n  1c 46     identification 7238\n  40 00     flags 010: DF set, MF clear; fragment offset 0\n  40        TTL 64\n  06        protocol 6 = TCP\n  9c bc     header checksum, over the header only\n  c0 a8 00 68   source      192.168.0.104\n  c0 a8 00 01   destination 192.168.0.1",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Version and IHL share the first byte. IHL counts 4-byte words, so the smallest legal value, 5, describes this 20-byte header."
+     },
+     {
+      "line": 8,
+      "text": "Flags and Fragment Offset share a 16-bit field: three flag bits then thirteen offset bits. That is why the offset counts 8-byte blocks - thirteen bits times eight still reaches 65,528."
+     },
+     {
+      "line": 10,
+      "text": "TTL and Protocol sit next to each other in one 16-bit word, which is what makes the incremental checksum update on a TTL decrement so cheap."
+     },
+     {
+      "line": 25,
+      "text": "0x4000 is binary 010 in the flag bits: reserved 0, DF 1, MF 0. This datagram must not be fragmented, and it is not itself a fragment."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Read the four values straight out of the header above. Give the last one as a protocol name.",
+     "template": "An IHL of 5 describes a header of ___ bytes.\nA Total Length of 60 therefore leaves ___ bytes of payload.\nA fragment whose offset field reads 69 begins at byte ___ of the original payload.\nA Protocol field of 6 means the payload is ___.\n",
+     "blanks": [
+      "20",
+      "40",
+      "552",
+      "TCP"
+     ],
+     "concepts": [
+      "ip-header",
+      "fragmentation"
+     ],
+     "explain": "IHL counts 32-bit words, so 5 words is 20 bytes; Total Length counts the header as well, so the payload is 60 - 20 = 40. The offset is in 8-byte units, so 69 means 69 x 8 = 552 bytes in - forgetting that multiplier is the commonest fragmentation error, and it makes every offset look eight times too small.",
+     "xp": 24,
+     "tags": [
+      "ip-header",
+      "fragmentation"
+     ]
+    }
+   },
+   {
+    "title": "Forwarding is not routing",
+    "body": "Two different jobs get muddled under one word. **Forwarding** is what a router does to a datagram that has just arrived: look the destination up in a local table, decrement the TTL, send it out of an interface. It happens per packet, in hardware, in microseconds, and it involves no other router. **Routing** is the background conversation between routers that builds and maintains that table; it happens on a timescale of seconds and involves everybody. A router can forward perfectly well for minutes on a table whose routing protocol has died - it will simply be forwarding down paths that no longer exist.\n\nThe table is keyed by **prefixes**, not addresses. An entry like `10.20.64.0/18` names the addresses whose first 18 bits match, and maps all of them to one next hop. Entries overlap deliberately: an operator aggregates a whole region into one short prefix and then adds longer prefixes as exceptions for the parts that go somewhere else. Aggregation is what keeps the global table in the hundreds of thousands of entries rather than in the billions.\n\nOverlap forces a tie-break, and the rule is **longest-prefix match**: among all entries that match, take the one with the most bits of prefix. It is the right rule because a longer prefix is a more specific statement about where those addresses are, and a specific statement should beat a general one. The default route `0.0.0.0/0` matches everything and, having zero prefix bits, always loses to any other match - which is exactly why it works as a catch-all rather than as a black hole. The cost is that a lookup is no longer an exact-match hash: the router must search across prefix lengths, which is why real hardware uses tries and TCAMs.",
+    "code": "Forwarding table on router R1. The longest matching prefix wins.\n\n  prefix              next hop        interface\n  0.0.0.0/0           203.0.113.1     eth0      (the default route)\n  10.0.0.0/8          direct          eth1\n  10.20.0.0/16        10.0.0.9        eth2\n  10.20.64.0/18       10.0.0.17       eth3\n  10.20.96.0/19       10.0.0.33       eth4\n  192.168.4.0/24      10.0.0.41       eth5\n  192.168.4.128/26    10.0.0.49       eth6\n\n/* The rule, stated exactly: every entry whose prefix matches is a\n   candidate, and the candidate with the most 1 bits in its mask wins. */\nstruct entry *lookup(uint32_t dst)\n{\n    struct entry *best = NULL;\n\n    for (struct entry *e = table; e; e = e->next)\n        if ((dst & e->mask) == e->prefix)          /* a match */\n            if (!best || e->len > best->len)       /* a longer one */\n                best = e;\n\n    return best;            /* NULL only if there is no default route */\n}\n\n/* What R1 does to one datagram, in order:\n     1. verify the header checksum; discard silently if it fails\n     2. look up the destination, longest prefix wins\n     3. decrement TTL; if it is now zero, discard and send ICMP Time Exceeded\n     4. fragment if the outgoing MTU is too small and DF is clear\n     5. recompute the header checksum, because TTL and length may have changed\n     6. hand the datagram to the outgoing link */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`direct` means the destination sits on a network R1 is attached to, so there is no next-hop router - R1 resolves the address on the link itself."
+     },
+     {
+      "line": 19,
+      "text": "Note the two nested tests. Matching is not enough; the loop keeps searching for a longer match, and only the length decides. Nothing about table order matters."
+     },
+     {
+      "line": 27,
+      "text": "The checksum is verified before anything changes and recomputed after everything has changed. Both steps are needed because the router itself modifies the header."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Look each destination up in R1's table above and name the outgoing interface.",
+     "steps": [
+      {
+       "label": "10.20.100.7",
+       "expected": "eth4"
+      },
+      {
+       "label": "10.20.80.5",
+       "expected": "eth3"
+      },
+      {
+       "label": "172.16.5.1",
+       "expected": "eth0"
+      }
+     ],
+     "concepts": [
+      "longest-prefix-match",
+      "forwarding-vs-routing"
+     ],
+     "explain": "10.20.100.7 matches four entries and the /19 is the longest, so eth4. 10.20.80.5 falls inside 10.20.64.0/18 but not inside 10.20.96.0/19, which only begins at 10.20.96.0, so the /18 wins and it leaves by eth3. 172.16.5.1 matches nothing but the default. Reading the table top to bottom and stopping at the first match would send the first two out of eth1, and that is the habit to break: position in the table means nothing at all.",
+     "xp": 48,
+     "tags": [
+      "longest-prefix-match",
+      "forwarding-vs-routing"
+     ]
+    }
+   },
+   {
+    "title": "Two ways to fill the table",
+    "body": "**Distance vector** asks each router to know almost nothing. It stores one number per destination - the cost - plus the neighbour it would send to, and periodically tells its neighbours that vector of costs. On hearing a neighbour's vector it re-runs Bellman-Ford: my cost to `d` is the cheapest of `cost to that neighbour + that neighbour's cost to d`. No router ever sees the topology, which makes the protocol cheap in memory and cheap to implement.\n\nIt pays for that ignorance with **count-to-infinity**. Good news spreads in one exchange; bad news crawls, because a router cannot tell that a neighbour's advertised route runs back through itself. When the link to X fails, Y hears Z still claiming a cost of 2 to X, adopts 3, Z then adopts 4, and the pair climb by one each exchange while bouncing X's traffic back and forth between them. The cures are all partial: a small finite **infinity** (RIP uses 16) bounds how long the climb lasts, and **split horizon** - never advertise a route back to the neighbour you learned it from, or advertise it as infinity, which is **poison reverse** - kills the two-router version outright. Neither kills a loop that runs round three or more routers, because then nobody is advertising a route straight back to its source.\n\n**Link state** takes the opposite bet: flood everything, compute locally. Each router builds a link-state packet naming its neighbours and the cost to each, stamps it with a sequence number, and floods it out of every interface but the one it arrived on; each receiver stores it if the sequence number is newer and passes it on. When the flooding settles, every router holds the same map, and each independently runs **Dijkstra** on that map rooted at itself. The forwarding table is then just the first hop of each branch of the resulting shortest-path tree. The cost is real - every router stores the whole topology and recomputes on every change - which is precisely why OSPF cuts a large domain into **areas**, so that flooding and recomputation stop at the boundary.",
+    "code": "/* Distance vector: Bellman-Ford, re-run on every advertisement received.\n   A router knows only its own links and what its neighbours claim. */\nfor each destination d:\n    D(x, d) = min over neighbours n of ( c(x, n) + D(n, d) )\n\nX --1-- Y --1-- Z        all routes to X; then the X-Y link fails\n\n  exchange   Y's cost to X   Z's cost to X   why\n    start          1               2         converged and correct\n      1            3               2         Y believes Z's stale 2\n      2            3               4         Z hears Y's new 3\n      3            5               4         Y hears Z's new 4\n      4            5               6         and so on, by one each time\n     14           15              16         16 is RIP's infinity: unreachable\n\n  With split horizon at Z, Z never mentions X to Y at all, so at\n  exchange 1 Y has nothing to fall back on and goes straight to 16.\n\n/* Link state: everybody floods, then everybody computes alone. */\nDijkstra(source s):\n    Confirmed = { s }, Tentative = { }\n    repeat:\n        for each neighbour n of the node just confirmed:\n            offer (cost so far + link cost) into Tentative, keeping the best\n        move the cheapest entry in Tentative into Confirmed\n    until Tentative is empty",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The whole protocol is this one line. Everything else - timers, poisoning, split horizon - exists to stop it converging on a wrong answer."
+     },
+     {
+      "line": 10,
+      "text": "Y's new cost of 3 is a route through Z, and Z's route to X is through Y. Neither can see the loop, because neither can see anything but a number."
+     },
+     {
+      "line": 24,
+      "text": "Confirmed grows by exactly one node per iteration, and a node's cost is final the moment it is confirmed - which is why a negative link cost would break the algorithm outright."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "The three-router line `X --1-- Y --1-- Z` has converged on routes to X when the `X-Y` link fails. Split horizon is off. Report the costs to X as the exchanges go by.",
+     "steps": [
+      {
+       "label": "Y's cost to X after exchange 1",
+       "expected": "3"
+      },
+      {
+       "label": "Y's next hop to X at that moment",
+       "expected": "Z"
+      },
+      {
+       "label": "Z's cost to X after exchange 2",
+       "expected": "4"
+      },
+      {
+       "label": "the value at which RIP calls X unreachable",
+       "expected": "16"
+      }
+     ],
+     "concepts": [
+      "distance-vector",
+      "count-to-infinity"
+     ],
+     "explain": "Y loses its direct route and takes the only advertisement it has, Z's stale cost of 2, giving 1 + 2 = 3 through Z - which is a route running back through Y itself. From there each exchange adds one, so the pair climb together until they hit RIP's deliberately tiny infinity of 16. Expecting Y to jump straight to unreachable is the natural guess, and it is exactly what split horizon would produce; without it Y has no way to learn that Z's route is its own.",
+     "xp": 48,
+     "tags": [
+      "distance-vector",
+      "count-to-infinity"
+     ]
+    }
+   },
+   {
+    "title": "Inside, outside, and the probes that show you the path",
+    "body": "The Internet is not one routing domain. It is roughly a hundred thousand **autonomous systems**, each independently administered and free to run whatever routing protocol it likes inside itself. That split gives two families of protocol with genuinely different goals. An **interior** protocol such as OSPF optimises a metric: everyone inside the AS is on the same side, so shortest path is a coherent thing to want, and link state plus areas delivers it.\n\nAn **exterior** protocol optimises nothing of the sort. **BGP** is a path-vector protocol: an announcement carries the full list of AS numbers the route traverses, which lets a receiver drop any path already containing its own AS - loop prevention with no metric and no map. What BGP then does with the surviving paths is **policy**, and the policy is commercial. A route learned from a customer earns money and is preferred; a route from a settlement-free peer is free; a route from a transit provider costs money and is the last resort. An AS will happily install a five-hop customer path over a two-hop provider path, so BGP's choices are frequently not the shortest ones and were never trying to be.\n\n**ICMP** is IP's own error and diagnostic channel, carried inside IP with protocol number 1. It reports; it never fixes. A router discarding a datagram whose TTL reached zero sends **Time Exceeded** (type 11); an undeliverable datagram gets **Destination Unreachable** (type 3). Each error quotes the failed datagram's header and its first 8 bytes, so the sender can identify the connection at fault.\n\n**Ping** is the simplest use: Echo Request (type 8) out, Echo Reply (type 0) back. **Traceroute** is cleverer, and is really TTL turned into an instrument. Send a probe with TTL 1 and the first router reports itself by expiring it; send TTL 2 and the second router does; walk the TTL upward and each expiry names the router at that distance, until a reply of a different kind says the destination itself has been reached. Because it depends on routers volunteering ICMP errors, a row of asterisks means a silent router, not a broken path.",
+    "code": "$ traceroute -n 203.0.113.9\ntraceroute to 203.0.113.9, 30 hops max, 60 byte packets\n 1  10.20.96.1     0.412 ms   0.398 ms   0.401 ms\n 2  10.0.0.9       1.104 ms   1.087 ms   1.121 ms\n 3  203.0.113.1    8.442 ms   8.501 ms   8.470 ms\n 4  * * *\n 5  203.0.113.9   14.203 ms  14.118 ms  14.190 ms\n\n  hop 1   sent with TTL 1; the first router decremented it to 0,\n          discarded it and returned ICMP type 11, Time Exceeded\n  hop 4   the router at that distance answered nothing: it either does\n          not generate ICMP errors or something filters them. The path\n          is fine - hop 5 replied - so this is a silence, not a break\n  hop 5   the destination itself, which answers differently: ICMP type\n          3 Destination Unreachable, or an Echo Reply, depending on the\n          probe. That different answer is how traceroute knows to stop\n\n  ICMP types worth knowing\n     0   Echo Reply                the second half of ping\n     3   Destination Unreachable   code 3 is \"port unreachable\"\n     8   Echo Request              the first half of ping\n    11   Time Exceeded             TTL hit zero in transit\n\n  Every ICMP error carries the offending datagram's IP header plus its\n  first 8 bytes - enough to expose the TCP or UDP port numbers, so the\n  sending host can work out which of its connections is being complained\n  about rather than merely which of its machines.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Three probes per TTL value, which is why each row shows three times. Traceroute is sampling a path that may well change between probes."
+     },
+     {
+      "line": 11,
+      "text": "Asterisks are the commonest misreading on this floor. A later hop answering proves the datagrams got through the silent one."
+     },
+     {
+      "line": 25,
+      "text": "Eight bytes is exactly enough for a TCP or UDP source and destination port plus a sequence number, which is the minimum needed to name a connection rather than a host."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the four numbers. All four are ICMP types or TTL values.",
+     "template": "Ping sends ICMP type ___ and expects type ___ in reply.\nA router discarding a datagram whose TTL reached zero sends ICMP type ___.\nTo make the fifth router on the path report itself, traceroute sets the TTL to ___.\n",
+     "blanks": [
+      "8",
+      "0",
+      "11",
+      "5"
+     ],
+     "concepts": [
+      "icmp",
+      "traceroute",
+      "ttl"
+     ],
+     "explain": "Echo Request is 8 and Echo Reply is 0, and it is worth noticing that the reply carries the smaller number - guessing that request and reply are 0 and 1, or 8 and 9, is the usual slip. Time Exceeded is 11, and since each router on the way decrements the TTL once, a TTL of n expires at the nth router, so the fifth router needs a TTL of exactly 5.",
+     "xp": 24,
+     "tags": [
+      "icmp",
+      "traceroute",
+      "ttl"
+     ]
+    }
+   }
+  ]
+ },
+ "header-drills": [
+  {
+   "id": "net-4-h-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Parse this IPv4 header, byte for byte.\n\n`45 00 00 3c 1c 46 40 00 40 06 9c bc c0 a8 00 68 c0 a8 00 01`",
+   "steps": [
+    {
+     "label": "header length in bytes",
+     "expected": "20"
+    },
+    {
+     "label": "total length in bytes",
+     "expected": "60"
+    },
+    {
+     "label": "payload length in bytes",
+     "expected": "40"
+    },
+    {
+     "label": "identification, in decimal",
+     "expected": "7238"
+    },
+    {
+     "label": "is the DF flag set? yes or no",
+     "expected": "yes"
+    },
+    {
+     "label": "TTL",
+     "expected": "64"
+    },
+    {
+     "label": "protocol, by name",
+     "expected": "TCP"
+    },
+    {
+     "label": "destination address, dotted quad",
+     "expected": "192.168.0.1"
+    }
+   ],
+   "concepts": [
+    "ip-header",
+    "ttl"
+   ],
+   "explain": "`45` splits into version 4 and IHL 5, and IHL counts 32-bit words, so the header is 5 x 4 = 20 bytes; Total Length `003c` is 60 and counts the header too, leaving 40 bytes of payload. `4000` is the flags-and-offset word: the top three bits are 010, so DF is set and MF is clear, with an offset of zero. Reading `4000` as an offset of 16,384 is the trap - the offset is only the low thirteen bits, and here it is zero.",
+   "xp": 48,
+   "tags": [
+    "ip-header",
+    "ttl"
+   ]
+  },
+  {
+   "id": "net-4-h-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 1500-byte datagram with a 20-byte header, identification 7238 and `DF` clear must cross a link whose MTU is 576 bytes. Fragment it and report the results.",
+   "steps": [
+    {
+     "label": "largest payload one fragment may carry, in bytes",
+     "expected": "552"
+    },
+    {
+     "label": "number of fragments produced",
+     "expected": "3"
+    },
+    {
+     "label": "fragment 1 total length field",
+     "expected": "572"
+    },
+    {
+     "label": "fragment 2 fragment offset field",
+     "expected": "69"
+    },
+    {
+     "label": "fragment 3 total length field",
+     "expected": "396"
+    },
+    {
+     "label": "fragment 3 MF flag, 0 or 1",
+     "expected": "0"
+    },
+    {
+     "label": "identification field carried by fragment 3",
+     "expected": "7238"
+    },
+    {
+     "label": "which node reassembles the datagram: router or destination",
+     "expected": "destination"
+    }
+   ],
+   "concepts": [
+    "fragmentation",
+    "ip-header"
+   ],
+   "explain": "The link allows 576 - 20 = 556 bytes of payload, but every offset counts 8-byte blocks, so the payload must round down to 552 and only the last fragment may be a non-multiple of 8. That gives 552 + 552 + 376 = 1480 bytes of payload in three pieces, with total lengths 572, 572 and 396 once each header is added back, and offsets of 0, 552/8 = 69 and 1104/8 = 138. Using 556 rather than 552 is the tempting arithmetic and it produces an offset that cannot be represented at all.",
+   "xp": 48,
+   "tags": [
+    "fragmentation",
+    "ip-header"
+   ]
+  },
+  {
+   "id": "net-4-h-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The middle fragment from the previous problem - total length 572, identification 7238, fragment offset 69, `MF` set - now reaches a router whose outgoing link has an MTU of 300 bytes. Fragment it again.",
+   "steps": [
+    {
+     "label": "largest payload each new piece may carry, in bytes",
+     "expected": "280"
+    },
+    {
+     "label": "number of pieces produced",
+     "expected": "2"
+    },
+    {
+     "label": "piece 1 total length field",
+     "expected": "300"
+    },
+    {
+     "label": "piece 1 fragment offset field",
+     "expected": "69"
+    },
+    {
+     "label": "piece 2 fragment offset field",
+     "expected": "104"
+    },
+    {
+     "label": "piece 2 MF flag, 0 or 1",
+     "expected": "1"
+    },
+    {
+     "label": "identification field carried by both pieces",
+     "expected": "7238"
+    }
+   ],
+   "concepts": [
+    "fragmentation"
+   ],
+   "explain": "A fragment is refragmented exactly like any other datagram, except that its offsets are relative to the original payload, so the first piece keeps offset 69 and the second starts at 69 + 280/8 = 69 + 35 = 104. The MF flag on the last piece is the part people get wrong: this fragment already had MF set, so both pieces must keep it set - clearing it would tell the destination the datagram ends 376 bytes early, and the reassembly would silently truncate.",
+   "xp": 48,
+   "tags": [
+    "fragmentation"
+   ]
+  },
+  {
+   "id": "net-4-h-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The IPv4 header checksum is recomputed by every router the datagram passes through, and it protects the header only. Explain both facts: what forces the recomputation, and why leaving the data out of it is a deliberate choice rather than an oversight.",
+   "rubric": {
+    "required": [
+     "ttl",
+     "recomput",
+     "header",
+     "payload",
+     "transport"
+    ],
+    "optional": [
+     "incremental",
+     "hop",
+     "router",
+     "checksum",
+     "corrupt",
+     "tcp",
+     "udp",
+     "ipv6",
+     "discard",
+     "cost"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "ip-header",
+    "ttl"
+   ],
+   "explain": "The TTL changes at every single hop, so any checksum covering it is stale the instant a router touches it - the recomputation is forced by IP's own bookkeeping, not by the network being unreliable. Leaving the payload out keeps that per-hop cost proportional to the header rather than to the data, and end-to-end integrity is a job the transport layer already does with its own checksum over the whole segment. The tempting objection, that IP is therefore not protecting the data, is correct and is the point: a check the routers redo constantly should be as small as possible, which is also why IPv6 removed the header checksum altogether.",
+   "xp": 24,
+   "tags": [
+    "ip-header",
+    "ttl"
+   ]
+  }
+ ],
+ "forwarding-and-probing": [
+  {
+   "id": "net-4-f-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Use R1's forwarding table from the lesson and give the outgoing interface for each destination. The table is:\n\n- `0.0.0.0/0` to eth0\n- `10.0.0.0/8` to eth1\n- `10.20.0.0/16` to eth2\n- `10.20.64.0/18` to eth3\n- `10.20.96.0/19` to eth4\n- `192.168.4.0/24` to eth5\n- `192.168.4.128/26` to eth6",
+   "steps": [
+    {
+     "label": "10.20.100.7",
+     "expected": "eth4"
+    },
+    {
+     "label": "10.20.80.5",
+     "expected": "eth3"
+    },
+    {
+     "label": "10.20.200.1",
+     "expected": "eth2"
+    },
+    {
+     "label": "10.9.9.9",
+     "expected": "eth1"
+    },
+    {
+     "label": "192.168.4.191",
+     "expected": "eth6"
+    },
+    {
+     "label": "192.168.4.192",
+     "expected": "eth5"
+    },
+    {
+     "label": "172.16.5.1",
+     "expected": "eth0"
+    }
+   ],
+   "concepts": [
+    "longest-prefix-match",
+    "forwarding-vs-routing"
+   ],
+   "explain": "The two pairs are the whole exercise. 10.20.80.5 and 10.20.100.7 both sit inside the /18, which spans 10.20.64.0 to 10.20.127.255, but only the second is inside the /19, which starts at 10.20.96.0 - so one leaves by eth3 and the other by eth4. Likewise the /26 covers 192.168.4.128 to 192.168.4.191 exactly, so .191 takes eth6 and .192 falls back to the /24 and takes eth5. Off-by-one at a prefix boundary is the defect that never shows up in testing, because the boundary address is rarely the one anybody pings.",
+   "xp": 48,
+   "tags": [
+    "longest-prefix-match",
+    "forwarding-vs-routing"
+   ]
+  },
+  {
+   "id": "net-4-f-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Prefix arithmetic on two of R1's entries. Give the count as a plain number and the addresses as dotted quads.",
+   "template": "`10.20.64.0/18` has netmask ___ and its last address is ___.\n`192.168.4.128/26` covers ___ addresses, the last of which is ___.\n",
+   "blanks": [
+    "255.255.192.0",
+    "10.20.127.255",
+    "64",
+    "192.168.4.191"
+   ],
+   "concepts": [
+    "longest-prefix-match"
+   ],
+   "explain": "An /18 fixes eighteen bits, so the mask is 255.255.192.0 and the free bits run the third octet from 64 up to 127 - not to 191, which is where the next /18 would start. A /26 leaves 6 free bits, so 2^6 = 64 addresses beginning at .128 and ending at .128 + 63 = .191. Counting the block as 2^(32 - prefix) rather than trying to reason in octets is the habit that makes these instant.",
+   "xp": 24,
+   "tags": [
+    "longest-prefix-match"
+   ]
+  },
+  {
+   "id": "net-4-f-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague says a router 'routes each packet as it arrives'. Correct them precisely: separate forwarding from routing, say what data each one touches and on what timescale each runs, and describe what a router does during the minutes after its routing protocol has crashed but its table is still in memory.",
+   "rubric": {
+    "required": [
+     "forward",
+     "rout",
+     "table",
+     "packet",
+     "destination"
+    ],
+    "optional": [
+     "local",
+     "hardware",
+     "microsecond",
+     "second",
+     "neighbour",
+     "protocol",
+     "converge",
+     "stale",
+     "prefix",
+     "next hop",
+     "background"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "forwarding-vs-routing"
+   ],
+   "explain": "Forwarding is a purely local operation on one packet against a table that already exists: match the destination, pick the next hop, decrement TTL, transmit. Routing is the distributed background process that writes that table, and it involves neighbours, timers and convergence. The crashed-protocol case is the clean test of whether the distinction has landed - the router keeps forwarding at full speed on a table that is quietly going stale, sending packets confidently down paths that may no longer exist, which is precisely why a silent routing failure is harder to notice than a dead interface.",
+   "xp": 24,
+   "tags": [
+    "forwarding-vs-routing"
+   ]
+  },
+  {
+   "id": "net-4-f-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An operator wants all traffic for `10.20.0.0/16` to leave R1 by eth2, and adds exactly that entry. It appears in the table and eth2 is up. Traffic to 10.20.200.1 does leave by eth2 as intended, but traffic to 10.20.100.7 keeps leaving by eth4 and traffic to 10.20.80.5 keeps leaving by eth3. Nothing is dropped and no error is logged. Name the cause and say what the operator must actually do.",
+   "answer": "Longest-prefix match: the more specific /18 and /19 entries still cover those addresses and outrank the new /16",
+   "rubric": {
+    "required": [
+     "longest",
+     "prefix",
+     "specific",
+     "match"
+    ],
+    "optional": [
+     "18",
+     "19",
+     "16",
+     "eth4",
+     "eth3",
+     "remove",
+     "withdraw",
+     "mask",
+     "bits",
+     "order",
+     "cover",
+     "override"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "longest-prefix-match",
+    "forwarding-vs-routing"
+   ],
+   "explain": "The /16 is doing exactly what it was told to do: it catches every 10.20 address that no longer prefix already claims, which is why 10.20.200.1 obeys it and the others do not. A /16 cannot override a /18 or a /19, no matter where it sits in the table or when it was added, so the fix is to remove or repoint the more specific entries rather than to add anything. The tempting diagnosis is a broken or mis-ordered table - but a table with no ordering semantics cannot be mis-ordered, and the absence of drops and errors is itself the clue that forwarding is working perfectly.",
+   "xp": 48,
+   "tags": [
+    "longest-prefix-match",
+    "forwarding-vs-routing"
+   ]
+  },
+  {
+   "id": "net-4-f-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Host H sends to server S along the path `H - R1 - R2 - R3 - R4 - S`, with an initial TTL of 64. Every router on the path generates ICMP errors normally.",
+   "steps": [
+    {
+     "label": "TTL in the datagram as it leaves R1",
+     "expected": "63"
+    },
+    {
+     "label": "TTL in the datagram as it arrives at S",
+     "expected": "60"
+    },
+    {
+     "label": "TTL H must set for R3 to be the node that discards the probe",
+     "expected": "3"
+    },
+    {
+     "label": "ICMP type R3 returns in that case",
+     "expected": "11"
+    },
+    {
+     "label": "which node discards a probe sent with TTL 4",
+     "expected": "R4"
+    },
+    {
+     "label": "ICMP type S returns to a ping Echo Request",
+     "expected": "0"
+    },
+    {
+     "label": "how many distinct TTL values traceroute needs to name every node from R1 to S",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "ttl",
+    "traceroute",
+    "icmp"
+   ],
+   "explain": "Each router decrements once before forwarding, so four routers cost four: 64 leaves H, 63 leaves R1, and 60 arrives at S. A probe with TTL n therefore dies at the nth router, which makes the mapping between TTL and hop number exactly one-to-one and is the entire mechanism of traceroute. Naming R1 through R4 plus S needs TTLs 1 to 5 - answering 4 is the usual slip, and it forgets that the destination itself has to be reached and answer differently before traceroute knows to stop.",
+   "xp": 48,
+   "tags": [
+    "ttl",
+    "traceroute",
+    "icmp"
+   ]
+  }
+ ],
+ "routing-protocols": [
+  {
+   "id": "net-4-r-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Run Dijkstra from node `A` on this network. The links are undirected, and their costs are:\n\n- `A-B` 4\n- `A-C` 2\n- `A-E` 9\n- `B-C` 1\n- `B-D` 5\n- `C-D` 8\n- `C-E` 10\n- `D-E` 2\n- `D-F` 6\n- `E-F` 3",
+   "steps": [
+    {
+     "label": "second node confirmed, after A",
+     "expected": "C"
+    },
+    {
+     "label": "third node confirmed",
+     "expected": "B"
+    },
+    {
+     "label": "fourth node confirmed",
+     "expected": "D"
+    },
+    {
+     "label": "final cost from A to B",
+     "expected": "3"
+    },
+    {
+     "label": "final cost from A to D",
+     "expected": "8"
+    },
+    {
+     "label": "final cost from A to E",
+     "expected": "9"
+    },
+    {
+     "label": "final cost from A to F",
+     "expected": "12"
+    },
+    {
+     "label": "A's next hop for traffic to D",
+     "expected": "C"
+    },
+    {
+     "label": "A's next hop for traffic to F",
+     "expected": "E"
+    }
+   ],
+   "concepts": [
+    "link-state",
+    "dijkstra"
+   ],
+   "explain": "B is reached more cheaply through C than directly - 2 + 1 = 3 beats the direct 4 - and that indirect route is what then makes D cost 3 + 5 = 8 rather than the 2 + 8 = 10 of the direct C-D link. E is the opposite case: the direct A-E link at 9 beats going round through D at 8 + 2 = 10, so F costs 9 + 3 = 12 and A's next hop for F is E, not C. Reading a next hop off the cost alone is the mistake to avoid; the next hop is the first edge of the whole path, which is why two destinations of similar cost can leave by different interfaces.",
+   "xp": 48,
+   "tags": [
+    "link-state",
+    "dijkstra"
+   ]
+  },
+  {
+   "id": "net-4-r-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "`X --1-- Y --1-- Z` runs a distance-vector protocol with RIP's infinity of 16, and has converged on routes to X: Y's cost is 1, Z's is 2. The `X-Y` link then fails. Trace what happens with split horizon off, then answer the last step with split horizon on at Z.",
+   "steps": [
+    {
+     "label": "Y's cost to X after exchange 1",
+     "expected": "3"
+    },
+    {
+     "label": "Y's next hop to X after exchange 1",
+     "expected": "Z"
+    },
+    {
+     "label": "Z's cost to X after exchange 2",
+     "expected": "4"
+    },
+    {
+     "label": "Y's cost to X after exchange 3",
+     "expected": "5"
+    },
+    {
+     "label": "by how much a cost rises per exchange",
+     "expected": "1"
+    },
+    {
+     "label": "the cost at which X is finally declared unreachable",
+     "expected": "16"
+    },
+    {
+     "label": "with split horizon on at Z, Y's cost to X after exchange 1",
+     "expected": "16"
+    }
+   ],
+   "concepts": [
+    "distance-vector",
+    "count-to-infinity",
+    "split-horizon"
+   ],
+   "explain": "Y loses its direct link and takes the only offer on the table, Z's stale advertisement of 2, giving 1 + 2 = 3 through Z - a route that runs back through Y itself. Neither router can see that, because a distance vector carries a number and a next hop and no trace of the path, so each new advertisement is believed and the pair ratchet upward one at a time until they reach the deliberately small infinity of 16. Split horizon removes the offer entirely: Z learned its route to X from Y, so it never mentions X to Y, Y finds nothing to fall back on, and the route goes to infinity in a single exchange.",
+   "xp": 48,
+   "tags": [
+    "distance-vector",
+    "count-to-infinity",
+    "split-horizon"
+   ]
+  },
+  {
+   "id": "net-4-r-03",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "State the split horizon rule precisely, say what poison reverse adds to it, and then explain why neither of them stops a routing loop that runs round three routers. Be concrete about what a router can and cannot see.",
+   "rubric": {
+    "required": [
+     "split",
+     "advertis",
+     "learn",
+     "loop"
+    ],
+    "optional": [
+     "poison",
+     "reverse",
+     "infinity",
+     "neighbour",
+     "neighbor",
+     "three",
+     "triangle",
+     "count",
+     "16",
+     "path",
+     "hold",
+     "vector"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "split-horizon",
+    "count-to-infinity",
+    "distance-vector"
+   ],
+   "explain": "Split horizon says: do not advertise a route back out of the interface you learned it from. Poison reverse advertises it back with a cost of infinity instead of staying silent, which is stronger because it actively overwrites a stale entry rather than waiting for one to time out. Both address only the two-router case, because both work by recognising the one neighbour a route came from - and in a loop A to B to C to A, nobody is advertising a route straight back to the router it learned it from, so every advertisement looks legitimate. The underlying reason is that a distance vector carries no path, which is exactly the information BGP adds to solve the same problem outright.",
+   "xp": 24,
+   "tags": [
+    "split-horizon",
+    "count-to-infinity",
+    "distance-vector"
+   ]
+  },
+  {
+   "id": "net-4-r-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of a link-state protocol reacting to a failure into the order they happen.",
+   "fragments": [
+    "a link attached to router R fails, and R notices",
+    "R builds a link-state packet listing its remaining neighbours and the cost to each, stamped with a fresh sequence number",
+    "R floods that packet out of every one of its interfaces",
+    "each receiving router compares the sequence number, stores the packet only if it is newer, and floods it onward",
+    "flooding settles, and every router in the area holds the same map of the topology",
+    "each router independently runs Dijkstra over that map, rooted at itself",
+    "each router installs, for every destination, the first hop of its own shortest-path tree"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "concepts": [
+    "link-state",
+    "dijkstra"
+   ],
+   "explain": "The sequence-number check sits inside the flooding step, not after it: without it the packet would circulate forever, since flooding has no other stopping rule. Note also that the computation is the last thing to happen and is entirely local - no router tells another what the shortest path is, they simply all run the same algorithm on the same map and therefore agree. Putting Dijkstra before the flooding settles is the tempting order, and it produces exactly the transient loops that fast flooding exists to shorten.",
+   "xp": 24,
+   "tags": [
+    "link-state",
+    "dijkstra"
+   ]
+  },
+  {
+   "id": "net-4-r-05",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You operate AS 64500, a regional ISP. AS 64501 is a customer that pays you; AS 64502 is a settlement-free peer; AS 64503 is your transit provider, whom you pay. All three announce a route to the same prefix, and the path through your provider is the shortest in AS hops. Say which route you install and why, which of your neighbours you re-advertise it to, and what would go wrong if you re-advertised your peer's routes to your provider. Then say why you would still run OSPF and not BGP inside AS 64500.",
+   "rubric": {
+    "required": [
+     "customer",
+     "peer",
+     "provider",
+     "polic",
+     "advertis",
+     "path"
+    ],
+    "optional": [
+     "revenue",
+     "money",
+     "pay",
+     "transit",
+     "shortest",
+     "loop",
+     "free",
+     "ospf",
+     "metric",
+     "interior",
+     "exterior",
+     "valley",
+     "local",
+     "prefer"
+    ],
+    "minWords": 100
+   },
+   "concepts": [
+    "bgp-policy",
+    "interior-vs-exterior"
+   ],
+   "explain": "You install the customer route even though it is the longest, because that is the one you are paid to carry, and BGP's local preference exists precisely so that commercial ranking can override AS-path length. Customer routes are re-advertised to everybody; peer and provider routes are re-advertised only to customers, because announcing a peer's route to your provider tells the world you will carry traffic between two networks that pay you nothing - free transit that you would then have to buy. Inside the AS the situation is completely different: there is one administrative owner, no policy to express and no trust boundary, so an interior protocol optimising a metric is the right tool, and OSPF's areas keep the flooding and the shortest-path computation bounded as the network grows.",
+   "xp": 48,
+   "tags": [
+    "bgp-policy",
+    "interior-vs-exterior"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-4-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "The `Fragment Offset` field of an IPv4 header is measured in units of:",
+   "choices": [
+    "single bytes",
+    "8-byte blocks",
+    "32-bit words",
+    "the MTU of the outgoing link"
+   ],
+   "answer": 1,
+   "concepts": [
+    "fragmentation",
+    "ip-header"
+   ],
+   "explain": "The field is only 13 bits, which as a byte count would reach 8,191; counting 8-byte blocks stretches that to 65,528 and so covers any legal datagram. The 32-bit answer is the tempting one because IHL really does count 32-bit words, but the two fields use different units for entirely different reasons.",
+   "xp": 12,
+   "tags": [
+    "fragmentation",
+    "ip-header"
+   ]
+  },
+  {
+   "id": "net-4-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A router discards a datagram because its TTL reached zero. Which ICMP message does it send back?",
+   "choices": [
+    "type 0, Echo Reply",
+    "type 3, Destination Unreachable",
+    "type 8, Echo Request",
+    "type 11, Time Exceeded"
+   ],
+   "answer": 3,
+   "concepts": [
+    "icmp",
+    "ttl"
+   ],
+   "explain": "Time Exceeded, type 11, is the message traceroute lives on. Destination Unreachable is the tempting alternative because the datagram indeed never arrived, but type 3 means the router could find no way onward at all, which is a different failure from a datagram that ran out of hops on a perfectly good path.",
+   "xp": 12,
+   "tags": [
+    "icmp",
+    "ttl"
+   ]
+  },
+  {
+   "id": "net-4-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the four header limits. Give every answer as a plain number.",
+   "template": "IHL counts ___-byte words, so the largest legal IPv4 header is ___ bytes.\nTotal Length is ___ bits wide, capping a whole datagram at ___ bytes.\n",
+   "blanks": [
+    "4",
+    "60",
+    "16",
+    "65535"
+   ],
+   "concepts": [
+    "ip-header"
+   ],
+   "explain": "IHL is four bits, so its largest value is 15, and 15 words of 4 bytes is 60 - which is why IPv4 options are limited to 40 bytes. Total Length is 16 bits and counts the header as well as the payload, so 65,535 is the size of the whole datagram and not of the data alone.",
+   "xp": 24,
+   "tags": [
+    "ip-header"
+   ]
+  },
+  {
+   "id": "net-4-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put what a router does to one datagram into the order it does it.",
+   "fragments": [
+    "verify the header checksum, and discard the datagram silently if it fails",
+    "look the destination up in the forwarding table, longest prefix winning",
+    "decrement the TTL, and if it is now zero discard the datagram and return ICMP Time Exceeded",
+    "fragment the datagram if the outgoing link's MTU is too small and DF is clear",
+    "recompute the header checksum, since the TTL and possibly the length have changed",
+    "hand the datagram to the outgoing link"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "forwarding-vs-routing",
+    "ip-header",
+    "ttl"
+   ],
+   "explain": "The checksum brackets everything: verified before the router changes anything, recomputed after it has changed the TTL and possibly the total length. The lookup has to precede fragmentation because it is the lookup that reveals which link the datagram is leaving and therefore which MTU applies - fragmenting first would mean fragmenting to a size nobody asked for.",
+   "xp": 24,
+   "tags": [
+    "forwarding-vs-routing",
+    "ip-header",
+    "ttl"
+   ]
+  },
+  {
+   "id": "net-4-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "TTL arithmetic. A host whose operating system uses an initial TTL of 64 receives a reply carrying TTL 57. Separately, a routing loop of exactly four routers has formed, and a datagram enters it having just been sent with TTL 64.",
+   "steps": [
+    {
+     "label": "how many routers the reply crossed",
+     "expected": "7"
+    },
+    {
+     "label": "TTL the reply carried as it left the last router before the host",
+     "expected": "57"
+    },
+    {
+     "label": "how many complete laps of the four-router loop the datagram makes",
+     "expected": "16"
+    },
+    {
+     "label": "TTL when the datagram is finally discarded",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "ttl"
+   ],
+   "explain": "Each router decrements once, so 64 - 57 = 7 routers, and the value the host sees is by definition the value the last router sent. Round the loop, four routers cost 4 per lap, so 64 / 4 = 16 laps take the TTL to exactly 0 and the sixteenth lap is where it dies. It is worth noticing what TTL actually bought here: not prevention of the loop, which is the routing protocol's job, but a hard bound on how long one datagram can suffer from it.",
+   "xp": 48,
+   "tags": [
+    "ttl"
+   ]
+  },
+  {
+   "id": "net-4-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A different router has this forwarding table. Give the outgoing interface for each destination.\n\n- `0.0.0.0/0` to eth0\n- `172.16.0.0/12` to eth1\n- `172.16.128.0/17` to eth2\n- `172.16.130.0/24` to eth3",
+   "steps": [
+    {
+     "label": "172.16.130.7",
+     "expected": "eth3"
+    },
+    {
+     "label": "172.16.131.1",
+     "expected": "eth2"
+    },
+    {
+     "label": "172.16.5.5",
+     "expected": "eth1"
+    },
+    {
+     "label": "172.31.255.254",
+     "expected": "eth1"
+    },
+    {
+     "label": "172.32.0.1",
+     "expected": "eth0"
+    }
+   ],
+   "concepts": [
+    "longest-prefix-match"
+   ],
+   "explain": "172.16.131.1 is the instructive one: it is inside the /17, which runs from 172.16.128.0 to 172.16.255.255, but one octet outside the /24, which stops at 172.16.130.255. The /12 spans 172.16.0.0 to 172.31.255.255, so 172.31.255.254 is very nearly its last address and still matches, while 172.32.0.1 lies beyond it and falls to the default. Assuming a /12 covers all of 172.x is the trap - it covers sixteen values of the second octet, not all 256.",
+   "xp": 48,
+   "tags": [
+    "longest-prefix-match"
+   ]
+  },
+  {
+   "id": "net-4-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Compare distance vector and link state. Say what each router has to know, what each has to send and how often, how each computes its table, and give the characteristic failure mode of each. Finish by saying which one you would deploy in an AS of eight hundred routers, and why.",
+   "rubric": {
+    "required": [
+     "vector",
+     "state",
+     "topolog",
+     "dijkstra",
+     "flood"
+    ],
+    "optional": [
+     "bellman",
+     "count",
+     "infinity",
+     "converge",
+     "memory",
+     "scale",
+     "map",
+     "split",
+     "area",
+     "ospf",
+     "sequence",
+     "neighbour",
+     "neighbor"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "distance-vector",
+    "link-state"
+   ],
+   "explain": "Distance vector stores one cost per destination and sends that whole vector to its neighbours only; link state stores the entire topology and floods a small packet about its own links to everyone. The computation mirrors that: Bellman-Ford incrementally on received vectors, versus Dijkstra run locally over a map every router agrees on. Their failure modes are mirror images too - distance vector converges slowly and wrongly through count-to-infinity, while link state converges fast but at the cost of memory, flooding traffic and a full recomputation on every change. At eight hundred routers link state with areas is the usual answer, because bounded flooding scales better than unbounded slow convergence, and slow convergence is the failure a large network cannot tolerate.",
+   "xp": 24,
+   "tags": [
+    "distance-vector",
+    "link-state"
+   ]
+  },
+  {
+   "id": "net-4-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Ping to 198.51.100.20 succeeds with one per cent loss and a steady 42 ms round trip. Traceroute to the very same address names hops 1 to 4, then prints only asterisks for hops 5, 6, 7 and 8, and then names 198.51.100.20 itself at hop 9. Bulk transfers to the host are also fine. Name the cause and say what, if anything, is broken.",
+   "answer": "The routers at those hops are not returning ICMP Time Exceeded - suppressed, rate-limited or filtered - while forwarding normally",
+   "rubric": {
+    "required": [
+     "icmp",
+     "ttl",
+     "rout",
+     "hop"
+    ],
+    "optional": [
+     "exceed",
+     "filter",
+     "block",
+     "suppress",
+     "rate",
+     "limit",
+     "firewall",
+     "drop",
+     "forward",
+     "fine",
+     "working",
+     "reach",
+     "silent"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "icmp",
+    "traceroute"
+   ],
+   "explain": "Hop 9 answering is the proof: datagrams passed through hops 5 to 8 intact, so those routers forwarded perfectly and merely declined to generate the ICMP Time Exceeded messages traceroute depends on. Routers commonly rate-limit or suppress ICMP errors and firewalls commonly discard them, so a block of asterisks in the middle of a path that completes is normal and not a fault. The tempting diagnosis is packet loss in the middle of the path, but loss there would degrade the ping and the bulk transfers too, and both are healthy.",
+   "xp": 48,
+   "tags": [
+    "icmp",
+    "traceroute"
+   ]
+  }
+ ]
+}

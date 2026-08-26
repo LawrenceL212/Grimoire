@@ -1,0 +1,1018 @@
+{
+ "n": 9,
+ "name": "The Architect's Reckoning",
+ "cognitiveLevel": "design",
+ "concepts": [
+  "layered-diagnosis",
+  "address-plan",
+  "longest-prefix-match",
+  "path-mtu",
+  "bandwidth-delay-product",
+  "transport-selection",
+  "congestion-and-buffering",
+  "name-resolution",
+  "nat-and-middleboxes",
+  "capture-reading",
+  "failure-modes"
+ ],
+ "sequence": [
+  "lesson",
+  "field-diagnosis",
+  "capacity-planning",
+  "architecture-review",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Diagnosis is a search, and the layers are its index",
+    "body": "A fault report is a symptom, and a symptom is not a diagnosis. On this floor every answer has the same shape: **name the layer, name the mechanism, prescribe the fix**. \"The site is down\" is not an answer; \"the tunnel cut the path MTU to 1450, the ICMP that would have said so is filtered, so anything larger is black-holed - clamp the MSS at the tunnel endpoint\" is.\n\nWork upwards, because every layer depends on the ones beneath it and a failure at layer $n$ produces symptoms at every layer above. The order that pays is link, then address, then route, then transport, then name, then application. Skipping a rung does not save time; it costs you the whole search when the answer turns out to be two rungs down.\n\nChoose the check that halves the search space rather than the one that is easiest to type. Reaching the far host **by address** when the name fails splits the world in one move: the path is fine and the fault is in resolution. Reaching a host one hop beyond the gateway but not two decides local against upstream just as cheaply.\n\nThe symptoms themselves are strongly diagnostic, and this vocabulary is assumed by everything else on the floor:\n\n- **No reply at all**, with the sender retransmitting on a doubling timer, means something is dropping silently: a filter, a policy, a blackhole route.\n- **A `RST`** means the packet arrived and was refused. That is a live host with nothing listening, a different fault entirely.\n- **`ICMP destination unreachable`, network or host** means a router had no route, or no answer to its ARP.\n- **Connects, then stalls once transfers grow** means path MTU, almost always.\n- **Works, then dies after an idle period** means state expired in a middlebox - a NAT or a stateful firewall - and not in either endpoint.\n- **Fine from one network, broken from another** means the difference between those two networks is the fault: a resolver, a filter, a route, an MTU.",
+    "code": "symptom: \"the application is down for some users\"\n\n  1. is the link up, and is there an address?\n     link state, address, mask, default gateway present?\n     -> no address at all: DHCP or the link itself. Stop here.\n\n  2. can we reach the default gateway BY ADDRESS?\n     -> no: local segment, ARP, VLAN, or a wrong mask. Stop here.\n\n  3. can we reach a known host beyond the gateway BY ADDRESS?\n     -> no: routing or upstream filtering. Ask which router replies.\n\n  4. does the name resolve, and to WHAT?\n     -> resolves to the old address: a cached record inside its TTL.\n     -> does not resolve: resolver, delegation, or a broken signature.\n\n  5. does the transport connect to the port BY ADDRESS?\n     silence  -> dropped by a filter (no RST ever comes back)\n     RST      -> refused: host alive, nothing listening\n     connects -> the fault is above the transport\n\n  6. does it connect and then stall on the first large response?\n     -> path MTU. Probe with a large do-not-fragment datagram.\n\neach step is chosen to halve what remains, not because it is quick to type.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "An interface with no address makes every later question meaningless, which is why it is asked first - not because it is the commonest fault."
+     },
+     {
+      "line": 13,
+      "text": "By address, never by name. Folding the two into one test is what makes people spend an hour on a routing problem that was a stale DNS record."
+     },
+     {
+      "line": 18,
+      "text": "Silence and a RST are not degrees of the same failure. One is a middlebox that never let the packet through, the other is the destination host itself answering."
+     },
+     {
+      "line": 22,
+      "text": "The stall arrives only once a response exceeds the smallest MTU on the path, so the handshake and the small replies all succeed first. That asymmetry is the fingerprint."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "A user reports that one internal service is unreachable from their laptop. Put the checks into the order that localises the fault in the fewest steps.",
+     "fragments": [
+      "confirm the interface has an address, a mask and a default gateway",
+      "reach the default gateway by address",
+      "reach a host beyond the gateway by address",
+      "resolve the service name and inspect the address it returns",
+      "open the service port by address and observe silence, a RST, or a connection",
+      "retry the failing request now that the layers beneath it are proven"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "concepts": [
+      "layered-diagnosis"
+     ],
+     "tags": [
+      "layered-diagnosis"
+     ],
+     "explain": "Each check is only meaningful once the ones below it have passed: asking why a name resolves badly is wasted effort while the gateway is unreachable. The tempting reordering is to resolve the name first because it is the fastest command to type, but a name that resolves tells you nothing about a path you have not yet proven.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Sizing: addresses in a plan, bytes on a path",
+    "body": "Sizing has two halves that network designs routinely confuse: how many **addresses** the plan needs, and how many **bytes in flight** the path needs. They are unrelated quantities, both are arithmetic, and neither is a matter of taste.\n\nAddress plans are allocated **largest block first**, from one aggregate, on each block's own natural boundary. Take an organisation given `10.40.0.0/21` - 2048 addresses, `10.40.0.0` through `10.40.7.255`. Engineering needs 500 hosts, so it takes a `/23` (510 usable) at `10.40.0.0`; Sales needs 200 and takes a `/24` (254 usable) at `10.40.2.0`; Ops needs 100 and takes a `/25` (126) at `10.40.3.0`; Guest needs 60 and takes a `/26` (62) at `10.40.3.128`; each router-to-router link takes a `/30` from `10.40.3.192` upwards. Allocating smallest-first instead strands the space: a `/26` placed at `10.40.0.0` means no `/23` can ever be carved from this aggregate again, because a `/23` may only begin on a `/23` boundary.\n\nThe plan earns its keep at the routers, where **the most specific matching prefix wins**, regardless of the order entries were installed or learnt. A contiguous plan lets one summary route stand for a whole site, and a more specific prefix can then steer a single subnet elsewhere without touching that summary. It is also the trap: an unintended `/26` leak beats your carefully maintained `/16` everywhere it is heard.\n\nThe second half is the **bandwidth-delay product**, the data a path holds when it is full: $BDP = \\text{rate} \\times RTT$. A 100 Mbit/s path with an 80 ms round trip holds $100 \\times 10^{6} \\times 0.080 / 8 = 1\\,000\\,000$ bytes. A sender may have at most one window of unacknowledged data outstanding, so a 64 KiB window - 65535 bytes, the largest the unscaled TCP header field can express - caps a single flow at $65535 \\times 8 / 0.080 = 6.55$ Mbit/s, which is **6.55%** of the link. Buying more bandwidth changes nothing here. Only a larger window does, and window scaling with a shift of 4 raises the ceiling to 1048560 bytes, comfortably past the BDP.\n\nSo the two sizing questions have two different answers. How many addresses is answered by counting hosts and rounding up to a power of two twice, once for now and once for growth. Why is the link idle is answered by comparing the window against the BDP, and it is almost never answered by adding capacity.",
+    "code": "aggregate 10.40.0.0/21   =  10.40.0.0 - 10.40.7.255   (2048 addresses)\n\n  largest first:\n  Engineering  500 hosts -> /23   10.40.0.0/23     510 usable\n  Sales        200 hosts -> /24   10.40.2.0/24     254 usable\n  Ops          100 hosts -> /25   10.40.3.0/25     126 usable\n  Guest         60 hosts -> /26   10.40.3.128/26    62 usable\n  link A-B       2 hosts -> /30   10.40.3.192/30     2 usable\n  link B-C       2 hosts -> /30   10.40.3.196/30     2 usable\n  link C-D       2 hosts -> /30   10.40.3.200/30     2 usable\n  first free address     ->       10.40.3.204      (1076 left for growth)\n\nforwarding table at the site router - longest prefix wins:\n\n  10.0.0.0/8        -> A\n  10.40.0.0/16      -> B\n  10.40.3.0/24      -> C\n  10.40.3.128/26    -> D\n  0.0.0.0/0         -> default\n\n  10.40.3.130 -> D   (the /26 is more specific than the /24 that also matches)\n  10.40.3.200 -> C   (outside the /26, which covers 128..191 only)\n  10.40.2.9   -> B   (no /24 covers it, so the /16 wins)\n\nbandwidth-delay product:\n\n  100 Mbit/s x 80 ms = 100e6 x 0.080 / 8 = 1 000 000 bytes in flight\n  window 65535 bytes -> 65535 x 8 / 0.080 = 6 553 500 bit/s = 6.55 Mbit/s\n  utilisation 65535 / 1 000 000 = 6.55%\n  window scale shift 4 -> 65535 x 16 = 1 048 560 bytes, above the BDP",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "A /23 must begin on a multiple of 512, so within this aggregate it can only start at 10.40.0.0, 10.40.2.0, 10.40.4.0 or 10.40.6.0. Allocating it first is what keeps one of those free."
+     },
+     {
+      "line": 8,
+      "text": "Keeping the point-to-point links together in one /26 of /30s is what keeps them summarisable, instead of scattering single prefixes through the plan."
+     },
+     {
+      "line": 22,
+      "text": "The /26 covers 10.40.3.128 to 10.40.3.191 and nothing else, so .200 falls back to the /24. Longest prefix match is arithmetic on the mask, not proximity of the digits."
+     },
+     {
+      "line": 27,
+      "text": "One million bytes in flight is the whole point: the sender spends most of every round trip idle waiting for acknowledgements, and no amount of extra bandwidth fills that gap."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Using the forwarding table in the example - `10.0.0.0/8` to A, `10.40.0.0/16` to B, `10.40.3.0/24` to C, `10.40.3.128/26` to D, `0.0.0.0/0` to default - give the next hop chosen for each destination. Answer with the single letter, or the word `default`.",
+     "steps": [
+      {
+       "label": "destination 10.40.3.129",
+       "expected": "D"
+      },
+      {
+       "label": "destination 10.40.3.200",
+       "expected": "C"
+      },
+      {
+       "label": "destination 10.40.9.7",
+       "expected": "B"
+      },
+      {
+       "label": "destination 10.7.0.1",
+       "expected": "A"
+      },
+      {
+       "label": "destination 172.16.0.1",
+       "expected": "default"
+      }
+     ],
+     "concepts": [
+      "longest-prefix-match",
+      "address-plan"
+     ],
+     "tags": [
+      "longest-prefix-match",
+      "address-plan"
+     ],
+     "explain": "Every entry whose prefix covers the address is a candidate and the longest one wins, so 10.40.3.129 takes D even though three other entries match it too. The tempting error is 10.40.3.200, which looks like it belongs with .129 but sits outside the /26's 128-191 range and falls back to the /24.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Choosing a transport, and paying for it",
+    "body": "Choosing a transport is choosing what you are willing to pay for. **TCP** sells a reliable, ordered byte stream with congestion control, and charges for it in latency: a handshake before any data, retransmission of anything lost, and delivery strictly in order. That last clause is the expensive one. A single lost segment holds back every byte behind it - **head-of-line blocking** - so a page made of forty objects multiplexed over one connection stalls entirely on one loss.\n\n**UDP** sells demultiplexing by port and an optional checksum, and nothing else. You inherit loss, duplication, reordering and congestion control as your own problems, which is the right trade in exactly two situations: when the data has a **deadline**, so a late retransmission is worth no more than the loss it repairs, and when the exchange is a single small message where a connection would cost more than the payload. Live audio and DNS are those two cases.\n\n**QUIC** is the third answer, and it exists because the first two forced a false choice. It runs over UDP, integrates TLS 1.3 into its handshake, and carries independent streams: a loss stalls only the stream it belongs to, not the other thirty-nine. Its costs are real - it lives in user space, so it burns more CPU per byte, and networks that pass only TCP will block it, so anything using it needs a fallback path.\n\nThe arithmetic is decisive when round trips are long. With a 120 ms round trip, TCP plus a full TLS 1.2 handshake spends 3 round trips, 360 ms, before the first request byte leaves; TCP plus TLS 1.3 spends 2, so 240 ms; QUIC spends 1, so 120 ms; and a QUIC resumption with 0-RTT sends the request in the very first flight, at the cost of that data being replayable and therefore safe only for idempotent requests.\n\nSo the decision rule is short. Does late data still have value? If no, UDP or a QUIC datagram. Are there many concurrent objects on one connection? If yes, QUIC over TCP. Will the path pass UDP at all, and do the endpoints move between addresses mid-connection? QUIC's connection identifier survives an address change; a TCP connection is named by its four-tuple and does not.",
+    "code": "time to the first request byte, RTT = 120 ms, cold client\n\n  TCP + TLS 1.2   SYN -> SYN/ACK -> ACK        1 RTT\n                  TLS full handshake           2 RTT\n                                        total  3 RTT = 360 ms\n\n  TCP + TLS 1.3   TCP handshake                1 RTT\n                  ClientHello / ServerHello    1 RTT\n                                        total  2 RTT = 240 ms\n\n  QUIC (new)      Initial + handshake + keys   1 RTT = 120 ms\n  QUIC (resumed)  0-RTT: request in flight 1   0 RTT =   0 ms\n  UDP (raw)       no handshake at all          0 RTT =   0 ms\n\nwhat one lost packet costs, 40 objects on one connection\n\n  HTTP/2 over TCP    ordered byte stream -> all 40 wait for the repair\n  HTTP/3 over QUIC   independent streams -> only that object waits\n\nwhat each transport hands you, and what it hands back\n\n  TCP    ordered, reliable, congestion-controlled, four-tuple identity\n         costs: handshake RTTs, head-of-line blocking, middlebox state\n  UDP    ports and a checksum\n         costs: you own loss, ordering, congestion, and retry policy\n  QUIC   streams, TLS 1.3, 0-RTT resumption, migratable connection ID\n         costs: user-space CPU, UDP-hostile paths, a fallback to maintain",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Two of these three round trips buy secrecy, not delivery. That is why TLS 1.3 collapsing its handshake into one round trip was worth a protocol revision."
+     },
+     {
+      "line": 12,
+      "text": "Zero here is not free: 0-RTT data can be replayed by an attacker who captures it, so it is safe only for requests that change nothing."
+     },
+     {
+      "line": 17,
+      "text": "This is the head-of-line blocking argument in one line, and it is the reason HTTP/3 exists at all - not raw speed, but the cost of a single loss to everything else."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "A client 120 ms away is fetching a resource. For each option give the delay, **in milliseconds**, before the first byte of the request can leave the client. Answer with the number only.",
+     "steps": [
+      {
+       "label": "TCP with a full TLS 1.2 handshake",
+       "expected": "360"
+      },
+      {
+       "label": "TCP with a TLS 1.3 handshake",
+       "expected": "240"
+      },
+      {
+       "label": "QUIC, first ever connection to this server",
+       "expected": "120"
+      },
+      {
+       "label": "QUIC resuming an earlier session with 0-RTT",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "transport-selection"
+     ],
+     "tags": [
+      "transport-selection"
+     ],
+     "explain": "The count is round trips, not messages: TCP's handshake costs one because the client may send data with its final ACK, and TLS 1.3 costs one more. The tempting answer for QUIC is 240 by analogy with TCP plus TLS, but QUIC's transport and cryptographic handshakes are the same flight, which is precisely the round trip it was designed to remove.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Reading the wire, and judging a design",
+    "body": "A capture answers the question that guessing cannot: what actually left, what actually arrived, and when. Read it in four columns - **time delta, direction, flags, and sequence space** - and the pattern usually names itself. Retransmissions of the same `seq` on a doubling timer of 1, 2, 4 and 8 seconds mean nothing is coming back. Three duplicate ACKs for the same number followed by a single retransmission of exactly that segment mean one packet was lost and fast retransmit repaired it, which is TCP working, not TCP failing. A stream of `win 0` from the receiver means the receiving **application** has stopped reading and the network is blameless.\n\nWhat is absent is evidence too. No reply at all is a silent drop; a `RST` is an explicit refusal; an `ICMP type 3 code 4`, fragmentation needed, is a router telling you the MTU - and the far more common case is that this ICMP is filtered on the way back, so you see nothing and infer the MTU from the size at which transfers die.\n\nJudging an architecture is the same skill pointed at a diagram. Look first for **shared fate**: two replicas in one rack, two paths through one transit provider, two resolvers on one anycast prefix. Look next for **synchronised retries**: ten thousand clients that each retry every two seconds generate five thousand requests per second, which holds a recovering service down and keeps it there. The fix is bounded retries with exponential backoff **and jitter**, so that the herd disperses instead of arriving together.\n\nThen look for standing queues. A router with a 256-packet buffer draining at 10 Mbit/s holds $256 \\times 1500 \\times 8 / 10^{7} = 0.307$ seconds of data when full, and a loss-based congestion controller will fill it, because loss is the only signal it responds to. Every interactive packet then queues behind 307 ms of bulk transfer. Adding buffer makes this worse, which is why the fix is an active queue discipline that drops or marks early rather than a larger buffer.\n\nFinally, look for state you did not know you were keeping. A NAT holds a mapping per flow and expires it after an idle period, so a long-lived connection with no traffic dies silently and the endpoints only discover it on the next write; a NAT also holds a finite pool of ports, so a few thousand clients behind one address exhaust it and new connections fail while established ones continue. And DNS holds your **rollback horizon**: a record with a 300-second TTL means a cutover cannot be reversed faster than 300 seconds, so the TTL must be lowered at least one old-TTL period before the change, not during it.",
+    "code": "capture A - a connection that never forms\n\n  11:04:02.100  client > server  Flags [S]  seq 1000  win 64240\n  11:04:03.100  client > server  Flags [S]  seq 1000  win 64240\n  11:04:05.100  client > server  Flags [S]  seq 1000  win 64240\n  11:04:09.100  client > server  Flags [S]  seq 1000  win 64240\n  (nothing comes back, ever)\n  1s, 2s, 4s: exponential backoff. No RST => not a refusal. Dropped.\n\ncapture B - one loss, repaired\n\n  12:10:00.000  server > client  seq  5001: 6461  len 1460\n  12:10:00.001  server > client  seq  6461: 7921  len 1460   <- lost\n  12:10:00.002  server > client  seq  7921: 9381  len 1460\n  12:10:00.003  server > client  seq  9381:10841  len 1460\n  12:10:00.041  client > server  ack  6461\n  12:10:00.042  client > server  ack  6461            (duplicate 1)\n  12:10:00.043  client > server  ack  6461            (duplicate 2)\n  12:10:00.044  client > server  ack  6461            (duplicate 3)\n  12:10:00.045  server > client  seq  6461: 7921  len 1460   <- fast retransmit\n  12:10:00.086  client > server  ack 12301\n  no timeout, no stall: this is recovery, not failure.\n\ncapture C - the receiver has stopped reading\n\n  12:22:11.400  client > server  ack 40961  win 1024\n  12:22:11.600  client > server  ack 40961  win 0\n  12:22:12.600  server > client  keep-alive probe, len 1\n  12:22:12.641  client > server  ack 40961  win 0\n  12:22:19.900  client > server  ack 40961  win 65535   (window update)\n  the path carried every byte. The application did not read them.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "The doubling gaps are the diagnosis. A refusal arrives once and immediately; a drop produces exactly this widening silence."
+     },
+     {
+      "line": 21,
+      "text": "Three duplicates, then one segment, then a jump straight to 12301 - the receiver had been holding the later data all along and the single repair released it."
+     },
+     {
+      "line": 27,
+      "text": "A window of zero is flow control doing its job. Reading this as congestion and adding bandwidth is the classic misdiagnosis, because the bottleneck is a process that is not calling read."
+     }
+    ],
+    "checkpoint": {
+     "type": "diagnose",
+     "layer": "application",
+     "prompt": "Capture C in the example: the client advertises `win 1024`, then `win 0`, holds it there for eight seconds while acknowledging nothing new, then advertises `win 65535`. Name the mechanism at work and say where the bottleneck actually is.",
+     "answer": "receive window exhaustion - the receiving application stopped reading, so flow control closed the window",
+     "rubric": {
+      "required": [
+       "window",
+       "receiv",
+       "applic"
+      ],
+      "optional": [
+       "zero",
+       "flow",
+       "buffer",
+       "read",
+       "probe"
+      ],
+      "minWords": 25
+     },
+     "concepts": [
+      "capture-reading",
+      "congestion-and-buffering"
+     ],
+     "tags": [
+      "capture-reading",
+      "congestion-and-buffering"
+     ],
+     "explain": "A zero window is the receiver telling the sender to stop, which happens when the socket buffer fills because the application above it is not draining it. The tempting answer is congestion, but congestion shows up as loss and retransmission, and here every byte was acknowledged and nothing was ever resent.",
+     "xp": 40
+    }
+   }
+  ]
+ },
+ "field-diagnosis": [
+  {
+   "id": "net-9-fd-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Two sites are moved onto a new overlay: every packet between them is wrapped in 50 bytes of outer headers and carried over an underlay whose MTU is 1500. Since the change, interactive sessions are fine, `ping` succeeds, and small API calls return normally - but any HTTPS response over roughly 1.4 KB hangs and eventually times out. The overlay endpoints are configured to discard ICMP they do not originate. Name the mechanism and prescribe the fix.",
+   "answer": "a path MTU black hole: the effective MTU is 1450, larger packets are discarded, and the ICMP fragmentation-needed message that would report it is being filtered",
+   "rubric": {
+    "required": [
+     "mtu",
+     "icmp",
+     "fragment"
+    ],
+    "optional": [
+     "clamp",
+     "mss",
+     "1450",
+     "black",
+     "tunnel",
+     "overlay",
+     "drop",
+     "1400"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "path-mtu",
+    "layered-diagnosis"
+   ],
+   "tags": [
+    "path-mtu",
+    "layered-diagnosis"
+   ],
+   "explain": "Fifty bytes of encapsulation leaves 1450 usable, so anything the sender builds for a 1500-byte path is too big the moment it enters the tunnel. Path MTU discovery would fix this by itself, but it depends entirely on the ICMP fragmentation-needed message getting back to the sender; filter that and the sender never learns, which is why the failure is size-dependent rather than total. Clamping the advertised MSS at the tunnel endpoint fixes it without relying on ICMP at all. The tempting diagnosis is packet loss or a firewall rule for HTTPS, but neither explains why small responses on the same connection succeed.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-fd-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A service is moved to a new address at 09:00 by editing its `A` record, which carries a TTL of 300 seconds. At 09:02 roughly half the users reach the new address and half still reach the old one, with no pattern by user except which network they sit on. The team confirms the authoritative servers return only the new address. Name the mechanism, and say what should have been done the day before.",
+   "answer": "recursive resolvers are still serving the old A record from cache until its 300-second TTL expires",
+   "rubric": {
+    "required": [
+     "cach",
+     "ttl",
+     "resolv"
+    ],
+    "optional": [
+     "300",
+     "stale",
+     "authoritative",
+     "expir",
+     "lower",
+     "record"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "name-resolution",
+    "layered-diagnosis"
+   ],
+   "tags": [
+    "name-resolution",
+    "layered-diagnosis"
+   ],
+   "explain": "An authoritative change is instant at the authority and invisible everywhere else until each recursive resolver's copy ages out, so the split is by resolver, which is why it correlates with the user's network. Nothing at the authority can shorten a TTL already handed out; the only fix is to lower the TTL at least one old-TTL period before the cutover, so that the copies in flight are short-lived when the change lands. The tempting diagnosis is replication lag between authoritative servers, but the team has already proved every authority returns the new answer.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-fd-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A capture of a client that cannot reach a service, taken at the client:\n\n`11:04:02.100  client > server.443  Flags [S]  seq 1000`\n`11:04:03.100  client > server.443  Flags [S]  seq 1000`\n`11:04:05.100  client > server.443  Flags [S]  seq 1000`\n`11:04:09.100  client > server.443  Flags [S]  seq 1000`\n\nNothing is ever received in the other direction. Name what is happening to these packets, and say why the absence of one particular packet type is the decisive evidence.",
+   "answer": "the SYNs are being dropped silently somewhere on the path; a listener refusing the connection would have answered with a RST",
+   "rubric": {
+    "required": [
+     "syn",
+     "rst",
+     "drop"
+    ],
+    "optional": [
+     "filter",
+     "firewall",
+     "backoff",
+     "retransmi",
+     "silent",
+     "doubl",
+     "icmp"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "capture-reading",
+    "layered-diagnosis"
+   ],
+   "tags": [
+    "capture-reading",
+    "layered-diagnosis"
+   ],
+   "explain": "The 1, 2 and 4 second gaps are the client's own exponential backoff on an unanswered SYN, so the capture shows one attempt, not four failures. What decides the diagnosis is what never arrives: a host that is up with nothing listening sends a RST immediately, and a router without a route sends an ICMP unreachable, so total silence points at a device that is discarding the packet by policy. The tempting reading is that the service is down, but a down service on a reachable host refuses rather than ignores.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-fd-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An application holds a pool of database connections through a NAT gateway. Connections used continuously are fine. A connection left unused for more than five minutes hangs on its next query until the application's own timeout fires, and opening a fresh connection then succeeds immediately. The gateway's mapping idle timeout is 300 seconds. Name the mechanism and prescribe two fixes, one at each end of the trade-off.",
+   "answer": "the NAT mapping for the idle flow expired, so the next segment arrived with no translation entry and was discarded",
+   "rubric": {
+    "required": [
+     "nat",
+     "idle",
+     "expir"
+    ],
+    "optional": [
+     "keep",
+     "mapping",
+     "timeout",
+     "state",
+     "300",
+     "pool",
+     "probe"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "nat-and-middleboxes",
+    "failure-modes"
+   ],
+   "tags": [
+    "nat-and-middleboxes",
+    "failure-modes"
+   ],
+   "explain": "Both endpoints still believe the connection exists, because TCP sends nothing on an idle connection and therefore learns nothing; the state that vanished was held by a device in the middle that neither endpoint asked. That is why a new connection works at once - it creates a fresh mapping. The fixes sit either side of the trade-off: send keep-alives more often than the 300-second timeout, or shrink the pool's own idle timeout below it so the application discards the connection before the network does. The tempting diagnosis is a database that closes idle sessions, but that would produce a RST or a clean close rather than a hang.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-fd-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A router holds this forwarding table:\n\n`0.0.0.0/0` to R0\n`10.40.0.0/16` to R1\n`10.40.4.0/22` to R2\n`10.40.5.128/25` to R3\n`10.40.5.192/27` to R4\n\nGive the next hop chosen for each destination. Answer with the label only, for example `R2`.",
+   "steps": [
+    {
+     "label": "destination 10.40.5.200",
+     "expected": "R4"
+    },
+    {
+     "label": "destination 10.40.5.130",
+     "expected": "R3"
+    },
+    {
+     "label": "destination 10.40.5.224",
+     "expected": "R3"
+    },
+    {
+     "label": "destination 10.40.7.9",
+     "expected": "R2"
+    },
+    {
+     "label": "destination 10.40.9.1",
+     "expected": "R1"
+    },
+    {
+     "label": "destination 203.0.113.9",
+     "expected": "R0"
+    }
+   ],
+   "concepts": [
+    "longest-prefix-match",
+    "address-plan"
+   ],
+   "tags": [
+    "longest-prefix-match",
+    "address-plan"
+   ],
+   "explain": "The /27 covers 10.40.5.192 to 10.40.5.223, so .200 takes R4 and .224 falls back to the /25 even though the two addresses are only twenty-four apart. Each destination matches several entries at once and the longest mask always wins; the tempting error is to read the table top to bottom and stop at the first match, which would send everything to R0.",
+   "xp": 88
+  }
+ ],
+ "capacity-planning": [
+  {
+   "id": "net-9-cp-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A hospital is allocated `172.20.32.0/20` and nothing else. It needs subnets for Clinical (1000 hosts), IoT sensors (500), Admin (400), Imaging (200) and a Guest network (120), plus two router-to-router links of two hosts each. Allocate largest block first, from the bottom of the aggregate upwards, each block on its own natural boundary and with no gaps. Give each answer as network address and prefix length, for example `172.20.44.0/24`.",
+   "steps": [
+    {
+     "label": "Clinical, 1000 hosts",
+     "expected": "172.20.32.0/22"
+    },
+    {
+     "label": "IoT sensors, 500 hosts",
+     "expected": "172.20.36.0/23"
+    },
+    {
+     "label": "Admin, 400 hosts",
+     "expected": "172.20.38.0/23"
+    },
+    {
+     "label": "Imaging, 200 hosts",
+     "expected": "172.20.40.0/24"
+    },
+    {
+     "label": "Guest, 120 hosts",
+     "expected": "172.20.41.0/25"
+    },
+    {
+     "label": "the first router-to-router link",
+     "expected": "172.20.41.128/30"
+    },
+    {
+     "label": "the lowest address still unallocated afterwards",
+     "expected": "172.20.41.136"
+    }
+   ],
+   "concepts": [
+    "address-plan"
+   ],
+   "tags": [
+    "address-plan"
+   ],
+   "explain": "Each size is the smallest prefix whose usable count clears the requirement: 1000 needs a /22 because a /23 offers only 510, and 120 needs a /25 because a /26 offers 62. Allocating largest first is what keeps every block on its own boundary - place the Guest /25 first and the /22 can no longer start anywhere in this aggregate. The tempting error is to size Clinical as a /22 but then start IoT at 172.20.34.0, which lies inside the block Clinical already owns.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-cp-02",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Write the address plan for that hospital as a document you would hand to the network team, and defend it. State each subnet with its prefix, say how much growth headroom each carries and why that much, explain what the plan lets the site router advertise upstream as a single route, and justify one deliberate departure from pure efficiency - for example isolating the guest network, or reserving a contiguous range for the point-to-point links. Say plainly what your plan cannot absorb without a second allocation.",
+   "rubric": {
+    "required": [
+     "growth",
+     "summar",
+     "guest",
+     "point"
+    ],
+    "optional": [
+     "/22",
+     "/30",
+     "/31",
+     "aggregat",
+     "boundar",
+     "vlan",
+     "dhcp",
+     "wast",
+     "isolat",
+     "second"
+    ],
+    "minWords": 110
+   },
+   "concepts": [
+    "address-plan",
+    "longest-prefix-match"
+   ],
+   "tags": [
+    "address-plan",
+    "longest-prefix-match"
+   ],
+   "explain": "A plan is judged on what it can absorb, not on how tightly it packs today: the reason to allocate contiguously from one aggregate is that the whole site then leaves the router as a single /20 advertisement, and any later renumbering stays local. The deliberate inefficiencies are the interesting part - a guest network kept in its own block can be filtered with one rule instead of a list, and a reserved run of point-to-point links stays summarisable rather than scattering /30s through the space. An answer that only lists prefixes has done the arithmetic without doing the design.",
+   "xp": 220
+  },
+  {
+   "id": "net-9-cp-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 4000-byte IPv4 datagram - a 20-byte header with no options, carrying 3980 bytes of payload - must cross a link whose MTU is 1500. The router fragments it, filling each fragment as far as the rules allow. Give the values requested; where a step asks for three numbers, answer in the form `1500 / 0 / 1`, meaning total length, fragment offset field, more-fragments bit.",
+   "steps": [
+    {
+     "label": "number of fragments produced",
+     "expected": "3"
+    },
+    {
+     "label": "fragment 1: total length / offset field / MF",
+     "expected": "1500 / 0 / 1"
+    },
+    {
+     "label": "fragment 2: total length / offset field / MF",
+     "expected": "1500 / 185 / 1"
+    },
+    {
+     "label": "fragment 3: total length / offset field / MF",
+     "expected": "1040 / 370 / 0"
+    },
+    {
+     "label": "payload bytes carried by fragment 3",
+     "expected": "1020"
+    }
+   ],
+   "concepts": [
+    "path-mtu"
+   ],
+   "tags": [
+    "path-mtu"
+   ],
+   "explain": "Each fragment carries its own 20-byte header, so at most 1480 payload bytes fit in 1500 - and 1480 is already a multiple of eight, which the offset field requires because it counts in eight-byte units. That is where the offsets come from: 1480/8 = 185 and 2960/8 = 370. The tempting errors are to put 1500 payload bytes in a fragment, forgetting the repeated header, and to write the offsets in bytes rather than in eight-byte units.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-cp-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A TCP Reno sender starts with `cwnd` = 1 MSS and `ssthresh` = 16 MSS on a path with no other traffic. Measure `cwnd` in MSS at the start of each round trip. In slow start `cwnd` doubles each round; once `cwnd` reaches `ssthresh` the sender is in congestion avoidance and adds 1 MSS per round. Give each value as a number only.",
+   "steps": [
+    {
+     "label": "cwnd at the start of round 3",
+     "expected": "4"
+    },
+    {
+     "label": "cwnd at the start of round 5",
+     "expected": "16"
+    },
+    {
+     "label": "cwnd at the start of round 7",
+     "expected": "18"
+    },
+    {
+     "label": "ssthresh immediately after three duplicate ACKs arrive while cwnd is 18",
+     "expected": "9"
+    },
+    {
+     "label": "cwnd immediately after that fast retransmit",
+     "expected": "9"
+    },
+    {
+     "label": "ssthresh after a retransmission timeout that occurs while cwnd is 12",
+     "expected": "6"
+    },
+    {
+     "label": "cwnd immediately after that timeout",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "congestion-and-buffering",
+    "bandwidth-delay-product"
+   ],
+   "tags": [
+    "congestion-and-buffering",
+    "bandwidth-delay-product"
+   ],
+   "explain": "Rounds 1 to 5 are 1, 2, 4, 8, 16, and reaching ssthresh switches the sender to adding one MSS per round, so round 6 is 17 and round 7 is 18. The two loss signals are treated as different evidence: three duplicate ACKs prove packets are still arriving, so Reno halves and continues, while a timeout proves nothing is getting through and returns to a window of one. Treating both the same way is the commonest error here, and it is exactly the distinction that makes Reno usable on a long path.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-cp-05",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Three workloads share one team. (a) 50000 field sensors, each sending a 40-byte reading every second, where a reading more than two seconds old is worthless. (b) A nightly 5 TB backup between two data centres 90 ms apart. (c) An interactive web application whose users are on mobile networks with 2% loss, loading around forty small objects per page. Choose TCP, UDP or QUIC for each, and for each choice argue explicitly against the strongest alternative - say what that alternative would cost, in the terms of this workload.",
+   "rubric": {
+    "required": [
+     "tcp",
+     "udp",
+     "quic",
+     "retransmi"
+    ],
+    "optional": [
+     "head",
+     "deadline",
+     "order",
+     "handshake",
+     "loss",
+     "window",
+     "0-rtt",
+     "migrat",
+     "congest"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "transport-selection"
+   ],
+   "tags": [
+    "transport-selection"
+   ],
+   "explain": "Each workload is decided by a different property, which is why one answer cannot serve all three. The sensors have a deadline, so a retransmission arrives after the reading is worthless and TCP's reliability is pure cost - though the argument against UDP must still account for congestion control, which you now owe yourself. The backup wants exactly what TCP sells and cares only about sustained throughput, so the real design work is the window against a bandwidth-delay product of 90 ms. The web application is the head-of-line blocking case: at 2% loss, forty objects multiplexed over one TCP connection stall together on every loss, while QUIC's independent streams stall only the object that lost a packet - and its shorter handshake matters most on the slowest paths.",
+   "xp": 220
+  }
+ ],
+ "architecture-review": [
+  {
+   "id": "net-9-ar-01",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A proposed architecture: one load balancer in front of the service; every one of the 10000 clients ships with its address hard-coded; each client health-checks it once per second and, on any failure, retries the failed request immediately and keeps retrying until it succeeds. The team argues that the balancer has redundant power and a redundant uplink, so it cannot fail. Judge the design. Name its failure mode, describe what the first thirty seconds of an outage look like, and prescribe the changes.",
+   "rubric": {
+    "required": [
+     "retry",
+     "backoff",
+     "single"
+    ],
+    "optional": [
+     "jitter",
+     "storm",
+     "herd",
+     "dns",
+     "anycast",
+     "hard-cod",
+     "bound",
+     "5000",
+     "circuit"
+    ],
+    "minWords": 110
+   },
+   "concepts": [
+    "failure-modes"
+   ],
+   "tags": [
+    "failure-modes"
+   ],
+   "explain": "Redundant power protects against one cause of failure and none of the others - software, configuration, the address itself - so a single balancer is a single point of failure whatever is plugged into it. The sharper problem is the retry policy: 10000 clients retrying immediately turn a brief outage into a self-sustaining one, because the moment the service recovers it meets the entire accumulated herd at once, arriving in lockstep because the failure synchronised them. The prescription is bounded retries with exponential backoff and jitter, a second balancer, and an indirection - DNS or anycast - so that clients are not welded to one address.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-ar-02",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "After the overlay rollout described earlier, a team proposes to fix the stalled large transfers by enabling 9000-byte jumbo frames on all the application servers, on the grounds that a bigger MTU cannot possibly make a size problem worse. The overlay's underlay is a leased carrier circuit the team does not control. Judge the proposal: say what it does to the symptom, and prescribe what you would do instead and where you would configure it.",
+   "rubric": {
+    "required": [
+     "mtu",
+     "path",
+     "fragment"
+    ],
+    "optional": [
+     "clamp",
+     "mss",
+     "1450",
+     "icmp",
+     "jumbo",
+     "underlay",
+     "carrier",
+     "smallest",
+     "probe"
+    ],
+    "minWords": 100
+   },
+   "concepts": [
+    "path-mtu",
+    "nat-and-middleboxes"
+   ],
+   "tags": [
+    "path-mtu",
+    "nat-and-middleboxes"
+   ],
+   "explain": "The path MTU is the smallest link along the path, so raising it at one end changes nothing about the carrier circuit in the middle and makes the sender build even larger packets for a path that could not carry the old ones. The fix belongs where the path narrows: clamp the MSS at the tunnel endpoint so both endpoints negotiate a segment size the tunnel can actually carry, and stop filtering the ICMP that would let discovery work at all. The proposal is tempting because jumbo frames genuinely do help inside a data centre you own end to end, which is exactly the condition that fails here.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-ar-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A capture taken at the server during a transfer users describe as broken:\n\n`12:10:00.000  server > client  seq  5001: 6461`\n`12:10:00.002  server > client  seq  7921: 9381`\n`12:10:00.003  server > client  seq  9381:10841`\n`12:10:00.041  client > server  ack  6461`\n`12:10:00.042  client > server  ack  6461`\n`12:10:00.043  client > server  ack  6461`\n`12:10:00.044  client > server  ack  6461`\n`12:10:00.045  server > client  seq  6461: 7921`\n`12:10:00.086  client > server  ack 12301`\n\nSay what actually happened on this connection, and whether it explains the complaint.",
+   "answer": "one segment was lost and recovered by fast retransmit after three duplicate ACKs; the connection never stalled and this is not the cause of the complaint",
+   "rubric": {
+    "required": [
+     "dup",
+     "retransmi",
+     "los"
+    ],
+    "optional": [
+     "three",
+     "fast",
+     "cumulative",
+     "12301",
+     "ack",
+     "recover",
+     "timeout",
+     "cwnd"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "capture-reading",
+    "congestion-and-buffering"
+   ],
+   "tags": [
+    "capture-reading",
+    "congestion-and-buffering"
+   ],
+   "explain": "The segment beginning at 6461 never appears on the wire until 12:10:00.045, and the client's repeated ack 6461 is it saying so - a cumulative acknowledgement can only name the first missing byte, so later arrivals produce identical ACKs rather than higher ones. Three of those trigger fast retransmit, and the jump to ack 12301 proves the client had been holding everything else all along. Total cost: about 45 milliseconds and a halved window, so the user's complaint has another cause and the capture is evidence of TCP working. The tempting reading is that the four identical ACKs are the client retransmitting or the link duplicating packets.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-ar-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "A service must move to a new data centre next Tuesday at 02:00. Its name currently resolves to a single address with a TTL of 86400 seconds, and the business requires that a failed cutover be reversible within five minutes. Design the name-resolution plan: what you change and when, what the TTL is at each stage, how you decide the move has succeeded, and how you get back. State explicitly what your rollback time actually is at each point in the plan, and one thing DNS alone cannot give you here.",
+   "rubric": {
+    "required": [
+     "ttl",
+     "cach",
+     "rollback"
+    ],
+    "optional": [
+     "86400",
+     "60",
+     "300",
+     "lower",
+     "monitor",
+     "health",
+     "stale",
+     "anycast",
+     "resolv",
+     "drain"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "name-resolution",
+    "failure-modes"
+   ],
+   "tags": [
+    "name-resolution",
+    "failure-modes"
+   ],
+   "explain": "The TTL is the rollback horizon, and it is set by the value handed out before the change, not by the value in the zone at the moment you want to reverse - so the plan has to begin at least 86400 seconds early, lowering the TTL and waiting a full old TTL for the long-lived copies to age out. Only then does a five-minute reversal become possible, and only for clients that honour TTLs at all. What DNS cannot give you is control of connections already established, or of resolvers and applications that cache beyond the TTL, which is why the plan needs a drain at the old site rather than a hard cut.",
+   "xp": 220
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-9-x-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A single TCP flow crosses a 100 Mbit/s path with an 80 ms round trip. The receiver advertises a 64 KiB window - 65535 bytes - and window scaling is not in use. Give each value as a number only, to two decimal places where the answer is not whole.",
+   "steps": [
+    {
+     "label": "bandwidth-delay product of the path, in bytes",
+     "expected": "1000000"
+    },
+    {
+     "label": "maximum throughput of this flow, in Mbit/s",
+     "expected": "6.55"
+    },
+    {
+     "label": "the link utilisation this flow achieves, as a percentage",
+     "expected": "6.55"
+    },
+    {
+     "label": "smallest window-scale shift that lifts the window to at least the BDP",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "bandwidth-delay-product"
+   ],
+   "tags": [
+    "bandwidth-delay-product"
+   ],
+   "explain": "The path holds 100e6 x 0.080 / 8 = 1000000 bytes when full, and a sender limited to 65535 unacknowledged bytes can deliver only 65535 x 8 / 0.080 = 6.55 Mbit/s no matter how fast the link is. Utilisation is the same ratio expressed the other way, which is why the two numbers coincide. A shift of 4 multiplies the window by 16 to 1048560 bytes; a shift of 3 gives 524280, which is still under half the BDP.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-x-02",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A router's egress queue holds 256 packets of 1500 bytes and drains at 10 Mbit/s. A bulk transfer with loss-based congestion control shares the link with an interactive session. Compute the delay a full queue adds, explain why the bulk transfer fills it rather than settling below it, and say why enlarging the buffer makes the interactive session worse.",
+   "rubric": {
+    "required": [
+     "queu",
+     "delay",
+     "drop"
+    ],
+    "optional": [
+     "307",
+     "0.3",
+     "aqm",
+     "codel",
+     "bufferbloat",
+     "loss",
+     "signal",
+     "ecn",
+     "mark",
+     "latency"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "congestion-and-buffering"
+   ],
+   "tags": [
+    "congestion-and-buffering"
+   ],
+   "explain": "256 x 1500 x 8 / 10e6 = 0.307 seconds of standing queue, and every interactive packet waits behind all of it. A loss-based sender grows its window until something is dropped, so a deep buffer simply postpones the only signal it understands - the queue is not an accident but the direct consequence of the control loop. Enlarging it therefore buys more delay before the same drop, which is why the fix is a queue discipline that drops or marks early rather than more memory.",
+   "xp": 44
+  },
+  {
+   "id": "net-9-x-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Six thousand workstations reach the internet through a single NAT address. Between 09:00 and 09:20 each morning, new connections fail intermittently for everyone - some succeed at once, some fail three times and then work - while connections already established are unaffected throughout. The upstream link runs at 30% utilisation the whole time. Name the mechanism and prescribe the fix.",
+   "answer": "NAT port exhaustion: the pool of translation ports for the single external address runs out during the morning peak",
+   "rubric": {
+    "required": [
+     "nat",
+     "port",
+     "exhaust"
+    ],
+    "optional": [
+     "65535",
+     "pool",
+     "address",
+     "translat",
+     "mapping",
+     "timeout",
+     "ipv6",
+     "utilis"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "nat-and-middleboxes",
+    "failure-modes"
+   ],
+   "tags": [
+    "nat-and-middleboxes",
+    "failure-modes"
+   ],
+   "explain": "One external address offers a finite number of ports, and each concurrent flow consumes one, so a login peak exhausts the pool while the link itself is barely loaded - which is why bandwidth graphs show nothing. Established flows already hold their mappings and are untouched, and that asymmetry is the fingerprint. The fix is more external addresses in the pool, shorter mapping timeouts for finished flows, or removing the translation altogether with IPv6. The tempting diagnosis is congestion, but 30% utilisation rules it out.",
+   "xp": 88
+  },
+  {
+   "id": "net-9-x-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A team serving forty small objects per page over one HTTP/2 connection to mobile users measures 2% packet loss and asks whether HTTP/3 over QUIC would help. Explain what changes and what does not, in terms of what one lost packet costs under each.",
+   "rubric": {
+    "required": [
+     "head",
+     "stream",
+     "loss"
+    ],
+    "optional": [
+     "order",
+     "quic",
+     "block",
+     "retransmi",
+     "independ",
+     "handshake",
+     "udp",
+     "congest"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "transport-selection"
+   ],
+   "tags": [
+    "transport-selection"
+   ],
+   "explain": "TCP delivers one ordered byte stream, so a lost segment holds back every byte behind it regardless of which object those bytes belong to - forty objects stall for one repair. QUIC's streams are independent, so only the object that lost a packet waits. What does not change is the loss itself or the congestion response: the same packet is still lost and the sender still slows down, so QUIC removes the collateral stall rather than the cost of the loss. The tempting overstatement is that QUIC is simply faster, which is not what the mechanism says.",
+   "xp": 44
+  },
+  {
+   "id": "net-9-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A recursive resolver with an empty cache is asked for `shop.eu.example.com`. Put the steps into the order they happen.",
+   "fragments": [
+    "the stub resolver on the client sends the query to its configured recursive resolver",
+    "the recursive resolver asks a root server and is referred to the .com servers",
+    "the recursive resolver asks a .com server and is referred to the example.com servers",
+    "the recursive resolver asks an example.com server and is referred to the eu.example.com servers",
+    "the recursive resolver asks an eu.example.com server and receives the authoritative answer",
+    "the recursive resolver caches the record for its TTL and answers the stub"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "name-resolution"
+   ],
+   "tags": [
+    "name-resolution"
+   ],
+   "explain": "The work is split: the stub asks one recursive question, and the resolver does the iterative walk down the delegation chain, one referral per label boundary. The tempting error is to imagine the root returning the answer or the client walking the chain itself - the root knows only who serves .com, and the stub is deliberately too simple to follow a referral.",
+   "xp": 44
+  },
+  {
+   "id": "net-9-x-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are handed a report that says only: users on one branch office network cannot use the application, everyone else is fine. Describe the order in which you would establish facts, and for each check say what a failure at that point would prove and what it would rule out. Then say why running the checks in the other order costs you time.",
+   "rubric": {
+    "required": [
+     "gateway",
+     "address",
+     "resolv",
+     "transport"
+    ],
+    "optional": [
+     "layer",
+     "route",
+     "halve",
+     "bisect",
+     "rst",
+     "mtu",
+     "filter",
+     "order"
+    ],
+    "minWords": 80
+   },
+   "concepts": [
+    "layered-diagnosis"
+   ],
+   "tags": [
+    "layered-diagnosis"
+   ],
+   "explain": "Each layer's evidence is only meaningful once the layers beneath it are proven, so a resolution result gathered before the gateway is reachable tells you nothing you can rely on later and usually has to be gathered again. Working upwards also makes each check discard a whole region of the search space rather than one hypothesis - reaching a host beyond the gateway by address settles link, addressing and routing in one move. That the fault is confined to one branch is itself evidence: whatever differs about that branch's path, resolver or filtering is where the answer lives.",
+   "xp": 44
+  },
+  {
+   "id": "net-9-x-07",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the sizes that govern fragmentation and segment sizing on an ordinary Ethernet path. Answer with numbers only.",
+   "template": "An IPv4 header with no options is ___ bytes, so on a 1500-byte MTU a TCP segment carrying no options has an MSS of ___ bytes, and the fragment offset field counts in units of ___ bytes.",
+   "blanks": [
+    "20",
+    "1460",
+    "8"
+   ],
+   "concepts": [
+    "path-mtu"
+   ],
+   "tags": [
+    "path-mtu"
+   ],
+   "explain": "1500 minus a 20-byte IP header and a 20-byte TCP header leaves 1460 for data, which is why 1460 appears in almost every capture of an Ethernet path. The offset field is only 13 bits, so it counts eight-byte units to reach 65535 bytes, and that is why every fragment except the last must carry a multiple of eight.",
+   "xp": 44
+  },
+  {
+   "id": "net-9-x-08",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A single-flow transfer between two data centres 80 ms apart runs at 6.55 Mbit/s over a 100 Mbit/s circuit. The proposal on the table is to upgrade the circuit to 1 Gbit/s, at ten times the cost. Judge the proposal, predict the throughput after the upgrade, and prescribe what to do instead.",
+   "rubric": {
+    "required": [
+     "window",
+     "bandwidth",
+     "product"
+    ],
+    "optional": [
+     "scal",
+     "rtt",
+     "round",
+     "65535",
+     "6.55",
+     "parallel",
+     "unchang",
+     "buffer",
+     "delay"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "bandwidth-delay-product",
+    "failure-modes"
+   ],
+   "tags": [
+    "bandwidth-delay-product",
+    "failure-modes"
+   ],
+   "explain": "Throughput after the upgrade is 6.55 Mbit/s, exactly as before, because the flow is limited by a 65535-byte window divided by an 80 ms round trip and neither term changes when the circuit does. The bandwidth-delay product rises to 10 megabytes, so the flow now uses 0.65% of the link instead of 6.55%. The fixes are window scaling with adequate socket buffers at both ends, or several parallel flows if an endpoint genuinely cannot be changed. The proposal is tempting because the utilisation figure looks like a capacity problem, and the arithmetic is the only thing that says otherwise.",
+   "xp": 88
+  }
+ ]
+}

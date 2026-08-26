@@ -1,0 +1,1046 @@
+{
+ "n": 2,
+ "name": "The Wire and the Frame",
+ "cognitiveLevel": "recognition",
+ "concepts": [
+  "bit-encoding",
+  "framing",
+  "bit-stuffing",
+  "parity",
+  "internet-checksum",
+  "crc",
+  "mac-address",
+  "ethernet-frame",
+  "csma-cd",
+  "collision-domain",
+  "learning-switch",
+  "broadcast-domain"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "frame-workshop",
+  "wire-and-switch",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Bits, clocks, and getting them onto a wire",
+    "body": "A link carries a continuous signal - a voltage on copper, light in a fibre, a modulated radio wave - and the adaptor at each end must agree on how that signal spells out bits. The obvious scheme is **NRZ**, non-return to zero: hold the line high for a 1 and low for a 0. It is simple, it wastes nothing, and it fails in two related ways as soon as the data is unkind.\n\nThe first failure is **baseline wander**. A receiver separates high from low by comparing the incoming signal against a running average of what it has recently seen, and a long run of identical bits drags that average towards the signal itself until the threshold no longer discriminates. The second failure is worse: **clock recovery**. There is no separate wire carrying a clock, so the receiver recovers the bit boundaries from the transitions in the data itself. A long run with no transitions lets its sampling clock drift, and a drifted receiver does not merely misread a bit - it miscounts how many bits went past.\n\n**NRZI** fixes half of it: encode a 1 as a transition at the start of the bit period and a 0 as no transition. Runs of 1s now generate transitions; runs of 0s still do not. **Manchester** fixes all of it by transmitting the exclusive-or of the data with the clock, so a 1 becomes a low-to-high transition in the middle of the bit period and a 0 a high-to-low one. Every bit carries a transition and the clock can never drift. The price is that the signal changes at twice the bit rate: 10 Mbps Manchester Ethernet consumes 20 Mbaud of the link's signalling capacity, an **encoding efficiency of 50%**.\n\n**4B/5B** buys almost the same guarantee for a fifth of the cost. Every 4 data bits are looked up in a table that emits 5 code bits, and the 16 codes chosen are those with at most one leading 0 and at most two trailing 0s - so however they are concatenated, a run of more than three 0s cannot occur. The 5-bit codes are then sent as NRZI, where the guaranteed 1s guarantee transitions. Efficiency is 80%, and the 16 codes left over are free for control signals such as idle and end-of-stream. The pattern is worth naming, because it recurs on every floor above this one: the medium is dumb, so the encoding pays a tax in bandwidth to buy a property the medium will not provide.",
+    "code": "Bit sent            0      1      1      0      1      0      0      1\n\nNRZ level          low   high   high    low   high    low    low   high\nNRZI level         low   high    low    low   high   high   high    low\nManchester          HL     LH     LH     HL     LH     HL     HL     LH\n\n  NRZI starts low here; a 1 flips the level, a 0 leaves it where it is.\n  HL means high for the first half of the bit period, low for the second.\n\nLongest stretch with no transition, in this byte:\n\n  NRZ          2 bit times (bits 6 and 7, both low) - unbounded in general\n  NRZI         3 bit times (bits 5, 6, 7, all high) - unbounded on a run of 0s\n  Manchester   never more than 1 bit time, by construction\n\nWhat each one costs:\n\n  NRZ           1 signal element per bit    100% efficient, no clock at all\n  Manchester    2 signal elements per bit    50% efficient, clock guaranteed\n  4B/5B + NRZI  5 code bits per 4 data bits  80% efficient, at most three 0s",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The same data, one flip rule. NRZI's level column is not the data - it is a running exclusive-or of every 1 seen so far, which is why a single lost transition corrupts everything after it."
+     },
+     {
+      "line": 13,
+      "text": "This is NRZI's admission of defeat. It bounds runs of 1s and does nothing whatsoever about runs of 0s, which is precisely the gap 4B/5B was invented to close."
+     },
+     {
+      "line": 19,
+      "text": "Half the link's signalling capacity spent on a clock. That was affordable at 10 Mbps and stopped being affordable at 100, which is why 100BASE-TX uses 4B/5B instead."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "An NRZI transmitter is sitting at the **low** level and sends the bits `1 1 0 1 0 0 1 1`. Give the signal level during each bit period as `low` or `high`.",
+     "steps": [
+      {
+       "label": "bit 1 (a 1)",
+       "expected": "high"
+      },
+      {
+       "label": "bit 2 (a 1)",
+       "expected": "low"
+      },
+      {
+       "label": "bit 3 (a 0)",
+       "expected": "low"
+      },
+      {
+       "label": "bit 4 (a 1)",
+       "expected": "high"
+      },
+      {
+       "label": "bit 6 (a 0)",
+       "expected": "high"
+      },
+      {
+       "label": "bit 7 (a 1)",
+       "expected": "low"
+      },
+      {
+       "label": "bit 8 (a 1)",
+       "expected": "high"
+      }
+     ],
+     "concepts": [
+      "bit-encoding"
+     ],
+     "explain": "The level is not the bit. Bit 2 is a 1 and yet the line reads low, because NRZI encodes a 1 by changing whatever level it happens to be at. The tempting answer is to read the level column straight off the data, which is NRZ, not NRZI - and it is exactly the confusion that makes the two schemes look interchangeable when they are not.",
+     "xp": 30,
+     "tags": [
+      "bit-encoding"
+     ]
+    }
+   },
+   {
+    "title": "Where a frame begins, and what is inside it",
+    "body": "The physical layer delivers a stream of bits and no opinion about where anything starts. **Framing** is the link layer's job of chopping that stream into units the receiver can checksum, address and discard as a whole. Three families of answer exist, and Ethernet uses two of them at once.\n\nThe first is a **sentinel**: reserve a bit pattern as a flag and put it at both ends. HDLC uses `01111110`, and then has to guarantee the payload never contains it - so the sender **bit stuffs**, inserting a 0 after every five consecutive 1 bits, and the receiver removes any 0 that follows five 1s. Six 1s in a row therefore cannot occur in the data, which makes the flag unmistakable. PPP does the same thing a byte at a time: the flag `0x7E` and the escape `0x7D` are each sent as `0x7D` followed by the byte exclusive-ored with `0x20`. Both schemes cost payload, and both cost it in proportion to how unlucky the data is.\n\nThe second answer is a **length count** in a header. It is cheaper - no stuffing, no expansion - and it is brittle in a way sentinels are not: corrupt the length and the receiver does not lose one frame, it loses the boundary, and every frame after it until something resynchronises. That is why a length field is always paired with a sentinel or a preamble that lets the receiver find its feet again.\n\nEthernet's answer is a **preamble**: seven bytes of `10101010` giving the receiver 56 bit times of guaranteed transitions to lock its clock onto, then the start-of-frame delimiter `10101011`, whose doubled 1 breaks the pattern and says the next bit belongs to the frame. The end is marked by the carrier simply going idle. Note what the 64-to-1518 byte limits do and do not count: the preamble and delimiter belong to the physical layer and sit outside the frame, while the 4-byte frame check sequence is inside it. A payload shorter than 46 bytes is **padded** up to 46, so a 22-byte datagram travels in a 64-byte frame with 24 bytes of nothing.\n\nThe addresses are 48 bits, written as twelve hexadecimal digits, and they are **flat**: the top 24 bits identify the adaptor's manufacturer and the bottom 24 the adaptor itself, and neither says anything about where that adaptor is. The least significant bit of the first octet distinguishes a group address from an individual one, the next bit marks a locally administered address, and all ones is the broadcast address. Flatness is what makes MAC addresses work on a link and useless across the world - nothing can be aggregated, so a forwarding table needs one row per station, which is exactly the wall the next floor runs into.",
+    "code": "Ethernet (DIX) frame - the number under each field is its length in bytes\n\n  +----------+-----+--------+--------+------+---------------+-----+\n  | preamble | SFD |  dest  |  src   | type |    payload    | FCS |\n  |    7     |  1  |   6    |   6    |  2   |   46 .. 1500  |  4  |\n  +----------+-----+--------+--------+------+---------------+-----+\n   \\___ physical layer ___/  \\______ the 64 .. 1518 byte frame ____/\n\n  preamble  10101010, seven times - 56 bit times for the receiver to lock on\n  SFD       10101011 - the doubled 1 at the end says the frame starts now\n  dest/src  48-bit MAC addresses\n  type      0x0800 IPv4, 0x0806 ARP, 0x86DD IPv6\n  FCS       a CRC-32 remainder computed over dest .. payload\n\n  A 22-byte payload is padded up to 46, giving 14 + 46 + 4 = 64 bytes.\n\nSentinel framing, the other way to find a boundary\n\n  HDLC   flag 01111110; sender inserts a 0 after five consecutive 1 bits\n         data  0 111111111111 10        (a 16-bit run-heavy payload)\n         sent  0 11111 0 11111 0 1111 0  (18 bits: two 0s stuffed in)\n\n  PPP    flag 0x7E, escape 0x7D; an escaped byte is sent xor 0x20\n         data  48 7E 7D 5E\n         sent  48 7D 5E 7D 5D 5E        (the trailing 5E is ordinary data)\n\nMAC address 00:1b:63:84:45:e6 - first octet 00000000\n\n  bits 47..24        organisationally unique identifier, one block per vendor\n  bit 0 of octet 1   1 = group/multicast, 0 = individual   -> individual\n  bit 1 of octet 1   1 = locally administered, 0 = global  -> global\n  ff:ff:ff:ff:ff:ff  every station on the link",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The bracket is the whole point of the 64-byte minimum: the preamble and delimiter are not part of the frame, are not covered by the frame check sequence, and are not counted in any of the size limits."
+     },
+     {
+      "line": 15,
+      "text": "The pad carries no length of its own. Ethernet cannot tell the receiver how many of those 46 bytes are real, so the protocol named in the type field - IP, here - has to carry its own length and ignore the rest."
+     },
+     {
+      "line": 25,
+      "text": "The final 5E is data and is sent bare. Only a byte that actually equals the flag or the escape is escaped, which is why the escaped stream grows by exactly the number of such bytes and not one more."
+     },
+     {
+      "line": 30,
+      "text": "One bit decides whether an adaptor that is not the addressee should keep reading. Broadcast is just the extreme case of a group address, with every bit of all six octets set."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the framing rules. Write the flag as a bit string and the byte count as a plain number.",
+     "template": "HDLC delimits a frame with the flag ___ and stops it appearing in the payload by inserting a ___ bit after every five consecutive 1 bits.\nPPP instead precedes a flag byte in the payload with an ___ byte, and sends the flag exclusive-ored with 0x20.\nEthernet's preamble is ___ bytes of alternating 1s and 0s, and the start-of-frame delimiter that follows it ends in ___.",
+     "blanks": [
+      "01111110",
+      "0",
+      "escape",
+      "7",
+      "11"
+     ],
+     "concepts": [
+      "framing",
+      "bit-stuffing"
+     ],
+     "explain": "Stuffing after five 1s rather than six is what makes the rule decidable: a receiver that has just counted five 1s knows the next bit is either a stuffed 0 it must drop or the second half of a flag, and no third possibility exists. The delimiter's doubled 1 works the same way - it is the first break in a pattern the receiver has been staring at for 56 bit times.",
+     "xp": 30,
+     "tags": [
+      "framing",
+      "bit-stuffing",
+      "ethernet-frame"
+     ]
+    }
+   },
+   {
+    "title": "Deciding whether the bits survived",
+    "body": "Every error-detecting code is the same bargain: send $k$ bits of redundancy alongside the data so that the corrupted messages the receiver might see are, with luck, not valid codewords. No code detects everything - $k$ extra bits can only carve the space of received strings so finely - so the question is always which errors you have bought protection against, and at what price.\n\nA single **parity** bit, set so the total number of 1s is even, detects any odd number of flips and misses every even one, which is a poor bargain on a medium whose errors arrive in bursts. **Two-dimensional parity** arranges the data in a grid and parities every row and every column. It detects all one-, two- and three-bit errors, and for a single flip the failing row and the failing column intersect at exactly one cell, so the error can be **corrected** rather than merely noticed. The cost is one bit per row plus one per column.\n\nThe **Internet checksum** treats the data as 16-bit words, adds them in ones' complement arithmetic - every carry out of the top folds back in at the bottom - and transmits the complement of the sum. The receiver adds everything including the checksum and expects all ones. It is cheap enough to compute in software, it protects the IP header and the UDP and TCP headers, and it is weak: any pair of errors that cancels in the sum sails straight through, and swapping two whole words does not change the sum at all.\n\nA **CRC** is the strong one. Treat the $n$ message bits as the coefficients of a polynomial over the field with two elements, append $r$ zeros, divide by an agreed degree-$r$ generator polynomial using exclusive-or in place of subtraction, and send the $r$-bit remainder. A well-chosen generator detects every single-bit error, every double-bit error, every odd number of errors when $x+1$ divides the generator, and **every burst of fewer than $r+1$ bits** - which is exactly the error pattern a physical medium actually produces. Ethernet's CRC-32 costs 4 bytes per frame and, decisively, is a shift register in hardware, so an adaptor computes it at line rate without a processor ever being told. That division of labour is why the strong code lives on the link and the weak one lives in software at the transport layer: they are not competing, they are protecting different things over different distances.",
+    "code": "CRC: message M = 10011010, generator G = 1101 (x^3 + x^2 + 1, so r = 3)\n\n  append r zeros:  10011010 000\n  walk left to right; where the leading bit is 1, XOR G in at that position\n\n    pos 1   1 -> XOR    01001010000\n    pos 2   1 -> XOR    00100010000\n    pos 3   1 -> XOR    00010110000\n    pos 4   1 -> XOR    00001100000\n    pos 5   1 -> XOR    00000001000\n    pos 6   0 -> skip   00000001000\n    pos 7   0 -> skip   00000001000\n    pos 8   1 -> XOR    00000000101\n\n  CRC = 101      transmitted frame = 10011010 101\n  The receiver divides 10011010101 by 1101 and expects remainder 000.\n\nInternet checksum: 16-bit words, ones' complement sum, then complemented\n\n  f6eb + 2c7a = 12365  -> fold the carry back in -> 2366\n  2366 + 8b1f = ae85\n  ae85 + a103 = 14f88  -> fold -> 4f89\n  checksum    = complement of 4f89 = b076\n\n  receiver: f6eb + 2c7a + 8b1f + a103 + b076 = ffff, which is ones'\n  complement zero. Any other value means the header was damaged.\n\nTwo-dimensional parity, even, five rows of seven data bits\n\n    1011011 | 1\n    0101100 | 1\n    1100110 | 0\n    1001111 | 1\n    0110001 | 1\n    ........|..\n    1101111 | 0\n\n  Flip one bit and exactly one row parity and one column parity fail;\n  their intersection names the bit, so a single error is corrected.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Nothing happens at a 0. Learners who XOR at every position get a plausible-looking wrong remainder, and the frame then fails at a receiver that did the division properly."
+     },
+     {
+      "line": 16,
+      "text": "The remainder is not compared, it is expected to vanish. Appending it makes the transmitted string an exact multiple of the generator, so anything non-zero at the far end is damage."
+     },
+     {
+      "line": 25,
+      "text": "All ones, not zero. In ones' complement arithmetic ffff and 0000 are both zero, and checking for ffff is exactly what the complement at the sender was arranged to produce."
+     },
+     {
+      "line": 39,
+      "text": "Correction falls out of the geometry rather than from extra cleverness. It is also the limit of the scheme: two flips in one row give two failing columns and no unique intersection."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Compute two-dimensional **even** parity over these five rows of seven bits.\n\n`1011011`\n`0101100`\n`1100110`\n`1001111`\n`0110001`\n\nA parity bit is 1 when the number of 1s it covers is odd. Give single bits, or the seven column bits as one string.",
+     "steps": [
+      {
+       "label": "parity bit for row 1",
+       "expected": "1"
+      },
+      {
+       "label": "parity bit for row 3",
+       "expected": "0"
+      },
+      {
+       "label": "parity bit for column 3",
+       "expected": "0"
+      },
+      {
+       "label": "the seven column parity bits, left to right",
+       "expected": "1101111"
+      },
+      {
+       "label": "the corner bit, the parity of the column parity row",
+       "expected": "0"
+      }
+     ],
+     "concepts": [
+      "parity"
+     ],
+     "explain": "Row 3 is `1100110`, which holds four 1s - an even count already, so its parity bit is 0 and adds nothing. The corner bit can be computed down the column-parity row or across the row-parity column and must come out the same either way; that it always agrees is the consistency a receiver leans on when it decides which single cell to flip.",
+     "xp": 40,
+     "tags": [
+      "parity"
+     ]
+    }
+   },
+   {
+    "title": "One wire, many talkers - and then no wire at all",
+    "body": "Classic Ethernet was a single coaxial cable with every station tapped onto it, so the hard question was not addressing but taking turns. **CSMA/CD** is the answer, and it is entirely opportunistic: sense the carrier and wait for the medium to go idle, start transmitting, and keep listening while you do. If another station's signal appears on the wire, abort at once, send a 32-bit **jam** so every station agrees a collision happened, and back off.\n\nThe backoff is **exponential**: after the $n$-th consecutive collision the station waits a random number of slot times drawn uniformly from $0$ to $2^n - 1$, doubling the range each time, freezing it at 1023 slots and abandoning the frame after 16 attempts. The randomness breaks the symmetry that caused the collision in the first place; the doubling lets the algorithm adapt to a load it cannot measure, because the collisions themselves are the measurement.\n\nThe whole scheme rests on one number. A slot time is **512 bit times**, or 51.2 microseconds at 10 Mbps, chosen as an upper bound on the round-trip propagation delay of the largest legal network. The **minimum frame is 512 bits** - the same number - because a station must still be transmitting when the worst-case collision signal returns; a shorter frame could complete, hear nothing, and report success on a frame that was destroyed. The maximum cable length and the minimum frame size are therefore not two rules but one, and a segment stretched past the budget produces a **late collision**: a real collision detected after the sender has stopped looking. The set of stations that can collide with one another is a **collision domain**, and on a shared cable or a hub it is everybody.\n\nA **switch**, historically a learning bridge, dissolves the problem instead of managing it. It keeps a **forwarding table** of MAC address to port, and it builds that table by watching: every frame arriving on a port teaches it that the frame's **source** address is reachable that way. When a frame arrives it looks up the **destination** - forward out of the one port if the address is known, flood out of every port except the arrival port if it is not, and flood a broadcast or multicast always. The table is pure optimisation: an empty table forwards correctly and merely wastefully, entries age out after a few minutes so a moved host is relearned, and nothing has to be configured by anyone.\n\nWhat changes is the domain structure. Each switch port is its own collision domain, so a full-duplex switched link has no contention at all and CSMA/CD becomes vestigial hardware nobody exercises. What does not change is broadcast: a switch floods `ff:ff:ff:ff:ff:ff` everywhere by design, so the whole switched LAN remains one **broadcast domain**. Only a router - or a VLAN boundary, which is a router's job done inside the switch - stops it. That is the sentence worth keeping: switches divide collision domains, routers divide broadcast domains.",
+    "code": "CSMA/CD at 10 Mbps - the first two numbers are the same number\n\n  slot time       512 bit times = 51.2 us\n  minimum frame   512 bits = 64 bytes\n  jam             32 bits, sent once a collision is detected\n  backoff         wait k slot times, k uniform in 0 .. 2^n - 1\n                  n is the attempt number, capped at 10; abandon after 16\n  interframe gap  96 bit times = 9.6 us\n\n  A station still transmitting after 512 bits has had time for its signal\n  to reach the far end and for a collision to come back. Send a shorter\n  frame and it could finish, hear silence, and be wrong.\n\nLearning switch, 5 ports, table starts empty\n\n  event                  learns   destination lookup   action\n  P(1) -> Q              P = 1    Q unknown            flood 2,3,4,5\n  R(3) -> P              R = 3    P = 1                forward 1\n  Q(2) -> ff:ff:...:ff   Q = 2    broadcast            flood 1,3,4,5\n  S(4) -> R              S = 4    R = 3                forward 3\n\n  Learning reads the SOURCE address. Forwarding reads the DESTINATION.\n  A silent station is never learned, so traffic to it is flooded forever.\n\nWhere the domains end\n\n  hub port      same collision domain, same broadcast domain\n  switch port   own collision domain,  same broadcast domain\n  router port   own collision domain,  own broadcast domain",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Two rules that are one rule. Anyone who treats 64 bytes as an arbitrary constant will be unable to say why gigabit Ethernet had to invent carrier extension to keep a shared-medium mode legal at all."
+     },
+     {
+      "line": 7,
+      "text": "The cap matters as much as the doubling. Without it a badly congested segment would push waits into whole seconds; with it the algorithm gives up instead, and leaves the loss to a layer that can retransmit sensibly."
+     },
+     {
+      "line": 22,
+      "text": "Two different fields of the same frame, read for two different purposes. Reversing them is the commonest error in this material and builds a table that is confidently wrong."
+     },
+     {
+      "line": 29,
+      "text": "The whole floor in three rows. A hub separates nothing, a switch separates collisions, and only a router separates broadcasts."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A 3-port switch starts with an empty table. `H1` is on port 1, `H2` on port 2, `H3` on port 3. For each frame give the action as `forward to P` for a single port, or `flood to P,Q` with the ports in ascending order.",
+     "steps": [
+      {
+       "label": "H1 sends to H2",
+       "expected": "flood to 2,3"
+      },
+      {
+       "label": "H2 sends to H1",
+       "expected": "forward to 1"
+      },
+      {
+       "label": "H3 sends to ff:ff:ff:ff:ff:ff",
+       "expected": "flood to 1,2"
+      },
+      {
+       "label": "H1 sends to H3",
+       "expected": "forward to 3"
+      }
+     ],
+     "concepts": [
+      "learning-switch"
+     ],
+     "explain": "The second frame is already forwarded rather than flooded, because the first frame taught the switch that H1 lives on port 1 - learning always runs one frame ahead of forwarding. The third is flooded even though H3's own address is now known, because a broadcast destination is never in the table and never can be.",
+     "xp": 40,
+     "tags": [
+      "learning-switch",
+      "broadcast-domain"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-2-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the four encoding rules. Give the efficiency as a plain number without a percent sign.",
+   "template": "NRZ sends a 1 as a ___ signal level and a 0 as a low one.\nNRZI sends a 1 as a ___ at the start of the bit period, and a 0 as nothing at all.\nManchester transmits the exclusive-or of the data with the ___, so every bit carries a transition.\n4B/5B maps every ___ data bits onto 5 code bits, an efficiency of ___%.",
+   "blanks": [
+    "high",
+    "transition",
+    "clock",
+    "4",
+    "80"
+   ],
+   "concepts": [
+    "bit-encoding"
+   ],
+   "tags": [
+    "bit-encoding"
+   ],
+   "xp": 20,
+   "explain": "The four schemes are one axis rather than four ideas: how much signalling capacity are you willing to spend to guarantee transitions? NRZ spends nothing and guarantees nothing, Manchester spends half the link and guarantees a transition in every bit, and 4B/5B spends a fifth to bound the worst run at three."
+  },
+  {
+   "id": "net-2-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "An HDLC sender bit stuffs the payload `1111111111` - ten 1 bits - and places it between two `01111110` flags. Give plain numbers, or a bit string where one is asked for.",
+   "steps": [
+    {
+     "label": "the field actually sent between the flags",
+     "expected": "111110111110"
+    },
+    {
+     "label": "1-based position of the first inserted 0 within that field",
+     "expected": "6"
+    },
+    {
+     "label": "how many 0 bits the sender inserted altogether",
+     "expected": "2"
+    },
+    {
+     "label": "the longest run of 1s anywhere in the transmitted field",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "bit-stuffing",
+    "framing"
+   ],
+   "tags": [
+    "bit-stuffing",
+    "framing"
+   ],
+   "xp": 40,
+   "explain": "The count resets after each insertion, so the second stuffed 0 arrives five 1s later rather than at the sixth 1 of the original run. The longest surviving run of 1s is five by construction, and that is the entire guarantee the flag depends on: six 1s in a row can now only be a flag."
+  },
+  {
+   "id": "net-2-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Compute the Internet checksum over the four 16-bit words `f6eb`, `2c7a`, `8b1f`, `a103`. Add in ones' complement - fold any carry out of bit 15 back into bit 0 - and give every answer as four lower-case hex digits with no `0x`.",
+   "steps": [
+    {
+     "label": "running sum after f6eb",
+     "expected": "f6eb"
+    },
+    {
+     "label": "running sum after 2c7a",
+     "expected": "2366"
+    },
+    {
+     "label": "running sum after 8b1f",
+     "expected": "ae85"
+    },
+    {
+     "label": "running sum after a103",
+     "expected": "4f89"
+    },
+    {
+     "label": "the checksum placed in the header",
+     "expected": "b076"
+    },
+    {
+     "label": "the sum the receiver gets over all five words",
+     "expected": "ffff"
+    }
+   ],
+   "concepts": [
+    "internet-checksum"
+   ],
+   "tags": [
+    "internet-checksum"
+   ],
+   "xp": 40,
+   "explain": "Two of these additions carry out of bit 15, and the carry is added back in at the bottom rather than discarded - that folding is what makes the arithmetic ones' complement instead of ordinary modular addition. Answering `4f89` for the checksum is the usual slip: the sender transmits the complement, precisely so that the receiver's total comes to all ones."
+  },
+  {
+   "id": "net-2-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put one station's CSMA/CD transmission attempt into the order the algorithm performs it, starting from the moment it has a frame ready.",
+   "fragments": [
+    "sense the carrier and wait until the medium has been idle for the interframe gap",
+    "begin transmitting the frame while continuing to listen to the wire",
+    "detect another station's signal superimposed on your own",
+    "abort the frame immediately and send a 32-bit jam sequence",
+    "draw a random number of slot times from 0 up to 2 to the power of the attempt count, minus one",
+    "wait that many slot times, then go back to sensing the carrier"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "csma-cd"
+   ],
+   "tags": [
+    "csma-cd",
+    "collision-domain"
+   ],
+   "xp": 20,
+   "explain": "The jam comes before the backoff rather than after it, because its purpose is to make every other station on the segment agree that a collision occurred, not to reserve anything. Putting the backoff first also breaks the timing argument: the wait is counted in slot times from the collision, not from some later moment of the station's choosing."
+  }
+ ],
+ "frame-workshop": [
+  {
+   "id": "net-2-f-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Compute the CRC of the message `11010011101100` with the generator `1011`, which is $x^3 + x + 1$, so $r = 3$.\n\nAppend $r$ zeros, then walk left to right across the register, exclusive-oring the generator in at every position whose leading bit is 1. Give bit strings with all their leading zeros.",
+   "steps": [
+    {
+     "label": "the dividend before any XOR",
+     "expected": "11010011101100000"
+    },
+    {
+     "label": "how many bits long that dividend is",
+     "expected": "17"
+    },
+    {
+     "label": "the 3-bit CRC remainder",
+     "expected": "100"
+    },
+    {
+     "label": "the frame actually transmitted",
+     "expected": "11010011101100100"
+    },
+    {
+     "label": "the remainder the receiver computes on an undamaged frame",
+     "expected": "000"
+    }
+   ],
+   "concepts": [
+    "crc"
+   ],
+   "tags": [
+    "crc",
+    "framing"
+   ],
+   "xp": 40,
+   "explain": "Appending the remainder rather than comparing it is the trick worth keeping: it makes the transmitted string an exact multiple of the generator, so the receiver runs the identical division and only has to ask whether the answer is zero. A non-zero remainder at the far end is damage, and with a degree-3 generator no burst shorter than four bits can produce zero by accident."
+  },
+  {
+   "id": "net-2-f-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An HDLC receiver has locked onto a frame. Between the two `01111110` flags it reads the 18 bits\n\n`011111011111011110`\n\nUn-stuff them. Positions are 1-based within that 18-bit field.",
+   "steps": [
+    {
+     "label": "position of the first 0 the receiver discards",
+     "expected": "7"
+    },
+    {
+     "label": "position of the second 0 the receiver discards",
+     "expected": "13"
+    },
+    {
+     "label": "how many bits are discarded in total",
+     "expected": "2"
+    },
+    {
+     "label": "the recovered payload",
+     "expected": "0111111111111110"
+    },
+    {
+     "label": "the length of the recovered payload in bits",
+     "expected": "16"
+    }
+   ],
+   "concepts": [
+    "bit-stuffing",
+    "framing"
+   ],
+   "tags": [
+    "bit-stuffing",
+    "framing"
+   ],
+   "xp": 40,
+   "explain": "The receiver does not search for stuffed bits, it counts: any 0 immediately following exactly five 1s is dropped with no further thought and the count restarts. That is why the second discarded bit sits at position 13 rather than five positions after the first - the five 1s that trigger it are the ones sent after the first insertion. Notice that the recovered payload holds fourteen consecutive 1s, which is exactly why it needed stuffing at all."
+  },
+  {
+   "id": "net-2-f-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An IP datagram of **22 bytes** is handed to a 10 Mbps Ethernet adaptor for delivery to `00:1b:63:84:45:e6`. Work out what goes on the wire. Give plain numbers, and the time in microseconds as a decimal.",
+   "steps": [
+    {
+     "label": "bytes of padding the adaptor adds",
+     "expected": "24"
+    },
+    {
+     "label": "size of the payload field after padding, in bytes",
+     "expected": "46"
+    },
+    {
+     "label": "total frame size as counted by the 64 to 1518 rule, in bytes",
+     "expected": "64"
+    },
+    {
+     "label": "byte offset at which the payload starts, counting the destination address as byte 1",
+     "expected": "15"
+    },
+    {
+     "label": "bytes on the wire including preamble and start-of-frame delimiter",
+     "expected": "72"
+    },
+    {
+     "label": "time to transmit the 64-byte frame at 10 Mbps, in microseconds",
+     "expected": "51.2"
+    }
+   ],
+   "concepts": [
+    "ethernet-frame",
+    "mac-address"
+   ],
+   "tags": [
+    "ethernet-frame",
+    "mac-address",
+    "csma-cd"
+   ],
+   "xp": 40,
+   "explain": "The padding is not politeness, it is the minimum frame rule enforced in bytes: 14 of header plus 46 of payload plus 4 of frame check sequence is exactly 64, 64 bytes is exactly 512 bits, and 512 bit times is exactly one slot time at 10 Mbps. Counting the preamble inside the 64 gives 56 bytes of payload and a wrong answer everywhere afterwards, because the preamble is physical-layer framing and is not covered by the frame check sequence."
+  },
+  {
+   "id": "net-2-f-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A block was sent with two-dimensional even parity: five rows of seven data bits, one parity bit per row, then a final row of column parity bits.\n\nSent, with each row's parity bit written after the bar:\n`1011011 | 1`\n`0101100 | 1`\n`1100110 | 0`\n`1001111 | 1`\n`0110001 | 1`\n`1101111 | 0`\n\nThe receiver reads row 3 as `1100010` and every other bit exactly as sent. Say which bit was corrupted, and how the receiver knows.",
+   "answer": "row 3, column 5 - the received 0 should be a 1",
+   "rubric": {
+    "required": [
+     "row",
+     "column",
+     "parit",
+     "bit"
+    ],
+    "optional": [
+     "intersect",
+     "correct",
+     "single",
+     "even",
+     "recompute"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "parity"
+   ],
+   "tags": [
+    "parity"
+   ],
+   "xp": 40,
+   "explain": "Recomputing row 3 over `1100010` gives an odd count of 1s, which disagrees with the stored row parity of 0; recomputing the columns gives `1101011`, which disagrees with the column row only at position 5. One failing row and one failing column intersect in exactly one cell, and that cell is the error - so this is a correction, not merely a detection. Two flips in the same row would leave two failing columns and no unique intersection, which is precisely where the scheme stops being able to repair anything."
+  },
+  {
+   "id": "net-2-f-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "The byte `10000001` is about to be sent. Reason about it under three encodings. The NRZI transmitter starts at the **low** level, and Manchester follows the usual convention that a 1 is a low-to-high transition at the midpoint of the bit period. Give levels as `low` or `high`, and everything else as a plain number.",
+   "steps": [
+    {
+     "label": "NRZI level during bit 1",
+     "expected": "high"
+    },
+    {
+     "label": "NRZI level during bit 7",
+     "expected": "high"
+    },
+    {
+     "label": "NRZI level during bit 8",
+     "expected": "low"
+    },
+    {
+     "label": "how many NRZI transitions occur across the whole byte",
+     "expected": "2"
+    },
+    {
+     "label": "how many midpoint transitions Manchester makes across the whole byte",
+     "expected": "8"
+    },
+    {
+     "label": "signalling rate Manchester needs to carry 10 Mbps, in Mbaud",
+     "expected": "20"
+    },
+    {
+     "label": "longest run of 0s that can occur anywhere in a 4B/5B code stream",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "bit-encoding"
+   ],
+   "tags": [
+    "bit-encoding",
+    "framing"
+   ],
+   "xp": 40,
+   "explain": "This byte is NRZI's worst case rather than its best: the six 0s in the middle produce no transitions at all, so the receiver's clock free-runs for six bit times and NRZI has bought nothing whatever. Manchester makes eight midpoint transitions and cannot drift, at the price of a doubled baud rate. 4B/5B splits the difference by making a run of more than three 0s unrepresentable, so the NRZI it feeds is safe by construction rather than by luck."
+  }
+ ],
+ "wire-and-switch": [
+  {
+   "id": "net-2-w-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 5-port switch starts with an empty forwarding table. `A` is on port 1, `B` on port 2, `C` on port 3, `D` on port 4, and port 5 is unused. The frames below arrive in this order. Answer `forward to P` for a single port, `flood to P,Q,...` with ports in ascending order, or a plain number where one is asked for.",
+   "steps": [
+    {
+     "label": "A sends to B",
+     "expected": "flood to 2,3,4,5"
+    },
+    {
+     "label": "C sends to A",
+     "expected": "forward to 1"
+    },
+    {
+     "label": "B sends to ff:ff:ff:ff:ff:ff",
+     "expected": "flood to 1,3,4,5"
+    },
+    {
+     "label": "D sends to C",
+     "expected": "forward to 3"
+    },
+    {
+     "label": "how many entries the table now holds",
+     "expected": "4"
+    },
+    {
+     "label": "A sends to D",
+     "expected": "forward to 4"
+    },
+    {
+     "label": "A is unplugged, moved to port 5, and sends to B",
+     "expected": "forward to 2"
+    },
+    {
+     "label": "the port the table now records for A",
+     "expected": "5"
+    }
+   ],
+   "concepts": [
+    "learning-switch",
+    "mac-address"
+   ],
+   "tags": [
+    "learning-switch",
+    "mac-address",
+    "broadcast-domain"
+   ],
+   "xp": 40,
+   "explain": "The move costs nothing, because learning is unconditional: the first frame A sends from port 5 overwrites the entry that said port 1, so the table is corrected immediately rather than waiting out the ageing timer. The two tempting wrong answers are flooding the broadcast to all five ports - the arrival port is always excluded - and forwarding the very first frame to port 2 because you know where B is. The switch does not know, until B has spoken."
+  },
+  {
+   "id": "net-2-w-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Two 10 Mbps coaxial segments were joined with a run of fibre, and the resulting shared medium is 6 km from end to end. Signals travel at about $2 \\times 10^8$ m/s. Stations report frames sent successfully that never arrive, and their late-collision counters climb steadily. Name the cause and show the timing that produces it.",
+   "answer": "the round-trip propagation delay exceeds the 51.2 microsecond slot time, so a collision arrives after a minimum-size frame has finished transmitting and the sender can no longer detect it",
+   "rubric": {
+    "required": [
+     "collis",
+     "propag",
+     "minimum",
+     "detect"
+    ],
+    "optional": [
+     "slot",
+     "round",
+     "late",
+     "frame",
+     "listen",
+     "budget"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "csma-cd",
+    "collision-domain"
+   ],
+   "tags": [
+    "csma-cd",
+    "collision-domain",
+    "ethernet-frame"
+   ],
+   "xp": 40,
+   "explain": "Six kilometres at $2 \\times 10^8$ m/s is 30 microseconds one way and 60 microseconds there and back, against a slot time of 51.2 microseconds. A 64-byte frame occupies the wire for exactly 51.2 microseconds, so the sender has stopped transmitting and stopped listening some nine microseconds before the collision could reach it, and it reports success on a frame that was destroyed. The tempting diagnoses are a faulty cable or a duplex mismatch; the giveaway against both is that the failures are confined to short frames, since a 1518-byte frame takes over 1200 microseconds and is still on the wire when the collision returns."
+  },
+  {
+   "id": "net-2-w-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "An office runs 48 machines on three cascaded 10 Mbps hubs. Users complain that throughput collapses every afternoon. You replace all three hubs with switches and change nothing else - same cabling, same addresses, one IP subnet as before.\n\nExplain what improves and why, what is entirely unaffected and why, and where each kind of domain now begins and ends.",
+   "rubric": {
+    "required": [
+     "collis",
+     "broadcast",
+     "switch",
+     "rout"
+    ],
+    "optional": [
+     "port",
+     "flood",
+     "domain",
+     "duplex",
+     "learn",
+     "hub",
+     "subnet",
+     "arp"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "collision-domain",
+    "broadcast-domain",
+    "learning-switch"
+   ],
+   "tags": [
+    "collision-domain",
+    "broadcast-domain",
+    "learning-switch",
+    "csma-cd"
+   ],
+   "xp": 40,
+   "explain": "The hubs put all 48 machines into a single collision domain, so afternoon load meant collisions, backoff, and a throughput curve that fell as offered traffic rose. Switching gives every machine a collision domain of its own and, in full duplex, removes contention altogether. What does not move an inch is the broadcast domain: a switch floods `ff:ff:ff:ff:ff:ff` out of every port by design, so all 48 machines still receive every ARP request and every DHCP discovery, and only a router or a VLAN boundary would change that. Expecting broadcast traffic to fall is the natural mistake, and it is the reason a large flat switched LAN can still be brought to its knees by a broadcast storm."
+  },
+  {
+   "id": "net-2-w-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are specifying the link layer for a new 1 Gbps point-to-point fibre link between two buildings. There is no shared medium and no contention - one sender at each end - but everything else on this floor still applies.\n\nWrite the specification in prose. Say how the receiver recovers its clock and what that encoding costs you in signalling capacity; how a receiver finds the start and the end of a frame, and what your scheme does when the payload happens to contain your own delimiter; what error detection you use, what class of errors it catches, and why you chose it over the alternatives; and whether your frames need a minimum size, with the reason.",
+   "rubric": {
+    "required": [
+     "clock",
+     "fram",
+     "error",
+     "encod"
+    ],
+    "optional": [
+     "crc",
+     "stuff",
+     "flag",
+     "preamble",
+     "transition",
+     "burst",
+     "polynom",
+     "checksum",
+     "minimum",
+     "escape",
+     "manchester"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "framing",
+    "crc",
+    "bit-encoding",
+    "ethernet-frame"
+   ],
+   "tags": [
+    "framing",
+    "crc",
+    "bit-encoding",
+    "ethernet-frame"
+   ],
+   "xp": 100,
+   "explain": "The interesting part is the last one. Ethernet's 64-byte minimum exists solely to make collision detection work, and on a point-to-point full-duplex link there are no collisions - so the minimum can be dropped, and a specification that keeps it is copying a constant without its reason. The encoding choice should fall out rather than be asserted: Manchester's 50% efficiency would demand 2 Gbaud of the fibre, so a block code such as 4B/5B feeding NRZI, or one of its wider relatives, is what buys bounded runs at a tolerable price. This challenge has no tests. It is graded against a keyword rubric that looks for the mechanisms above, so name each one explicitly and give its reason."
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-2-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A **broadcast domain** is which of the following?",
+   "choices": [
+    "The set of ports belonging to one physical switch",
+    "The set of stations a frame addressed to `ff:ff:ff:ff:ff:ff` will reach",
+    "The set of stations whose transmissions can collide with one another",
+    "The set of stations configured with the same subnet mask, whatever the link layer does"
+   ],
+   "answer": 1,
+   "concepts": [
+    "broadcast-domain"
+   ],
+   "tags": [
+    "broadcast-domain"
+   ],
+   "xp": 10,
+   "explain": "The third option is the collision domain, and confusing the two is the standard error on this material. They coincide on a hub and diverge the moment a switch appears: a switch splits collision domains one per port and leaves the broadcast domain exactly as large as it was."
+  },
+  {
+   "id": "net-2-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about Ethernet MAC addresses are true? Select every one that applies.",
+   "choices": [
+    "It is 48 bits long and conventionally written as twelve hexadecimal digits",
+    "The top 24 bits are an organisationally unique identifier assigned to the adaptor's manufacturer",
+    "The least significant bit of the first octet distinguishes a group address from an individual one",
+    "It is assigned by the network the adaptor attaches to, so it changes when the machine is moved",
+    "It is hierarchical, so one forwarding-table entry can cover many stations at once"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "mac-address"
+   ],
+   "tags": [
+    "mac-address",
+    "learning-switch"
+   ],
+   "xp": 10,
+   "explain": "The last two describe an IP address, not a MAC address, and that difference is the whole reason the next layer exists. A MAC address is burned in and flat: it travels with the adaptor, and because nothing about it encodes location, a forwarding table needs one row per reachable station and can aggregate nothing."
+  },
+  {
+   "id": "net-2-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the Ethernet constants. Give plain numbers, with a decimal point where one is needed.",
+   "template": "The destination address field is ___ bytes long, and the type field is ___ bytes.\nThe smallest legal frame, excluding preamble and delimiter, is ___ bytes, and the largest with a standard payload is ___ bytes.\nA slot time is 512 bit times, which at 10 Mbps is ___ microseconds.",
+   "blanks": [
+    "6",
+    "2",
+    "64",
+    "1518",
+    "51.2"
+   ],
+   "concepts": [
+    "ethernet-frame"
+   ],
+   "tags": [
+    "ethernet-frame",
+    "csma-cd"
+   ],
+   "xp": 20,
+   "explain": "1518 is 14 bytes of header plus 1500 of payload plus 4 of frame check sequence, and 64 is that same sum with the payload at its 46-byte floor. Answering 1526 counts the preamble and delimiter, which belong to the physical layer and fall outside every one of these limits."
+  },
+  {
+   "id": "net-2-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps a receiving Ethernet adaptor performs into the order it performs them, starting from the first energy on the wire.",
+   "fragments": [
+    "lock the receive clock onto the alternating bits of the preamble",
+    "see the doubled 1 that ends the start-of-frame delimiter and begin counting frame bits",
+    "compare the destination address against this adaptor's own address and the broadcast address",
+    "clock the remaining bytes in while recomputing the CRC over them",
+    "check the recomputed remainder against the received frame check sequence",
+    "hand the payload up to the protocol named in the type field"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "ethernet-frame"
+   ],
+   "tags": [
+    "ethernet-frame",
+    "mac-address",
+    "crc"
+   ],
+   "xp": 20,
+   "explain": "The address check comes before the frame check and not after it, because the destination address is the very first field of the frame and discarding early saves the adaptor from copying the rest at all. It is also why a corrupted frame that happens to carry another station's address is silently ignored rather than counted as an error anywhere useful."
+  },
+  {
+   "id": "net-2-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "An NRZI transmitter currently sitting at the **high** level sends `1 0 1 1 0 0 1 0`. Give the level during each bit period as `low` or `high`.",
+   "steps": [
+    {
+     "label": "bit 1",
+     "expected": "low"
+    },
+    {
+     "label": "bit 2",
+     "expected": "low"
+    },
+    {
+     "label": "bit 3",
+     "expected": "high"
+    },
+    {
+     "label": "bit 4",
+     "expected": "low"
+    },
+    {
+     "label": "bit 6",
+     "expected": "low"
+    },
+    {
+     "label": "bit 7",
+     "expected": "high"
+    },
+    {
+     "label": "bit 8",
+     "expected": "high"
+    }
+   ],
+   "concepts": [
+    "bit-encoding"
+   ],
+   "tags": [
+    "bit-encoding"
+   ],
+   "xp": 40,
+   "explain": "Starting high rather than low inverts every level compared with the same data sent from a low start, and the decoded data is identical either way - NRZI carries its information in the changes, not in the levels, which is exactly what makes it immune to a swapped pair of wires. Bits 3 and 4 are both 1s and sit at opposite levels for the same reason."
+  },
+  {
+   "id": "net-2-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A PPP sender must transmit the payload bytes `48 7E 7D 5E` between two `7E` flags. The escape byte is `7D`, and an escaped byte is sent as `7D` followed by the original byte exclusive-ored with `20`. Give hex bytes in upper case separated by single spaces, or a plain number.",
+   "steps": [
+    {
+     "label": "the bytes sent between the flags",
+     "expected": "48 7D 5E 7D 5D 5E"
+    },
+    {
+     "label": "how many bytes go between the flags",
+     "expected": "6"
+    },
+    {
+     "label": "how many bytes the original payload held",
+     "expected": "4"
+    },
+    {
+     "label": "how many payload bytes needed escaping",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "framing"
+   ],
+   "tags": [
+    "framing",
+    "bit-stuffing"
+   ],
+   "xp": 40,
+   "explain": "The trailing `5E` is ordinary data and goes out untouched, even though an identical `5E` appears earlier as the escaped form of `7E`. The receiver is never confused, because it only ever reinterprets a byte that directly follows a `7D`. Escaping that final `5E` as well is the tempting error, and it comes from treating an escaped representation as though the byte itself were reserved."
+  },
+  {
+   "id": "net-2-x-07",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A 3-port switch already holds the single entry `X = port 1`. `Y` is on port 2, and both `Z` and `W` sit behind a hub on port 3. The frames below arrive in order. Answer `forward to P`, `flood to P,Q` with ports ascending, or a plain number.",
+   "steps": [
+    {
+     "label": "Y sends to X",
+     "expected": "forward to 1"
+    },
+    {
+     "label": "Z sends to Y",
+     "expected": "forward to 2"
+    },
+    {
+     "label": "X sends to W",
+     "expected": "flood to 2,3"
+    },
+    {
+     "label": "W sends to X",
+     "expected": "forward to 1"
+    },
+    {
+     "label": "how many entries the table now holds",
+     "expected": "4"
+    },
+    {
+     "label": "how many of those entries name port 3",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "learning-switch"
+   ],
+   "tags": [
+    "learning-switch",
+    "mac-address",
+    "collision-domain"
+   ],
+   "xp": 40,
+   "explain": "Two addresses map to port 3 and nothing about that is exceptional: a forwarding table maps addresses to ports and never ports to addresses, so a port with a hub or another switch behind it simply accumulates rows. The third frame is flooded to ports 2 and 3 even though W is physically on port 3, because the switch has not heard W speak yet - and the very next frame fixes that for good."
+  },
+  {
+   "id": "net-2-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Ethernet protects every frame with a 32-bit CRC, while IP, UDP and TCP protect their headers with the far weaker Internet checksum. Explain why the link layer can afford the stronger code, what class of errors the CRC catches that the checksum does not, and why the checksum has nevertheless never been replaced.",
+   "rubric": {
+    "required": [
+     "crc",
+     "checksum",
+     "hardware",
+     "error"
+    ],
+    "optional": [
+     "burst",
+     "polynom",
+     "shift",
+     "software",
+     "weak",
+     "cancel",
+     "header",
+     "router"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "crc",
+    "internet-checksum",
+    "parity"
+   ],
+   "tags": [
+    "crc",
+    "internet-checksum",
+    "parity"
+   ],
+   "xp": 20,
+   "explain": "A CRC is a shift register, so an adaptor computes it at line rate with no processor involved at all and the stronger code costs essentially nothing on the link. It catches every burst shorter than 33 bits, which is precisely the shape of the damage a physical medium inflicts. The checksum survives because it is computed in software on a general-purpose processor at every hop and must therefore stay cheap, and because it is doing a different job: it is an end-to-end check on a header that routers rewrite, and it covers damage a per-link CRC structurally cannot see, such as corruption inside a router's own memory."
+  },
+  {
+   "id": "net-2-x-09",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A monitoring appliance is plugged into port 7 of a switched LAN. It is configured to listen only and never transmits a single frame. Operators notice two things: every frame addressed to the appliance is delivered to every port on its switch, and the appliance is also receiving frames addressed to other hosts entirely. Give the cause.",
+   "answer": "the switch never learns the appliance's address, because learning reads source addresses and the appliance never sends anything, so frames to it are unknown unicast and get flooded",
+   "rubric": {
+    "required": [
+     "learn",
+     "source",
+     "flood",
+     "address"
+    ],
+    "optional": [
+     "unknown",
+     "unicast",
+     "table",
+     "silent",
+     "transmit",
+     "age",
+     "port"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "learning-switch",
+    "broadcast-domain"
+   ],
+   "tags": [
+    "learning-switch",
+    "broadcast-domain",
+    "mac-address"
+   ],
+   "xp": 40,
+   "explain": "A forwarding table is built exclusively out of source addresses, so a station that never transmits is invisible to it, and every frame sent to that station is an unknown unicast flooded out of every port but the one it arrived on. Both symptoms are the same fact seen from two sides: the appliance sees other hosts' traffic because that traffic is being flooded past it, which is incidentally how a listening appliance gets any view of the LAN at all. Suspecting a faulty switch or a misconfigured mirror port is the natural reading, and the tell against it is that the behaviour is confined to one silent station."
+  }
+ ]
+}

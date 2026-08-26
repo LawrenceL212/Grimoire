@@ -1,0 +1,1027 @@
+{
+ "n": 7,
+ "name": "The Layer People Touch",
+ "cognitiveLevel": "transfer",
+ "concepts": [
+  "dns-hierarchy",
+  "dns-resolution",
+  "dns-records",
+  "dns-caching",
+  "http-messages",
+  "http-statelessness",
+  "http-persistence",
+  "tls-handshake",
+  "certificate-chain",
+  "https-end-to-end"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "protocol-traces",
+  "service-diagnosis",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A distributed database with no centre",
+    "body": "Every layer below this one moves bytes between **addresses**. People do not know addresses, and addresses change. The **Domain Name System** is the indirection between the two, and its design problem is that no single machine could hold the mapping, serve the query rate, or be trusted by everyone to edit it. The answer is delegation: the name space is a tree read right to left, cut into **zones**, and each zone's owner is pointed at only by the zone above it. The root knows who runs `com`; `com` knows who runs `example.com`; nobody above `example.com` knows or cares that `www` exists.\n\nThat structure puts two different jobs on two different machines. Your machine runs a **stub resolver**, which knows one trick: send the whole question to a configured **recursive resolver** with the *recursion desired* bit set, and wait. The recursive resolver does the walking, and the servers it walks answer **iteratively** - a root or TLD server never fetches an answer on your behalf, it returns a **referral**: the `NS` records of the zone one step further down, plus **glue** `A` records giving those name servers' addresses, because otherwise resolving `ns1.example.com` would require first resolving `ns1.example.com`. Only the zone's own authoritative server sets the `aa` flag and fills in a real `ANSWER` section.\n\nThe records themselves are typed, and the type is part of the question. `A` and `AAAA` give IPv4 and IPv6 addresses, `NS` names a zone's authoritative servers, `CNAME` makes one name an alias for another, `MX` routes mail with a preference number, `TXT` carries arbitrary strings, and `SOA` holds the zone's serial number and the lifetime for **negative** answers - so even an `NXDOMAIN` is cacheable.\n\nCaching is what makes the whole arrangement survivable, and its unit is the **TTL** carried on every record. A resolver holds a record for that many seconds and discards it once the elapsed time reaches the TTL. Because the `com` referral lives for days and the leaf `A` record for minutes, the cold three-message walk above almost never happens; the next query for anything under `example.com` usually costs one message. The price is that the TTL is also how long a **wrong** or **stale** answer survives, which is why a planned address change begins by lowering the TTL a day early.",
+    "code": "$ dig +trace www.example.com A          ; resolver cache cold, root hints only\n\n; === message 1: to a root server ===========================================\n;; QUESTION    www.example.com.       IN   A\n;; AUTHORITY   com.            172800 IN   NS   a.gtld-servers.net.\n;; ADDITIONAL  a.gtld-servers.net.\n;;                             172800 IN   A    192.5.6.30     <- glue record\n;; flags: qr                                     <- no `aa`: this is a REFERRAL\n\n; === message 2: to a .com server ===========================================\n;; QUESTION    www.example.com.       IN   A\n;; AUTHORITY   example.com.     86400 IN   NS   ns1.example.com.\n;; ADDITIONAL  ns1.example.com. 86400 IN   A    203.0.113.10   <- glue record\n;; flags: qr                                     <- still a referral\n\n; === message 3: to ns1.example.com =========================================\n;; QUESTION    www.example.com.       IN   A\n;; ANSWER      www.example.com.   300 IN   A    203.0.113.42\n;; flags: qr aa                                  <- authoritative: the answer\n\n; the resolver now holds three cached entries with three different lifetimes:\n;   com. NS            172800 s     (2 days)\n;   example.com. NS     86400 s     (1 day)\n;   www.example.com. A     300 s     (5 minutes)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 8,
+      "text": "A referral, not an answer. The root did not resolve anything - it named the servers one level down and stopped. That is what iterative means."
+     },
+     {
+      "line": 13,
+      "text": "Glue. Without this address in the ADDITIONAL section the resolver would have to resolve `ns1.example.com`, whose address is published only inside the very zone it is trying to reach."
+     },
+     {
+      "line": 19,
+      "text": "The `aa` flag is the whole difference. Only a server authoritative for the zone may set it, and only a reply carrying it is the real answer rather than a pointer to somewhere else."
+     },
+     {
+      "line": 22,
+      "text": "Three lifetimes, so three different staleness windows. Lowering the leaf TTL before a migration does nothing about a two-day `NS` record you also changed."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Read the transcript above, then answer for the resolution of `www.example.com` from a cold resolver.",
+     "steps": [
+      {
+       "label": "queries the recursive resolver sends upstream",
+       "expected": "3"
+      },
+      {
+       "label": "kind of reply the root server gives (answer or referral)",
+       "expected": "referral"
+      },
+      {
+       "label": "section of message 2 that carries the glue address",
+       "expected": "ADDITIONAL"
+      },
+      {
+       "label": "flag set only on the reply from ns1.example.com",
+       "expected": "aa"
+      }
+     ],
+     "concepts": [
+      "dns-hierarchy",
+      "dns-resolution"
+     ],
+     "tags": [
+      "dns-hierarchy",
+      "dns-resolution"
+     ],
+     "explain": "Three upstream messages, because each server is authoritative only for its own level and hands back a referral otherwise. The tempting answer is two - people forget the root, because in practice the root and TLD referrals are almost always already cached, so the walk anyone actually observes is one message long."
+    }
+   },
+   {
+    "title": "HTTP: a request, a reply, and no memory of you",
+    "body": "HTTP is text at the top and a strict shape underneath: a **request line** (method, target, version), then headers, then a blank line, then an optional body - and the reply has the identical shape with a **status line** in front. The blank line matters more than it looks: it is the only marker that ends the headers, and `Content-Length` or chunked encoding is the only marker that ends the body, because the connection stays open afterwards.\n\nMethods are a contract about effects, not merely names. `GET` and `HEAD` are **safe** - they must not change anything - `PUT` and `DELETE` are **idempotent**, meaning doing them twice leaves the same state as doing them once, and `POST` is neither, which is exactly why a browser warns before resubmitting one and why a proxy may retry a `GET` but never a `POST`. Status codes are graded by their first digit: `2xx` succeeded, `3xx` says look elsewhere (`301` permanently, `302` temporarily, `304` *you already have it*), `4xx` blames the request (`400` malformed, `401` unauthenticated, `403` authenticated but refused, `404` no such thing), and `5xx` blames the server (`500` it broke, `502` a gateway got nonsense from upstream, `503` it is refusing load, `504` upstream did not answer in time).\n\nThe decision that shapes everything else is that HTTP is **stateless**: the server is required to treat each request as complete in itself and to hold nothing between them. That is what lets any one of a thousand identical servers answer your next request, and it is what makes caching and retrying sound. The cost is that a shopping basket has nowhere to live, so the state was pushed back onto the client as a **cookie**: the server sends `Set-Cookie`, the browser returns it on every matching request, and `Path`, `Domain`, `Secure`, `HttpOnly` and `SameSite` are the attributes that decide which requests match. Statelessness did not abolish the state - it moved it onto the wire, where it is replayable, stealable, and re-sent on every single request.",
+    "code": "> GET /cart HTTP/1.1                     <- method, target, version\n> Host: shop.example.com                 <- mandatory in HTTP/1.1\n> Accept: text/html\n> Cookie: sid=7f3a91; theme=dark         <- the only memory the server has\n>                                        <- blank line ends the headers\n\n< HTTP/1.1 200 OK                        <- version, status code, reason\n< Date: Tue, 26 Aug 2026 09:14:22 GMT\n< Content-Type: text/html; charset=utf-8\n< Content-Length: 1843                   <- where the body ends\n< ETag: \"v7\"                             <- opaque validator for this body\n< Cache-Control: private, max-age=600\n< Set-Cookie: sid=7f3a91; Path=/; HttpOnly; Secure; SameSite=Lax\n<\n< (1843 bytes of HTML)\n\n; ten minutes later the stored copy is stale, so the browser revalidates\n; instead of downloading the body again:\n\n> GET /cart HTTP/1.1\n> Host: shop.example.com\n> If-None-Match: \"v7\"                    <- conditional on the validator\n\n< HTTP/1.1 304 Not Modified              <- headers only, zero bytes of body\n< ETag: \"v7\"\n< Cache-Control: private, max-age=600",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "`Host` is what allows one address to serve thousands of sites. HTTP/1.0 had no such header, so a name-based virtual host was simply impossible."
+     },
+     {
+      "line": 5,
+      "text": "The blank line, not a length field, terminates the header block. Anything that lets a header value contain a newline therefore lets an attacker forge the end of the headers."
+     },
+     {
+      "line": 13,
+      "text": "`Set-Cookie` is the server handing its own memory to the client for safekeeping. `HttpOnly` keeps script away from it; `Secure` keeps it off plaintext connections."
+     },
+     {
+      "line": 24,
+      "text": "A 304 carries headers and no body. The request was still sent and a round trip still spent - revalidation saves bandwidth, never latency."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the conditional request and its reply: the safe method, the header HTTP/1.1 makes mandatory, the request header carrying the validator, and the status code meaning *your copy is still good*.",
+     "template": "___ /cart HTTP/1.1\n___: shop.example.com\n___: \"v7\"\n\nHTTP/1.1 ___ Not Modified",
+     "blanks": [
+      "GET",
+      "Host",
+      "If-None-Match",
+      "304"
+     ],
+     "concepts": [
+      "http-messages"
+     ],
+     "tags": [
+      "http-messages"
+     ],
+     "explain": "`If-None-Match` quotes back the `ETag` the server issued, and `304` means the validator still matches so the body is omitted. The tempting wrong pairing is `If-Modified-Since` with `200`: a one-second-resolution date is a weaker validator than an opaque tag, and a `200` here would defeat the whole point by resending bytes the client already holds."
+    }
+   },
+   {
+    "title": "One connection or many",
+    "body": "HTTP/1.0 opened a TCP connection, asked one question, and closed it. On a page of thirteen objects that is thirteen handshakes, and worse, thirteen connections that die in slow start having never discovered the path's capacity - the transport work is thrown away exactly when it becomes useful. HTTP/1.1's answer was **persistent connections**: the connection stays open by default and `Connection: close` is the exception, which on the figures opposite turns 26 round trips into 14.\n\nThat still leaves one request in flight at a time. HTTP/1.1's own fix, **pipelining**, was to send several requests without waiting - but replies must come back in request order, so one slow reply stalls every reply queued behind it. This is **head-of-line blocking**, and it is why pipelining was abandoned and why browsers instead opened about **six** connections per origin: six independent queues, and no ordering constraint between them. It is a workaround with a price - six handshakes, six congestion windows competing with each other, and six times the connection state on the server.\n\n**HTTP/2** removes the constraint rather than working around it. The same semantics - methods, status codes, headers - are carried in a **binary framing** layer, where each request/response pair is a **stream** and frames from many streams are interleaved on **one** connection. Nothing has to wait for anything else to finish, so 12 objects cost one round trip rather than two; **HPACK** header compression additionally stops every request re-sending the same kilobyte of cookies and user-agent string.\n\nThe honest caveat: HTTP/2 fixes head-of-line blocking **in HTTP** and not in **TCP**. All those streams share one byte stream, so a single lost segment stalls every stream behind it until the retransmission arrives - under loss, six connections can beat one. That residual is what QUIC and HTTP/3 exist to remove, by giving each stream its own loss recovery inside UDP.",
+    "code": "One page: 1 HTML document + 12 embedded objects.  RTT = 40 ms.\nTransfer time ignored, so every cost below is round trips alone.\n\nHTTP/1.0, a fresh connection per object, one at a time\n  per object:  1 RTT handshake + 1 RTT request/response = 2 RTT\n  13 objects x 2                              = 26 RTT = 1040 ms\n\nHTTP/1.1 persistent, ONE connection, requests in series\n  1 RTT handshake + 13 x 1 RTT                = 14 RTT =  560 ms\n\nHTTP/1.1 persistent, SIX parallel connections (what browsers really do)\n  HTML:     1 RTT handshake + 1 RTT           =  2 RTT\n  12 objs:  1 RTT handshake (in parallel)\n            + 2 RTT (two objects per conn)    =  3 RTT\n                                              =  5 RTT =  200 ms\n\nHTTP/2, ONE connection, all requests multiplexed as interleaved streams\n  1 RTT handshake + 1 RTT HTML + 1 RTT for all 12\n                                              =  3 RTT =  120 ms\n\n  and the same page over TLS 1.3 costs one extra round trip:\n  1 TCP + 1 TLS + 1 HTML + 1 objects          =  4 RTT =  160 ms",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "Two round trips per object, and none of the thirteen connections ever leaves slow start. The latency figure understates the real cost."
+     },
+     {
+      "line": 13,
+      "text": "Six connections cost only one extra handshake in latency because they are opened in parallel. The cost the client does not see is six congestion windows and six times the state on the server."
+     },
+     {
+      "line": 18,
+      "text": "All twelve in one round trip. Not because the network got faster, but because nothing is queued behind anything else."
+     },
+     {
+      "line": 22,
+      "text": "TLS 1.3 adds exactly one round trip to a cold connection. TLS 1.2 adds two, and a resumed TLS 1.3 session can add none at all."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Using the figures opposite, for the same page of 1 HTML document and 12 objects at RTT = 40 ms, over plain TCP with no TLS.",
+     "steps": [
+      {
+       "label": "HTTP/1.0, round trips",
+       "expected": "26"
+      },
+      {
+       "label": "HTTP/1.1 on one connection in series, round trips",
+       "expected": "14"
+      },
+      {
+       "label": "HTTP/2, round trips",
+       "expected": "3"
+      },
+      {
+       "label": "HTTP/2, milliseconds",
+       "expected": "120"
+      }
+     ],
+     "concepts": [
+      "http-persistence"
+     ],
+     "tags": [
+      "http-persistence"
+     ],
+     "explain": "Persistence removes the per-object handshake and multiplexing removes the per-object round trip, so the two savings are independent and compose. The common slip is to charge HTTP/2 one round trip per object as well - it does not, because the twelve requests are all in flight at once on the same connection."
+    }
+   },
+   {
+    "title": "What the padlock actually promises",
+    "body": "TLS sits between TCP and HTTP and guarantees exactly three things: **confidentiality**, so an observer sees ciphertext; **integrity**, so any alteration is detected rather than delivered; and **authentication of the server**, so the peer really is the name you asked for. It is worth being precise about what is therefore *not* promised. TLS says nothing about whether the site is honest, whether the server has been compromised, whether the data is safe once decrypted, or whether you are hidden - the destination address and, unless encrypted client hello is in use, the `SNI` host name are both visible on the wire.\n\nThe handshake has to do three jobs at once: agree a cipher suite, agree a shared secret without ever sending it, and prove identity. TLS 1.3 does all three in **one round trip** by having the client guess the group and send a `key_share` in its very first message; the server replies with its own share, and from that point everything - including the server's certificate - is encrypted. `CertificateVerify` is the step that actually matters: a certificate is public, so possessing one proves nothing, and only a signature over the handshake transcript proves the server holds the matching **private key**. TLS 1.2 needed two round trips and sent the certificate in the clear.\n\nAuthentication rests on a **chain of trust**. Your machine ships with a store of self-signed **root** certificates; a root signs an **intermediate**, and an intermediate signs the server's **leaf**. The server must send the leaf *and* the intermediates, but never the root - the client already has that, and a root it did not already have would prove nothing. The client then verifies each signature up the chain, checks dates and `basicConstraints` at every link, matches the requested host name against the leaf's `subjectAltName`, and checks revocation. A server that forgets to send its intermediate produces the classic bug where the site works in one browser - which quietly fetched the missing certificate - and fails everywhere else.\n\nHTTPS is then just HTTP over that: same methods, same status codes, same cookies, with `Secure` cookies now meaningful and the URL path, headers and body all inside the encrypted record layer. End to end, a cold request costs a DNS resolution, a TCP handshake, a TLS handshake and the exchange itself - which is why every technique in this floor, from a long `NS` TTL to session resumption to multiplexing, is ultimately about paying that bill once.",
+    "code": "TLS 1.3 handshake, one round trip before the first HTTP byte\n\n  client ---------------------------------------------------> server\n     ClientHello: supported versions, cipher suites, key_share\n\n  client <--------------------------------------------------- server\n     ServerHello: chosen suite, key_share       [ in the clear ]\n     ---- from here on every message is encrypted ----\n     EncryptedExtensions\n     Certificate            leaf + intermediate, NOT the root\n     CertificateVerify      signature over the handshake so far\n     Finished               MAC over the whole handshake\n\n  client ---------------------------------------------------> server\n     Finished\n     GET /cart HTTP/1.1 ...        <- first application data\n\n\nThe chain the client must build and check\n\n  shop.example.com     leaf         signed by ->  Example Intermediate CA\n  Example Intermediate CA           signed by ->  Example Root CA\n  Example Root CA      self-signed, already in the local trust store\n\n  checked at every link:  signature, validity dates, basicConstraints\n  checked on the leaf:    hostname against subjectAltName, revocation",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The client guesses which key agreement group the server will pick and sends its share immediately. Guessing right is what buys the round trip back; guessing wrong costs a HelloRetryRequest."
+     },
+     {
+      "line": 10,
+      "text": "The chain, minus the root. Sending the root would be wasted bytes: a client that does not already trust it cannot be persuaded by receiving a copy of it."
+     },
+     {
+      "line": 11,
+      "text": "The signature, not the certificate, is the proof of identity. Certificates are public documents - anyone can copy one, and nobody can copy this."
+     },
+     {
+      "line": 26,
+      "text": "The hostname is matched against subjectAltName, not the legacy common name. A certificate valid for a real site but issued for a different name must still be rejected."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "retrieval",
+     "prompt": "A colleague says a padlock in the address bar means the site is safe. State what TLS actually guarantees and name two things it does not.",
+     "rubric": {
+      "required": [
+       "confidential",
+       "integrit",
+       "authenticat"
+      ],
+      "optional": [
+       "encrypt",
+       "trust",
+       "honest",
+       "SNI",
+       "compromis",
+       "phish",
+       "certificat",
+       "malware",
+       "availab"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "https-end-to-end",
+      "certificate-chain"
+     ],
+     "tags": [
+      "https-end-to-end",
+      "certificate-chain"
+     ],
+     "explain": "TLS authenticates the *name*, protects the *channel*, and detects tampering - nothing more. It cannot tell you the operator is honest, that the server is not compromised, or that the data is safe after decryption, and it does not hide which host you connected to. The padlock therefore answers 'am I talking to who I asked for' and never 'should I trust them'."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-7-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put a cold resolution of `www.example.com` into the order the messages actually occur, from the browser's first move to the answer arriving back at it.",
+   "fragments": [
+    "The resolver asks a `com` server, which returns a referral to the `example.com` name servers.",
+    "The stub resolver sends the whole question to its configured recursive resolver with the recursion-desired bit set.",
+    "The recursive resolver returns the answer to the stub with the recursion-available bit set.",
+    "The resolver asks a root server, which returns a referral to the `com` name servers.",
+    "The resolver asks `ns1.example.com`, which replies authoritatively with the `A` record.",
+    "The resolver stores each record it received for the length of that record's TTL."
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    4,
+    5,
+    2
+   ],
+   "concepts": [
+    "dns-resolution",
+    "dns-hierarchy"
+   ],
+   "tags": [
+    "dns-resolution",
+    "dns-hierarchy"
+   ],
+   "xp": 36,
+   "explain": "Only the stub's own query is recursive; everything the resolver does upstream is iterative, so the root and the TLD hand back referrals rather than answers and the walk goes strictly downward. The tempting order puts caching last, after the reply to the stub - but the record is cached as soon as it arrives, which is why a second stub asking a microsecond later is served without any upstream message at all."
+  },
+  {
+   "id": "net-7-g-02",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Name the single DNS record type that does each job.",
+   "steps": [
+    {
+     "label": "map `www.example.com` to an IPv4 address",
+     "expected": "A"
+    },
+    {
+     "label": "map `www.example.com` to an IPv6 address",
+     "expected": "AAAA"
+    },
+    {
+     "label": "make `shop.example.com` an alias of `lb.cdn.example.net`",
+     "expected": "CNAME"
+    },
+    {
+     "label": "name the servers authoritative for `example.com`",
+     "expected": "NS"
+    },
+    {
+     "label": "say where mail for `example.com` should be delivered",
+     "expected": "MX"
+    },
+    {
+     "label": "carry the zone's serial number and its negative-caching lifetime",
+     "expected": "SOA"
+    }
+   ],
+   "concepts": [
+    "dns-records"
+   ],
+   "tags": [
+    "dns-records"
+   ],
+   "xp": 36,
+   "explain": "The type is part of the question, not a property of the name, so one name can carry `A`, `AAAA`, `MX` and `TXT` records at once and a resolver caches each type separately. The trap is `CNAME`: it aliases the whole name, so a name with a `CNAME` may hold no other records, which is why a zone apex cannot be a `CNAME` and needs the provider-specific alias record instead."
+  },
+  {
+   "id": "net-7-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "A browser asks for `/old-cart` and is sent somewhere else permanently. Fill in the status code, the header naming the new location, the mandatory header the browser sends on the follow-up request, and the method it uses for it.",
+   "template": "HTTP/1.1 ___ Moved Permanently\n___: https://shop.example.com/cart\n\n___ /cart HTTP/1.1\n___: shop.example.com",
+   "blanks": [
+    "301",
+    "Location",
+    "GET",
+    "Host"
+   ],
+   "concepts": [
+    "http-messages"
+   ],
+   "tags": [
+    "http-messages"
+   ],
+   "xp": 36,
+   "explain": "`301` is the permanent redirect, so clients and caches may remember it and stop asking for the old path at all; `302` says the opposite, that the move is temporary and the old URL must keep being requested. The follow-up is a fresh, complete request - stateless means nothing carries over - so it needs its own `Host` header even though it is going to the same server."
+  },
+  {
+   "id": "net-7-g-04",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "A root name server will not resolve `www.example.com` for you, but the resolver your laptop is configured with will. Explain why the two behave differently, and what the internet gains from the split.",
+   "rubric": {
+    "required": [
+     "referral",
+     "cach",
+     "iterat",
+     "recursi"
+    ],
+    "optional": [
+     "root",
+     "load",
+     "scale",
+     "state",
+     "delegat",
+     "authoritative",
+     "stub",
+     "TTL",
+     "zone"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "dns-resolution",
+    "dns-hierarchy"
+   ],
+   "tags": [
+    "dns-resolution",
+    "dns-hierarchy"
+   ],
+   "xp": 36,
+   "explain": "A root server answers iteratively - one referral, no memory of you, no follow-up work - which is what lets a handful of root identities absorb the whole world's queries without holding per-query state. The recursive resolver takes the opposite bargain: it holds state, does the walking, and in exchange it accumulates a cache that serves everyone behind it, so the expensive walk to the root happens once per TTL rather than once per user."
+  }
+ ],
+ "protocol-traces": [
+  {
+   "id": "net-7-t-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A recursive resolver with an empty cache (root hints only) is asked for the `A` record of `shop.example.co.uk`. The delegation runs root -> `uk` -> `co.uk` -> `example.co.uk`, and the authoritative server for `example.co.uk` holds the answer. Trace the resolution.",
+   "steps": [
+    {
+     "label": "queries the resolver sends upstream in total",
+     "expected": "4"
+    },
+    {
+     "label": "kind of reply the `uk` servers give (answer or referral)",
+     "expected": "referral"
+    },
+    {
+     "label": "zone whose `NS` records the `co.uk` servers hand back",
+     "expected": "example.co.uk"
+    },
+    {
+     "label": "number of those upstream replies with the `aa` flag set",
+     "expected": "1"
+    },
+    {
+     "label": "queries needed for `www.example.co.uk` immediately afterwards",
+     "expected": "1"
+    },
+    {
+     "label": "queries needed if the same question is repeated within the leaf TTL",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "dns-hierarchy",
+    "dns-resolution"
+   ],
+   "tags": [
+    "dns-hierarchy",
+    "dns-resolution"
+   ],
+   "xp": 72,
+   "explain": "Four messages, because `co.uk` is a real delegation point and not decoration: the tree is read label by label from the right, so a two-label suffix costs one extra hop compared with `.com`. Only the last reply is authoritative - the three above it are referrals, which is the distinction people lose when they count servers rather than answers. The follow-up for a sibling name costs one message because the `example.co.uk` `NS` records and their glue are already cached; repeating the identical question costs none."
+  },
+  {
+   "id": "net-7-t-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A resolver starts with only the root `NS` records cached. It then caches `com` `NS` for 172800 s, `example.com` `NS` for 86400 s, and each leaf `A` record for 300 s. Count the queries it must send **upstream** at each moment. An entry is discarded once the elapsed time reaches its TTL.",
+   "steps": [
+    {
+     "label": "t = 0 s, first ever query for `www.example.com`",
+     "expected": "3"
+    },
+    {
+     "label": "t = 120 s, `www.example.com` again",
+     "expected": "0"
+    },
+    {
+     "label": "t = 120 s, TTL the resolver reports on that cached `A` record",
+     "expected": "180"
+    },
+    {
+     "label": "t = 300 s, `www.example.com` again",
+     "expected": "1"
+    },
+    {
+     "label": "t = 400 s, first ever query for `img.example.com`",
+     "expected": "1"
+    },
+    {
+     "label": "t = 86400 s, `www.example.com` again",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "dns-caching",
+    "dns-records"
+   ],
+   "tags": [
+    "dns-caching",
+    "dns-records"
+   ],
+   "xp": 72,
+   "explain": "Each level expires on its own clock, so the cost of a miss depends on how far up the tree the nearest surviving record sits. At 300 s only the leaf has gone, so one query to the authoritative server suffices; at 400 s a brand new name under the same zone is equally cheap, because the delegation - not the address - is the expensive part. At 86400 s the `example.com` delegation has expired too, so the resolver must re-descend from `com`, which is still cached, giving two queries rather than three. The reflex answer of three at every miss assumes the walk always restarts at the root, and it almost never does."
+  },
+  {
+   "id": "net-7-t-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A browser fetches `/style.css` at t = 0 and is given `200 OK` with `ETag: \"v7\"` and `Cache-Control: max-age=600`. It needs the file again at t = 300, t = 600, t = 1100 and t = 1250. At t = 600 the file on the server is unchanged; by t = 1250 it has been edited. A response is stale once its age reaches `max-age`, and a `304` restarts the freshness clock.",
+   "steps": [
+    {
+     "label": "t = 300 s, requests actually sent to the server",
+     "expected": "0"
+    },
+    {
+     "label": "t = 600 s, request header carrying the validator",
+     "expected": "If-None-Match"
+    },
+    {
+     "label": "t = 600 s, status code returned",
+     "expected": "304"
+    },
+    {
+     "label": "t = 600 s, bytes of response body",
+     "expected": "0"
+    },
+    {
+     "label": "t = 1100 s, requests actually sent to the server",
+     "expected": "0"
+    },
+    {
+     "label": "t = 1250 s, status code returned",
+     "expected": "200"
+    }
+   ],
+   "concepts": [
+    "http-messages",
+    "http-statelessness"
+   ],
+   "tags": [
+    "http-messages",
+    "http-statelessness"
+   ],
+   "xp": 72,
+   "explain": "Freshness and validity are two different questions: while the copy is fresh no request happens at all, and only once it is stale does the client ask whether its copy is still *valid*. The `304` at t = 600 restarts the clock, which is why t = 1100 is a silent hit again - age 500 against a `max-age` of 600. At t = 1250 the age is 650, the validator no longer matches, and the server has no choice but to send the whole body with a new `ETag`. The classic error is expecting a request at t = 300; a cache that revalidates a fresh entry has thrown away the entire latency benefit and kept only the bandwidth one."
+  },
+  {
+   "id": "net-7-t-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A page is 1 HTML document plus 12 embedded objects, RTT = 40 ms, transfer time ignored. Count round trips from the first packet to the last object arriving, then convert. Browsers open at most six connections per origin, and a connection carries its objects one at a time.",
+   "steps": [
+    {
+     "label": "HTTP/1.0, new connection per object, round trips",
+     "expected": "26"
+    },
+    {
+     "label": "HTTP/1.1, one persistent connection, requests in series, milliseconds",
+     "expected": "560"
+    },
+    {
+     "label": "HTTP/1.1, six persistent connections, round trips",
+     "expected": "5"
+    },
+    {
+     "label": "objects each of those six connections carries",
+     "expected": "2"
+    },
+    {
+     "label": "HTTP/2, one multiplexed connection, milliseconds",
+     "expected": "120"
+    },
+    {
+     "label": "HTTP/2 over TLS 1.3 from cold, round trips",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "http-persistence",
+    "http-messages"
+   ],
+   "tags": [
+    "http-persistence",
+    "http-messages"
+   ],
+   "xp": 72,
+   "explain": "Persistence removes 13 handshakes and multiplexing removes 11 serialised request/response round trips, so the two wins are independent: 26 becomes 14, and 14 becomes 3. Six connections get most of the same benefit for the wrong reason - by buying six queues rather than removing the queueing - and they pay for it with six congestion windows competing for the same bottleneck. The frequent slip on the last figure is charging TLS 1.3 two round trips; that is TLS 1.2, and 1.3 folds key agreement into the first flight."
+  },
+  {
+   "id": "net-7-t-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A client opens a cold TLS 1.3 connection to `shop.example.com` and then sends one HTTP request. Trace the handshake and its cost.",
+   "steps": [
+    {
+     "label": "handshake message carrying the client's `key_share`",
+     "expected": "ClientHello"
+    },
+    {
+     "label": "message proving the server holds the certificate's private key",
+     "expected": "CertificateVerify"
+    },
+    {
+     "label": "is the server's Certificate message encrypted (yes or no)",
+     "expected": "yes"
+    },
+    {
+     "label": "certificates the server sends for a leaf-intermediate-root chain",
+     "expected": "2"
+    },
+    {
+     "label": "round trips from cold: TCP, then TLS 1.3, then request and reply",
+     "expected": "3"
+    },
+    {
+     "label": "the same total if the server only supports TLS 1.2",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "tls-handshake",
+    "https-end-to-end"
+   ],
+   "tags": [
+    "tls-handshake",
+    "https-end-to-end"
+   ],
+   "xp": 72,
+   "explain": "Sending a `key_share` speculatively in the first message is what compresses TLS 1.3 to one round trip, and it also means the shared secret exists before the certificate is sent, so the certificate travels encrypted - a genuine privacy gain over 1.2, where it was in the clear. `CertificateVerify` is the actual proof of identity: certificates are public documents, so holding one proves nothing and only a signature over the transcript does. The server sends two certificates, not three: the root is already in the trust store, and one it did not already trust could not be made trustworthy by being sent."
+  },
+  {
+   "id": "net-7-t-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A client validates the chain for `shop.example.com`: a leaf signed by *Example Intermediate CA*, which is signed by *Example Root CA*, which is self-signed and present in the client's trust store. Work through what is checked.",
+   "steps": [
+    {
+     "label": "public key used to check the leaf's signature (leaf, intermediate or root)",
+     "expected": "intermediate"
+    },
+    {
+     "label": "certificate that must already be in the trust store",
+     "expected": "root"
+    },
+    {
+     "label": "leaf field the requested host name is matched against",
+     "expected": "subjectAltName"
+    },
+    {
+     "label": "extension whose CA value must be TRUE on the intermediate",
+     "expected": "basicConstraints"
+    },
+    {
+     "label": "server omits the intermediate: does validation succeed (yes or no)",
+     "expected": "no"
+    },
+    {
+     "label": "the leaf expired yesterday: does validation succeed (yes or no)",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "certificate-chain",
+    "tls-handshake"
+   ],
+   "tags": [
+    "certificate-chain",
+    "tls-handshake"
+   ],
+   "xp": 72,
+   "explain": "Validation runs upward from the leaf: each certificate is checked with the public key of the one above it, and the recursion terminates only at a self-signed certificate the client already trusts for reasons outside the protocol. Every link is checked for dates and for `basicConstraints`, since a leaf that could sign other certificates would let any site issue certificates for any other. Omitting the intermediate breaks the chain outright - some browsers hide the fault by fetching the missing certificate themselves, which is precisely why the bug reaches production and only shows up on other clients."
+  }
+ ],
+ "service-diagnosis": [
+  {
+   "id": "net-7-d-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "You move `www.example.com` to a new address and update the `A` record at 09:00. By 09:05 most users are on the new server. At 11:00, a stubborn few per cent are still reaching the old one, which you had planned to switch off. Nothing is wrong with the new server, the zone file is correct, and querying the authoritative server directly returns the new address every time. Name the cause and say what you should have done a day earlier.",
+   "answer": "resolvers are still serving the old A record from cache, because it was published with a long TTL that had not expired",
+   "rubric": {
+    "required": [
+     "TTL",
+     "cach",
+     "stale",
+     "lower"
+    ],
+    "optional": [
+     "expire",
+     "resolver",
+     "authoritative",
+     "propagat",
+     "300",
+     "old",
+     "drain",
+     "negative"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "dns-caching",
+    "dns-resolution"
+   ],
+   "tags": [
+    "dns-caching",
+    "dns-resolution"
+   ],
+   "xp": 72,
+   "explain": "The authoritative answer being right is the clue, not a counter-argument: the users still on the old address are not asking the authoritative server at all, they are being served by resolvers holding a copy that has not yet reached its TTL. Nothing you can do at 09:00 shortens a lifetime already handed out, which is why the fix is preparatory - lower the TTL to a few minutes at least one old-TTL period before the change, make the change, then raise it again. The tempting misdiagnosis is 'propagation delay', a phrase that implies the update is travelling somewhere; it is not, it is simply waiting for other people's caches to expire, and that is also why the old server must be drained rather than switched off."
+  },
+  {
+   "id": "net-7-d-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A newly deployed HTTPS site loads perfectly in your desktop browser. The same URL fails from `curl` with a certificate verification error, fails from an old Android handset, and fails from the payment provider's server-to-server callback. The certificate is not expired, the host name on it is right, and the issuing CA's root is in every one of those trust stores. Name the cause and give the fix.",
+   "answer": "the server is sending only the leaf certificate and omitting the intermediate, so most clients cannot build a chain to the trusted root",
+   "rubric": {
+    "required": [
+     "intermediat",
+     "chain",
+     "trust",
+     "serv"
+    ],
+    "optional": [
+     "leaf",
+     "root",
+     "store",
+     "bundle",
+     "AIA",
+     "fetch",
+     "browser",
+     "curl",
+     "fullchain",
+     "issuer"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "certificate-chain",
+    "https-end-to-end"
+   ],
+   "tags": [
+    "certificate-chain",
+    "https-end-to-end"
+   ],
+   "xp": 72,
+   "explain": "Every stated fact rules out the usual suspects and leaves the chain itself: the leaf is fine, the root is trusted, and what is missing is the link between them. A browser masks this because it caches intermediates it has seen before and will fetch a missing one from the `AIA` URL in the leaf; `curl` and most non-browser stacks do neither, so they see a certificate signed by an issuer they have never heard of. The fix is on the server, not in anybody's trust store: configure the full chain - leaf followed by every intermediate, root excluded - which is exactly why issuers ship a `fullchain` file next to the certificate. Concluding 'their trust stores are out of date' is the trap; it blames every client for one server's misconfiguration."
+  },
+  {
+   "id": "net-7-d-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "Two session bugs land on the same day. First: users who pay via an external provider are logged out when the provider redirects them back with a cross-site `POST`. Second: staff using the internal plaintext HTTP mirror of the site are never logged in at all, though the same credentials work on the public site. The session cookie is set as `Set-Cookie: sid=...; Path=/; HttpOnly; Secure; SameSite=Lax`. Explain both symptoms in terms of the cookie's attributes, say what you would change, and say what the change costs.",
+   "rubric": {
+    "required": [
+     "cookie",
+     "SameSite",
+     "Secure",
+     "attribut"
+    ],
+    "optional": [
+     "Lax",
+     "None",
+     "cross-site",
+     "HTTPS",
+     "plaintext",
+     "session",
+     "CSRF",
+     "redirect",
+     "state",
+     "stateless",
+     "HttpOnly"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "http-statelessness",
+    "http-messages"
+   ],
+   "tags": [
+    "http-statelessness",
+    "http-messages"
+   ],
+   "xp": 72,
+   "explain": "Both symptoms are the same mechanism seen twice: HTTP remembers nothing, so the session exists only while the cookie is attached, and the attributes are the rules deciding when it is attached. `SameSite=Lax` withholds the cookie on a cross-site `POST` - it permits only top-level cross-site navigations that are safe methods - so the user arrives back genuinely anonymous. `Secure` withholds it from any plaintext connection, so the HTTP mirror can never see it. Relaxing either attribute buys convenience and sells security: `SameSite=None` re-opens the cross-site request forgery surface that `Lax` was closing, and dropping `Secure` puts a session token on a wire anyone on the path can read and replay. The honest fixes are structural - have the provider return via a `GET` redirect, and put the internal mirror behind TLS - rather than weakening the cookie."
+  },
+  {
+   "id": "net-7-d-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design the delivery path for a news site that is about to be migrated to new servers in a different region. Cover four things and justify each. First, the DNS: which `TTL` values you set on the delegation and on the leaf records, and how you sequence them around the cut-over. Second, the HTTP caching policy: what is cacheable, for how long, and how a client revalidates when it goes stale. Third, the connection strategy: whether the site uses many HTTP/1.1 connections or one multiplexed HTTP/2 connection, and what the choice costs on a lossy mobile network. Fourth, the TLS configuration: what the server must send, and what you do to keep the handshake off the critical path for returning readers.",
+   "rubric": {
+    "required": [
+     "TTL",
+     "cach",
+     "multiplex",
+     "certificat",
+     "handshake",
+     "loss"
+    ],
+    "optional": [
+     "intermediat",
+     "chain",
+     "resumption",
+     "session",
+     "OCSP",
+     "ETag",
+     "304",
+     "max-age",
+     "stale",
+     "immutable",
+     "head-of-line",
+     "QUIC",
+     "HSTS",
+     "lower",
+     "delegat",
+     "resolver"
+    ],
+    "minWords": 130
+   },
+   "concepts": [
+    "dns-caching",
+    "http-persistence",
+    "tls-handshake",
+    "https-end-to-end"
+   ],
+   "tags": [
+    "dns-caching",
+    "http-persistence",
+    "tls-handshake",
+    "https-end-to-end"
+   ],
+   "xp": 180,
+   "explain": "The four parts are one problem seen at four layers: every one of them is about how long a decision stays committed. A long leaf `TTL` is cheap until the day you need to move, so the sequence is lower it a full old-TTL period ahead, cut over, watch the old servers drain, then raise it - and note that the delegation `NS` records have their own, much longer clock. HTTP caching wants the same split: fingerprinted assets can be immutable for a year, articles want a short `max-age` plus an `ETag` so a stale copy costs a `304` rather than a re-download. One multiplexed HTTP/2 connection is the right default because it removes application-level head-of-line blocking and one congestion window behaves better than six - but it concentrates the damage of TCP loss, which is the honest cost on a mobile network and the reason HTTP/3 exists. Finally the server must send leaf plus intermediates and never the root, and session resumption plus stapled revocation data is what takes the handshake off the critical path for a reader who was here yesterday. This challenge has no automated tests: it is graded against the rubric above, and the runner will tell you which points it found."
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-7-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does a `CNAME` record specify?",
+   "choices": [
+    "The IPv4 address a name resolves to",
+    "That the name is an alias, and resolution should continue at another name",
+    "The mail servers that accept mail for the name",
+    "The servers authoritative for the zone the name sits in"
+   ],
+   "answer": 1,
+   "concepts": [
+    "dns-records"
+   ],
+   "tags": [
+    "dns-records"
+   ],
+   "xp": 18,
+   "explain": "A `CNAME` redirects the lookup itself rather than returning data, so the resolver restarts at the target name. Because it aliases the entire name, a name holding a `CNAME` may hold nothing else - which is why a zone apex, which must carry `NS` and `SOA` records, can never be one."
+  },
+  {
+   "id": "net-7-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these does TLS guarantee for a correctly validated HTTPS connection? Select every one that applies.",
+   "choices": [
+    "Confidentiality of the request and response contents",
+    "Detection of any tampering with the bytes in transit",
+    "That the server is the one named in the certificate",
+    "That the site's operator is honest and the content is trustworthy",
+    "That an observer cannot tell which host you connected to",
+    "That the server has not been compromised"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "https-end-to-end"
+   ],
+   "tags": [
+    "https-end-to-end"
+   ],
+   "xp": 18,
+   "explain": "TLS secures the channel and authenticates the name - confidentiality, integrity, server identity - and makes no claim about either endpoint's honesty or health. It also does not hide the destination: the IP address and, without encrypted client hello, the `SNI` host name are visible to anyone on the path. Treating the padlock as a verdict on the site is the mistake it most often invites."
+  },
+  {
+   "id": "net-7-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the four missing pieces: the method that is neither safe nor idempotent, the header the server uses to give the client a cookie, the status code for an authenticated user who is nevertheless refused, and the status code for a gateway whose upstream did not reply in time.",
+   "template": "___ /orders HTTP/1.1\n\nHTTP/1.1 200 OK\n___: sid=7f3a91; Path=/; HttpOnly\n\n; and two failures\nHTTP/1.1 ___ Forbidden\nHTTP/1.1 ___ Gateway Timeout",
+   "blanks": [
+    "POST",
+    "Set-Cookie",
+    "403",
+    "504"
+   ],
+   "concepts": [
+    "http-messages",
+    "http-statelessness"
+   ],
+   "tags": [
+    "http-messages",
+    "http-statelessness"
+   ],
+   "xp": 36,
+   "explain": "`POST` is the method a proxy may never retry on its own, because repeating it can create a second order - that is what not being idempotent means in practice. `403` differs from `401` in that the request was authenticated and still refused, so re-authenticating will not help; `504` differs from `502` in that the upstream said nothing at all rather than saying something malformed."
+  },
+  {
+   "id": "net-7-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put a cold TLS 1.3 handshake into order, from the client's first message to the first HTTP request.",
+   "fragments": [
+    "Server: `EncryptedExtensions`, `Certificate`, `CertificateVerify`, `Finished` - all encrypted",
+    "Client: `ClientHello` with its supported versions, cipher suites and a `key_share`",
+    "Client: `Finished`, immediately followed by the first HTTP request",
+    "Server: `ServerHello` with the chosen suite and its own `key_share`, still in the clear"
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    2
+   ],
+   "concepts": [
+    "tls-handshake"
+   ],
+   "tags": [
+    "tls-handshake"
+   ],
+   "xp": 36,
+   "explain": "The two `key_share` messages come first because everything after them can be encrypted, which is why the certificate is no longer sent in the clear as it was in TLS 1.2. The client can attach its request to the same flight as its `Finished`, and that is exactly what makes the handshake cost one round trip instead of two."
+  },
+  {
+   "id": "net-7-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A resolver caches the `A` record for `api.example.com` at t = 0 with a TTL of 900 s. The `example.com` `NS` records are cached with a TTL of 86400 s. An entry is discarded once the elapsed time reaches its TTL.",
+   "steps": [
+    {
+     "label": "TTL reported on that record to a client at t = 200 s",
+     "expected": "700"
+    },
+    {
+     "label": "TTL reported at t = 899 s",
+     "expected": "1"
+    },
+    {
+     "label": "is the entry still usable at t = 900 s (yes or no)",
+     "expected": "no"
+    },
+    {
+     "label": "upstream queries needed to answer the question at t = 900 s",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "dns-caching"
+   ],
+   "tags": [
+    "dns-caching"
+   ],
+   "xp": 72,
+   "explain": "The TTL a resolver hands on is the remainder, not the original, so a downstream cache cannot extend the record's life beyond the moment the authoritative server chose. At t = 900 the leaf is gone but the delegation is not, so re-answering costs a single query to the authoritative server rather than a walk from the root."
+  },
+  {
+   "id": "net-7-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A page is 1 HTML document plus 24 embedded objects, RTT = 25 ms, transfer time ignored, everything over TLS 1.3 from cold. Compare six HTTP/1.1 connections against one multiplexed HTTP/2 connection. Each connection costs 1 RTT for TCP and 1 RTT for TLS, the six are opened in parallel, and a connection carries its objects one at a time.",
+   "steps": [
+    {
+     "label": "HTTP/1.1, objects carried by each of the six connections",
+     "expected": "4"
+    },
+    {
+     "label": "HTTP/1.1, total round trips",
+     "expected": "9"
+    },
+    {
+     "label": "HTTP/1.1, milliseconds",
+     "expected": "225"
+    },
+    {
+     "label": "HTTP/2, total round trips",
+     "expected": "4"
+    },
+    {
+     "label": "HTTP/2, milliseconds",
+     "expected": "100"
+    }
+   ],
+   "concepts": [
+    "http-persistence"
+   ],
+   "tags": [
+    "http-persistence"
+   ],
+   "xp": 72,
+   "explain": "The HTTP/1.1 path pays three round trips to get the HTML (TCP, TLS, request), then two more to bring up the other five connections, then four more because each connection must walk through its four objects in series: 3 + 2 + 4 = 9. HTTP/2 pays the same three and then one, because all 24 requests are in flight together on the connection it already has. Scaling the object count is what exposes the difference - the HTTP/1.1 figure grows with objects divided by six, and the HTTP/2 figure does not grow at all."
+  },
+  {
+   "id": "net-7-x-07",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A reverse proxy in front of an origin returns `502 Bad Gateway` for roughly one request in a thousand, always on the first request after a quiet period, and never for a request the proxy has just made on the same connection. Retrying always succeeds. The origin's logs show no error and no record of the failing requests. Name the cause and give the fix.",
+   "answer": "the origin closed an idle persistent connection at the same moment the proxy reused it, so the request was never received",
+   "rubric": {
+    "required": [
+     "idle",
+     "persist",
+     "clos",
+     "reus"
+    ],
+    "optional": [
+     "keep",
+     "timeout",
+     "race",
+     "retry",
+     "idempot",
+     "upstream",
+     "connection",
+     "pool",
+     "502",
+     "GET"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "http-persistence"
+   ],
+   "tags": [
+    "http-persistence"
+   ],
+   "xp": 72,
+   "explain": "Persistent connections turn a stateless protocol into one with a shared assumption - that the connection is still alive - and neither end can observe the other's idle timer. The proxy picks a pooled connection the origin has already decided to close, writes a request into it, and gets a reset before any reply, so the origin never logs a request it never read. The fix is to make the proxy's idle timeout shorter than the origin's and to retry once on a connection that failed before any response byte arrived, which is safe precisely because nothing was received. The tempting misdiagnosis is origin overload, but the pattern refutes it: this happens after quiet periods, not busy ones."
+  },
+  {
+   "id": "net-7-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "HTTP is stateless, yet you stay logged in. Explain what statelessness buys the people who run the servers, where the state actually lives instead, and what that relocation costs on every single request.",
+   "rubric": {
+    "required": [
+     "cookie",
+     "state",
+     "request",
+     "serv"
+    ],
+    "optional": [
+     "session",
+     "scal",
+     "header",
+     "overhead",
+     "cache",
+     "retry",
+     "steal",
+     "replay",
+     "HTTPS",
+     "identif",
+     "load"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "http-statelessness",
+    "http-messages"
+   ],
+   "tags": [
+    "http-statelessness",
+    "http-messages"
+   ],
+   "xp": 36,
+   "explain": "Statelessness is what makes a request routable to any server in the fleet, safely cacheable, and safely retried - none of which survives if a server holds something the next one lacks. The state did not vanish, though: it was pushed into a cookie the client stores and re-sends on every matching request, so identity now travels on the wire, where it costs bandwidth on each request and can be stolen or replayed if it is ever exposed. That is the whole reason the `Secure`, `HttpOnly` and `SameSite` attributes exist, and why HTTP/2 header compression matters more than its size suggests."
+  }
+ ]
+}

@@ -67,22 +67,45 @@ def walk(node, path, hits):
             walk(v, f"{path}[{i}]", hits)
 
 
+def targets(args):
+    """Dungeon names, or paths to floor fragments.
+
+    Authors work on a fragment long before it is assembled, so scanning only
+    content/*.json means the check cannot see the floor being written - which
+    is precisely when it is worth running. Accept either.
+    """
+    paths, names = [], []
+    for a in args:
+        if a.endswith(".json") or os.sep in a or "/" in a:
+            paths.extend(sorted(glob.glob(a)))
+        else:
+            names.append(a)
+    if paths:
+        return paths
+    for p in sorted(glob.glob(os.path.join(CONTENT, "*.json"))):
+        base = os.path.basename(p)[:-5]
+        if base.startswith("_") or base == "index":
+            continue
+        if names and base not in names:
+            continue
+        paths.append(p)
+    return paths
+
+
 def main():
-    want = sys.argv[1:] or None
     total = 0
     cosmetic = 0
-    for p in sorted(glob.glob(os.path.join(CONTENT, "*.json"))):
+    for p in targets(sys.argv[1:]):
         name = os.path.basename(p)[:-5]
-        if name.startswith("_") or name == "index":
-            continue
-        if want and name not in want:
+        if name.endswith("-meta"):
             continue
         try:
             d = json.load(io.open(p, encoding="utf-8"))
         except ValueError:
             continue
         hits = []
-        walk(d.get("floors", []), name, hits)
+        # a whole dungeon has "floors"; a fragment IS one floor
+        walk(d.get("floors", d), name, hits)
         if not hits:
             continue
         hits.sort(key=lambda h: (h[1] not in BROKEN_LABELS, h[1]))

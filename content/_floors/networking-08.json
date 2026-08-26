@@ -1,0 +1,1024 @@
+{
+ "n": 8,
+ "name": "When the Network Lies",
+ "cognitiveLevel": "transfer",
+ "concepts": [
+  "arp-spoofing",
+  "dns-poisoning",
+  "tcp-hijacking",
+  "tls-stripping",
+  "amplification-ddos",
+  "firewall-policy",
+  "nat-traversal",
+  "vpn-tunnel",
+  "path-mtu-discovery",
+  "packet-capture",
+  "diagnostic-ladder",
+  "timeout-versus-reset"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "attack-traces",
+  "field-diagnosis",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Every answer is a guess you decided to trust",
+    "body": "ARP and DNS were designed for a network of colleagues. Both answer the same shape of question - *what is the real address behind this name?* - and both accept the answer on the strength of nothing but its arrival. ARP broadcasts a request to a whole segment and believes whichever host replies; a receiver will even cache an **unsolicited** reply, which is called a **gratuitous ARP** and exists so that a machine changing its NIC can announce itself. That convenience is the attack. Forge one reply to the victim claiming the gateway's IP, and one to the gateway claiming the victim's, and both caches now point at you: you are **on the path**, in both directions, without touching a router.\n\nThe cost of fixing it is why it is still with us. Static ARP entries do not scale, and dynamic ARP inspection means every switch port must be told which addresses are legitimate - configuration state proportional to the number of hosts. The protocol bought zero-configuration addressing and paid for it with unconditional trust in whoever speaks.\n\n**DNS cache poisoning** is the same trade at the resolution layer. A recursive resolver sends a UDP query and accepts the first answer that matches the 16-bit transaction ID, the source port it queried from, and the question it asked. An off-path attacker who can guess those wins a **race** against the real authoritative server, and the forged record then sits in the cache for the whole of its TTL - one win, and every client of that resolver is redirected for hours.\n\nKaminsky's 2008 result was that the attacker need not wait for a cache entry to expire: query for a random subdomain that certainly is not cached, and forge an answer that also supplies a new address for the *parent* zone's nameserver. Failed guesses cost nothing, so the attacker simply repeats. The emergency patch was **source-port randomisation**, raising the search space from $2^{16}$ to roughly $2^{32}$. Note what that is: it makes the guess expensive, and does nothing at all about an on-path attacker who can read the query. Only DNSSEC's signatures make the answer self-verifying, and its deployment cost is why most of the Internet is still living on arithmetic.",
+    "lang": "text",
+    "code": "$ arp -n                       # before: the gateway is the gateway\nAddress        HWtype  HWaddress           Iface\n192.168.1.1    ether   00:1b:44:11:3a:b7   eth0\n192.168.1.50   ether   00:0c:29:7d:1e:04   eth0\n\n# The attacker at 192.168.1.66 now sends, twice a second, to the victim:\n#     ARP Reply  192.168.1.1  is-at  00:0c:29:aa:bb:cc      (its own MAC)\n# and to the gateway:\n#     ARP Reply  192.168.1.50 is-at  00:0c:29:aa:bb:cc\n# Nobody asked for either. Nothing in ARP asks whether the sender is\n# entitled to make the claim, so both caches simply take the newer answer.\n\n$ arp -n                       # after: same address, different machine\nAddress        HWtype  HWaddress           Iface\n192.168.1.1    ether   00:0c:29:aa:bb:cc   eth0     <- \"the gateway\"\n192.168.1.50   ether   00:0c:29:7d:1e:04   eth0\n\n# DNS is the same bargain one layer up. A resolver accepts a UDP answer\n# that matches three things and nothing else:\n#     the 16-bit transaction ID        65536 values\n#     the source port it queried from  65536 values\n#     the question section             the name it asked for\n# Randomising the port takes the space from 2^16 to about 2^32 - which is\n# arithmetic against a guesser, not a signature against a liar.",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The true gateway. Everything the victim sends off-subnet is addressed to this MAC, because that is what the cache says."
+     },
+     {
+      "line": 10,
+      "text": "Unsolicited, and accepted anyway. A protocol with no notion of authority cannot distinguish an announcement from a lie."
+     },
+     {
+      "line": 15,
+      "text": "The victim's IP-level configuration is untouched and still correct. The lie lives entirely in the link layer, which is why nothing in ipconfig or the routing table looks wrong."
+     },
+     {
+      "line": 21,
+      "text": "The port is the only field the attacker cannot read off the wire from off-path, which is exactly why randomising it was the emergency fix."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the description of what ARP and DNS actually check before believing an answer.",
+     "template": "ARP has no notion of authority, and an unsolicited reply that a receiver caches anyway is called a ___ ARP.\nPoisoning both the victim's cache and the gateway's puts the attacker in the ___ of the conversation.\nA resolver's only defence against a forged UDP answer is a match on the transaction ID and the source ___ .\n",
+     "blanks": [
+      "gratuitous",
+      "middle",
+      "port"
+     ],
+     "concepts": [
+      "arp-spoofing",
+      "dns-poisoning"
+     ],
+     "explain": "Both protocols check arrival, not authority: the fields a resolver matches are there to reject a stale or misdirected answer, not a hostile one, and ARP does not even have that much. The tempting answer for the third blank is a checksum or a signature - neither exists in plain DNS, and assuming one is there is precisely the mistake poisoning exploits.",
+     "xp": 36,
+     "tags": [
+      "arp-spoofing",
+      "dns-poisoning"
+     ]
+    }
+   },
+   {
+    "title": "On the path, and off it entirely",
+    "body": "A TCP connection is not a channel; it is an agreement between two hosts about which numbers count. A segment is accepted when its four-tuple matches an open connection and its sequence number lands in the receiver's window - and that is the whole of the admission test. An attacker who can *see* the traffic reads those numbers and injects whatever it likes, which is **TCP hijacking**; an attacker who cannot see it must guess, and the guess is only as hard as the window is small relative to $2^{32}$. With an 8 KiB window that is 524,288 forged segments on average, which is not a defence. RFC 5961 raised the cost by demanding that a reset match the expected sequence number *exactly* and answering anything merely in-window with a challenge ACK.\n\n**TLS stripping** is subtler, because it forges nothing. A user types `shop.example` in the address bar, and the browser's first request is plain HTTP. An on-path attacker answers it, fetches the real HTTPS page itself, and returns it with every `https://` link rewritten to `http://`. No certificate is presented, so no certificate can be wrong, and the browser has nothing to warn about - the padlock is simply absent, which users do not read as an alarm. **HSTS** closes it by having the site declare, in a header, that this origin is HTTPS-only for the next year, so the browser refuses plaintext without asking. Its remaining gap is the *first* visit, which is why the preload list exists: a browser shipping the answer in advance, because the network cannot be asked.\n\nThe third attack needs no seat on the path at all. UDP performs no handshake, so it never proves that a query came from the address it claims. Send a small query to a service whose answer is large, with the victim's address as the source, and the service delivers the flood for you. A 64-byte query drawing a 3,200-byte answer is a **50x amplification**: an attacker with a 100 Mbit/s uplink lands 5 Gbit/s on the victim, and every packet arrives from a legitimate, innocent server.\n\nThe structural fix for **amplification** is the unglamorous one. Ingress filtering - a network refusing to forward packets whose source address does not belong to it - would end the entire class, because a forged source is the one indispensable ingredient. It is deployed unevenly because the network that deploys it bears the cost and a stranger receives the benefit. The measures that do get deployed are local: rate-limit identical answers, and stop running services that answer unauthenticated strangers with large replies.",
+    "lang": "text",
+    "code": "# TCP accepts a segment on the strength of four numbers and a range:\n#   the 4-tuple matches an existing connection, and\n#   the sequence number falls inside the receiver's current window.\n# No key, no signature, nothing an attacker on the wire cannot read.\n\nclient ISN 1000  ->  after the handshake its first data byte is seq 1001\nclient sends 500 bytes           ->  the server now expects seq 1501\nreceive window 8192 bytes        ->  it will accept seq 1501 .. 9692\n\n# On-path: read the sequence number off the wire and inject. Trivial.\n# Off-path: guess. 2^32 / 8192 = 524288 forged segments on average to\n# land one inside that window - seconds of traffic on a fast link, which\n# is why RFC 5961 makes an in-window RST whose sequence number is not\n# exactly RCV.NXT produce a challenge ACK instead of a teardown.\n\n# Stripping needs the path but no forgery at all:\n#   user types   shop.example        -> browser sends plain HTTP\n#   attacker returns the real page, with every https:// link rewritten\n#   the browser shows no warning, because there was never any TLS to warn about\n\n# Reflection needs no path whatsoever, only a forged source address:\n#   64-byte query -> 3200-byte answer          = 50x amplification\n#   100 Mbit/s of forged queries               = 5 Gbit/s at the victim\n#   double the response size                   = 10 Gbit/s, same uplink",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A range, not a value. The window that makes TCP fast is the same window that gives a guesser thousands of acceptable answers instead of one."
+     },
+     {
+      "line": 11,
+      "text": "Computed, not rhetorical: 4,294,967,296 divided by 8,192. Halve the window and you double the attacker's work, which is not a security control anybody wants to depend on."
+     },
+     {
+      "line": 19,
+      "text": "The absence of a padlock, not the presence of a wrong one. Every certificate check the browser performs is bypassed by never starting a TLS session at all."
+     },
+     {
+      "line": 23,
+      "text": "The attacker's own link is never the limit; the amplification factor is. This is why a service that answers strangers with something much larger than they sent is a liability regardless of how well it is patched."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A client with ISN 1000 completes a handshake with a server and sends a 500-byte request. The server's receive window is 8192 bytes. Work out the numbers an injector would need.",
+     "steps": [
+      {
+       "label": "sequence number on the client's first data byte",
+       "expected": "1001"
+      },
+      {
+       "label": "the acknowledgement number the server sends after the 500 bytes",
+       "expected": "1501"
+      },
+      {
+       "label": "lowest sequence number the server will now accept",
+       "expected": "1501"
+      },
+      {
+       "label": "highest sequence number the server will now accept",
+       "expected": "9692"
+      },
+      {
+       "label": "forged segments an off-path attacker needs on average to land one in that window",
+       "expected": "524288"
+      }
+     ],
+     "concepts": [
+      "tcp-hijacking"
+     ],
+     "explain": "The handshake consumes one sequence number, so data starts at ISN + 1 rather than at the ISN itself - that off-by-one is the usual slip. The window runs from the next expected byte for 8192 values inclusive, so the top is 1501 + 8191 = 9692, not 9693; and the guessing cost is 2^32 / 8192 = 524,288, small enough that the window, not the key, is all that stands in the way.",
+     "xp": 72,
+     "tags": [
+      "tcp-hijacking"
+     ]
+    }
+   },
+   {
+    "title": "The boxes in the middle: what they defend and what they break",
+    "body": "A **stateful firewall** is not a list of rules so much as a table. It denies inbound traffic by default and admits a packet only when it matches state created by something that left - so the real policy is *which conversations exist*, and every entry has an idle timer. That timer is a security parameter and an availability hazard at once: an idle TCP flow whose state is reaped will find its next packet unrecognised, and be told so with a reset, hours after anything went wrong.\n\n**NAT** began as an answer to address exhaustion and became a firewall by accident. It rewrites the source address and port of outbound packets and keeps the mapping, so an inbound packet is deliverable only while a mapping exists. That destroys the end-to-end addressing the Internet was built on, and every peer-to-peer protocol since has had to buy it back. **STUN** lets a host ask a server outside what public address and port its NAT assigned; **hole punching** has both peers transmit outward simultaneously so that each creates the state the other's packets need; and where the NATs assign a different port per destination, no punching works and **TURN** relays the traffic through a server somebody has to pay for. **ICE** is the procedure that tries all of these and takes whichever succeeds.\n\nA **VPN** is encapsulation: the original packet is encrypted and carried as the payload of an outer one. It gives confidentiality across a network you do not control, and it costs headers. Wrapping a packet in an outer IPv4 header (20), UDP (8) and a WireGuard header (32) consumes 60 bytes, so a 1500-byte link becomes a 1440-byte tunnel and the TCP MSS inside it is 1400. The tunnel is a link, and every link has an MTU.\n\n**Path MTU discovery** is how a sender learns the smallest MTU on a route: set the **DF** bit, and a router that cannot forward the packet discards it and returns ICMP Fragmentation Needed carrying the next-hop MTU. The whole mechanism depends on an ICMP message getting home. A firewall configured to *block all ICMP* - a rule that sounds prudent and is not - turns the discovery into a **black hole**: the handshake succeeds, small packets succeed, and the first full-size segment vanishes and is retransmitted for ever. The workaround is **MSS clamping**, rewriting the MSS option in passing SYNs so the endpoints never build a segment too large to survive the path.",
+    "lang": "text",
+    "code": "# Stateful firewall: deny inbound by default, admit what answers\n# something we started. The policy is the table, not the rule list.\nSTATE TABLE\n  10.0.0.15:51514 -> 93.184.216.34:443   tcp  ESTABLISHED  idle    12s\n  10.0.0.15:51515 -> 8.8.8.8:53          udp  ASSURED      idle     3s\n  10.0.0.15:51516 -> 198.51.100.4:22     tcp  ESTABLISHED  idle  7100s   <- ages out at 7440s\n\n# NAT rewrites the source and remembers the mapping:\n  10.0.0.15:51514  <->  198.51.100.7:51514\n# An inbound packet to 198.51.100.7:51514 is deliverable only while that\n# row exists. There is no inbound at all for a peer that never spoke first,\n# which is the problem every peer-to-peer protocol has to solve:\n#   STUN   ask a server outside \"what address and port did you see?\"\n#   hole punch  both peers send outward at once, each creating the state\n#               the other's packets need\n#   TURN   when the NATs will not co-operate, relay everything and pay for it\n\n# A tunnel is a link, and links have an MTU:\n  Ethernet                            1500     MSS 1460\n  - outer IPv4 20 + UDP 8 + WG 32       60\n  = tunnel MTU                        1440     MSS 1400\n  PPPoE          (8 bytes)            1492     MSS 1452\n  GRE over IPv4  (20 + 4 bytes)       1476     MSS 1436\n\n# Path MTU discovery: send with DF set, and let a router that cannot\n# forward the packet return ICMP Fragmentation Needed with the next-hop\n# MTU. Filter that ICMP at your edge and the sender never learns.",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The idle timer is the whole reason a perfectly healthy long-lived connection can die overnight while both endpoints believe it is open."
+     },
+     {
+      "line": 14,
+      "text": "Simultaneity is the trick. Each side's outbound packet may well be dropped by the far NAT, but it creates the local state that lets the other side's next packet in."
+     },
+     {
+      "line": 21,
+      "text": "1500 - 60 = 1440, and 1440 - 20 - 20 = 1400 once IPv4 and TCP headers come off inside. Over an IPv6 outer header the figures are 1420 and 1380, which is where WireGuard's conservative default comes from."
+     },
+     {
+      "line": 27,
+      "text": "The failure is silent and asymmetric: the sender is never told, so it concludes the packet was lost and retransmits the identical too-large packet indefinitely."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the description of the middleboxes and of the manoeuvres that get past them.",
+     "template": "A stateful firewall's default policy for unsolicited inbound traffic is to ___ it.\nNAT makes an inbound packet deliverable only while the ___ created by an outbound packet still exists.\nA host learns the public address and port its NAT assigned by asking a ___ server on the outside.\nWhen two NATs will not co-operate, the only remaining option is to send the traffic through a ___ .\n",
+     "blanks": [
+      "deny",
+      "mapping",
+      "STUN",
+      "relay"
+     ],
+     "concepts": [
+      "firewall-policy",
+      "nat-traversal"
+     ],
+     "explain": "Every one of these follows from the same fact: state is created by outbound packets and nothing else, so reachability is a consequence of who spoke first rather than of who has an address. The tempting answer for the last blank is a port forward, which works only when you control the NAT - a relay is what is left when you control neither end's network.",
+     "xp": 36,
+     "tags": [
+      "firewall-policy",
+      "nat-traversal"
+     ]
+    }
+   },
+   {
+    "title": "Reading the evidence instead of guessing",
+    "body": "Diagnosis is a discipline of bisection, not inspiration. The ladder runs bottom-up because every rung depends on the ones below it: carrier on the interface, then address and mask and default route, then a ping to the gateway to prove the local segment, then name resolution, then a traceroute to see how far packets get, then a TCP connect to the port, and only then the application's own error. Testing one rung at a time is slower than guessing and finishes sooner, because a passing rung eliminates everything beneath it. The commonest way to waste an afternoon is to start at the application, which is the rung where every lower failure shows up wearing a misleading costume.\n\nThe evidence is more precise than it looks, and the distinctions matter. A **timeout** means nobody replied: a packet was discarded by a filter, a black-hole route or a host that is not there, and none of those is obliged to tell you which. A **refusal** - an RST in answer to a SYN - is far better news than it feels: it proves the host is up, the route works in both directions, and nothing is listening on that port, so everything below the port is now known good. An ICMP administratively prohibited says a firewall chose to **reject** rather than drop, which is a courtesy. A **reset mid-connection** means somebody tore down a conversation that was working: a crashed process, an expired NAT or firewall state entry, or an injected packet.\n\nTwo failures earn their own entry because they mimic application bugs. A handshake that completes while only full-size segments disappear is a **path MTU black hole**, and it will look for all the world like a slow backend. And a connection that works from one host but not another, with identical configuration, is usually asymmetric: capture at both ends and find out whether the packet even arrives.\n\nThat is the point of a **capture**. It replaces belief with observation, and the first three questions are always the same. Does the packet leave? Does anything come back? And if you capture at the far end too, does the packet arrive there? Two captures turn *the server is broken* into *the return path drops the SYN-ACK*, which is a different problem with a different owner.",
+    "lang": "text",
+    "code": "$ tcpdump -n -i eth0\n\n# (a) nobody answers\n10:31:02.100 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [S], seq 3320011\n10:31:03.100 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [S], seq 3320011\n10:31:05.100 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [S], seq 3320011\n#  -> TIMEOUT. Something discarded it and told nobody: a DROP rule, a\n#     black-hole route, or a host that is not there. A timeout names a\n#     symptom, never a cause.\n\n# (b) an immediate refusal\n10:33:10.220 IP 10.0.0.15.51602 > 203.0.113.9.8080: Flags [S], seq 771002\n10:33:10.241 IP 203.0.113.9.8080 > 10.0.0.15.51602: Flags [R.], seq 0, ack 771003\n#  -> REFUSED, in 21 ms. This is good news: the host is up, the route\n#     works both ways, the firewall passed it - and no process is bound\n#     to 8080. Everything below the port has just been proven.\n\n# (c) the handshake works and then the transfer dies\n10:35:41.010 IP 10.0.0.15.51604 > 203.0.113.9.443: Flags [S], seq 91000\n10:35:41.032 IP 203.0.113.9.443 > 10.0.0.15.51604: Flags [S.], seq 55000, ack 91001\n10:35:41.033 IP 10.0.0.15.51604 > 203.0.113.9.443: Flags [.], ack 55001\n10:35:41.035 IP 10.0.0.15.51604 > 203.0.113.9.443: Flags [P.], seq 91001:91518\n10:35:41.060 IP 203.0.113.9.443 > 10.0.0.15.51604: Flags [P.], seq 55001:56461\n10:35:41.290 IP 203.0.113.9.443 > 10.0.0.15.51604: Flags [P.], seq 55001:56461\n10:35:41.750 IP 203.0.113.9.443 > 10.0.0.15.51604: Flags [P.], seq 55001:56461\n#  -> the 1460-byte segment is retransmitted for ever while the 517-byte\n#     request went through first time: a path MTU black hole, not a bug\n#     in the application everyone is currently blaming.",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Identical sequence number, one second later: this is a retransmission, not a new attempt. Three of them and no reply of any kind is the signature of a silent drop."
+     },
+     {
+      "line": 13,
+      "text": "The reset acknowledges the SYN, which is how you know it came from a real TCP stack that saw the packet rather than from an injector guessing."
+     },
+     {
+      "line": 21,
+      "text": "The handshake completed, so DNS, routing, the firewall and the listening port are all proven good before the failure even begins."
+     },
+     {
+      "line": 25,
+      "text": "Same bytes, third time, at growing intervals. A retransmission timer backing off on one particular size of segment is an MTU symptom, and no amount of reading application logs will show it."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the four verdicts a diagnostician reads straight off the wire.",
+     "template": "A SYN that draws no response at all, only retransmissions, ends in a ___ , and nothing on the path is obliged to say why.\nA SYN answered with an RST proves the host is reachable and that no process is ___ on that port.\nAn ICMP administratively prohibited reply means a firewall chose to ___ the packet rather than drop it silently.\nWhen the handshake succeeds and only full-size segments vanish, suspect the path ___ .\n",
+     "blanks": [
+      "timeout",
+      "listening",
+      "reject",
+      "MTU"
+     ],
+     "concepts": [
+      "timeout-versus-reset",
+      "diagnostic-ladder",
+      "packet-capture"
+     ],
+     "explain": "A refusal feels like the worse outcome and is the better one, because it is evidence: it proves five layers at once, while a timeout proves nothing except that you must now test lower down. The last line is the case that most often gets misfiled as an application fault, since the connection is genuinely established and the logs show a request that simply never completed.",
+     "xp": 36,
+     "tags": [
+      "timeout-versus-reset",
+      "diagnostic-ladder",
+      "packet-capture"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-8-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of an ARP spoofing attack that puts an attacker on the path into the order they happen.",
+   "fragments": [
+    "the attacker joins the same broadcast domain as the victim and the gateway",
+    "the attacker sends the victim an unsolicited reply claiming the gateway's address is at the attacker's MAC",
+    "the attacker sends the gateway an unsolicited reply claiming the victim's address is at the attacker's MAC",
+    "both caches now name the attacker's MAC, so frames in both directions arrive at its NIC",
+    "the attacker forwards each frame on to its real destination, so neither party loses service",
+    "the attacker reads everything, and rewrites whatever is not protected end to end"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "arp-spoofing"
+   ],
+   "explain": "Both caches have to be poisoned, and this is the step most often left out: poisoning only the victim gives the attacker one direction and a conversation the gateway still answers correctly. Forwarding is what makes the attack quiet - an attacker that swallows the traffic is discovered within seconds, because the user notices the network is down.",
+   "xp": 36,
+   "tags": [
+    "arp-spoofing"
+   ]
+  },
+  {
+   "id": "net-8-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the arithmetic a DNS cache poisoner has to beat. Give the third blank as an exponent of two.",
+   "template": "A resolver accepts a UDP answer only if it matches the query's 16-bit ___ , the source port it used, and the question asked.\nThe transaction identifier alone gives ___ possibilities.\nRandomising the source port as well raises the space to roughly 2^___ .\nAn off-path attacker must therefore ___ the real authoritative server with a forged answer.\nA forgery that is accepted stays in the cache for the length of its ___ .\n",
+   "blanks": [
+    "transaction ID",
+    "65536",
+    "32",
+    "race",
+    "TTL"
+   ],
+   "concepts": [
+    "dns-poisoning"
+   ],
+   "explain": "The two 16-bit fields multiply rather than add, which is the whole reason port randomisation was worth an emergency patch: 2^16 x 2^16 = 2^32. What it does not do is make the answer verifiable, so an attacker who can observe the query still wins immediately - the defence is arithmetic against a guesser, and only DNSSEC's signatures address the liar.",
+   "xp": 36,
+   "tags": [
+    "dns-poisoning"
+   ]
+  },
+  {
+   "id": "net-8-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A stateful firewall denies inbound by default, permits all outbound, and admits inbound packets matching established or related state. TCP state ages out after 7440 s idle, UDP after 30 s. For each packet give `PASS` or `DROP`.",
+   "steps": [
+    {
+     "label": "outbound SYN, 10.0.0.15:51600 to 203.0.113.9:443",
+     "expected": "PASS"
+    },
+    {
+     "label": "the inbound SYN-ACK answering it, 20 ms later",
+     "expected": "PASS"
+    },
+    {
+     "label": "inbound SYN from 198.51.100.4:40000 to 10.0.0.15:8080, matching no state",
+     "expected": "DROP"
+    },
+    {
+     "label": "inbound ICMP Fragmentation Needed quoting the client's own 443 flow",
+     "expected": "PASS"
+    },
+    {
+     "label": "inbound ACK on the 443 flow arriving four hours after the last packet on it",
+     "expected": "DROP"
+    },
+    {
+     "label": "inbound DNS answer from 8.8.8.8:53, 40 s after the query left",
+     "expected": "DROP"
+    }
+   ],
+   "concepts": [
+    "firewall-policy",
+    "timeout-versus-reset"
+   ],
+   "explain": "The fourth line is the one worth remembering: an ICMP error quoting an existing flow is *related* traffic, and a policy that drops it because ICMP sounds dangerous is exactly how a path MTU black hole is manufactured. The last two are the same mechanism at two timescales - four hours exceeds 7440 s and forty seconds exceeds the UDP timer, so in both cases perfectly legitimate replies arrive after the state that would have admitted them has been reaped.",
+   "xp": 72,
+   "tags": [
+    "firewall-policy",
+    "timeout-versus-reset"
+   ]
+  },
+  {
+   "id": "net-8-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the MTU arithmetic for traffic carried inside a tunnel. All figures are bytes.",
+   "template": "An Ethernet link has an MTU of ___ bytes, so a TCP connection over IPv4 advertises an MSS of ___ .\nWrapping that traffic in a tunnel that adds an outer IPv4 header, UDP and a 32-byte WireGuard header - 60 bytes in all - leaves a tunnel MTU of ___ .\nA router that cannot forward a packet whose ___ bit is set discards it and returns an ICMP error instead of fragmenting.\nRewriting the MSS option in passing SYNs so the endpoints never build a segment too big for the path is called MSS ___ .\n",
+   "blanks": [
+    "1500",
+    "1460",
+    "1440",
+    "DF",
+    "clamping"
+   ],
+   "concepts": [
+    "path-mtu-discovery",
+    "vpn-tunnel"
+   ],
+   "explain": "The MSS is the MTU minus 40 - twenty bytes of IPv4 header and twenty of TCP - so 1460 outside the tunnel and 1400 inside it, and every one of these numbers moves if the outer header is IPv6. Clamping is a workaround rather than a fix: it repairs TCP and does nothing for UDP-based protocols, which is why the ICMP still has to be allowed through.",
+   "xp": 36,
+   "tags": [
+    "path-mtu-discovery",
+    "vpn-tunnel"
+   ]
+  }
+ ],
+ "attack-traces": [
+  {
+   "id": "net-8-a-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A switched segment holds the victim `192.168.1.50` at MAC `00:0c:29:7d:1e:04`, the gateway `192.168.1.1` at `00:1b:44:11:3a:b7`, and an attacker `192.168.1.66` at `00:0c:29:aa:bb:cc`. The attacker begins sending the victim gratuitous ARP replies claiming `192.168.1.1 is-at 00:0c:29:aa:bb:cc`. Answer each question with the value asked for, or `yes` / `no`.",
+   "steps": [
+    {
+     "label": "before the attack, destination MAC on a frame the victim sends to 93.184.216.34",
+     "expected": "00:1b:44:11:3a:b7"
+    },
+    {
+     "label": "after the attack, destination MAC on the same frame",
+     "expected": "00:0c:29:aa:bb:cc"
+    },
+    {
+     "label": "source IP address inside that frame, after the attack",
+     "expected": "192.168.1.50"
+    },
+    {
+     "label": "does the victim's routing table or IP configuration change",
+     "expected": "no"
+    },
+    {
+     "label": "must the attacker also poison the gateway to see the replies",
+     "expected": "yes"
+    },
+    {
+     "label": "does an HTTPS session from the victim now show a certificate warning",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "arp-spoofing",
+    "tls-stripping"
+   ],
+   "explain": "Nothing above the link layer moves: the IP header, the routing table and the default gateway are all still correct, which is why every diagnostic the victim runs on itself reports a healthy machine. The last step is the one people get wrong in both directions - being on the path does not break TLS, so there is no warning; the attacker who wants readable traffic has to stop TLS from starting at all, which is stripping, not spoofing.",
+   "xp": 72,
+   "tags": [
+    "arp-spoofing",
+    "tls-stripping"
+   ]
+  },
+  {
+   "id": "net-8-a-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A connection runs from `10.0.0.15:51500` to `203.0.113.9:80`. The client's ISN is 1000 and the server's is 5000. The handshake completes and the client sends a 700-byte request. The server's receive window is 8192 bytes. Give each value as a number, or the phrase asked for.",
+   "steps": [
+    {
+     "label": "sequence number of the client's first data byte",
+     "expected": "1001"
+    },
+    {
+     "label": "acknowledgement number in the server's reply after the 700 bytes",
+     "expected": "1701"
+    },
+    {
+     "label": "highest sequence number the server will accept in a further client segment",
+     "expected": "9892"
+    },
+    {
+     "label": "expected number of forged segments an off-path attacker needs to hit that window",
+     "expected": "524288"
+    },
+    {
+     "label": "expected number of forged segments if the window were 65536 bytes instead",
+     "expected": "65536"
+    },
+    {
+     "label": "under RFC 5961, an in-window RST whose sequence number is not exactly the expected one produces a",
+     "expected": "challenge ACK"
+    }
+   ],
+   "concepts": [
+    "tcp-hijacking"
+   ],
+   "explain": "The window is the attacker's target and the receiver's throughput at the same time, which is the uncomfortable part: 2^32 / 8192 = 524,288 guesses, and widening the window to 65,536 bytes for performance cuts that to 65,536 guesses. RFC 5961's answer is to keep the wide window but narrow what a reset is allowed to be - only an exact match tears the connection down, and anything else merely earns a challenge ACK the real peer can answer and a forger cannot.",
+   "xp": 72,
+   "tags": [
+    "tcp-hijacking"
+   ]
+  },
+  {
+   "id": "net-8-a-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An attacker sends 64-byte UDP queries with the victim's address as the source to open servers that answer with 3,200 bytes. The attacker's own uplink is 100 Mbit/s and is saturated with these queries. Give each figure as a plain number - no units.",
+   "steps": [
+    {
+     "label": "amplification factor",
+     "expected": "50"
+    },
+    {
+     "label": "bandwidth arriving at the victim, in Gbit/s",
+     "expected": "5"
+    },
+    {
+     "label": "amplifiers needed if each is rate-limited to 100 Mbit/s of answers",
+     "expected": "50"
+    },
+    {
+     "label": "amplification factor if the same query drew a 6,400-byte answer",
+     "expected": "100"
+    },
+    {
+     "label": "bandwidth at the victim in that case, in Gbit/s",
+     "expected": "10"
+    },
+    {
+     "label": "Gbit/s at the victim at the original factor from a 1 Gbit/s uplink",
+     "expected": "50"
+    }
+   ],
+   "concepts": [
+    "amplification-ddos"
+   ],
+   "explain": "The attacker's link stops being the constraint the moment the factor exceeds one, which is why this class of attack scales with somebody else's capacity rather than with the attacker's budget. Note the third figure: the load is trivially spread, so per-server rate limiting bounds each amplifier's contribution and does nothing to the total while there are more amplifiers to be found. Only refusing to forward a forged source address ends it.",
+   "xp": 72,
+   "tags": [
+    "amplification-ddos"
+   ]
+  },
+  {
+   "id": "net-8-a-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Users of one ISP get certificate warnings for `shop.example`; everyone else is fine. Querying that ISP's recursive resolver returns `A 198.51.100.200` with a TTL counting down from 86400, while the authoritative servers return `A 93.184.216.34` with a TTL of 300. The resolver's logs show a burst of queries for names like `x7f2q.shop.example` shortly before the bad record appeared. Name the cause, and name the two properties of the resolver's queries that make this attack impractical when they are present.",
+   "answer": "The recursive resolver's cache was poisoned - a forged UDP answer matching the transaction ID and source port beat the authoritative server to it, and the long TTL keeps it there",
+   "rubric": {
+    "required": [
+     "cach",
+     "resolv",
+     "TTL",
+     "random",
+     "forg"
+    ],
+    "optional": [
+     "Kaminsky",
+     "port",
+     "transaction",
+     "race",
+     "off-path",
+     "DNSSEC",
+     "subdomain",
+     "authoritative"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "dns-poisoning"
+   ],
+   "explain": "The random subdomains are the signature: they cannot be in the cache, so each one forces a fresh query the attacker can race, and a failed race costs nothing but a retry. The two properties that matter are an unpredictable transaction ID and an unpredictable source port, which together take the search space to about 2^32 - and the TTL is the reason a single success is worth so much, because the attacker gets a day of redirection from one lucky packet.",
+   "xp": 72,
+   "tags": [
+    "dns-poisoning"
+   ]
+  },
+  {
+   "id": "net-8-a-05",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "On a café network, an attacker is on the path between customers and the gateway. A customer types `shop.example` into the address bar and reaches what looks like the ordinary site, over plain HTTP, and enters a password. Explain what the attacker rewrote, why this downgrade produces no browser warning at all, exactly what HSTS changes about the second visit, and the one visit HSTS alone cannot protect.",
+   "rubric": {
+    "required": [
+     "strip",
+     "http",
+     "HSTS",
+     "redirect",
+     "downgrad"
+    ],
+    "optional": [
+     "preload",
+     "padlock",
+     "certificat",
+     "warning",
+     "first",
+     "proxy",
+     "cookie",
+     "secure",
+     "arp"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "tls-stripping"
+   ],
+   "explain": "The attacker forges nothing and breaks no cryptography: it intercepts the plaintext request the browser makes before any TLS exists, fetches the real HTTPS page itself, and returns it with the redirect to HTTPS removed and every link rewritten. There is no warning because a warning requires a certificate to be wrong, and no certificate was ever presented - the only signal is an absent padlock. HSTS makes the browser refuse plaintext to that origin for the declared period, which leaves precisely one hole, the very first visit from a browser that has never seen the header, and that is what the preload list exists to fill.",
+   "xp": 72,
+   "tags": [
+    "tls-stripping"
+   ]
+  }
+ ],
+ "field-diagnosis": [
+  {
+   "id": "net-8-f-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Staff moved onto a new WireGuard VPN this morning. They can log in, `ping` works, small API calls work, and `curl` returns response headers and then hangs on anything larger. A capture at the client shows the server retransmitting one 1,460-byte segment at growing intervals while the 517-byte request went through first time. The corporate edge firewall was recently given a rule blocking all ICMP. Name the failure and give two fixes.",
+   "answer": "A path MTU black hole - the 1440-byte tunnel MTU is never discovered because the ICMP Fragmentation Needed messages are being filtered at the edge",
+   "rubric": {
+    "required": [
+     "MTU",
+     "ICMP",
+     "fragment",
+     "retransmi",
+     "clamp"
+    ],
+    "optional": [
+     "1440",
+     "1400",
+     "black",
+     "DF",
+     "tunnel",
+     "discover",
+     "PLPMTUD",
+     "MSS",
+     "related"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "path-mtu-discovery",
+    "vpn-tunnel",
+    "packet-capture"
+   ],
+   "explain": "The tunnel's headers take 60 bytes off a 1500-byte link, so anything above 1440 bytes must be reported back by an ICMP Fragmentation Needed - and a rule that blocks all ICMP destroys the only channel that report has. The evidence is size-dependent, not host-dependent: small packets succeed, the handshake succeeds, and exactly one segment size fails, which is why this is so often misfiled as a slow backend. Fix it by admitting ICMP errors related to existing flows, and by clamping the MSS on the tunnel interface to 1400 so the segments are never built too large in the first place.",
+   "xp": 72,
+   "tags": [
+    "path-mtu-discovery",
+    "vpn-tunnel",
+    "packet-capture"
+   ]
+  },
+  {
+   "id": "net-8-f-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "For each observation give exactly one verdict from this list: `timeout`, `refused`, `rejected`, `reset`, `nxdomain`, `blackhole`.",
+   "steps": [
+    {
+     "label": "the SYN is retransmitted three times and nothing of any kind comes back",
+     "expected": "timeout"
+    },
+    {
+     "label": "an RST answering the SYN arrives 21 ms later",
+     "expected": "refused"
+    },
+    {
+     "label": "an ICMP administratively prohibited arrives in answer to the SYN",
+     "expected": "rejected"
+    },
+    {
+     "label": "a connection idle for forty minutes draws an RST on its next write",
+     "expected": "reset"
+    },
+    {
+     "label": "the resolver answers at once that the name does not exist",
+     "expected": "nxdomain"
+    },
+    {
+     "label": "the handshake completes, small requests succeed, and the first full-size segment is retransmitted for ever",
+     "expected": "blackhole"
+    }
+   ],
+   "concepts": [
+    "diagnostic-ladder",
+    "timeout-versus-reset",
+    "path-mtu-discovery"
+   ],
+   "explain": "Three of these prove the path works and only the top of the stack is at fault - a refusal, a rejection and a reset all require a packet to have travelled both ways - while a timeout proves nothing at all and sends you back down the ladder. The fourth and sixth are the ones that get misattributed: an idle-timeout reset is a middlebox reaping state rather than a peer crashing, and the black hole is a link property masquerading as an application stall.",
+   "xp": 72,
+   "tags": [
+    "diagnostic-ladder",
+    "timeout-versus-reset",
+    "path-mtu-discovery"
+   ]
+  },
+  {
+   "id": "net-8-f-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A monitoring agent reports an API as down. A capture at the agent shows its SYNs leaving every second with no reply. A capture taken at the API server at the same moment shows those SYNs arriving and a SYN-ACK being sent for each one. A second client on a different subnet reaches the API normally. Say what the pair of captures proves, which direction the fault is in, and name two classes of device that produce this.",
+   "answer": "The return path is dropping the SYN-ACK - the server is healthy and the failure is one-directional, which only capturing at both ends can show",
+   "rubric": {
+    "required": [
+     "return",
+     "captur",
+     "drop",
+     "server",
+     "route"
+    ],
+    "optional": [
+     "asymmetr",
+     "state",
+     "NAT",
+     "firewall",
+     "SYN",
+     "reverse",
+     "path",
+     "both",
+     "direction"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "packet-capture",
+    "diagnostic-ladder",
+    "firewall-policy"
+   ],
+   "explain": "One capture can only ever tell you that something did not come back; two turn that into a statement about which direction failed, and here the SYN-ACK is provably sent and provably not received. The usual producers are a stateful firewall or NAT on the return path that has no state for a flow it never saw the start of - common when routing is asymmetric and the two directions traverse different boxes - and a route on the server side that sends replies for that subnet somewhere else entirely. The working second client is not evidence that the server is fine; it is evidence that the broken thing is specific to one path.",
+   "xp": 72,
+   "tags": [
+    "packet-capture",
+    "diagnostic-ladder",
+    "firewall-policy"
+   ]
+  },
+  {
+   "id": "net-8-f-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design the network perimeter for a forty-person firm. Remote staff reach internal tools over a WireGuard VPN; the firm also runs a peer-to-peer video calling product whose clients sit behind other people's NATs; and it operates a DNS resolver for its own staff. Specify: the firewall's default policy for unsolicited inbound traffic and what admits a packet instead; what NAT does to inbound media and how two clients behind NATs establish a flow; what you provide for the pairs that cannot; the MTU you configure inside the tunnel and why; which ICMP you must not block and what breaks if you do; what you do about packets leaving your network with a forged source address; and how you stop your resolver becoming somebody else's amplifier.",
+   "rubric": {
+    "required": [
+     "default",
+     "state",
+     "NAT",
+     "STUN",
+     "relay",
+     "MTU",
+     "ICMP",
+     "spoof"
+    ],
+    "optional": [
+     "TURN",
+     "ICE",
+     "hole",
+     "punch",
+     "clamp",
+     "deny",
+     "1440",
+     "1400",
+     "establish",
+     "recursi",
+     "rate",
+     "amplif",
+     "ingress",
+     "fragment"
+    ],
+    "minWords": 130
+   },
+   "concepts": [
+    "firewall-policy",
+    "nat-traversal",
+    "vpn-tunnel",
+    "amplification-ddos",
+    "path-mtu-discovery"
+   ],
+   "explain": "The design has one spine: state is created by outbound packets, so reachability is decided by who spoke first, and every requirement here is a consequence. Inbound is denied by default and admitted only as established or related traffic, which is exactly why ICMP errors quoting an existing flow must be permitted - block them and path MTU discovery dies silently, so set the tunnel MTU to 1440 and clamp the MSS to 1400 as well rather than relying on discovery alone. Peer-to-peer media needs STUN to learn the public mapping and simultaneous outbound packets to punch the hole, with a TURN relay for the symmetric-NAT pairs that cannot be punched. Finally, the two obligations you owe other networks: filter packets leaving with a source address that is not yours, which would end the whole reflection class if everyone did it, and refuse recursion to strangers with response-rate limiting so your resolver never becomes an amplifier.",
+   "xp": 180,
+   "tags": [
+    "firewall-policy",
+    "nat-traversal",
+    "vpn-tunnel",
+    "amplification-ddos",
+    "path-mtu-discovery"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-8-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A **reflection and amplification** attack is best defined as which of the following?",
+   "choices": [
+    "Flooding a victim directly from a large botnet of compromised hosts",
+    "Sending queries with the victim's address as the source to servers whose replies are far larger than the queries",
+    "Exhausting a server's connection table by opening half-open TCP connections and never completing them",
+    "Overwriting a victim's ARP cache so that its traffic passes through the attacker"
+   ],
+   "answer": 1,
+   "concepts": [
+    "amplification-ddos"
+   ],
+   "explain": "The other three are a direct flood, a SYN flood and ARP spoofing respectively - all real attacks, none of them reflective. The two properties that define this one are that the traffic is delivered by innocent third parties, and that the volume is set by the ratio between answer and query rather than by the attacker's own bandwidth.",
+   "xp": 18,
+   "tags": [
+    "amplification-ddos"
+   ]
+  },
+  {
+   "id": "net-8-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about **ARP**, as specified, are true?",
+   "choices": [
+    "Any host on the segment may answer a request, and the requester cannot verify the reply",
+    "A host may send an unsolicited reply, and receivers commonly cache it",
+    "Replies are authenticated with a key configured for the segment",
+    "It maps an IP address to a link-layer address within one broadcast domain",
+    "It travels inside UDP, so an IP firewall can filter it"
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "arp-spoofing"
+   ],
+   "explain": "There is no key anywhere in ARP - that is the entire vulnerability, not an implementation oversight. The last choice tempts because filtering feels like the obvious remedy, but ARP frames carry no IP header at all, so an IP firewall never sees them; the defences live in the switch, as dynamic ARP inspection tied to DHCP snooping.",
+   "xp": 18,
+   "tags": [
+    "arp-spoofing"
+   ]
+  },
+  {
+   "id": "net-8-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the four verdicts and what each one proves.",
+   "template": "A SYN that is silently discarded produces a ___ after several retransmissions.\nA SYN answered with a TCP ___ segment gives `connection refused`, which proves the host is reachable.\nAn established connection torn down by a middlebox after a long idle period is reported as a connection ___ by peer.\nA server that completes the handshake but whose full-size segments never arrive is showing a path ___ black hole.\n",
+   "blanks": [
+    "timeout",
+    "RST",
+    "reset",
+    "MTU"
+   ],
+   "concepts": [
+    "timeout-versus-reset",
+    "path-mtu-discovery"
+   ],
+   "explain": "The same flag produces two very different diagnoses depending on when it arrives: an RST answering a SYN is a closed port, while an RST on a working connection is a teardown by a peer or a middlebox. Reading them as one symptom is how an expired NAT entry gets misdiagnosed as a crashing service.",
+   "xp": 36,
+   "tags": [
+    "timeout-versus-reset",
+    "path-mtu-discovery"
+   ]
+  },
+  {
+   "id": "net-8-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A user reports that an internal web application is unreachable. Put the rungs of the diagnostic ladder into the order you should climb them.",
+   "fragments": [
+    "confirm the interface is up and has carrier",
+    "confirm it has an address, a mask and a default route",
+    "ping the default gateway to prove the local segment works",
+    "resolve the application's name and check the address returned is the one you expect",
+    "traceroute to that address to see how far the packets get",
+    "open the TCP port with a connect test and read what comes back",
+    "read the application's own error, now that everything beneath it is proven"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "concepts": [
+    "diagnostic-ladder"
+   ],
+   "explain": "Each rung is only meaningful once the ones below it hold: a traceroute over a broken default route tells you nothing, and a name that resolves to the wrong address makes every later test a test of the wrong host. Starting at the application is the tempting shortcut, and it is where every lower failure appears in disguise.",
+   "xp": 36,
+   "tags": [
+    "diagnostic-ladder"
+   ]
+  },
+  {
+   "id": "net-8-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Work out the following MTU and MSS figures for IPv4 with a plain 20-byte TCP header. Give each as a plain number of bytes.",
+   "steps": [
+    {
+     "label": "MSS advertised on a 1500-byte Ethernet link",
+     "expected": "1460"
+    },
+    {
+     "label": "tunnel MTU after an outer IPv4 header (20), UDP (8) and a WireGuard header (32)",
+     "expected": "1440"
+    },
+    {
+     "label": "MSS inside that tunnel",
+     "expected": "1400"
+    },
+    {
+     "label": "MTU on a PPPoE link, which adds 8 bytes",
+     "expected": "1492"
+    },
+    {
+     "label": "MTU inside a GRE tunnel over IPv4, which adds 20 + 4 bytes",
+     "expected": "1476"
+    },
+    {
+     "label": "MSS inside that GRE tunnel",
+     "expected": "1436"
+    }
+   ],
+   "concepts": [
+    "path-mtu-discovery",
+    "vpn-tunnel"
+   ],
+   "explain": "Every figure is the link MTU minus the encapsulation, and every MSS is its MTU minus 40 for the IPv4 and TCP headers that ride inside. The habitual error is to subtract the tunnel overhead from the MSS as well as from the MTU, double-counting it - the inner headers are the same 40 bytes whether or not a tunnel is in the way.",
+   "xp": 72,
+   "tags": [
+    "path-mtu-discovery",
+    "vpn-tunnel"
+   ]
+  },
+  {
+   "id": "net-8-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Read this capture taken at the client and answer each question with a number, `yes` or `no`.\n\n`10:31:02.100 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [S], seq 3320011`\n`10:31:02.121 IP 203.0.113.9.443 > 10.0.0.15.51600: Flags [S.], seq 88000, ack 3320012`\n`10:31:02.122 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [.], ack 88001`\n`10:31:02.125 IP 10.0.0.15.51600 > 203.0.113.9.443: Flags [P.], seq 3320012:3320529, ack 88001`\n`10:31:02.180 IP 203.0.113.9.443 > 10.0.0.15.51600: Flags [.], ack 3320529`\n`10:31:04.900 IP 203.0.113.9.443 > 10.0.0.15.51600: Flags [R.], seq 88001, ack 3320529`",
+   "steps": [
+    {
+     "label": "bytes of request the client sent",
+     "expected": "517"
+    },
+    {
+     "label": "did the three-way handshake complete",
+     "expected": "yes"
+    },
+    {
+     "label": "was the request acknowledged",
+     "expected": "yes"
+    },
+    {
+     "label": "is a process listening on port 443 at the far end",
+     "expected": "yes"
+    },
+    {
+     "label": "does this capture prove the server's own application sent the reset",
+     "expected": "no"
+    },
+    {
+     "label": "is a path MTU black hole consistent with this capture",
+     "expected": "no"
+    }
+   ],
+   "concepts": [
+    "packet-capture",
+    "timeout-versus-reset"
+   ],
+   "explain": "The request is 3320529 - 3320012 = 517 bytes and it was acknowledged, so DNS, routing, the firewall and the listening socket are all proven good before anything goes wrong - which rules out the MTU black hole, whose signature is data that is never acknowledged at all. What the capture cannot tell you is who sent the reset: a capture at one end sees a packet with the server's address on it, and an injected reset and a genuine one look identical from here. That is precisely why the next step is a capture at the server.",
+   "xp": 72,
+   "tags": [
+    "packet-capture",
+    "timeout-versus-reset"
+   ]
+  },
+  {
+   "id": "net-8-x-07",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An application keeps a pool of database connections open. Every morning the first query after the overnight lull fails with `connection reset by peer`; the pool reconnects and everything is normal for the rest of the day. The two hosts are in different clouds with a NAT gateway between them, and the database logs show no error at all. Name the cause and give the configuration change that fixes it.",
+   "answer": "The NAT gateway's state entry for the idle connection expired overnight, so the first packet after the lull matched no state and drew a reset",
+   "rubric": {
+    "required": [
+     "idle",
+     "state",
+     "NAT",
+     "reset",
+     "keepalive"
+    ],
+    "optional": [
+     "timer",
+     "expire",
+     "pool",
+     "firewall",
+     "middlebox",
+     "overnight",
+     "TCP",
+     "probe"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "nat-traversal",
+    "firewall-policy",
+    "timeout-versus-reset"
+   ],
+   "explain": "Both endpoints believe the connection is open, because TCP sends nothing on an idle connection and therefore learns nothing about it; the middlebox in between has quietly reaped a mapping it had not seen a packet on for hours. The silent database log is the decisive clue - a reset from the peer's own stack would have a cause somewhere in that log. The fix is to make the connection stop being idle, with TCP keepalives at an interval below the gateway's timer, or a pool that recycles connections before that timer expires.",
+   "xp": 72,
+   "tags": [
+    "nat-traversal",
+    "firewall-policy",
+    "timeout-versus-reset"
+   ]
+  },
+  {
+   "id": "net-8-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "An on-path attacker cannot alter a single byte of an HTTPS response, and yet can still stop the connection dead at will. Explain why TLS defeats content injection but not reset injection, and say what would have to change for the second to be defeated as well.",
+   "rubric": {
+    "required": [
+     "TLS",
+     "RST",
+     "seq",
+     "transport",
+     "detect"
+    ],
+    "optional": [
+     "integr",
+     "MAC",
+     "authenticat",
+     "header",
+     "QUIC",
+     "encrypt",
+     "window",
+     "TCP-AO",
+     "plaintext"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "tcp-hijacking",
+    "tls-stripping"
+   ],
+   "explain": "TLS protects the byte stream it is carried in, and nothing underneath it: altered payload fails the record's integrity check and is detected immediately, but a reset is not payload at all - it is a flag in a transport header that TLS never sees and cannot authenticate. All an injector needs is the four-tuple and a plausible sequence number, both readable from the path. Defeating it requires protecting the transport headers themselves, which is what QUIC does by carrying its connection state inside an encrypted, authenticated packet, and what TCP-AO does by signing TCP segments - in both cases the change is below TLS, not inside it.",
+   "xp": 36,
+   "tags": [
+    "tcp-hijacking",
+    "tls-stripping"
+   ]
+  },
+  {
+   "id": "net-8-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You run a mid-sized ISP. Some of your customers' resolvers are being used as amplifiers against third parties, and one of your customers is emitting packets with source addresses that do not belong to your network. Set out what you deploy, say what each measure actually stops, and explain why the single measure that would end this whole class of attack is the hardest to get deployed everywhere.",
+   "rubric": {
+    "required": [
+     "spoof",
+     "filter",
+     "source",
+     "recursi",
+     "rate"
+    ],
+    "optional": [
+     "BCP",
+     "ingress",
+     "egress",
+     "amplif",
+     "reflect",
+     "open",
+     "resolver",
+     "incentive",
+     "benefit",
+     "customer",
+     "edge"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "amplification-ddos",
+    "dns-poisoning",
+    "firewall-policy"
+   ],
+   "explain": "The two local measures are cheap and partial: closing recursion to strangers and applying response-rate limiting removes your customers from the pool of usable amplifiers, but the attack continues from every amplifier elsewhere. Filtering packets whose source address does not belong to the customer edge is the measure that removes the indispensable ingredient, because reflection needs a forged source and nothing else will do. Its difficulty is economic rather than technical - the network that filters bears the cost of configuration and the benefit accrues entirely to strangers who may not reciprocate, which is why decades of exhortation have produced only partial deployment.",
+   "xp": 72,
+   "tags": [
+    "amplification-ddos",
+    "dns-poisoning",
+    "firewall-policy"
+   ]
+  }
+ ]
+}

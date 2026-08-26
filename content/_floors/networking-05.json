@@ -1,0 +1,1058 @@
+{
+ "n": 5,
+ "name": "The Reliable Illusion",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "transport-demultiplexing",
+  "udp",
+  "three-way-handshake",
+  "sequence-numbers",
+  "connection-teardown",
+  "cumulative-ack",
+  "retransmission",
+  "rtt-estimation",
+  "fast-retransmit",
+  "sliding-window",
+  "flow-control"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "segment-traces",
+  "transport-faults",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The demultiplexor, and the freedom to promise nothing",
+    "body": "IP delivers a datagram to a **host**. It has no idea that a host runs hundreds of processes, and no field that could say which one. The transport layer's irreducible job is therefore **demultiplexing**: adding a **port** number so the receiving kernel can hand the payload to the right socket. Everything else transport does is optional, and **UDP** is the protocol that takes that word seriously.\n\nUDP adds eight bytes - source port, destination port, length, checksum - and stops. There is no handshake, no acknowledgement, no retransmission, no ordering, no duplicate suppression and no rate control. The checksum detects corruption and then discards the datagram silently; UDP will tell you a datagram was wrong only by never delivering it. A UDP socket is identified by the pair `(destination IP, destination port)`, which is why two UDP sockets cannot share a port on the same address, while two TCP connections routinely share port 80 because TCP demultiplexes on the full four-tuple.\n\nThe absence of guarantees is not a deficiency to be apologised for; for some traffic it is the correct engineering. DNS asks one question and gets one answer: building a connection to carry 60 bytes costs an extra round trip before the query even leaves, and if the reply is lost the resolver can simply ask again. Real-time voice is stronger still - a packet that arrives after its playout deadline is worthless, so retransmitting it wastes bandwidth **and** delays the packets behind it. QUIC runs over UDP for a third reason: it wants to implement reliability itself, in user space, where it can be changed without waiting a decade for every kernel on Earth.\n\nThe cost is real and falls on the application. It must tolerate loss, reordering and duplication, and - the part people forget - it must not flood the network, because nothing in UDP will slow it down when the network is in trouble. Overhead is the small consolation: on a 30-byte payload over IPv4, UDP spends 58 bytes on the wire against TCP's 70, so 51.7% of the packet is payload rather than 42.9%.",
+    "code": "UDP header - eight bytes, and every one of them earns its place.\n\n  0                   16                  31\n +--------------------+--------------------+\n |    Source port     |  Destination port  |\n +--------------------+--------------------+\n |       Length       |      Checksum      |\n +--------------------+--------------------+\n |                Payload                  |\n +-----------------------------------------+\n\nDemultiplexing keys, and they are not the same shape:\n\n  UDP socket   ->  (destination IP, destination port)\n  TCP socket   ->  (source IP, source port, destination IP, destination port)\n\nSo two TCP connections can share port 80 on one host and still be told\napart, while two UDP sockets cannot share a port unless one is connected.\n\nOverhead on a 30-byte payload, over IPv4:\n\n  UDP:  20 (IP) +  8 (UDP) + 30 = 58 bytes,  51.7% payload\n  TCP:  20 (IP) + 20 (TCP) + 30 = 70 bytes,  42.9% payload",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The source port is what makes a reply possible at all. It is the only place a receiver learns where to send the answer, and it is why an unconnected UDP socket still has to have one."
+     },
+     {
+      "line": 7,
+      "text": "The checksum covers the payload and a pseudo-header taken from the IP header, so a datagram delivered to the wrong address is caught too. A failed checksum causes a silent discard - no error is ever reported to anybody."
+     },
+     {
+      "line": 15,
+      "text": "Four fields, not two. This is the whole reason a web server can hold ten thousand simultaneous connections on one port: the connections differ in the client's address and port, not in the server's."
+     },
+     {
+      "line": 22,
+      "text": "Twelve bytes of difference per packet. On a voice stream sending fifty 30-byte frames a second that is 4.8 kb/s, which mattered enormously when the access link was a modem and matters not at all today."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the facts that separate the two transport protocols at their narrowest point.",
+     "template": "A UDP socket is demultiplexed on the destination IP address and the destination ___ .\nA TCP socket is demultiplexed on all ___ fields of the connection.\nThe UDP header is ___ bytes long; the minimum TCP header is 20.\nWhen UDP's checksum fails, the datagram is ___ and nobody is told.\n",
+     "blanks": [
+      "port",
+      "four",
+      "8",
+      "discarded"
+     ],
+     "concepts": [
+      "transport-demultiplexing",
+      "udp"
+     ],
+     "explain": "The two-tuple against four-tuple difference is the one with practical consequences: it decides whether two conversations can share a port, and it is why a TCP server needs only one listening port for every client in the world. The silent discard is the other thing worth remembering - UDP has a checksum but no error report, so an application that needs to know about corruption has to notice the gap in its own data.",
+     "xp": 30,
+     "tags": [
+      "transport-demultiplexing",
+      "udp"
+     ]
+    }
+   },
+   {
+    "title": "Opening in three messages, closing in four",
+    "body": "A TCP connection is a shared numbering agreement, and the **three-way handshake** exists to establish it in both directions. The client sends a SYN carrying its **initial sequence number** $x$; the server replies with a SYN of its own carrying $y$ and an acknowledgement of $x + 1$; the client acknowledges $y + 1$. Two messages would be enough to tell the server the client's number, but nothing would confirm the server's, so three is the minimum that leaves both sides certain their own number was heard.\n\nThe `+ 1` is not decoration. SYN and FIN each **consume one sequence number** even though they carry no data, which is what lets them be acknowledged, retransmitted and ordered like any other byte. Initial sequence numbers are chosen unpredictably rather than starting at zero, partly so that a delayed segment from a previous connection between the same two ports cannot be mistaken for current data, and partly so an off-path attacker cannot guess a valid sequence number and inject into somebody else's connection.\n\nClosing takes four messages because a TCP connection is two independent byte streams and each is shut down separately. A **FIN** means only *I have no more data to send*, and the peer may keep sending for as long as it likes - this is the **half-close**, and it is exactly what a shell pipeline needs when a client finishes its input and waits for output. The peer's TCP acknowledges the FIN immediately, but its own FIN cannot be sent until its **application** calls close, and the gap between those two events is the `CLOSE_WAIT` state. A host accumulating thousands of sockets in `CLOSE_WAIT` has an application bug, not a network problem.\n\nThe side that closes first ends in **`TIME_WAIT`** and stays there for twice the maximum segment lifetime - two minutes if MSL is 60 seconds - which strikes everyone as excessive until they see what it buys. It absorbs a delayed duplicate from the dying connection so that a new connection reusing the same four-tuple cannot be poisoned by it, and it keeps the final ACK's sender alive to retransmit if that ACK is lost, because the peer sitting in `LAST_ACK` has no other way to be released.",
+    "code": "Three-way handshake. Client ISN = 3000, server ISN = 9000.\n\n  client                                          server\n    |  SYN  seq=3000                                 |\n    | ---------------------------------------------> |\n    |                      SYN,ACK seq=9000 ack=3001 |\n    | <--------------------------------------------- |\n    |  ACK  seq=3001 ack=9001                        |\n    | ---------------------------------------------> |\n    |                                                |\n\nSYN and FIN each consume one sequence number, which is why the\nacknowledgement of a bare SYN is ISN + 1 with no data sent at all.\n\nFour-way close, the client closing first, after sending 4000 bytes\nand receiving 7000:\n\n  client                                          server\n ESTABLISHED |  FIN seq=4001 ack=7001             | ESTABLISHED\n FIN_WAIT_1  | --------------------------------->  |\n             |            ACK ack=4002             | CLOSE_WAIT\n FIN_WAIT_2  | <---------------------------------  |\n             |       FIN seq=7001 ack=4002         | LAST_ACK\n             | <---------------------------------  |\n TIME_WAIT   |  ACK ack=7002                       |\n             | --------------------------------->  | CLOSED\n (2 x MSL)   |                                     |\n CLOSED      |                                     |",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "One segment doing two jobs: it acknowledges the client's SYN and carries the server's own. That packing is why the handshake is three messages rather than four."
+     },
+     {
+      "line": 12,
+      "text": "Acknowledging 3001 when byte 3001 does not exist yet is the giveaway. The ACK field always names the next byte expected, and the SYN occupied number 3000."
+     },
+     {
+      "line": 20,
+      "text": "The server's TCP acknowledges the FIN at once, but its own FIN waits on the application. Everything between here and LAST_ACK is CLOSE_WAIT, and a heap of sockets stuck there means somebody never called close."
+     },
+     {
+      "line": 26,
+      "text": "Two full segment lifetimes of doing nothing. It is the price of guaranteeing that no stale duplicate of this connection can still be wandering the network when the same four-tuple is reused."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the segments and state changes of a connection's opening and its close into the order they occur. The client opens the connection and also closes it first.",
+     "fragments": [
+      "the client sends SYN with its own initial sequence number and nothing else",
+      "the server replies with a single segment carrying its own SYN and an ACK of the client's ISN + 1",
+      "the client acknowledges the server's ISN + 1 and the connection is ESTABLISHED in both directions",
+      "the client sends FIN and enters FIN_WAIT_1, promising no further data of its own",
+      "the server's TCP acknowledges that FIN and the server socket sits in CLOSE_WAIT while its application still holds the socket open",
+      "the server's application calls close, its FIN goes out and it enters LAST_ACK",
+      "the client acknowledges that FIN and waits out 2 x MSL in TIME_WAIT"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ],
+     "concepts": [
+      "three-way-handshake",
+      "connection-teardown"
+     ],
+     "explain": "The step people misplace is the fifth: the ACK of a FIN and the peer's own FIN are two separate segments separated by an unbounded amount of time, because only the application can decide it has finished sending. Collapsing them into one exchange gives a symmetric four-message close that would be wrong - it would make a FIN mean the whole connection is over, and the half-close would become impossible.",
+     "xp": 30,
+     "tags": [
+      "three-way-handshake",
+      "connection-teardown"
+     ]
+    }
+   },
+   {
+    "title": "Cumulative acknowledgements, and knowing when to give up waiting",
+    "body": "TCP numbers **bytes**, not segments, and its acknowledgement field names the next byte the receiver expects. That single choice makes every ACK **cumulative**: an ACK of 1501 asserts that everything up to and including byte 1500 arrived, so a lost ACK is repaired by the next one to get through, and the receiver never has to track which acknowledgements the sender actually saw. The price is that the acknowledgement cannot step over a hole. If one segment is lost, the receiver may buffer everything that follows it, but every ACK it sends keeps naming the same missing byte - which is why the SACK option was added, to describe the blocks that *did* arrive alongside the cumulative number.\n\nA sender therefore retransmits on one of two triggers. The first is a **timeout**, and choosing its length is the hard part. Too short and the sender retransmits segments that were merely slow, wasting capacity exactly when the network is already struggling; too long and a lost segment stalls the connection for a period the user notices. The timeout must track the round-trip time, which varies by orders of magnitude across paths and by a factor of ten on one path as queues fill.\n\nJacobson and Karels' answer smooths both the mean and the variation: with $\\alpha = 1/8$ and $\\beta = 1/4$, each new sample updates $DevRTT$ and $EstimatedRTT$, and the timer is set to $EstimatedRTT + 4 \\times DevRTT$. The deviation term is what makes it work - on a steady path the timeout hugs the estimate, and on a jittery one it stands well clear, without anyone tuning a constant per path. **Karn's algorithm** adds the rule that saves it from feedback: never take an RTT sample from a segment that was retransmitted, because you cannot tell whether the ACK answers the original or the copy, and instead double the timeout on each successive expiry.\n\nWaiting for a timer is still slow, and a duplicate ACK is evidence that arrived far sooner. If the receiver keeps repeating the same acknowledgement, segments **are** getting through - just not the one that matters. **Fast retransmit** treats the third duplicate ACK as sufficient proof of loss and resends immediately, without waiting for the timer. Three rather than one, because reordering in the network produces one or two duplicates routinely and mistaking mild reordering for loss would make TCP retransmit constantly.",
+    "code": "Cumulative acknowledgement. Segments of 500 bytes from seq 1001;\nthe second one is lost.\n\n  sent   1001-1500  ->  ACK 1501\n  sent   1501-2000  ->  LOST\n  sent   2001-2500  ->  ACK 1501   (duplicate 1)\n  sent   2501-3000  ->  ACK 1501   (duplicate 2)\n  sent   3001-3500  ->  ACK 1501   (duplicate 3)  -> fast retransmit\n  resend 1501-2000  ->  ACK 3501\n\nThe retransmission timer, Jacobson and Karels, alpha = 1/8, beta = 1/4:\n\n  DevRTT       = (1 - beta)  * DevRTT       + beta  * |Sample - EstRTT|\n  EstimatedRTT = (1 - alpha) * EstimatedRTT + alpha * Sample\n  Timeout      = EstimatedRTT + 4 * DevRTT\n\nKarn: never take a sample from a segment that was retransmitted - the\nACK is ambiguous - and double the timeout on each successive expiry.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "The receiver has segment 2001-2500 in hand and cannot say so with the cumulative field alone. All it can do is repeat 1501, which is simultaneously an acknowledgement and a complaint."
+     },
+     {
+      "line": 9,
+      "text": "One ACK jumps from 1501 to 3501 because the hole is now filled and the cumulative number is free to run forward over everything already buffered. That single jump is the payoff for the three preceding duplicates."
+     },
+     {
+      "line": 15,
+      "text": "Four deviations, not two or one: TCP would rather wait too long occasionally than retransmit a segment that was only delayed, because a spurious retransmission adds load to a path that is already the reason for the delay."
+     },
+     {
+      "line": 17,
+      "text": "The ambiguity is genuine and unfixable by measurement: an ACK for byte 1501 looks identical whether it answers the original or the copy, so a sample taken here can be wrong by an entire timeout period."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A sender transmits three 400-byte segments starting at sequence number 5001, back to back. The **first** one is lost; the other two arrive and are buffered. Give the acknowledgement number in each ACK the receiver sends, and then the ACK sent after the lost segment is retransmitted.",
+     "steps": [
+      {
+       "label": "ACK sent when segment 2 (5401-5800) arrives",
+       "expected": "5001"
+      },
+      {
+       "label": "ACK sent when segment 3 (5801-6200) arrives",
+       "expected": "5001"
+      },
+      {
+       "label": "ACK sent after segment 1 (5001-5400) is retransmitted and arrives",
+       "expected": "6201"
+      },
+      {
+       "label": "bytes the receiver held out of order before that last ACK",
+       "expected": "800"
+      }
+     ],
+     "concepts": [
+      "cumulative-ack",
+      "sequence-numbers"
+     ],
+     "explain": "The receiver cannot acknowledge 5801 or 6201 while byte 5001 is missing, because a cumulative ACK claims everything below it. The tempting answers are 5801 and 6201 for the first two steps - that is what a selective acknowledgement would say, and it is precisely the information the cumulative field is unable to carry, which is why SACK had to be bolted on as an option.",
+     "xp": 60,
+     "tags": [
+      "cumulative-ack",
+      "sequence-numbers"
+     ]
+    }
+   },
+   {
+    "title": "One sliding window, doing two different jobs",
+    "body": "A sender that transmits one segment and waits for its ACK achieves one segment per round trip, which on a fast long path is derisory. The **sliding window** lets it keep several segments in flight at once, and the window's size is the amount of unacknowledged data allowed: $LastByteSent - LastByteAcked \\le AdvertisedWindow$. The **effective window** - what may go out right now - is that limit minus what is already outstanding, and it opens again only when an ACK arrives and slides the left edge forward.\n\nThe receiver sets the limit, in every ACK, from the space left in its buffer: $AdvertisedWindow = RcvBuffer - (LastByteRcvd - LastByteRead)$. This is **flow control**, and it protects exactly one thing - the receiver's memory. An application that stops reading fills the buffer, the advertised window shrinks towards zero, and the sender stops. Note what it does *not* protect: the routers in between have no say in this number at all, and a receiver with a huge buffer will happily advertise more than the path can carry. Protecting the network is congestion control, a separate mechanism with a separate window, and conflating the two is the commonest confusion in transport.\n\nA zero window creates a deadlock that TCP has to break by hand. The sender is blocked, so it will send nothing; the window update, when the application finally reads, rides on a pure ACK - and pure ACKs are not retransmitted, so if that one is lost the connection stops forever. The sender therefore runs a **persist timer** and sends periodic one-byte zero-window probes, which force the receiver to reply with its current window. The related **silly window syndrome** is the receiver announcing a 1-byte opening the moment a byte is read, provoking a 41-byte packet to carry it; the cure is to withhold the update until the window is worth advertising.\n\nThe window is also the ceiling on throughput, whatever the link is capable of: $Throughput \\le Window / RTT$. On a 1 Gb/s path with an 80 ms round trip the **bandwidth-delay product** is 10,000,000 bytes, and the largest window the 16-bit header field can express, 65,535 bytes, yields 819,187.5 bytes per second - 6.5535 Mb/s, or 0.66% of the link. That is why the window-scale option exists, negotiated in the handshake, shifting the field left by up to 14 places. Widening the window then exposes the next limit: the sequence space is 32 bits, and at 1 Gb/s it wraps in 34.36 seconds, which is what timestamps were added to disambiguate.",
+    "code": "Receiver, with a 4000-byte receive buffer:\n\n  AdvertisedWindow = RcvBuffer - (LastByteRcvd - LastByteRead)\n\nSender, obeying it:\n\n  LastByteSent - LastByteAcked  <=  AdvertisedWindow\n  EffectiveWindow = AdvertisedWindow - (LastByteSent - LastByteAcked)\n\nCeiling on throughput, whatever the link can do:\n\n  Throughput  <=  Window / RTT\n\n  1 Gb/s, RTT 80 ms   ->  bandwidth-delay product 10,000,000 bytes\n  65,535-byte window  ->  819,187.5 bytes/s\n                       =  6.5535 Mb/s, 0.66% of the link\n\nThe window field is 16 bits, so the window-scale option shifts it left by\nup to 14 places. The sequence space is 32 bits: at 1 Gb/s it wraps in\n34.36 seconds, which is why the timestamp option exists.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The buffer, not the network, sets this number. Nothing a router does can influence it, which is the clearest statement of what flow control is and is not for."
+     },
+     {
+      "line": 7,
+      "text": "Subtracting what is already outstanding is the step that is easy to drop. A sender with a 4000-byte window and 4000 bytes unacknowledged has an effective window of zero even though the advertised window is generous."
+     },
+     {
+      "line": 12,
+      "text": "A whole window per round trip, so the RTT divides everything. Doubling the distance halves the throughput at a fixed window, which is why a transfer that flies across a data centre crawls across an ocean."
+     },
+     {
+      "line": 15,
+      "text": "819,187.5 bytes per second on a gigabit link. The number is worth carrying around: it is the reason window scaling is not an optimisation but a requirement on any modern wide-area path."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the window arithmetic and the mechanism that keeps a closed window from deadlocking.",
+     "template": "The receiver computes its advertised window as RcvBuffer minus (LastByteRcvd - LastByte___).\nThe sender may have at most ___ window bytes unacknowledged at any moment.\nWhen the advertised window reaches zero the sender starts a persist timer and sends a zero-window ___ .\nThroughput on a connection is bounded above by the window divided by the ___ .\n",
+     "blanks": [
+      "Read",
+      "advertised",
+      "probe",
+      "RTT"
+     ],
+     "concepts": [
+      "sliding-window",
+      "flow-control"
+     ],
+     "explain": "The probe exists because of an asymmetry that is easy to miss: data is retransmitted when unacknowledged, but a pure ACK carrying a window update is not, so the one message that would unblock the sender is the one message TCP has no automatic way to resend. The window-over-RTT bound is the other thing worth memorising - it explains why a fast link can still deliver a slow transfer, with nothing lost and nothing congested.",
+     "xp": 30,
+     "tags": [
+      "sliding-window",
+      "flow-control"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-5-g-01",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A client opens a connection with initial sequence number 3000; the server's initial sequence number is 9000. No data is carried in the handshake. Give the field values requested below.",
+   "steps": [
+    {
+     "label": "sequence number in the client's SYN",
+     "expected": "3000"
+    },
+    {
+     "label": "sequence number in the server's SYN,ACK",
+     "expected": "9000"
+    },
+    {
+     "label": "acknowledgement number in the server's SYN,ACK",
+     "expected": "3001"
+    },
+    {
+     "label": "sequence number in the client's third segment",
+     "expected": "3001"
+    },
+    {
+     "label": "acknowledgement number in the client's third segment",
+     "expected": "9001"
+    },
+    {
+     "label": "acknowledgement the server sends after the client then sends 400 bytes",
+     "expected": "3401"
+    }
+   ],
+   "concepts": [
+    "three-way-handshake",
+    "sequence-numbers"
+   ],
+   "explain": "The SYN consumes sequence number 3000 without carrying a byte of data, so the first real data byte is 3001 and the acknowledgement of the SYN is 3001 as well. Answering 3000 for the third segment's sequence number is the standard slip: it assumes the SYN was free, and then every subsequent number is off by one for the life of the connection.",
+   "xp": 60,
+   "tags": [
+    "three-way-handshake",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the description of TCP's retransmission timer and the rule that protects it from its own retransmissions.",
+   "template": "The timeout is set to EstimatedRTT plus ___ times DevRTT.\nDevRTT tracks the ___ of the round-trip samples, not their mean.\nAn RTT sample taken from a segment that was retransmitted is ___ , because the ACK could belong to either copy.\nOn each successive expiry of the timer, the timeout is ___ .\n",
+   "blanks": [
+    "4",
+    "variation",
+    "discarded",
+    "doubled"
+   ],
+   "concepts": [
+    "rtt-estimation",
+    "retransmission"
+   ],
+   "explain": "The deviation term is what lets one formula serve both a data-centre path with a 0.2 ms RTT and a satellite path with a 600 ms one - a fixed multiple of the mean would be far too tight on a jittery path and needlessly slack on a steady one. Karn's two rules travel together: discarding the ambiguous sample would leave the timer frozen during a loss episode, so the backoff supplies the increase that the missing samples cannot.",
+   "xp": 30,
+   "tags": [
+    "rtt-estimation",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-g-03",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Order the events by which a sender discovers a loss through duplicate acknowledgements rather than through its timer.",
+   "fragments": [
+    "the sender transmits five segments back to back and the second is dropped by a congested router",
+    "the first segment arrives and is acknowledged with the sequence number of the second segment's first byte",
+    "the third segment arrives out of order and is buffered rather than discarded",
+    "the receiver acknowledges it with the same number as before, and does so again for the fourth and fifth segments",
+    "the third of those duplicate acknowledgements reaches the sender, which resends the second segment without waiting for its timer",
+    "the retransmitted segment arrives and one cumulative acknowledgement covers everything through the fifth segment"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "retransmission"
+   ],
+   "explain": "The buffering step is what makes the final jump possible: had the receiver discarded the out-of-order segments, the single cumulative ACK could only have covered the retransmitted one and four more retransmissions would have followed. The threshold is three duplicates rather than one because a network that reorders mildly - and most do - generates one or two duplicates without anything being lost at all.",
+   "xp": 30,
+   "tags": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-g-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the arithmetic of a connection's closing sequence. Assume a maximum segment lifetime of 60 seconds.",
+   "template": "The side that closes first ends in the ___ state.\nIt stays there for 2 x MSL, which with this MSL is ___ seconds.\nA peer that has acknowledged an incoming FIN but whose application has not yet closed the socket sits in ___ .\nA FIN occupies ___ sequence number, so the acknowledgement of a FIN sent as byte 4001 is 4002.\n",
+   "blanks": [
+    "TIME_WAIT",
+    "120",
+    "CLOSE_WAIT",
+    "one"
+   ],
+   "concepts": [
+    "connection-teardown",
+    "sequence-numbers"
+   ],
+   "explain": "TIME_WAIT belongs to the active closer and CLOSE_WAIT to the passive one, and knowing which is which turns a socket count into a diagnosis: thousands in TIME_WAIT means the machine is initiating and tearing down connections quickly, while thousands in CLOSE_WAIT means an application is failing to call close. The FIN consuming a sequence number is what allows it to be acknowledged and retransmitted at all - a control flag with no number could never be made reliable.",
+   "xp": 30,
+   "tags": [
+    "connection-teardown",
+    "sequence-numbers"
+   ]
+  }
+ ],
+ "segment-traces": [
+  {
+   "id": "net-5-t-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A sender transmits six 500-byte segments back to back, the first starting at sequence number 1001. The **second** segment is lost; every other segment arrives. The receiver buffers out-of-order data and acknowledges every segment it receives. Report the values below.",
+   "steps": [
+    {
+     "label": "acknowledgement number after segment 1 arrives",
+     "expected": "1501"
+    },
+    {
+     "label": "acknowledgement number after segment 3 arrives",
+     "expected": "1501"
+    },
+    {
+     "label": "number of duplicate acknowledgements the sender has received once segment 5 has been acknowledged",
+     "expected": "3"
+    },
+    {
+     "label": "first byte of the segment fast retransmit sends",
+     "expected": "1501"
+    },
+    {
+     "label": "acknowledgement number once that retransmission arrives",
+     "expected": "4001"
+    },
+    {
+     "label": "bytes the receiver was holding out of order just before that acknowledgement",
+     "expected": "2000"
+    }
+   ],
+   "concepts": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "sequence-numbers",
+    "retransmission"
+   ],
+   "explain": "Segments 3, 4 and 5 each produce a duplicate of the ACK for 1501, so the third duplicate arrives on segment 5 and fires the retransmission - segment 6's duplicate is already in flight and changes nothing. The final ACK is 4001 because all six segments cover bytes 1001 to 4000 once the hole is filled; answering 2001 there is the natural error, and it is the assumption that an ACK acknowledges only the segment that triggered it rather than every byte below it.",
+   "xp": 60,
+   "tags": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "sequence-numbers",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-t-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A connection starts with EstimatedRTT = 100 ms and DevRTT = 20 ms, using $\\alpha = 1/8$ and $\\beta = 1/4$ and a timeout of $EstimatedRTT + 4 \\times DevRTT$. Two samples arrive: 140 ms, then 145 ms. The next segment's acknowledgement never arrives and the timer expires; the segment is retransmitted and its acknowledgement eventually comes back. A later, never-retransmitted segment then yields a sample of 130 ms. Give the values in milliseconds, updating DevRTT before EstimatedRTT.",
+   "steps": [
+    {
+     "label": "EstimatedRTT after the 140 ms sample",
+     "expected": "105"
+    },
+    {
+     "label": "timeout after the 140 ms sample",
+     "expected": "205"
+    },
+    {
+     "label": "DevRTT after the 145 ms sample",
+     "expected": "28.75"
+    },
+    {
+     "label": "timeout after the 145 ms sample",
+     "expected": "225"
+    },
+    {
+     "label": "timeout immediately after the timer expires and the segment is retransmitted",
+     "expected": "450"
+    },
+    {
+     "label": "EstimatedRTT after the acknowledgement of that retransmitted segment",
+     "expected": "110"
+    },
+    {
+     "label": "timeout after the 130 ms sample",
+     "expected": "218.75"
+    }
+   ],
+   "concepts": [
+    "rtt-estimation",
+    "retransmission"
+   ],
+   "explain": "The step that catches people is the sixth: the acknowledgement of the retransmitted segment arrives and changes nothing at all, because Karn's algorithm discards the sample as ambiguous, so EstimatedRTT is still 110 from the 145 ms sample. The doubling to 450 is what carries the timer through that blind period, and the moment a clean sample of 130 ms is available the formula resumes from the stored state: DevRTT becomes 26.5625, EstimatedRTT becomes 112.5, and the timeout is 218.75.",
+   "xp": 60,
+   "tags": [
+    "rtt-estimation",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-t-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A receiver has a 4000-byte receive buffer, empty, and its application is slow. Events occur in this order: 1000 bytes arrive; 1500 more arrive; the application reads 500 bytes; 2000 more arrive; the application reads 3000 bytes. Give the window the receiver advertises after each event.",
+   "steps": [
+    {
+     "label": "advertised window after 1000 bytes arrive",
+     "expected": "3000"
+    },
+    {
+     "label": "advertised window after the next 1500 bytes arrive",
+     "expected": "1500"
+    },
+    {
+     "label": "advertised window after the application reads 500 bytes",
+     "expected": "2000"
+    },
+    {
+     "label": "advertised window after the next 2000 bytes arrive",
+     "expected": "0"
+    },
+    {
+     "label": "bytes of new data the sender may transmit immediately at that point",
+     "expected": "0"
+    },
+    {
+     "label": "advertised window after the application reads 3000 bytes",
+     "expected": "3000"
+    }
+   ],
+   "concepts": [
+    "flow-control",
+    "sliding-window",
+    "sequence-numbers"
+   ],
+   "explain": "The window is buffer size minus the data received but not yet read, so it shrinks on arrival and grows on reading - the two events pull in opposite directions and neither one alone determines it. The fourth step reaching exactly zero is the interesting case: the sender is now blocked, and the window update that will free it rides on a pure ACK that is never retransmitted, which is precisely why the sender must run a persist timer and probe rather than simply wait.",
+   "xp": 60,
+   "tags": [
+    "flow-control",
+    "sliding-window",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-t-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A client closes a connection first. At that moment its next sequence number is 4001 and it has received every server byte through 7000; the server's next sequence number is 7001. The server's application takes several seconds to call close. With MSL = 60 s, give the values below.",
+   "steps": [
+    {
+     "label": "acknowledgement number in the server's ACK of the client's FIN",
+     "expected": "4002"
+    },
+    {
+     "label": "client state immediately after sending its FIN",
+     "expected": "FIN_WAIT_1"
+    },
+    {
+     "label": "server state during the several seconds before its application calls close",
+     "expected": "CLOSE_WAIT"
+    },
+    {
+     "label": "client state after that ACK arrives but before the server's FIN does",
+     "expected": "FIN_WAIT_2"
+    },
+    {
+     "label": "sequence number in the server's FIN",
+     "expected": "7001"
+    },
+    {
+     "label": "acknowledgement number in the client's final ACK",
+     "expected": "7002"
+    },
+    {
+     "label": "seconds the client then spends in TIME_WAIT",
+     "expected": "120"
+    }
+   ],
+   "concepts": [
+    "connection-teardown",
+    "three-way-handshake",
+    "sequence-numbers"
+   ],
+   "explain": "The server's FIN carries sequence number 7001 and not 7002 because the FIN is itself byte 7001 - the client had received through 7000, so 7001 was the next number available and the FIN consumes it. The several-second gap is the substance of the whole state machine: the FIN's acknowledgement is sent by TCP at once while the server's own FIN waits on the application, and it is only because those are two separate events that a half-closed connection can keep delivering data in the surviving direction.",
+   "xp": 60,
+   "tags": [
+    "connection-teardown",
+    "three-way-handshake",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-t-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A host at 192.0.2.10 holds five sockets. **A**: UDP bound to 0.0.0.0:53, unconnected. **B**: UDP bound to 192.0.2.10:5060 and connected to 203.0.113.7:5060. **C**: TCP listening on 0.0.0.0:80. **D**: TCP established, (192.0.2.10:80, 203.0.113.7:51000). **E**: TCP established, (192.0.2.10:80, 198.51.100.4:40000). For each arriving packet give the letter of the socket that receives it, or `none` if no socket matches.",
+   "steps": [
+    {
+     "label": "UDP, from 198.51.100.4:33000 to 192.0.2.10:53",
+     "expected": "A"
+    },
+    {
+     "label": "UDP, from 198.51.100.4:5060 to 192.0.2.10:5060",
+     "expected": "none"
+    },
+    {
+     "label": "UDP, from 203.0.113.7:5060 to 192.0.2.10:5060",
+     "expected": "B"
+    },
+    {
+     "label": "TCP data segment, from 198.51.100.4:40000 to 192.0.2.10:80",
+     "expected": "E"
+    },
+    {
+     "label": "TCP SYN, from 203.0.113.7:52000 to 192.0.2.10:80",
+     "expected": "C"
+    },
+    {
+     "label": "TCP data segment, from 203.0.113.7:51000 to 192.0.2.10:8080",
+     "expected": "none"
+    }
+   ],
+   "concepts": [
+    "transport-demultiplexing",
+    "udp",
+    "three-way-handshake"
+   ],
+   "explain": "Sockets D and E share destination port 80 and are told apart only by the source address and port, which is the entire justification for demultiplexing TCP on four fields rather than two. The second packet is the instructive one: connecting a UDP socket narrows its match to one peer, so a datagram to the right port from the wrong sender no longer matches and is dropped with an ICMP port-unreachable - the same fate as the last packet, which names a port nothing is bound to.",
+   "xp": 60,
+   "tags": [
+    "transport-demultiplexing",
+    "udp",
+    "three-way-handshake"
+   ]
+  }
+ ],
+ "transport-faults": [
+  {
+   "id": "net-5-f-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A service is stopped and restarted immediately. It fails to start, reporting that the address is already in use, and succeeds if the operator waits two minutes. No process is holding the port - the old one is definitely gone. Name the cause, say what the waiting period is protecting against, and explain what setting SO_REUSEADDR before binding changes and what it deliberately does not.",
+   "answer": "The old server socket is in TIME_WAIT, holding its four-tuple for 2 x MSL because the server closed first",
+   "rubric": {
+    "required": [
+     "close",
+     "msl",
+     "port",
+     "socket",
+     "reus"
+    ],
+    "optional": [
+     "duplicat",
+     "four-tuple",
+     "delay",
+     "listen",
+     "state",
+     "final"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "connection-teardown",
+    "sequence-numbers"
+   ],
+   "explain": "A socket in TIME_WAIT belongs to no process, which is why nothing shows up in a process listing and the operator concludes the port is free - the kernel is holding the four-tuple, not an application. The wait absorbs any delayed duplicate from the dead connection so it cannot be accepted by a new connection reusing the same tuple, and keeps the final ACK retransmittable for a peer stuck in LAST_ACK. SO_REUSEADDR lets a listening socket bind to a local port that has connections lingering in TIME_WAIT; it does not let two live sockets hold the same four-tuple, and it does not abolish the delayed-duplicate risk, it accepts it.",
+   "xp": 60,
+   "tags": [
+    "connection-teardown",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-f-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A single TCP transfer between two continents runs at 6.5 Mb/s over a path that is 1 Gb/s end to end with an 80 ms round trip. Packet capture shows no retransmissions at all and no gaps in the sequence numbers. Name the limit that is binding, compute the bandwidth-delay product of the path, and say what would have to change for the transfer to use the link.",
+   "answer": "The advertised receive window is the limit - 65,535 bytes over an 80 ms RTT caps throughput near 6.55 Mb/s, far below the path's bandwidth-delay product",
+   "rubric": {
+    "required": [
+     "window",
+     "rtt",
+     "bandwidth",
+     "delay",
+     "scal"
+    ],
+    "optional": [
+     "flight",
+     "congest",
+     "handshake",
+     "buffer",
+     "product",
+     "retransmi"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "sliding-window",
+    "flow-control",
+    "rtt-estimation"
+   ],
+   "explain": "Zero retransmissions is the decisive evidence: nothing is being lost, so congestion control is not what is holding the sender back, and the only other cap on data in flight is the window the receiver advertised. Window over RTT gives 65,535 / 0.08 = 819,187.5 bytes per second, which is 6.5535 Mb/s, while the bandwidth-delay product of the path is 1 Gb/s x 0.08 s / 8 = 10,000,000 bytes - the window is roughly one hundred and fifty times too small. The fix is the window-scale option, negotiated in the SYN exchange and therefore impossible to add later, together with receive buffers large enough to make a scaled window honest.",
+   "xp": 60,
+   "tags": [
+    "sliding-window",
+    "flow-control",
+    "rtt-estimation"
+   ]
+  },
+  {
+   "id": "net-5-f-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A team is designing the network protocol for a multiplayer game that sends each player's position sixty times a second. One engineer insists on TCP because it is reliable; another wants UDP. Argue the case on the merits. Address what UDP gives up with respect to loss and ordering, why retransmission specifically hurts this traffic's latency, and what the application must now implement for itself.",
+   "rubric": {
+    "required": [
+     "udp",
+     "retransmi",
+     "order",
+     "loss",
+     "latency"
+    ],
+    "optional": [
+     "stale",
+     "head-of-line",
+     "congest",
+     "duplicat",
+     "sequence",
+     "buffer",
+     "position",
+     "jitter"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "udp",
+    "transport-demultiplexing",
+    "retransmission"
+   ],
+   "explain": "The decisive property is that a position update is worthless the moment a newer one exists, so TCP's guarantee is not merely unnecessary here, it is actively harmful: a lost segment holds every later segment in the receiver's buffer until the retransmission arrives, so one loss delays fresh data by at least a round trip in order to deliver data nobody wants. UDP hands back loss, reordering and duplication, and the application answers all three cheaply with a sequence number it can use to discard anything older than what it has already displayed. What it cannot skip is rate control - UDP will not slow down for a congested network, so the application must pace itself or become the reason the network is congested.",
+   "xp": 60,
+   "tags": [
+    "udp",
+    "transport-demultiplexing",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-f-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design a reliable request-response protocol on top of UDP for a distributed file store: requests are small, responses may be several megabytes, and paths range from 0.5 ms inside a rack to 250 ms across an ocean. Specify how a reply is matched to its request and to a socket, given that UDP gives you only a port pair; how you number data with sequence numbers and how the receiver acknowledges them; how you estimate the round-trip time from samples and set an adaptive retransmission timeout from that estimate; how you detect loss faster than that timer allows; how a duplicate request is prevented from executing twice; and how a window bounds the data a receiver must buffer.",
+   "rubric": {
+    "required": [
+     "port",
+     "sequence",
+     "ack",
+     "timeout",
+     "retransmi",
+     "duplicat",
+     "window",
+     "estimat"
+    ],
+    "optional": [
+     "cumulative",
+     "selective",
+     "idempot",
+     "buffer",
+     "probe",
+     "flight",
+     "identifier",
+     "backoff",
+     "deviation",
+     "ambigu"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "udp",
+    "transport-demultiplexing",
+    "retransmission",
+    "rtt-estimation",
+    "sequence-numbers",
+    "cumulative-ack",
+    "fast-retransmit",
+    "sliding-window",
+    "flow-control"
+   ],
+   "explain": "The five-hundred-fold spread in round-trip time is the constraint that drives the design: no constant timeout can serve both ends of it, so the timeout must be derived from an estimate built out of measured samples, with an explicit allowance for their variation, and samples from retransmitted messages must be discarded because their acknowledgements are ambiguous. Sequence-numbering the data lets you acknowledge cumulatively and lets duplicate acknowledgements stand in as an early loss signal, which matters most on the long path where waiting for a timer costs a quarter of a second per loss. A request identifier that survives retransmission is what makes the protocol safe rather than merely reliable - without it a retransmitted request is indistinguishable from a second request, and a non-idempotent operation is performed twice. Finally, a receiver-advertised window is the only thing standing between a multi-megabyte response and an unbounded buffer, and a zero window needs a probe because the update that reopens it is not itself reliably delivered.",
+   "xp": 150,
+   "tags": [
+    "udp",
+    "transport-demultiplexing",
+    "retransmission",
+    "rtt-estimation",
+    "sequence-numbers",
+    "cumulative-ack",
+    "fast-retransmit",
+    "sliding-window",
+    "flow-control"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-5-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does the acknowledgement number in a TCP segment mean?",
+   "choices": [
+    "The sequence number of the last byte the receiver successfully stored",
+    "The sequence number of the next byte the receiver expects, implying every byte below it has arrived",
+    "The number of bytes received since the previous acknowledgement was sent",
+    "The sequence number of the segment that was lost, so the sender knows what to resend"
+   ],
+   "answer": 1,
+   "concepts": [
+    "cumulative-ack",
+    "sequence-numbers"
+   ],
+   "explain": "The first option is off by one and the difference matters, because the field is defined forwards, in terms of what is still wanted. The fourth describes a selective or negative acknowledgement, which TCP's base header cannot express at all - a receiver holding out-of-order data can only keep repeating the number of the first byte it is missing, which is why SACK exists as an option.",
+   "xp": 15,
+   "tags": [
+    "cumulative-ack",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about UDP are true?",
+   "choices": [
+    "It demultiplexes an arriving datagram to a socket using the destination address and port",
+    "Its header is 8 bytes, against a minimum of 20 for TCP",
+    "It can detect a corrupted payload with its checksum, but only by discarding the datagram",
+    "It delivers datagrams to the application in the order they were sent",
+    "It reduces its sending rate when the network begins dropping datagrams"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "udp",
+    "transport-demultiplexing"
+   ],
+   "explain": "The last two are the guarantees UDP conspicuously does not offer, and the fifth is the one whose absence is dangerous rather than merely inconvenient: an application that floods a congested path over UDP has nothing to stop it. The third is worth stating carefully - UDP does detect corruption, it simply has no way to report or repair it, so from the application's side a corrupted datagram is indistinguishable from a lost one.",
+   "xp": 15,
+   "tags": [
+    "udp",
+    "transport-demultiplexing"
+   ]
+  },
+  {
+   "id": "net-5-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the facts about opening and closing a connection.",
+   "template": "The handshake needs ___ messages, because each side's initial sequence number must be sent and acknowledged.\nA FIN means the sender has no more ___ to send, not that the connection is finished.\nA socket that has acknowledged a FIN but whose application has not yet closed sits in ___ .\nThe side that closes first waits ___ x MSL before releasing its four-tuple.\n",
+   "blanks": [
+    "three",
+    "data",
+    "CLOSE_WAIT",
+    "2"
+   ],
+   "concepts": [
+    "three-way-handshake",
+    "connection-teardown"
+   ],
+   "explain": "Three is the minimum rather than an arbitrary choice: two messages would leave the server's initial sequence number unconfirmed, and a fourth would be redundant because the server packs its SYN and its ACK into one segment. The close takes four for the opposite reason - the two directions genuinely are independent, and collapsing them would destroy the half-close that lets a peer keep sending after its correspondent has finished.",
+   "xp": 30,
+   "tags": [
+    "three-way-handshake",
+    "connection-teardown"
+   ]
+  },
+  {
+   "id": "net-5-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A sender's window is full and the receiver's application has stopped reading. Order the events that follow, ending with the transfer resuming.",
+   "fragments": [
+    "the receive buffer fills and the receiver advertises a window of zero",
+    "the sender stops transmitting data, because its effective window is now zero",
+    "the sender arms its persist timer and begins sending one-byte zero-window probes",
+    "the application reads a large block out of the receive buffer",
+    "a probe forces the receiver to reply with an acknowledgement carrying its new, non-zero window",
+    "the sender's effective window reopens and it resumes transmitting"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "flow-control",
+    "sliding-window"
+   ],
+   "explain": "The probe is not an optimisation, it is the repair for a real deadlock: the receiver's window update travels on a pure acknowledgement, and TCP never retransmits a segment that carries no data, so if that one update is lost there is nothing in the protocol to send it again. Putting the application's read before the probe is the tempting order, and it hides the failure this mechanism exists to survive.",
+   "xp": 30,
+   "tags": [
+    "flow-control",
+    "sliding-window"
+   ]
+  },
+  {
+   "id": "net-5-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A client with initial sequence number 12000 opens a connection to a server whose initial sequence number is 40000. After the handshake the client sends 250 bytes; the server then sends 80 bytes of its own. Give the field values below.",
+   "steps": [
+    {
+     "label": "acknowledgement number in the server's SYN,ACK",
+     "expected": "12001"
+    },
+    {
+     "label": "sequence number in the client's completing ACK",
+     "expected": "12001"
+    },
+    {
+     "label": "acknowledgement number in the client's completing ACK",
+     "expected": "40001"
+    },
+    {
+     "label": "acknowledgement the server sends for the 250 bytes",
+     "expected": "12251"
+    },
+    {
+     "label": "sequence number of the server's 80-byte segment",
+     "expected": "40001"
+    },
+    {
+     "label": "acknowledgement the client sends for those 80 bytes",
+     "expected": "40081"
+    }
+   ],
+   "concepts": [
+    "three-way-handshake",
+    "sequence-numbers"
+   ],
+   "explain": "Both directions are numbered independently from their own initial sequence number, so 12001 and 40001 are the first data bytes each way and neither influences the other. The 250-byte segment occupies 12001 to 12250, making 12251 the next byte expected; answering 12250 is the usual error and comes from reading the acknowledgement field as the last byte received rather than the next one wanted.",
+   "xp": 60,
+   "tags": [
+    "three-way-handshake",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Consider a path of 100 Mb/s with a round-trip time of 40 ms. Compute the figures below. Give byte counts as whole numbers and the wrap time in seconds to one decimal place.",
+   "steps": [
+    {
+     "label": "bandwidth-delay product of the path, in bytes",
+     "expected": "500000"
+    },
+    {
+     "label": "throughput in bytes per second of a 65,535-byte window on this path",
+     "expected": "1638375"
+    },
+    {
+     "label": "window in bytes needed to keep the pipe full",
+     "expected": "500000"
+    },
+    {
+     "label": "smallest window-scale shift that lets the 16-bit field advertise that window",
+     "expected": "3"
+    },
+    {
+     "label": "seconds for the 32-bit sequence space to wrap at this rate",
+     "expected": "343.6"
+    }
+   ],
+   "concepts": [
+    "sliding-window",
+    "flow-control",
+    "sequence-numbers"
+   ],
+   "explain": "The bandwidth-delay product is exactly the window needed to keep the pipe full, which is why the first and third answers coincide - the sender must have a full round trip's worth of data outstanding or the link idles while it waits. A shift of 2 gives at most 65,535 x 4 = 262,140 bytes, short of the target, so 3 is the smallest that works; the wrap figure, 4,294,967,296 x 8 / 100,000,000 = 343.6 s, is comfortable here and becomes a genuine hazard an order of magnitude faster, which is what the timestamp option was introduced to handle.",
+   "xp": 60,
+   "tags": [
+    "sliding-window",
+    "flow-control",
+    "sequence-numbers"
+   ]
+  },
+  {
+   "id": "net-5-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "TCP already has a retransmission timer, yet fast retransmit exists as well. Explain what evidence a duplicate acknowledgement carries that a silent timer does not, why the trigger is the third duplicate rather than the first given that networks reorder packets, and what the cumulative acknowledgement field forces the receiver to say in the meantime.",
+   "rubric": {
+    "required": [
+     "dup",
+     "three",
+     "cumulative",
+     "reorder",
+     "timeout",
+     "retransmi"
+    ],
+    "optional": [
+     "buffer",
+     "hole",
+     "sack",
+     "round",
+     "idle",
+     "evidence"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "retransmission"
+   ],
+   "explain": "A timer expiring is the absence of information - nothing came back, and the sender cannot tell a lost segment from a merely slow path, which is why the timeout is set conservatively and costs a full timeout period of idleness. A duplicate acknowledgement is positive evidence: a later segment definitely arrived, so the path is delivering and the gap is real, and the sender can act within a fraction of a round trip. The threshold is three because networks reorder packets routinely, and one or two duplicates are the ordinary signature of reordering rather than of loss. Meanwhile the cumulative field leaves the receiver no choice but to repeat the same number, since it cannot acknowledge past a hole no matter how much it has buffered behind it.",
+   "xp": 30,
+   "tags": [
+    "fast-retransmit",
+    "cumulative-ack",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "An engineer patches a TCP stack to take a round-trip sample from every acknowledgement, including those for retransmitted segments, arguing that more samples give a better estimate. On a lossy path the connection now collapses: the timer becomes wildly short, retransmissions multiply, and throughput falls to nearly nothing. Name the defect in the measurement, explain the feedback loop it creates, and say what the stack should do instead while the timer keeps expiring.",
+   "answer": "Sampling retransmitted segments - the acknowledgement is ambiguous, so an ACK for the original is timed from the retransmission and the estimate collapses",
+   "rubric": {
+    "required": [
+     "retransmi",
+     "ambigu",
+     "sample",
+     "estimat",
+     "timeout"
+    ],
+    "optional": [
+     "karn",
+     "back",
+     "short",
+     "original",
+     "spurious",
+     "doubl",
+     "loop"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "rtt-estimation",
+    "retransmission"
+   ],
+   "explain": "An acknowledgement for byte 1501 looks identical whether it answers the original transmission or the copy, so the sample can be measured from the wrong send time - and the dangerous direction is the one where the ACK actually belongs to the original, making the measured interval far shorter than the true round trip. The estimate and its deviation both shrink, the timeout shrinks with them, more segments are declared lost while still in flight, and each spurious retransmission produces another too-short sample: the loop tightens itself. Karn's algorithm cuts it by refusing the ambiguous sample entirely and doubling the timeout on each expiry, so the timer can only grow during a loss episode.",
+   "xp": 60,
+   "tags": [
+    "rtt-estimation",
+    "retransmission"
+   ]
+  },
+  {
+   "id": "net-5-x-09",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A team doubles the receive buffers on its servers and reports that this has fixed congestion. Throughput did improve on long-distance transfers. Explain what the receive window actually governs, why enlarging the buffer helped here, and why it is not a congestion control mechanism - including what would have gone wrong in the network had the true limit been a congested router rather than the window.",
+   "rubric": {
+    "required": [
+     "receiv",
+     "window",
+     "congest",
+     "network",
+     "buffer"
+    ],
+    "optional": [
+     "flow",
+     "router",
+     "queue",
+     "drop",
+     "loss",
+     "bandwidth",
+     "rtt",
+     "delay",
+     "flight"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "flow-control",
+    "sliding-window",
+    "retransmission"
+   ],
+   "explain": "Flow control - the advertised window - protects exactly one resource, the receiver's memory, and knows nothing whatsoever about the routers in between - so it is a bound on data in flight that happens also to bound throughput at window over RTT. On a long path a small window is often the binding constraint, and enlarging it removes an artificial cap, which is what the team observed and misattributed. Had the real limit been a congested router, larger buffers would have let the sender push more data into a queue that was already overflowing, increasing loss and queueing delay and making things worse - the improvement they saw is evidence about which limit was binding, not evidence that the window is a congestion mechanism.",
+   "xp": 60,
+   "tags": [
+    "flow-control",
+    "sliding-window",
+    "retransmission"
+   ]
+  }
+ ]
+}

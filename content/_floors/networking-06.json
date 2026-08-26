@@ -1,0 +1,1090 @@
+{
+ "n": 6,
+ "name": "Congestion and Fairness",
+ "cognitiveLevel": "application",
+ "concepts": [
+  "congestion-collapse",
+  "aimd",
+  "fairness",
+  "slow-start",
+  "congestion-avoidance",
+  "ssthresh",
+  "fast-retransmit",
+  "fast-recovery",
+  "tahoe-and-reno",
+  "bufferbloat",
+  "active-queue-management",
+  "wireless-loss"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "window-traces",
+  "congestion-scenarios",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Collapse, and the only party who can stop it",
+    "body": "In October 1986 the path between Lawrence Berkeley Lab and the Berkeley campus - a few hundred metres of network - fell from 32 kbps to 40 bps, a factor of a thousand. Nothing had broken. Every sender was obeying the protocol exactly as written: send what the receiver's window allows, and retransmit whatever is not acknowledged. When the bottleneck queue overflows, packets are lost; lost packets are retransmitted; the offered load rises; more is lost. **Congestion collapse** is the stable state that spiral settles into, in which most of the link's capacity is carrying copies of packets that were already delivered or are about to be discarded.\n\nThe router at the bottleneck cannot fix this by itself. It can drop, it can queue, it can mark - it cannot reach back and slow a sender down, and a sender that is not slowing down is the entire problem. So congestion control is placed where the only real control is: at the endpoints, which react to a *signal* the network emits. For twenty-five years the only signal universally available was a lost packet, which is why loss became TCP's definition of congestion - a choice with consequences we will spend the last section of this floor on.\n\nThe endpoint's control law is **AIMD**: add one MSS to the window per round trip while nothing is lost, and halve it the moment something is. The asymmetry is deliberate. Chiu and Jain's result is that of the four combinations, only additive increase with multiplicative decrease converges on an allocation that is both efficient and fair: additive-increase-additive-decrease and multiplicative-increase-multiplicative-decrease both preserve the *ratio* between two flows for ever, so an unfair split stays unfair, and multiplicative increase with additive decrease diverges outright. Multiplicative decrease also has the right urgency - congestion is an emergency and spare capacity is not, so the response to bad news should be violent and the response to good news patient.\n\nThe price is paid in the shape of the curve. A flow's window never settles at the capacity; it saws between $W/2$ and $W$, averaging $0.75W$, and it discovers the ceiling by hitting it. A packet lost once per cycle is not a fault, it is the mechanism running normally. What AIMD buys with that loss is convergence: additive increase moves two competing flows by the same absolute amount and so never narrows the gap between them, while every multiplicative decrease halves that gap. Repeat and the flows approach an equal share - measured, when we need a number, by Jain's fairness index $J = (\\sum x_i)^2 / (n \\sum x_i^2)$, which is $1$ for a perfectly equal split and $1/n$ when one flow takes everything.",
+    "code": "/* AIMD, one round trip at a time. The two constants are not\n   symmetric, and that asymmetry is the whole design. */\ncwnd = cwnd + 1;          /* additive increase: one MSS per RTT   */\ncwnd = cwnd / 2;          /* multiplicative decrease: on any loss */\n\n/* Two flows sharing a 10-unit bottleneck, starting at 2 and 8.\n   Both add 1 while the sum fits; both halve when it does not.\n\n   round   flow A   flow B    sum    gap\n     0       2.00     8.00   10.00   6.00\n     1       3.00     9.00   12.00   6.00   overshoot -> halve\n     2       1.50     4.50    6.00   3.00   the gap halved too\n     3       2.50     5.50    8.00   3.00\n     4       3.50     6.50   10.00   3.00\n     5       4.50     7.50   12.00   3.00   overshoot -> halve\n     6       2.25     3.75    6.00   1.50   and halved again\n\n   Jain's index over those six rounds: 0.80 -> 0.94. Increase never\n   changes the gap; only the decrease does. That is why AIMD\n   converges on fairness and why the other three laws do not. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "One MSS per round trip, regardless of how big the window already is. On a large window that is a vanishingly small proportional increase - which is the point, and later the problem."
+     },
+     {
+      "line": 4,
+      "text": "Halving is proportional, so a greedy flow gives up more in absolute terms than a small one. That single fact is what drives the gap between two flows towards zero."
+     },
+     {
+      "line": 12,
+      "text": "The gap is unchanged by the increase rounds and halves at every decrease: 6.00, then 3.00, then 1.50. Convergence is geometric in the number of congestion events, not in time."
+     }
+    ],
+    "checkpoint": {
+     "type": "explain",
+     "layer": "retrieval",
+     "prompt": "A colleague proposes that TCP should halve its window on loss and **double** it when a round trip completes without loss, arguing that this recovers capacity faster. Say what goes wrong with that control law.",
+     "rubric": {
+      "required": [
+       "multiplicativ",
+       "gap",
+       "fair",
+       "loss"
+      ],
+      "optional": [
+       "ratio",
+       "converg",
+       "oscillat",
+       "collapse",
+       "aggressiv",
+       "queue"
+      ],
+      "minWords": 40
+     },
+     "concepts": [
+      "aimd",
+      "fairness"
+     ],
+     "explain": "Doubling on success is multiplicative increase, and multiplicative increase with multiplicative decrease preserves the ratio between two competing flows exactly: a flow with four times its neighbour's share keeps four times that share for ever, because every operation scales both by the same factor. It is also far too aggressive at the top of the sawtooth - it overshoots the bottleneck by a whole window every cycle rather than by one segment, so it drives loss rates up while learning nothing about where the capacity actually was. The tempting defence is that a faster recovery means higher throughput, and it does for a single flow on an empty link; it is the shared link, where the law has to arbitrate, that it fails on.",
+     "xp": 30,
+     "tags": [
+      "aimd",
+      "fairness"
+     ]
+    }
+   },
+   {
+    "title": "Slow start, and the threshold that ends it",
+    "body": "Additive increase is a fine steady state and a hopeless way to begin. A 10 Mbps path with a 100 ms round trip holds $10^7 \\times 0.1 / 8 = 125{,}000$ bytes in flight - 125 segments of 1000 bytes - and reaching that one segment per round trip would take 125 round trips, or 12.5 seconds of deliberately under-using an idle link. **Slow start** instead raises `cwnd` by one MSS for every acknowledgement received, which doubles the window every round trip: eight round trips reach 128 segments rather than 125. The name is a historical joke - it is slow only in comparison with the previous behaviour of dumping an entire receiver window into the network at once.\n\nExponential growth obviously cannot be the steady state, because the way it ends is by overshooting the capacity by a whole window. The **slow-start threshold**, `ssthresh`, is the boundary between the two behaviours: while `cwnd` is below it the window doubles each round trip, and at or above it the connection switches to **congestion avoidance** and adds one MSS per round trip. At the start of a connection `ssthresh` is set very high, because the sender genuinely has no idea what the path can carry and probing fast is the cheapest way to find out.\n\nAfter that, `ssthresh` is memory. Every congestion event sets it to half the window that was in flight when the trouble happened, so it records the last known-bad point: go back to exponential growth up to *half* of where it broke, then creep. Slow start therefore runs twice in a connection's life for different reasons - once at the beginning because nothing is known, and once after a timeout because everything known has just been invalidated.\n\nThe cost of the additive half shows up on fast, long paths. A 1 Gbps link with a 100 ms round trip holds 12,500 segments; a single loss halves the window to 6,250, and climbing back one segment per round trip takes 6,250 round trips - 625 seconds, over ten minutes, to recover from one dropped packet. That number is the entire motivation for the algorithms that replaced Reno in practice: CUBIC grows as a cubic function of the time since the last loss rather than linearly in round trips, and BBR abandons loss as the signal altogether and estimates the bottleneck bandwidth and minimum round trip directly.",
+    "code": "/* The sender's window update, run once per acknowledgement. */\nvoid on_ack(void)\n{\n    if (cwnd < ssthresh)\n        cwnd += 1;                /* slow start: doubles per RTT      */\n    else\n        cwnd += 1.0 / cwnd;       /* congestion avoidance: +1 per RTT */\n}\n\n/* 10 Mbps, 100 ms RTT, 1000-byte segments -> BDP = 125 segments.\n\n   RTT       1   2   3   4    5    6    7    8\n   cwnd      1   2   4   8   16   32   64  128    <- slow start\n   sent      1   3   7  15   31   63  127  255    (cumulative)\n\n   Eight round trips to fill the pipe. Additive increase alone would\n   have needed 125 of them: 12.5 seconds of a link sitting idle while\n   the sender politely worked its way up to using it. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "One MSS per ACK, not per RTT. A window of w segments draws w acknowledgements in a round trip, so the window ends the round trip at 2w - the doubling is a consequence of the per-ACK rule, never coded directly."
+     },
+     {
+      "line": 7,
+      "text": "One MSS divided by the window, per ACK: w acknowledgements add w times 1/w, which is one MSS in total. This is the only line in TCP where the increase is deliberately made smaller as the window grows."
+     },
+     {
+      "line": 13,
+      "text": "The doubling is why the first megabyte of a transfer is dominated by round trips rather than by bandwidth, and why short web transfers finish before congestion avoidance is ever reached."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A connection starts with `cwnd` = 1 segment and `ssthresh` = 8 segments, and loses nothing. Give `cwnd` in segments at the **start** of each round trip below, and name the phase it is in.",
+     "steps": [
+      {
+       "label": "RTT 3: cwnd",
+       "expected": "4"
+      },
+      {
+       "label": "RTT 4: cwnd",
+       "expected": "8"
+      },
+      {
+       "label": "RTT 4: phase (slow start or congestion avoidance)",
+       "expected": "congestion avoidance"
+      },
+      {
+       "label": "RTT 5: cwnd",
+       "expected": "9"
+      },
+      {
+       "label": "RTT 6: cwnd",
+       "expected": "10"
+      }
+     ],
+     "concepts": [
+      "slow-start",
+      "ssthresh",
+      "congestion-avoidance"
+     ],
+     "explain": "The doubling stops the moment `cwnd` reaches `ssthresh` rather than after it passes it, so round trip 4 opens at 8 and is already in congestion avoidance - which is why round trip 5 opens at 9 and not at 16. Answering 16 is the standard slip, and it comes from reading `ssthresh` as a cap that the doubling runs into rather than as the boundary between two growth laws.",
+     "xp": 60,
+     "tags": [
+      "slow-start",
+      "ssthresh",
+      "congestion-avoidance"
+     ]
+    }
+   },
+   {
+    "title": "Tahoe, Reno, and what a duplicate acknowledgement is worth",
+    "body": "TCP's acknowledgements are cumulative, so a receiver that is missing segment 5 but holding 6, 7 and 8 can only keep repeating that it wants 5. Those repeats are **duplicate acknowledgements**, and they carry more information than they appear to: every one of them means a segment arrived. A sender seeing duplicates is not looking at a dead path - it is looking at a path that is still delivering, with one hole in it. Waiting for the retransmission timer, which is deliberately conservative and often several hundred milliseconds, throws that information away.\n\n**Fast retransmit** acts on it. Three duplicate acknowledgements - one or two are routinely produced by simple reordering, three is the compromise that trades a little tolerance for a lot of latency - and the sender resends the missing segment immediately, without waiting for any timer. TCP **Tahoe** (1988) then treats the loss like any other congestion signal: `ssthresh` becomes half the window, `cwnd` drops to one segment, and the connection re-enters slow start.\n\nThat last step is the part **Reno** (1990) objects to. The duplicate acknowledgements prove that data is still leaving the network, so the self-clocking that slow start exists to rebuild has not actually stopped. Reno's **fast recovery** sets `ssthresh` to half the window, sets `cwnd` to that new `ssthresh`, and continues in congestion avoidance from there - no restart, no re-probing of a path it already knows. On the traced example below, that difference is worth three segments of window by round trip 14 and grows from there.\n\nA **timeout** is a different event and both senders treat it identically: `ssthresh` halves, `cwnd` goes to one, slow start begins. A timeout means no acknowledgements arrived at all, so the sender has no evidence the path is delivering anything and no ACK clock to pace against; there is nothing to be clever with. The rule worth keeping is that the *signal* determines the response - loss detected while acknowledgements still flow is a mild event, and silence is a severe one. Reno's own weakness follows from the same logic: it is built around a single loss per window, and two losses in one window typically strand it until the timer fires, which is what NewReno's partial acknowledgements and SACK's explicit block lists were introduced to fix.",
+    "code": "/* Tahoe and Reno differ in exactly one assignment. */\nvoid on_third_dup_ack(void)\n{\n    ssthresh = cwnd / 2;\n    retransmit_missing_segment();   /* fast retransmit: both of them */\n\n    cwnd = 1;                       /* Tahoe: restart in slow start  */\n    cwnd = ssthresh;                /* Reno:  fast recovery, stay in */\n}                                   /*        congestion avoidance   */\n\nvoid on_timeout(void)\n{\n    ssthresh = cwnd / 2;\n    cwnd = 1;                       /* both: the ACK clock has died  */\n}\n\n/* One event stream, two senders. Initial ssthresh 32, and three\n   duplicate ACKs arrive at the end of round trip 5.\n\n   RTT      1   2   3   4    5   6   7   8   9  10  11  12  13  14\n   Tahoe    1   2   4   8   16   1   2   4   8   9  10  11  12  13\n   Reno     1   2   4   8   16   8   9  10  11  12  13  14  15  16 */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The two assignments are alternatives, not a sequence: this is the one branch where the two algorithms disagree, shown side by side."
+     },
+     {
+      "line": 14,
+      "text": "No branch here at all. Silence is the one signal that justifies discarding everything the sender thought it knew about the path."
+     },
+     {
+      "line": 21,
+      "text": "Tahoe spends round trips 6 to 9 climbing back to the window Reno never left. Both meet the same ssthresh of 8; only the route there differs."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the window and threshold values. Give whole numbers of segments only.",
+     "template": "cwnd = 20, three duplicate ACKs, Tahoe:  ssthresh = ___  and cwnd = ___\ncwnd = 20, three duplicate ACKs, Reno:   ssthresh = ___  and cwnd = ___\ncwnd = 20, retransmission timeout, Reno: ssthresh = ___  and cwnd = ___",
+     "blanks": [
+      "10",
+      "1",
+      "10",
+      "10",
+      "10",
+      "1"
+     ],
+     "concepts": [
+      "fast-retransmit",
+      "fast-recovery",
+      "tahoe-and-reno"
+     ],
+     "explain": "All three events compute the same `ssthresh`, because halving the window that was in flight is how every congestion event records where the trouble was. What differs is the window the sender continues with: Reno keeps a usable window after duplicate acknowledgements because the acknowledgements themselves prove the path is still delivering, and gives that up after a timeout because silence proves nothing of the kind. Expecting Reno's timeout row to look like its duplicate-ACK row is the usual error.",
+     "xp": 30,
+     "tags": [
+      "fast-retransmit",
+      "fast-recovery",
+      "tahoe-and-reno"
+     ]
+    }
+   },
+   {
+    "title": "Buffers that lie: bufferbloat, AQM, and links that drop for other reasons",
+    "body": "Follow the loop back to its source. The sender grows its window until a packet is dropped; the drop happens when the bottleneck's buffer is full; so the quantity TCP's control loop is really measuring is the depth of that buffer. Memory got cheap and equipment vendors, reasoning that a dropped packet is a bad thing, fitted large buffers. A 1 MB buffer on an 8 Mbps uplink is one full second of packets, and TCP will fill it, because filling it is the only way TCP knows to find the capacity. The result is **bufferbloat**: a link with no loss, full throughput, and a round trip time of a second, on which every interactive flow sharing the path is ruined. It is a latency failure caused by refusing to drop.\n\nThe rule of thumb is that a bottleneck buffer should hold about one bandwidth-delay product - 20 kB on that 8 Mbps, 20 ms link - and rather less when many flows share it, since their sawteeth are not synchronised. But sizing alone cannot separate a burst that should be absorbed from a standing queue that should be signalled away.\n\n**Active queue management** does that by dropping early and deliberately. **RED** maintains an exponentially weighted average of the queue length and drops arriving packets with a probability that ramps linearly from zero at `min_th` to `max_p` at `max_th`. Both halves matter: averaging lets a burst through while catching a persistent queue, and randomising which flow is hit avoids signalling every flow in the same round trip and driving them into one synchronised sawtooth. **CoDel** measures how long packets actually wait instead, and acts when the minimum sojourn time has stayed above 5 ms for a whole 100 ms interval - the direct statement that a queue exists to absorb bursts and not to stand. **ECN** carries the identical signal as a mark on a packet that still arrives, so the sender learns about congestion without anybody paying for the lesson with a retransmission.\n\nAll of this rests on an inference that is not always sound: that a lost packet means a full queue. On a wireless link it often means a corrupted frame, a fade or interference on a path that may be completely empty. The sender halves its window anyway, and because a loss-based flow's throughput is roughly $\\sqrt{1.5} \\cdot MSS / (RTT \\sqrt{p})$, a 1% frame loss rate with 1000-byte segments and a 100 ms round trip caps the flow near 0.98 Mbps - the same figure whether the radio underneath can do 11 Mbps or 100 Mbps. The link layer's answer is to hide the loss with retransmission and forward error correction, buying reliability with delay and jitter; the transport's answer is to stop treating loss as the definition of congestion, which is what ECN and the delay-based and model-based controllers are all reaching for.",
+    "code": "/* A 1 MB buffer on an 8 Mbps uplink is one second of packets, and\n   TCP fills it because filling it is how TCP finds the capacity.\n\n   queue occupancy            added one-way delay\n      20 kB  (= one BDP)             20 ms\n     250 kB                         250 ms\n    1000 kB  (buffer full)         1000 ms   <- and only now, a drop */\n\n/* RED: drop early, drop randomly, and average over bursts. */\navg = (1 - w) * avg + w * sample_queue_length;\n\nif      (avg <= min_th)  p = 0;                         /* leave it alone */\nelse if (avg >= max_th)  p = 1;                         /* drop them all  */\nelse    p = max_p * (avg - min_th) / (max_th - min_th); /* linear ramp    */\n\n/* CoDel instead times how long each packet waited, and drops when\n   the minimum sojourn time has stayed above 5 ms for a whole 100 ms\n   interval: a standing queue, as distinct from a burst passing\n   through. ECN marks rather than drops, delivering the same signal\n   without the retransmission. */",
+    "lang": "c",
+    "annotations": [
+     {
+      "line": 7,
+      "text": "The drop that TCP is waiting for arrives a full second late. Every packet already in the queue has been delayed by a control loop that has not yet been told anything is wrong."
+     },
+     {
+      "line": 10,
+      "text": "The average, not the instantaneous length. A burst that arrives and drains moves the average very little, which is precisely the behaviour a queue is for."
+     },
+     {
+      "line": 14,
+      "text": "Probabilistic, so the flows hit are roughly proportional to the packets they send - the heaviest sender is the most likely to be signalled, and the flows are not all told at once."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A RED queue uses weight `w` = 0.5 - unrealistically large, so the arithmetic is doable by hand - with `min_th` = 10 packets, `max_th` = 20 packets and `max_p` = 0.1. The average starts at 4 and the sampled queue length is 20 packets at every sample. Give the average queue length after each sample, and the drop probability at that average.",
+     "steps": [
+      {
+       "label": "average after sample 1",
+       "expected": "12"
+      },
+      {
+       "label": "drop probability there",
+       "expected": "0.02"
+      },
+      {
+       "label": "average after sample 2",
+       "expected": "16"
+      },
+      {
+       "label": "drop probability there",
+       "expected": "0.06"
+      },
+      {
+       "label": "average after sample 3",
+       "expected": "18"
+      },
+      {
+       "label": "drop probability there",
+       "expected": "0.08"
+      }
+     ],
+     "concepts": [
+      "active-queue-management"
+     ],
+     "explain": "The average chases the sample geometrically and never quite arrives - 12, 16, 18, 19 - which is exactly the lag that lets a short burst pass without being punished. The drop probability follows the ramp $0.1 \\cdot (avg - 10) / (20 - 10)$, so it is 0.02 at an average of 12 and not 0.1: reaching `max_p` requires the average to reach `max_th`, and a queue sitting at 12 is being nudged, not attacked.",
+     "xp": 60,
+     "tags": [
+      "active-queue-management",
+      "bufferbloat"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-6-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A Reno sender has `cwnd` = 24 segments and one segment in the middle of the window is dropped by the bottleneck router. Put the events that follow into the order they happen.",
+   "fragments": [
+    "the receiver keeps acknowledging the last in-order byte as later segments arrive",
+    "the sender counts the third duplicate acknowledgement for the same sequence number",
+    "the missing segment is retransmitted at once, without waiting for the retransmission timer",
+    "ssthresh is set to 12 and cwnd is set to 12",
+    "the acknowledgement covering the retransmitted segment arrives and fast recovery ends",
+    "cwnd grows by one segment per round trip in congestion avoidance"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "fast-retransmit",
+    "fast-recovery",
+    "tahoe-and-reno"
+   ],
+   "explain": "The duplicates come first and are the evidence for everything after them: the sender learns about the hole only because later segments are still arriving at the receiver. The tempting reordering is to put the window reduction before the retransmission, on the grounds that congestion control comes first, but fast retransmit exists precisely to get the missing segment moving without waiting for anything - the accounting matters to the next round trip, not to this one.",
+   "xp": 30,
+   "tags": [
+    "fast-retransmit",
+    "fast-recovery",
+    "tahoe-and-reno"
+   ]
+  },
+  {
+   "id": "net-6-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in each window value in whole segments. Every line is a separate sender, and all windows are measured at the start of a round trip.",
+   "template": "cwnd = 4, ssthresh = 16, no loss: after one more round trip cwnd = ___\ncwnd = 16, ssthresh = 16, no loss: after one more round trip cwnd = ___\ncwnd = 20, three duplicate ACKs, Reno: cwnd continues from ___\ncwnd = 20, three duplicate ACKs, Tahoe: cwnd continues from ___\ncwnd = 20, retransmission timeout, either sender: ssthresh = ___",
+   "blanks": [
+    "8",
+    "17",
+    "10",
+    "1",
+    "10"
+   ],
+   "concepts": [
+    "slow-start",
+    "congestion-avoidance",
+    "ssthresh",
+    "tahoe-and-reno"
+   ],
+   "explain": "The first two lines are the same sender in its two growth laws, separated only by whether `cwnd` has reached `ssthresh`: below it the window doubles, at it the window adds one. The last three all halve `ssthresh` to 10 and differ only in the window they carry forward, which is the single distinction between Tahoe, Reno and a timeout. Writing 32 on the second line is the common slip - `cwnd` equal to `ssthresh` is already congestion avoidance, not the last round of slow start.",
+   "xp": 30,
+   "tags": [
+    "slow-start",
+    "congestion-avoidance",
+    "ssthresh",
+    "tahoe-and-reno"
+   ]
+  },
+  {
+   "id": "net-6-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A path carries 1000-byte segments. Compute the bandwidth-delay product and the slow-start behaviour on it. Give plain numbers with no units.",
+   "steps": [
+    {
+     "label": "10 Mbps, 100 ms RTT: BDP in bytes",
+     "expected": "125000"
+    },
+    {
+     "label": "the same BDP in segments",
+     "expected": "125"
+    },
+    {
+     "label": "starting from cwnd = 1, the first round trip whose window is at least the BDP",
+     "expected": "8"
+    },
+    {
+     "label": "cwnd in segments at the start of that round trip",
+     "expected": "128"
+    },
+    {
+     "label": "round trips additive increase alone would have needed to reach the BDP",
+     "expected": "125"
+    }
+   ],
+   "concepts": [
+    "slow-start",
+    "congestion-avoidance"
+   ],
+   "explain": "The bandwidth-delay product is what the path holds in flight, so it is the window a sender needs before the link is the limiting factor rather than the window. Doubling reaches it in eight round trips and adding one segment at a time reaches it in 125, and that ratio - eight round trips against twelve and a half seconds - is the entire justification for having two growth laws instead of one.",
+   "xp": 60,
+   "tags": [
+    "slow-start",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-g-04",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "A sender receives three duplicate acknowledgements. Explain what that tells it about the path, and why TCP waits for three rather than acting on the first.",
+   "rubric": {
+    "required": [
+     "duplicat",
+     "arriv",
+     "reorder",
+     "retransmi",
+     "lost"
+    ],
+    "optional": [
+     "cumulativ",
+     "timer",
+     "timeout",
+     "gap",
+     "clock",
+     "threshold"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "fast-retransmit"
+   ],
+   "explain": "Each duplicate is generated by a segment that *arrived* out of order, so three of them are simultaneously evidence that one segment is missing and that the path is still delivering - the second half is what makes fast recovery defensible at all. Waiting for three is a threshold chosen against reordering: a path that swaps two adjacent segments produces one or two duplicates routinely, and retransmitting on the first would flood the network with copies of packets that were merely late. The tempting reading is that duplicates signal a broken path, which is exactly backwards - a broken path produces silence and a timeout.",
+   "xp": 30,
+   "tags": [
+    "fast-retransmit",
+    "tahoe-and-reno"
+   ]
+  }
+ ],
+ "window-traces": [
+  {
+   "id": "net-6-w-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two senders, **Tahoe** and **Reno**, see an identical event stream: both start with `cwnd` = 1 segment and `ssthresh` = 4 segments, three duplicate acknowledgements arrive at the end of round trip 7, and a retransmission timeout fires at the end of round trip 12. Give `cwnd` in segments at the **start** of each round trip named.",
+   "steps": [
+    {
+     "label": "either sender, RTT 4: cwnd",
+     "expected": "5"
+    },
+    {
+     "label": "either sender, RTT 7: cwnd",
+     "expected": "8"
+    },
+    {
+     "label": "Tahoe, RTT 8: cwnd",
+     "expected": "1"
+    },
+    {
+     "label": "Reno, RTT 8: cwnd",
+     "expected": "4"
+    },
+    {
+     "label": "Tahoe, RTT 12: cwnd",
+     "expected": "6"
+    },
+    {
+     "label": "Reno, RTT 12: cwnd",
+     "expected": "8"
+    },
+    {
+     "label": "Reno, RTT 13: cwnd",
+     "expected": "1"
+    },
+    {
+     "label": "Reno, RTT 15: cwnd",
+     "expected": "4"
+    }
+   ],
+   "concepts": [
+    "tahoe-and-reno",
+    "fast-retransmit",
+    "fast-recovery",
+    "slow-start",
+    "congestion-avoidance",
+    "ssthresh"
+   ],
+   "explain": "Both senders leave slow start at round trip 3, when `cwnd` reaches `ssthresh` = 4, so round trips 4 to 7 are additive: 5, 6, 7, 8. The duplicate acknowledgements halve `ssthresh` to 4 and Reno simply continues from there while Tahoe restarts at 1 and has to re-climb, which is why Reno is two segments ahead by round trip 12. The last two steps are the point of the whole trace: after a *timeout* Reno behaves exactly like Tahoe - back to 1, back into slow start, doubling 1, 2, 4 until it meets `ssthresh` = 4 again at round trip 15. Carrying Reno's fast-recovery behaviour over to the timeout is the error this trace is built to catch.",
+   "xp": 60,
+   "tags": [
+    "tahoe-and-reno",
+    "fast-retransmit",
+    "fast-recovery",
+    "slow-start",
+    "congestion-avoidance",
+    "ssthresh"
+   ]
+  },
+  {
+   "id": "net-6-w-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A single Reno flow is in steady state on a path with a 100 ms round trip and 1000-byte segments. Its window saws between 8 and 16 segments: it grows by one segment per round trip from 8 up to 16, loses one packet, halves back to 8, and repeats. Compute the flow's steady state. Give throughput in bytes per second, and round the loss rate to four decimal places.",
+   "steps": [
+    {
+     "label": "round trips in one sawtooth cycle",
+     "expected": "9"
+    },
+    {
+     "label": "segments delivered in one cycle",
+     "expected": "108"
+    },
+    {
+     "label": "cycle duration in seconds",
+     "expected": "0.9"
+    },
+    {
+     "label": "average window in segments",
+     "expected": "12"
+    },
+    {
+     "label": "average throughput in bytes per second",
+     "expected": "120000"
+    },
+    {
+     "label": "packet loss rate needed to sustain this window",
+     "expected": "0.0093"
+    }
+   ],
+   "concepts": [
+    "aimd",
+    "congestion-avoidance"
+   ],
+   "explain": "The cycle sends 8 + 9 + ... + 16 = 108 segments over nine round trips, so the average window is 108 / 9 = 12 segments, which is $0.75W$ exactly as AIMD's geometry predicts - the sawtooth's mean is three quarters of its peak whatever the peak is. Throughput follows as 108 segments of 1000 bytes in 0.9 s, or 120 kB/s, and the loss rate is one packet in 108, which is 0.0093. The point worth carrying away is the inversion: a flow does not choose a window and suffer a loss rate, it is handed a loss rate by the network and the window follows from it.",
+   "xp": 60,
+   "tags": [
+    "aimd",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-w-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two AIMD flows share a bottleneck of 10 units. In each round, both add 1 unit if their total is at most 10, and otherwise both halve. They start at 2 and 8. Give the pair of rates after each round listed, written as `A,B` with no spaces, and the gap between them.",
+   "steps": [
+    {
+     "label": "after round 1",
+     "expected": "3,9"
+    },
+    {
+     "label": "after round 2",
+     "expected": "1.5,4.5"
+    },
+    {
+     "label": "gap after round 2",
+     "expected": "3"
+    },
+    {
+     "label": "after round 5",
+     "expected": "4.5,7.5"
+    },
+    {
+     "label": "after round 6",
+     "expected": "2.25,3.75"
+    },
+    {
+     "label": "gap after round 6",
+     "expected": "1.5"
+    },
+    {
+     "label": "number of halvings in the six rounds",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "aimd",
+    "fairness"
+   ],
+   "explain": "Rounds 1, 3, 4 and 5 add one unit to each flow and leave the gap at exactly what it was - additive increase moves both flows by the same absolute amount and so can never make them more equal. Only rounds 2 and 6 halve, and each halving halves the gap: 6, then 3, then 1.5. Convergence is therefore geometric in the number of *congestion events*, not in elapsed time, which is why a bottleneck that rarely signals - a bloated buffer, for instance - is also a bottleneck on which an unfair split persists.",
+   "xp": 60,
+   "tags": [
+    "aimd",
+    "fairness"
+   ]
+  },
+  {
+   "id": "net-6-w-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A RED queue uses weight `w` = 0.5, `min_th` = 20 packets, `max_th` = 60 packets and `max_p` = 0.05. The average starts at 16 packets. Three samples of 48 packets arrive, then one sample of 0 as the queue drains. Give the average after each sample and the drop probability at that average.",
+   "steps": [
+    {
+     "label": "average after sample 1 (48)",
+     "expected": "32"
+    },
+    {
+     "label": "drop probability there",
+     "expected": "0.015"
+    },
+    {
+     "label": "average after sample 3 (48)",
+     "expected": "44"
+    },
+    {
+     "label": "drop probability there",
+     "expected": "0.03"
+    },
+    {
+     "label": "average after sample 4 (0)",
+     "expected": "22"
+    },
+    {
+     "label": "drop probability there",
+     "expected": "0.0025"
+    },
+    {
+     "label": "drop probability if the average ever reaches 60",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "active-queue-management",
+    "bufferbloat"
+   ],
+   "explain": "The averaging cuts both ways, and the fourth sample is where that shows: an instantaneously empty queue still leaves an average of 22 and a small residual drop probability, because RED is deliberately judging the recent past rather than this instant. The ramp is $0.05 \\cdot (avg - 20) / 40$, which is why an average of 44 - well over halfway to `max_th` - still only drops 3% of arrivals, and why the queue is being steered rather than slammed shut. At `max_th` the probability is 1 and RED stops being probabilistic at all, which is its emergency behaviour, not its intended one.",
+   "xp": 60,
+   "tags": [
+    "active-queue-management",
+    "bufferbloat"
+   ]
+  },
+  {
+   "id": "net-6-w-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Compare recovery on two paths, both with a 100 ms round trip and 1000-byte segments: path A is 10 Mbps, path B is 1 Gbps. On each, a single packet is lost while the window exactly fills the pipe, and a Reno sender halves - rounding down to a whole segment - and then climbs back by one segment per round trip. Give plain numbers with no units; times in seconds.",
+   "steps": [
+    {
+     "label": "path A: BDP in segments",
+     "expected": "125"
+    },
+    {
+     "label": "path B: BDP in segments",
+     "expected": "12500"
+    },
+    {
+     "label": "path A: round trips to climb back to the BDP",
+     "expected": "63"
+    },
+    {
+     "label": "path A: seconds to do so",
+     "expected": "6.3"
+    },
+    {
+     "label": "path B: round trips to climb back to the BDP",
+     "expected": "6250"
+    },
+    {
+     "label": "path B: seconds to do so",
+     "expected": "625"
+    }
+   ],
+   "concepts": [
+    "congestion-avoidance",
+    "aimd"
+   ],
+   "explain": "Path A halves 125 to 62 and needs 63 round trips of one segment each to return, which is 6.3 seconds - annoying but survivable. Path B halves 12,500 to 6,250 and needs 6,250 round trips, over ten minutes to recover from a single dropped packet, during which the link runs at about three quarters of its capacity on average. Additive increase is not scale-free: recovery time grows linearly with the bandwidth-delay product, and that one fact is why CUBIC and BBR exist - not because Reno was ever wrong, but because it was designed for a network a thousand times slower.",
+   "xp": 60,
+   "tags": [
+    "congestion-avoidance",
+    "aimd"
+   ]
+  }
+ ],
+ "congestion-scenarios": [
+  {
+   "id": "net-6-c-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A microservice fleet uses an RPC library with a 50 ms deadline and three automatic retries, and no backoff between them. Under a modest traffic increase the cluster's switch links saturate; goodput - completed requests - falls to almost nothing while the links stay at 100% utilisation, and stays there even after the offered request rate is reduced back to its previous level. Name the condition, explain the feedback loop that sustains it, and say what must change.",
+   "answer": "Congestion collapse: retries multiply the offered load, so nearly all the capacity carries duplicates of requests that have already been sent or are about to be discarded",
+   "rubric": {
+    "required": [
+     "collapse",
+     "retr",
+     "goodput",
+     "backoff",
+     "load"
+    ],
+    "optional": [
+     "duplicat",
+     "queue",
+     "deadline",
+     "drop",
+     "budget",
+     "congest",
+     "capacit"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "congestion-collapse",
+    "aimd"
+   ],
+   "explain": "Full utilisation with near-zero goodput is the signature: the links are busy carrying work that will never be useful, because each timed-out request is reissued three more times and the extra copies lengthen the queues that caused the timeout. It persists after the load is removed because the retry traffic has become self-sustaining - the loop's input is its own output, which is exactly the 1986 collapse in a modern costume. The fix is at the sender and is subtractive: exponential backoff so retries thin out rather than pile up, a retry budget capping retries as a fraction of real requests, and deadlines propagated so that work already past its deadline is dropped rather than retried. Adding capacity or lengthening the deadline is the tempting move and merely raises the level at which the same loop stabilises.",
+   "xp": 60,
+   "tags": [
+    "congestion-collapse",
+    "aimd"
+   ]
+  },
+  {
+   "id": "net-6-c-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A user reports that whenever a large file is uploading over their 8 Mbps home uplink, interactive latency collapses: ping times to the first hop rise from 20 ms to about 1000 ms and video calls break up. The upload itself achieves the full 8 Mbps and the link reports zero packet loss and no errors. Name the fault, explain why zero loss is a symptom rather than a defence, and say what the fix is.",
+   "answer": "Bufferbloat: an oversized modem buffer of about 1 MB holds a standing queue of roughly one second, because TCP has no reason to stop growing its window until something is dropped",
+   "rubric": {
+    "required": [
+     "buffer",
+     "queue",
+     "drop",
+     "delay",
+     "AQM"
+    ],
+    "optional": [
+     "bloat",
+     "standing",
+     "codel",
+     "sojourn",
+     "bandwidth-delay",
+     "ECN",
+     "cwnd",
+     "window",
+     "latenc"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "bufferbloat",
+    "active-queue-management"
+   ],
+   "explain": "The arithmetic identifies the buffer: one second of standing delay at 8 Mbps is a megabyte of queued packets, and every interactive packet has to wait behind all of it. Zero loss is not a defence but the cause - TCP grows its window until a packet is dropped, so a buffer that refuses to drop is a buffer that TCP will fill completely, converting spare memory into pure latency for everything sharing the path. The fix is to make the queue signal earlier: an AQM such as CoDel or fq_codel on the uplink, dropping or ECN-marking once packets have been waiting more than a few milliseconds, and sizing the hardware buffer nearer the bandwidth-delay product of about 20 kB. Buying more upstream bandwidth is the tempting answer and only shortens the same second of queue in proportion.",
+   "xp": 60,
+   "tags": [
+    "bufferbloat",
+    "active-queue-management"
+   ]
+  },
+  {
+   "id": "net-6-c-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A logistics firm replaces a wired link to a warehouse with a 100 Mbps point-to-point radio. Transfers over it settle at roughly 1 Mbps per TCP connection. The radio's own counters show it running far below capacity, with about 1% of frames failing their checksum; the round trip is 100 ms and segments are 1000 bytes. The vendor blames the application. Name the cause, show why the number comes out where it does, and give two remedies at different layers.",
+   "answer": "The congestion controller is reading corruption loss as congestion: at 1% loss a Reno flow's average window is capped near 12 segments, giving about 1 Mbps regardless of the radio's 100 Mbps capacity",
+   "rubric": {
+    "required": [
+     "corrupt",
+     "congest",
+     "halv",
+     "window",
+     "loss"
+    ],
+    "optional": [
+     "ARQ",
+     "forward error",
+     "FEC",
+     "ECN",
+     "retransmi",
+     "throughput",
+     "wireless",
+     "cwnd",
+     "signal"
+    ],
+    "minWords": 65
+   },
+   "concepts": [
+    "wireless-loss",
+    "aimd",
+    "congestion-avoidance"
+   ],
+   "explain": "A loss-based controller has exactly one inference available - a lost packet means a full queue - and on a radio that inference is simply false, so the sender halves its window for a corrupted frame on a path that may be entirely empty. The steady state then follows from the loss rate and nothing else: the throughput equation $\\sqrt{1.5} \\cdot MSS / (RTT \\sqrt{p})$ with $p = 0.01$, a 1000-byte segment and a 100 ms round trip gives about 122 kB/s, near 1 Mbps, and the radio's 100 Mbps never enters the calculation. The remedies sit at two layers: link-layer ARQ with forward error correction so that corruption is repaired before TCP ever sees a gap, paying for it in delay and jitter, and a transport that does not equate loss with congestion - ECN marking, or a delay-based or model-based controller such as BBR. Opening more parallel connections is the tempting workaround and buys throughput only by taking a larger share of any real bottleneck downstream.",
+   "xp": 60,
+   "tags": [
+    "wireless-loss",
+    "aimd",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-c-04",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "Three things share one bottleneck: a backup job over a 100 ms path, a database replica over a 20 ms path, and a download manager that opens eight parallel connections over the same 100 ms path. All use Reno. Explain how the capacity is divided and why, and assess the claim that TCP is fair.",
+   "rubric": {
+    "required": [
+     "RTT",
+     "share",
+     "parallel",
+     "fair",
+     "window",
+     "flow"
+    ],
+    "optional": [
+     "throughput",
+     "connection",
+     "equal",
+     "loss",
+     "aggress",
+     "AQM",
+     "queue",
+     "jain"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "fairness",
+    "aimd",
+    "congestion-avoidance"
+   ],
+   "explain": "AIMD equalises windows, not rates, and a rate is a window divided by a round trip - so the 20 ms flow gets roughly five times the throughput of a 100 ms flow experiencing the same loss rate, purely because it performs its additive increases five times as often. The download manager exploits the other half of the same accounting: TCP arbitrates between *connections*, so eight of them collect eight shares, and no individual connection is misbehaving in any way a router could detect. The honest reading is that TCP's fairness is a real but narrow guarantee - equal windows among equal-RTT single connections at a shared bottleneck - and every deviation from that setting breaks it. Enforcing anything better requires the bottleneck to participate, which is what per-flow queueing schemes such as fq_codel do by giving each flow its own queue rather than trusting the endpoints to divide one.",
+   "xp": 60,
+   "tags": [
+    "fairness",
+    "aimd",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-c-05",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design the congestion handling for a mobile operator's downlink: a base station serving many users, per-user radio rates that swing between 1 Mbps and 100 Mbps within a second as users move, frame corruption on top of that, and a mixture of bulk downloads and video calls sharing each queue. You control the queueing and marking at the base station and may specify what you require of the endpoints. Describe the queue discipline and its signal, how you size and manage the buffer, how you keep corruption loss from being read as congestion, and how you divide capacity between the two kinds of traffic. Say what each choice costs.",
+   "rubric": {
+    "required": [
+     "queue",
+     "sojourn",
+     "ECN",
+     "buffer",
+     "corrupt",
+     "ARQ",
+     "fair",
+     "bandwidth-delay"
+    ],
+    "optional": [
+     "codel",
+     "AQM",
+     "mark",
+     "latenc",
+     "jitter",
+     "per-flow",
+     "drop",
+     "window",
+     "delay",
+     "wireless",
+     "retransmi"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "active-queue-management",
+    "bufferbloat",
+    "wireless-loss",
+    "fairness",
+    "aimd"
+   ],
+   "explain": "A radio rate that swings by a factor of a hundred within a second is what makes this hard: a buffer sized to one bandwidth-delay product is sized for a bandwidth that no longer exists a moment later, so a length-based target is the wrong control variable and a time-based one - a CoDel-style sojourn target of a few milliseconds judged over a 100 ms interval - is the right one, because the delay a packet experiences means the same thing at every radio rate. Marking with ECN rather than dropping matters more here than on a wire, since a drop costs a retransmission over the very link that is scarce. Corruption must be repaired below the transport by link-layer ARQ and forward error correction, so that TCP never sees a gap it would misread as a full queue; the cost is real and must be stated, because that repair adds delay and jitter and the retries can themselves inflate the queue the AQM is trying to keep short. Fairness is not safe to delegate to the endpoints when one user runs eight connections and another runs one, so per-flow queueing at the base station is what actually divides the radio, and giving a sparse interactive flow priority in its own queue costs the bulk flows only the few milliseconds they were queueing anyway. The honest limit of the design is that no queueing discipline can create capacity the radio does not have at that instant; it can only decide who waits.",
+   "xp": 150,
+   "tags": [
+    "active-queue-management",
+    "bufferbloat",
+    "wireless-loss",
+    "fairness",
+    "aimd"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-6-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `ssthresh` record?",
+   "choices": [
+    "The largest window the receiver has advertised",
+    "The window at which the sender switches from doubling per round trip to adding one segment per round trip",
+    "The number of duplicate acknowledgements that triggers a fast retransmit",
+    "The bandwidth-delay product of the path, measured at connection setup"
+   ],
+   "answer": 1,
+   "concepts": [
+    "ssthresh"
+   ],
+   "explain": "It is a boundary between two growth laws, not a limit on the window: `cwnd` passes above `ssthresh` routinely and keeps growing for as long as nothing is lost. The receiver's advertised window is the separate flow-control limit, and the two are enforced together as the minimum of the pair - confusing them is the usual error, and the giveaway is that `ssthresh` is set by the sender from its own loss history while the advertised window is set by the receiver from its buffer space.",
+   "xp": 15,
+   "tags": [
+    "ssthresh",
+    "slow-start",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of TCP Reno's **fast recovery**?",
+   "choices": [
+    "It is entered after three duplicate acknowledgements, not after a timeout",
+    "It sets cwnd to the new ssthresh rather than to one segment",
+    "It is justified by the fact that duplicate acknowledgements prove segments are still arriving",
+    "It removes the need to halve ssthresh, since no congestion has occurred",
+    "It handles two losses in the same window as gracefully as one"
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "fast-recovery",
+    "tahoe-and-reno"
+   ],
+   "explain": "Fast recovery changes the window the sender continues with, not the conclusion that congestion happened - `ssthresh` is halved exactly as in Tahoe, so the fourth option inverts the mechanism. The fifth is Reno's known weakness: the algorithm is built around a single loss per window, and a second hole usually strands it until the retransmission timer fires, which is what NewReno and SACK were introduced to repair.",
+   "xp": 15,
+   "tags": [
+    "fast-recovery",
+    "tahoe-and-reno",
+    "fast-retransmit"
+   ]
+  },
+  {
+   "id": "net-6-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the numbers. Windows are in whole segments and the throughput figure is in bytes per second.",
+   "template": "A sawtooth between W/2 and W has an average window of ___ times W.\ncwnd = 32 with a timeout: ssthresh becomes ___ and cwnd becomes ___.\nA 1 MB buffer on an 8 Mbps uplink holds ___ seconds of packets.\nA window of 12 segments of 1000 bytes on a 100 ms path gives ___ bytes per second.",
+   "blanks": [
+    "0.75",
+    "16",
+    "1",
+    "1",
+    "120000"
+   ],
+   "concepts": [
+    "aimd",
+    "ssthresh",
+    "bufferbloat"
+   ],
+   "explain": "These lines are the same arithmetic seen from three sides: a window divided by a round trip is a rate, a buffer divided by a rate is a delay, and the sawtooth's mean is three quarters of its peak because the window rises linearly from half of it. The 1 MB figure is the one people resist - a megabyte sounds small until it is divided by 8 Mbps and turns into a full second of queueing delay for everything sharing the link.",
+   "xp": 30,
+   "tags": [
+    "aimd",
+    "ssthresh",
+    "bufferbloat"
+   ]
+  },
+  {
+   "id": "net-6-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the stages of a congestion collapse into the order in which they occur, starting from a network running normally.",
+   "fragments": [
+    "the offered load rises past the bottleneck's capacity and its queue fills",
+    "the queue overflows and arriving packets are discarded",
+    "senders whose packets went unacknowledged retransmit them",
+    "the retransmissions increase the offered load further, so more packets are discarded",
+    "most of the link's capacity is carrying duplicates and goodput approaches zero"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "congestion-collapse"
+   ],
+   "explain": "The step that turns a busy network into a collapsed one is the fourth: retransmissions are themselves offered load, so the response to the problem becomes an input to the problem and the loop closes. This is why capacity alone cannot cure it - a faster link is filled by the same loop at a higher rate - and why the cure had to be a control law at the endpoints that reduces the load when loss is seen.",
+   "xp": 30,
+   "tags": [
+    "congestion-collapse",
+    "aimd"
+   ]
+  },
+  {
+   "id": "net-6-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "A connection starts with `cwnd` = 1 segment and `ssthresh` = 16 segments and loses nothing. Give `cwnd` at the start of each round trip listed.",
+   "steps": [
+    {
+     "label": "RTT 4",
+     "expected": "8"
+    },
+    {
+     "label": "RTT 5",
+     "expected": "16"
+    },
+    {
+     "label": "RTT 6",
+     "expected": "17"
+    },
+    {
+     "label": "RTT 8",
+     "expected": "19"
+    }
+   ],
+   "concepts": [
+    "slow-start",
+    "ssthresh",
+    "congestion-avoidance"
+   ],
+   "explain": "Round trip 5 is the hinge: `cwnd` has reached `ssthresh`, so the doubling stops there and the additive law takes over, giving 17 rather than 32 at round trip 6. Note that nothing was lost - reaching `ssthresh` is a scheduled change of growth law, not a response to anything happening on the path.",
+   "xp": 60,
+   "tags": [
+    "slow-start",
+    "ssthresh",
+    "congestion-avoidance"
+   ]
+  },
+  {
+   "id": "net-6-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A **Reno** sender starts with `cwnd` = 1 segment and `ssthresh` = 8 segments. Three duplicate acknowledgements arrive at the end of round trip 6. Segments are 1000 bytes and the round trip is 100 ms. Give `cwnd` at the start of each round trip listed, and the sending rate where asked, in bytes per second.",
+   "steps": [
+    {
+     "label": "RTT 4: cwnd",
+     "expected": "8"
+    },
+    {
+     "label": "RTT 6: cwnd",
+     "expected": "10"
+    },
+    {
+     "label": "ssthresh after the duplicate acknowledgements",
+     "expected": "5"
+    },
+    {
+     "label": "RTT 7: cwnd",
+     "expected": "5"
+    },
+    {
+     "label": "RTT 9: cwnd",
+     "expected": "7"
+    },
+    {
+     "label": "RTT 9: sending rate in bytes per second",
+     "expected": "70000"
+    }
+   ],
+   "concepts": [
+    "fast-recovery",
+    "ssthresh",
+    "congestion-avoidance",
+    "tahoe-and-reno"
+   ],
+   "explain": "Slow start ends at round trip 4, when `cwnd` meets `ssthresh` = 8, so round trips 5 and 6 add one each to reach 10, and halving 10 gives an `ssthresh` of 5 that Reno then continues from directly. A Tahoe sender would have opened round trip 7 at 1 and reached only 4 by round trip 9, so the same event stream leaves Reno sending nearly twice as fast three round trips later. The rate is simply the window divided by the round trip: 7 segments of 1000 bytes every 0.1 s.",
+   "xp": 60,
+   "tags": [
+    "fast-recovery",
+    "ssthresh",
+    "congestion-avoidance",
+    "tahoe-and-reno"
+   ]
+  },
+  {
+   "id": "net-6-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "An engineer sizing a router argues that dropping packets is always a failure, so the correct buffer size is the largest the hardware allows. Explain what that choice does to the traffic crossing the router, and what an active queue management scheme does differently.",
+   "rubric": {
+    "required": [
+     "buffer",
+     "drop",
+     "delay",
+     "queue",
+     "signal",
+     "early"
+    ],
+    "optional": [
+     "bloat",
+     "bandwidth-delay",
+     "codel",
+     "RED",
+     "ECN",
+     "sojourn",
+     "window",
+     "average",
+     "burst",
+     "interactive"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "bufferbloat",
+    "active-queue-management"
+   ],
+   "explain": "A loss-based sender grows its window until something is dropped, so the buffer's depth is not a safety margin but a target the traffic will expand to fill - the biggest available buffer therefore guarantees the longest possible standing queue, and every flow crossing the router, including the interactive ones that queued nothing, waits behind it. Active queue management inverts the priority: it drops or ECN-marks *early*, while the buffer still has room, so that the congestion signal reaches the sender before the delay reaches the users, and it judges a persistent queue rather than an instantaneous one - RED by averaging the length, CoDel by watching how long packets have waited - so that a genuine burst is still absorbed. The engineer's premise is right about a single packet and wrong about the system, which is the whole lesson of bufferbloat.",
+   "xp": 30,
+   "tags": [
+    "bufferbloat",
+    "active-queue-management"
+   ]
+  },
+  {
+   "id": "net-6-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "Two identical file transfers run at the same time to the same server over the same bottleneck link, one from a machine 5 ms away and one from a machine 100 ms away. Both use Reno, both see the same 0.1% packet loss rate, and neither host is loaded. The nearby machine finishes twenty times sooner. The team concludes that the distant machine's network card is faulty. Give the real cause and the reasoning.",
+   "answer": "AIMD equalises windows rather than rates, so throughput is inversely proportional to round trip time at a given loss rate, and 100 ms against 5 ms is a factor of twenty",
+   "rubric": {
+    "required": [
+     "RTT",
+     "window",
+     "rate",
+     "loss",
+     "fair"
+    ],
+    "optional": [
+     "inverse",
+     "proportion",
+     "throughput",
+     "increase",
+     "bias",
+     "equal",
+     "AIMD",
+     "share"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "fairness",
+    "aimd",
+    "congestion-avoidance"
+   ],
+   "explain": "Congestion avoidance adds one segment per round trip, so a flow with a twentieth of the round trip time performs its increases twenty times as often and recovers from each halving that much faster; at the same loss rate the two flows settle at similar *windows* and therefore at rates in inverse proportion to their round trips. Twenty is exactly 100 divided by 5, which is the tell that this is the RTT bias and not hardware: a faulty card would show errors, retransmissions or a lower link rate, and none of those are present. The right conclusion is that TCP's fairness guarantee never covered flows with different round trip times, and closing that gap needs either a different control law or per-flow queueing at the bottleneck.",
+   "xp": 60,
+   "tags": [
+    "fairness",
+    "aimd",
+    "congestion-avoidance"
+   ]
+  }
+ ]
+}

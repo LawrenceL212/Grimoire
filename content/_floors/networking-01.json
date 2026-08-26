@@ -1,0 +1,989 @@
+{
+ "n": 1,
+ "name": "The Signal Reaches",
+ "cognitiveLevel": "recognition",
+ "concepts": [
+  "hosts-and-links",
+  "switches-and-routers",
+  "protocols",
+  "layering",
+  "osi-model",
+  "tcp-ip-stack",
+  "encapsulation",
+  "decapsulation",
+  "bandwidth",
+  "latency",
+  "throughput",
+  "bandwidth-delay-product"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "encapsulation-traces",
+  "performance-and-design",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Hosts, links, and the machines in between",
+    "body": "A network exists so that a program on one machine can hand bytes to a program on another without knowing where that machine is or what lies between them. The physical reality is unglamorous: **links** - single hops of copper, fibre or radio - and nodes at their ends. A **host** is a node at the edge running the programs people care about; the nodes in the middle exist only to move other people's traffic.\n\nIf every pair of hosts needed its own link, $n$ hosts would need $n(n-1)/2$ links and the whole idea would collapse at about a dozen machines. Networks scale instead by **sharing** links: many conversations are multiplexed onto the same wire and pulled apart again at the far end, which is why every message must carry enough identifying information to be told apart from the others.\n\nTwo kinds of middle node matter here, and they are not one machine wearing different badges. A **switch** forwards inside a single network, using hardware addresses that mean nothing outside it. A **router** joins networks that were built separately - possibly by different organisations, with different technologies - and forwards using addresses that are meaningful everywhere. That second job is what turned a pile of local networks into the Internet.\n\nEverything else on this floor is about the agreements that make this pile of wires usable, and about what those agreements cost.",
+    "code": "   the edge (hosts)          one network             the wider Internet\n\n   [ laptop  ]--+\n                |\n   [ phone   ]--+--[ switch ]---[ router ]===WAN link===[ router ]---[ server ]\n                |\n   [ printer ]--+\n\n   link    : one hop of copper, fibre or radio between two devices.\n   host    : the machine at the edge that originates or consumes data.\n   switch  : forwards frames inside one network, by hardware address.\n   router  : joins networks that are not the same network, by IP address.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "One path, three physical technologies. The phone's radio hop, the switched Ethernet in the building and the WAN link are different worlds, and the router is where one ends and the next begins."
+     },
+     {
+      "line": 11,
+      "text": "A switch knows only its own network. It has no idea the server exists, and never needs to."
+     },
+     {
+      "line": 12,
+      "text": "A router is the only device here that must understand two networks at once, which is why it is the device that carries a global address scheme."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Name the device or component doing each job. One word per blank.",
+     "template": "Forwarding frames inside a single network, using hardware addresses: a ___.\nJoining two separately built networks and forwarding between them: a ___.\nA single hop of copper, fibre or radio between two devices: a ___.\nThe machine at the edge that originates or consumes the data: a ___.",
+     "blanks": [
+      "switch",
+      "router",
+      "link",
+      "host"
+     ],
+     "concepts": [
+      "switches-and-routers",
+      "hosts-and-links"
+     ],
+     "tags": [
+      "switches-and-routers",
+      "hosts-and-links"
+     ],
+     "explain": "The distinction that matters is scope, not speed. A switch's addresses are meaningful only within its own network, so a switch can never work out where a distant machine is; a router holds addresses that mean the same thing everywhere, which is exactly what lets it join networks it did not build.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Layering, protocols, and the two stacks",
+    "body": "Nobody can design a network as one program, so the problem is cut into **layers**, each offering a service to the layer above and built on the service of the layer below. The payoff is substitution: Wi-Fi slid in under IP without a single application changing, and HTTP arrived above TCP without a single router changing. The cost is real too - a layer cannot see what the layers around it are doing, so it repeats work they have already done and hides information they could have used.\n\nA **protocol** is the agreement that makes a layer work, and it defines two interfaces at once. The **service interface** is what the layer above may ask for; the **peer interface** is the format and meaning of the messages exchanged with the same layer on the other machine. Both halves must be pinned down: syntax - which bits, in which order - semantics, and timing.\n\nThe **OSI model** names seven layers and is the vocabulary everyone argues in. The Internet is built on four, because OSI's session and presentation layers turned out to be things applications preferred to do for themselves. When someone says *layer 3 device* they mean OSI numbering; when someone builds one, they build to the four-layer stack.\n\nThe shape of that stack matters. Many application protocols on top, many link technologies underneath, and exactly one protocol in the middle: **IP** is the narrow waist of the hourglass. Anything that speaks IP can reach anything else that does, which is precisely why IP is the hardest thing on the Internet to change.",
+    "code": "   OSI reference model            what the Internet actually runs\n   ==========================     ==============================\n   7  application       \\\n   6  presentation       >        application    HTTP, DNS, SMTP\n   5  session           /\n   4  transport                   transport      TCP, UDP\n   3  network                     internet       IP        <- the narrow waist\n   2  data link          \\        link           Ethernet, Wi-Fi, 5G\n   1  physical          /\n\n   Each layer talks to its peer on the far machine, and is allowed to use\n   only the service offered by the layer directly beneath it.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "OSI's presentation layer - encryption, character-set conversion - is real work. The Internet did not abolish it; it moved it into libraries the application calls, such as TLS."
+     },
+     {
+      "line": 8,
+      "text": "One protocol, no alternatives. Every other row of this diagram has several entries and this one has one, and that asymmetry is the whole design."
+     },
+     {
+      "line": 12,
+      "text": "The rule that makes layering worth anything: no reaching two layers down. Break it and the substitution property goes with it."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put the four layers of the practical Internet stack in order, starting at the wire and working up to the program.",
+     "fragments": [
+      "link - moves a frame across one hop of Ethernet, Wi-Fi or 5G",
+      "internet - moves a packet from any host to any other, across networks",
+      "transport - delivers the data to the right program on that host",
+      "application - the agreement two programs make about what the bytes mean"
+     ],
+     "answer": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "concepts": [
+      "tcp-ip-stack",
+      "layering"
+     ],
+     "tags": [
+      "tcp-ip-stack",
+      "layering"
+     ],
+     "explain": "Each of these is built on the one before it: the internet layer has no way to move anything without a link, and the transport layer has nothing to sort out until a packet has arrived. Swapping internet and transport is the usual slip, encouraged by our saying `TCP/IP` in that order - the naming is historical, and the dependency runs the other way.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Encapsulation: a payload gaining and shedding headers",
+    "body": "When a layer hands a message down, the layer beneath treats the whole thing - headers and all - as an opaque **payload**, wraps it in a header of its own, and passes it on. This is **encapsulation**, and the opacity is the point: IP does not parse TCP headers, and Ethernet knows nothing about IP beyond a number in its type field. Each header carries exactly what its own peer on the far machine needs, and nothing else.\n\nThe wrappers have names worth keeping straight, because tools and error messages use them. Transport produces a **segment**, the internet layer a **packet**, the link layer a **frame**. Ethernet is the odd one out in adding a trailer as well as a header: a 4-byte frame check sequence that lets the receiver discard a corrupted frame.\n\nThe receiver runs the whole process in reverse - **decapsulation**. Each layer removes its own header, uses one field in that header to decide which protocol above should get the rest, and passes the remainder up. Ethernet's type field says *this is IP*; IP's protocol field says *this is TCP*; TCP's port number says *this is the web server*. What the application finally receives is byte for byte what the sender's application wrote.\n\nThe cost is fixed per message rather than per byte, which is why it punishes small messages. Forty bytes of TCP and IP header plus eighteen of Ethernet is 58 bytes of overhead whether the payload is 1 400 bytes or one.",
+    "code": "   100 bytes of application data leave the browser:\n\n   application                       [ 100 B payload ]                = 100 B\n   transport      [ TCP 20 B ][         100 B payload         ]       = 120 B\n   internet       [ IP 20 B ][ TCP 20 ][    100 B payload    ]        = 140 B\n   link           [ Eth 14 B ][ IP 20 ][ TCP 20 ][ 100 B ][ FCS 4 B ] = 158 B\n\n   158 bytes on the wire to carry 100 bytes of data - 63% of the frame is\n   the message, and the rest is the price of the agreements.\n\n   The receiver runs this backwards: strip 18, strip 20, strip 20, and hand\n   up the same 100 bytes the browser wrote.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The TCP header is 20 bytes with no options. From here down, those 20 bytes are simply part of the payload - the internet layer never looks inside them."
+     },
+     {
+      "line": 6,
+      "text": "14 bytes of Ethernet header and a 4-byte trailer, so 18 bytes, not 14. The trailer is easy to forget and it is on the wire either way."
+     },
+     {
+      "line": 8,
+      "text": "63% here; with a full 1 460-byte payload the same 58 bytes of overhead is under 4%. Nothing about the headers changed - only what they are amortised over."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "An application hands **300 bytes** down the stack. Assume a 20-byte TCP header, a 20-byte IP header, and Ethernet's 14-byte header plus 4-byte frame check sequence. Give each size in bytes, as a bare number.",
+     "steps": [
+      {
+       "label": "size of the TCP segment",
+       "expected": "320"
+      },
+      {
+       "label": "size of the IP packet",
+       "expected": "340"
+      },
+      {
+       "label": "size of the Ethernet frame",
+       "expected": "358"
+      },
+      {
+       "label": "total bytes of header and trailer added",
+       "expected": "58"
+      }
+     ],
+     "concepts": [
+      "encapsulation",
+      "layering"
+     ],
+     "tags": [
+      "encapsulation",
+      "layering"
+     ],
+     "explain": "Each layer wraps everything it was given, so the sizes accumulate rather than replacing one another. Answering 354 for the frame is the standard error: it counts Ethernet's 14-byte header and forgets the 4-byte frame check sequence, which is a trailer and is still on the wire.",
+     "xp": 40
+    }
+   },
+   {
+    "title": "Bandwidth, latency, throughput, and the pipe",
+    "body": "**Bandwidth** is how many bits a link can carry per second; **latency** is how long one bit takes to get there. They are independent, and confusing them is the most expensive mistake in this subject. Latency has four parts - propagation, which is distance divided by the speed of the signal and which no amount of money reduces; transmission, which is message size divided by bandwidth; queueing at each node; and processing. Only the second improves when you buy a faster link.\n\n**Throughput** is what you actually achieved: bits delivered divided by the time it took. The worked example opposite is a 10 Mbps link delivering 1.67 Mbps, and nothing is broken - the 20 ms of propagation is paid once, and the message was too small to amortise it. Throughput approaches bandwidth only when a transfer is long enough that transmission time dominates.\n\nThe quantity that ties the two together is the **bandwidth-delay product**: bandwidth multiplied by delay, giving the number of bits in flight in the link at any instant. Picture the link as a pipe, with bandwidth its diameter and delay its length; the product is its volume. A 10 Mbps link with 20 ms of propagation holds 25 000 bytes.\n\nThat number is the sender's budget. A sender that will not put at least a bandwidth-delay product of data in flight before pausing for an acknowledgement leaves the pipe half empty, and the fault will look like a slow network when it is really a small window. Long, fast paths - satellite, or fibre across an ocean - are where this bites hardest, because the product grows with both terms.",
+    "code": "   link: 10 Mbps,  one-way propagation delay 20 ms\n   message: 5 000 bytes = 40 000 bits\n\n   transmit time   = 40 000 bits / 10 000 000 bps  =  4 ms\n   one-way latency = 4 ms + 20 ms                  = 24 ms\n   round-trip time = 2 x 24 ms                     = 48 ms\n   throughput      = 40 000 bits / 0.024 s         =  1.67 Mbps\n\n   bandwidth-delay product = 10 Mbps x 20 ms\n                           = 200 000 bits = 25 000 bytes\n\n   25 000 bytes fit in the pipe. Send fewer and then wait for a reply, and\n   the link is idle for most of every round trip.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Transmission time is the only term bandwidth touches. Double the bandwidth and this halves; propagation does not move at all."
+     },
+     {
+      "line": 7,
+      "text": "1.67 Mbps on a 10 Mbps link. The link is idle for 20 of every 24 ms, waiting for the leading bit to arrive."
+     },
+     {
+      "line": 10,
+      "text": "Bits first. Converting to bytes is a division by 8 that is easy to do at the wrong moment - take the product in bits, and convert once at the end."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "A link runs at **100 Mbps** with a one-way propagation delay of **5 ms**. A host sends a single **1 500-byte** message. Give bare numbers, with times in milliseconds.",
+     "steps": [
+      {
+       "label": "message size in bits",
+       "expected": "12000"
+      },
+      {
+       "label": "transmit time in ms",
+       "expected": "0.12"
+      },
+      {
+       "label": "one-way latency in ms",
+       "expected": "5.12"
+      },
+      {
+       "label": "round-trip time in ms",
+       "expected": "10.24"
+      },
+      {
+       "label": "bandwidth-delay product for the one-way delay, in bits",
+       "expected": "500000"
+      }
+     ],
+     "concepts": [
+      "bandwidth",
+      "latency",
+      "bandwidth-delay-product"
+     ],
+     "tags": [
+      "bandwidth",
+      "latency",
+      "bandwidth-delay-product"
+     ],
+     "explain": "Transmission time is 12 000 / 100 000 000 s = 0.12 ms, so latency here is almost entirely propagation - the message is far too small to matter on a link this fast. The tempting error is to fold the message into the bandwidth-delay product; the product describes the link alone, and is the same 500 000 bits whether anything is being sent or not.",
+     "xp": 40
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-1-g-01",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A browser has bytes to send. Put the steps of encapsulation into the order the bytes actually acquire them.",
+   "fragments": [
+    "the application hands its bytes down as an opaque payload",
+    "the transport layer prepends a TCP header carrying the port numbers",
+    "the internet layer prepends an IP header carrying the source and destination addresses",
+    "the link layer prepends an Ethernet header and appends a frame check sequence",
+    "the interface encodes the finished frame as signals on the medium"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "encapsulation",
+    "tcp-ip-stack",
+    "layering"
+   ],
+   "tags": [
+    "encapsulation",
+    "tcp-ip-stack",
+    "layering"
+   ],
+   "explain": "Headers go on in the order the message travels down the stack, so the header added last is the one the receiver reads first. Putting the IP header on before the TCP header is the tempting order, because a global address feels more fundamental than a port number - but the transport layer sits above the internet layer, and each layer can only wrap what it was handed.",
+   "xp": 20
+  },
+  {
+   "id": "net-1-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the vocabulary. One word per blank.",
+   "template": "A transport-layer message carrying a TCP header is called a ___.\nAn internet-layer message carrying an IP header is called a ___.\nA link-layer message carrying an Ethernet header and trailer is called a ___.\nIn the seven-layer OSI model, character-set conversion and encryption belong to the ___ layer.",
+   "blanks": [
+    "segment",
+    "packet",
+    "frame",
+    "presentation"
+   ],
+   "concepts": [
+    "encapsulation",
+    "tcp-ip-stack",
+    "osi-model"
+   ],
+   "tags": [
+    "encapsulation",
+    "tcp-ip-stack",
+    "osi-model"
+   ],
+   "explain": "These names are not decoration - a tool reporting a dropped frame is telling you something different from one reporting a dropped packet, because they name different layers and different failures. The OSI blank catches the common belief that the Internet has no presentation layer: the work is real, it simply lives in libraries the application calls rather than in a layer of its own.",
+   "xp": 20
+  },
+  {
+   "id": "net-1-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Match each function to the **OSI layer number** that owns it. Answer with a single digit from 1 to 7.",
+   "steps": [
+    {
+     "label": "delivering data to the right program on the destination host",
+     "expected": "4"
+    },
+    {
+     "label": "forwarding a packet from one network to another by global address",
+     "expected": "3"
+    },
+    {
+     "label": "moving a frame across one hop and detecting corruption on it",
+     "expected": "2"
+    },
+    {
+     "label": "encoding a bit as a voltage, a light pulse or a radio symbol",
+     "expected": "1"
+    },
+    {
+     "label": "agreeing what the bytes of a request mean, as HTTP does",
+     "expected": "7"
+    }
+   ],
+   "concepts": [
+    "osi-model",
+    "layering"
+   ],
+   "tags": [
+    "osi-model",
+    "layering"
+   ],
+   "explain": "Layers 3 and 4 are the pair people swap: layer 3 gets the message to the right machine, layer 4 gets it to the right program on that machine. The clue is the word host - anything that need only reach a host is the network layer's job, and anything that must reach a process is the transport layer's.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-g-04",
+   "type": "explain",
+   "layer": "retrieval",
+   "prompt": "In a short paragraph, say what a **protocol** specifies, and describe the two interfaces every protocol defines.",
+   "rubric": {
+    "required": [
+     "agree",
+     "service",
+     "peer"
+    ],
+    "optional": [
+     "syntax",
+     "semantic",
+     "format",
+     "timing",
+     "layer",
+     "above"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "protocols",
+    "layering"
+   ],
+   "tags": [
+    "protocols",
+    "layering"
+   ],
+   "explain": "A protocol is an agreement, and it faces in two directions at once: the service interface is the promise made upward to the layer above, and the peer interface is the wire format agreed with the identical layer on the far machine. Describing only the message format is the usual incomplete answer - it captures the peer interface and leaves out the reason anyone above would use the protocol at all.",
+   "xp": 20
+  }
+ ],
+ "encapsulation-traces": [
+  {
+   "id": "net-1-e-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A host sends a **1 460-byte** TCP payload - the largest that fits a path with a 1 500-byte MTU. Headers: TCP 20 B, IP 20 B, Ethernet 14 B header and 4 B frame check sequence. On the wire each frame is also preceded by an 8-byte preamble and followed by a 12-byte interframe gap. Give bare numbers in bytes.",
+   "steps": [
+    {
+     "label": "size of the TCP segment",
+     "expected": "1480"
+    },
+    {
+     "label": "size of the IP packet",
+     "expected": "1500"
+    },
+    {
+     "label": "size of the Ethernet frame",
+     "expected": "1518"
+    },
+    {
+     "label": "bytes consumed on the wire, including preamble and interframe gap",
+     "expected": "1538"
+    },
+    {
+     "label": "how many of those 1 538 bytes are not application data",
+     "expected": "78"
+    }
+   ],
+   "concepts": [
+    "encapsulation",
+    "tcp-ip-stack"
+   ],
+   "tags": [
+    "encapsulation",
+    "tcp-ip-stack"
+   ],
+   "explain": "The 1 500-byte MTU limits the IP packet, not the frame and not the payload, which is exactly why the largest payload is 1 460 rather than 1 500. The frame is legitimately larger than the MTU - Ethernet's 18 bytes sit outside it - and the preamble and gap are outside that again, which is why a link sold as 1 Gbps delivers about 949 Mbps of payload at best.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-e-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A **258-byte** Ethernet frame arrives at its destination host and is decapsulated. Same header sizes as before. Give bare numbers in bytes, except where a layer is asked for.",
+   "steps": [
+    {
+     "label": "bytes the link layer hands up to the internet layer",
+     "expected": "240"
+    },
+    {
+     "label": "bytes the internet layer hands up to the transport layer",
+     "expected": "220"
+    },
+    {
+     "label": "bytes the transport layer hands up to the application",
+     "expected": "200"
+    },
+    {
+     "label": "number of headers stripped before the application sees the data",
+     "expected": "3"
+    },
+    {
+     "label": "which layer's own header carries the field naming TCP as the payload's protocol",
+     "expected": "internet"
+    }
+   ],
+   "concepts": [
+    "decapsulation",
+    "layering"
+   ],
+   "tags": [
+    "decapsulation",
+    "layering"
+   ],
+   "explain": "Decapsulation is encapsulation run backwards, and the arithmetic is the same subtraction three times over - 18, then 20, then 20. The last step catches a real confusion: the protocol field naming TCP lives in the IP header itself, so a layer learns what sits above it from its own header, never by peeking into the payload it is about to hand up.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-e-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A packet travels from host A to host B along the path **A -> switch -> router -> B**. A, the switch and the router share one Ethernet network; the router reaches B over a second, different link. Answer each with `yes`, `no`, or a bare number.",
+   "steps": [
+    {
+     "label": "does the switch change the destination IP address?",
+     "expected": "no"
+    },
+    {
+     "label": "does the switch change the destination hardware address?",
+     "expected": "no"
+    },
+    {
+     "label": "does the router change the destination IP address?",
+     "expected": "no"
+    },
+    {
+     "label": "does the router build a new link-layer header?",
+     "expected": "yes"
+    },
+    {
+     "label": "how many link-layer headers are built along this whole path?",
+     "expected": "2"
+    }
+   ],
+   "concepts": [
+    "switches-and-routers",
+    "hosts-and-links",
+    "decapsulation"
+   ],
+   "tags": [
+    "switches-and-routers",
+    "hosts-and-links",
+    "decapsulation"
+   ],
+   "explain": "The switch forwards a frame it does not modify, so the frame A built survives the whole first network - one link-layer header for the hop from A to the router, and a second built by the router for the hop to B. The router rewrites link-layer addressing on every hop and leaves the IP destination alone from end to end, which is the cleanest statement of what internetworking is: local addressing is rebuilt per hop, global addressing is written once.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-e-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A telemetry program writes one byte at a time, and each write leaves the host immediately as its own packet. On a 100 Mbps Ethernet link the operators measure a useful data rate of about **1.2%** of capacity, although the link is saturated and nothing is being retransmitted. State the cause and give the arithmetic behind it.",
+   "answer": "per-message header overhead: the fixed headers plus Ethernet's 64-byte minimum frame dwarf a one-byte payload",
+   "rubric": {
+    "required": [
+     "header",
+     "overhead",
+     "payload"
+    ],
+    "optional": [
+     "minimum",
+     "pad",
+     "frame",
+     "fixed",
+     "batch",
+     "buffer",
+     "amortis"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "encapsulation",
+    "throughput"
+   ],
+   "tags": [
+    "encapsulation",
+    "throughput"
+   ],
+   "explain": "One byte gains 20 of TCP, 20 of IP and 18 of Ethernet, giving 59 bytes - under Ethernet's 64-byte minimum, so it is padded to 64, and the preamble and interframe gap add 20 more for 84 bytes on the wire per useful byte, which is 1.2%. The tempting diagnosis is a faulty link or switch; nothing is faulty, and the only fix is on the sending host, which must batch its writes so the fixed overhead is amortised over a larger payload.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-e-05",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A colleague proposes deleting the transport layer from a new system: applications will write IP packets directly, since IP already gets data to the right machine and the extra header is wasted bytes. Set out what the applications would now have to do for themselves, and what the layering was buying them.",
+   "rubric": {
+    "required": [
+     "port",
+     "reliab",
+     "layer",
+     "applicat"
+    ],
+    "optional": [
+     "multiplex",
+     "retransmi",
+     "order",
+     "checksum",
+     "duplicate",
+     "reuse",
+     "process"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "layering",
+    "osi-model",
+    "protocols"
+   ],
+   "tags": [
+    "layering",
+    "osi-model",
+    "protocols"
+   ],
+   "explain": "IP delivers to a host, not to a program, so the first casualty is demultiplexing - with no port numbers, two applications on one machine cannot both receive. The second is that reliability, ordering and duplicate suppression do not disappear when the layer providing them does; every application reimplements them, differently and mostly wrongly, which is the concrete meaning of the abstraction the transport layer was offering.",
+   "xp": 40
+  }
+ ],
+ "performance-and-design": [
+  {
+   "id": "net-1-p-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A **100 Mbps** link has a one-way propagation delay of **5 ms**. A host sends one **1 500-byte** message and the receiver replies with a message small enough to ignore. Give bare numbers; times in milliseconds, rates in Mbps to two decimal places.",
+   "steps": [
+    {
+     "label": "message size in bits",
+     "expected": "12000"
+    },
+    {
+     "label": "transmit time in ms",
+     "expected": "0.12"
+    },
+    {
+     "label": "one-way latency in ms",
+     "expected": "5.12"
+    },
+    {
+     "label": "round-trip time in ms",
+     "expected": "10.24"
+    },
+    {
+     "label": "throughput achieved for this single message, in Mbps",
+     "expected": "2.34"
+    }
+   ],
+   "concepts": [
+    "latency",
+    "bandwidth",
+    "throughput"
+   ],
+   "tags": [
+    "latency",
+    "bandwidth",
+    "throughput"
+   ],
+   "explain": "Throughput is 12 000 bits divided by the 5.12 ms it took to deliver them, which is 2.34 Mbps on a 100 Mbps link - the link was busy for 0.12 ms and idle for 5. The tempting answer is 100 Mbps, on the reasoning that the link never slowed down; it did not, and that is precisely why bandwidth and throughput have to be quoted separately.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-p-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A path runs at **1 Gbps** with a round-trip time of **100 ms**. Take 1 Gbps to be exactly 1 000 000 000 bits per second. Give bare numbers.",
+   "steps": [
+    {
+     "label": "one-way delay in ms",
+     "expected": "50"
+    },
+    {
+     "label": "bandwidth-delay product for the one-way delay, in bits",
+     "expected": "50000000"
+    },
+    {
+     "label": "the same product in bytes",
+     "expected": "6250000"
+    },
+    {
+     "label": "bandwidth-delay product for the full round trip, in bytes",
+     "expected": "12500000"
+    },
+    {
+     "label": "smallest amount of unacknowledged data, in bytes, that keeps this path busy",
+     "expected": "12500000"
+    }
+   ],
+   "concepts": [
+    "bandwidth-delay-product",
+    "bandwidth",
+    "throughput"
+   ],
+   "tags": [
+    "bandwidth-delay-product",
+    "bandwidth",
+    "throughput"
+   ],
+   "explain": "The one-way product is what is in the pipe in one direction; the round-trip product is what a sender must hold outstanding never to wait, because an acknowledgement cannot come back sooner than a full round trip. Answering 6 250 000 for the last step is the natural slip - it fills the pipe going out and leaves the sender idle for the 50 ms the acknowledgement spends coming home.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-p-03",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A research group has a dedicated **1 Gbps** path to a partner site with a **200 ms** round-trip time. A single transfer between the two hosts sustains about **2.6 Mbps**. The link is otherwise idle, no packets are being lost, and both hosts are fast. Each host's TCP is configured with a fixed 64 KiB send window. Give the cause and the arithmetic behind it.",
+   "answer": "the fixed 64 KiB window is far smaller than the path's bandwidth-delay product, so the sender stalls waiting for acknowledgements",
+   "rubric": {
+    "required": [
+     "window",
+     "product",
+     "delay"
+    ],
+    "optional": [
+     "ack",
+     "stall",
+     "idle",
+     "flight",
+     "scal",
+     "round",
+     "bandwidth"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "throughput",
+    "bandwidth-delay-product",
+    "latency"
+   ],
+   "tags": [
+    "throughput",
+    "bandwidth-delay-product",
+    "latency"
+   ],
+   "explain": "65 536 bytes released once per 200 ms round trip is 327 680 bytes per second, or 2.6 Mbps, which is exactly what they measured - the sender is idle for almost the whole round trip. The path's round-trip bandwidth-delay product is 25 000 000 bytes, so the window is nearly four hundred times too small; blaming the link, the partner site or packet loss is the tempting move, and the arithmetic rules all three out before anybody opens a capture.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-p-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "Design a **three-layer stack** for a hospital telemetry network: hundreds of bedside monitors on a mix of wired and wireless links, each sending readings to one of several ward servers. For each layer, name it, state the service it offers to the layer above, name the fields its header must carry and why each is needed, and say which layer of the four-layer Internet stack it corresponds to. Finish by naming one thing your layering makes easy to change later, and one cost it imposes.",
+   "rubric": {
+    "required": [
+     "layer",
+     "service",
+     "header",
+     "address"
+    ],
+    "optional": [
+     "encapsul",
+     "multiplex",
+     "port",
+     "checksum",
+     "wireless",
+     "substitut",
+     "overhead",
+     "strip",
+     "peer"
+    ],
+    "minWords": 90
+   },
+   "concepts": [
+    "layering",
+    "protocols",
+    "tcp-ip-stack",
+    "osi-model"
+   ],
+   "tags": [
+    "layering",
+    "protocols",
+    "tcp-ip-stack",
+    "osi-model"
+   ],
+   "explain": "The design only works if each header carries what its own peer needs and nothing more: a link header addressed within one hop, an internetwork header addressed end to end so that a monitor's readings can cross from wireless to wired, and a layer above that identifies which stream on which server the readings belong to. The cost is the one every layered design pays and most answers omit - fixed overhead on every message, and layers that cannot see each other's decisions, so a wireless retransmission looks like nothing at all to the layer trying to measure delay.",
+   "xp": 100
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-1-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which statement defines **throughput**?",
+   "choices": [
+    "The number of bits a link is capable of carrying per second",
+    "The time a single bit takes to travel from one end of a link to the other",
+    "The rate actually achieved by a transfer: bits delivered divided by the time taken",
+    "The number of bits in flight in a link at any instant"
+   ],
+   "answer": 2,
+   "concepts": [
+    "throughput"
+   ],
+   "tags": [
+    "throughput"
+   ],
+   "explain": "The other three define bandwidth, propagation delay and the bandwidth-delay product. The first is the tempting answer because the two words are used interchangeably in advertising, but bandwidth is a property of the link and throughput a property of one transfer over it - which is how a 10 Mbps link honestly delivers 1.67 Mbps.",
+   "xp": 10
+  },
+  {
+   "id": "net-1-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of the relationship between the OSI model and the practical Internet stack?",
+   "choices": [
+    "OSI names seven layers; the Internet is built on four",
+    "OSI's session and presentation layers have no dedicated layer in the Internet stack",
+    "`layer 3` in common usage refers to OSI numbering",
+    "The Internet stack offers a choice of several protocols at the internet layer",
+    "OSI's physical and data link layers correspond to the Internet stack's single link layer"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    4
+   ],
+   "concepts": [
+    "osi-model",
+    "layering"
+   ],
+   "tags": [
+    "osi-model",
+    "layering"
+   ],
+   "explain": "The false option is the fourth: the internet layer holds exactly one protocol, IP, and that deliberate scarcity is the narrow waist which makes universal connectivity possible. The second option is the one people doubt - the work of those layers still happens, in TLS and in serialisation libraries, but as something an application calls rather than a layer of the stack.",
+   "xp": 10
+  },
+  {
+   "id": "net-1-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "One word per blank.",
+   "template": "A ___ forwards frames within a single network using hardware addresses.\nA ___ joins networks that were built separately and forwards using IP addresses.\nA single hop of copper, fibre or radio between two devices is a ___.\nThe one protocol at the internet layer, through which everything above and below must pass, is ___.",
+   "blanks": [
+    "switch",
+    "router",
+    "link",
+    "IP"
+   ],
+   "concepts": [
+    "switches-and-routers",
+    "hosts-and-links",
+    "tcp-ip-stack"
+   ],
+   "tags": [
+    "switches-and-routers",
+    "hosts-and-links",
+    "tcp-ip-stack"
+   ],
+   "explain": "Switch and router differ by scope rather than capability: a switch's addresses mean nothing outside its own network, so it can never work out where a distant machine is. The last blank is the hourglass - many applications above, many link technologies below, and one protocol at the waist that every one of them must agree on.",
+   "xp": 20
+  },
+  {
+   "id": "net-1-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of decapsulation at the receiving host into the order they happen.",
+   "fragments": [
+    "the interface receives the signal and checks the frame check sequence",
+    "the link layer strips the Ethernet header and trailer and reads its type field",
+    "the internet layer strips the IP header and checks the destination address",
+    "the transport layer strips the TCP header and reads the destination port",
+    "the application receives exactly the bytes the sender's application wrote"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "decapsulation",
+    "layering"
+   ],
+   "tags": [
+    "decapsulation",
+    "layering"
+   ],
+   "explain": "The header added last is the header read first, so decapsulation is encapsulation reversed step for step. Each layer also learns from its own header which protocol above should receive the remainder - Ethernet's type field says IP, IP's protocol field says TCP - so no layer ever has to guess at the contents of the payload it hands up.",
+   "xp": 20
+  },
+  {
+   "id": "net-1-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "An application hands **40 bytes** down the stack. TCP header 20 B, IP header 20 B, Ethernet 14 B header and 4 B frame check sequence. Give bare numbers in bytes.",
+   "steps": [
+    {
+     "label": "size of the TCP segment",
+     "expected": "60"
+    },
+    {
+     "label": "size of the IP packet",
+     "expected": "80"
+    },
+    {
+     "label": "size of the Ethernet frame",
+     "expected": "98"
+    },
+    {
+     "label": "bytes of the frame that are header or trailer",
+     "expected": "58"
+    }
+   ],
+   "concepts": [
+    "encapsulation"
+   ],
+   "tags": [
+    "encapsulation"
+   ],
+   "explain": "58 bytes of overhead carrying 40 bytes of data - the overhead is fixed per message, so it is a rounding error on a 1 460-byte payload and larger than the message here. That fixed cost is why protocols which must send tiny messages usually batch them rather than sending each one the instant it appears.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A satellite link runs at **1.5 Mbps** with a one-way propagation delay of **45 ms**. A host sends one **9 000-byte** message. Give bare numbers, with times in milliseconds.",
+   "steps": [
+    {
+     "label": "message size in bits",
+     "expected": "72000"
+    },
+    {
+     "label": "transmit time in ms",
+     "expected": "48"
+    },
+    {
+     "label": "one-way latency in ms",
+     "expected": "93"
+    },
+    {
+     "label": "round-trip time in ms",
+     "expected": "186"
+    },
+    {
+     "label": "bandwidth-delay product for the one-way delay, in bits",
+     "expected": "67500"
+    }
+   ],
+   "concepts": [
+    "latency",
+    "bandwidth",
+    "bandwidth-delay-product"
+   ],
+   "tags": [
+    "latency",
+    "bandwidth",
+    "bandwidth-delay-product"
+   ],
+   "explain": "Here transmission and propagation are comparable - 48 ms against 45 ms - so neither term can be waved away, which is unusual and worth noticing. The bandwidth-delay product is 67 500 bits, about 8 437 bytes, so a sender that pauses for an acknowledgement after every 9 000-byte message is only just keeping this link occupied and would starve any faster one.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The Internet stack is often drawn as an hourglass: many application protocols on top, many link technologies underneath, and IP alone in the middle. Explain what this shape buys, and what it costs.",
+   "rubric": {
+    "required": [
+     "layer",
+     "applicat",
+     "link",
+     "chang"
+    ],
+    "optional": [
+     "waist",
+     "hourglass",
+     "substitut",
+     "univers",
+     "deploy",
+     "reach",
+     "wireless"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "tcp-ip-stack",
+    "layering",
+    "protocols"
+   ],
+   "tags": [
+    "tcp-ip-stack",
+    "layering",
+    "protocols"
+   ],
+   "explain": "The narrow waist buys universality: anything that speaks IP reaches anything else that does, so new applications and new link technologies can be deployed at either end without coordinating with anyone in the middle. The cost is the same fact read the other way - because everything depends on that one protocol, IP itself is nearly impossible to change, which is why IPv6 took decades rather than months.",
+   "xp": 20
+  },
+  {
+   "id": "net-1-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A backup tool copies a directory over a satellite link of **50 Mbps** with a **600 ms** round-trip time. It performs 40 request-and-reply exchanges of about 2 000 bytes each, waiting for each reply before sending the next request. The whole run takes about **24 seconds**, and the operators want a faster link. Say what is actually limiting the run, with the arithmetic.",
+   "answer": "round-trip latency, not bandwidth: 40 serialised exchanges at 600 ms each is 24 s, while the data itself takes about 13 ms to transmit",
+   "rubric": {
+    "required": [
+     "round",
+     "latency",
+     "bandwidth"
+    ],
+    "optional": [
+     "serial",
+     "wait",
+     "idle",
+     "pipelin",
+     "batch",
+     "delay",
+     "transmit"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "latency",
+    "throughput",
+    "bandwidth"
+   ],
+   "tags": [
+    "latency",
+    "throughput",
+    "bandwidth"
+   ],
+   "explain": "Forty exchanges at 600 ms each is 24 seconds, while all 80 000 bytes take 12.8 ms to transmit at 50 Mbps, so the link is idle for over 99.9% of the run. Buying more bandwidth is the tempting fix and would change the total by milliseconds; the only fixes that help are sending requests without waiting for each reply, or making fewer of them.",
+   "xp": 40
+  },
+  {
+   "id": "net-1-x-09",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the **OSI layer number** that owns each function. Answer with a single digit from 1 to 7.",
+   "steps": [
+    {
+     "label": "choosing which program on the destination host receives the data",
+     "expected": "4"
+    },
+    {
+     "label": "forwarding between two different networks by global address",
+     "expected": "3"
+    },
+    {
+     "label": "detecting a corrupted frame on one hop",
+     "expected": "2"
+    },
+    {
+     "label": "converting between character sets, or encrypting the data",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "osi-model"
+   ],
+   "tags": [
+    "osi-model"
+   ],
+   "explain": "Layer 6, presentation, is the one that catches people out, because the Internet stack has no layer for it and the work still has to happen somewhere. The pairing to hold on to is 3 against 4: layer 3 finds the machine, layer 4 finds the program on it.",
+   "xp": 40
+  }
+ ]
+}

@@ -1,0 +1,1082 @@
+{
+ "n": 3,
+ "name": "Addresses and the Map",
+ "cognitiveLevel": "recall",
+ "concepts": [
+  "dotted-quad",
+  "subnet-mask",
+  "cidr-prefix",
+  "network-address",
+  "broadcast-address",
+  "usable-host-range",
+  "subnetting",
+  "private-address-space",
+  "nat",
+  "ipv6-addressing",
+  "arp"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "address-arithmetic",
+  "network-diagnosis",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Thirty-two bits wearing four decimals",
+    "body": "An IPv4 address is a single unsigned 32-bit number and nothing more. The **dotted quad** is a reading convenience: the 32 bits are cut into four 8-bit **octets**, each printed in decimal and joined with dots, so `192.168.10.130` is one number that happens to be easier to say aloud in four pieces than as 3232238210.\n\nThe convenience costs you something, and this floor is largely about paying it back. Every question worth asking about an address - which network is it on, is that other host local, how many hosts fit - is a question about a **boundary inside the bits**, and the dots almost never fall where the boundary does. You cannot answer any of them without going to binary first, so the conversion has to become automatic.\n\nTwo facts make it quick. Each octet is exactly eight bits with place values 128, 64, 32, 16, 8, 4, 2, 1, so an octet holds 0 to 255 and no more - `192.168.10.256` is not a mistyped address, it is not an address. And an address by itself names an interface, not a network: `192.168.10.130` on its own tells you nothing about who its neighbours are. The mask in the next section supplies that missing half.",
+    "code": "192      .168      . 10      .130          the address as people write it\n11000000 .10101000 .00001010 .10000010    the address as every router sees it\n\nplace value   128  64  32  16   8   4   2   1\n   192          1   1   0   0   0   0   0   0\n   168          1   0   1   0   1   0   0   0\n    10          0   0   0   0   1   0   1   0\n   130          1   0   0   0   0   0   1   0\n\nan octet holds 0 through 255 and nothing else: 192.168.10.256 is not an\naddress that was written down wrongly, it is not an address at all.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The same address as the router sees it. Note that 130 is 10000010: the high bit of the last octet is set, which will matter the moment a /25 or /26 boundary appears."
+     },
+     {
+      "line": 7,
+      "text": "10 is 00001010 - four leading zeros. A group of bits printed as a small decimal is still eight bits wide."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill in the missing octets in binary. Write eight bits each, leading zeros included.",
+     "template": "255.255.255.192  =  11111111.11111111.11111111.___\n10.1.200.75      =  00001010.00000001.___.01001011",
+     "blanks": [
+      "11000000",
+      "11001000"
+     ],
+     "concepts": [
+      "dotted-quad"
+     ],
+     "tags": [
+      "dotted-quad"
+     ],
+     "explain": "192 is 128 + 64, so its top two bits are set and the rest clear: 11000000. 200 is 128 + 64 + 8, giving 11001000. The reflex to resist is dropping leading zeros - 75 is 01001011, not 1001011, because an octet is a fixed eight-bit field and a mask laid alongside it only lines up if you keep the width."
+    }
+   },
+   {
+    "title": "The mask draws the line",
+    "body": "A **subnet mask** is a second 32-bit number, written either as a dotted quad or as a **prefix length** after a slash. Its ones mark the leading bits that name the network and its zeros mark the trailing bits that name a host within that network, and the ones are always contiguous - `255.255.255.248` and `/29` are the same statement, that the first 29 bits are network. This slash notation is **CIDR**, classless inter-domain routing, and it replaced the old fixed class A/B/C split precisely because a boundary that can sit at any bit lets a block be sized to the organisation that needs it.\n\nFrom an address and a prefix, four things follow mechanically. Set every host bit to zero and you have the **network address**, the name of the subnet itself. Set every host bit to one and you have the **broadcast address**, which reaches every interface on that subnet at once. Those two are reserved, so with $h$ host bits the **usable host range** is everything strictly between them: $2^h - 2$ addresses.\n\nThe subtraction of two is the part people forget, and it bites hardest where it costs most. A /29 gives 8 addresses and 6 usable; a /30 gives 4 and 2, which is exactly a point-to-point link and no more.\n\nThe practical test is the same arithmetic run twice. Two addresses are on the same subnet if masking both with the same mask yields the same network address. That is all a host ever does before sending: mask the destination, compare, and either deliver locally or hand the packet to its router.",
+    "code": "address    198.51.100.201   11000110.00110011.01100100.11001001\nmask /29   255.255.255.248  11111111.11111111.11111111.11111000\n                            ================================\n                            <------ 29 network ------><host>\n\nnetwork    198.51.100.200   11000110.00110011.01100100.11001000   host bits 0\nbroadcast  198.51.100.207   11000110.00110011.01100100.11001111   host bits 1\n\nusable hosts  198.51.100.201 .. 198.51.100.206      2^3 - 2 = 6",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "/29 is 29 ones then 3 zeros, which is 255.255.255.248. The boundary falls inside the last octet, five bits away from any dot."
+     },
+     {
+      "line": 6,
+      "text": "Network address: the original bits above the line with all host bits cleared. 201 is 11001001, and clearing the low three bits gives 11001000 = 200."
+     },
+     {
+      "line": 7,
+      "text": "Broadcast: the same network bits with all host bits set. 11001111 = 207."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Take `203.0.113.130/25` and work out each figure below.",
+     "steps": [
+      {
+       "label": "mask as a dotted quad",
+       "expected": "255.255.255.128"
+      },
+      {
+       "label": "network address",
+       "expected": "203.0.113.128"
+      },
+      {
+       "label": "broadcast address",
+       "expected": "203.0.113.255"
+      },
+      {
+       "label": "first usable host address",
+       "expected": "203.0.113.129"
+      },
+      {
+       "label": "last usable host address",
+       "expected": "203.0.113.254"
+      },
+      {
+       "label": "number of usable host addresses",
+       "expected": "126"
+      }
+     ],
+     "concepts": [
+      "subnet-mask",
+      "cidr-prefix",
+      "network-address",
+      "broadcast-address",
+      "usable-host-range"
+     ],
+     "tags": [
+      "subnet-mask",
+      "cidr-prefix",
+      "network-address",
+      "broadcast-address",
+      "usable-host-range"
+     ],
+     "explain": "A /25 leaves seven host bits, so the last octet splits at 128: addresses .128 to .255 form the upper half, and 130 lies in it. Clearing the seven host bits gives .128 and setting them gives .255, so the usable range is .129 to .254 and the count is $2^7 - 2 = 126$. The common wrong answer is 203.0.113.0 for the network, which comes from reading the dots as the boundary instead of the mask."
+    }
+   },
+   {
+    "title": "Cutting a block up, and hiding behind one address",
+    "body": "**Subnetting** is the same operation applied from the other end: take a block, lengthen its prefix by $k$ bits, and you have $2^k$ smaller blocks. Borrowing three bits from a /24 gives eight /27s of 32 addresses each, with 30 usable in every one, and the subnet boundaries land on multiples of 32 because that is what the lowest borrowed bit is worth. The prefix may be lengthened by different amounts in different parts of a block - variable-length subnetting - so a plan can spend a /25 on a large office and a /30 on a router link without wasting either.\n\nEven with CIDR the 32-bit space ran out, and the stopgap that kept it working is **private addressing**. Three blocks - `10.0.0.0/8`, `172.16.0.0/12` and `192.168.0.0/16` - are reserved for internal use and no Internet router will carry them, so every organisation may use all of them at once. Note the middle one carefully: /12 means 172.16.0.0 through 172.31.255.255, not through 172.255.255.255.\n\n**NAT** is what makes a private network reach the outside. A NAT box rewrites the source address of an outgoing packet to its own public address, and because many inside hosts would then collide it also rewrites the source **port**, keeping a table that maps each translated flow back to the host that owns it. Replies match a table entry and are rewritten back on the way in.\n\nThe cost is real and worth naming. A connection can only be started from the inside, since an unsolicited inbound packet matches nothing in the table; the NAT box holds per-flow state that a router was designed not to need; and the end-to-end assumption that an address means the same thing everywhere is broken, which is why protocols that carry addresses inside their own payloads need help to survive it.",
+    "code": "203.0.113.0/24, borrow 3 bits from the host part -> eight /27 subnets\n\n  subnet             range              usable hosts\n  203.0.113.0/27     .0    .. .31       .1    .. .30\n  203.0.113.32/27    .32   .. .63       .33   .. .62\n  203.0.113.64/27    .64   .. .95       .65   .. .94\n  203.0.113.96/27    .96   .. .127      .97   .. .126\n  203.0.113.128/27   .128  .. .159      .129  .. .158\n  203.0.113.160/27   .160  .. .191      .161  .. .190\n  203.0.113.192/27   .192  .. .223      .193  .. .222\n  203.0.113.224/27   .224  .. .255      .225  .. .254\n\nthe private blocks (RFC 1918), which no Internet router will carry:\n\n  10.0.0.0/8       10.0.0.0    .. 10.255.255.255     16777216 addresses\n  172.16.0.0/12    172.16.0.0  .. 172.31.255.255      1048576 addresses\n  192.168.0.0/16   192.168.0.0 .. 192.168.255.255       65536 addresses\n\na NAT translation table entry, which is what makes them usable:\n\n  inside 192.168.1.7:51000 <-> outside 203.0.113.9:51000 -> 93.184.216.34:443",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Subnet numbers step by 32 because the last bit borrowed from the host part is worth 32."
+     },
+     {
+      "line": 16,
+      "text": "172.16.0.0/12 covers 172.16 through 172.31 only. Twelve mask bits leave four free bits in the second octet, which is 16 through 31."
+     },
+     {
+      "line": 21,
+      "text": "The port is half the key. Without rewriting it, two inside hosts that happened to pick the same source port could not be told apart on the way back."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill each blank with a single value.",
+     "template": "The private block 172.16.0.0/12 ends at ___\nSplitting a /24 into /27 subnets borrows ___ bits\nand therefore yields ___ subnets of ___ usable hosts each",
+     "blanks": [
+      "172.31.255.255",
+      "3",
+      "8",
+      "30"
+     ],
+     "concepts": [
+      "subnetting",
+      "private-address-space"
+     ],
+     "tags": [
+      "subnetting",
+      "private-address-space"
+     ],
+     "explain": "A /12 fixes the first four bits of the second octet, so that octet ranges over 16 to 31 and the block ends at 172.31.255.255 - the trap is assuming a private block runs to the end of its first octet. Going from /24 to /27 lengthens the prefix by three bits, which is $2^3 = 8$ subnets of $2^5 = 32$ addresses, and the reserved network and broadcast addresses leave 30 usable in each."
+    }
+   },
+   {
+    "title": "Too many addresses to spend, and the last hop",
+    "body": "**IPv6** exists for one reason: 32 bits is $2^{32}$, about four billion addresses, for a world with far more than four billion connected devices. An IPv6 address is 128 bits, written as eight groups of four hexadecimal digits separated by colons, which is roughly $3.4 \\times 10^{38}$ addresses - enough that the design stops rationing them and hands every subnet a /64, leaving 64 bits for the interface identifier.\n\nTwo shortening rules make them writable. Leading zeros within a group are dropped, so `0db8` becomes `db8` and `0000` becomes `0`. Then **one** run of all-zero groups may be replaced by `::`. Only one, because two would be ambiguous - the reader reconstructs the address by counting how many groups are missing, and could not divide that count between two gaps.\n\nNeither address family can put a packet on a wire by itself, because Ethernet does not know what an IP address is. **ARP** is the bridge. Having masked the destination and found it local, a host broadcasts an ARP request - who has this IP address, tell me - and the interface that owns it answers by unicast with its MAC address. The result is cached for a few minutes so that the broadcast is not repeated for every packet.\n\nTwo consequences of that caching are worth holding on to. A stale entry outlives the machine it describes, so replacing a network card can leave the rest of the segment talking to nobody until the entries expire. And if the destination is **not** local, the host resolves its default gateway instead - which is why a wrong mask breaks everything beyond the wire while leaving local traffic working perfectly.",
+    "code": "2001:0db8:0000:0000:0000:ff00:0042:8329   full form, 8 groups of 16 bits\n2001:db8:0:0:0:ff00:42:8329               leading zeros in a group dropped\n2001:db8::ff00:42:8329                    one run of zero groups becomes ::\n\n2001:db8:acad:1::/64    routing prefix 48 bits, subnet id 16, interface id 64\nfe80::/10               link-local, valid only on the wire it was formed on\n\nARP, on the wire, before the first IP packet can leave the host:\n\n  broadcast   who has 192.168.10.190?  tell 192.168.10.130\n  unicast     192.168.10.190 is at 00:1b:44:11:3a:b7",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Three zero groups collapse to ::. The reader restores them by counting: eight groups are required and five are written, so :: stands for three."
+     },
+     {
+      "line": 5,
+      "text": "A /64 leaves 64 bits for the interface identifier - more host bits in one subnet than there are IPv4 addresses in the entire world."
+     },
+     {
+      "line": 10,
+      "text": "The request must be a broadcast: the sender does not yet know the MAC address it is asking about, so it cannot address the question to anyone in particular."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Apply the IPv6 shortening rules, and then reverse them.",
+     "steps": [
+      {
+       "label": "2001:0db8:0000:0012:0000:0000:0000:0001 in shortest form",
+       "expected": "2001:db8:0:12::1"
+      },
+      {
+       "label": "fe80:0000:0000:0000:0202:b3ff:fe1e:8329 in shortest form",
+       "expected": "fe80::202:b3ff:fe1e:8329"
+      },
+      {
+       "label": "2001:db8:acad:1::a written out in full, all 8 groups of 4 digits",
+       "expected": "2001:0db8:acad:0001:0000:0000:0000:000a"
+      },
+      {
+       "label": "how many bits an IPv6 address has in total",
+       "expected": "128"
+      }
+     ],
+     "concepts": [
+      "ipv6-addressing"
+     ],
+     "tags": [
+      "ipv6-addressing"
+     ],
+     "explain": "In the first address there are two runs of zero groups - a single 0000 and a run of three - and only one may become ::, so the rule takes the longer run and the shorter one stays written as the literal 0. In the second, the run of three leading zero groups collapses and 0202 loses its leading zero. Expanding is the same rules run backwards: pad every group to four digits and restore exactly as many zero groups as are needed to reach eight."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "net-3-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Convert between dotted quad and binary. Write each octet as eight bits.",
+   "template": "172.20.144.19 = 10101100.00010100.___.00010011\n198.51.100.201 = ___.00110011.01100100.11001001",
+   "blanks": [
+    "10010000",
+    "11000110"
+   ],
+   "concepts": [
+    "dotted-quad"
+   ],
+   "tags": [
+    "dotted-quad"
+   ],
+   "xp": 24,
+   "explain": "144 is 128 + 16, so the top bit and the fourth bit of that octet are set: 10010000. 198 is 128 + 64 + 4 + 2 = 11000110. Working down the place values 128, 64, 32, 16, 8, 4, 2, 1 and subtracting whenever the value fits is faster and less error-prone than repeated division by two, and it keeps the leading zeros visible."
+  },
+  {
+   "id": "net-3-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Convert between prefix length and mask, and count what the prefix leaves behind.",
+   "template": "/20 as a dotted-quad mask is ___\n255.255.255.192 as a prefix length is /___\nA /28 subnet holds ___ addresses in total and ___ usable host addresses",
+   "blanks": [
+    "255.255.240.0",
+    "26",
+    "16",
+    "14"
+   ],
+   "concepts": [
+    "subnet-mask",
+    "cidr-prefix",
+    "usable-host-range"
+   ],
+   "tags": [
+    "subnet-mask",
+    "cidr-prefix",
+    "usable-host-range"
+   ],
+   "xp": 24,
+   "explain": "/20 is sixteen ones followed by four more, so the third octet is 11110000 = 240 and the fourth is zero. 192 is 11000000, two ones, which added to the 24 before them makes /26. A /28 leaves four host bits: $2^4 = 16$ addresses, minus the network and broadcast addresses, so 14 usable. Answering 16 for both is the standard slip - the total and the usable count are never the same number."
+  },
+  {
+   "id": "net-3-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Decompose `192.0.2.37/28`.",
+   "steps": [
+    {
+     "label": "mask as a dotted quad",
+     "expected": "255.255.255.240"
+    },
+    {
+     "label": "network address",
+     "expected": "192.0.2.32"
+    },
+    {
+     "label": "broadcast address",
+     "expected": "192.0.2.47"
+    },
+    {
+     "label": "first usable host address",
+     "expected": "192.0.2.33"
+    },
+    {
+     "label": "last usable host address",
+     "expected": "192.0.2.46"
+    },
+    {
+     "label": "number of usable host addresses",
+     "expected": "14"
+    }
+   ],
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "subnet-mask"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "subnet-mask"
+   ],
+   "xp": 48,
+   "explain": "A /28 makes the last octet step in sixteens, so the subnet containing 37 runs from 32 to 47. Clearing the four host bits of 00100101 gives 00100000 = 32, and setting them gives 00101111 = 47. Answering 192.0.2.37 for the network address is the usual error: an address is its own network address only when its host bits already happen to be zero."
+  },
+  {
+   "id": "net-3-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A host with address `192.168.10.130/26` has an IP packet for `192.168.10.190` and an empty ARP cache. Put the steps in the order they happen.",
+   "fragments": [
+    "The host ANDs the destination address with its own mask, and finds the result equals its own network address, so the destination is local.",
+    "Finding no entry, the host broadcasts an ARP request to ff:ff:ff:ff:ff:ff asking who owns 192.168.10.190.",
+    "The host looks in its ARP cache for a mapping from 192.168.10.190 to a MAC address.",
+    "The owner of the address replies by unicast, giving its MAC address.",
+    "The host stores the mapping in its cache and sends the frame to that MAC address."
+   ],
+   "answer": [
+    0,
+    2,
+    1,
+    3,
+    4
+   ],
+   "concepts": [
+    "arp",
+    "subnet-mask",
+    "network-address"
+   ],
+   "tags": [
+    "arp",
+    "subnet-mask",
+    "network-address"
+   ],
+   "xp": 24,
+   "explain": "The masking decision comes first and settles who is being asked about at all: local means ARP for the destination itself, remote means ARP for the default gateway instead. The cache is consulted before the broadcast because avoiding that broadcast is the entire purpose of the cache, and the reply is unicast because by then the responder knows exactly who asked."
+  }
+ ],
+ "address-arithmetic": [
+  {
+   "id": "net-3-a-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "An interface is configured `192.168.10.130/26`. Work out every figure below.",
+   "steps": [
+    {
+     "label": "mask as a dotted quad",
+     "expected": "255.255.255.192"
+    },
+    {
+     "label": "network address",
+     "expected": "192.168.10.128"
+    },
+    {
+     "label": "broadcast address",
+     "expected": "192.168.10.191"
+    },
+    {
+     "label": "first usable host address",
+     "expected": "192.168.10.129"
+    },
+    {
+     "label": "last usable host address",
+     "expected": "192.168.10.190"
+    },
+    {
+     "label": "number of usable host addresses",
+     "expected": "62"
+    },
+    {
+     "label": "is 192.168.10.190 reachable without a router - yes or no",
+     "expected": "yes"
+    }
+   ],
+   "concepts": [
+    "dotted-quad",
+    "subnet-mask",
+    "cidr-prefix",
+    "network-address",
+    "broadcast-address",
+    "usable-host-range"
+   ],
+   "tags": [
+    "dotted-quad",
+    "subnet-mask",
+    "cidr-prefix",
+    "network-address",
+    "broadcast-address",
+    "usable-host-range"
+   ],
+   "xp": 48,
+   "explain": "A /26 leaves six host bits, so the last octet moves in blocks of 64 and 130 falls in the block 128 to 191. That gives .128 as the network address, .191 as the broadcast address and $2^6 - 2 = 62$ usable addresses from .129 to .190. Since .190 masks to the same .128 network it is a direct neighbour and needs no router - the tempting wrong answer is no, on the reasoning that .130 and .190 look far apart, but sixty apart is nothing next to a 64-address block."
+  },
+  {
+   "id": "net-3-a-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two interfaces at different sites: `10.1.200.75/20` and `172.20.144.19/22`. Report the figures for each.",
+   "steps": [
+    {
+     "label": "10.1.200.75/20 network address",
+     "expected": "10.1.192.0"
+    },
+    {
+     "label": "10.1.200.75/20 broadcast address",
+     "expected": "10.1.207.255"
+    },
+    {
+     "label": "10.1.200.75/20 number of usable host addresses",
+     "expected": "4094"
+    },
+    {
+     "label": "172.20.144.19/22 network address",
+     "expected": "172.20.144.0"
+    },
+    {
+     "label": "172.20.144.19/22 broadcast address",
+     "expected": "172.20.147.255"
+    },
+    {
+     "label": "172.20.144.19/22 last usable host address",
+     "expected": "172.20.147.254"
+    }
+   ],
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "cidr-prefix",
+    "private-address-space"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "cidr-prefix",
+    "private-address-space"
+   ],
+   "xp": 48,
+   "explain": "When the boundary falls inside the third octet the whole fourth octet is host bits, which is why both broadcast addresses end in 255. A /20 leaves four free bits in the third octet, so subnets step in sixteens and 200 sits in the block 192 to 207; a /22 leaves two, so they step in fours and 144 begins a block ending at 147. The host counts are $2^{12} - 2 = 4094$ and $2^{10} - 2 = 1022$. Treating 10.1.207.255 as an ordinary host address is the mistake to avoid: it is the broadcast address of that subnet and cannot be assigned, even though it does not sit at the end of an obvious boundary."
+  },
+  {
+   "id": "net-3-a-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "You are given the public block `203.0.113.0/24` and asked to cut it into equal /27 subnets.",
+   "steps": [
+    {
+     "label": "number of bits borrowed from the host part",
+     "expected": "3"
+    },
+    {
+     "label": "number of subnets produced",
+     "expected": "8"
+    },
+    {
+     "label": "mask of each subnet as a dotted quad",
+     "expected": "255.255.255.224"
+    },
+    {
+     "label": "usable host addresses per subnet",
+     "expected": "30"
+    },
+    {
+     "label": "network address of the third subnet, counting the lowest as the first",
+     "expected": "203.0.113.64"
+    },
+    {
+     "label": "broadcast address of that third subnet",
+     "expected": "203.0.113.95"
+    },
+    {
+     "label": "network address of the subnet containing 203.0.113.150",
+     "expected": "203.0.113.128"
+    }
+   ],
+   "concepts": [
+    "subnetting",
+    "cidr-prefix",
+    "subnet-mask",
+    "usable-host-range",
+    "network-address",
+    "broadcast-address"
+   ],
+   "tags": [
+    "subnetting",
+    "cidr-prefix",
+    "subnet-mask",
+    "usable-host-range",
+    "network-address",
+    "broadcast-address"
+   ],
+   "xp": 48,
+   "explain": "Lengthening the prefix from 24 to 27 borrows three bits, giving $2^3 = 8$ subnets of $2^5 = 32$ addresses and 30 usable in each. The subnets therefore begin at multiples of 32, so the third runs .64 to .95, and 150 lands in the block .128 to .159. Off-by-one on the third subnet is the classic slip: the first subnet is .0, not .32, because the block starts at zero."
+  },
+  {
+   "id": "net-3-a-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "For each pair, decide whether the two addresses are on the **same** subnet or on **different** subnets, using the prefix given.",
+   "steps": [
+    {
+     "label": "192.168.10.130/26 and 192.168.10.190 - same or different",
+     "expected": "same"
+    },
+    {
+     "label": "192.168.10.130/26 and 192.168.10.200 - same or different",
+     "expected": "different"
+    },
+    {
+     "label": "10.1.200.75/20 and 10.1.208.4 - same or different",
+     "expected": "different"
+    },
+    {
+     "label": "172.20.144.19/22 and 172.20.147.255 - same or different",
+     "expected": "same"
+    },
+    {
+     "label": "role of 172.20.147.255 in that subnet - host or broadcast",
+     "expected": "broadcast"
+    }
+   ],
+   "concepts": [
+    "subnet-mask",
+    "network-address",
+    "broadcast-address",
+    "cidr-prefix"
+   ],
+   "tags": [
+    "subnet-mask",
+    "network-address",
+    "broadcast-address",
+    "cidr-prefix"
+   ],
+   "xp": 48,
+   "explain": "The test is always the same: mask both addresses and compare the results. .190 and .130 both mask to 192.168.10.128, while .200 masks to 192.168.10.192 and is a different subnet despite lying only ten above a member of the first. 10.1.208.4 masks to 10.1.208.0, one /20 above 10.1.192.0. The last pair is the trap worth meeting: 172.20.147.255 does mask to 172.20.144.0 and so is on the subnet, but it is that subnet's broadcast address and no host may hold it - membership and assignability are separate questions."
+  },
+  {
+   "id": "net-3-a-05",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Work with IPv6 addresses and their shortening rules.",
+   "steps": [
+    {
+     "label": "2001:0db8:0000:0000:0000:ff00:0042:8329 in shortest form",
+     "expected": "2001:db8::ff00:42:8329"
+    },
+    {
+     "label": "2001:0db8:0000:0000:0001:0000:0000:0001 in shortest form",
+     "expected": "2001:db8::1:0:0:1"
+    },
+    {
+     "label": "number of bits left for the interface identifier in a /64",
+     "expected": "64"
+    },
+    {
+     "label": "number of /64 subnets inside a /48 site prefix",
+     "expected": "65536"
+    },
+    {
+     "label": "how many times :: may appear in one address",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "ipv6-addressing",
+    "cidr-prefix",
+    "subnetting"
+   ],
+   "tags": [
+    "ipv6-addressing",
+    "cidr-prefix",
+    "subnetting"
+   ],
+   "xp": 48,
+   "explain": "The second address has two runs of zero groups, but the rule allows one :: only, so the longer leading run collapses and the trailing zeros stay written out as 0:0. Between /48 and /64 lie sixteen bits, giving $2^{16} = 65536$ subnets, and a /64 leaves 64 interface bits by design so that stateless address autoconfiguration always has room. Writing 2001:db8::1::1 is the tempting answer and is not an address at all: a reader could not tell how to divide the missing groups between the two gaps."
+  }
+ ],
+ "network-diagnosis": [
+  {
+   "id": "net-3-d-01",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A site uses `10.1.192.0/20` on one flat segment, with its router at `10.1.192.1`. A newly installed server is configured with address `10.1.200.75`, mask `255.255.255.0` and gateway `10.1.192.1`. It can ping `10.1.200.9` and `10.1.200.240` perfectly, but nothing outside 10.1.200.x at all, and its ARP cache holds no entry for the router. Name the cause and explain the exact mechanism.",
+   "answer": "The server's subnet mask is too long - a /24 where the segment is a /20 - so it believes its own default gateway is on a different subnet and never resolves it",
+   "rubric": {
+    "required": [
+     "mask",
+     "gateway",
+     "arp",
+     "subnet"
+    ],
+    "optional": [
+     "prefix",
+     "broadcast",
+     "router",
+     "local",
+     "remote",
+     "resolv",
+     "20",
+     "24",
+     "cache",
+     "reach"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "subnet-mask",
+    "network-address",
+    "arp",
+    "cidr-prefix"
+   ],
+   "tags": [
+    "subnet-mask",
+    "network-address",
+    "arp",
+    "cidr-prefix"
+   ],
+   "xp": 48,
+   "explain": "With a /24 mask the server computes its own network as 10.1.200.0 and masks 10.1.192.1 down to 10.1.192.0, a different network, so the gateway looks remote. A host only ever resolves the link-layer address of something it believes is local, so it sends nothing anybody on the wire will answer and the cache stays empty; with no gateway it can reach, everything off the segment fails. The symptom pattern is the giveaway, and it is also the reason the wrong diagnosis tempts: local traffic within 10.1.200.x works flawlessly because those addresses really are local under either mask, which makes the cabling and the switch look innocent, as they are."
+  },
+  {
+   "id": "net-3-d-02",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A failed server is replaced by an identical machine keeping the same IP address `192.168.10.190`, but carrying a new network card and so a new MAC address. The router reaches it immediately. Other hosts on the same segment cannot reach it at all, then begin to succeed one by one over the next few minutes with nobody doing anything. Name the cause and explain the mechanism.",
+   "answer": "Stale ARP cache entries on the other hosts still map 192.168.10.190 to the old card's MAC address, and only recover as those entries time out",
+   "rubric": {
+    "required": [
+     "arp",
+     "cache",
+     "mac"
+    ],
+    "optional": [
+     "stale",
+     "timeout",
+     "expir",
+     "gratuitous",
+     "entry",
+     "frame",
+     "broadcast",
+     "refresh",
+     "old",
+     "switch",
+     "map"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "arp"
+   ],
+   "tags": [
+    "arp"
+   ],
+   "xp": 48,
+   "explain": "Resolution is cached precisely so that the broadcast is not repeated for every packet, and the price of that cache is that it describes the world as it was when the entry was made. Frames are still being addressed to a MAC address that no longer exists on the segment, so they are delivered nowhere and nothing reports an error - which is why the failure is silent rather than a refusal. Recovery one host at a time is the signature of independent expiry timers, and the router recovered first simply because its own entry happened to lapse or be refreshed sooner; a gratuitous ARP from the new card would have overwritten every cache at once."
+  },
+  {
+   "id": "net-3-d-03",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "A small office runs about 40 machines on `192.168.1.0/24` behind a single broadband connection with one public address. Explain what has to happen to a packet sent from `192.168.1.7` to a web server at `93.184.216.34` port 443, on the way out and on the way back. Then explain why a colleague who wants to run a game server on their desktop cannot simply give people its address.",
+   "rubric": {
+    "required": [
+     "nat",
+     "privat",
+     "public",
+     "port",
+     "translat"
+    ],
+    "optional": [
+     "table",
+     "source",
+     "inbound",
+     "forward",
+     "state",
+     "rfc",
+     "1918",
+     "rout",
+     "map",
+     "reply",
+     "end-to-end",
+     "drop"
+    ],
+    "minWords": 70
+   },
+   "concepts": [
+    "nat",
+    "private-address-space",
+    "dotted-quad"
+   ],
+   "tags": [
+    "nat",
+    "private-address-space",
+    "dotted-quad"
+   ],
+   "xp": 48,
+   "explain": "192.168.1.7 comes from a private block that no Internet router will carry, so a reply addressed to it could never come back; the NAT box therefore rewrites the source address to its own public address and the source port to a value it can keep unique, records the mapping, and reverses the rewrite on every reply that matches an entry. The inbound case fails for exactly the reason the outbound one works: the entry is created by the packet leaving, so an unsolicited packet arriving for the game server matches nothing and is dropped. The tempting answer is that the address is merely hidden and could be published - the point is stronger than that, because the address is not unique in the world and means something different inside every other office using the same block."
+  },
+  {
+   "id": "net-3-d-04",
+   "type": "design",
+   "layer": "application",
+   "prompt": "You are given the private block `192.168.20.0/24` for a single site with four segments: an office of about 100 machines, a lab of about 50, a wireless guest network of about 25, and two point-to-point router links carrying two addresses each. Produce an address plan. For each segment give the prefix you chose and why, the network and broadcast addresses it implies, and the usable host range. Then say what headroom is left for growth, and what would change if the site were addressed from an IPv6 /48 instead.",
+   "rubric": {
+    "required": [
+     "prefix",
+     "subnet",
+     "host",
+     "broadcast",
+     "network",
+     "privat",
+     "ipv6",
+     "grow"
+    ],
+    "optional": [
+     "25",
+     "26",
+     "27",
+     "30",
+     "mask",
+     "waste",
+     "variable",
+     "vlsm",
+     "64",
+     "48",
+     "router",
+     "gateway",
+     "reserv",
+     "contigu",
+     "link"
+    ],
+    "minWords": 120
+   },
+   "concepts": [
+    "subnetting",
+    "usable-host-range",
+    "private-address-space",
+    "cidr-prefix",
+    "ipv6-addressing",
+    "network-address",
+    "broadcast-address"
+   ],
+   "tags": [
+    "subnetting",
+    "usable-host-range",
+    "private-address-space",
+    "cidr-prefix",
+    "ipv6-addressing",
+    "network-address",
+    "broadcast-address"
+   ],
+   "xp": 120,
+   "explain": "Sizing runs downwards from the largest requirement. 100 machines need seven host bits, so a /25 at 192.168.20.0 with broadcast .127 and hosts .1 to .126; 50 need a /26 at .128 with broadcast .191 and hosts .129 to .190; 25 need a /27 at .192 with broadcast .223 and hosts .193 to .222; and each router link needs exactly two addresses, which is a /30, so .224/30 and .228/30 with usable pairs .225 to .226 and .229 to .230. That leaves only .232 to .255 - a spare /29 and /30 - which is the honest lesson of variable-length subnetting: fitting the requirements exactly is possible and leaves almost nothing over, so a plan that expects the lab to double should take a /25 for it now rather than a /26. Allocating four equal subnets instead is the tempting simplification, and four /26s cannot be made to work at all, because the office needs more than the 62 hosts a /26 provides. From an IPv6 /48 the arithmetic disappears: every segment takes a /64 whatever its size, 65536 of them are available, the point-to-point links get one each without embarrassment, and no translation is needed because the addresses are globally routable."
+  }
+ ],
+ "exam": [
+  {
+   "id": "net-3-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these is **not** part of the RFC 1918 private address space?",
+   "choices": [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "172.40.0.0/16",
+    "192.168.0.0/16"
+   ],
+   "answer": 2,
+   "concepts": [
+    "private-address-space"
+   ],
+   "tags": [
+    "private-address-space"
+   ],
+   "xp": 12,
+   "explain": "The private range in the 172 space is a /12, which covers 172.16.0.0 through 172.31.255.255 only, so 172.40.x.x is ordinary public space belonging to somebody. It tempts because it begins with 172, and people remember the block by its first octet rather than by its prefix length."
+  },
+  {
+   "id": "net-3-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of the following are true of IPv6 addressing?",
+   "choices": [
+    "An address is 128 bits, written as eight groups of four hexadecimal digits",
+    "The `::` abbreviation may appear at most once in an address",
+    "Leading zeros within a group may be omitted",
+    "A subnet is conventionally a /64, leaving 64 bits of interface identifier",
+    "NAT is required for an IPv6 host to reach the Internet"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "ipv6-addressing"
+   ],
+   "tags": [
+    "ipv6-addressing"
+   ],
+   "xp": 12,
+   "explain": "The first four together are the whole notation and the standard subnet size. The last is false, and is precisely the habit IPv6 was meant to end: translation was a response to address scarcity, and with $2^{128}$ addresses a host can hold a globally routable one of its own. Sites still filter inbound traffic at a firewall, but that is a policy decision rather than an addressing necessity."
+  },
+  {
+   "id": "net-3-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill each blank with a single value.",
+   "template": "/22 as a dotted-quad mask is ___\n255.255.255.224 as a prefix length is /___\nA /29 subnet has ___ usable host addresses\nA /30 subnet has ___ usable host addresses",
+   "blanks": [
+    "255.255.252.0",
+    "27",
+    "6",
+    "2"
+   ],
+   "concepts": [
+    "subnet-mask",
+    "cidr-prefix",
+    "usable-host-range"
+   ],
+   "tags": [
+    "subnet-mask",
+    "cidr-prefix",
+    "usable-host-range"
+   ],
+   "xp": 24,
+   "explain": "/22 is sixteen ones plus six more, so the third octet is 11111100 = 252. 224 is 11100000, three ones on top of the first 24, giving /27. The host counts are $2^3 - 2 = 6$ and $2^2 - 2 = 2$, and the second is why a /30 is the traditional size for a router-to-router link: it is the smallest block with anything usable left once the network and broadcast addresses are taken."
+  },
+  {
+   "id": "net-3-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put the steps of deriving a subnet's boundaries from an address and a prefix into order.",
+   "fragments": [
+    "Write the address and the mask in binary, one above the other.",
+    "Set every host bit to one to obtain the broadcast address.",
+    "Set every host bit to zero to obtain the network address.",
+    "Split the 32 bits at the prefix length: the bits above it are network bits, the bits below it are host bits.",
+    "Take everything strictly between those two addresses as the usable host range."
+   ],
+   "answer": [
+    0,
+    3,
+    2,
+    1,
+    4
+   ],
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "subnet-mask"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "subnet-mask"
+   ],
+   "xp": 24,
+   "explain": "Everything after the split is mechanical, which is why the split is the step that has to come first and the one worth slowing down for. The network and broadcast addresses could be produced in either order, since neither depends on the other, but the usable range is defined by both and must come last - and it is strictly between them, never inclusive of them."
+  },
+  {
+   "id": "net-3-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Decompose `198.51.100.201/29`.",
+   "steps": [
+    {
+     "label": "mask as a dotted quad",
+     "expected": "255.255.255.248"
+    },
+    {
+     "label": "network address",
+     "expected": "198.51.100.200"
+    },
+    {
+     "label": "broadcast address",
+     "expected": "198.51.100.207"
+    },
+    {
+     "label": "number of usable host addresses",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "subnet-mask",
+    "usable-host-range"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "subnet-mask",
+    "usable-host-range"
+   ],
+   "xp": 48,
+   "explain": "A /29 leaves three host bits, so subnets step in eights and 201 sits in the block 200 to 207. Clearing the low three bits of 11001001 gives 11001000 = 200, and setting them gives 11001111 = 207, leaving .201 through .206 as the six usable addresses. Note that .201 happens to be the first usable address here, which is where it fell in the block rather than any rule about the address you were given."
+  },
+  {
+   "id": "net-3-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Two interfaces you have not seen before: `198.51.100.94/27` and `192.168.100.17/28`.",
+   "steps": [
+    {
+     "label": "198.51.100.94/27 network address",
+     "expected": "198.51.100.64"
+    },
+    {
+     "label": "198.51.100.94/27 broadcast address",
+     "expected": "198.51.100.95"
+    },
+    {
+     "label": "198.51.100.94/27 last usable host address",
+     "expected": "198.51.100.94"
+    },
+    {
+     "label": "192.168.100.17/28 network address",
+     "expected": "192.168.100.16"
+    },
+    {
+     "label": "192.168.100.17/28 broadcast address",
+     "expected": "192.168.100.31"
+    },
+    {
+     "label": "192.168.100.17/28 number of usable host addresses",
+     "expected": "14"
+    }
+   ],
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "cidr-prefix",
+    "private-address-space"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range",
+    "cidr-prefix",
+    "private-address-space"
+   ],
+   "xp": 48,
+   "explain": "A /27 steps in thirty-twos, so 94 lies in .64 to .95 and is the very last usable address, one below the broadcast - an address landing on an awkward-looking number is not evidence of a misconfiguration. A /28 steps in sixteens, putting 17 in .16 to .31 with .16 as the network address and $2^4 - 2 = 14$ usable. Reading 198.51.100.94 as the broadcast address is the error the shape of the number invites; the broadcast is .95."
+  },
+  {
+   "id": "net-3-x-07",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A block of `10.4.0.0/16` is to be divided into equal /22 subnets, one per branch office.",
+   "steps": [
+    {
+     "label": "number of subnets produced",
+     "expected": "64"
+    },
+    {
+     "label": "mask of each subnet as a dotted quad",
+     "expected": "255.255.252.0"
+    },
+    {
+     "label": "usable host addresses per subnet",
+     "expected": "1022"
+    },
+    {
+     "label": "network address of the second subnet, counting the lowest as the first",
+     "expected": "10.4.4.0"
+    },
+    {
+     "label": "broadcast address of the subnet containing 10.4.13.200",
+     "expected": "10.4.15.255"
+    }
+   ],
+   "concepts": [
+    "subnetting",
+    "cidr-prefix",
+    "subnet-mask",
+    "usable-host-range",
+    "broadcast-address"
+   ],
+   "tags": [
+    "subnetting",
+    "cidr-prefix",
+    "subnet-mask",
+    "usable-host-range",
+    "broadcast-address"
+   ],
+   "xp": 48,
+   "explain": "Six bits are borrowed going from /16 to /22, giving $2^6 = 64$ subnets whose third octets step in fours, so they begin at 10.4.0.0, 10.4.4.0, 10.4.8.0 and so on. Each holds $2^{10} = 1024$ addresses and 1022 usable. 10.4.13.200 falls in the block beginning 10.4.12.0, whose broadcast is 10.4.15.255 - the trap is stopping at 10.4.13.255, which is merely the end of one octet inside a subnet four times that wide."
+  },
+  {
+   "id": "net-3-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Explain why the network address and the broadcast address of a subnet cannot be given to a host, and what that reservation costs as subnets get small. Use a /29 and a /30 to make the cost concrete.",
+   "rubric": {
+    "required": [
+     "broadcast",
+     "network",
+     "host",
+     "subnet",
+     "reserv"
+    ],
+    "optional": [
+     "point-to-point",
+     "waste",
+     "half",
+     "two",
+     "all",
+     "bits",
+     "link",
+     "zero",
+     "one",
+     "rout"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range"
+   ],
+   "tags": [
+    "network-address",
+    "broadcast-address",
+    "usable-host-range"
+   ],
+   "xp": 24,
+   "explain": "The two addresses are reserved because they already mean something else: the all-zeros host pattern names the subnet itself, which is what a routing table entry refers to, and the all-ones pattern addresses every interface on it at once. The cost is a fixed two addresses whatever the subnet size, so it is invisible in a /16 and enormous in a /29, where six of eight survive, or a /30, where two of four do. The reasoning to resist is that the reservation is arbitrary bookkeeping that could simply be dropped - it could not, without losing any way to name a network as distinct from a host on it, which is why relaxing it for point-to-point links needed a deliberate change of rule rather than an author ignoring the convention."
+  },
+  {
+   "id": "net-3-x-09",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A LAN is `192.168.10.128/26` with its router at `192.168.10.129`. A workstation is statically configured with address `192.168.10.200`, mask `255.255.255.192` and gateway `192.168.10.129`. It reaches nothing at all - not the router, not any other machine on the wire - although its link light is on and the switch port shows traffic. Name the cause and explain the mechanism.",
+   "answer": "The workstation's address 192.168.10.200 lies in 192.168.10.192/26, not in the LAN's 192.168.10.128/26, so every destination including its own gateway looks remote to it",
+   "rubric": {
+    "required": [
+     "subnet",
+     "gateway",
+     "arp",
+     "address"
+    ],
+    "optional": [
+     "mask",
+     "prefix",
+     "boundary",
+     "remote",
+     "local",
+     "broadcast",
+     "block",
+     "static",
+     "64",
+     "192"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "network-address",
+    "subnet-mask",
+    "arp",
+    "cidr-prefix"
+   ],
+   "tags": [
+    "network-address",
+    "subnet-mask",
+    "arp",
+    "cidr-prefix"
+   ],
+   "xp": 48,
+   "explain": "The mask is right and the gateway is right; the address itself is in the wrong block, because /26 boundaries fall every 64 addresses and 200 belongs to the block starting at 192, not the one starting at 128. Masking the gateway 192.168.10.129 gives 192.168.10.128, which does not match the workstation's own 192.168.10.192, so it treats even the router as remote and tries to reach it via a gateway it cannot resolve, sending ARP requests nobody on that wire will answer. Blaming the mask is the natural first move, because a right-mask-wrong-address fault presents identically to a wrong-mask fault from the console, and only writing both addresses out in binary separates them."
+  }
+ ]
+}

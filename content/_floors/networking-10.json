@@ -1,0 +1,283 @@
+{
+ "n": 10,
+ "name": "The Trial of the Long Wire",
+ "cognitiveLevel": "boss",
+ "concepts": [
+  "encapsulation-and-layering",
+  "framing-and-error-detection",
+  "ip-addressing-and-subnetting",
+  "longest-prefix-match",
+  "switching-and-forwarding",
+  "tcp-connection-establishment",
+  "flow-control-and-windows",
+  "congestion-control",
+  "dns-resolution",
+  "transport-security-tls",
+  "network-diagnosis"
+ ],
+ "sequence": [
+  "lesson",
+  "trial"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "What the Trial Asks",
+    "body": "This floor is a single closed-book paper, and it is worth knowing before you start what the whole dungeon has been circling: **a message crosses the network by being wrapped, forwarded, acknowledged and unwrapped**, and every layer exists because the layer beneath it refuses to promise something.\n\nEthernet promises to deliver a frame across one link and nothing further, so IP adds an address that means something in every network at once. IP promises only best effort, so TCP adds sequence numbers, acknowledgements and windows to turn a lossy datagram service into an ordered byte stream. TCP will happily carry your password in clear, so TLS encrypts the stream before handing it down. Each wrapper costs header bytes and, sooner or later, a round trip, and this paper asks you to count both.\n\nThe trace opposite is the exact request the trial opens with. Note that a router rewrites the Ethernet frame entirely, edits two fields of the IPv4 header, and does not touch the TCP header at all - the **end-to-end argument** made concrete. There is no starter working, no hint and no exam on this floor.",
+    "code": "ONE HTTP REQUEST, DRESSED FOR THE WIRE                      bytes\n\n  HTTP request text  GET /index.html HTTP/1.1 ...                412\n       + 1           TLS 1.3 inner content-type byte             413\n       + 16          AEAD authentication tag                     429\n       + 5           TLS record header (type, version, length)   434\n       + 20          TCP header (ports, seq, ack, flags, window) 454\n       + 20          IPv4 header (src, dst, TTL, checksum)       474\n       + 14 + 4      Ethernet header + FCS                       492\n\n  goodput on this frame = 412 / 492 = 83.7 per cent\n\nWHAT EACH HOP MAY TOUCH\n\n  Ethernet header   rewritten at EVERY hop - new src and dst MAC\n  FCS               recomputed at EVERY hop - it protects one link\n  IPv4 TTL          decremented at every router: 64 -> 63 -> 62 -> 61\n  IPv4 checksum     recomputed because the TTL changed\n  IPv4 addresses    untouched end to end (absent NAT)\n  TCP header        untouched by routers - it is end to end\n  TLS record        opaque to routers; only the endpoints hold the key\n\n  A bit flipped inside a router's memory passes the NEXT link's FCS\n  perfectly, because that FCS was computed AFTER the corruption. Only\n  the TCP checksum, computed by the sender and checked by the receiver,\n  spans the damage. That is the end-to-end argument in one sentence.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 11,
+      "text": "Goodput is what the application actually got, over what the wire actually carried. Eighty bytes of framing on a 492-byte frame is cheap; the same eighty bytes on a bare 60-byte acknowledgement is not, which is why small-packet workloads look so much worse than a bulk transfer on the very same link."
+     },
+     {
+      "line": 16,
+      "text": "The frame check sequence is a CRC-32 that detects corruption and cannot correct it. It is recomputed hop by hop, so it certifies one link at a time and never the path."
+     },
+     {
+      "line": 20,
+      "text": "Routers are forbidden from editing the transport header precisely so that endpoints can rely on it. A middlebox that does edit it - a NAT rewriting ports, a proxy terminating the connection - buys function by breaking that guarantee."
+     },
+     {
+      "line": 23,
+      "text": "This is the classic argument for putting a check at the endpoints even when every link already has one: only the endpoints can see the whole journey."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Count the wrappers. A 412-byte HTTP request is sent over TLS 1.3 (5-byte record header, one inner content-type byte, 16-byte AEAD tag), TCP (20-byte header), IPv4 (20-byte header) and Ethernet (14-byte header plus 4-byte FCS). Give each size in bytes as a plain number.",
+     "template": "TLS record             = ___ bytes\nIPv4 datagram          = ___ bytes\nframe as sent on wire  = ___ bytes",
+     "blanks": [
+      "434",
+      "474",
+      "492"
+     ],
+     "concepts": [
+      "encapsulation-and-layering"
+     ],
+     "explain": "Work outwards and add each header exactly once: 412 + 1 + 16 = 429 bytes of ciphertext, plus the 5-byte record header gives a 434-byte TLS record; +20 for TCP is a 454-byte segment; +20 for IPv4 is a 474-byte datagram; +14 and +4 for Ethernet is 492 bytes on the wire. The tempting wrong answers come from treating the AEAD tag and the inner content-type byte as free rather than as part of the record, and from omitting the 4-byte FCS because most capture tools strip it before you ever see the frame."
+    }
+   },
+   {
+    "title": "An Address Is a Prefix, and the Longest One Wins",
+    "body": "Subnetting and forwarding are the same arithmetic read in two directions. Splitting a block asks *which bits do I freeze*; forwarding a packet asks *which frozen bits already match*. Both are answered by the mask, and a candidate fluent in one is nearly fluent in the other.\n\nTwo addresses in every subnet are unusable: the all-zeros host part names the network and the all-ones host part is the directed broadcast, which is why a /23 sized for 500 machines offers 510 rather than 512. **Variable-length subnet masking** allocates the largest demand first, so each block starts on a boundary its own size - allocate the /27 before the /23 and you strand addresses you cannot recover.\n\nForwarding then ignores how the blocks were carved. The router keeps prefixes, not networks, and picks the **longest prefix** covering the destination, with `0.0.0.0/0` as the prefix that covers everything and therefore always loses. That single rule is what lets an aggregate route and a more specific exception live in one table without contradicting each other.",
+    "code": "THE CAMPUS BLOCK  10.24.64.0/18   =  10.24.64.0 - 10.24.127.255\n\nVLSM, largest demand first:\n\n  need 500 hosts -> /23  10.24.64.0/23   255.255.254.0   510 usable\n                          hosts .64.1 - .65.254   broadcast 10.24.65.255\n  need 200 hosts -> /24  10.24.66.0/24   255.255.255.0   254 usable\n                          hosts .66.1 - .66.254   broadcast 10.24.66.255\n  need  60 hosts -> /26  10.24.67.0/26   255.255.255.192  62 usable\n                          hosts .67.1 - .67.62    broadcast 10.24.67.63\n  need  25 hosts -> /27  10.24.67.64/27  255.255.255.224  30 usable\n                          hosts .67.65 - .67.94   broadcast 10.24.67.95\n\n  first free address afterwards: 10.24.67.96\n\nA FORWARDING TABLE OVER THE SAME NUMBERS\n\n  0.0.0.0/0          -> R1   (default)\n  10.24.0.0/16       -> eth1 (directly attached)\n  10.24.64.0/18      -> R2\n  10.24.66.0/24      -> R4\n  10.24.67.64/27     -> R5\n  198.51.100.0/24    -> R3\n\n  10.24.67.70   matches /0, /16, /18, /27  -> longest is /27  -> R5\n  10.24.67.96   matches /0, /16, /18       -> longest is /18  -> R2\n  10.24.130.5   matches /0, /16            -> longest is /16  -> eth1\n  172.16.9.1    matches /0 only                              -> R1\n\nThe table is not a list of networks. It is a set of prefixes, and the\nmost specific one that covers the address wins - which is exactly why\n10.24.67.96, one address past the end of the /27, leaves for R2.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "A /23 is two /24s fused: the mask 255.255.254.0 leaves the low bit of the third octet to the host part, so 10.24.64.0 and 10.24.65.0 are one broadcast domain and 10.24.65.255 is its broadcast address."
+     },
+     {
+      "line": 14,
+      "text": "The /27 stops at 10.24.67.95. Everything from 10.24.67.96 to the end of the /18 is still free, which the forwarding example below turns into a trap."
+     },
+     {
+      "line": 18,
+      "text": "A default route is not a fallback bolted on beside the table; it is an ordinary entry whose prefix length is zero, and it loses every comparison it ever enters."
+     },
+     {
+      "line": 25,
+      "text": "Four prefixes cover this address, and all four are correct answers to the question \"is it mine\". Only the longest is an answer to \"where next\"."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "application",
+     "prompt": "Use the six-entry forwarding table opposite. For each destination, give only the winning next hop, written exactly as the table writes it: `R1`, `R2`, `R3`, `R4`, `R5` or `eth1`.",
+     "steps": [
+      {
+       "label": "destination 10.24.66.9",
+       "expected": "R4"
+      },
+      {
+       "label": "destination 10.24.67.70",
+       "expected": "R5"
+      },
+      {
+       "label": "destination 10.24.67.96",
+       "expected": "R2"
+      },
+      {
+       "label": "destination 10.24.130.5",
+       "expected": "eth1"
+      },
+      {
+       "label": "destination 172.16.9.1",
+       "expected": "R1"
+      }
+     ],
+     "concepts": [
+      "longest-prefix-match"
+     ],
+     "explain": "Each destination matches several prefixes and the longest wins: 10.24.66.9 lies inside the /24 as well as the /18 and the /16, so R4 takes it, and 10.24.67.70 lies within 10.24.67.64/27, whose range is .64 to .95, so R5 takes it. The instructive one is 10.24.67.96 - a single address past the end of that /27, so the /27 no longer matches, the /18 wins and the packet goes to R2. Answering R5 there is the standard error, and it comes from reading 10.24.67.64/27 as a name for \"the 67 subnet\" rather than as exactly thirty-two addresses."
+    }
+   },
+   {
+    "title": "The Handshake Buys Order, the Windows Decide Speed",
+    "body": "TCP's three-way handshake exists to agree two initial sequence numbers before any data moves, so that each side can tell a fresh byte from a duplicate wandering in from an earlier connection. The SYN itself consumes a sequence number, which is why a client whose initial sequence number is 41000 sends its first real byte at 41001 - an off-by-one that has cost more marks than any other detail in this dungeon.\n\nAfter that, two independent limits govern how much may be unacknowledged at once. The **receiver window** is advertised in a header field and protects the receiver's buffer; the **congestion window** is never transmitted at all and is the sender's private guess about the network. The amount in flight is the smaller of the two, so a connection may be throttled by a slow application or by a busy path, and the trace looks much the same either way.\n\nSlow start doubles the congestion window each round trip until it reaches `ssthresh`, after which additive increase adds roughly one MSS per round trip. A triple duplicate acknowledgement is treated as mild news - halve and continue - while a timeout is treated as evidence that the path has collapsed, so the window drops to a single segment. **Loss is TCP's only congestion signal**, which is the limitation modern congestion control has been arguing with ever since.",
+    "code": "THE HANDSHAKE       client ISN 41000        server ISN 91000\n\n  client -> server   SYN         seq=41000               len 0\n  server -> client   SYN,ACK     seq=91000  ack=41001    len 0\n  client -> server   ACK         seq=41001  ack=91001    len 0\n  client -> server   ClientHello seq=41001               len 517\n  server -> client   ACK                    ack=41518\n\n  SYN and FIN each consume one sequence number although they carry no\n  data. That is why the first byte of real data is 41001, not 41000.\n\nTWO WINDOWS, TWO DIFFERENT WORRIES\n\n  receiver window    how much the RECEIVER can buffer   advertised\n  congestion window  how much the NETWORK will bear     inferred\n  in flight <= min(rwnd, cwnd)\n\n  link 100 Mbit/s, RTT 40 ms\n  BDP = 100e6 * 0.040 / 8 = 500 000 bytes\n\n  unscaled ceiling 65 535 B -> 65 535 / 0.040 = 1 638 375 B/s = 13.1 Mbit/s\n  window scale shift 3      -> 65 535 * 8 = 524 280 B  >= BDP. Enough.\n\nAIMD, MSS 1460, cwnd 10 MSS, ssthresh 80 MSS\n\n  RTT 0   cwnd 10     slow start, doubling\n  RTT 1   cwnd 20\n  RTT 2   cwnd 40\n  RTT 3   cwnd 80     reaches ssthresh, switch to congestion avoidance\n  RTT 4   cwnd 81     +1 MSS per RTT\n  RTT 5   cwnd 82     triple duplicate ACK arrives here\n\n  triple duplicate ACK   ssthresh = 41, cwnd = 41   (fast recovery)\n  retransmission timeout ssthresh = 41, cwnd = 1    (slow start again:\n                         1, 2, 4, 8, 16, 32, then 41 - capped by ssthresh)\n\n  throughput at cwnd 82:  82 * 1460 / 0.040 = 2 993 000 B/s = 23.9 Mbit/s",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The server's SYN,ACK carries its own initial sequence number and acknowledges the client's SYN by naming the next byte it expects, 41001. Acknowledgements in TCP always name the next byte wanted, never the last byte received."
+     },
+     {
+      "line": 19,
+      "text": "The bandwidth-delay product is how many bytes are in the air at any moment on a full pipe. A window smaller than the BDP idles the sender for the rest of every round trip, no matter how fast the link is."
+     },
+     {
+      "line": 21,
+      "text": "The window field is sixteen bits, so without the window-scale option negotiated in the SYN a connection can never exceed 65 535 bytes in flight - about 13 Mbit/s on this path, on a link rated at 100."
+     },
+     {
+      "line": 34,
+      "text": "Halving on a duplicate acknowledgement but collapsing to one segment on a timeout encodes a judgement: a duplicate acknowledgement proves packets are still arriving, whereas a timeout proves nothing is."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "A connection starts with cwnd 10 MSS and ssthresh 80 MSS, MSS 1460 bytes, RTT 40 ms. It slow-starts, enters congestion avoidance and reaches cwnd 82 MSS, where a triple duplicate acknowledgement arrives. Give each value as a plain number of MSS.",
+     "template": "cwnd after three round trips of slow start = ___ MSS\nssthresh immediately after the triple duplicate ACK = ___ MSS\ncwnd immediately after the triple duplicate ACK = ___ MSS\ncwnd immediately after a retransmission timeout instead = ___ MSS",
+     "blanks": [
+      "80",
+      "41",
+      "41",
+      "1"
+     ],
+     "concepts": [
+      "congestion-control"
+     ],
+     "explain": "Doubling from 10 gives 20, then 40, then 80, which is exactly ssthresh, so the third round trip both reaches the threshold and ends slow start. On the fast-retransmit path ssthresh becomes half the current window - 82 halved is 41 - and the sender resumes from 41 rather than from scratch; on the timeout path ssthresh is still 41 but cwnd falls to 1 MSS and slow start runs again as 1, 2, 4, 8, 16, 32 and then 41, capped by ssthresh rather than doubling to 64. Writing 41 for the timeout case is the common slip, and it comes from remembering the halving while forgetting which event causes the collapse."
+    }
+   },
+   {
+    "title": "A Page Load Is a Chain of Round Trips",
+    "body": "Nothing about fetching one page is a single exchange. The name must be resolved, the connection opened, the keys agreed and only then the request sent - and because each step must finish before the next begins, latency adds where you might have hoped bandwidth would help. On the numbers opposite a cold load costs 199 ms, and at 159 ms not one byte of the page has yet been asked for.\n\nDNS is a hierarchy walked once and cached thereafter: the recursive resolver asks a root server, is referred to the `.example` servers, is referred again to the zone's authoritative server, and returns an answer its cache will serve for the record's TTL. **TLS 1.3 folded its handshake into one round trip** where TLS 1.2 needed two, which is why the same page load is 40 ms cheaper than it was a decade ago; session resumption removes another.\n\nThe last part of the paper is a diagnosis, and it rewards the same layered thinking in reverse. When a connection completes but a large transfer stalls, the fault is rarely in the layer people reach for first - it is a **path MTU black hole**, where oversized segments are dropped with DF set and the ICMP message that would have said so is filtered away.",
+    "code": "ONE COLD PAGE LOAD, MILLISECOND BY MILLISECOND\n\n  stub <-> recursive resolver         RTT  4 ms\n  resolver <-> root servers           RTT 30 ms\n  resolver <-> .example TLD servers   RTT 25 ms\n  resolver <-> authoritative servers  RTT 20 ms\n  client <-> web server               RTT 40 ms\n\n  DNS      4 + 30 + 25 + 20                       =  79 ms\n  TCP      three-way handshake, 1 RTT             =  40 ms\n  TLS 1.3  ClientHello/ServerHello, 1 RTT         =  40 ms\n  HTTP     GET and first response bytes, 1 RTT    =  40 ms\n                                            total = 199 ms\n\n  warm DNS cache (answer already held, stub RTT 0) -> 120 ms\n  TLS 1.2 instead (two round trips)                -> 239 ms\n\nWHERE THE SAME PAGE LOAD GOES WRONG\n\n  A tunnel on the path has MTU 1400.\n    IP payload  1400 - 20 = 1380\n    usable MSS  1380 - 20 = 1360\n    but the client announced MSS 1460, from its own 1500-byte MTU.\n\n  Full-size segments arrive at the tunnel with DF set, are dropped, and\n  the router's ICMP type 3 code 4 \"fragmentation needed, MTU 1400\" is\n  filtered by a firewall. The sender never learns. Handshakes and small\n  requests succeed; the first full-size segment retransmits forever.\n\n  If DF were clear, a 1500-byte datagram would fragment as\n    fragment 1  data 1376  total length 1396  offset 0    MF=1\n    fragment 2  data  104  total length  124  offset 172  MF=0\n  offsets count 8-byte units, which is why 1380 rounds down to 1376.",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 13,
+      "text": "Three sequential round trips of 40 ms before the first byte of HTML. Doubling the link rate changes none of them, which is why latency rather than bandwidth is what page-load work optimises."
+     },
+     {
+      "line": 15,
+      "text": "A warm cache removes the whole 79 ms of resolution, and that is why TTLs are an operational trade: short TTLs let you move a service quickly, long TTLs make the median page load faster."
+     },
+     {
+      "line": 23,
+      "text": "The client's announced MSS reflects only its own first-hop MTU. It is a statement about the sender's link, never a discovery of the path, and that difference is the entire bug."
+     },
+     {
+      "line": 28,
+      "text": "The symptom pattern is the diagnosis: the handshake and small requests fit under 1360 bytes and succeed, so the connection looks healthy right up to the moment a full-size segment is needed."
+     },
+     {
+      "line": 33,
+      "text": "1380 is not a multiple of 8, so the first fragment carries 1376 bytes and the second's offset is 1376/8 = 172. Fragment offsets are counted in 8-byte units because the field is only thirteen bits wide."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put one cold HTTPS page load into the order the events actually occur, from the first packet the client sends to the moment rendering begins.",
+     "fragments": [
+      "The TCP three-way handshake with 203.0.113.45 completes",
+      "The HTTP GET travels inside an encrypted TLS record",
+      "The stub resolver asks the recursive resolver for www.grimoire.example",
+      "The response body arrives and the browser begins parsing",
+      "The recursive resolver walks the root, then .example, then the zone's authoritative servers",
+      "TLS 1.3 exchanges key shares and the Finished messages verify the handshake"
+     ],
+     "answer": [
+      2,
+      4,
+      0,
+      5,
+      1,
+      3
+     ],
+     "concepts": [
+      "dns-resolution"
+     ],
+     "explain": "Resolution must finish first because the client cannot open a connection to a name, only to an address; the handshake must finish before TLS because TLS is carried inside the byte stream TCP provides; and the GET cannot be sent before keys exist, because it is encrypted. The tempting rearrangement puts the TLS exchange before the TCP handshake, which mistakes the layering - TLS has no transport of its own and is simply the first thing the finished connection carries."
+    }
+   }
+  ]
+ },
+ "trial": [
+  {
+   "id": "net-10-t-01",
+   "type": "design",
+   "layer": "application",
+   "capstone": true,
+   "xp": 300,
+   "prompt": "**The Trial of the Long Wire - closed book, one sitting.**\n\nOne organisation, one page load, seven parts. Answer them all, and show the reasoning as well as the numbers; the marking rewards the sentence that explains a figure at least as much as the figure itself.\n\nThroughout: a campus holds the block `10.24.64.0/18`. A client on its largest subnet fetches `https://www.grimoire.example/index.html`, which resolves to `203.0.113.45`. The path to that server has a round-trip time of 40 ms and a rate of 100 Mbit/s. The client's own link has MTU 1500.\n\n**1. Encapsulation and the end-to-end argument.** The client's HTTP request is 412 bytes of text. It is carried in a TLS 1.3 record (5-byte record header, one inner content-type byte, 16-byte AEAD tag), in a TCP segment (20-byte header, no options), in an IPv4 datagram (20-byte header, no options), in an Ethernet frame (14-byte header, 4-byte FCS). Give the size at each of those four layers, and the goodput as a percentage of the frame. Then, for a packet crossing three routers, state which fields are rewritten at every single hop, which two IPv4 fields change and why the second changes only because the first did, what the TTL reads on arrival if it left as 64, and which of the Ethernet FCS or the TCP checksum would catch a bit flipped inside a router's memory. Say why that last answer is an argument about **where** a check belongs rather than about how strong it is.\n\n**2. Subnetting.** Carve `10.24.64.0/18` by variable-length subnet masking for four departments needing 500, 200, 60 and 25 hosts, largest first, wasting nothing between them. For each, give the prefix, the dotted-quad mask, the usable host count, the first and last usable addresses and the broadcast address. Then give the first address still free after all four. Finally: a workstation configured as `10.24.65.255/23` cannot be reached at all - say precisely why, and why the identical final octet would have been perfectly legal had that subnet been a /24.\n\n**3. Longest prefix match.** The campus border router holds exactly these entries and nothing else:\n\n- `0.0.0.0/0` via R1\n- `10.24.0.0/16` via eth1, directly attached\n- `10.24.64.0/18` via R2\n- `10.24.66.0/24` via R4\n- `10.24.67.64/27` via R5\n- `198.51.100.0/24` via R3\n\nGive the chosen next hop for `10.24.66.9`, `10.24.67.70`, `10.24.67.96`, `10.24.130.5`, `198.51.100.9` and `172.16.9.1`. For the third and the fifth, list every entry that matched before you chose between them. Then explain what property of the table makes it correct to keep an aggregate and a more specific exception side by side, and why the default route can never win a comparison.\n\n**4. Handshake and windows.** The client's initial sequence number is 41000 and the server's is 91000. Write the three handshake segments, each with its flags, sequence number and acknowledgement number. The client then sends a 517-byte TLS ClientHello as its first data segment: give its sequence number and the acknowledgement number the server returns, and say why that sequence number is not 41000. Next, compute the bandwidth-delay product of the path in bytes; give the throughput ceiling imposed by an unscaled 16-bit window of 65 535 bytes, both in bytes per second and in Mbit/s; and give the smallest window-scale shift that lifts the ceiling above the BDP. Finally, with MSS 1460, cwnd 10 MSS and ssthresh 80 MSS, give cwnd after each of the first four round trips, say where slow start ends and why, and give ssthresh and cwnd immediately after (a) a triple duplicate acknowledgement at cwnd 82 and (b) a retransmission timeout at cwnd 82. Say what the difference between those two responses assumes about the network.\n\n**5. One page load, end to end.** The stub-to-resolver round trip is 4 ms; the resolver's round trips to the root servers, to the `.example` servers and to the authoritative servers are 30 ms, 25 ms and 20 ms. Walk the cold load from the first packet to the first byte of HTML: name each exchange, say what it costs, and total it. Then give the total with a warm DNS cache, and the total if the server offered only TLS 1.2. Say which single component dominates, why adding bandwidth would shorten none of it, and what a long TTL on the A record trades away.\n\n**6. Diagnosis.** After a new site-to-site tunnel is turned up, the campus reports this: the page above still loads, small requests succeed, `ping` to the server succeeds, but any upload larger than a few kilobytes hangs and eventually fails. A capture shows the same full-size segment retransmitted repeatedly with no acknowledgement, and no ICMP arriving at the client. The tunnel's MTU is 1400. Name the fault, explain the mechanism in terms of the DF bit and the ICMP message that never arrives, compute the largest MSS the path can actually carry, and say why the handshake and the small requests were unaffected. Give two remedies, one at the sender's edge and one at the firewall, and say which of them is a workaround rather than a fix. Then, supposing DF had been clear instead, give the two fragments a 1500-byte datagram would become - data bytes, total length, fragment offset and MF flag for each - and explain why the first fragment carries 1376 bytes and not 1380.\n\n**7. Coherence.** Close with a paragraph tying the paper together: how part 1's wrapper count and part 5's round-trip count are the same layering seen once as space and once as time, why part 3's answers would have differed had part 2 carved the blocks in the other order, and what part 6's fault says about the cost of a layer that hides its own limits from the layer above.",
+   "rubric": {
+    "required": [
+     "encapsul",
+     "header",
+     "subnet",
+     "broadcast",
+     "prefix",
+     "forward",
+     "handshake",
+     "window",
+     "congest",
+     "dns",
+     "tls",
+     "mtu"
+    ],
+    "optional": [
+     "goodput",
+     "checksum",
+     "ttl",
+     "fragment",
+     "retransmi",
+     "ssthresh",
+     "slow start",
+     "resolv",
+     "cache",
+     "scale",
+     "clamp",
+     "end-to-end",
+     "aggregat",
+     "latency"
+    ],
+    "minWords": 350
+   },
+   "concepts": [
+    "encapsulation-and-layering",
+    "framing-and-error-detection",
+    "ip-addressing-and-subnetting",
+    "longest-prefix-match",
+    "switching-and-forwarding",
+    "tcp-connection-establishment",
+    "flow-control-and-windows",
+    "congestion-control",
+    "dns-resolution",
+    "transport-security-tls",
+    "network-diagnosis"
+   ],
+   "tags": [
+    "encapsulation-and-layering",
+    "framing-and-error-detection",
+    "ip-addressing-and-subnetting",
+    "longest-prefix-match",
+    "switching-and-forwarding",
+    "tcp-connection-establishment",
+    "flow-control-and-windows",
+    "congestion-control",
+    "dns-resolution",
+    "transport-security-tls",
+    "network-diagnosis"
+   ],
+   "explain": "This paper is one packet followed all the way down and all the way back, and the parts are far less independent than they look. The 492-byte frame in part 1 and the 199 ms in part 5 are the same fact counted twice: every layer that adds a header also adds, sooner or later, a round trip, and the reason a fast link can still feel slow is that part 5's cost is latency the link rate cannot touch. Part 6 is what happens when one of those layers - the tunnel - quietly shrinks what it will carry while the message saying so is filtered away, so the layer above keeps sending something that can never arrive.\n\nThe famous wrong answers are all present deliberately. In part 1 the tempting slip is to omit the 4-byte FCS, because capture tools strip it, or to place the AEAD tag outside the record; and the FCS-versus-checksum question is answered wrongly by whoever reasons that a CRC-32 is stronger than a one's-complement checksum - true, and beside the point, because the FCS is recomputed after the corruption and only the end-to-end check spans it. In part 2 the trap is `10.24.65.255`, an ordinary host address in a /24 and the directed broadcast of this /23; assigning it makes the machine unreachable rather than merely unusual. In part 3 the trap is `10.24.67.96`, one address past the end of the /27, which therefore falls back to the /18 and R2 - answering R5 means the entry was read as a name for a subnet instead of as thirty-two addresses. In part 4 the ClientHello sits at 41001 rather than 41000 because the SYN consumed a sequence number, and the timeout response drops cwnd to one segment rather than halving it, because a timeout is evidence that nothing is arriving while a duplicate acknowledgement is evidence that something still is. In part 6, clamping the MSS is the workaround and unblocking ICMP type 3 code 4 is the fix; calling them the other way round misses that path MTU discovery is a protocol designed to depend on an ICMP message operators habitually filter.\n\nA candidate who produces every number and never remarks on the pattern has done the arithmetic and missed the subject. The coherence paragraph is where the marks for understanding sit.\n\n**Self-check - your numbers should agree with these.**\n\n**1.** TLS record 434 B, TCP segment 454 B, IPv4 datagram 474 B, Ethernet frame 492 B; goodput 412/492 = 83.7 per cent. Rewritten at every hop: both MAC addresses and the FCS. Changed in IPv4: the TTL, and therefore the header checksum. TTL on arrival after three routers: 61. The TCP checksum is what catches the in-router bit flip.\n\n**2.** `10.24.64.0/23`, mask 255.255.254.0, 510 usable, 10.24.64.1 to 10.24.65.254, broadcast 10.24.65.255. `10.24.66.0/24`, mask 255.255.255.0, 254 usable, 10.24.66.1 to 10.24.66.254, broadcast 10.24.66.255. `10.24.67.0/26`, mask 255.255.255.192, 62 usable, 10.24.67.1 to 10.24.67.62, broadcast 10.24.67.63. `10.24.67.64/27`, mask 255.255.255.224, 30 usable, 10.24.67.65 to 10.24.67.94, broadcast 10.24.67.95. First free address afterwards: `10.24.67.96`.\n\n**3.** R4, R5, R2, eth1, R3, R1. `10.24.67.96` matched /0, /16 and /18; `198.51.100.9` matched /0 and /24.\n\n**4.** SYN seq 41000; SYN,ACK seq 91000 ack 41001; ACK seq 41001 ack 91001. ClientHello seq 41001, server acknowledges 41518. BDP 500 000 bytes. Unscaled ceiling 1 638 375 B/s, which is 13.1 Mbit/s. Smallest shift 3, giving 524 280 bytes. cwnd 10, 20, 40, 80 - slow start ends on reaching ssthresh at the fourth value. Triple duplicate acknowledgement at 82: ssthresh 41, cwnd 41. Timeout at 82: ssthresh 41, cwnd 1.\n\n**5.** DNS 4 + 30 + 25 + 20 = 79 ms; TCP 40 ms; TLS 1.3 40 ms; HTTP 40 ms; total 199 ms. Warm cache 120 ms. TLS 1.2 instead, 239 ms.\n\n**6.** A path MTU black hole. Largest workable MSS is 1400 - 20 - 20 = 1360, against the 1460 announced. Fragments of a 1500-byte datagram: the first carries 1376 data bytes, total length 1396, offset 0, MF 1; the second carries 104 data bytes, total length 124, offset 172, MF 0."
+  }
+ ]
+}
