@@ -1,201 +1,201 @@
 {
  "n": 6,
- "name": "The Hall of Made Things",
- "concepts": [
-  "classes",
-  "instance-attributes",
-  "methods-and-self",
-  "dunder-str-repr",
-  "dunder-eq-len",
-  "generators",
-  "generator-laziness"
+ "name": "Reading Failure",
+ "goal": "Read a traceback, locate the failing line, and isolate a fault without guessing.",
+ "stage": 1,
+ "cognitiveLevel": "recall",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 5
+  }
  ],
- "cognitiveLevel": "application",
+ "description": {
+  "what": "What Python prints when a program goes wrong, how to read it, and how to corner a fault that prints nothing at all.",
+  "why": "Every programmer's day contains failure, and a learner who cannot read an error message has to wait for somebody else to explain it - which is the whole difference between learning on your own and not.",
+  "enables": "You will be able to take an unfamiliar failing program, say what broke and where, and narrow a silent wrong answer down to the line that causes it.",
+  "assumes": "You can write and run a small program: names and values, whole numbers and text, `if` and `else`, and loops that count or build up a total.",
+  "assessed": "You will read real tracebacks and say what they mean, and you will repair broken programs whose faults you were not told the shape of."
+ },
+ "concepts": [
+  "traceback",
+  "syntax-vs-runtime",
+  "common-exceptions",
+  "print-debugging",
+  "narrowing-a-fault",
+  "reproducing-reliably"
+ ],
  "sequence": [
   "lesson",
   "guided-practice",
-  "challenge-set",
+  "independent-practice",
   "exam"
  ],
  "lesson": {
-  "title": "Objects That Remember, Sequences That Wait",
+  "title": "The Chamber of Honest Complaint",
   "sections": [
    {
-    "title": "A Class Is a Blueprint",
-    "body": "A **class** describes a kind of thing; calling it, like `Potion(\"Elixir\", 3)`, builds one **instance** of that kind. Python hands the fresh object to `__init__` as its first parameter, conventionally named **`self`**, and whatever you store on `self` becomes that instance's own data - its **instance attributes**.\n\nA **method** is just a function defined inside the class, and it too receives the instance as `self`, which is how it reads and changes the object it was called on.\n\nTwo instances built from the same class share the blueprint but never the data: each has its own `self`.",
-    "code": "class Potion:\n    def __init__(self, name, charges):\n        self.name = name\n        self.charges = charges\n\n    def sip(self):\n        self.charges -= 1\n        return self.charges\n\n\nelixir = Potion(\"Elixir\", 3)\ntonic = Potion(\"Tonic\", 1)\nprint(elixir.name, elixir.charges)\nprint(elixir.sip())\nprint(elixir.charges, tonic.charges)",
+    "title": "Read It From The Bottom",
+    "body": "When Python meets something it cannot do, it stops the program and prints a **traceback**: a report of exactly where it was when it gave up. It looks alarming and it is not - it is the most useful thing Python ever prints, and the answer to most of the questions a beginner asks is inside one.\n\nRead it **from the bottom**. The last line is the **error type** and its message, and that tells you *what* went wrong. Above it sit the pieces of your program that were part-way through running, oldest at the top and newest at the bottom. Each of those pieces is a **frame**: a `File \"...\", line N` line saying where, and under it the line of code itself, with `^` marks beneath the part that failed.\n\nThe bottom frame is where Python stopped. The frame above it is the **caller** - the line that asked for that work. The mistake is often not in the bottom frame at all, but in the value a caller handed it, which is why you read the last line first and then walk upwards.",
+    "code": "def average(total, count):\n    return total / count\n\n\ndef report(total, count):\n    return \"Average: \" + str(average(total, count))\n\n\nprint(report(30, 3))\nprint(report(30, 0))",
     "lang": "python",
     "annotations": [
      {
       "line": 2,
-      "text": "Runs automatically on construction. It furnishes the object; it never returns one."
+      "text": "Where the program stops, so this becomes the bottom frame of the traceback."
      },
-     {
-      "line": 3,
-      "text": "Stores the argument onto this instance, so it outlives the call."
-     },
-     {
-      "line": 7,
-      "text": "`sip` changes the object it was called on, not a copy."
-     },
-     {
-      "line": 11,
-      "text": "Two separate instances, each with its own charges."
-     }
-    ],
-    "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Write a class `Torch` whose `__init__(self, fuel)` stores `self.fuel`, plus a method `burn()` that subtracts 1 from `self.fuel`. Then write `torch_after(fuel, times)` which builds a `Torch`, calls `burn()` that many times, and returns the fuel left.",
-     "fn": "torch_after",
-     "starterCode": "class Torch:\n    def __init__(self, fuel):\n        pass\n\n    def burn(self):\n        pass\n\n\ndef torch_after(fuel, times):\n    pass\n",
-     "tests": [
-      {
-       "input": "3, 2",
-       "expected": 1
-      },
-      {
-       "input": "1, 0",
-       "expected": 1
-      },
-      {
-       "input": "0, 3",
-       "expected": -3
-      }
-     ],
-     "solution": "class Torch:\n    def __init__(self, fuel):\n        self.fuel = fuel\n\n    def burn(self):\n        self.fuel -= 1\n\n\ndef torch_after(fuel, times):\n    torch = Torch(fuel)\n    for _ in range(times):\n        torch.burn()\n    return torch.fuel\n",
-     "explain": "`__init__` does not create the object, it furnishes one that already exists - which is why it stores onto `self` instead of returning anything. Each `Torch(...)` call gets its own `self.fuel`, so burning one torch never touches another.",
-     "hint": "Inside a method, the object you were called on is always the first parameter: self.",
-     "concepts": [
-      "classes",
-      "instance-attributes",
-      "methods-and-self"
-     ]
-    }
-   },
-   {
-    "title": "Two Ways to Show an Object",
-    "body": "By default, printing an object gives you something like `<__main__.Potion object at 0x7f2a>` - true, and useless. Two **dunder** (double-underscore) methods fix that: **`__str__`** is the readable form used by `print`, `str()` and f-strings, while **`__repr__`** is the precise form used by the interactive prompt and by any container holding the object.\n\nBoth must **return** a string rather than print one. If you write only `__repr__`, `str()` quietly falls back to it - but the fallback never runs the other way, which is why `__repr__` is the one to write if you write only one.",
-    "code": "class Potion:\n    def __init__(self, name, charges):\n        self.name = name\n        self.charges = charges\n\n    def __str__(self):\n        return f\"{self.name} ({self.charges} charges)\"\n\n    def __repr__(self):\n        return f\"Potion({self.name!r}, {self.charges})\"\n\n\nelixir = Potion(\"Elixir\", 3)\nprint(str(elixir))\nprint(repr(elixir))\nprint([elixir])",
-    "lang": "python",
-    "annotations": [
      {
       "line": 6,
-      "text": "The human-facing form: print and f-strings reach for this."
+      "text": "The middle frame. It asked for the division, but it did not choose the 0."
+     },
+     {
+      "line": 9,
+      "text": "This call works and prints. Failure comes second, not first."
      },
      {
       "line": 10,
-      "text": "`!r` formats with repr, so the name comes out quoted."
-     },
-     {
-      "line": 16,
-      "text": "A list formats its elements with repr, never with str."
+      "text": "The real mistake lives here - the 0 that eventually reached the division."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "This class defines `__repr__` but no `__str__`. What does it print?",
-     "code": "class Rune:\n    def __init__(self, sign):\n        self.sign = sign\n\n    def __repr__(self):\n        return f\"Rune({self.sign!r})\"\n\n\nmark = Rune(\"ansuz\")\nprint(mark)\nprint([mark, mark])",
+     "prompt": "This program stops with an error. Type the **last line** of its traceback.",
+     "code": "runes = 4\nprint(\"Runes carved:\", runes)\nprint(\"Each rune costs:\", 12 / totl)",
      "lang": "python",
-     "answer": "Rune('ansuz')\n[Rune('ansuz'), Rune('ansuz')]",
-     "explain": "`str()` falls back to `__repr__` when no `__str__` exists, but the fallback never runs the other way. That asymmetry is why `__repr__` is the one worth writing first.",
+     "answer": "NameError: name 'totl' is not defined",
+     "tags": [
+      "traceback",
+      "common-exceptions"
+     ],
      "concepts": [
-      "dunder-str-repr"
-     ]
+      "traceback"
+     ],
+     "explain": "The last line always carries the error type and the message, and this message quotes the unknown name straight back at you - a name nothing ever set is nearly always a typo. Reading downwards instead tempts you to stop at the `File` line, which says where Python was but never what it objected to."
     }
    },
    {
-    "title": "Equality and Length You Define",
-    "body": "Without help, `==` between two objects asks *are these the same object?*, so two identically built instances come out unequal. Defining **`__eq__`** replaces that with your own rule - usually comparing the attributes that matter - and defining **`__len__`** makes `len(obj)` work.\n\nOne bonus follows for free: an object with `__len__` and no `__bool__` is falsy exactly when its length is zero, so an empty bundle behaves like an empty list in an `if`.\n\nGuard `__eq__` with an `isinstance` check when the object might be compared against unrelated types.",
-    "code": "class Bundle:\n    def __init__(self, items):\n        self.items = list(items)\n\n    def __eq__(self, other):\n        return isinstance(other, Bundle) and self.items == other.items\n\n    def __len__(self):\n        return len(self.items)\n\n\na = Bundle([\"rope\", \"torch\"])\nb = Bundle([\"rope\", \"torch\"])\nprint(a == b)\nprint(a is b)\nprint(len(a))\nprint(bool(a), bool(Bundle([])))",
+    "title": "Broken Before It Starts",
+    "body": "There are two kinds of failure, and telling them apart saves hours. A **syntax error** means Python could not make sense of the text of your program, so it refuses to run a single line of it. A **runtime error** means the text was understood and Python ran it, and something went wrong part-way through - so the output up to that point really happened.\n\nThe tell is the output. If nothing at all printed, not even a line you know comes first, it is a syntax error. If some output appeared and then a report of failure, the program ran and failed later. A syntax error also has no `Traceback (most recent call last):` heading and no frames, because there was no running program to report on.\n\nPython points at the first place where the text stopped making sense. That is never *before* your mistake, but it can be *after* it: a bracket you never closed only becomes impossible on a later line, and a missing comma is noticed at the item after it. So when the reported line looks perfectly innocent, suspect the end of the line above.",
+    "code": "print(\"Gathering reagents\")\n\nprices = [\n    10,\n    20\n    30,\n]\n\nprint(sum(prices))",
     "lang": "python",
     "annotations": [
      {
+      "line": 1,
+      "text": "Run it: this never prints. Nothing runs at all when the text cannot be understood."
+     },
+     {
       "line": 5,
-      "text": "Your rule for ==. Compare the state that defines the value."
+      "text": "The line Python reports. It is fine in itself - what is missing is the comma that should end it."
      },
      {
       "line": 6,
-      "text": "`isinstance(other, Bundle)` first, so comparing against a string answers False instead of crashing."
+      "text": "The line it was reading when it decided the one above could not work."
      },
      {
-      "line": 8,
-      "text": "Must return a non-negative integer; len() looks this up by name."
+      "line": 9,
+      "text": "Never reached, and never even read properly."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This program is run. What appears before the report of failure? If nothing appears at all, type `nothing`.",
+     "code": "print(\"Opening the vault\")\nprint(\"Counting coins\"\nprint(\"Closing the vault\")",
+     "lang": "python",
+     "answer": "nothing",
+     "tags": [
+      "syntax-vs-runtime"
+     ],
+     "concepts": [
+      "syntax-vs-runtime"
+     ],
+     "explain": "The unclosed bracket on line 2 makes the whole file impossible to understand, and Python reads the whole file before running any of it - so line 1 never gets its turn. Expecting `Opening the vault` first is the natural guess, and noticing that it is missing is how you recognise a syntax error without reading a word of the message."
+    }
+   },
+   {
+    "title": "The Five You Will Actually Meet",
+    "body": "Error types are not trivia. Each one names a different kind of mistake, so the type alone usually tells you where to look.\n\n- **NameError** - you used a name Python has never been given. Nearly always a typo, or a line that sets the name sitting after the line that uses it.\n- **TypeError** - the values are the wrong *kind* for the operation, such as adding text to a number.\n- **ValueError** - the kind is right but the value itself is impossible. `int(\"seven\")` really is text, but it is not text that spells a number.\n- **IndexError** - you asked a **list** (a row of values written in square brackets) for a position it does not have. Positions start at 0, so a list of three items has 0, 1 and 2, and asking for 3 is one too far.\n- **ZeroDivisionError** - you divided by zero. The zero is almost never written down; it arrived in a name from somewhere else.\n\nThe message after the colon is worth reading in full, because it usually names the offending value.",
+    "code": "potions = [\"salve\", \"tonic\", \"elixir\"]\n\nprint(len(potions))\nprint(potions[0])\nprint(potions[2])\nprint(potions[3])",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Three items, so the only positions that exist are 0, 1 and 2."
      },
      {
-      "line": 15,
-      "text": "`is` still asks about identity, and no dunder can change that."
+      "line": 3,
+      "text": "`len` gives the count, 3 - always one more than the largest valid position."
      },
      {
-      "line": 17,
-      "text": "Truthiness falls back to __len__, so an empty Bundle is falsy."
+      "line": 6,
+      "text": "One too far. This raises IndexError: list index out of range."
      }
     ],
     "checkpoint": {
      "type": "fill",
      "layer": "retrieval",
-     "prompt": "Fill the blanks so two decks with the same cards compare equal and `len(deck)` counts the cards.",
-     "template": "class Deck:\n    def __init__(self, cards):\n        self.cards = list(cards)\n\n    def __eq__(self, other):\n        return self.cards ___ other.cards\n\n    def ___(self):\n        return len(self.cards)",
+     "prompt": "Name the error type each of these raises. Spell them exactly as Python does.",
+     "template": "int(\"twelve\")            -> ___\n\"coins: \" + 7            -> ___\nprint(totl)              -> ___\n[4, 5, 6][3]             -> ___",
      "blanks": [
-      "==",
-      "__len__"
+      "ValueError",
+      "TypeError",
+      "NameError",
+      "IndexError"
      ],
-     "lang": "python",
-     "explain": "`==` on the two attribute lists is what turns identity comparison into value comparison, and the dunder name is what `len()` looks up - the method is never called directly by name.",
+     "tags": [
+      "common-exceptions"
+     ],
      "concepts": [
-      "dunder-eq-len"
-     ]
+      "common-exceptions"
+     ],
+     "explain": "`int(\"twelve\")` is given text, which is the right kind for `int`, so the complaint is about the value and not the kind - that is the pairing most often swapped. The list holds positions 0, 1 and 2 only, so 3 is out of range rather than the wrong kind of thing to ask for."
     }
    },
    {
-    "title": "Generators: Values On Demand",
-    "body": "A function whose body contains **`yield`** is a **generator function**: calling it runs none of the body and hands back a generator object instead. Each `next()` resumes the body, runs to the next `yield`, hands that value out, and freezes the frame - local variables intact - until you ask again.\n\nThat is **laziness**: values are produced one at a time, on demand, so a generator over ten million rows costs one row of memory rather than ten million. It also makes an endless `while True` sequence safe, because nothing is produced until someone asks for it. Any function containing `yield` is a generator, including a method inside a class.",
-    "code": "def countdown(n):\n    print(\"body started\")\n    while n > 0:\n        yield n\n        n -= 1\n\n\ngen = countdown(3)\nprint(\"generator made, nothing has run yet\")\nprint(next(gen))\nprint(next(gen))\nprint(list(gen))",
+    "title": "Probing, Not Guessing",
+    "body": "Plenty of faults raise nothing at all: the program finishes and the answer is simply wrong. There is no traceback to read, so you have to make the program tell you what it is doing, and the plainest tool is `print`.\n\nA good probe prints a **label as well as a value**, so its output cannot be mistaken for anything else, and it goes where you hold an assumption - just before the suspicious line, or inside the loop you doubt. Then work in halves: check a value half way through, and whichever half disagrees with what you expected is the half worth opening. Change **one thing at a time**, run again, keep what worked. Two changes at once and a passing run tells you nothing about which of them mattered.\n\nBefore any of that, **reproduce**: find the exact input that fails, and fails every time. A fault you cannot summon on demand cannot be confirmed fixed, and \"it seems better now\" is not a fix. Take the probes out once you are done.",
+    "code": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night <= nights:\n        print(\"probe: night =\", night, \"total =\", total)\n        total = total + rate\n        night = night + 1\n    return total\n\n\nprint(cost(3, 20))",
     "lang": "python",
     "annotations": [
      {
-      "line": 2,
-      "text": "This line does not run until the first next() call."
-     },
-     {
       "line": 4,
-      "text": "Hands a value out and freezes here; the next resume starts on the line below."
+      "text": "The suspicious line. Does the loop stop where you think it does?"
      },
      {
-      "line": 8,
-      "text": "Builds the generator. No part of the body has run yet."
+      "line": 5,
+      "text": "A probe, labelled. One line, and it answers the question outright."
      },
      {
-      "line": 12,
-      "text": "Drains whatever is left - the first two values are already spent."
+      "line": 11,
+      "text": "Expected 60 for three nights at 20. The probe shows four passes, not three."
      }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Write a generator function `first_letters(words)` that yields the first character of each word in `words`. It must use `yield`, not build a list.",
-     "fn": "list",
-     "starterCode": "def first_letters(words):\n    pass\n",
-     "tests": [
-      {
-       "input": "first_letters(['ale', 'bread'])",
-       "expected": [
-        "a",
-        "b"
-       ]
-      },
-      {
-       "input": "first_letters([])",
-       "expected": []
-      }
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Put these into the order that corners a fault soonest.",
+     "fragments": [
+      "find an input that fails every single time",
+      "print a labelled value half way through, to see which half is already wrong",
+      "change one thing in the half that disagreed with you",
+      "run the failing input again and confirm the answer is now right"
      ],
-     "solution": "def first_letters(words):\n    for word in words:\n        yield word[0]\n",
-     "explain": "The tests wrap the call in `list()` because a generator is not a list - it is a promise to produce values when asked. Wrapping it is how you force every value out at once.",
-     "hint": "Loop over words and yield word[0].",
+     "answer": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "tags": [
+      "narrowing-a-fault",
+      "reproducing-reliably",
+      "print-debugging"
+     ],
      "concepts": [
-      "generators"
-     ]
+      "narrowing-a-fault"
+     ],
+     "explain": "Reproducing comes first because every later step is measured against it: without a reliable failing input you cannot tell a repair from a coincidence. Probing before changing is what makes the change informed rather than a guess, and confirming last is what turns the guess into knowledge."
     }
    }
   ]
@@ -205,513 +205,393 @@
    "id": "py-6-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "class Lamp:\n    def __init__(self, oil):\n        self.oil = oil\n\n\na = Lamp(5)\nb = Lamp(2)\nprint(a.oil)\nprint(b.oil)\na.oil = 9\nprint(a.oil, b.oil)",
+   "prompt": "This program stops with an error. Type the **last line** of its traceback.",
+   "code": "coins = \"12\"\nfound = 3\nprint(\"Total:\", coins + found)",
    "lang": "python",
-   "answer": "5\n2\n9 2",
-   "explain": "Two calls to `Lamp(...)` build two separate objects, each with its own `oil` attribute stored on `self`. Rebinding one instance's attribute cannot reach the other - that separateness is the whole point of instances.",
-   "concepts": [
-    "classes",
-    "instance-attributes"
-   ],
+   "answer": "TypeError: can only concatenate str (not \"int\") to str",
    "tags": [
-    "classes",
-    "instance-attributes"
+    "traceback",
+    "common-exceptions"
    ],
-   "xp": 20
+   "concepts": [
+    "common-exceptions",
+    "traceback"
+   ],
+   "explain": "`+` means join for text and add for numbers, and Python refuses to guess which you meant, so mixing the two is a TypeError rather than a quiet conversion. The tempting answer is ValueError, because `\"12\"` does look like a number - but nothing here was asked to interpret it, only to add it.",
+   "xp": 24,
+   "hint": "Read the message as a sentence. What kind of value is on the left of the `+`, and what kind is on the right?"
   },
   {
    "id": "py-6-g-02",
-   "type": "fill",
+   "type": "trace",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so `Counter(10)` builds an object whose `bump()` returns 11.",
-   "template": "class Counter:\n    def ___(self, start):\n        ___.value = start\n\n    def bump(self):\n        self.value += 1\n        return self.value",
-   "blanks": [
-    "__init__",
-    "self"
-   ],
-   "lang": "python",
-   "explain": "Python calls `__init__` for you the moment the object is constructed, and the object being furnished arrives as the first parameter. Storing onto that parameter is what makes the value survive past the end of the method.",
-   "concepts": [
-    "classes",
-    "methods-and-self"
+   "prompt": "Read this traceback and answer the three questions about it.\n\n`Traceback (most recent call last):`\n`File \"ledger.py\", line 14, in <module>`\n`print(summary(coins, holders))`\n`File \"ledger.py\", line 10, in summary`\n`return \"Each: \" + str(share(coins, holders))`\n`File \"ledger.py\", line 6, in share`\n`return coins / holders`\n`ZeroDivisionError: division by zero`",
+   "steps": [
+    {
+     "label": "the error type",
+     "expected": "ZeroDivisionError"
+    },
+    {
+     "label": "the line number where the program actually stopped",
+     "expected": "6"
+    },
+    {
+     "label": "the line number that began the whole chain",
+     "expected": "14"
+    }
    ],
    "tags": [
-    "classes",
-    "methods-and-self"
+    "traceback"
    ],
-   "xp": 20
+   "concepts": [
+    "traceback"
+   ],
+   "explain": "The bottom frame is the newest, so line 6 is where Python gave up, while line 14 at the top is the call that set everything in motion. Reading top-down invites you to name line 14 as the failure, and it is not - though it is very likely where the zero came from.",
+   "xp": 48,
+   "hint": "Most recent call last. Which frame, then, is the most recent one?"
   },
   {
    "id": "py-6-g-03",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write a class `Vault` with `__init__(self, gold)` storing `self.gold`, a method `deposit(amount)` that adds to it, and a method `balance()` returning the current gold. Then write `run_vault(start, deposits)` which builds a `Vault` with `start`, deposits every amount in the list, and returns `balance()`.",
-   "fn": "run_vault",
-   "starterCode": "class Vault:\n    def __init__(self, gold):\n        pass\n\n    def deposit(self, amount):\n        pass\n\n    def balance(self):\n        pass\n\n\ndef run_vault(start, deposits):\n    pass\n",
-   "tests": [
-    {
-     "input": "0, [10, 5]",
-     "expected": 15
-    },
-    {
-     "input": "100, []",
-     "expected": 100
-    },
-    {
-     "input": "5, [-5]",
-     "expected": 0
-    }
-   ],
-   "solution": "class Vault:\n    def __init__(self, gold):\n        self.gold = gold\n\n    def deposit(self, amount):\n        self.gold += amount\n\n    def balance(self):\n        return self.gold\n\n\ndef run_vault(start, deposits):\n    vault = Vault(start)\n    for amount in deposits:\n        vault.deposit(amount)\n    return vault.balance()\n",
-   "explain": "The state lives on the object, so the loop can call `deposit` repeatedly without threading a running total through the caller. That is the trade a class makes: the caller stops carrying data around, and the object carries it instead.",
-   "hint": "deposit changes self.gold; balance only reads it.",
-   "concepts": [
-    "classes",
-    "instance-attributes",
-    "methods-and-self"
-   ],
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "This program stops with an error. What does it print **before** the report of failure?",
+   "code": "print(\"Opening ledger\")\ntotals = [40, 30, 20]\nprint(\"Entries:\", len(totals))\nprint(\"Fourth entry:\", totals[3])\nprint(\"Closed\")",
+   "lang": "python",
+   "answer": "Opening ledger\nEntries: 3",
    "tags": [
-    "classes",
-    "instance-attributes",
-    "methods-and-self"
+    "syntax-vs-runtime",
+    "common-exceptions"
    ],
-   "xp": 50
+   "concepts": [
+    "syntax-vs-runtime"
+   ],
+   "explain": "This file is understood, so it runs, and everything before the bad line really happened - that partial output is your evidence that the first lines were fine. `Closed` never appears, because a runtime error stops the program where it stands rather than skipping the offending line.",
+   "xp": 24,
+   "hint": "A runtime error stops the program at that point. What had already run by then?"
   },
   {
    "id": "py-6-g-04",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "class Coin:\n    def __init__(self, value):\n        self.value = value\n\n    def __str__(self):\n        return f\"{self.value} gold\"\n\n\ncoin = Coin(7)\nprint(coin)\nprint(str(coin))\nprint(f\"You have {coin}.\")",
+   "prompt": "This program stops with an error. Type the **last line** of the message.",
+   "code": "brew_time = 12\nif brew_time > 10\n    print(\"Long brew\")",
    "lang": "python",
-   "answer": "7 gold\n7 gold\nYou have 7 gold.",
-   "explain": "`print`, `str()` and an f-string placeholder all reach for the same hook, so defining `__str__` once changes every one of them. There is no separate formatting rule for f-strings to learn.",
-   "concepts": [
-    "dunder-str-repr"
-   ],
+   "answer": "SyntaxError: expected ':'",
    "tags": [
-    "dunder-str-repr"
+    "syntax-vs-runtime"
    ],
-   "xp": 20
+   "concepts": [
+    "syntax-vs-runtime"
+   ],
+   "explain": "There is no `Traceback` heading and no frame here, because nothing ran - the text could not be turned into a program in the first place. Expecting a traceback is the usual mistake, and its absence is itself the clue that the fault is in the text rather than in any value.",
+   "xp": 24,
+   "hint": "What does every `if` line need at the end of it?"
   },
   {
    "id": "py-6-g-05",
-   "type": "code",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write a class `Card` with `__init__(self, rank, suit)` storing both, and a `__str__` that returns the card as `\"<rank> of <suit>\"` - for example `str(Card('A', 'spades'))` is `'A of spades'`.",
-   "fn": "str",
-   "starterCode": "class Card:\n    def __init__(self, rank, suit):\n        pass\n",
+   "prompt": "`greeting(name)` should give back the name with a title in front of it, so `greeting(\"Mara\")` gives `\"Adept Mara\"`. Running it raises `NameError: name 'nmae' is not defined`. Repair it.",
+   "fn": "greeting",
+   "starterCode": "def greeting(name):\n    title = \"Adept\"\n    return title + \" \" + nmae\n",
+   "solution": "def greeting(name):\n    title = \"Adept\"\n    return title + \" \" + name\n",
    "tests": [
     {
-     "input": "Card('A', 'spades')",
-     "expected": "A of spades"
+     "input": "\"Mara\"",
+     "expected": "Adept Mara"
     },
     {
-     "input": "Card('2', 'clubs')",
-     "expected": "2 of clubs"
+     "input": "\"Ro\"",
+     "expected": "Adept Ro"
     },
     {
-     "input": "Card(10, 'hearts')",
-     "expected": "10 of hearts"
+     "input": "\"\"",
+     "expected": "Adept "
     }
    ],
-   "solution": "class Card:\n    def __init__(self, rank, suit):\n        self.rank = rank\n        self.suit = suit\n\n    def __str__(self):\n        return f\"{self.rank} of {self.suit}\"\n",
-   "explain": "An f-string calls `str()` on whatever you interpolate, so the integer rank in the last test is converted for you - concatenating with `+` would have raised a TypeError instead. `__str__` must return a string, never print one.",
-   "hint": "Return an f-string; do not print it.",
-   "concepts": [
-    "dunder-str-repr",
-    "instance-attributes"
-   ],
    "tags": [
-    "dunder-str-repr",
-    "instance-attributes"
+    "traceback",
+    "common-exceptions"
    ],
-   "xp": 50
+   "concepts": [
+    "traceback",
+    "common-exceptions"
+   ],
+   "explain": "A NameError message quotes the exact name Python could not find, so it hands you the typo directly: `nmae` appears once and nothing ever set it. The tempting repair is to create a name called `nmae`, which silences the message and answers a question nobody asked.",
+   "xp": 60,
+   "hint": "The message names the unknown word. Compare it letter by letter with the name the function was given."
   },
   {
    "id": "py-6-g-06",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "This class does not define `__eq__`. What does it print?",
-   "code": "class Pair:\n    def __init__(self, a, b):\n        self.a = a\n        self.b = b\n\n\np = Pair(1, 2)\nq = Pair(1, 2)\nprint(p == q)\nprint(p == p)\nprint(p.a == q.a)",
-   "lang": "python",
-   "answer": "False\nTrue\nTrue",
-   "explain": "Without `__eq__`, `==` on objects means *the same object*, not *the same contents* - so two identically built pairs are unequal while the ints inside them are equal. Value equality is something you opt into.",
-   "concepts": [
-    "dunder-eq-len"
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`label(count)` should give back a sentence such as `\"You carry 3 coins\"`. It raises `TypeError: can only concatenate str (not \"int\") to str`. Repair it so the sentence comes back for any whole number.",
+   "fn": "label",
+   "starterCode": "def label(count):\n    return \"You carry \" + count + \" coins\"\n",
+   "solution": "def label(count):\n    return \"You carry \" + str(count) + \" coins\"\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": "You carry 3 coins"
+    },
+    {
+     "input": "0",
+     "expected": "You carry 0 coins"
+    },
+    {
+     "input": "125",
+     "expected": "You carry 125 coins"
+    }
    ],
    "tags": [
-    "dunder-eq-len"
+    "common-exceptions"
    ],
-   "xp": 20
+   "concepts": [
+    "common-exceptions"
+   ],
+   "explain": "The message says which kind was unexpected and where: a number turned up on the right of a `+` whose left was text. Turning the text into a number instead would raise ValueError on `\"You carry \"`, which is the wrong end of the same problem.",
+   "xp": 60,
+   "hint": "One of the three pieces being joined is not text. Which conversion makes it text?"
   },
   {
    "id": "py-6-g-07",
-   "type": "code",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write a class `Shelf` with `__init__(self, books)` storing a copy of the list, a `__len__` returning how many books it holds, and an `__eq__` that is true when the other shelf holds the same books in the same order. Then write `compare(a_books, b_books)` returning the tuple `(len(shelf_a), shelf_a == shelf_b)`.",
-   "fn": "compare",
-   "starterCode": "class Shelf:\n    def __init__(self, books):\n        pass\n\n\ndef compare(a_books, b_books):\n    pass\n",
+   "prompt": "`cost(nights, rate)` should give back the price of a stay, so three nights at 20 is 60. It gives 80. A probe inside the loop printed `night = 0`, `night = 1`, `night = 2` and `night = 3` before it finished. Repair it.",
+   "fn": "cost",
+   "starterCode": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night <= nights:\n        total = total + rate\n        night = night + 1\n    return total\n",
+   "solution": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night < nights:\n        total = total + rate\n        night = night + 1\n    return total\n",
    "tests": [
     {
-     "input": "['a', 'b'], ['a', 'b']",
-     "expected": [
-      2,
-      true
-     ]
+     "input": "3, 20",
+     "expected": 60
     },
     {
-     "input": "['a', 'b'], ['b', 'a']",
-     "expected": [
-      2,
-      false
-     ]
+     "input": "1, 7",
+     "expected": 7
     },
     {
-     "input": "[], []",
-     "expected": [
-      0,
-      true
-     ]
+     "input": "0, 20",
+     "expected": 0
     }
    ],
-   "solution": "class Shelf:\n    def __init__(self, books):\n        self.books = list(books)\n\n    def __len__(self):\n        return len(self.books)\n\n    def __eq__(self, other):\n        return self.books == other.books\n\n\ndef compare(a_books, b_books):\n    shelf_a = Shelf(a_books)\n    shelf_b = Shelf(b_books)\n    return (len(shelf_a), shelf_a == shelf_b)\n",
-   "explain": "Comparing the two lists inside `__eq__` makes order matter for free, because list equality is already order-sensitive - the second test would pass if you compared sets instead. `__len__` must return a non-negative integer, which is exactly what delegating to `len(self.books)` guarantees.",
-   "hint": "Both dunders can delegate to the list you stored.",
-   "concepts": [
-    "dunder-eq-len",
-    "instance-attributes"
-   ],
    "tags": [
-    "dunder-eq-len",
-    "instance-attributes"
+    "print-debugging",
+    "narrowing-a-fault"
    ],
-   "xp": 50
+   "concepts": [
+    "print-debugging"
+   ],
+   "explain": "The probe output is the whole diagnosis: four values printed where three nights were paid for, so the loop runs once too often, and the condition is the only thing that decides that. Taking a quarter off the total would also give 60 for this input and be wrong for every other one - the probe is what tells you which repair is the real one.",
+   "xp": 60,
+   "hint": "Count the probe lines. How many nights was it asked for, and how many did it charge for?"
   },
   {
    "id": "py-6-g-08",
-   "type": "order",
-   "layer": "retrieval",
-   "prompt": "Order these lines into a generator function that yields 0, 2, 4, ... up to but not including `limit`.",
-   "fragments": [
-    "def evens(limit):",
-    "    n = 0",
-    "    while n < limit:",
-    "        yield n",
-    "        n += 2"
-   ],
-   "answer": [
-    0,
-    1,
-    2,
-    3,
-    4
-   ],
-   "lang": "python",
-   "explain": "The counter has to be initialised before the loop tests it, and the increment must sit after the `yield` - put it before and the value handed out is already one step stale. Execution resumes on the line after `yield`, which is why that ordering matters.",
-   "concepts": [
-    "generators"
-   ],
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Someone tells you: \"your program crashed yesterday, it was doing the totals wrong.\" Say what you need to establish before you change a single line, and why starting with a change is a mistake.",
+   "rubric": {
+    "required": [
+     "reproduce",
+     "input",
+     "same",
+     "error"
+    ],
+    "optional": [
+     "traceback",
+     "steps",
+     "confirm",
+     "message",
+     "expected"
+    ],
+    "minWords": 55
+   },
    "tags": [
-    "generators"
+    "reproducing-reliably",
+    "narrowing-a-fault"
    ],
-   "xp": 20
+   "concepts": [
+    "reproducing-reliably"
+   ],
+   "explain": "Without a failing input you can summon at will, there is no way to tell a repair from a coincidence, and a good share of reported faults turn out to be a different input, a different program, or correct behaviour that surprised somebody. Changing code first also spends your evidence: if the failure stops appearing you will never know whether your change was the reason.",
+   "xp": 24,
+   "hint": "You want the exact input, the exact output they saw, the output they expected, and the message itself."
   }
  ],
- "challenge-set": [
+ "independent-practice": [
   {
-   "id": "py-6-c-01",
+   "id": "py-6-i-01",
    "type": "debug",
    "layer": "application",
-   "prompt": "Calling `run(0, [1, 2, 3])` raises `NameError: name 'self' is not defined`. Fix the class without changing `run`.",
-   "fn": "run",
-   "starterCode": "class Tally:\n    def __init__(count):\n        self.count = count\n\n    def add(self, n):\n        self.count += n\n        return self.count\n\n\ndef run(start, steps):\n    tally = Tally(start)\n    for step in steps:\n        tally.add(step)\n    return tally.count\n",
+   "prompt": "`average_score(total, players)` should give back the average score per player, and should give back 0 when there are no players at all. At the moment it stops with an error in that case. Make it behave.",
+   "fn": "average_score",
+   "starterCode": "def average_score(total, players):\n    return total / players\n",
+   "solution": "def average_score(total, players):\n    if players == 0:\n        return 0\n    return total / players\n",
    "tests": [
     {
-     "input": "0, [1, 2, 3]",
-     "expected": 6
-    },
-    {
-     "input": "10, []",
+     "input": "30, 3",
      "expected": 10
     },
     {
-     "input": "0, [-4]",
-     "expected": -4
+     "input": "0, 4",
+     "expected": 0
+    },
+    {
+     "input": "30, 0",
+     "expected": 0
+    },
+    {
+     "input": "7, 2",
+     "expected": 3.5
     }
    ],
-   "solution": "class Tally:\n    def __init__(self, count):\n        self.count = count\n\n    def add(self, n):\n        self.count += n\n        return self.count\n\n\ndef run(start, steps):\n    tally = Tally(start)\n    for step in steps:\n        tally.add(step)\n    return tally.count\n",
-   "explain": "`self` is not a keyword - it is simply the name you give the first parameter, and Python passes the instance into it whether you declared it or not. Omitting it means `count` receives the instance and the name `self` never exists, which is exactly what the NameError reports.",
-   "hint": "Count the parameters Python actually passes to __init__.",
-   "concepts": [
-    "methods-and-self",
-    "classes"
-   ],
    "tags": [
-    "methods-and-self",
-    "classes"
+    "common-exceptions",
+    "narrowing-a-fault"
    ],
-   "xp": 50
+   "concepts": [
+    "common-exceptions"
+   ],
+   "explain": "Nothing is wrong with the division itself; the fault is that one particular value is allowed to reach it, so the repair belongs before the division rather than inside it. Note that no players and a total of zero are different cases - only one of them is a problem, which is why both are tested.",
+   "xp": 60
   },
   {
-   "id": "py-6-c-02",
+   "id": "py-6-i-02",
    "type": "debug",
    "layer": "application",
-   "prompt": "`describe(['ruby'])` should return `\"[a ruby gem]\"`, but it returns something like `\"[<__main__.Gem object at 0x7f0>]\"`. Fix the class so the list renders the gems.",
-   "fn": "describe",
-   "starterCode": "class Gem:\n    def __init__(self, kind):\n        self.kind = kind\n\n    def __str__(self):\n        return f\"a {self.kind} gem\"\n\n\ndef describe(kinds):\n    gems = []\n    for kind in kinds:\n        gems.append(Gem(kind))\n    return str(gems)\n",
+   "prompt": "`third_item(values)` should give back the third item of `values`. It survives longer rows of values and fails on one of exactly three items, which is the case it exists for. Correct it.",
+   "fn": "third_item",
+   "starterCode": "def third_item(values):\n    return values[3]\n",
+   "solution": "def third_item(values):\n    return values[2]\n",
    "tests": [
     {
-     "input": "['ruby']",
-     "expected": "[a ruby gem]"
+     "input": "[\"salve\", \"tonic\", \"elixir\"]",
+     "expected": "elixir"
     },
     {
-     "input": "['ruby', 'jade']",
-     "expected": "[a ruby gem, a jade gem]"
+     "input": "[10, 20, 30, 40]",
+     "expected": 30
     },
     {
-     "input": "[]",
-     "expected": "[]"
+     "input": "[\"a\", \"b\", \"c\"]",
+     "expected": "c"
     }
    ],
-   "solution": "class Gem:\n    def __init__(self, kind):\n        self.kind = kind\n\n    def __repr__(self):\n        return f\"a {self.kind} gem\"\n\n\ndef describe(kinds):\n    gems = []\n    for kind in kinds:\n        gems.append(Gem(kind))\n    return str(gems)\n",
-   "explain": "A container never calls `__str__` on the things inside it - it calls `__repr__`, so a class with only `__str__` looks fine when printed alone and turns into memory addresses the moment it is put in a list. Defining `__repr__` fixes both cases at once, because `str()` falls back to it.",
-   "hint": "Which hook does a list use for its elements?",
-   "concepts": [
-    "dunder-str-repr"
-   ],
    "tags": [
-    "dunder-str-repr"
+    "common-exceptions",
+    "traceback"
    ],
-   "xp": 50
+   "concepts": [
+    "common-exceptions"
+   ],
+   "explain": "Positions are counted from 0, so the third item sits at 2 and the code was quietly reading the fourth - which is why a longer row hid the fault and the shortest one exposed it. An IndexError that appears on some inputs and not others is nearly always this off-by-one rather than a damaged row of values.",
+   "xp": 60
   },
   {
-   "id": "py-6-c-03",
-   "type": "code",
+   "id": "py-6-i-03",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Conda Airlines seats four passengers per row, lettered `A`, `B`, `C`, `D`, then starts again at `A`. Write a generator function `generate_seat_letters(number)` that yields exactly `number` seat letters in that repeating order.",
-   "fn": "list",
-   "starterCode": "def generate_seat_letters(number):\n    pass\n",
+   "prompt": "`is_ready(charge)` should give back `True` once the charge has reached 100 and `False` while it has not. Nothing runs at all at the moment - not one line of it. Get it working.",
+   "fn": "is_ready",
+   "starterCode": "def is_ready(charge)\n    if charge >= 100\n        return True\n    return False\n",
+   "solution": "def is_ready(charge):\n    if charge >= 100:\n        return True\n    return False\n",
    "tests": [
     {
-     "input": "generate_seat_letters(4)",
-     "expected": [
-      "A",
-      "B",
-      "C",
-      "D"
-     ]
+     "input": "250",
+     "expected": true
     },
     {
-     "input": "generate_seat_letters(6)",
-     "expected": [
-      "A",
-      "B",
-      "C",
-      "D",
-      "A",
-      "B"
-     ]
+     "input": "100",
+     "expected": true
     },
     {
-     "input": "generate_seat_letters(0)",
-     "expected": []
+     "input": "99",
+     "expected": false
+    },
+    {
+     "input": "0",
+     "expected": false
     }
    ],
-   "solution": "def generate_seat_letters(number):\n    seats = [\"A\", \"B\", \"C\", \"D\"]\n    for index in range(number):\n        yield seats[index % 4]\n",
-   "explain": "Indexing with `% 4` turns an ever-growing counter into a cycle, which is the standard way to repeat a fixed pattern without tracking where you are. Because it yields, a request for a million letters costs one letter of memory rather than a million-element list.",
-   "hint": "range(number) plus the remainder operator gives you the cycle.",
-   "concepts": [
-    "generators"
-   ],
    "tags": [
-    "generators"
+    "syntax-vs-runtime",
+    "traceback"
    ],
-   "xp": 50
+   "concepts": [
+    "syntax-vs-runtime"
+   ],
+   "explain": "Nothing running at all, with no frames reported anywhere, places the fault in the text rather than in any value - so no amount of thinking about charges would have helped. Python reports only the first such fault it meets, so repairing one and running again is expected to reveal the next.",
+   "xp": 60
   },
   {
-   "id": "py-6-c-04",
-   "type": "trace",
+   "id": "py-6-i-04",
+   "type": "debug",
    "layer": "application",
-   "prompt": "`gen = ticks(3)` has just run. Give the value of each following expression, in order. If the expression raises, name the exception.",
-   "code": "def ticks(n):\n    for i in range(n):\n        yield i * i\n\n\ngen = ticks(3)",
-   "lang": "python",
-   "steps": [
+   "prompt": "`highest(values)` should give back the largest number in `values`. On some rows of numbers it is right and on others it is wrong, and it never reports anything. Find where it goes astray and correct it. You may assume `values` always holds at least one number.",
+   "fn": "highest",
+   "starterCode": "def highest(values):\n    best = 0\n    for value in values:\n        if value > best:\n            best = value\n    return best\n",
+   "solution": "def highest(values):\n    best = values[0]\n    for value in values:\n        if value > best:\n            best = value\n    return best\n",
+   "tests": [
     {
-     "label": "next(gen)",
-     "expected": "0"
+     "input": "[3, 9, 4]",
+     "expected": 9
     },
     {
-     "label": "next(gen)",
-     "expected": "1"
+     "input": "[-5, -2, -9]",
+     "expected": -2
     },
     {
-     "label": "next(gen)",
-     "expected": "4"
+     "input": "[7]",
+     "expected": 7
     },
     {
-     "label": "next(gen) once more",
-     "expected": "StopIteration"
+     "input": "[0, -1]",
+     "expected": 0
     }
    ],
-   "explain": "Each `next` resumes the frozen loop, runs to the next `yield`, and freezes again with `i` intact - the generator remembers its own place. When the loop finally ends, the generator raises `StopIteration`, which is the signal a `for` loop quietly catches for you.",
-   "concepts": [
-    "generator-laziness",
-    "generators"
-   ],
    "tags": [
-    "generator-laziness",
-    "generators"
+    "narrowing-a-fault",
+    "print-debugging"
    ],
-   "xp": 40
+   "concepts": [
+    "narrowing-a-fault"
+   ],
+   "explain": "The starting value is an assumption in disguise: it claims the answer is at least 0, which is true of many rows of numbers and false of any row that lies entirely below zero. Printing `best` on each pass shows it never moving, which points at the start rather than at the comparison - and a fault that appears on some inputs and not others is nearly always an assumption like this one.",
+   "xp": 60
   },
   {
-   "id": "py-6-c-05",
+   "id": "py-6-i-05",
    "type": "explain",
    "layer": "application",
-   "prompt": "A colleague changes `def rows(): return [parse(line) for line in log]` into a generator that yields each parsed line. Peak memory drops from gigabytes to almost nothing, but a second `for` loop over the same result now finds nothing at all. Explain both effects.",
+   "prompt": "A forty-line program reports a total that is far too large. Nothing fails, and reading it through twice has told you nothing. Describe how you would corner the fault, and say why altering three suspicious lines at once and running it again would leave you no wiser.",
    "rubric": {
     "required": [
-     "memory",
-     "exhaust",
-     "once"
+     "half",
+     "print",
+     "one",
+     "value",
+     "expect"
     ],
     "optional": [
-     "lazy",
-     "list",
-     "demand",
-     "reuse",
-     "StopIteration",
-     "yield"
+     "label",
+     "narrow",
+     "confirm",
+     "assumption",
+     "loop"
     ],
-    "forbidden": [],
-    "minWords": 30
+    "minWords": 60
    },
-   "explain": "Both effects come from the same fact: a generator holds a position, not a collection. Nothing is stored, so memory stays flat; and the position only moves forward, so once it reaches the end there is nothing left to replay - you must call the generator function again, or materialise it with `list()`, to iterate twice.",
-   "concepts": [
-    "generator-laziness"
-   ],
    "tags": [
-    "generator-laziness"
+    "narrowing-a-fault",
+    "print-debugging"
    ],
-   "xp": 20
-  },
-  {
-   "id": "py-6-c-06",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write a class `Deck` with `__init__(self, cards)` storing a copy of the list, and a generator method `deal()` that yields each card in order. `list(Deck([1, 2, 3]).deal())` must give `[1, 2, 3]`.",
-   "fn": "list",
-   "starterCode": "class Deck:\n    def __init__(self, cards):\n        pass\n\n    def deal(self):\n        pass\n",
-   "tests": [
-    {
-     "input": "Deck([1, 2, 3]).deal()",
-     "expected": [
-      1,
-      2,
-      3
-     ]
-    },
-    {
-     "input": "Deck(['x']).deal()",
-     "expected": [
-      "x"
-     ]
-    },
-    {
-     "input": "Deck([]).deal()",
-     "expected": []
-    }
-   ],
-   "solution": "class Deck:\n    def __init__(self, cards):\n        self.cards = list(cards)\n\n    def deal(self):\n        for card in self.cards:\n            yield card\n",
-   "explain": "A method is a generator for exactly the same reason a function is - its body contains `yield` - and `self` stays alive inside the paused frame, so the method can keep reading the object's state between resumes. Dealing lazily means a table of a million cards never has to be copied to hand out the first one.",
-   "hint": "The yield goes inside the method's loop.",
    "concepts": [
-    "generators",
-    "classes",
-    "methods-and-self"
+    "narrowing-a-fault",
+    "print-debugging"
    ],
-   "tags": [
-    "generators",
-    "classes",
-    "methods-and-self"
-   ],
-   "xp": 50
-  },
-  {
-   "id": "py-6-c-07",
-   "type": "fill",
-   "layer": "retrieval",
-   "prompt": "Fill the blanks so this endless generator can be asked for its first value without hanging.",
-   "template": "def evens():\n    n = 0\n    while True:\n        ___ n\n        n += 2\n\n\ngen = evens()\nprint(___(gen))",
-   "blanks": [
-    "yield",
-    "next"
-   ],
-   "lang": "python",
-   "explain": "`while True` only runs forever if something forces it to; a generator pauses at each hand-off, so an endless sequence is safe as long as you take a finite number of values from it. Swap in `list(gen)` and the same program never terminates.",
-   "concepts": [
-    "generators",
-    "generator-laziness"
-   ],
-   "tags": [
-    "generators",
-    "generator-laziness"
-   ],
-   "xp": 20
-  },
-  {
-   "id": "py-6-c-08",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write a class `Playlist` with `__init__(self, tracks)` storing its own copy of the list, a method `add(track)`, a `__len__`, and an `__eq__` that is true when another playlist holds the same tracks in the same order. Then write `build(tracks, extra)` which makes a `Playlist` from `tracks`, adds every item of `extra` to it, and returns the tuple `(len(playlist), playlist == Playlist(tracks))`.",
-   "fn": "build",
-   "starterCode": "class Playlist:\n    def __init__(self, tracks):\n        pass\n\n    def add(self, track):\n        pass\n\n\ndef build(tracks, extra):\n    pass\n",
-   "tests": [
-    {
-     "input": "['a', 'b'], []",
-     "expected": [
-      2,
-      true
-     ]
-    },
-    {
-     "input": "['a'], ['b']",
-     "expected": [
-      2,
-      false
-     ]
-    },
-    {
-     "input": "[], ['x']",
-     "expected": [
-      1,
-      false
-     ]
-    },
-    {
-     "input": "[], []",
-     "expected": [
-      0,
-      true
-     ]
-    }
-   ],
-   "solution": "class Playlist:\n    def __init__(self, tracks):\n        self.tracks = list(tracks)\n\n    def add(self, track):\n        self.tracks.append(track)\n\n    def __len__(self):\n        return len(self.tracks)\n\n    def __eq__(self, other):\n        return self.tracks == other.tracks\n\n\ndef build(tracks, extra):\n    playlist = Playlist(tracks)\n    for track in extra:\n        playlist.add(track)\n    return (len(playlist), playlist == Playlist(tracks))\n",
-   "explain": "`self.tracks = tracks` would alias the caller's list, so `add` would silently grow the very list the second `Playlist` is built from and the comparison would come out true every time. Copying with `list(tracks)` at construction is what keeps an object's state its own.",
-   "hint": "Store list(tracks), not tracks.",
-   "concepts": [
-    "dunder-eq-len",
-    "instance-attributes",
-    "methods-and-self"
-   ],
-   "tags": [
-    "dunder-eq-len",
-    "instance-attributes",
-    "methods-and-self"
-   ],
-   "xp": 50
+   "explain": "Checking a value half way through splits the search rather than scanning it, so each look rules out a whole stretch of the program instead of a single line. Three changes at once destroys that: a run that suddenly behaves tells you the fault is gone but not which change removed it, and two of the three may have introduced faults that have not shown themselves yet.",
+   "xp": 24
   }
  ],
  "exam": [
@@ -719,312 +599,222 @@
    "id": "py-6-e-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "In `def sip(self):`, what is `self`?",
+   "prompt": "In a traceback, which line carries the error type and its message?",
    "choices": [
-    "A Python keyword that always refers to the class",
-    "The first parameter, into which Python passes the instance the method was called on",
-    "A copy of the object, so changes to it are discarded when the method ends",
-    "The class itself, shared by every instance"
+    "the first line, `Traceback (most recent call last):`",
+    "the last line",
+    "the line with the `^` marks under it",
+    "the first `File \"...\", line N` line"
    ],
    "answer": 1,
-   "explain": "Nothing about the name is special - `self` is a convention. What is real is the call protocol: `obj.sip()` becomes `Class.sip(obj)`, so the instance always arrives as the first argument and mutating it mutates the original.",
-   "concepts": [
-    "methods-and-self"
-   ],
    "tags": [
-    "methods-and-self"
+    "traceback"
    ],
-   "xp": 10
+   "concepts": [
+    "traceback"
+   ],
+   "explain": "The heading only announces that a traceback follows, and the frames say where Python was - the verdict itself is always the final line. Reading from the top is the habit that makes tracebacks feel unreadable.",
+   "xp": 12
   },
   {
    "id": "py-6-e-02",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "A class defines `__str__` but not `__repr__`. You put one instance in a list and print the list. What appears?",
+   "prompt": "What is a syntax error?",
    "choices": [
-    "The text returned by `__str__`",
-    "The default `<... object at 0x...>` form",
-    "An empty string",
-    "A TypeError"
+    "a fault found while the program is running, when a value turns out to be impossible",
+    "a fault in the text of the program, found before any line of it runs",
+    "any error serious enough to stop the program",
+    "a wrong answer produced by a program that ran to the end"
    ],
    "answer": 1,
-   "explain": "Containers format their elements with `repr`, and the fallback only runs the other direction: missing `__str__` borrows `__repr__`, never the reverse. This is the concrete reason `__repr__` is the one to define if you only define one.",
-   "concepts": [
-    "dunder-str-repr"
-   ],
    "tags": [
-    "dunder-str-repr"
+    "syntax-vs-runtime"
    ],
-   "xp": 10
+   "concepts": [
+    "syntax-vs-runtime"
+   ],
+   "explain": "The distinction is when the fault is found, not how serious it is: the text is read in full before anything runs, so a syntax error costs you the whole program rather than only the line it sits on. The third choice conflates the two kinds, which is the confusion that leaves people hunting for values that never existed.",
+   "xp": 12
   },
   {
    "id": "py-6-e-03",
-   "type": "multi",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "Which of these are true of a function whose body contains `yield`?",
-   "choices": [
-    "Calling it runs the body immediately and returns the final value",
-    "Calling it returns a generator without executing the body",
-    "Each `next()` resumes execution just after the last `yield`",
-    "It can describe an endless sequence without hanging when partially consumed",
-    "Its local variables are discarded between `next()` calls"
-   ],
-   "answer": [
-    1,
-    2,
-    3
-   ],
-   "explain": "A generator is a paused stack frame, which is what makes the middle two statements true and the last one false - locals survive the pause. Because nothing runs until asked, an infinite loop inside is harmless until someone asks for every value.",
-   "concepts": [
-    "generators",
-    "generator-laziness"
-   ],
+   "prompt": "This program stops with an error. Type the **last line** of its traceback.",
+   "code": "reading = \"seven\"\nprint(\"Converting\")\nprint(int(reading) * 2)",
+   "lang": "python",
+   "answer": "ValueError: invalid literal for int() with base 10: 'seven'",
    "tags": [
-    "generators",
-    "generator-laziness"
+    "common-exceptions"
    ],
-   "xp": 10
+   "concepts": [
+    "common-exceptions"
+   ],
+   "explain": "`int` is perfectly happy to be handed text - that is its job - so the kind is right and the complaint is about this particular value, which makes it ValueError rather than TypeError. The message quotes the offending value back at you, which is often the fastest route to where it came from.",
+   "xp": 24
   },
   {
    "id": "py-6-e-04",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "class Node:\n    def __init__(self, label):\n        self.label = label\n        self.links = []\n\n\na = Node(\"a\")\nb = Node(\"b\")\na.links.append(b)\nprint(len(a.links), len(b.links))\nprint(a.links[0].label)",
+   "prompt": "This program stops with an error. What does it print **before** the report of failure?",
+   "code": "print(\"Start\")\nshares = 4\nprint(\"Shares:\", shares)\nshares = shares - 4\nprint(100 / shares)\nprint(\"End\")",
    "lang": "python",
-   "answer": "1 0\nb",
-   "explain": "Because the empty list is created inside `__init__`, every node gets a fresh one - appending to `a.links` leaves `b.links` untouched. Had the list been created once at class level instead, both nodes would share it and the first line would read `1 1`.",
-   "concepts": [
-    "instance-attributes",
-    "classes"
-   ],
+   "answer": "Start\nShares: 4",
    "tags": [
-    "instance-attributes",
-    "classes"
+    "syntax-vs-runtime",
+    "common-exceptions"
    ],
-   "xp": 20
+   "concepts": [
+    "syntax-vs-runtime"
+   ],
+   "explain": "The zero is never written down anywhere - it arrives in `shares` one line before the division, which is the usual shape of a ZeroDivisionError. The partial output proves the first three lines behaved, so the search narrows to what happened between the last good print and the failure.",
+   "xp": 24
   },
   {
    "id": "py-6-e-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so `len(Basket(['fig']))` is 1 and two baskets with the same fruit compare equal.",
-   "template": "class Basket:\n    def __init__(self, fruit):\n        self.fruit = list(fruit)\n\n    def __len__(self):\n        return ___(self.fruit)\n\n    def __eq__(self, other):\n        return self.fruit == other.___",
+   "prompt": "Name the error type each of these raises. Spell them exactly as Python does.",
+   "template": "12 / (4 - 4)             -> ___\nprint(len(potons))       -> ___\nint(\"3 coins\")           -> ___\n5 + \"5\"                  -> ___",
    "blanks": [
-    "len",
-    "fruit"
-   ],
-   "lang": "python",
-   "explain": "`__len__` delegating to the built-in `len` of the stored list is not circular - the outer call looks up the dunder, the inner call runs on a plain list. Reaching for `other.fruit` is what makes the comparison read the other object's state rather than its identity.",
-   "concepts": [
-    "dunder-eq-len"
+    "ZeroDivisionError",
+    "NameError",
+    "ValueError",
+    "TypeError"
    ],
    "tags": [
-    "dunder-eq-len"
+    "common-exceptions"
    ],
-   "xp": 20
+   "concepts": [
+    "common-exceptions"
+   ],
+   "explain": "`int(\"3 coins\")` is the one people get wrong: it does begin with a digit, but `int` needs the whole of the text to spell a number, so the value is impossible rather than the wrong kind. `4 - 4` shows how a zero divisor usually arrives - computed, not typed.",
+   "xp": 24
   },
   {
    "id": "py-6-e-06",
-   "type": "output",
+   "type": "order",
    "layer": "retrieval",
-   "prompt": "What does this print? Pay attention to the interleaving.",
-   "code": "def loud(n):\n    for i in range(n):\n        print(\"making\", i)\n        yield i\n\n\ngen = loud(2)\nprint(\"before\")\nfor value in gen:\n    print(\"got\", value)",
-   "lang": "python",
-   "answer": "before\nmaking 0\ngot 0\nmaking 1\ngot 1",
-   "explain": "`loud(2)` runs none of the body, which is why `before` prints first. After that the producing and consuming lines alternate, because each turn of the `for` loop drives the generator forward by exactly one `yield`.",
-   "concepts": [
-    "generator-laziness"
+   "prompt": "Put these into the order you read a traceback in.",
+   "fragments": [
+    "the last line, for the error type and its message",
+    "the bottom frame, for the line that was running when it stopped",
+    "the frames above it, for who asked for that work and with what",
+    "the top frame, for where the whole chain began"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
    ],
    "tags": [
-    "generator-laziness"
+    "traceback"
    ],
-   "xp": 20
+   "concepts": [
+    "traceback"
+   ],
+   "explain": "Bottom-up is not a preference: the verdict tells you what kind of thing to hunt for, and only then is it worth knowing where. Starting at the top means reading frames while you still do not know what you are looking for.",
+   "xp": 24
   },
   {
    "id": "py-6-e-07",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`list(evens_below(7))` should give `[0, 2, 4, 6]` but raises `TypeError: 'int' object is not iterable`. Fix it.",
-   "fn": "list",
-   "starterCode": "def evens_below(limit):\n    n = 0\n    while n < limit:\n        return n\n        n += 2\n",
-   "tests": [
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Read this traceback and answer the questions about it.\n\n`Traceback (most recent call last):`\n`File \"stock.py\", line 20, in <module>`\n`print(restock(\"crate\", boxes))`\n`File \"stock.py\", line 15, in restock`\n`return describe(shelf_for(kind))`\n`File \"stock.py\", line 9, in shelf_for`\n`return SHELVES[kind_number]`\n`IndexError: list index out of range`",
+   "steps": [
     {
-     "input": "evens_below(7)",
-     "expected": [
-      0,
-      2,
-      4,
-      6
-     ]
+     "label": "the error type",
+     "expected": "IndexError"
     },
     {
-     "input": "evens_below(1)",
-     "expected": [
-      0
-     ]
+     "label": "the name of the function the program stopped inside",
+     "expected": "shelf_for"
     },
     {
-     "input": "evens_below(0)",
-     "expected": []
+     "label": "the line number that called that function",
+     "expected": "15"
     }
    ],
-   "solution": "def evens_below(limit):\n    n = 0\n    while n < limit:\n        yield n\n        n += 2\n",
-   "explain": "`return` ends the function for good and hands back one plain value, so the increment after it was unreachable and the caller got an int instead of something to iterate. `yield` hands a value out and keeps the frame alive, which is the only difference that matters here.",
-   "hint": "One keyword ends the function; the other pauses it.",
-   "concepts": [
-    "generators"
-   ],
    "tags": [
-    "generators"
+    "traceback",
+    "common-exceptions"
    ],
-   "xp": 50
+   "concepts": [
+    "traceback"
+   ],
+   "explain": "The `in shelf_for` at the end of a `File` line names the function that frame belongs to, and the frame above it is its caller - so `kind_number` was decided at or above line 15. Naming line 9 as the caller is the usual slip: line 9 is the line that failed, not the line that asked.",
+   "xp": 48
   },
   {
    "id": "py-6-e-08",
-   "type": "code",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write a class `Duration` with `__init__(self, minutes)` storing `self.minutes`, and a `__str__` returning the duration as hours and minutes in the form `\"1h30m\"`.",
-   "fn": "str",
-   "starterCode": "class Duration:\n    def __init__(self, minutes):\n        pass\n",
+   "prompt": "`sum_to(n)` should give back the total of every whole number from 1 to `n`, so `sum_to(4)` is 10. It gives 6. Repair it.",
+   "fn": "sum_to",
+   "starterCode": "def sum_to(n):\n    total = 0\n    step = 0\n    while step < n:\n        total = total + step\n        step = step + 1\n    return total\n",
+   "solution": "def sum_to(n):\n    total = 0\n    step = 1\n    while step <= n:\n        total = total + step\n        step = step + 1\n    return total\n",
    "tests": [
     {
-     "input": "Duration(90)",
-     "expected": "1h30m"
+     "input": "4",
+     "expected": 10
     },
     {
-     "input": "Duration(60)",
-     "expected": "1h0m"
+     "input": "1",
+     "expected": 1
     },
     {
-     "input": "Duration(5)",
-     "expected": "0h5m"
+     "input": "5",
+     "expected": 15
     },
     {
-     "input": "Duration(0)",
-     "expected": "0h0m"
+     "input": "0",
+     "expected": 0
     }
    ],
-   "solution": "class Duration:\n    def __init__(self, minutes):\n        self.minutes = minutes\n\n    def __str__(self):\n        return f\"{self.minutes // 60}h{self.minutes % 60}m\"\n",
-   "explain": "Floor division and remainder are the pair that splits one quantity into two units, and keeping that arithmetic inside `__str__` means the object still stores a single honest number. Storing hours and minutes as two attributes instead would let them drift out of step.",
-   "hint": "// gives whole hours, % gives what is left over.",
-   "concepts": [
-    "dunder-str-repr",
-    "instance-attributes"
-   ],
    "tags": [
-    "dunder-str-repr",
-    "instance-attributes"
+    "print-debugging",
+    "narrowing-a-fault"
    ],
-   "xp": 50
+   "concepts": [
+    "print-debugging"
+   ],
+   "explain": "Printing `step` on each pass shows the numbers actually added - 0, 1, 2, 3 - where the harmless 0 and the missing 4 together say the loop is one short at the top rather than wrong in the middle. Adding `n` to the answer at the end would also give 10 here and would be wrong for `sum_to(0)`, which is why that edge case is tested.",
+   "xp": 60,
+   "hint": "Which numbers does the loop actually add? Write them down for `n = 4`."
   },
   {
    "id": "py-6-e-09",
-   "type": "trace",
+   "type": "explain",
    "layer": "application",
-   "prompt": "Give the value of `s.items` after each statement runs, written as a Python list.",
-   "code": "class Stack:\n    def __init__(self):\n        self.items = []\n\n    def push(self, x):\n        self.items.append(x)\n\n    def pop(self):\n        return self.items.pop()\n\n\ns = Stack()\ns.push(1)\ns.push(2)\ns.pop()\ns.push(3)",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "after s.push(1)",
-     "expected": "[1]"
-    },
-    {
-     "label": "after s.push(2)",
-     "expected": "[1, 2]"
-    },
-    {
-     "label": "after s.pop()",
-     "expected": "[1]"
-    },
-    {
-     "label": "after s.push(3)",
-     "expected": "[1, 3]"
-    }
-   ],
-   "explain": "Every method reaches the same list through `self`, so the object's state is a single thing changing over time rather than values being passed back and forth. Notice `pop` both returns a value and mutates - a method is free to do both, which is why the discarded return in line four still changes the state.",
-   "concepts": [
-    "methods-and-self",
-    "instance-attributes"
-   ],
+   "prompt": "A traceback ends with `ZeroDivisionError: division by zero`, and its bottom frame is a two-line function that does nothing but divide one number by another. Explain why the mistake is probably not in that function, and how the frames above the last line help you find it.",
+   "rubric": {
+    "required": [
+     "caller",
+     "value",
+     "above",
+     "frame"
+    ],
+    "optional": [
+     "zero",
+     "argument",
+     "top",
+     "chain",
+     "traceback"
+    ],
+    "minWords": 55
+   },
    "tags": [
-    "methods-and-self",
-    "instance-attributes"
+    "traceback",
+    "narrowing-a-fault"
    ],
-   "xp": 40
-  },
-  {
-   "id": "py-6-e-10",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Build `Ledger`, combining everything on this floor. `__init__(self, entries)` stores its **own copy** of a list of amounts; `record(amount)` appends one; `__len__` gives the number of entries; `__eq__` is true when another ledger holds the same entries in the same order; and the generator method `running_total()` yields the balance after each entry. Then write `audit(entries, extra)` which builds a `Ledger` from `entries`, records every amount in `extra`, and returns the list `[len(ledger), list(ledger.running_total()), ledger == Ledger(entries)]`.",
-   "fn": "audit",
-   "starterCode": "class Ledger:\n    def __init__(self, entries):\n        pass\n\n    def record(self, amount):\n        pass\n\n    def running_total(self):\n        pass\n\n\ndef audit(entries, extra):\n    pass\n",
-   "tests": [
-    {
-     "input": "[10, -4], [5]",
-     "expected": [
-      3,
-      [
-       10,
-       6,
-       11
-      ],
-      false
-     ]
-    },
-    {
-     "input": "[7], []",
-     "expected": [
-      1,
-      [
-       7
-      ],
-      true
-     ]
-    },
-    {
-     "input": "[-1, 1], [0]",
-     "expected": [
-      3,
-      [
-       -1,
-       0,
-       0
-      ],
-      false
-     ]
-    },
-    {
-     "input": "[], []",
-     "expected": [
-      0,
-      [],
-      true
-     ]
-    }
-   ],
-   "solution": "class Ledger:\n    def __init__(self, entries):\n        self.entries = list(entries)\n\n    def record(self, amount):\n        self.entries.append(amount)\n\n    def __len__(self):\n        return len(self.entries)\n\n    def __eq__(self, other):\n        return self.entries == other.entries\n\n    def running_total(self):\n        total = 0\n        for amount in self.entries:\n            total += amount\n            yield total\n\n\ndef audit(entries, extra):\n    ledger = Ledger(entries)\n    for amount in extra:\n        ledger.record(amount)\n    return [len(ledger), list(ledger.running_total()), ledger == Ledger(entries)]\n",
-   "explain": "The copy in `__init__` is what makes the last element of the result meaningful: alias the caller's list instead and `record` would edit `entries` too, so the freshly built comparison ledger would always match and every expected `False` would come out `True`. The running total has to be an accumulator carried across `yield` statements - the frame survives each pause, so the variable does too.",
-   "hint": "Keep a total variable outside the loop and yield it after each addition.",
    "concepts": [
-    "classes",
-    "instance-attributes",
-    "methods-and-self",
-    "dunder-eq-len",
-    "generators",
-    "generator-laziness"
+    "traceback"
    ],
-   "tags": [
-    "classes",
-    "instance-attributes",
-    "methods-and-self",
-    "dunder-eq-len",
-    "generators",
-    "generator-laziness"
-   ],
-   "xp": 50
+   "explain": "A function that only divides cannot be blamed for the numbers it was handed, so its frame is where the fault surfaced rather than where it was made. Every frame above names both a line and the call that line made, so walking upwards traces the offending value back to the place it was computed - and that is the line worth changing.",
+   "xp": 24
   }
  ]
 }

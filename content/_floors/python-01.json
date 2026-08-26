@@ -1,156 +1,182 @@
 {
  "n": 1,
- "name": "The Naming of Things",
- "concepts": [
-  "variables",
-  "types",
-  "operators",
-  "printing",
-  "f-strings",
-  "type-conversion",
-  "input"
- ],
+ "name": "The Threshold",
+ "goal": "Run a Python program, read its output, and say what the interpreter did with the source.",
+ "stage": 0,
+ "requires": [],
  "cognitiveLevel": "recognition",
+ "description": {
+  "what": "What a program actually is - a file of ordinary text - and what happens to that text when you run it.",
+  "why": "Everything else in this dungeon is written into files like this one, and a great deal of programming is spent reading the output and the messages that come back from running them.",
+  "enables": "You will be able to run a Python file, say in order what the interpreter did with each line, predict exactly what appears on the screen, and read an error message instead of being frightened by it.",
+  "assumes": "Nothing at all. You have never written a line of code, and no word used here is assumed to be familiar before it is explained.",
+  "assessed": "You will predict the exact output of small programs, put the lines of a program into the order that produces a stated result, and explain in your own words what the interpreter did - including when it stopped and why."
+ },
+ "concepts": [
+  "source-code",
+  "interpreter",
+  "running-a-program",
+  "printing-output",
+  "error-messages",
+  "comments"
+ ],
  "sequence": [
   "lesson",
   "guided-practice",
+  "independent-practice",
   "exam"
  ],
  "lesson": {
-  "title": "First Contact",
   "sections": [
    {
-    "title": "Names, Values, and =",
-    "body": "A **variable** is a name that points at a value. You make one with `=`, which is not the equals of mathematics: it means store the value on the right under the name on the left.\n\nPython evaluates the right-hand side first and only then binds the name, which is why `score = score + 10` is sensible rather than circular - it reads the old value, adds, and stores the result back under the same name.\n\n`print()` shows values. Hand it several values separated by commas and it prints them on one line with a single space between them.",
-    "code": "score = 42\nprint(score)\n\nscore = score + 10\nprint(score)\n\nname = \"Mira\"\nprint(name, \"has\", score, \"points\")",
+    "title": "A program is a piece of writing",
+    "body": "A computer knows nothing and decides nothing. Left alone it does precisely as much as a kettle with no water in it. The only thing that makes it act is a list of instructions somebody wrote down, and that list, written out as ordinary text, is called **source code**. A file holding some is a **program**. There is nothing magical inside such a file: `tower.py` opened in a text editor shows the same letters, brackets and full stops you see below, and you could change any one of them with the same keystrokes you would use on a shopping list.\n\nSource code is written for two audiences at once, and forgetting the second one is the commonest way for a working program to become an unmaintainable one. The first audience is the machine, which is merciless about spelling and punctuation and completely indifferent to whether the thing reads well. The second is the next person to open the file - very often you, months later, having forgotten every reason behind every decision. Code that satisfies only the machine is code nobody dares change.\n\nThe part written purely for that second audience is a **comment**. A `#` means *ignore the rest of this line*, so the words after it are never obeyed, never checked and never shown. They exist only to be read. A comment can occupy a whole line, or sit on the end of a line that does real work.\n\nA useful comment says something the code cannot say for itself - why this is here, what would break without it, which awkward fact of the world forced it. A comment that merely restates the line beneath it is worse than nothing, because it is one more thing that can drift out of date and start telling lies.",
+    "code": "# A greeting for anyone who reaches the top of the stair.\nprint(\"Welcome to the tower.\")\nprint(\"Mind the third step.\")  # it has been loose since the fire\n",
     "lang": "python",
     "annotations": [
      {
       "line": 1,
-      "text": "The name score now points at the integer 42. Nothing is printed yet - assignment is silent."
+      "text": "A whole line given over to a comment. The machine skips it entirely; it is here so the next reader knows what this small file is for."
      },
      {
-      "line": 4,
-      "text": "The right side is computed with the old value (42 + 10), then 52 is stored back under score."
-     },
-     {
-      "line": 8,
-      "text": "Four values, one print, one line. Each comma inserts a single space - you do not add them yourself."
-     }
-    ],
-    "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Store the number 100 in a variable called `score`, then add 25 to it, then print the result. The program must print exactly `125`.",
-     "starterCode": "# store 100 in score\n\n# add 25 to it\n\n# print it\n",
-     "tests": [
-      {
-       "input": "",
-       "expected": "125"
-      }
-     ],
-     "explain": "Assignment stores and print shows - two separate acts, which is why a program that only computes appears to do nothing at all. Reading `score` on the right of `score = score + 25` uses the value bound a moment earlier, then rebinds the same name.",
-     "hint1": "Start with score = 100.",
-     "hint2": "Then rebind it: score = score + 25.",
-     "hint3": "Finish with print(score).",
-     "concepts": [
-      "variables",
-      "printing"
-     ],
-     "solution": "score = 100\nscore = score + 25\nprint(score)\n"
-    }
-   },
-   {
-    "title": "Four Kinds of Value",
-    "body": "Every value has a **type**, and the type decides what that value is allowed to do. Four of them carry this whole floor: `int` for whole numbers, `float` for numbers with a decimal point, `str` for text inside quotes, and `bool` for exactly `True` and `False`.\n\n`type(x)` reports which one you are holding, and it is the first thing worth checking when Python complains about a line that looks obviously fine.\n\nNote that `7` and `7.0` are equal in value but different in type, and `\"7\"` is not a number at all - it is text that merely looks like one.",
-    "code": "level = 7\nratio = 0.5\nname = \"Mira\"\nready = True\n\nprint(level, ratio, name, ready)\nprint(type(level), type(ratio))\nprint(type(name), type(ready))",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 4,
-      "text": "True and False are capitalised and take no quotes. \"True\" with quotes would be a str instead."
-     },
-     {
-      "line": 7,
-      "text": "type() hands back the type object itself, which prints as <class 'int'>."
+      "line": 3,
+      "text": "A comment can also follow real work on the same line. Everything from the hash to the end of the line is ignored, so the instruction in front of it is unaffected. Notice this note says WHY the step is loose, which is a fact the code itself could never carry."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print? Write all four lines.",
-     "code": "print(type(7))\nprint(type(7.0))\nprint(type(\"7\"))\nprint(type(True))",
+     "prompt": "What does this program print?",
+     "code": "print(\"north\")\n# print(\"east\")\nprint(\"west\")\n",
      "lang": "python",
-     "answer": "<class 'int'>\n<class 'float'>\n<class 'str'>\n<class 'bool'>",
-     "explain": "A single decimal point turns an int into a float, and a pair of quotes turns either one into text. Recognising these four names on sight is what makes Python's error messages readable later, since they name types rather than values.",
+     "answer": "north\nwest",
+     "tags": [
+      "comments",
+      "printing-output"
+     ],
      "concepts": [
-      "types"
-     ]
+      "comments"
+     ],
+     "explain": "The middle line looks exactly like working code, and that is the trap: the hash in front of it puts the whole line beyond the machine's notice, so it may as well not be in the file. Switching a line off this way, rather than deleting it, is something you will do constantly.",
+     "xp": 10
     }
    },
    {
-    "title": "Operators Do Different Work",
-    "body": "An **operator** does different work depending on the types either side of it. On numbers, `+`, `-` and `*` behave as you expect, while `/` always produces a `float`, `//` divides and throws the remainder away, `%` keeps only that remainder, and `**` raises to a power.\n\nOn text, `+` joins two strings end to end and `*` repeats one a whole number of times.\n\nMixing the two is where every beginner gets stuck: `\"Level \" + 7` raises a `TypeError`, because Python refuses to guess whether you meant text or arithmetic.",
-    "code": "print(7 + 2, 7 - 2, 7 * 2)\nprint(7 / 2, 7 // 2, 7 % 2)\nprint(2 ** 10)\nprint(\"ha\" * 3, \"sun\" + \"flower\")",
+    "title": "The interpreter, and the order it reads in",
+    "body": "A file of text cannot do anything by itself. Something has to pick it up, work out what each line means, and carry it out - and for Python that something is a program called the **interpreter**. It is itself just a program, written by other people and installed on your machine, and its whole job is reading your file and acting on it. On a command line you set it going by naming it and then naming your file: `python tower.py`.\n\nThe interpreter starts at the top of the file and works downwards, one line at a time, finishing each line before it looks at the next. That sounds too obvious to be worth stating, and it is the single most useful fact on this floor. A program is not a description of a situation, the way a recipe card describes a cake; it is a sequence of moments, and the order the lines are written in is the order in which things happen.\n\nSo two files holding exactly the same three lines in different orders are different programs with different results, and neither will complain. Nothing is kept between runs, either: each time you run the file the interpreter reads it again from the top as though it had never seen it before, which is why running the same file twice gives you the same output twice.\n\nOne more consequence, worth holding on to. Nothing in the file happens while you are typing it. Writing is one act and running is another, and the gap between them is where every surprise lives.",
+    "code": "print(\"You knock three times.\")\nprint(\"A bolt slides back.\")\nprint(\"The door opens.\")\n",
     "lang": "python",
     "annotations": [
      {
+      "line": 1,
+      "text": "The interpreter begins here, at the first line of the file, and nowhere else."
+     },
+     {
+      "line": 3,
+      "text": "It reaches this line only after the two above it have finished. Move it to the top and the story becomes nonsense, even though every line is still perfectly correct on its own."
+     }
+    ],
+    "checkpoint": {
+     "type": "order",
+     "layer": "retrieval",
+     "prompt": "Arrange these three lines into a program that prints, in this order:\n\n`Fill the lamp.`\n`Light the lamp.`\n`Climb the stair.`",
+     "fragments": [
+      "print(\"Light the lamp.\")",
+      "print(\"Climb the stair.\")",
+      "print(\"Fill the lamp.\")"
+     ],
+     "answer": [
+      2,
+      0,
+      1
+     ],
+     "lang": "python",
+     "tags": [
+      "running-a-program",
+      "interpreter"
+     ],
+     "concepts": [
+      "interpreter"
+     ],
+     "explain": "Each line is correct wherever it sits, so nothing here is a spelling question - the only thing that decides the answer is the order the interpreter meets the lines in, top to bottom. Programs that are wrong in this way never complain; they simply do the right things at the wrong moment.",
+     "xp": 10
+    }
+   },
+   {
+    "title": "print, and why anything appears at all",
+    "body": "Almost everything a program does is invisible. Work happens inside the machine and leaves no trace, so if you want to see something you have to ask for it, and the instruction that asks is `print`. You write the word, then round brackets, then whatever you want shown: `print(\"hello\")`. Each `print` puts its material on the screen and then moves to a new line, so three prints make three lines.\n\nThe quotation marks matter enormously. Text inside quotes is handed over exactly as written, spaces and punctuation and all, and the quotes themselves are not part of what appears. Without quotes, Python does not see writing - it sees something to work out. So `print(\"2 + 3\")` shows the little sum itself while `print(2 + 3)` shows `5`, and neither is a mistake; they are answers to two different requests.\n\n`print()` with nothing between the brackets is legal and useful: it produces an empty line, which is how programs get room to breathe.\n\nThe mirror image of all this is the commonest disappointment of a first hour. A line that works something out but never prints it is not broken and does not complain - it does the work, throws the result away, and the screen stays empty. Silence is not failure. Silence nearly always means you never asked to see anything.",
+    "code": "print(\"2 + 3\")\nprint(2 + 3)\n2 + 3\nprint()\nprint(\"The end.\")\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "In quotes, so the characters are shown exactly as typed: 2 + 3. Nothing is worked out."
+     },
+     {
       "line": 2,
-      "text": "/ gives 3.5 even though 7 and 2 are both ints; // gives the whole part and % the leftover."
+      "text": "No quotes, so Python works the sum out first and shows what it comes to: 5."
+     },
+     {
+      "line": 3,
+      "text": "The sum is worked out here too - and then discarded, because nothing asked for it to be shown. This line produces no output at all, and no complaint either."
      },
      {
       "line": 4,
-      "text": "The same two symbols applied to text: * repeats and + joins. Neither one adds anything."
+      "text": "Empty brackets produce an empty line. That is the blank line you will see between 5 and The end."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print? Write all three lines.",
-     "code": "print(10 // 3)\nprint(10 % 3)\nprint(\"ok\" * 2)",
+     "prompt": "What does this program print? Write every line it produces.",
+     "code": "print(\"7 + 1\")\nprint(7 + 1)\n7 + 1\n",
      "lang": "python",
-     "answer": "3\n1\nokok",
-     "explain": "`//` and `%` are the two halves of one division: 10 is three lots of 3 with 1 left over, and together they lose nothing. Repetition on a string produces a longer string rather than a number, which is why the last line adds nothing up.",
+     "answer": "7 + 1\n8",
+     "tags": [
+      "printing-output"
+     ],
      "concepts": [
-      "operators"
-     ]
+      "printing-output"
+     ],
+     "explain": "Two lines out of three, because the last one works its sum out and then has nowhere to put the answer. If you expected a third line you were reading `7 + 1` as a request to show the result - but showing is what `print` is for, and nothing else does it on your behalf.",
+     "xp": 10
     }
    },
    {
-    "title": "Showing and Reading",
-    "body": "An **f-string** is a string with an `f` before its opening quote: whatever you write inside `{}` is evaluated and pasted in as text, so `f\"Level {level}\"` needs no `+` and no conversion of its own.\n\n`input()` reads one line typed by the user and always hands back a `str`, even when what was typed looks like a number. `int()`, `float()` and `str()` convert between types: `int(\"7\") + 1` is `8`, while `\"7\" + 1` is a `TypeError`.\n\nConvert the moment you read, and the rest of the program never has to think about it again.",
-    "code": "raw = \"7\"\nprint(raw + raw)\nprint(int(raw) + int(raw))\n\nlevel = int(raw)\nprint(f\"Level {level} of 10, {level * 10}% done\")",
+    "title": "When it goes wrong, the machine tells you",
+    "body": "A mistake in a program is not a disaster, damages nothing, and is not a sign that you are unsuited to this. It is the ordinary condition of writing code, including for people who have been doing it for thirty years. What happens when you make one is that the interpreter stops and prints a message describing what it could not do, and the whole skill is reading that message instead of panicking at the sight of it.\n\nThe message is called a **traceback**, and it is read from the bottom upwards. The last line names the kind of problem and describes it; the lines above it name the file and the line number where the trouble was and show you the offending text. Everything you need is in there, which is why guessing at a fix before reading it wastes so much time.\n\nFailure arrives at one of two moments, and telling them apart is genuinely useful. Some faults are found while the program is running: the lines before the bad one have already been carried out, so their output sits above the message. The program below is like this. It prints its first line, then meets a word the interpreter has never heard of and stops, and its third line never runs at all.\n\nThe other kind is found before anything runs. If the file cannot be understood as Python at all - a quotation mark left open, a bracket never closed - the interpreter reports a **SyntaxError** and refuses to start, so not one line of the file is carried out and nothing whatever is printed. Empty output with a message about syntax means the whole file was rejected, not that the first line failed.",
+    "code": "print(\"Opening the ledger.\")\nprnt(\"Counting the coins.\")\nprint(\"Closing the ledger.\")\n",
     "lang": "python",
     "annotations": [
      {
       "line": 1,
-      "text": "Pretend this line is raw = input() and the user typed 7. Either way, raw holds text."
+      "text": "This runs, and its output appears above the message. Whatever went wrong later, this line already happened."
      },
      {
       "line": 2,
-      "text": "Two strings joined gives 77, not 14. This is the bug hiding inside almost every first program."
+      "text": "`prnt` is a misspelling, and the interpreter has no instruction by that name, so it stops here and reports a NameError - helpfully asking whether you meant print."
      },
      {
-      "line": 6,
-      "text": "Inside {} you may put any expression, so level * 10 is computed first and pasted in as text."
+      "line": 3,
+      "text": "Never reached. Everything stopped on the line above, so this line has no effect whatsoever, which is exactly why the output ends where it does."
      }
     ],
     "checkpoint": {
-     "type": "fill",
+     "type": "output",
      "layer": "retrieval",
-     "prompt": "Fill the blanks so that typing `4` prints `Level 4, next is 5`.",
-     "template": "raw = input()\nlevel = ___(raw)\nprint(f\"Level {level}, next is {level ___ 1}\")",
-     "blanks": [
-      "int",
-      "+"
-     ],
+     "prompt": "Run the program above in your head. What appears on the screen before the error message? If nothing does, write `nothing`.",
+     "code": "print(\"Opening the ledger.\")\nprnt(\"Counting the coins.\")\nprint(\"Closing the ledger.\")\n",
      "lang": "python",
-     "explain": "The conversion has to happen before the arithmetic, because `\"4\" + 1` means nothing to Python. Once level is an int, the braces can hold a whole expression rather than only a bare name.",
+     "answer": "Opening the ledger.",
+     "tags": [
+      "error-messages",
+      "running-a-program"
+     ],
      "concepts": [
-      "type-conversion",
-      "input",
-      "f-strings"
-     ]
+      "error-messages"
+     ],
+     "explain": "One line, not none and not two: the fault is found while the program is running, so everything above it had already happened and everything below it never happens at all. A file rejected for bad syntax behaves quite differently and prints nothing whatsoever.",
+     "xp": 15
     }
    }
   ]
@@ -160,242 +186,308 @@
    "id": "py-1-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print? Write all three lines.",
-   "code": "gold = 3\nprint(gold)\ngold = gold * 4\nprint(gold)\ngold = gold - 2\nprint(gold)",
+   "prompt": "What does this program print? Write every line it produces, including any blank ones.",
+   "code": "# The watchman's rounds.\nprint(\"Round one.\")\nprint()\nprint(\"Round two.\")\n",
    "lang": "python",
-   "answer": "3\n12\n10",
-   "concepts": [
-    "variables",
-    "printing"
-   ],
+   "answer": "Round one.\n\nRound two.",
    "tags": [
-    "variables",
-    "printing"
+    "printing-output",
+    "comments"
    ],
-   "explain": "Each line rebinds the same name using whatever it holds at that moment, so the program must be read top to bottom rather than as a set of equations. If these were equations, `gold = gold * 4` would have no solution at all.",
-   "hint": "Work out the right-hand side first, then write down the new value of gold.",
+   "concepts": [
+    "printing-output"
+   ],
+   "hint": "Four lines in the file, but one of them is a comment and one has nothing between its brackets.",
+   "explain": "Three lines of output from four lines of file: the comment contributes nothing at all, and the empty `print()` contributes a line with nothing on it. It is tempting to leave the blank line out because it looks like an absence, but it is a real line the program deliberately produced.",
    "xp": 20
   },
   {
    "id": "py-1-g-02",
-   "type": "output",
+   "type": "order",
    "layer": "retrieval",
-   "prompt": "What does this program print? Write all three lines.",
-   "code": "print(9 + 4, 9 - 4)\nprint(9 / 4)\nprint(9 // 4, 9 % 4)",
+   "prompt": "The interpreter reads a file downwards, one line at a time. Arrange these lines so the program prints, in this order:\n\n`Open the book.`\n`Light the candle.`\n`Read the first line.`",
+   "fragments": [
+    "print(\"Light the candle.\")",
+    "print(\"Open the book.\")",
+    "print(\"Read the first line.\")"
+   ],
+   "answer": [
+    1,
+    0,
+    2
+   ],
    "lang": "python",
-   "answer": "13 5\n2.25\n2 1",
-   "concepts": [
-    "operators",
-    "printing"
-   ],
    "tags": [
-    "operators",
-    "printing"
+    "running-a-program",
+    "interpreter"
    ],
-   "explain": "Commas inside one print produce one line with single spaces between the values, which is why the first line is not two lines. The middle line shows `/` reaching for a float even when both operands are ints, while `//` and `%` stay in whole numbers.",
-   "hint": "Two values in one print land on the same line.",
+   "concepts": [
+    "running-a-program"
+   ],
+   "hint": "The first line of output must be produced by the first line of the file.",
+   "explain": "There is no cleverness to find here, which is the lesson: output order is file order, always. Anyone hunting for a rule that decides which line is somehow the most important is importing an idea from elsewhere - the interpreter has no such notion.",
    "xp": 20
   },
   {
    "id": "py-1-g-03",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this prints `7` on the first line and `7.0` on the second.",
-   "template": "raw = \"7\"\nwhole = ___(raw)\nexact = ___(raw)\nprint(whole)\nprint(exact)",
+   "prompt": "Fill both blanks. The program must show `Two coins left.` on the screen, and its second line must be a note for the next human reader that the interpreter ignores entirely.",
+   "template": "___(\"Two coins left.\")\n___ the shopkeeper counts them again at closing\n",
    "blanks": [
-    "int",
-    "float"
+    "print",
+    "#"
    ],
    "lang": "python",
-   "concepts": [
-    "type-conversion",
-    "types"
-   ],
    "tags": [
-    "type-conversion",
-    "types"
+    "printing-output",
+    "comments"
    ],
-   "explain": "Both conversions read the same text and neither one changes `raw` - each builds a brand new value of a different type. The trailing `.0` is Python reporting that the second value is a float, not that it is somehow more precise.",
-   "hint": "One converter gives whole numbers, the other keeps a decimal point.",
+   "concepts": [
+    "comments",
+    "printing-output"
+   ],
+   "hint": "One instruction makes things appear on the screen. One character makes the rest of a line invisible to the machine.",
+   "explain": "These are the two halves of the floor in two lines: one instruction addressed to the machine, one line addressed only to people. Notice the note carries something the code could not say for itself - what happens later, at closing time.",
    "xp": 20
   },
   {
    "id": "py-1-g-04",
-   "type": "trace",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "Give the value of `gold` after each of the last three lines runs.",
-   "code": "gold = 10\ngold = gold + 5\ngold = gold * 2\ngold = gold - 30",
+   "prompt": "What does this program print?",
+   "code": "print(\"one\")\n# print(\"two\")\nprint(\"three\")  # print(\"four\")\n",
    "lang": "python",
-   "steps": [
-    {
-     "label": "after gold = gold + 5",
-     "expected": "15"
-    },
-    {
-     "label": "after gold = gold * 2",
-     "expected": "30"
-    },
-    {
-     "label": "after gold = gold - 30",
-     "expected": "0"
-    }
+   "answer": "one\nthree",
+   "tags": [
+    "comments",
+    "printing-output"
    ],
    "concepts": [
-    "variables",
-    "operators"
+    "comments"
    ],
-   "tags": [
-    "variables",
-    "operators"
-   ],
-   "explain": "Only one value exists at a time and each line replaces it, so the order of the lines is the whole meaning of the program. Writing the running value beside each line is the cheapest debugging technique there is, and it scales to programs far larger than this one.",
-   "hint": "Carry the number from the previous line into the next.",
-   "xp": 40
-  },
-  {
-   "id": "py-1-g-05",
-   "type": "order",
-   "layer": "retrieval",
-   "prompt": "Order these lines into a program that reads a number of coins, adds 5, and reports the new total.",
-   "fragments": [
-    "raw = input()",
-    "coins = int(raw)",
-    "total = coins + 5",
-    "print(f\"You now have {total} coins\")"
-   ],
-   "answer": [
-    0,
-    1,
-    2,
-    3
-   ],
-   "lang": "python",
-   "concepts": [
-    "input",
-    "type-conversion",
-    "printing"
-   ],
-   "tags": [
-    "input",
-    "type-conversion",
-    "printing"
-   ],
-   "explain": "Every line needs the name that the line above it created, so the data dependencies fix the order completely. Python runs top to bottom and has no way to use a name before the statement that binds it has run.",
-   "hint": "Nothing can be converted before it has been read.",
+   "hint": "Everything after a hash is ignored, wherever on the line the hash appears.",
+   "explain": "Both `two` and `four` are hidden, but for slightly different reasons worth separating: the second line is a comment from its very start, while the third does real work first and only then falls into a comment. Perfectly good code inside a comment is still nothing but text.",
    "xp": 20
   },
   {
+   "id": "py-1-g-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "The interpreter reads this file downwards. For each line, write what that line puts on the screen. Write `nothing` if the line puts nothing there, and `blank` if it produces an empty line.",
+   "code": "print(\"A\")\n# print(\"B\")\nprint(\"C\")\nprint()\n",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "line 1",
+     "expected": "A"
+    },
+    {
+     "label": "line 2",
+     "expected": "nothing"
+    },
+    {
+     "label": "line 3",
+     "expected": "C"
+    },
+    {
+     "label": "line 4",
+     "expected": "blank"
+    }
+   ],
+   "tags": [
+    "interpreter",
+    "printing-output",
+    "comments"
+   ],
+   "concepts": [
+    "interpreter"
+   ],
+   "hint": "Take the lines strictly in order and judge each one on its own; a commented line is not skipped cleverly, it simply has nothing in it to do.",
+   "explain": "Walking a file line by line, saying what each one does, is the technique you will fall back on for the rest of your programming life when something misbehaves. The two lines that show no text are not the same as one another: one contains nothing to obey, the other obeys an instruction whose result happens to be empty.",
+   "xp": 40
+  },
+  {
    "id": "py-1-g-06",
-   "type": "code",
+   "type": "explain",
    "layer": "application",
-   "prompt": "Write a program that reads one line - a name - and prints exactly `Hello, <name>!` using an f-string. For the input `Mira` it must print `Hello, Mira!`.",
-   "starterCode": "name = input()\n# print the greeting with an f-string\n",
-   "tests": [
-    {
-     "input": "Mira",
-     "expected": "Hello, Mira!"
-    },
-    {
-     "input": "Ada Lovelace",
-     "expected": "Hello, Ada Lovelace!"
-    },
-    {
-     "input": "X",
-     "expected": "Hello, X!"
-    }
-   ],
-   "solution": "name = input()\nprint(f\"Hello, {name}!\")\n",
-   "concepts": [
-    "input",
-    "f-strings",
-    "printing"
-   ],
+   "prompt": "You run a file called `ledger.py` and this comes back:\n\n`Opening the ledger.`\n`Traceback (most recent call last):`\n`  File \"ledger.py\", line 2, in <module>`\n`    prnt(\"Counting the coins.\")`\n`NameError: name 'prnt' is not defined. Did you mean: 'print'?`\n\nExplain what the interpreter did, which line it stopped on, why that first line of output is there at all, and what you would change.",
    "tags": [
-    "input",
-    "f-strings",
-    "printing"
+    "error-messages",
+    "running-a-program"
    ],
-   "explain": "`input()` takes the entire line, spaces included, which is why a two-word name arrives intact instead of as two values. The f-string keeps the literal text and the variable in one readable piece rather than splitting the sentence across `+` joins.",
-   "hint1": "input() gives you the whole line as a string.",
-   "hint2": "An f-string starts with f before the quote: f\"...\".",
-   "hint3": "print(f\"Hello, {name}!\")",
-   "xp": 50
+   "concepts": [
+    "error-messages"
+   ],
+   "rubric": {
+    "required": [
+     "line 2",
+     "print",
+     "stopped"
+    ],
+    "optional": [
+     "nameerror",
+     "spelling",
+     "misspelt",
+     "typo",
+     "traceback",
+     "third",
+     "ran"
+    ],
+    "minWords": 30
+   },
+   "hint": "Read the message from its bottom line upwards, and account for the output above it as well as for the line that never appeared.",
+   "explain": "The message is not a scolding, it is a report: it names the file, the line number, the exact text it choked on and the kind of problem, and here it even guesses the fix. The output above it is evidence that line 1 had already run, which also tells you line 3 never did - the interpreter stopped at line 2 rather than skipping over it.",
+   "xp": 20
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-1-i-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write every line it produces, including any blank ones.",
+   "code": "print(\"The lantern is out.\")\nprint()\n# print(\"The lantern is lit.\")\nprint(\"It is dark.\")  # nothing to see by\n",
+   "lang": "python",
+   "answer": "The lantern is out.\n\nIt is dark.",
+   "tags": [
+    "printing-output",
+    "comments"
+   ],
+   "concepts": [
+    "printing-output"
+   ],
+   "explain": "Four lines of file, three lines of output, and the middle one is empty. Getting this exactly right - blank line included, hidden line excluded - is the whole of what this floor asks, because output is a precise thing rather than a rough impression.",
+   "xp": 20
   },
   {
-   "id": "py-1-g-07",
-   "type": "debug",
+   "id": "py-1-i-02",
+   "type": "explain",
    "layer": "application",
-   "prompt": "This program should read a number of years and print the number one year later, but it crashes with a `TypeError`. Fix it. For the input `10` it must print `11`.",
-   "starterCode": "years = input()\nprint(years + 1)\n",
-   "tests": [
-    {
-     "input": "10",
-     "expected": "11"
-    },
-    {
-     "input": "0",
-     "expected": "1"
-    },
-    {
-     "input": "-5",
-     "expected": "-4"
-    }
-   ],
-   "solution": "years = int(input())\nprint(years + 1)\n",
-   "concepts": [
-    "type-conversion",
-    "input",
-    "operators"
-   ],
+   "prompt": "A friend sends you a file named `tally.py` and says it does not work: she double-clicked it, a black window flashed up and vanished, and now she thinks the file is broken. Explain what that file actually is, what has to happen to it before anything can occur at all, and what you would ask her to try instead.",
    "tags": [
-    "type-conversion",
-    "input",
-    "operators"
+    "source-code",
+    "interpreter",
+    "running-a-program"
    ],
-   "explain": "The fault is not in the arithmetic but in what `input()` returned: text. Converting at the point of reading fixes every later line at once, whereas converting inside the print would leave the same trap waiting for the next line you add.",
-   "hint1": "What type does input() always return?",
-   "hint2": "You cannot add 1 to a piece of text.",
-   "hint3": "Wrap the read: years = int(input()).",
-   "xp": 50
+   "concepts": [
+    "source-code",
+    "interpreter",
+    "running-a-program"
+   ],
+   "rubric": {
+    "required": [
+     "text",
+     "interpreter",
+     "run"
+    ],
+    "optional": [
+     "python",
+     "source",
+     "line",
+     "output",
+     "command",
+     "window",
+     "closed"
+    ],
+    "minWords": 35
+   },
+   "explain": "The file is inert - it is writing, and writing does nothing until something reads it. The flash of the window is the giveaway: her machine did hand the file to the interpreter, which read it from the top, printed whatever it printed, finished, and took the window with it. Nothing was broken; the output simply had nowhere to stay, which is what a command line is for.",
+   "xp": 20
   },
   {
-   "id": "py-1-g-08",
-   "type": "code",
+   "id": "py-1-i-03",
+   "type": "explain",
    "layer": "application",
-   "prompt": "Write a program that reads two whole numbers, `a` then `b`, one per line, and prints three lines: `a + b`, then `a - b`, then `a * b`. For the input `6` then `3` it must print `9`, then `3`, then `18`.",
-   "starterCode": "a = int(input())\nb = int(input())\n# print the three results, one per line\n",
-   "tests": [
-    {
-     "input": "6\n3",
-     "expected": "9\n3\n18"
-    },
-    {
-     "input": "0\n5",
-     "expected": "5\n-5\n0"
-    },
-    {
-     "input": "-4\n-2",
-     "expected": "-6\n-2\n8"
-    }
-   ],
-   "solution": "a = int(input())\nb = int(input())\nprint(a + b)\nprint(a - b)\nprint(a * b)\n",
-   "concepts": [
-    "operators",
-    "input",
-    "type-conversion",
-    "printing"
-   ],
+   "prompt": "A whole file contains exactly these two lines:\n\n`2 + 3`\n`\"hello\"`\n\nRunning it produces no message of any kind and shows nothing on the screen. Somebody concludes that Python is broken, or that the file never ran. Explain what really happened, and what would have to change for anything to appear.",
    "tags": [
-    "operators",
-    "input",
-    "type-conversion",
-    "printing"
+    "printing-output",
+    "running-a-program",
+    "interpreter"
    ],
-   "explain": "Two calls to `input()` consume two separate lines in the order they were typed, so the read for `b` must come after the read for `a`. Keeping each result in its own `print` is what puts them on three lines - commas would have collapsed all three onto one.",
-   "hint1": "Call input() twice, converting each time.",
-   "hint2": "Subtraction is not symmetric: the prompt asks for a - b.",
-   "hint3": "Three separate print calls give three separate lines.",
-   "xp": 50
+   "concepts": [
+    "printing-output",
+    "running-a-program"
+   ],
+   "rubric": {
+    "required": [
+     "print",
+     "nothing",
+     "output"
+    ],
+    "optional": [
+     "screen",
+     "silence",
+     "discarded",
+     "worked out",
+     "quotes",
+     "interpreter",
+     "error"
+    ],
+    "minWords": 30
+   },
+   "explain": "Both lines were carried out perfectly - the sum was worked out, the text was looked at - and both results were thrown away, because nothing asked for either of them to be shown. The absence of any message is the clue that nothing went wrong: a program that succeeds silently and a program that fails look nothing alike, because failure always says so.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-i-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these four lines into a file that produces exactly this output, in this order:\n\n`Cellar door.`\n`It is locked.`\n\n`Try the window.`",
+   "fragments": [
+    "print(\"Try the window.\")",
+    "print(\"Cellar door.\")",
+    "print()",
+    "print(\"It is locked.\")"
+   ],
+   "answer": [
+    1,
+    3,
+    2,
+    0
+   ],
+   "lang": "python",
+   "tags": [
+    "running-a-program",
+    "printing-output"
+   ],
+   "concepts": [
+    "running-a-program"
+   ],
+   "explain": "The blank line in the wanted output is not decoration, it is a line the program has to produce deliberately, and only the empty fragment can produce it. Reading the wanted output as three lines rather than four is how this one goes wrong.",
+   "xp": 20
+  },
+  {
+   "id": "py-1-i-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Two people write a note above the same line of a program. The line is `print(\"Mind the third step.\")`. One writes `# print the message about the third step`; the other writes `# the step has been loose since the fire and visitors keep tripping`. Say what the next reader gains from each of them, which one you would delete, and why.",
+   "tags": [
+    "comments",
+    "source-code"
+   ],
+   "concepts": [
+    "comments"
+   ],
+   "rubric": {
+    "required": [
+     "why",
+     "reader"
+    ],
+    "optional": [
+     "repeats",
+     "restates",
+     "obvious",
+     "already",
+     "delete",
+     "out of date",
+     "reason",
+     "human"
+    ],
+    "minWords": 30
+   },
+   "explain": "The first note tells the reader only what the line beneath it already says out loud, so it earns nothing and costs something: change that line later and the note quietly becomes a lie. The second carries a fact that appears nowhere in the code and could not be recovered from it - and facts the code cannot state are precisely what comments are for.",
+   "xp": 20
   }
  ],
  "exam": [
@@ -403,320 +495,235 @@
    "id": "py-1-e-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "A program runs `age = input()` and the user types `30`. What is now stored in `age`?",
+   "prompt": "What is the Python interpreter?",
    "choices": [
-    "the integer 30",
-    "the string \"30\"",
-    "the float 30.0",
-    "nothing, until the value is converted"
+    "A program that reads a file of Python source code and carries out its instructions.",
+    "The window in which the output of a program appears.",
+    "A file containing the text of a program.",
+    "The part of the computer that stores files while it is switched off."
    ],
-   "answer": 1,
-   "concepts": [
-    "input",
-    "types"
-   ],
+   "answer": 0,
    "tags": [
-    "input",
-    "types"
+    "interpreter"
    ],
-   "explain": "Reading never inspects what was typed - `input()` hands back the line as text and stops there. That single fact accounts for almost every TypeError a first program produces.",
+   "concepts": [
+    "interpreter"
+   ],
+   "explain": "It is a program, no more mysterious than the one you are writing, whose particular job is reading yours. Confusing it with the window is easy, because that is where you see its work - but the same window would show the output of anything at all.",
    "xp": 10
   },
   {
    "id": "py-1-e-02",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print? Write all three lines.",
-   "code": "tag = \"ha\"\nprint(tag * 3)\nprint(tag + tag + \"!\")\nprint(\"-\" * 5)",
+   "prompt": "What does this program print?",
+   "code": "print(\"Coins: 12\")\nprint(10 + 2)\n# print(\"Coins: 0\")\n",
    "lang": "python",
-   "answer": "hahaha\nhaha!\n-----",
-   "concepts": [
-    "operators",
-    "types"
-   ],
+   "answer": "Coins: 12\n12",
    "tags": [
-    "operators",
-    "types"
+    "printing-output",
+    "comments"
    ],
-   "explain": "`*` on a string means repeat and `+` means join, so neither one produces a number however numeric the operands look. Repeating a single character is the standard way to draw a rule across the screen without typing it out.",
+   "concepts": [
+    "printing-output"
+   ],
+   "explain": "The two visible lines arrive by quite different routes - the first is text copied out exactly, the second is a sum worked out first - and they happen to end in the same characters, which is why the quotation marks are worth watching. The third line is hidden regardless of what it says.",
    "xp": 20
   },
   {
    "id": "py-1-e-03",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this prints `Mira has 12 gold`.",
-   "template": "name = \"Mira\"\ngold = 12\nprint(___\"{name} has {___} gold\")",
+   "prompt": "Fill the blanks so this file prints `Ready.` and then an empty line, and so its last line is a note the interpreter never obeys.",
+   "template": "print(\"___\")\n___()\n___ remember to check the lamp oil before setting off\n",
    "blanks": [
-    "f",
-    "gold"
+    "Ready.",
+    "print",
+    "#"
    ],
    "lang": "python",
-   "concepts": [
-    "f-strings",
-    "printing"
-   ],
    "tags": [
-    "f-strings",
-    "printing"
+    "printing-output",
+    "comments"
    ],
-   "explain": "Without the prefix the braces are just characters and the line prints them literally - that one letter is what switches substitution on. Inside the braces you name the variable itself, never the text you are hoping to see.",
-   "hint": "One blank is a single letter in front of the quote.",
+   "concepts": [
+    "printing-output",
+    "comments"
+   ],
+   "explain": "The full stop belongs inside the quotes, because text is reproduced exactly as written and a missing full stop is therefore different output. Empty brackets are the only way to ask for a line with nothing on it.",
    "xp": 20
   },
   {
    "id": "py-1-e-04",
-   "type": "multi",
+   "type": "trace",
    "layer": "retrieval",
-   "prompt": "Which of these expressions produce a value of type `str`?",
-   "choices": [
-    "str(9)",
-    "\"9\" + \"9\"",
-    "9 + 9",
-    "f\"{9}\"",
-    "input()"
-   ],
-   "answer": [
-    0,
-    1,
-    3,
-    4
-   ],
-   "concepts": [
-    "types",
-    "type-conversion",
-    "input"
+   "prompt": "Give the number of lines that have appeared on the screen once the interpreter has finished each of these lines.",
+   "code": "print(\"a\")\nprint()\n# print(\"b\")\nprint(\"c\")\n",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after line 1",
+     "expected": "1"
+    },
+    {
+     "label": "after line 2",
+     "expected": "2"
+    },
+    {
+     "label": "after line 3",
+     "expected": "2"
+    },
+    {
+     "label": "after line 4",
+     "expected": "3"
+    }
    ],
    "tags": [
-    "types",
-    "type-conversion",
-    "input"
+    "interpreter",
+    "printing-output"
    ],
-   "explain": "Conversion, joining, f-string substitution and reading a line all end in text; only the bare arithmetic stays numeric. Noticing that `input()` belongs in this group is exactly what stops you adding 1 to a line the user typed.",
-   "xp": 10
+   "concepts": [
+    "interpreter"
+   ],
+   "explain": "The count rises for the empty print and not for the comment, which is the distinction this whole floor turns on: one line produces something you cannot see, the other produces nothing at all. Treating those two as the same thing is the mistake the question exists to catch.",
+   "xp": 40
   },
   {
    "id": "py-1-e-05",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Order these lines into a program that reads a weight in grams and prints it in kilograms, for example `1.5 kg`.",
+   "prompt": "Arrange these lines into a file whose output is exactly:\n\n`Sweep the hearth.`\n`Lay the fire.`\n`Strike the match.`",
    "fragments": [
-    "raw = input()",
-    "grams = int(raw)",
-    "kilos = grams / 1000",
-    "label = f\"{kilos} kg\"",
-    "print(label)"
+    "print(\"Strike the match.\")",
+    "print(\"Sweep the hearth.\")",
+    "print(\"Lay the fire.\")"
    ],
    "answer": [
-    0,
     1,
     2,
-    3,
-    4
+    0
    ],
    "lang": "python",
-   "concepts": [
-    "variables",
-    "type-conversion",
-    "f-strings"
-   ],
    "tags": [
-    "variables",
-    "type-conversion",
-    "f-strings"
+    "running-a-program",
+    "interpreter"
    ],
-   "explain": "Each name is created exactly one line before it is used, so only one order runs at all. Building the text into a variable before printing it is a habit worth keeping: it separates deciding what to say from saying it.",
-   "hint": "Find the only line that uses no earlier name - that one goes first.",
+   "concepts": [
+    "running-a-program"
+   ],
+   "explain": "Every line is faultless on its own, so nothing here can be judged by looking at a single line - only the sequence can be wrong. That is the characteristic shape of an ordering fault, and it is why such faults never announce themselves with a message.",
    "xp": 20
   },
   {
    "id": "py-1-e-06",
    "type": "explain",
    "layer": "application",
-   "prompt": "A player types `7` into this program and expects to see `12`, but it prints `75`. Explain in your own words what is actually happening and what you would change.",
-   "code": "coins = input()\nbonus = \"5\"\nprint(coins + bonus)",
-   "lang": "python",
+   "prompt": "A file has four lines. The first two are ordinary instructions that show text on the screen. On the third line a quotation mark was left unclosed. Running the file produces no output at all, followed by this:\n\n`  File \"bells.py\", line 3`\n`    print(\"The bell rings again.`\n`SyntaxError: unterminated string literal (detected at line 3)`\n\nExplain why the first two lines produced nothing, even though there is nothing wrong with them.",
+   "tags": [
+    "error-messages",
+    "interpreter",
+    "source-code"
+   ],
+   "concepts": [
+    "error-messages"
+   ],
    "rubric": {
     "required": [
-     "string",
-     "int",
-     "convert"
+     "before",
+     "syntax",
+     "line 3"
     ],
     "optional": [
-     "join",
-     "concatenat",
-     "type",
-     "add",
-     "number"
+     "whole file",
+     "refused",
+     "never ran",
+     "understand",
+     "start",
+     "read"
     ],
-    "forbidden": [],
-    "minWords": 25
+    "minWords": 30
    },
-   "concepts": [
-    "type-conversion",
-    "input",
-    "operators"
-   ],
-   "tags": [
-    "type-conversion",
-    "input",
-    "operators"
-   ],
-   "explain": "Nothing here crashes, which is what makes it dangerous: both operands are strings, so `+` did exactly what it promises for text and joined them. A bug that produces a plausible-looking answer calls for the types to be checked, not the arithmetic.",
-   "hint": "Look at the type of the value on each side of the +.",
+   "explain": "This failure happens at the earlier of the two moments: the interpreter must be able to make sense of the whole file before it carries out any of it, so a fault of this kind means nothing ever started. That is why the empty output is informative rather than mysterious - had the first two lines run and something gone wrong afterwards, their output would be sitting above the message.",
    "xp": 20
   },
   {
    "id": "py-1-e-07",
-   "type": "trace",
+   "type": "explain",
    "layer": "application",
-   "prompt": "Trace `value` through this program. Write each state exactly as Python would show it: text in single quotes, numbers bare.",
-   "code": "value = \"6\"\nvalue = value + \"6\"\nvalue = int(value)\nvalue = value // 5",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "after value = \"6\"",
-     "expected": "'6'"
-    },
-    {
-     "label": "after value = value + \"6\"",
-     "expected": "'66'"
-    },
-    {
-     "label": "after value = int(value)",
-     "expected": "66"
-    },
-    {
-     "label": "after value = value // 5",
-     "expected": "13"
-    }
+   "prompt": "You run the same file on Monday and again on Friday and get identical output both times. A colleague says the computer has remembered the program from Monday. Say what actually happens on Friday, from the moment you ask for the file to be run.",
+   "tags": [
+    "source-code",
+    "interpreter",
+    "running-a-program"
    ],
    "concepts": [
-    "variables",
-    "types",
-    "type-conversion",
-    "operators"
+    "source-code",
+    "interpreter",
+    "running-a-program"
    ],
-   "tags": [
-    "variables",
-    "types",
-    "type-conversion",
-    "operators"
-   ],
-   "explain": "One name carries a different type at different moments, so `+` joins on the second line and `//` divides two lines later. Tracking the type alongside the value - not just the digits - is what tells you which meaning of an operator is about to apply.",
-   "hint1": "The first two lines are string work, not arithmetic.",
-   "hint2": "int(\"66\") is the moment the type changes.",
-   "hint3": "// keeps only the whole part of the division.",
-   "xp": 40
-  },
-  {
-   "id": "py-1-e-08",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "What does this program print? Write all three lines.",
-   "code": "total = 7\npeople = 2\nprint(f\"{total} split {people} ways\")\nprint(f\"each gets {total / people}\")\nprint(f\"whole units: {total // people}\")",
-   "lang": "python",
-   "answer": "7 split 2 ways\neach gets 3.5\nwhole units: 3",
-   "concepts": [
-    "f-strings",
-    "operators",
-    "printing"
-   ],
-   "tags": [
-    "f-strings",
-    "operators",
-    "printing"
-   ],
-   "explain": "Braces hold expressions, not only names, so each division runs before anything is printed and its result is pasted in as text. The last two lines differ by one character and by an entire type: one produces 3.5, the other 3.",
+   "rubric": {
+    "required": [
+     "read",
+     "interpreter",
+     "text"
+    ],
+    "optional": [
+     "top",
+     "again",
+     "line",
+     "file",
+     "same",
+     "order",
+     "remembered"
+    ],
+    "minWords": 30
+   },
+   "explain": "Nothing is kept between runs: the file is read again from the top as though for the first time, and the output is identical only because the text is identical. This matters more than it sounds - it is why editing the file changes Friday's result, and why a program that behaves differently on two runs must be getting something from outside the file.",
    "xp": 20
   },
   {
-   "id": "py-1-e-09",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "This should read a total number of items, then how many fit in one box, and print `Boxes filled: N` counting only completely filled boxes. It crashes instead. Fix it. For the input `7` then `2` it must print `Boxes filled: 3`.",
-   "starterCode": "total = int(input())\nper_box = int(input())\nprint(\"Boxes filled: \" + total / per_box)\n",
-   "tests": [
-    {
-     "input": "7\n2",
-     "expected": "Boxes filled: 3"
-    },
-    {
-     "input": "6\n3",
-     "expected": "Boxes filled: 2"
-    },
-    {
-     "input": "0\n4",
-     "expected": "Boxes filled: 0"
-    },
-    {
-     "input": "5\n10",
-     "expected": "Boxes filled: 0"
-    }
+   "id": "py-1-e-08",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of a comment in a Python file?",
+   "choices": [
+    "It begins at a hash and runs to the end of that line.",
+    "It is ignored by the interpreter.",
+    "It is printed on the screen when the program runs.",
+    "It may follow an instruction on the same line.",
+    "It must occupy a line of its own."
    ],
-   "solution": "total = int(input())\nper_box = int(input())\nprint(f\"Boxes filled: {total // per_box}\")\n",
-   "concepts": [
-    "operators",
-    "f-strings",
-    "printing"
+   "answer": [
+    0,
+    1,
+    3
    ],
    "tags": [
-    "operators",
-    "f-strings",
-    "printing"
+    "comments"
    ],
-   "explain": "Two faults sit on one line: text cannot be joined to a number, and `/` would have reported half a box even once the join was repaired. The word 'completely' in a specification is almost always the signal to reach for `//` rather than `/`.",
-   "hint1": "A partly filled box does not count.",
-   "hint2": "// discards the remainder; / would give 3.5.",
-   "hint3": "An f-string removes the need to join text to a number at all.",
-   "xp": 50
+   "concepts": [
+    "comments"
+   ],
+   "explain": "The two false statements come from the same misunderstanding - that a comment is part of what the program does. It is never shown and it need not stand alone; it is a note that stops at the end of its line, and nowhere else.",
+   "xp": 10
   },
   {
-   "id": "py-1-e-10",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write a shop receipt program. It reads three lines: an item name, the price of one item as a whole number of coins, then the quantity as a whole number. It prints exactly two lines - first `<quantity> x <name>`, then `Total: <price times quantity> coins`. For the input `potion`, `5`, `3` it prints `3 x potion` and then `Total: 15 coins`.",
-   "starterCode": "name = input()\nprice = int(input())\nquantity = int(input())\n# print the two lines\n",
-   "tests": [
-    {
-     "input": "potion\n5\n3",
-     "expected": "3 x potion\nTotal: 15 coins"
-    },
-    {
-     "input": "elixir\n12\n1",
-     "expected": "1 x elixir\nTotal: 12 coins"
-    },
-    {
-     "input": "rope\n7\n0",
-     "expected": "0 x rope\nTotal: 0 coins"
-    },
-    {
-     "input": "iron key\n0\n4",
-     "expected": "4 x iron key\nTotal: 0 coins"
-    }
-   ],
-   "solution": "name = input()\nprice = int(input())\nquantity = int(input())\nprint(f\"{quantity} x {name}\")\nprint(f\"Total: {price * quantity} coins\")\n",
-   "concepts": [
-    "input",
-    "type-conversion",
-    "operators",
-    "f-strings",
-    "printing",
-    "variables"
-   ],
+   "id": "py-1-e-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write every line it produces, including any blank ones.",
+   "code": "print(\"Chapter 1\")\nprint()\nprint(\"1 + 1\")\nprint(1 + 1)\n1 + 1\n",
+   "lang": "python",
+   "answer": "Chapter 1\n\n1 + 1\n2",
    "tags": [
-    "input",
-    "type-conversion",
-    "operators",
-    "f-strings",
-    "printing",
-    "variables"
+    "printing-output",
+    "interpreter"
    ],
-   "explain": "Every idea on this floor meets here: three reads in a fixed order, two conversions, one multiplication, and two f-strings mixing stored values with literal text. The zero cases need no special handling - multiplying by zero and printing the result falls out of the same code, which is what a well-shaped program should do.",
-   "hint1": "Read all three lines first, in the order the prompt lists them.",
-   "hint2": "Only the last two reads need int().",
-   "hint3": "Two f-strings, two print calls, and the multiplication goes inside the braces.",
-   "xp": 50
+   "concepts": [
+    "printing-output"
+   ],
+   "explain": "Five lines of file, four lines of output: one blank, one piece of text that merely looks like a sum, one sum that really was worked out, and one line whose result went nowhere. A fifth line would mean you were assuming the last line shows itself, which is the habit this floor exists to break.",
+   "xp": 20
   }
  ]
 }

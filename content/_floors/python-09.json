@@ -1,779 +1,888 @@
 {
  "n": 9,
- "name": "The Gilded Loom",
- "concepts": [
-  "comprehensions",
-  "iterator-protocol",
-  "decorators",
-  "type-hints"
+ "name": "The Hall of Letters",
+ "goal": "Manipulate text by index, slice and method, and know why strings cannot be edited in place.",
+ "stage": 1,
+ "cognitiveLevel": "recall",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 8
+  }
  ],
- "cognitiveLevel": "design",
+ "description": {
+  "what": "How Python lets you reach into a piece of text: one character at a time by position, a run of characters at a time by slice, and whole transformations at a time by method.",
+  "why": "Almost everything a program receives from a person or a file arrives as text, and almost nothing useful can be done with it until it has been cut apart, cleaned up and put back together.",
+  "enables": "You will be able to pull a character or a run of characters out of any text by position, clean and reshape it with the built-in methods, build a formatted line from values you already hold, and cut a line into its parts and rejoin them in a new form.",
+  "assumes": "You can write a function with parameters and a return value, use a loop to build up a result, write an if statement, and call `len` on a piece of text.",
+  "assessed": "You will predict what indexing and slicing produce, repair code that tries to change a character in place, and write functions that take text apart and rebuild it - with the later prompts telling you only what the result should be, never how to get it."
+ },
+ "concepts": [
+  "indexing",
+  "slicing",
+  "string-methods",
+  "f-strings",
+  "immutability",
+  "split-and-join"
+ ],
  "sequence": [
   "lesson",
-  "unseen-challenge",
+  "guided-practice",
+  "independent-practice",
   "exam"
  ],
  "lesson": {
-  "title": "Weaving, Wrapping, Declaring",
+  "title": "Text, Taken Apart",
   "sections": [
    {
-    "title": "Comprehensions",
-    "body": "A **comprehension** states what a collection contains instead of describing the loop that fills it. The shape is always the same: an expression, a `for` clause, and an optional `if` filter that decides which items survive.\n\nThe brackets choose the container - `[...]` builds a list, `{k: v for ...}` builds a dict, and `{...}` with a bare expression builds a set.\n\nThe loop variable lives only inside the comprehension, so it never leaks into the surrounding code the way a `for` loop's variable does.",
-    "code": "nums = [3, 8, 1, 12, 7]\nsquares = [n * n for n in nums if n % 2 == 1]\nby_value = {n: n * n for n in nums if n > 5}\nparities = {n % 2 for n in nums}\nprint(squares)\nprint(by_value)\nprint(sorted(parities))",
+    "title": "Counting From Zero",
+    "body": "A piece of text is not one lump. It is a **sequence** of characters in a fixed order, and every character has a number - its **index** - saying where in that order it sits. Square brackets written after the text ask for the character at one index, so `word[0]` is the first.\n\nThe first index is `0`, not `1`. That looks like a trap and is actually the reason the arithmetic works out: an index is a distance from the start, so the first character is zero steps in. `len(word)` counts the characters, so the last index is always `len(word) - 1` - one less than the count, for exactly the same reason.\n\nBecause reaching the last character that way is so common, Python offers a shorthand: a **negative** index counts back from the end, so `word[-1]` is the last character and `word[-2]` the one before it. There is no `word[-0]`, because `-0` is `0`.\n\nAn index that does not exist is an error, not an empty answer. Asking for `word[8]` of an eight-character word raises `IndexError: string index out of range`, and the traceback points at the line that asked.",
+    "code": "word = \"grimoire\"\nprint(word[0])\nprint(word[3])\nprint(word[-1])\nprint(word[-2])\nprint(len(word))",
     "lang": "python",
     "annotations": [
      {
       "line": 2,
-      "text": "Expression, then for, then filter: only odd values reach `n * n`."
-     },
-     {
-      "line": 3,
-      "text": "A dict comprehension needs `key: value` before the for clause."
+      "text": "Index 0 is the first character, so this prints g. Reading it as 'zero steps from the start' makes the counting stop feeling arbitrary."
      },
      {
       "line": 4,
-      "text": "Braces with a single expression build a set, so the duplicate parities collapse."
+      "text": "-1 is the last character. It is shorthand for word[len(word) - 1], which is the same thing written the long way."
+     },
+     {
+      "line": 6,
+      "text": "len counts characters, so the valid indexes here are 0 to 7. word[8] would raise IndexError."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "words = [\"ash\", \"ember\", \"kiln\", \"ore\"]\nprint([w.upper() for w in words if len(w) == 3])",
+     "prompt": "What does this program print?",
+     "code": "name = \"python\"\nprint(name[1])\nprint(name[-3])",
      "lang": "python",
-     "answer": "['ASH', 'ORE']",
+     "answer": "y\nh",
      "concepts": [
-      "comprehensions"
+      "indexing"
      ],
-     "explain": "The filter runs before the expression, so `.upper()` is only ever applied to the words that survived it. Order is preserved because a list comprehension walks the source in order."
+     "tags": [
+      "indexing"
+     ],
+     "explain": "The tempting answer for the first line is `p`, from counting the first character as number one. The tempting answer for the second is `n`, from reading -3 as 'the third character'. Both come from one mistake: an index is a distance, and a negative index is a distance measured from the far end."
     }
    },
    {
-    "title": "The Iterator Protocol",
-    "body": "A `for` loop is not magic: it calls `iter()` on whatever you gave it, then calls `next()` on the result until `StopIteration` is raised.\n\nAny object can join in by defining two methods. `__iter__` returns the iterator - for a self-consuming object that is simply `self` - and `__next__` produces the next value or raises `StopIteration` to signal exhaustion.\n\nThe state that decides what comes next lives on the object, which is why a half-consumed iterator cannot be rewound.",
-    "code": "class Countdown:\n    def __init__(self, start):\n        self.current = start\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.current <= 0:\n            raise StopIteration\n        value = self.current\n        self.current -= 1\n        return value\n\n\nprint(list(Countdown(3)))\nit = Countdown(2)\nprint(next(it), next(it))",
+    "title": "Slices, and the Half-Open Interval",
+    "body": "One character at a time is rarely what you want. `word[start:end]` hands back a whole run of characters as a new piece of text - a **slice**.\n\nThe rule that catches everybody: the slice **includes** `start` and **excludes** `end`. `word[0:4]` gives you characters 0, 1, 2 and 3, and stops. This is the same half-open convention `range(0, 4)` uses, and it is deliberate rather than careless. It buys two things: the length of the slice is always `end - start`, and adjacent slices join up perfectly, so `word[0:4]` followed by `word[4:8]` rebuilds the whole word with nothing dropped and nothing repeated.\n\nEither end may be left out. `word[:4]` means from the beginning, `word[4:]` means to the end, and `word[:]` means the whole thing. Negative numbers work here too, so `word[-3:]` is the last three characters.\n\nA third number is the **step**: `word[1:7:2]` takes every second character, and `word[::-1]` steps backwards through the whole thing, which is how text gets reversed. Unlike indexing, a slice never raises for being out of range - it hands back whatever is actually there, which may be nothing at all.",
+    "code": "word = \"grimoire\"\nprint(word[0:4])\nprint(word[4:])\nprint(word[:4])\nprint(word[-3:])\nprint(word[1:7:2])\nprint(word[10:14] + \"(nothing)\")",
     "lang": "python",
     "annotations": [
      {
-      "line": 5,
-      "text": "Returning self makes the object its own iterator."
+      "line": 2,
+      "text": "Characters 0, 1, 2 and 3 - four of them, because 4 - 0 = 4. Index 4 is excluded, which is why the next line can start at 4 without repeating anything."
      },
      {
-      "line": 9,
-      "text": "Exhaustion is signalled by raising, never by returning None."
+      "line": 6,
+      "text": "Start 1, stop before 7, step 2: indexes 1, 3 and 5. The step counts from the start index, not from zero."
      },
      {
-      "line": 16,
-      "text": "list() drives the protocol to completion for you."
+      "line": 7,
+      "text": "Both ends lie past the end of the word, so the slice is empty. Compare word[10], which would raise IndexError - slicing forgives where indexing refuses."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the two blanks so the program prints `moir`.",
+     "template": "spell = \"grimoire\"\nprint(spell[___:___])",
+     "blanks": [
+      "3",
+      "7"
+     ],
+     "concepts": [
+      "slicing"
+     ],
+     "tags": [
+      "slicing"
+     ],
+     "explain": "`m` sits at index 3 and `r` at index 6, so the stop must be 7 - one past the last character wanted. Writing 6 is the commonest slip, and it silently gives `moi` rather than raising, which is why half-open intervals have to be understood rather than guessed at."
+    }
+   },
+   {
+    "title": "Methods, and the String You Cannot Edit",
+    "body": "A **method** is a function that belongs to a value and is called by writing a dot after it, as in `title.upper()`. Text comes with a large set of them, and a handful cover most real work: `strip` removes blank space from both ends, `lower` and `upper` change case, `replace` swaps one run of characters for another, `startswith` and `endswith` answer True or False, and `find` reports the index where something begins, or `-1` when it is not there at all.\n\nEvery one of those methods **returns a new piece of text and leaves the original exactly as it was**. Writing `title.strip()` on a line by itself accomplishes nothing: the cleaned-up text is built, nobody catches it, and it is thrown away. You have to keep the result with `title = title.strip()`, or use it on the spot.\n\nThe reason is that strings are **immutable** - once made, the characters inside one can never change. So `title[0] = \"T\"` is not a slow way of doing it or a matter of style, it is impossible, and Python says so with `TypeError: 'str' object does not support item assignment`.\n\nThat sounds like a restriction and mostly is not. It means text handed to a function cannot be altered behind the caller's back, and it is why methods chain safely: each one gives the next a fresh result instead of everybody scribbling on one shared value. To change a character, build a new string around it, as in `title[:1].upper() + title[1:]`.",
+    "code": "title = \"  the Serpent's Ascent  \"\nprint(title.strip())\nprint(title.strip().upper())\nprint(title.strip().replace(\"Serpent\", \"Dragon\"))\nprint(title.strip().startswith(\"the\"))\nprint(title.strip().find(\"Ascent\"))\nprint(len(title))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Chaining reads left to right: strip runs first and hands its new string to upper. Neither one touches the value that title names."
+     },
+     {
+      "line": 6,
+      "text": "find returns an index, and returns -1 rather than raising when the text is absent. -1 is itself a real index of a real character, so never use the answer without checking it."
+     },
+     {
+      "line": 7,
+      "text": "Still 24. Five methods were called on it and title is untouched, because none of them could have touched it."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "s = \"quiet\"\ns.upper()\nprint(s)\nprint(s.upper())",
+     "lang": "python",
+     "answer": "quiet\nQUIET",
+     "concepts": [
+      "immutability",
+      "string-methods"
+     ],
+     "tags": [
+      "immutability"
+     ],
+     "explain": "The tempting answer is `QUIET` twice, from reading line 2 as an instruction that changes `s`. It is not one: it builds an uppercase string, hands it to nobody, and the value is discarded. Only the expression whose result gets used - line 4 - shows any effect."
+    }
+   },
+   {
+    "title": "Taking Text Apart, and Building It Back",
+    "body": "`split` cuts text into its parts at a separator you name, and hands back a **list** - a numbered sequence of values, which has a whole floor of its own later; for now it is enough that `len` counts it and square brackets index it exactly as they do text. `line.split(\",\")` turns `\"a,b,c\"` into three separate pieces. Called with no separator at all, `split()` cuts on blank space and quietly ignores runs of it, which is nearly always what is wanted for breaking a sentence into words.\n\n`join` is the exact reverse, and its shape surprises people: you call it on the **separator** and hand it the parts. `\" - \".join(runes)` glues the parts back together with ` - ` between them. It reads backwards until you notice that the separator is the thing that knows how to do the gluing.\n\nTo build a line out of values you already hold, put an `f` before the opening quote and write the values in braces: `f\"{count} runes\"`. Any expression fits inside the braces and the result is an ordinary new string. Stitching pieces together with `+` instead forces you to convert every number by hand and buries the shape of the line in punctuation.\n\nCut apart, transform, put back is one of the most useful shapes in the language, and it is worth recognising as a shape rather than as three separate tricks.",
+    "code": "line = \"algiz,ehwaz,laguz\"\nrunes = line.split(\",\")\nprint(runes)\nprint(runes[1])\nprint(\" - \".join(runes))\nprint(\"algiz  ehwaz   laguz\".split())\ncount = len(runes)\nprint(f\"{count} runes, first is {runes[0]}\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The parts print inside square brackets with quotes round each one - that is a list being shown, not a piece of text."
+     },
+     {
+      "line": 6,
+      "text": "split() with no argument collapses the runs of spaces, so three words come back rather than a scattering of empty pieces."
+     },
+     {
+      "line": 8,
+      "text": "count is a number and the f-string converts it for you. Writing count + \" runes\" instead would raise TypeError."
      }
     ],
     "checkpoint": {
      "type": "code",
      "layer": "application",
-     "prompt": "Write `take_two(source)` that returns a list of the first two items produced by any iterable, using `iter()` and `next()` rather than slicing.",
-     "fn": "take_two",
-     "starterCode": "",
+     "prompt": "Write `dashed(text)` which returns the words of `text` in upper case, joined with single hyphens. `dashed(\"one two\")` is `\"ONE-TWO\"`, and runs of spaces between words must not produce empty pieces.",
+     "fn": "dashed",
+     "starterCode": "def dashed(text):\n    pass\n",
+     "solution": "def dashed(text):\n    return \"-\".join(text.upper().split())\n",
      "tests": [
       {
-       "input": "[5, 6, 7]",
-       "expected": [
-        5,
-        6
-       ]
+       "input": "'one two'",
+       "expected": "ONE-TWO"
       },
       {
-       "input": "'ab'",
-       "expected": [
-        "a",
-        "b"
-       ]
+       "input": "'  spaced   out '",
+       "expected": "SPACED-OUT"
       },
       {
-       "input": "[1, 2]",
-       "expected": [
-        1,
-        2
-       ]
+       "input": "'solo'",
+       "expected": "SOLO"
       }
      ],
      "concepts": [
-      "iterator-protocol"
+      "split-and-join",
+      "string-methods"
      ],
-     "explain": "`iter()` is what turns a list or a string into something `next()` can drive; calling `next()` twice on the same iterator advances it, which is exactly why the second call does not hand back the first item again.",
-     "solution": "def take_two(source):\n    it = iter(source)\n    return [next(it), next(it)]\n"
-    }
-   },
-   {
-    "title": "Decorators",
-    "body": "A **decorator** is a function that takes a function and returns a replacement. `@announce` above a `def` means `spark = announce(spark)` - nothing more.\n\nThe replacement usually accepts `*args, **kwargs` so it can stand in for any signature, and `functools.wraps` copies the original's name and docstring onto it so the disguise survives introspection.\n\nA decorator that takes arguments is one layer deeper: `repeat(2)` is called first and must return the actual decorator.\n\nStacked decorators apply bottom-up, so the one nearest the `def` wraps first.",
-    "code": "import functools\n\n\ndef announce(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        print(\"called\", fn.__name__)\n        return fn(*args, **kwargs)\n    return wrapper\n\n\ndef repeat(times):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            return [fn(*args, **kwargs) for _ in range(times)]\n        return wrapper\n    return decorate\n\n\n@announce\n@repeat(2)\ndef spark(x):\n    return x * 10\n\n\nprint(spark(3))\nprint(spark.__name__)",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 5,
-      "text": "Without this line spark.__name__ would report 'wrapper'."
-     },
-     {
-      "line": 12,
-      "text": "Three levels: the factory takes the argument, decorate takes the function, wrapper takes the call."
-     },
-     {
-      "line": 22,
-      "text": "Applied first because it is closest to the def."
-     },
-     {
-      "line": 28,
-      "text": "wraps is why this prints spark and not wrapper."
-     }
-    ],
-    "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "import functools\n\n\ndef shout(fn):\n    @functools.wraps(fn)\n    def wrapper(word):\n        return fn(word).upper()\n    return wrapper\n\n\n@shout\ndef greet(word):\n    return \"hello \" + word\n\n\nprint(greet(\"mira\"))\nprint(greet.__name__)",
-     "lang": "python",
-     "answer": "HELLO MIRA\ngreet",
-     "concepts": [
-      "decorators"
+     "tags": [
+      "split-and-join"
      ],
-     "explain": "The name `greet` is now bound to `wrapper`, so the original function is only reachable through the closure. `functools.wraps` is what keeps the reported name honest even though the object underneath has changed."
-    }
-   },
-   {
-    "title": "Type Hints",
-    "body": "An **annotation** records what a value is meant to be. Since Python 3.9 the builtin containers are subscriptable directly - `list[str]`, `dict[str, int]` - with no import needed.\n\n`Optional[str]` from `typing` means a str or None, which is the honest signature for any function that can fail to find something.\n\nPython does not check these at runtime; it stores them in the function's `__annotations__` dict and moves on. They are for readers, editors and type checkers, not for enforcement.",
-    "code": "from typing import Optional\n\n\ndef tally(words: list[str]) -> dict[str, int]:\n    counts: dict[str, int] = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n\n\ndef first_long(words: list[str], limit: int) -> Optional[str]:\n    for w in words:\n        if len(w) > limit:\n            return w\n    return None\n\n\nprint(tally([\"ash\", \"ore\", \"ash\"]))\nprint(first_long([\"ash\", \"ember\"], 3))\nprint(first_long([\"ash\"], 3))\nprint(first_long.__annotations__[\"return\"])",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 4,
-      "text": "Parameter hints go after the colon, the return hint after the arrow."
-     },
-     {
-      "line": 5,
-      "text": "A local variable can be annotated too, even though nothing checks it."
-     },
-     {
-      "line": 11,
-      "text": "Optional[str] documents the None-returning branch below."
-     },
-     {
-      "line": 21,
-      "text": "The hints are just data hanging off the function object."
-     }
-    ],
-    "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "def double(n: int) -> int:\n    return n * 2\n\n\nprint(double(\"ab\"))\nprint(double(4))",
-     "lang": "python",
-     "answer": "abab\n8",
-     "concepts": [
-      "type-hints"
-     ],
-     "explain": "The annotation is a promise to the reader, not a guard at the door - `*` on a string repeats it, and Python never consults the hint. This is why a type checker is a separate tool you have to run."
+     "explain": "Cutting on the space character with `split(\" \")` passes the first test and fails the second, because a run of three spaces becomes two empty pieces between the words. The no-argument form exists precisely for this, and the second test is there to catch the version that does not use it."
     }
    }
   ]
  },
- "unseen-challenge": [
+ "guided-practice": [
   {
-   "id": "py-9-u-01",
-   "type": "design",
-   "layer": "application",
-   "prompt": "Write `loud_words(words)` returning a new list containing the uppercase form of every word longer than three characters, in the original order. Build it with a single list comprehension. Nothing is given to you.",
-   "fn": "loud_words",
-   "starterCode": "",
-   "tests": [
-    {
-     "input": "['ash', 'ember', 'kiln', 'ore']",
-     "expected": [
-      "EMBER",
-      "KILN"
-     ]
-    },
-    {
-     "input": "['grimoire']",
-     "expected": [
-      "GRIMOIRE"
-     ]
-    },
-    {
-     "input": "['a', 'bb', 'ccc']",
-     "expected": []
-    },
-    {
-     "input": "[]",
-     "expected": []
-    }
-   ],
+   "id": "py-9-g-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "rune = \"ansuz\"\nprint(rune[0] + rune[-1])\nprint(rune[2])\nprint(len(rune))",
+   "lang": "python",
+   "answer": "az\ns\n5",
    "concepts": [
-    "comprehensions"
+    "indexing"
    ],
    "tags": [
-    "comprehensions"
+    "indexing"
    ],
-   "explain": "Filter first, transform second - putting `.upper()` in the expression slot and the length test in the `if` slot keeps each concern in one place. The empty list falls out for free because a comprehension over nothing produces nothing; no special case is needed.",
-   "xp": 100,
-   "solution": "def loud_words(words):\n    return [w.upper() for w in words if len(w) > 3]\n"
+   "explain": "Two characters added together make a two-character string, not a sum - `+` between pieces of text joins them. The second line is the one that catches people: index 2 is the third character, because the counting started at zero.",
+   "xp": 24,
+   "hint": "Write the indexes above the letters: a is 0, n is 1, s is 2, u is 3, z is 4. Then read off what each expression asks for."
   },
   {
-   "id": "py-9-u-02",
-   "type": "design",
-   "layer": "application",
-   "prompt": "Write `length_map(words)` returning a dict that maps each word to its length, skipping any empty string. Use a single dict comprehension.",
-   "fn": "length_map",
-   "starterCode": "",
-   "tests": [
-    {
-     "input": "['ash', 'ember']",
-     "expected": {
-      "ash": 3,
-      "ember": 5
-     }
-    },
-    {
-     "input": "['', 'ore', '']",
-     "expected": {
-      "ore": 3
-     }
-    },
-    {
-     "input": "['x', 'x']",
-     "expected": {
-      "x": 1
-     }
-    },
-    {
-     "input": "[]",
-     "expected": {}
-    }
+   "id": "py-9-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the program prints `cant` on the first line and `ation` on the second.",
+   "template": "spell = \"incantation\"\nprint(spell[___:___])\nprint(spell[___:])",
+   "blanks": [
+    "2",
+    "6",
+    "6"
    ],
    "concepts": [
-    "comprehensions"
+    "slicing"
    ],
    "tags": [
-    "comprehensions"
+    "slicing"
    ],
-   "explain": "A dict comprehension needs `key: value` before the `for`, and an empty string is falsy so `if w` is enough to drop it. Duplicate keys are not an error - the later pair simply overwrites the earlier one, which is why two copies of the same word collapse to one entry.",
-   "xp": 100,
-   "solution": "def length_map(words):\n    return {w: len(w) for w in words if w}\n"
+   "explain": "The same number 6 does two different jobs here: as a stop it is one past the last character taken, and as a start it is the first character taken. That is the half-open interval in a single program - the two slices meet at 6 and neither drop nor repeat a character.",
+   "xp": 24,
+   "hint": "Number the letters from zero: i0 n1 c2 a3 n4 t5 a6 t7 i8 o9 n10. Remember the stop index is excluded."
   },
   {
-   "id": "py-9-u-03",
-   "type": "design",
-   "layer": "application",
-   "prompt": "Write `unique_initials(names)` returning a sorted list of the distinct lowercase first letters of the names, ignoring any empty string. Collect the distinct letters with a set comprehension, then sort the result.",
-   "fn": "unique_initials",
-   "starterCode": "",
-   "tests": [
-    {
-     "input": "['Ash', 'ember', 'Ore', 'aria']",
-     "expected": [
-      "a",
-      "e",
-      "o"
-     ]
-    },
-    {
-     "input": "['bb', 'BB']",
-     "expected": [
-      "b"
-     ]
-    },
-    {
-     "input": "['', 'Zed']",
-     "expected": [
-      "z"
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    }
-   ],
+   "id": "py-9-g-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "motto = \"Speak Softly\"\nmotto.lower()\nprint(motto)\nprint(motto.lower())\nprint(motto.replace(\" \", \"\"))\nprint(motto)",
+   "lang": "python",
+   "answer": "Speak Softly\nspeak softly\nSpeakSoftly\nSpeak Softly",
    "concepts": [
-    "comprehensions"
+    "string-methods",
+    "immutability"
    ],
    "tags": [
-    "comprehensions"
+    "string-methods"
    ],
-   "explain": "A set comprehension collapses duplicates during the single pass instead of afterwards, but a set has no order you may rely on - `sorted()` is what turns it back into something a test can compare. The `if n` guard matters because indexing position 0 of an empty string raises IndexError.",
-   "xp": 100,
-   "solution": "def unique_initials(names):\n    return sorted({n[0].lower() for n in names if n})\n"
+   "explain": "Line 2 and line 5 both build new strings that nothing keeps, so `motto` is identical on the first and last lines of output. The tempting reading is that a method call is a command that modifies the value; it is an expression that produces one.",
+   "xp": 24,
+   "hint": "Ask of every method call: was the result stored anywhere, or used anywhere? If not, it changed nothing."
   },
   {
-   "id": "py-9-u-04",
-   "type": "design",
+   "id": "py-9-g-04",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write an iterator class `Countdown` whose constructor takes a start value. `__iter__` must return the object itself, and `__next__` must hand back `start`, then `start - 1`, and so on down to 1, then raise `StopIteration`. Also write `countdown_list(start)` returning `list(Countdown(start))`. The tests call `countdown_list`.",
-   "fn": "countdown_list",
-   "starterCode": "",
+   "prompt": "`capitalise_first(word)` should return the word with its first character in upper case and the rest untouched, and should return empty text unchanged. It raises `TypeError: 'str' object does not support item assignment`. Repair it.",
+   "fn": "capitalise_first",
+   "starterCode": "def capitalise_first(word):\n    word[0] = word[0].upper()\n    return word\n",
+   "solution": "def capitalise_first(word):\n    return word[:1].upper() + word[1:]\n",
    "tests": [
     {
-     "input": "3",
-     "expected": [
-      3,
-      2,
-      1
-     ]
+     "input": "'rune'",
+     "expected": "Rune"
     },
     {
-     "input": "1",
-     "expected": [
-      1
-     ]
+     "input": "'a'",
+     "expected": "A"
     },
     {
-     "input": "0",
-     "expected": []
+     "input": "''",
+     "expected": ""
     },
     {
-     "input": "-2",
-     "expected": []
+     "input": "'Rune'",
+     "expected": "Rune"
     }
    ],
    "concepts": [
-    "iterator-protocol"
+    "immutability",
+    "slicing"
    ],
    "tags": [
-    "iterator-protocol"
+    "immutability"
    ],
-   "explain": "`list()` only knows how to drain the object because `__iter__` handed it something with `__next__`; returning `self` is what makes the object serve as both. The stop test has to come before the value is produced, otherwise a start of 0 emits a bogus item before quitting - which is exactly what the zero and negative cases catch.",
-   "xp": 100,
-   "solution": "class Countdown:\n    def __init__(self, start):\n        self.current = start\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.current <= 0:\n            raise StopIteration\n        value = self.current\n        self.current -= 1\n        return value\n\n\ndef countdown_list(start):\n    return list(Countdown(start))\n"
+   "explain": "No repair keeps the shape of the broken line, because assigning into a string is not something Python can do at all - the fix has to build a new string. Note that `word[0].upper() + word[1:]` passes three of the four tests and raises IndexError on the empty one; a one-character slice is empty rather than an error, which is what makes `word[:1]` the safer half of the pair.",
+   "xp": 60,
+   "hint": "You cannot change a character in place. Build the answer out of two pieces and add them together - and pick a first piece that survives an empty word."
   },
   {
-   "id": "py-9-u-05",
-   "type": "design",
+   "id": "py-9-g-05",
+   "type": "code",
    "layer": "application",
-   "prompt": "Write a decorator `doubled` that doubles whatever the wrapped function returns, preserving the wrapped function's name with `functools.wraps`. Apply it to `add(a, b)`, which returns `a + b`. Then write `probe(a, b)` returning the two-element list `[add(a, b), add.__name__]`. The tests call `probe`, so a wrapper without `functools.wraps` will fail them.",
-   "fn": "probe",
-   "starterCode": "",
+   "prompt": "Write `ends(text)` returning the first and last characters of `text` stuck together. `ends(\"grimoire\")` is `\"ge\"`. Text of one character returns that character, and empty text returns empty text.",
+   "fn": "ends",
+   "starterCode": "def ends(text):\n    # guard the short cases first, then index both ends\n    pass\n",
+   "solution": "def ends(text):\n    if len(text) == 0:\n        return \"\"\n    if len(text) == 1:\n        return text\n    return text[0] + text[-1]\n",
    "tests": [
     {
-     "input": "2, 3",
-     "expected": [
-      10,
-      "add"
-     ]
+     "input": "'grimoire'",
+     "expected": "ge"
     },
     {
-     "input": "0, 5",
-     "expected": [
-      10,
-      "add"
-     ]
+     "input": "'ab'",
+     "expected": "ab"
     },
     {
-     "input": "-4, 1",
-     "expected": [
-      -6,
-      "add"
-     ]
+     "input": "'x'",
+     "expected": "x"
     },
     {
-     "input": "0, 0",
-     "expected": [
-      0,
-      "add"
-     ]
+     "input": "''",
+     "expected": ""
     }
    ],
    "concepts": [
-    "decorators"
+    "indexing"
    ],
    "tags": [
-    "decorators"
+    "indexing"
    ],
-   "explain": "After decoration the name `add` points at the wrapper, so every attribute you read from it belongs to the wrapper unless `functools.wraps` copied the original's across. That is the whole reason the second element of the list is a test and not decoration: it is the only observable difference between a wrapper that used `wraps` and one that did not.",
-   "xp": 100,
-   "solution": "import functools\n\n\ndef doubled(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        return fn(*args, **kwargs) * 2\n    return wrapper\n\n\n@doubled\ndef add(a, b):\n    return a + b\n\n\ndef probe(a, b):\n    return [add(a, b), add.__name__]\n"
+   "explain": "`text[-1]` is the whole reason this stays short: without it you would write `text[len(text) - 1]` and get the minus one wrong sooner or later. The empty test is not decoration - `text[0]` on empty text raises IndexError, so the guard has to come before the indexing rather than after it.",
+   "xp": 60,
+   "hint": "`text[-1]` is the last character whatever the length. The one-character case needs its own answer, because otherwise the first and last character are the same one and it would appear twice."
   },
   {
-   "id": "py-9-u-06",
-   "type": "design",
+   "id": "py-9-g-06",
+   "type": "code",
    "layer": "application",
-   "prompt": "Write a decorator factory `clamp_to(limit)`. A function it decorates returns its own result when that result is at most `limit`, and `limit` otherwise. Use `functools.wraps` on the wrapper. Apply `@clamp_to(100)` to `total(numbers: list[int]) -> int`, which returns the sum of the list, and annotate it exactly as written. The tests call `total`.",
-   "fn": "total",
-   "starterCode": "",
+   "prompt": "Write `mirror(text)` returning `text` followed immediately by the same text backwards. `mirror(\"ab\")` is `\"abba\"`. Reverse it with a slice that has a step, not with a loop.",
+   "fn": "mirror",
+   "starterCode": "def mirror(text):\n    # a slice can walk backwards\n    pass\n",
+   "solution": "def mirror(text):\n    return text + text[::-1]\n",
    "tests": [
     {
-     "input": "[1, 2, 3]",
-     "expected": 6
+     "input": "'ab'",
+     "expected": "abba"
     },
     {
-     "input": "[50, 60]",
-     "expected": 100
+     "input": "'grim'",
+     "expected": "grimmirg"
     },
     {
-     "input": "[100]",
-     "expected": 100
+     "input": "'x'",
+     "expected": "xx"
     },
     {
-     "input": "[-5, -5]",
-     "expected": -10
-    },
-    {
-     "input": "[]",
-     "expected": 0
+     "input": "''",
+     "expected": ""
     }
    ],
    "concepts": [
-    "decorators",
-    "type-hints"
+    "slicing"
    ],
    "tags": [
-    "decorators",
-    "type-hints"
+    "slicing"
    ],
-   "explain": "A decorator that takes an argument needs three nested functions: the factory captures `limit`, the middle layer captures the function, and only the innermost one sees the call. The `[100]` case is the boundary that separates a correct `<=` from an off-by-one `<`, and the empty list proves `sum([])` is 0 rather than an error.",
-   "xp": 100,
-   "solution": "import functools\n\n\ndef clamp_to(limit):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(*args, **kwargs):\n            result = fn(*args, **kwargs)\n            return result if result <= limit else limit\n        return wrapper\n    return decorate\n\n\n@clamp_to(100)\ndef total(numbers: list[int]) -> int:\n    return sum(numbers)\n"
+   "explain": "`text[::-1]` leaves both ends blank and sets the step to -1, so it runs the whole thing backwards. `text[-1:0:-1]` is the near miss: it stops before index 0 and silently loses the first character, which the empty and one-character tests would not catch but `grim` does.",
+   "xp": 60,
+   "hint": "Leave the start and the stop of the slice empty and give it a step of -1."
+  },
+  {
+   "id": "py-9-g-07",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `tidy(name)` which returns `name` with blank space removed from both ends, put into lower case, and with every hyphen turned into a single space. `tidy(\"  Ada-Lovelace \")` is `\"ada lovelace\"`. Chain the string methods rather than writing a loop.",
+   "fn": "tidy",
+   "starterCode": "def tidy(name):\n    # each method hands its result to the next\n    pass\n",
+   "solution": "def tidy(name):\n    return name.strip().lower().replace(\"-\", \" \")\n",
+   "tests": [
+    {
+     "input": "'  Ada-Lovelace '",
+     "expected": "ada lovelace"
+    },
+    {
+     "input": "'PLAIN'",
+     "expected": "plain"
+    },
+    {
+     "input": "'a-b-c'",
+     "expected": "a b c"
+    },
+    {
+     "input": "'   '",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "string-methods"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "The chain works because each method returns a new string for the next one to act on - nothing is modified along the way. The version that calls the three methods on separate lines without assigning anything looks almost identical and returns the original name untouched, which is the mistake this floor exists to make unmissable.",
+   "xp": 60,
+   "hint": "Three method calls in a row on one line: strip, then lower, then replace. `replace` takes what to look for first and what to put there second."
+  },
+  {
+   "id": "py-9-g-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `summarise(csv_line)` which takes text holding pieces separated by commas and returns a summary line built with an f-string: the number of pieces, then ` items: `, then the pieces rejoined with ` | ` between them. `summarise(\"a,b,c\")` is `\"3 items: a | b | c\"`.",
+   "fn": "summarise",
+   "starterCode": "def summarise(csv_line):\n    parts = csv_line.split(\",\")\n    return f\"\"\n",
+   "solution": "def summarise(csv_line):\n    parts = csv_line.split(\",\")\n    return f\"{len(parts)} items: {' | '.join(parts)}\"\n",
+   "tests": [
+    {
+     "input": "'a,b,c'",
+     "expected": "3 items: a | b | c"
+    },
+    {
+     "input": "'x,y'",
+     "expected": "2 items: x | y"
+    },
+    {
+     "input": "'solo'",
+     "expected": "1 items: solo"
+    },
+    {
+     "input": "''",
+     "expected": "1 items: "
+    }
+   ],
+   "concepts": [
+    "f-strings",
+    "split-and-join"
+   ],
+   "tags": [
+    "f-strings"
+   ],
+   "explain": "The last test is the surprising one: cutting empty text at commas gives one piece, and that piece is empty, so the count is 1 rather than 0. Splitting never yields nothing - if the separator is absent you get the whole text back as a single piece, which is what the `solo` case shows.",
+   "xp": 60,
+   "hint": "Put the whole join expression inside the braces of the f-string. Use single quotes for the separator inside the braces so they do not close the double-quoted f-string."
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-9-i-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `initials(full_name)`. Given somebody's full name, return their initials: the first letter of each word in upper case, separated by full stops, with no full stop after the last one. `initials(\"ada byron lovelace\")` is `\"A.B.L\"`. Extra blank space anywhere in the name must not produce empty initials, and a name with no words at all returns empty text.",
+   "fn": "initials",
+   "starterCode": "def initials(full_name):\n    pass\n",
+   "solution": "def initials(full_name):\n    out = \"\"\n    for part in full_name.split():\n        if out:\n            out = out + \".\"\n        out = out + part[0].upper()\n    return out\n",
+   "tests": [
+    {
+     "input": "'ada byron lovelace'",
+     "expected": "A.B.L"
+    },
+    {
+     "input": "'  grace   hopper '",
+     "expected": "G.H"
+    },
+    {
+     "input": "'solo'",
+     "expected": "S"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "split-and-join",
+    "indexing",
+    "string-methods"
+   ],
+   "tags": [
+    "split-and-join"
+   ],
+   "explain": "The separator goes between the initials, never after the last one, so adding a full stop each time round and trimming the end afterwards is the fiddly route. Adding the separator only when there is already something to separate from needs no cleanup at all, and it is the same reasoning that makes gluing pieces back together the natural fit here.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-i-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `redact(text, secret)`. Every appearance of `secret` inside `text` must come back replaced by a row of asterisks of the same length, so the line keeps its width. `redact(\"my code is 1234\", \"1234\")` is `\"my code is ****\"`. If the secret does not appear, the text comes back unchanged.",
+   "fn": "redact",
+   "starterCode": "def redact(text, secret):\n    pass\n",
+   "solution": "def redact(text, secret):\n    return text.replace(secret, \"*\" * len(secret))\n",
+   "tests": [
+    {
+     "input": "'my code is 1234', '1234'",
+     "expected": "my code is ****"
+    },
+    {
+     "input": "'nothing here', 'xyz'",
+     "expected": "nothing here"
+    },
+    {
+     "input": "'aaa', 'a'",
+     "expected": "***"
+    },
+    {
+     "input": "'', 'abc'",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "string-methods",
+    "immutability"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "The third test rules out finding the secret once and rebuilding round that position - every appearance has to go, and there are three of them. `\"*\" * len(secret)` is repetition of text by a number, which is what keeps the replacement the original width instead of collapsing it to a single star.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-i-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `is_palindrome(text)` returning `True` when `text` reads the same forwards and backwards once spaces are ignored and case is disregarded, and `False` otherwise. `is_palindrome(\"Never odd or even\")` is `True`. Text with nothing in it counts as a palindrome.",
+   "fn": "is_palindrome",
+   "starterCode": "def is_palindrome(text):\n    pass\n",
+   "solution": "def is_palindrome(text):\n    cleaned = text.replace(\" \", \"\").lower()\n    return cleaned == cleaned[::-1]\n",
+   "tests": [
+    {
+     "input": "'Never odd or even'",
+     "expected": true
+    },
+    {
+     "input": "'grimoire'",
+     "expected": false
+    },
+    {
+     "input": "'Was it a car or a cat I saw'",
+     "expected": true
+    },
+    {
+     "input": "''",
+     "expected": true
+    }
+   ],
+   "concepts": [
+    "slicing",
+    "string-methods"
+   ],
+   "tags": [
+    "slicing"
+   ],
+   "explain": "Cleaning first and comparing once is far less error-prone than walking two positions towards each other, because the walking version has to skip spaces on both sides at the same time and its stopping condition is easy to get wrong. Comparing the cleaned text with its own reverse is a single expression with no boundary left to misjudge.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-i-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `field(line, n)`. `line` holds pieces separated by commas, and `n` says which piece is wanted, counting the first as 0. Return that piece with any blank space at its ends removed. If `n` names a piece that is not there - including a negative `n` - return empty text. `field(\"a, b ,c\", 1)` is `\"b\"`.",
+   "fn": "field",
+   "starterCode": "def field(line, n):\n    pass\n",
+   "solution": "def field(line, n):\n    parts = line.split(\",\")\n    if n < 0 or n >= len(parts):\n        return \"\"\n    return parts[n].strip()\n",
+   "tests": [
+    {
+     "input": "'a, b ,c', 1",
+     "expected": "b"
+    },
+    {
+     "input": "'a,b', 5",
+     "expected": ""
+    },
+    {
+     "input": "'a,b', -1",
+     "expected": ""
+    },
+    {
+     "input": "'  solo  ', 0",
+     "expected": "solo"
+    }
+   ],
+   "concepts": [
+    "split-and-join",
+    "indexing"
+   ],
+   "tags": [
+    "split-and-join"
+   ],
+   "explain": "The negative test is the trap. Python is perfectly happy with position -1 and would hand back the last piece, so the guard has to reject negatives explicitly - a check that only asks whether `n` is too large passes three tests and quietly returns the wrong answer on the fourth.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-i-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `title_line(heading)` returning `heading` with blank space at the ends removed, each word's first letter in upper case and the rest of each word in lower case, and exactly one space between words. `title_line(\"  the SERPENT's ascent \")` is `\"The Serpent's Ascent\"`.",
+   "fn": "title_line",
+   "starterCode": "def title_line(heading):\n    pass\n",
+   "solution": "def title_line(heading):\n    out = \"\"\n    for word in heading.split():\n        if out:\n            out = out + \" \"\n        out = out + word[:1].upper() + word[1:].lower()\n    return out\n",
+   "tests": [
+    {
+     "input": "\"  the SERPENT's ascent \"",
+     "expected": "The Serpent's Ascent"
+    },
+    {
+     "input": "'solo'",
+     "expected": "Solo"
+    },
+    {
+     "input": "'a  b'",
+     "expected": "A B"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "string-methods",
+    "slicing"
+   ],
+   "tags": [
+    "string-methods"
+   ],
+   "explain": "Python has a built-in `title` method and it fails the first test, returning `The Serpent'S Ascent` - it treats the apostrophe as a word boundary and raises the letter after it. That is why the first test carries an apostrophe: the shortest answer here is the wrong one, and only a test that knows where it breaks will say so.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-i-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `describe(word)` returning a single line of exactly this shape: `grimoire has 8 letters, from g to e`. The number is the letter count, and the two single letters are the first and the last of the word. If the word is empty, return `empty` instead.",
+   "fn": "describe",
+   "starterCode": "def describe(word):\n    pass\n",
+   "solution": "def describe(word):\n    if word == \"\":\n        return \"empty\"\n    return f\"{word} has {len(word)} letters, from {word[0]} to {word[-1]}\"\n",
+   "tests": [
+    {
+     "input": "'grimoire'",
+     "expected": "grimoire has 8 letters, from g to e"
+    },
+    {
+     "input": "'x'",
+     "expected": "x has 1 letters, from x to x"
+    },
+    {
+     "input": "'ab'",
+     "expected": "ab has 2 letters, from a to b"
+    },
+    {
+     "input": "''",
+     "expected": "empty"
+    }
+   ],
+   "concepts": [
+    "f-strings",
+    "indexing"
+   ],
+   "tags": [
+    "f-strings"
+   ],
+   "explain": "Building this line by adding pieces together fails on the count, because a number cannot be added to text - it would need converting by hand at exactly the point where the line is already hardest to read. The one-letter test also shows why the empty case needs a branch of its own rather than a clever slice: with no letters there is no first and no last to name.",
+   "xp": 60
   }
  ],
  "exam": [
   {
-   "id": "py-9-e-01",
+   "id": "py-9-x-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "A module runs `squares = [n * n for n in range(3)]` and nothing else. What happens if the next line evaluates `n`?",
+   "prompt": "A Python string is **immutable**. Which of these is what that word means?",
    "choices": [
-    "It is 2, the last value the comprehension used",
-    "It is 3, one past the last value",
-    "It raises NameError - the comprehension has its own scope",
-    "It is the list [0, 1, 4]"
+    "Its characters cannot be read once it has been created.",
+    "No operation can alter the characters of an existing string; anything that looks like a change produces a new string instead.",
+    "It cannot be stored under more than one name at a time.",
+    "It can hold letters but never digits or punctuation."
    ],
-   "answer": 2,
+   "answer": 1,
    "concepts": [
-    "comprehensions"
+    "immutability"
    ],
    "tags": [
-    "comprehensions"
+    "immutability"
    ],
-   "explain": "A comprehension runs in its own implicit function scope, so its loop variable is discarded when it finishes. An ordinary `for` loop does leak its variable, and that difference is why converting a loop to a comprehension can quietly break code that read the variable afterwards.",
-   "xp": 10
+   "explain": "Immutability is about writing, not reading, and the first option confuses the two. The point is that every method appears to change the text and in fact returns a fresh one, which is why forgetting to keep the result is such a common and silent bug.",
+   "xp": 12
   },
   {
-   "id": "py-9-e-02",
+   "id": "py-9-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In the slice `text[2:5]`, which positions of `text` end up in the result?",
+   "choices": [
+    "2, 3 and 4",
+    "2, 3, 4 and 5",
+    "3, 4 and 5",
+    "only 2 and 5"
+   ],
+   "answer": 0,
+   "concepts": [
+    "slicing"
+   ],
+   "tags": [
+    "slicing"
+   ],
+   "explain": "The stop is excluded, so the result holds 5 - 2 = 3 characters. The second option is the intuitive guess from everyday language, where 'two to five' includes five, and it is why so many slices come out one character too long on the first attempt.",
+   "xp": 12
+  },
+  {
+   "id": "py-9-x-03",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "nums = [4, 7, 2, 9]\nprint([n for n in nums if n > 3])\nprint({n: n % 3 for n in nums if n % 2 == 1})",
+   "prompt": "What does this program print?",
+   "code": "word = \"sigil\"\nprint(word[1:4])\nprint(word[::-1])\nprint(word[-2])\nprint(word[7:9] + \"end\")",
    "lang": "python",
-   "answer": "[4, 7, 9]\n{7: 1, 9: 0}",
+   "answer": "igi\nligis\ni\nend",
    "concepts": [
-    "comprehensions"
+    "slicing",
+    "indexing"
    ],
    "tags": [
-    "comprehensions"
+    "slicing"
    ],
-   "explain": "Both comprehensions walk the same source in the same order, so the surviving items keep their original relative positions - a dict has kept insertion order since Python 3.7. The second filter tests the key while the stored value is a different expression entirely, which is the freedom a dict comprehension buys you.",
-   "xp": 20
+   "explain": "The last line is the one worth pausing on: `word[7]` would raise IndexError, but the slice `word[7:9]` is simply empty, so adding `end` to it prints `end` on its own. Slicing forgives out-of-range positions; indexing does not.",
+   "xp": 24
   },
   {
-   "id": "py-9-e-03",
+   "id": "py-9-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "raw = \"north::south::east\"\nparts = raw.split(\"::\")\nprint(parts)\nprint(len(parts))\nprint(\"/\".join(parts))\nprint(\"-\".join(\"ab\"))",
+   "lang": "python",
+   "answer": "['north', 'south', 'east']\n3\nnorth/south/east\na-b",
+   "concepts": [
+    "split-and-join"
+   ],
+   "tags": [
+    "split-and-join"
+   ],
+   "explain": "A separator can be longer than one character, so `::` cuts at each pair rather than at each colon - cutting on a single colon would give five pieces, two of them empty. The last line catches most people: gluing a piece of text walks its characters, so `ab` becomes `a-b`.",
+   "xp": 24
+  },
+  {
+   "id": "py-9-x-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this returns the distinct lowercase initials, sorted, ignoring empty names.",
-   "template": "def initials(names):\n    return sorted({n[0].___() for n in names ___ n})",
+   "prompt": "Fill the three blanks with method names so the program prints `rune stone`.",
+   "template": "raw = \"  RUNE-STONE  \"\nprint(raw.___().___().___(\"-\", \" \"))",
    "blanks": [
+    "strip",
     "lower",
-    "if"
+    "replace"
    ],
-   "lang": "python",
    "concepts": [
-    "comprehensions"
+    "string-methods"
    ],
    "tags": [
-    "comprehensions"
+    "string-methods"
    ],
-   "explain": "The filter clause sits after the `for`, not before it - reading a comprehension left to right gives you expression, source, condition. Normalising the case inside the comprehension is what makes the set treat 'B' and 'b' as one letter rather than two.",
-   "xp": 20
+   "explain": "Each method hands its new string to the next, which is only possible because none of them modifies `raw`. The order of the first two does not matter here, but the two arguments to the last one do: `replace` takes what to look for first and what to put in its place second.",
+   "xp": 24
   },
   {
-   "id": "py-9-e-04",
+   "id": "py-9-x-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Order these fragments into a working iterator class that counts 1 up to `limit`.",
+   "prompt": "Put these lines in order to make a working `last_word(sentence)` that returns the final word of a sentence in upper case, and empty text when there are no words.",
    "fragments": [
-    "    def __next__(self):",
-    "class Ticker:",
-    "        self.i += 1\n        return self.i",
-    "    def __iter__(self):\n        return self",
-    "        if self.i >= self.limit:\n            raise StopIteration",
-    "    def __init__(self, limit):\n        self.i = 0\n        self.limit = limit"
+    "    return words[-1].upper()",
+    "def last_word(sentence):",
+    "        return \"\"",
+    "    words = sentence.split()",
+    "    if not words:"
    ],
    "answer": [
     1,
-    5,
     3,
-    0,
     4,
-    2
-   ],
-   "lang": "python",
-   "concepts": [
-    "iterator-protocol"
-   ],
-   "tags": [
-    "iterator-protocol"
-   ],
-   "explain": "The exhaustion check has to run before the counter advances, otherwise the class emits one value too many. `__iter__` returning `self` is what lets the same object be both the thing you loop over and the thing that remembers where you are.",
-   "xp": 20
-  },
-  {
-   "id": "py-9-e-05",
-   "type": "trace",
-   "layer": "application",
-   "prompt": "Given `t = Ticker(3)` with the class below, state what each call to `next(t)` produces. For a call that does not return a value, write the name of the exception raised.",
-   "code": "class Ticker:\n    def __init__(self, limit):\n        self.i = 0\n        self.limit = limit\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.i >= self.limit:\n            raise StopIteration\n        self.i += 1\n        return self.i",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "first next(t)",
-     "expected": "1"
-    },
-    {
-     "label": "second next(t)",
-     "expected": "2"
-    },
-    {
-     "label": "third next(t)",
-     "expected": "3"
-    },
-    {
-     "label": "fourth next(t)",
-     "expected": "StopIteration"
-    }
-   ],
-   "concepts": [
-    "iterator-protocol"
-   ],
-   "tags": [
-    "iterator-protocol"
-   ],
-   "explain": "Each call mutates `self.i` before returning, so the iterator's position is state on the object rather than something the caller tracks. The fourth call is the important one: exhaustion is an exception, which is what a `for` loop silently catches on your behalf.",
-   "xp": 40
-  },
-  {
-   "id": "py-9-e-06",
-   "type": "multi",
-   "layer": "retrieval",
-   "prompt": "Which of these statements about Python type annotations are true?",
-   "choices": [
-    "`def f(xs: list[int]) -> int:` is valid on Python 3.9+ with no import",
-    "Passing a str where the hint says int raises TypeError at runtime",
-    "`Optional[str]` describes a value that is either a str or None",
-    "A function's hints can be read at runtime from its `__annotations__`"
-   ],
-   "answer": [
-    0,
     2,
-    3
+    0
    ],
    "concepts": [
-    "type-hints"
+    "split-and-join",
+    "indexing"
    ],
    "tags": [
-    "type-hints"
+    "indexing"
    ],
-   "explain": "Hints are stored, not enforced - the interpreter records them and never looks again, which is why a mismatch is caught by a separate checker or not at all. Builtin containers became subscriptable in 3.9, so `typing.List` is now only needed for older versions.",
-   "xp": 10
+   "explain": "The guard has to sit after the cutting and before the indexing, because it is the cut-up result that might be empty and the indexing that would fail on it. Putting the guard first would test the sentence rather than the words, and a sentence of nothing but spaces would slip past it straight into an IndexError.",
+   "xp": 24
   },
   {
-   "id": "py-9-e-07",
+   "id": "py-9-x-07",
    "type": "explain",
    "layer": "application",
-   "prompt": "A colleague ships a decorator that does not call `functools.wraps`. Their logging output and their generated API docs are now wrong. Explain what the decorator actually did to the function, and why the fix is more than cosmetic.",
+   "prompt": "A colleague's function begins with the line `name.strip()` and they cannot work out why the leading spaces are still there afterwards. Explain what that line actually does, what becomes of its result, and what they should have written instead.",
    "rubric": {
     "required": [
-     "name",
-     "wrapper",
-     "replace"
+     "new string",
+     "assign"
     ],
     "optional": [
-     "docstring",
-     "introspection",
-     "wraps",
-     "closure",
-     "debug",
-     "metadata"
+     "immutable",
+     "discard",
+     "original",
+     "unchanged",
+     "return"
     ],
-    "forbidden": [],
     "minWords": 30
    },
    "concepts": [
-    "decorators"
+    "immutability",
+    "string-methods"
    ],
    "tags": [
-    "decorators"
+    "immutability"
    ],
-   "explain": "Decoration rebinds the original name to a different object, so anything that reads attributes off that name is reading the wrapper's instead. Tooling that generates docs, logs a function name, or dispatches on identity reads exactly those attributes, which is why copying them across is a correctness fix rather than a tidiness one.",
-   "xp": 20
+   "explain": "The line is not wrong so much as pointless: it builds the stripped text correctly and then throws it away, because nothing catches the result. This is the everyday consequence of immutability - `name = name.strip()` is the fix, and the same shape applies to every method on this floor.",
+   "xp": 24
   },
   {
-   "id": "py-9-e-08",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "import functools\n\n\ndef tag(label):\n    def decorate(fn):\n        @functools.wraps(fn)\n        def wrapper(x):\n            return label + \":\" + fn(x)\n        return wrapper\n    return decorate\n\n\n@tag(\"outer\")\n@tag(\"inner\")\ndef raw(x):\n    return x\n\n\nprint(raw(\"core\"))\nprint(raw.__name__)",
-   "lang": "python",
-   "answer": "outer:inner:core\nraw",
-   "concepts": [
-    "decorators"
-   ],
-   "tags": [
-    "decorators"
-   ],
-   "explain": "Stacked decorators apply bottom-up but their wrappers then run top-down, so the label applied last ends up outermost in the string. The name survives two layers of wrapping because each layer used `functools.wraps`, copying the already-copied name onward.",
-   "xp": 20
-  },
-  {
-   "id": "py-9-e-09",
-   "type": "design",
+   "id": "py-9-x-08",
+   "type": "code",
    "layer": "application",
-   "prompt": "Write `char_frequency(text)` returning a dict that maps each distinct non-space character in `text` to the number of times it appears. Build the dict with a single dict comprehension over the distinct characters.",
-   "fn": "char_frequency",
-   "starterCode": "",
+   "prompt": "Write `slugify(title)` returning `title` in lower case with the blank space at its ends removed and every run of spaces between words turned into a single hyphen. `slugify(\"  The Serpent's Ascent \")` is `\"the-serpent's-ascent\"`.",
+   "fn": "slugify",
+   "starterCode": "def slugify(title):\n    pass\n",
+   "solution": "def slugify(title):\n    return \"-\".join(title.lower().split())\n",
    "tests": [
     {
-     "input": "'abracadabra'",
-     "expected": {
-      "a": 5,
-      "b": 2,
-      "r": 2,
-      "c": 1,
-      "d": 1
-     }
+     "input": "\"  The Serpent's Ascent \"",
+     "expected": "the-serpent's-ascent"
     },
     {
-     "input": "'a a'",
-     "expected": {
-      "a": 2
-     }
+     "input": "'One'",
+     "expected": "one"
     },
     {
-     "input": "'   '",
-     "expected": {}
+     "input": "'a   b  c'",
+     "expected": "a-b-c"
     },
     {
      "input": "''",
-     "expected": {}
+     "expected": ""
     }
    ],
    "concepts": [
-    "comprehensions"
+    "split-and-join",
+    "string-methods"
    ],
    "tags": [
-    "comprehensions"
+    "split-and-join"
    ],
-   "explain": "Iterating the distinct characters rather than the raw text is what stops the same key being recomputed once per occurrence, and a dict cannot hold a duplicate key anyway. Filtering the space inside the comprehension is cheaper and clearer than building the whole map and deleting from it afterwards.",
-   "xp": 100,
-   "solution": "def char_frequency(text):\n    return {c: text.count(c) for c in set(text) if c != \" \"}\n"
+   "explain": "Replacing every space with a hyphen passes the first two tests and fails the third, turning a run of three spaces into three hyphens. Cutting the text into words and gluing them back gets runs of space right for free, because the cutting has already discarded them.",
+   "xp": 60
   },
   {
-   "id": "py-9-e-10",
-   "type": "design",
+   "id": "py-9-x-09",
+   "type": "code",
    "layer": "application",
-   "prompt": "Write `first_over(values: list[int], limit: int) -> Optional[int]` returning the first value strictly greater than `limit`, or `None` when there is none - annotated exactly as written, with `Optional` imported from `typing`. Then write `probe(name, values, limit)` returning the two-element list `[first_over(values, limit), str(first_over.__annotations__[name])]`. The tests call `probe` and expect the annotation to stringify as `list[int]` for `values`, `<class 'int'>` for `limit`, and `typing.Optional[int]` for `return`.",
-   "fn": "probe",
-   "starterCode": "",
+   "prompt": "Write `initial_and_surname(full_name)` returning a name in the shape `A. Lovelace` - the first word reduced to its opening letter in upper case followed by a full stop and a space, then the last word with its first letter in upper case and the rest of it unchanged. A single word comes back with just its first letter raised, and a name with no words at all returns empty text.",
+   "fn": "initial_and_surname",
+   "starterCode": "def initial_and_surname(full_name):\n    pass\n",
+   "solution": "def initial_and_surname(full_name):\n    parts = full_name.split()\n    if not parts:\n        return \"\"\n    if len(parts) == 1:\n        return parts[0][:1].upper() + parts[0][1:]\n    last = parts[-1]\n    return f\"{parts[0][0].upper()}. {last[:1].upper()}{last[1:]}\"\n",
    "tests": [
     {
-     "input": "'return', [1, 5, 9], 4",
-     "expected": [
-      5,
-      "typing.Optional[int]"
-     ]
+     "input": "'ada lovelace'",
+     "expected": "A. Lovelace"
     },
     {
-     "input": "'values', [], 0",
-     "expected": [
-      null,
-      "list[int]"
-     ]
+     "input": "'grace brewster hopper'",
+     "expected": "G. Hopper"
     },
     {
-     "input": "'limit', [2, 2], 5",
-     "expected": [
-      null,
-      "<class 'int'>"
-     ]
+     "input": "'cher'",
+     "expected": "Cher"
     },
     {
-     "input": "'return', [-9, -1], -5",
-     "expected": [
-      -1,
-      "typing.Optional[int]"
-     ]
+     "input": "'   '",
+     "expected": ""
     }
    ],
    "concepts": [
-    "type-hints"
+    "f-strings",
+    "indexing",
+    "split-and-join"
    ],
    "tags": [
-    "type-hints"
+    "f-strings"
    ],
-   "explain": "Annotations are ordinary runtime data living in a dict keyed by parameter name, with the return hint stored under the key `return` - and what is stored is the object you wrote, not a string. That is why `int` stringifies as `<class 'int'>` while `list[int]` and `Optional[int]` print prettily: the first is the bare class, the others are typing objects with a repr designed to be read. The two None cases are what justify `Optional` in the signature - an empty source and a source where nothing clears the bar are different situations with the same honest answer.",
-   "xp": 100,
-   "solution": "from typing import Optional\n\n\ndef first_over(values: list[int], limit: int) -> Optional[int]:\n    for value in values:\n        if value > limit:\n            return value\n    return None\n\n\ndef probe(name, values, limit):\n    return [first_over(values, limit), str(first_over.__annotations__[name])]\n"
-  },
-  {
-   "id": "py-9-e-11",
-   "type": "design",
-   "layer": "application",
-   "prompt": "Build the whole pipeline. Write an iterator class `Chunks(values, size)` whose `__next__` returns consecutive slices of `size` items as lists and raises `StopIteration` as soon as fewer than `size` items remain. Write a decorator `sorted_result` that uses `functools.wraps` and sorts the list its wrapped function returns. Apply it to `chunk_sums(values: list[int], size: int) -> list[int]`, annotated exactly as written, which uses a comprehension over `Chunks(values, size)` to produce the sum of each full chunk. The tests call `chunk_sums`.",
-   "fn": "chunk_sums",
-   "starterCode": "",
-   "tests": [
-    {
-     "input": "[1, 2, 3, 4], 2",
-     "expected": [
-      3,
-      7
-     ]
-    },
-    {
-     "input": "[5, 1, 2, 2], 2",
-     "expected": [
-      4,
-      6
-     ]
-    },
-    {
-     "input": "[1, 2, 3], 2",
-     "expected": [
-      3
-     ]
-    },
-    {
-     "input": "[9], 1",
-     "expected": [
-      9
-     ]
-    },
-    {
-     "input": "[], 3",
-     "expected": []
-    }
-   ],
-   "concepts": [
-    "comprehensions",
-    "iterator-protocol",
-    "decorators",
-    "type-hints"
-   ],
-   "tags": [
-    "comprehensions",
-    "iterator-protocol",
-    "decorators",
-    "type-hints"
-   ],
-   "explain": "The comprehension can say `for chunk in Chunks(...)` only because the class implements the protocol - the four ideas on this floor compose rather than merely coexist. Dropping the trailing partial chunk is a decision the stop test encodes, and the decorator makes the output order deterministic without `chunk_sums` knowing anything about sorting.",
-   "xp": 100,
-   "solution": "import functools\n\n\nclass Chunks:\n    def __init__(self, values, size):\n        self.values = values\n        self.size = size\n        self.at = 0\n\n    def __iter__(self):\n        return self\n\n    def __next__(self):\n        if self.at + self.size > len(self.values):\n            raise StopIteration\n        chunk = self.values[self.at:self.at + self.size]\n        self.at += self.size\n        return chunk\n\n\ndef sorted_result(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        return sorted(fn(*args, **kwargs))\n    return wrapper\n\n\n@sorted_result\ndef chunk_sums(values: list[int], size: int) -> list[int]:\n    return [sum(chunk) for chunk in Chunks(values, size)]\n"
+   "explain": "The middle name in the second test is the point: taking the second word rather than the last one passes the first test and fails this one. Position -1 says what is actually meant - the final word - without needing to know how many words there are.",
+   "xp": 60
   }
  ]
 }

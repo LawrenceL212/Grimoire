@@ -191,13 +191,19 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
                     res.err("%s.tests[%d]" % (where, i),
                             "each test needs `expected`, or `throws` to assert an error")
         if ctype in ("code", "debug") and not ch.get("starterCode", "").strip():
-            if level not in ("design", "boss"):
+            # Independent practice is DEFINED by the absence of scaffolding, so
+            # warning that it has none is the validator arguing with the
+            # curriculum rather than checking it.
+            if level not in ("design", "boss") and stage not in NO_TECHNIQUE_STAGES:
                 res.warn(where, "no starterCode outside a design/boss floor")
         if ctype in ("design", "project") and ch.get("starterCode", "").strip():
             res.err(where, "%r on a %s floor must have no starter code" % (ctype, level))
         if ch.get("hint") or ch.get("hint1"):
             if level in ("design", "boss"):
                 res.err(where, "hints are not available on a %s floor" % level)
+            elif stage in NO_TECHNIQUE_STAGES:
+                res.err(where, "independent practice carries no hints - the point "
+                               "is that the learner is not helped towards the answer")
 
     if ctype == "output" and not str(ch.get("answer", "")).strip():
         res.err(where, "output challenge needs an `answer`")

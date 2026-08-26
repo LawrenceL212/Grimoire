@@ -1,186 +1,116 @@
 {
  "n": 3,
- "name": "The Rune-Carver's Bench",
- "concepts": [
-  "strings",
-  "string-methods",
-  "functions"
- ],
+ "name": "The Reckoning Table",
+ "goal": "Evaluate an expression by hand and predict its type and value before running it.",
+ "stage": 1,
+ "requires": [{ "dungeon": "python", "floor": 2 }],
+ "description": {
+  "what": "How Python works an expression out: which operator acts first, what value comes back, and what type that value has.",
+  "why": "A program is mostly expressions, and an expression that runs without complaining can still be quietly wrong - the wrong division, the wrong order, a number where a piece of text was needed.",
+  "enables": "You will be able to look at a line of arithmetic, say what it produces and what type it produces, and be right before you press Run.",
+  "assumes": "You can store a value under a name, print it, and ask what type a value has.",
+  "assessed": "You will predict the output of expressions you have not run, complete and repair small pieces of arithmetic, and write code whose correctness depends on choosing the right operator."
+ },
  "cognitiveLevel": "recall",
- "sequence": [
-  "lesson",
-  "guided-practice",
-  "challenge-set",
-  "exam"
+ "concepts": [
+  "arithmetic-operators",
+  "precedence",
+  "type-conversion",
+  "true-vs-floor-division",
+  "augmented-assignment",
+  "assignment-vs-equality"
  ],
+ "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
  "lesson": {
-  "title": "Runes You Can Read, Spells You Can Name",
+  "title": "Working It Out Before It Is Run",
   "sections": [
    {
-    "title": "A String Is a Sequence",
-    "body": "A **string** is a sequence of characters, and every character sits at a numbered position called an **index**. Counting starts at `0` from the left, and negative numbers count from the right, so `s[-1]` is always the last character.\n\nA **slice** `s[a:b]` builds a new string from index `a` up to but not including `b`; leave a side empty to mean \"from the start\" or \"to the end\". `len(s)` gives you how many characters there are, so the last valid index is always `len(s) - 1`.\n\nOne asymmetry is worth memorising now: indexing past the end raises an `IndexError`, but slicing past the end simply gives you whatever it can - which is why `s[-1:]` is safe even when `s` is empty.",
-    "code": "spell = \"fireball\"\nprint(spell[0])\nprint(spell[-1])\nprint(spell[0:4])\nprint(spell[4:])\nprint(len(spell))\nprint(spell[100:200] == \"\")",
+    "title": "An expression is something that becomes a value",
+    "body": "An **expression** is any piece of Python that Python can work out into a single value. `7` is an expression - it is already a value. So is `7 + 2`, which becomes `9`. So is `price * 3`, which becomes whatever the name `price` is holding, multiplied by three. Working an expression out is called **evaluating** it, and what you are left with afterwards is one value and nothing else.\n\nThe symbols that do the working out are **operators**, and the values they act on are **operands**. Python gives you seven of them for numbers: `+` add, `-` subtract, `*` multiply, `/` divide, `//` divide and round down, `%` the remainder after dividing, and `**` raise to a power. Note that `*` is a star rather than the times sign of school arithmetic, and that `^` is not a power in Python - it means something else entirely, so using it gives you a wrong answer rather than an error.\n\nEvery value has a type, so every expression has a type as well as a value. `7 + 2` is an `int` with the value `9`. Predicting both is the habit this floor exists to build, because a program holding the right number of the wrong type breaks later, somewhere else, in a way that is much harder to trace back to the line that caused it.",
+    "code": "print(7 + 2)\nprint(7 - 2)\nprint(7 * 2)\nprint(7 ** 2)\nprint(7 % 2)\nprint(type(7 + 2))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 3,
-      "text": "-1 is the last character; you never have to compute len(spell) - 1."
-     },
-     {
-      "line": 4,
-      "text": "Stops before index 4, so this is 'fire' - four characters, not five."
-     },
-     {
-      "line": 5,
-      "text": "An empty end means 'run to the end of the string'."
-     },
-     {
-      "line": 7,
-      "text": "A slice that is entirely out of range returns '' instead of raising."
-     }
+     { "line": 4, "text": "`**` is a power: 7 to the power of 2, which is 49. Two stars, not one - a single star here would give you 14." },
+     { "line": 5, "text": "`%` is the remainder: 2 goes into 7 three times with 1 left over, so this is 1. It is not a percent sign, whatever the shape of it suggests." },
+     { "line": 6, "text": "The expression is evaluated first, down to the single value 9, and only then is its type asked for. `type` never sees the `+` at all." }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
      "prompt": "What does this print?",
-     "code": "word = \"grimoire\"\nprint(word[1])\nprint(word[-3])\nprint(word[2:5])",
+     "code": "print(2 ** 5, 17 % 5)",
      "lang": "python",
-     "answer": "r\ni\nimo",
-     "concepts": [
-      "strings"
-     ],
-     "explain": "Index 1 is the second character because counting starts at zero, and -3 counts back from the end without needing len(). The slice stops before index 5, so it yields three characters, not four."
+     "answer": "32 2",
+     "concepts": ["arithmetic-operators"],
+     "tags": ["arithmetic-operators"],
+     "explain": "`2 ** 5` is two multiplied by itself five times, which is 32 - reading it as 2 times 5 gives 10 and is the commonest slip. `17 % 5` is the remainder: 5 goes into 17 three times with 2 left over, so the answer is the leftover 2, not the three lots that fitted."
     }
    },
    {
-    "title": "Methods Hand Back New Strings",
-    "body": "Strings are **immutable**: nothing can change the characters inside an existing string. So `upper()`, `lower()`, `strip()` and `replace(old, new)` never edit in place - each one builds and returns a **new** string and leaves the original exactly as it was.\n\nThat is why a method call on its own line accomplishes nothing: the new string is created and immediately thrown away. You must store the result, return it, or print it.\n\nYou can also interrogate a string. `\"fire\" in spell` is a `bool` saying whether that substring appears anywhere, and `spell.find(\"ball\")` gives the index where it starts - or `-1` when it is absent, rather than an error.",
-    "code": "name = \"  Mira  \"\nprint(name.strip().upper())\nprint(name)\nprint(\"mira\".replace(\"i\", \"y\"))\nprint(\"fire\" in \"fireball\")\nprint(\"fireball\".find(\"ball\"))\nprint(\"fireball\".find(\"ice\"))",
+    "title": "Which operator goes first",
+    "body": "`2 + 3 * 4` is `14`, not `20`. Python does not simply read left to right: each operator has a **precedence**, a rank that decides which one acts first, and multiplication outranks addition. So `3 * 4` is worked out first and the `2` is added to what it produced.\n\nFrom strongest to weakest, the ranks you have so far are: anything inside brackets, then `**`, then a minus sign written in front of a single value, then `*` `/` `//` `%` sharing one rank, then `+` and `-` sharing a weaker one. Operators of the same rank are worked out left to right, so `10 - 4 - 3` means `(10 - 4) - 3`, which is `3` rather than `9`. The one exception is `**`, which groups right to left: `2 ** 3 ** 2` is `2 ** 9`, or `512`.\n\nBrackets beat every rank and cost nothing at all. When you know the order, brackets say so to the next reader; when you do not know it, brackets save you from guessing. `(2 + 3) * 4` cannot be misread by anybody, and neither can `2 + (3 * 4)`.\n\nThe trap worth memorising is `-2 ** 2`. The power binds tighter than the minus sign, so this is minus the value of two squared, which is `-4`. If you meant the square of minus two you have to write `(-2) ** 2`, and then you get `4`.",
+    "code": "print(2 + 3 * 4)\nprint((2 + 3) * 4)\nprint(10 - 4 - 3)\nprint(2 ** 3 ** 2)\nprint(-2 ** 2)",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "Methods chain left to right: strip() first, then upper() on its result."
-     },
-     {
-      "line": 3,
-      "text": "The original still has its spaces and its lowercase letters. Nothing was modified."
-     },
-     {
-      "line": 7,
-      "text": "find returns -1 for 'not here' - it never raises, so you must check for it."
-     }
+     { "line": 2, "text": "The brackets are worked out first, so this is 5 * 4 = 20. Same symbols as the line above, different answer - the order is not a detail." },
+     { "line": 4, "text": "`**` groups right to left, so this is 2 ** (3 ** 2) = 2 ** 9 = 512. Left to right would have given 8 ** 2 = 64." },
+     { "line": 5, "text": "The power acts before the minus, so this is -(2 ** 2) = -4. Write (-2) ** 2 if you meant to square a negative number." }
     ],
     "checkpoint": {
-     "type": "fill",
+     "type": "output",
      "layer": "retrieval",
-     "prompt": "Fill the blanks so this prints `HELLO` with no surrounding spaces.",
-     "template": "greeting = '  hello  '\nprint(greeting.___().___())",
-     "blanks": [
-      "strip",
-      "upper"
-     ],
+     "prompt": "What does this print?",
+     "code": "print(1 + 2 * 3 ** 2)",
      "lang": "python",
-     "concepts": [
-      "string-methods"
-     ],
-     "explain": "Each call is applied to the string the previous one returned, so the order in the chain is the order the work happens in. Reversing them would still work here, but only because uppercasing leaves spaces alone."
+     "answer": "19",
+     "concepts": ["precedence"],
+     "tags": ["precedence"],
+     "explain": "Three ranks in one line: the power first giving 9, then the multiplication giving 18, then the addition giving 19. Reading strictly left to right gives 81, which is what a calculator without precedence would tell you and what Python will never do."
     }
    },
    {
-    "title": "Splitting Apart and Joining Back",
-    "body": "`split()` cuts a string into a **list** of pieces. With no argument it splits on runs of whitespace and discards the empty pieces, which makes it the tidy way to get the words out of a messy line. Give it a separator, as in `\"a,b\".split(\",\")`, and it cuts on exactly that instead - keeping empty pieces where two separators touch.\n\nA list is indexed with the same square brackets a string is, so `parts[0]` is the first piece and `parts[-1]` the last, and `len(parts)` counts them.\n\nGoing the other way, `sep.join(pieces)` glues the pieces into one string with `sep` between each pair. Note which side is which: the separator is the string you call `.join` on, and the pieces are the argument.",
-    "code": "line = \"  fire   ice  wind \"\nparts = line.split()\nprint(parts)\nprint(len(parts))\nprint(parts[0])\nprint(\"-\".join(parts))\nprint(\"a,b,,c\".split(\",\"))",
+    "title": "Two divisions, and turning one type into another",
+    "body": "Python has two divisions and they answer different questions. `/` is **true division** and always hands back a `float`, even when the answer is exact: `6 / 3` is `2.0`, not `2`. `//` is **floor division**, which divides and then rounds down to a whole number, so `7 // 2` is `3`. Its partner `%` gives what was left over, so `7 % 2` is `1`. Together the pair answers \"how many whole lots, and how much remains\".\n\nRounding **down** is not the same as chopping the decimal part off, and negative numbers are where the difference shows: `-7 // 2` is `-4`, because -4 is below -3.5. If you want the chopping behaviour instead, `int(-3.5)` gives `-3`, because `int` always moves towards zero. Two reasonable-sounding rules, two different answers, and mixing them up produces results that are wrong by exactly one - the hardest size of error to notice.\n\n`int()`, `float()` and `str()` are **conversions**: each takes a value and produces a new value of that type. The original is untouched, because they hand back a new value rather than changing the old one. `int(\"12\")` is the number `12`, and `str(12)` is the two-character piece of text `\"12\"`.\n\nYou need conversion because Python refuses to guess. `\"3\" + 4` is a `TypeError` and stops the program, since `+` between text and a number could mean adding or joining and Python will not pick for you. But `\"ab\" * 3` is perfectly legal and gives `\"ababab\"` - repeating text a whole number of times has only one sensible meaning. So `\"3\" * 2` is `\"33\"`, not `6`, and that is not an error at all, which makes it far more dangerous than the one that crashes.",
+    "code": "print(6 / 3)\nprint(7 // 2, -7 // 2)\nprint(7 % 2)\nprint(int(-3.7), int(\"12\") + 1)\nprint(\"3\" * 2)\nprint(\"total: \" + str(12))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "No argument: split on any run of spaces and drop the empty pieces."
-     },
-     {
-      "line": 6,
-      "text": "'-' is the glue, parts is what gets glued. Separators only go between."
-     },
-     {
-      "line": 7,
-      "text": "With an explicit separator, the empty piece between the two commas is kept."
-     }
+     { "line": 1, "text": "Exact, and still a float: 2.0. `/` never gives you an int, which is why a count of things should be built with `//`." },
+     { "line": 2, "text": "Rounding down, not chopping: -3.5 rounds down to -4. `int(-7 / 2)` would have given -3 instead." },
+     { "line": 4, "text": "`int(\"12\")` is the number twelve, so adding 1 gives 13. Without that conversion the line would be a TypeError." },
+     { "line": 6, "text": "`str(12)` makes the text \"12\", which `+` can join to other text. This is how a number gets into a printed message." }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Write `count_words(text)` returning how many whitespace-separated words `text` contains.",
-     "fn": "count_words",
-     "starterCode": "def count_words(text):\n    pass\n",
-     "tests": [
-      {
-       "input": "'one two three'",
-       "expected": 3
-      },
-      {
-       "input": "'  spaced   out  '",
-       "expected": 2
-      },
-      {
-       "input": "''",
-       "expected": 0
-      }
-     ],
-     "solution": "def count_words(text):\n    return len(text.split())\n",
-     "concepts": [
-      "string-methods"
-     ],
-     "explain": "Splitting with no argument collapses runs of whitespace and drops the empty pieces, so the messy and the empty cases both fall out for free - no counting of spaces required."
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "print(9 / 3, 9 // 4, 9 % 4)",
+     "lang": "python",
+     "answer": "3.0 2 1",
+     "concepts": ["true-vs-floor-division"],
+     "tags": ["true-vs-floor-division"],
+     "explain": "The first is a float even though the division came out exactly - writing `3` there is the natural guess and the wrong one. The other two split 9 into two whole fours with 1 left over, which is the pair of answers `//` and `%` always give you together."
     }
    },
    {
-    "title": "def, return, and the print Trap",
-    "body": "A **function** packages work under a name. `def` names it, the parentheses list its **parameters**, and the indented block below is its body; calling it runs that body with your arguments bound to those parameter names.\n\n`return` hands a value back to whoever called the function and ends the call there and then. `print` does something quite different: it writes text to the screen and hands nothing back.\n\nA function that never reaches a `return` hands back `None`. That is the single most common beginner bug - the output looks right on screen, but the value you captured is `None` and blows up the moment you use it.",
-    "code": "def shout(text):\n    return text.upper() + \"!\"\n\ndef show(text):\n    print(text.upper() + \"!\")\n\nloud = shout(\"hello\")\nprint(loud + \" \" + loud)\ngot = show(\"hello\")\nprint(got)",
+    "title": "Shorthand, and the difference one symbol makes",
+    "body": "`count = count + 1` reads the value under `count`, adds one, and stores the result back under the same name. It is so common that Python has a shorthand for it: `count += 1` means exactly that and nothing more. Every arithmetic operator has one - `-=`, `*=`, `/=`, `//=`, `%=`, `**=` - and each is called an **augmented assignment**.\n\nThe shorthand keeps the type rules of the operator underneath it. `count /= 4` uses true division, so `count` becomes a float even if it was a whole number and the division came out exactly. If you wanted it to stay a whole number you needed `//=`.\n\nNow the confusion that catches everybody, and it is worth naming out loud. A single `=` **stores**: it puts the value on the right under the name on the left, and asks nothing. A doubled `==` **compares**: it works out whether two values are equal and becomes `True` or `False`. `x = 3` changes `x`; `x == 3` leaves everything alone and merely answers a question. Writing one where you meant the other either destroys a value you needed or asks a question you never wanted asked.\n\nSo the habit this floor is really about: before you run anything, say what the value will be **and** what type it will be. Then run it. When you are right you have lost nothing; when you are wrong you have found a gap in exactly the place it would otherwise have cost you an hour. One note for the practice ahead - some tasks are shaped as a named box of work, a line beginning `def` and then a line beginning `return`, where the expression after `return` becomes the box's answer. Building those boxes is a later floor; here you only fill in the expression.",
+    "code": "count = 10\ncount += 5\ncount *= 2\nprint(count)\n\ncount /= 4\nprint(count, type(count))\n\nprint(count == 7.5, count == \"7.5\")",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "return produces a value for the caller - nothing is displayed yet."
-     },
-     {
-      "line": 5,
-      "text": "print displays a value and returns nothing at all."
-     },
-     {
-      "line": 8,
-      "text": "Because shout returned a string, it can be used in an expression."
-     },
-     {
-      "line": 10,
-      "text": "show only printed; its call evaluated to None, and that is what got holds."
-     }
+     { "line": 2, "text": "Identical to `count = count + 5`. The right-hand side is worked out with the old value, then stored back under the same name." },
+     { "line": 6, "text": "`/=` is true division, so count is now the float 7.5 - the shorthand does not protect the type." },
+     { "line": 9, "text": "`==` compares and produces True or False. 7.5 and the text \"7.5\" are different types with different values, so the second answer is False." }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Write `initial(name)` returning the first character of `name` in uppercase. Assume `name` is not empty.",
-     "fn": "initial",
-     "starterCode": "def initial(name):\n    pass\n",
-     "tests": [
-      {
-       "input": "'mira'",
-       "expected": "M"
-      },
-      {
-       "input": "'Zed'",
-       "expected": "Z"
-      },
-      {
-       "input": "'a'",
-       "expected": "A"
-      }
-     ],
-     "solution": "def initial(name):\n    return name[0].upper()\n",
-     "concepts": [
-      "functions"
-     ],
-     "explain": "Indexing gives a one-character string, and upper() works on it like any other string. Printing it here would satisfy your eyes and fail every test, because the caller receives None."
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this print?",
+     "code": "x = 4\nx += 6\nprint(x == 10, x)",
+     "lang": "python",
+     "answer": "True 10",
+     "concepts": ["augmented-assignment", "assignment-vs-equality"],
+     "tags": ["assignment-vs-equality"],
+     "explain": "`+=` changed x to 10, then `==` merely asked whether it was 10 and answered True without changing anything. Had the last line used a single `=` it would have overwritten x rather than asking about it, which is the whole distinction sitting in one line."
     }
    }
   ]
@@ -190,717 +120,322 @@
    "id": "py-3-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "spell = \"ember\"\nprint(spell[0])\nprint(spell[-1])",
+   "prompt": "Work each expression out by precedence before you answer. What does this print?",
+   "code": "print(2 + 3 * 4, (2 + 3) * 4, 2 * 3 ** 2)",
    "lang": "python",
-   "answer": "e\nr",
-   "concepts": [
-    "strings"
-   ],
-   "tags": [
-    "strings"
-   ],
-   "explain": "Index 0 is the first character, not the second - counting starts at zero. The -1 index saves you from writing spell[len(spell) - 1] every time you want the end.",
-   "xp": 20
+   "answer": "14 20 18",
+   "concepts": ["precedence", "arithmetic-operators"],
+   "tags": ["precedence"],
+   "hint": "Brackets first, then `**`, then `*`, then `+`. The three expressions use the same digits and give three different answers.",
+   "explain": "The middle one is the only one that gives 20, and it gets there because brackets outrank everything else. Reading the first expression left to right also gives 20, which is exactly why that answer feels right and is wrong - the multiplication happens before the addition regardless of which was written first.",
+   "xp": 24
   },
   {
    "id": "py-3-g-02",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this prints `fire-bolt`.",
-   "template": "name = 'Fire Bolt'\nprint(name.___().___(' ', '-'))",
-   "blanks": [
-    "lower",
-    "replace"
-   ],
-   "lang": "python",
-   "concepts": [
-    "string-methods"
-   ],
-   "tags": [
-    "string-methods"
-   ],
-   "explain": "replace takes the old text first and the new text second, and it operates on whatever the previous call in the chain returned - so lowercasing before replacing means the replace only has to deal with one case of letters.",
-   "xp": 20
+   "prompt": "Complete this so it prints `5`. Use augmented assignment for both steps: add 5 to the score, then divide it down to a whole number by 3.",
+   "template": "score = 10\nscore ___ 5\nscore ___ 3\nprint(score)\n",
+   "blanks": ["+=", "//="],
+   "concepts": ["augmented-assignment", "true-vs-floor-division"],
+   "tags": ["augmented-assignment"],
+   "hint": "Each blank is an operator with `=` stuck on the end. The second one has to leave the value a whole number.",
+   "explain": "15 divided by 3 is exactly 5, so `/=` would also reach the right number - but it would print `5.0`, because true division produces a float even when nothing is left over. The prompt asked for `5`, and only `//=` gives you that.",
+   "xp": 24
   },
   {
    "id": "py-3-g-03",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `add_prefix_un(word)` that returns `word` with `un` stuck on the front. `add_prefix_un('happy')` returns `'unhappy'`.",
-   "fn": "add_prefix_un",
-   "starterCode": "def add_prefix_un(word):\n    pass\n",
-   "tests": [
-    {
-     "input": "'happy'",
-     "expected": "unhappy"
-    },
-    {
-     "input": "'manageable'",
-     "expected": "unmanageable"
-    },
-    {
-     "input": "''",
-     "expected": "un"
-    }
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Track the value stored under `total` after each line runs.\n\n`total = 4`\n`total *= 3`\n`total -= 2`\n`total //= 4`\n`total /= 2`",
+   "steps": [
+    { "label": "after total *= 3", "expected": "12" },
+    { "label": "after total -= 2", "expected": "10" },
+    { "label": "after total //= 4", "expected": "2" },
+    { "label": "after total /= 2", "expected": "1.0" }
    ],
-   "solution": "def add_prefix_un(word):\n    return 'un' + word\n",
-   "hint": "`+` joins two strings; the prefix goes on the left.",
-   "concepts": [
-    "strings",
-    "functions"
-   ],
-   "tags": [
-    "strings",
-    "functions"
-   ],
-   "explain": "Concatenation builds a brand new string rather than pushing characters into the old one - which is exactly why the empty-string case needs no special branch and simply produces the prefix alone.",
-   "xp": 50
+   "concepts": ["augmented-assignment", "true-vs-floor-division"],
+   "tags": ["augmented-assignment"],
+   "hint": "Each line works on the value the line before it left behind. Watch the type on the last two lines, not only the number.",
+   "explain": "The third step drops 10 down to 2 because floor division rounds 2.5 down, and the last step turns a whole number into `1.0` because `/=` is true division. Writing `1` for that last answer is the natural response and misses the type change - which is precisely the change that would break a later line expecting a whole number.",
+   "xp": 48
   },
   {
    "id": "py-3-g-04",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "name = \"mira\"\nname.upper()\nprint(name)\nprint(name.upper())",
-   "lang": "python",
-   "answer": "mira\nMIRA",
-   "concepts": [
-    "strings",
-    "string-methods"
+   "type": "code",
+   "layer": "application",
+   "fn": "whole_minutes",
+   "prompt": "Write `whole_minutes(seconds)` giving how many complete minutes fit into that many seconds. A partial minute does not count, so 130 seconds is 2 complete minutes. Use floor division so the answer is a whole number.",
+   "starterCode": "def whole_minutes(seconds):\n    return 0\n",
+   "tests": [
+    { "input": "130", "expected": 2 },
+    { "input": "59", "expected": 0 },
+    { "input": "120", "expected": 2 },
+    { "input": "0", "expected": 0 }
    ],
-   "tags": [
-    "strings",
-    "string-methods"
-   ],
-   "explain": "The second line does real work and then discards it: the new uppercase string is never stored anywhere. Nothing a string method does can ever reach back and alter the string it was called on.",
-   "xp": 20
+   "solution": "def whole_minutes(seconds):\n    return seconds // 60\n",
+   "hint": "One expression after `return`: divide by 60 with the operator that rounds down.",
+   "concepts": ["true-vs-floor-division", "arithmetic-operators"],
+   "tags": ["true-vs-floor-division"],
+   "explain": "The 59 case is the one that matters: true division would give 0.9833..., which is neither zero complete minutes nor anything a later line counting minutes could use. Floor division answers the question actually asked - how many whole lots fit - and the 120 case confirms it does not lose the exact one.",
+   "xp": 60
   },
   {
    "id": "py-3-g-05",
-   "type": "code",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write `first_and_last(word)` returning a two-character string made of the first and last characters of `word`. Assume `word` is not empty, so `first_and_last('a')` returns `'aa'`.",
-   "fn": "first_and_last",
-   "starterCode": "def first_and_last(word):\n    pass\n",
+   "fn": "label_total",
+   "prompt": "`label_total(count)` should hand back a message like `total: 5`. It stops with a `TypeError` on every call. Fix it, keeping the name `label_total`.",
+   "starterCode": "def label_total(count):\n    return \"total: \" + count\n",
    "tests": [
-    {
-     "input": "'python'",
-     "expected": "pn"
-    },
-    {
-     "input": "'hi'",
-     "expected": "hi"
-    },
-    {
-     "input": "'a'",
-     "expected": "aa"
-    }
+    { "input": "5", "expected": "total: 5" },
+    { "input": "0", "expected": "total: 0" },
+    { "input": "-2", "expected": "total: -2" }
    ],
-   "solution": "def first_and_last(word):\n    return word[0] + word[-1]\n",
-   "hint": "Two indexes joined with +. What is the index of the last character?",
-   "concepts": [
-    "strings",
-    "functions"
-   ],
-   "tags": [
-    "strings",
-    "functions"
-   ],
-   "explain": "For a one-character word the two indexes 0 and -1 land on the same character, which is why 'a' doubles rather than failing. Reaching for len(word) - 1 works too but is longer and easier to get wrong by one.",
-   "xp": 50
+   "solution": "def label_total(count):\n    return \"total: \" + str(count)\n",
+   "hint": "`+` will not join text to a number. Convert the number to text first with `str()`.",
+   "concepts": ["type-conversion"],
+   "tags": ["type-conversion"],
+   "explain": "Python refuses `\"total: \" + 5` because `+` between text and a number has two plausible meanings and it will not choose one for you. The tempting fix is to swap the `+` for a comma, which works inside `print` but not here, because this has to produce a single piece of text rather than display two things side by side.",
+   "xp": 60
   },
   {
    "id": "py-3-g-06",
-   "type": "debug",
+   "type": "code",
    "layer": "application",
-   "prompt": "`double_word` is supposed to hand back the word written twice so the caller can use it, but every test reports `None`. Fix it.",
-   "fn": "double_word",
-   "starterCode": "def double_word(word):\n    print(word + word)\n",
+   "fn": "stack_bonus",
+   "prompt": "Write `stack_bonus(base)` which takes the starting score, adds 12 to it, doubles what that gives, then takes away 5, and hands back the result. So `stack_bonus(0)` is 19. Build it with augmented assignment, one step per line.",
+   "starterCode": "def stack_bonus(base):\n    score = base\n    return score\n",
    "tests": [
-    {
-     "input": "'ha'",
-     "expected": "haha"
-    },
-    {
-     "input": "'x'",
-     "expected": "xx"
-    },
-    {
-     "input": "''",
-     "expected": ""
-    }
+    { "input": "0", "expected": 19 },
+    { "input": "1", "expected": 21 },
+    { "input": "-6", "expected": 7 }
    ],
-   "solution": "def double_word(word):\n    return word + word\n",
-   "hint": "The function shows the answer but never gives it back.",
-   "concepts": [
-    "functions"
-   ],
-   "tags": [
-    "functions"
-   ],
-   "explain": "Printing satisfies a human reader; returning satisfies the program. A function that falls off the end without a return evaluates to None, and None is what the test harness compared against your expected string.",
-   "xp": 50
-  },
-  {
-   "id": "py-3-g-07",
-   "type": "order",
-   "layer": "retrieval",
-   "prompt": "Order these lines into a program that defines `tidy` and then prints `OK`.",
-   "fragments": [
-    "    return trimmed.upper()",
-    "def tidy(text):",
-    "    trimmed = text.strip()",
-    "print(tidy('  ok  '))"
-   ],
-   "answer": [
-    1,
-    2,
-    0,
-    3
-   ],
-   "lang": "python",
-   "concepts": [
-    "functions",
-    "string-methods"
-   ],
-   "tags": [
-    "functions",
-    "string-methods"
-   ],
-   "explain": "The header comes first, the body is indented under it, and the return has to come after the variable it uses exists. The call sits at the left margin because it is not part of the function - and it must follow the def, since Python runs top to bottom.",
-   "xp": 20
-  },
-  {
-   "id": "py-3-g-08",
-   "type": "explain",
-   "layer": "retrieval",
-   "prompt": "A line reading just `name.strip()` sits in the middle of a program, and afterwards `name` still has its spaces. State the rule that explains this.",
-   "rubric": {
-    "required": [
-     "immutab",
-     "new",
-     "return"
-    ],
-    "optional": [
-     "assign",
-     "store",
-     "original",
-     "discard",
-     "copy"
-    ],
-    "forbidden": [],
-    "minWords": 20
-   },
-   "concepts": [
-    "strings",
-    "string-methods"
-   ],
-   "tags": [
-    "strings",
-    "string-methods"
-   ],
-   "explain": "The stripped string really was built - it just had nowhere to live, so it was discarded on the spot. Once you internalise that every string method is a factory rather than an editor, a whole family of silent bugs disappears.",
-   "xp": 20
+   "solution": "def stack_bonus(base):\n    score = base\n    score += 12\n    score *= 2\n    score -= 5\n    return score\n",
+   "hint": "Three lines between the two you were given, each of the shape `score ?= n`, in the order the prompt describes.",
+   "concepts": ["augmented-assignment", "arithmetic-operators", "precedence"],
+   "tags": ["augmented-assignment"],
+   "explain": "Written as one expression this is `(base + 12) * 2 - 5`, and those brackets are compulsory - `base + 12 * 2 - 5` would multiply before adding and give a different answer for every input. Splitting it across augmented assignments removes the question entirely, because each line is one whole step, which is often the clearer way to write a calculation you had to stop and think about.",
+   "xp": 60
   }
  ],
- "challenge-set": [
+ "independent-practice": [
   {
-   "id": "py-3-c-01",
+   "id": "py-3-i-01",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `replace_word_choice(sentence, old_word, new_word)` returning `sentence` with every occurrence of `old_word` swapped for `new_word`. If `old_word` never appears, return the sentence unchanged.",
-   "fn": "replace_word_choice",
-   "starterCode": "def replace_word_choice(sentence, old_word, new_word):\n    pass\n",
+   "fn": "sale_price",
+   "prompt": "A shop advertises a percentage off. Write `sale_price(price, percent_off)` giving the amount actually payable, so `sale_price(200, 25)` is 150.",
+   "starterCode": "def sale_price(price, percent_off):\n    return 0\n",
    "tests": [
-    {
-     "input": "'I bake good cakes.', 'good', 'amazing'",
-     "expected": "I bake amazing cakes."
-    },
-    {
-     "input": "'good good', 'good', 'great'",
-     "expected": "great great"
-    },
-    {
-     "input": "'nothing to see', 'zzz', 'x'",
-     "expected": "nothing to see"
-    }
+    { "input": "200, 25", "expected": 150.0 },
+    { "input": "100, 0", "expected": 100.0 },
+    { "input": "50, 100", "expected": 0.0 },
+    { "input": "7, 50", "expected": 3.5 }
    ],
-   "solution": "def replace_word_choice(sentence, old_word, new_word):\n    return sentence.replace(old_word, new_word)\n",
-   "hint": "One method does the whole job, and it replaces every occurrence by default.",
-   "concepts": [
-    "string-methods",
-    "functions"
-   ],
-   "tags": [
-    "string-methods",
-    "functions"
-   ],
-   "explain": "replace handles all occurrences, not just the first, and quietly returns an identical copy when there is no match - so the 'not found' case needs no guard. It matches raw substrings, not whole words, which is worth remembering before you replace 'cat' inside 'category'.",
-   "xp": 50
+   "solution": "def sale_price(price, percent_off):\n    return price - price * percent_off / 100\n",
+   "concepts": ["precedence", "arithmetic-operators"],
+   "tags": ["precedence"],
+   "explain": "The subtraction has to happen last, and it does so without any brackets because `*` and `/` both outrank `-` - but `(price - price * percent_off) / 100` is the same symbols grouped differently and gives a wildly different answer. The 7-at-half-off case shows why the result is a float: half of seven is not a whole number, and a price that could not be represented would be a real defect.",
+   "xp": 60
   },
   {
-   "id": "py-3-c-02",
+   "id": "py-3-i-02",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `remove_suffix_ness(word)` that strips the four-letter suffix `ness`. English spelling turned a final `y` into `i`, so restore it: `'heaviness'` becomes `'heavy'` while `'sadness'` becomes `'sad'`.",
-   "fn": "remove_suffix_ness",
-   "starterCode": "def remove_suffix_ness(word):\n    root = word[:-4]\n    return root\n",
+   "fn": "pages_needed",
+   "prompt": "A photo album holds a fixed number of photos on each page, and a page that is only partly filled is still a page that had to be used. Write `pages_needed(photos, per_page)` giving how many pages are needed to hold them all. Ten photos at three to a page need 4 pages.",
+   "starterCode": "def pages_needed(photos, per_page):\n    return 0\n",
    "tests": [
-    {
-     "input": "'heaviness'",
-     "expected": "heavy"
-    },
-    {
-     "input": "'sadness'",
-     "expected": "sad"
-    },
-    {
-     "input": "'happiness'",
-     "expected": "happy"
-    },
-    {
-     "input": "'ness'",
-     "expected": ""
-    }
+    { "input": "10, 3", "expected": 4 },
+    { "input": "9, 3", "expected": 3 },
+    { "input": "0, 3", "expected": 0 },
+    { "input": "1, 10", "expected": 1 }
    ],
-   "solution": "def remove_suffix_ness(word):\n    root = word[:-4]\n    if root[-1:] == 'i':\n        return root[:-1] + 'y'\n    return root\n",
-   "hint": "word[:-4] drops the last four characters. Then look at what the new last character is.",
-   "concepts": [
-    "strings",
-    "string-methods",
-    "functions"
-   ],
-   "tags": [
-    "strings",
-    "string-methods",
-    "functions"
-   ],
-   "explain": "A negative end index counts from the right, so word[:-4] means 'everything except the last four'. Testing root[-1:] rather than root[-1] is what keeps the bare 'ness' case from raising an IndexError - a one-character slice of an empty string is just an empty string.",
-   "xp": 50
+   "solution": "def pages_needed(photos, per_page):\n    return (photos + per_page - 1) // per_page\n",
+   "concepts": ["true-vs-floor-division", "arithmetic-operators"],
+   "tags": ["true-vs-floor-division"],
+   "explain": "Rounding down is the opposite of what this problem wants, so the standard answer pushes the total up by one page-worth minus one before dividing, which tips any leftover over the line without disturbing an exact fit. The 9-and-3 test fails if you simply add a page unconditionally, and the 0 test fails if you add a page whenever there is a remainder without checking there is one.",
+   "xp": 60
   },
   {
-   "id": "py-3-c-03",
+   "id": "py-3-i-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "seconds_label",
+   "prompt": "Write `seconds_label(seconds)` giving a piece of text describing that duration in minutes and seconds, in the form `2m 10s` for 130 seconds. A duration under a minute still shows its zero, so 59 seconds is `0m 59s`.",
+   "starterCode": "def seconds_label(seconds):\n    return \"\"\n",
+   "tests": [
+    { "input": "130", "expected": "2m 10s" },
+    { "input": "59", "expected": "0m 59s" },
+    { "input": "120", "expected": "2m 0s" },
+    { "input": "0", "expected": "0m 0s" }
+   ],
+   "solution": "def seconds_label(seconds):\n    return str(seconds // 60) + \"m \" + str(seconds % 60) + \"s\"\n",
+   "concepts": ["type-conversion", "true-vs-floor-division", "arithmetic-operators"],
+   "tags": ["type-conversion"],
+   "explain": "Two things have to be right at once: splitting 130 into whole lots and leftover, and getting numbers into a piece of text at all, which Python will not do on its own. The 120 case is the trap - its leftover is 0 and must still appear, so anything that drops a zero produces `2m s` and fails.",
+   "xp": 60
+  },
+  {
+   "id": "py-3-i-04",
    "type": "debug",
    "layer": "application",
-   "prompt": "`domain(email)` must return the part after the `@`, and an empty string when there is no `@` at all. It currently keeps the `@`, and returns the whole address when the `@` is missing. Fix both faults.",
-   "fn": "domain",
-   "starterCode": "def domain(email):\n    at = email.find(\"@\")\n    return email[at:]\n",
+   "fn": "is_balanced",
+   "prompt": "`is_balanced(paid, owed)` should report whether the amount paid matches the amount owed. It reports `True` every single time, including when it should not. Fix it, keeping the name `is_balanced`.",
+   "starterCode": "def is_balanced(paid, owed):\n    paid = owed\n    return paid == owed\n",
    "tests": [
-    {
-     "input": "'mira@grim.io'",
-     "expected": "grim.io"
-    },
-    {
-     "input": "'a@b'",
-     "expected": "b"
-    },
-    {
-     "input": "'noatsign'",
-     "expected": ""
-    },
-    {
-     "input": "'x@'",
-     "expected": ""
-    }
+    { "input": "5, 5", "expected": true },
+    { "input": "5, 6", "expected": false },
+    { "input": "0, 0", "expected": true },
+    { "input": "-1, 1", "expected": false }
    ],
-   "solution": "def domain(email):\n    at = email.find(\"@\")\n    if at == -1:\n        return \"\"\n    return email[at + 1:]\n",
-   "hint": "find returns -1 when the substring is absent, and -1 is a perfectly valid index.",
-   "concepts": [
-    "string-methods",
-    "strings",
-    "functions"
-   ],
-   "tags": [
-    "string-methods",
-    "strings",
-    "functions"
-   ],
-   "explain": "The two faults share one root: a slice that starts at the found index includes the separator, and the sentinel -1 is not an error value to Python - it is the last character, so the slice silently returns everything. Checking for -1 before slicing is the habit that makes find safe.",
-   "xp": 50
-  },
-  {
-   "id": "py-3-c-04",
-   "type": "trace",
-   "layer": "retrieval",
-   "prompt": "Give the value bound to each name after its line runs. Write strings without quotes; write the list exactly as Python would display it.",
-   "code": "raw = \"  Fire Bolt  \"\na = raw.strip()\nb = a.lower()\nc = b.split()\nd = \"-\".join(c)",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "a (no quotes)",
-     "expected": "Fire Bolt"
-    },
-    {
-     "label": "b (no quotes)",
-     "expected": "fire bolt"
-    },
-    {
-     "label": "c (as Python displays it)",
-     "expected": "['fire', 'bolt']"
-    },
-    {
-     "label": "d (no quotes)",
-     "expected": "fire-bolt"
-    }
-   ],
-   "concepts": [
-    "string-methods",
-    "strings"
-   ],
-   "tags": [
-    "string-methods",
-    "strings"
-   ],
-   "explain": "Every line consumes the previous value and produces a fresh one, and the type changes halfway through: split turns one string into a list of them, join turns a list back into one string. Naming each intermediate is how you catch a chain that silently lost a piece.",
-   "xp": 40
-  },
-  {
-   "id": "py-3-c-05",
-   "type": "explain",
-   "layer": "application",
-   "prompt": "This code crashes on the last line with `TypeError: can only concatenate str (not \"NoneType\") to str`. Explain what `tidy` actually gives back and what one change fixes it.",
-   "code": "def tidy(text):\n    print(text.strip())\n\nlabel = \"[\" + tidy(\"  ok  \") + \"]\"",
-   "lang": "python",
-   "rubric": {
-    "required": [
-     "return",
-     "print",
-     "none"
-    ],
-    "optional": [
-     "value",
-     "caller",
-     "screen",
-     "expression",
-     "hand"
-    ],
-    "forbidden": [],
-    "minWords": 25
-   },
-   "concepts": [
-    "functions"
-   ],
-   "tags": [
-    "functions"
-   ],
-   "explain": "The stripped text was displayed and then dropped; the call itself evaluated to None, and None cannot be concatenated with a string. The reason the error is confusing is that the correct text appeared on screen a moment earlier - proof that printing and returning are different acts.",
-   "xp": 20
-  },
-  {
-   "id": "py-3-c-06",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Vocabulary drill: `make_word_groups(text)` takes a string whose first word is a prefix, and returns the prefix followed by each remaining word with the prefix applied, separated by ` :: `. `make_word_groups('en close joy lighten')` returns `'en :: enclose :: enjoy :: enlighten'`. Do it without a loop.",
-   "fn": "make_word_groups",
-   "starterCode": "def make_word_groups(text):\n    words = text.split()\n    pass\n",
-   "tests": [
-    {
-     "input": "'en close joy lighten'",
-     "expected": "en :: enclose :: enjoy :: enlighten"
-    },
-    {
-     "input": "'pre serve dispose'",
-     "expected": "pre :: preserve :: predispose"
-    },
-    {
-     "input": "'auto'",
-     "expected": "auto"
-    }
-   ],
-   "solution": "def make_word_groups(text):\n    words = text.split()\n    prefix = words[0]\n    return (' :: ' + prefix).join(words)\n",
-   "hint": "The separator can be more than punctuation. What if the glue itself carried the prefix?",
-   "concepts": [
-    "string-methods",
-    "functions"
-   ],
-   "tags": [
-    "string-methods",
-    "functions"
-   ],
-   "explain": "The trick is realising the separator is just a string you get to build: making the glue ' :: ' + prefix applies the prefix to every word after the first, because join only inserts between pieces. That is also why a single word comes back untouched - there is no gap to fill.",
-   "xp": 50
+   "solution": "def is_balanced(paid, owed):\n    return paid == owed\n",
+   "concepts": ["assignment-vs-equality"],
+   "tags": ["assignment-vs-equality"],
+   "explain": "The second line stores rather than asks: it throws away what was paid and replaces it with what was owed, so by the time the comparison runs the two are guaranteed to match. Nothing crashes and no warning appears, which is what makes a stray single `=` worse than a mistake Python rejects outright - the program keeps going and tells you what you hoped to hear.",
+   "xp": 60
   }
  ],
  "exam": [
   {
-   "id": "py-3-e-01",
+   "id": "py-3-x-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "What does `\"fireball\".find(\"ice\")` evaluate to?",
+   "prompt": "What does the `//` operator do?",
    "choices": [
-    "0",
-    "-1",
-    "None",
-    "it raises a ValueError"
+    "Divides and rounds the result down to a whole number",
+    "Divides and always gives a float",
+    "Marks the rest of the line as a comment",
+    "Gives the remainder left over after dividing"
    ],
-   "answer": 1,
-   "concepts": [
-    "string-methods"
-   ],
-   "tags": [
-    "string-methods"
-   ],
-   "explain": "find reports absence with the sentinel -1 rather than raising, which is convenient until you forget to check it: -1 is also a legal index, so the mistake shows up as wrong data instead of a crash.",
-   "xp": 10
+   "answer": 0,
+   "concepts": ["true-vs-floor-division"],
+   "tags": ["true-vs-floor-division"],
+   "explain": "Rounding down is the definition; it is `/` that always gives a float and `%` that gives the leftover. The comment answer is worth knowing about, because `//` really does begin a comment in several other languages, which is why it looks wrong to anybody arriving from one of them.",
+   "xp": 12
   },
   {
-   "id": "py-3-e-02",
-   "type": "multi",
+   "id": "py-3-x-02",
+   "type": "mcq",
    "layer": "retrieval",
-   "prompt": "Which of these expressions evaluate to `True`?",
+   "prompt": "What is the difference between `=` and `==` in Python?",
    "choices": [
-    "'fire' in 'fireball'",
-    "'ball' in 'fireball'",
-    "'Fire' in 'fireball'",
-    "'fireball'.find('fire') == 0"
+    "`=` stores a value under a name; `==` works out whether two values are equal",
+    "They mean the same thing, and `==` is just the clearer spelling",
+    "`=` compares numbers and `==` compares text",
+    "`=` works out whether two values are equal; `==` stores a value under a name"
    ],
-   "answer": [
-    0,
-    1,
-    3
-   ],
-   "concepts": [
-    "strings",
-    "string-methods"
-   ],
-   "tags": [
-    "strings",
-    "string-methods"
-   ],
-   "explain": "`in` finds a substring anywhere, not just at the start, so both halves match. It is case-sensitive, which is why the capitalised one fails - lowercase both sides first when you want a case-blind search.",
-   "xp": 10
+   "answer": 0,
+   "concepts": ["assignment-vs-equality"],
+   "tags": ["assignment-vs-equality"],
+   "explain": "One changes the world and one asks a question about it, and no amount of context makes them interchangeable. The last choice is the same distinction written backwards, and that is exactly the mix-up that leaves a name quietly overwritten by the value it was supposed to be checked against.",
+   "xp": 12
   },
   {
-   "id": "py-3-e-03",
+   "id": "py-3-x-03",
    "type": "output",
    "layer": "retrieval",
    "prompt": "What does this print?",
-   "code": "s = \"grimoire\"\nprint(s[:3])\nprint(s[-4:])\nprint(s[3:3] == \"\")\nprint(len(s[2:5]))",
+   "code": "print(100 // 3 ** 2, -3 ** 2)",
    "lang": "python",
-   "answer": "gri\noire\nTrue\n3",
-   "concepts": [
-    "strings"
-   ],
-   "tags": [
-    "strings"
-   ],
-   "explain": "An empty start or end means 'from the beginning' or 'to the end'. A slice whose bounds are equal spans nothing at all, and the length of any slice s[a:b] within range is simply b - a.",
-   "xp": 20
+   "answer": "11 -9",
+   "concepts": ["precedence", "arithmetic-operators"],
+   "tags": ["precedence"],
+   "explain": "The power outranks both the division and the minus sign, so the first is 100 // 9 and the second is -(3 ** 2). Working the first left to right gives 1111 and reading the second as the square of minus three gives 9, and both wrong answers come from the same assumption that Python reads in writing order.",
+   "xp": 24
   },
   {
-   "id": "py-3-e-04",
-   "type": "fill",
+   "id": "py-3-x-04",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this prints `a-b-c`.",
-   "template": "text = 'a b c'\nprint('-'.___(text.___()))",
-   "blanks": [
-    "join",
-    "split"
-   ],
+   "prompt": "What does this print?",
+   "code": "a = 7 / 2\nb = 7 // 2\nprint(a, b, a == b)",
    "lang": "python",
-   "concepts": [
-    "string-methods"
-   ],
-   "tags": [
-    "string-methods"
-   ],
-   "explain": "The separator is the string you call join on, and the pieces are its argument - the reverse of what most people guess. split runs first because join needs the list of pieces before it can glue anything.",
-   "xp": 20
+   "answer": "3.5 3 False",
+   "concepts": ["true-vs-floor-division", "assignment-vs-equality"],
+   "tags": ["true-vs-floor-division"],
+   "explain": "The two divisions genuinely disagree here because 7 does not split evenly, so the comparison is False - and this is the case where the difference is obvious. It is when a division comes out exactly, and `4 / 2 == 4 // 2` is True while the types still differ, that the distinction gets quietly lost.",
+   "xp": 24
   },
   {
-   "id": "py-3-e-05",
-   "type": "explain",
+   "id": "py-3-x-05",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "In two or three sentences, state the difference between `return` and `print` inside a function, and say what a function without a `return` gives back.",
-   "rubric": {
-    "required": [
-     "return",
-     "print",
-     "none"
-    ],
-    "optional": [
-     "value",
-     "caller",
-     "screen",
-     "display",
-     "expression"
-    ],
-    "forbidden": [],
-    "minWords": 20
-   },
-   "concepts": [
-    "functions"
-   ],
-   "tags": [
-    "functions"
-   ],
-   "explain": "One communicates with the program, the other with the person watching. Getting this backwards produces code that looks correct while every value it hands on is None - and None only fails later, far from the function that caused it.",
-   "xp": 20
+   "prompt": "What does this print?",
+   "code": "print(\"3\" * 2)",
+   "lang": "python",
+   "answer": "33",
+   "concepts": ["type-conversion", "arithmetic-operators"],
+   "tags": ["type-conversion"],
+   "explain": "Multiplying text by a whole number repeats it, so two copies of the character 3 sit side by side and print as `33`. The expected answer is 6, and this is worth drilling because no error is raised: the program carries on holding the wrong value, unlike `\"3\" + 2`, which stops the moment it runs.",
+   "xp": 24
   },
   {
-   "id": "py-3-e-06",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `check_sentence_ending(sentence)` returning `True` when `sentence` ends with a full stop `.` and `False` otherwise. An empty sentence is `False`.",
-   "fn": "check_sentence_ending",
-   "starterCode": "def check_sentence_ending(sentence):\n    pass\n",
-   "tests": [
-    {
-     "input": "'I like to hike, bake, and read.'",
-     "expected": true
-    },
-    {
-     "input": "'no period here'",
-     "expected": false
-    },
-    {
-     "input": "'.'",
-     "expected": true
-    },
-    {
-     "input": "''",
-     "expected": false
-    }
-   ],
-   "solution": "def check_sentence_ending(sentence):\n    return sentence[-1:] == \".\"\n",
-   "hint": "A one-character slice of the end is safe even when there is no end to speak of.",
-   "concepts": [
-    "strings",
-    "functions"
-   ],
-   "tags": [
-    "strings",
-    "functions"
-   ],
-   "explain": "Comparing sentence[-1:] instead of sentence[-1] is what makes the empty case return False rather than raising an IndexError, because slicing out of range is permitted while indexing out of range is not. Returning the comparison directly is better than an if that returns True or False - the comparison is already the bool you want.",
-   "xp": 50
-  },
-  {
-   "id": "py-3-e-07",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`initials` should turn a full name into uppercase initials with a dot after each, so `'mira vex'` gives `'M.V.'`. It keeps the original letter case. Fix it.",
-   "fn": "initials",
-   "starterCode": "def initials(full_name):\n    parts = full_name.split()\n    return parts[0][0] + \".\" + parts[1][0] + \".\"\n",
-   "tests": [
-    {
-     "input": "'mira vex'",
-     "expected": "M.V."
-    },
-    {
-     "input": "'Zed Kane'",
-     "expected": "Z.K."
-    },
-    {
-     "input": "'  mira   vex  '",
-     "expected": "M.V."
-    },
-    {
-     "input": "'a b'",
-     "expected": "A.B."
-    }
-   ],
-   "solution": "def initials(full_name):\n    parts = full_name.split()\n    return parts[0][0].upper() + \".\" + parts[1][0].upper() + \".\"\n",
-   "hint": "Every other part of the function is already correct - only the letters are wrong.",
-   "concepts": [
-    "string-methods",
-    "strings",
-    "functions"
-   ],
-   "tags": [
-    "string-methods",
-    "strings",
-    "functions"
-   ],
-   "explain": "parts[0][0] is a double index: the first word, then the first character of that word - and a one-character string still has all the string methods. The messy spacing case already passes untouched because split() with no argument collapses runs of whitespace for you.",
-   "xp": 50
-  },
-  {
-   "id": "py-3-e-08",
+   "id": "py-3-x-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Order these lines into a program that defines `last_word` and prints the last word of a sentence.",
+   "prompt": "Python is evaluating `2 + 12 // 2 ** 2`. Put the three steps into the order they actually happen.",
    "fragments": [
-    "print(last_word('fire and ice'))",
-    "def last_word(sentence):",
-    "    return words[-1]",
-    "    words = sentence.split()"
+    "work out 12 // 4, giving 3",
+    "work out 2 ** 2, giving 4",
+    "work out 2 + 3, giving 5"
    ],
-   "answer": [
-    1,
-    3,
-    2,
-    0
-   ],
-   "lang": "python",
-   "concepts": [
-    "string-methods",
-    "functions"
-   ],
-   "tags": [
-    "string-methods",
-    "functions"
-   ],
-   "explain": "A name has to exist before it is used, so the split must run before the return - and nothing after a return in the same block would ever execute anyway. The call is unindented because it belongs to the program, not the function.",
-   "xp": 20
+   "answer": [1, 0, 2],
+   "concepts": ["precedence"],
+   "tags": ["precedence"],
+   "explain": "The power is the strongest rank so it resolves first, then the floor division, and the addition last because `+` is the weakest of the three. Starting from the leftmost `+` is the natural reading and would give 14 // 4, which is 3 - a plausible-looking answer reached in entirely the wrong order.",
+   "xp": 24
   },
   {
-   "id": "py-3-e-09",
-   "type": "output",
+   "id": "py-3-x-07",
+   "type": "trace",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "def tag(word):\n    print(\"<\" + word + \">\")\n\nresult = tag(\"fire\")\nprint(result)",
-   "lang": "python",
-   "answer": "<fire>\nNone",
-   "concepts": [
-    "functions"
+   "prompt": "Track the value stored under `n` after each line runs.\n\n`n = 20`\n`n //= 6`\n`n **= 2`\n`n %= 4`\n`n -= 1`",
+   "steps": [
+    { "label": "after n //= 6", "expected": "3" },
+    { "label": "after n **= 2", "expected": "9" },
+    { "label": "after n %= 4", "expected": "1" },
+    { "label": "after n -= 1", "expected": "0" }
    ],
-   "tags": [
-    "functions"
-   ],
-   "explain": "Two lines appear even though only one print is inside the function: the second comes from printing what the call produced. Reaching the end of a body without a return is not an error, it just yields None.",
-   "xp": 20
+   "concepts": ["augmented-assignment", "arithmetic-operators"],
+   "tags": ["augmented-assignment"],
+   "explain": "Each line replaces `n` with the result of its operator applied to whatever `n` held, so an error at the first step follows you all the way to the end. The first step is where it usually goes wrong: 6 goes into 20 three times with 2 left over, and floor division keeps the 3 and discards the leftover entirely.",
+   "xp": 48
   },
   {
-   "id": "py-3-e-10",
+   "id": "py-3-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`\"3\" + 4` stops the program with a TypeError, but `\"3\" * 4` runs happily and gives `\"3333\"`. Explain why Python treats these two differently, and say which of the two is more likely to cost you an afternoon.",
+   "rubric": {
+    "required": ["text", "number", "meaning", "error", "repeat"],
+    "optional": ["str", "int", "convert", "guess", "silent", "join", "add"],
+    "minWords": 50
+   },
+   "concepts": ["type-conversion", "arithmetic-operators"],
+   "tags": ["type-conversion"],
+   "explain": "`+` between text and a number has two plausible meanings - add the values, or join them into one piece of text - and Python refuses to guess, so it raises an error rather than picking. `*` by a whole number has only one sensible meaning, repeat the text that many times, so there is nothing to guess and it proceeds. The multiplication is the expensive one: it produces a wrong value in silence and the failure surfaces much later somewhere that looks unrelated, whereas the TypeError points at the exact line the instant it runs.",
+   "xp": 40
+  },
+  {
+   "id": "py-3-x-09",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `slugify(title)` that turns a title into a URL slug: trim the outer whitespace, drop one trailing full stop `.` if there is one, lowercase everything, and join the words with single `-` characters. `slugify('  Fire   Bolt. ')` returns `'fire-bolt'`, and an empty title returns an empty string.",
-   "fn": "slugify",
-   "starterCode": "def slugify(title):\n    pass\n",
+   "fn": "is_even_split",
+   "prompt": "Write `is_even_split(total, people)` giving `True` when the total divides among that many people with nothing left over, and `False` otherwise.",
+   "starterCode": "def is_even_split(total, people):\n    return False\n",
    "tests": [
-    {
-     "input": "'  Fire   Bolt. '",
-     "expected": "fire-bolt"
-    },
-    {
-     "input": "'Python'",
-     "expected": "python"
-    },
-    {
-     "input": "'THE Bound SIGIL.'",
-     "expected": "the-bound-sigil"
-    },
-    {
-     "input": "''",
-     "expected": ""
-    }
+    { "input": "10, 5", "expected": true },
+    { "input": "10, 3", "expected": false },
+    { "input": "0, 4", "expected": true },
+    { "input": "7, 7", "expected": true }
    ],
-   "solution": "def slugify(title):\n    text = title.strip()\n    if text[-1:] == '.':\n        text = text[:-1]\n    return '-'.join(text.lower().split())\n",
-   "hint": "Deal with the full stop while the string is still one piece, then let split and join handle the spacing.",
-   "concepts": [
-    "strings",
-    "string-methods",
-    "functions"
-   ],
-   "tags": [
-    "strings",
-    "string-methods",
-    "functions"
-   ],
-   "explain": "Order is the whole design here: the full stop has to go before you split, or it clings to the last word, and split-then-join beats replacing spaces because it collapses runs of whitespace instead of producing a row of hyphens. The safe slice text[-1:] once again lets the empty title travel the same path as every other input, with no special case.",
-   "xp": 50
+   "solution": "def is_even_split(total, people):\n    return total % people == 0\n",
+   "concepts": ["arithmetic-operators", "assignment-vs-equality"],
+   "tags": ["arithmetic-operators"],
+   "explain": "The leftover is exactly what `%` produces, and comparing it with zero turns that number into the True or False the question asked for. Comparing the two divisions instead - checking that `total / people` equals `total // people` - happens to pass these tests, but it does the work twice and leans on a float comparison that stops being reliable for large values.",
+   "xp": 60
   }
  ]
 }

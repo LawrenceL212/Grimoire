@@ -1,1030 +1,464 @@
 {
  "n": 8,
- "name": "The Warded Gate",
+ "name": "The Drafting Room",
+ "goal": "Break a stated problem into functions before writing any of them.",
+ "stage": 1,
+ "cognitiveLevel": "recall",
+ "requires": [{ "dungeon": "python", "floor": 7 }],
+ "description": {
+  "what": "How to turn a problem written in a paragraph of English into a short list of named functions, and how to write those names down before you write a single line that does any work.",
+  "why": "Almost nobody is defeated by Python itself; they are defeated by staring at a problem too big to hold in their head all at once. Splitting it into named pieces makes each piece small enough to write, small enough to check on its own, and small enough to fix when it turns out to be wrong.",
+  "enables": "Read a paragraph describing a task, list the separate jobs inside it, give each one a name and a signature, and then fill them in one at a time until the whole thing works.",
+  "assumes": "You can write a function with parameters and a return value, call one function from inside another, use `if` and loops, and read a traceback when something fails.",
+  "assessed": "You will be handed problems as paragraphs of prose with no structure suggested, and you will have to decide what the pieces are, name them, and make them work together."
+ },
  "concepts": [
-  "raising-and-handling-errors",
-  "user-defined-errors",
-  "with-statement",
-  "class-inheritance"
+  "problem-decomposition",
+  "function-naming",
+  "one-job-per-function",
+  "signatures-and-stubs",
+  "composing-functions"
  ],
- "cognitiveLevel": "transfer",
- "sequence": [
-  "lesson",
-  "guided-practice",
-  "debugging",
-  "challenge-set",
-  "exam"
- ],
+ "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
  "lesson": {
-  "title": "Failure, Handled",
   "sections": [
    {
-    "title": "try, except, else, finally",
-    "body": "A `try` block runs code that might fail. If it raises, Python looks for an `except` clause naming that exception's class - or a parent of it - and runs the first one that matches.\n\nThe optional `else` block runs **only** when nothing was raised, which keeps the risky line and the follow-up work visibly separate. `finally` runs no matter what: exception, no exception, even when the `try` block already hit a `return`.\n\nCatch the **specific** class you know how to handle. A bare `except:` catches everything, including the typo you have not found yet.",
-    "code": "def read_setting(config, key):\n    try:\n        value = config[key]\n    except KeyError:\n        print(\"missing:\", key)\n        return None\n    else:\n        print(\"found:\", key)\n        return value\n    finally:\n        print(\"lookup finished:\", key)\n\nsettings = {\"volume\": 7}\nprint(read_setting(settings, \"volume\"))\nprint(read_setting(settings, \"brightness\"))",
+    "title": "A paragraph hides several jobs",
+    "body": "Here is a problem, written the way problems are actually given to you.\n\n**A theatre sells tickets. A ticket costs 12 pounds, except for anyone under 16, who pays 7. An order of 5 tickets or more gets 10 per cent off the whole order. Report the amount owed, rounded to two decimal places.**\n\nThat one paragraph contains four separate decisions: what one ticket costs, how many tickets there are, whether a discount applies, and how the answer should be rounded. Each of those is a **job**. A job is a question the program has to answer that you could ask on its own and get a sensible reply to - \"what does one ticket cost for a ten-year-old?\" is a fair question by itself, while \"what is the third line of the calculation?\" is not.\n\nThe code below answers all four questions in one lump. It is correct, and it is still the wrong shape. If the discount rule changes you must read the whole function to find the two lines that care. If you want to check only the pricing rule, you cannot: there is nothing you can call that answers only that. Everything the function knows is trapped inside it.\n\nFinding the jobs is a reading exercise, not a typing exercise, and it happens **before** any code exists. Read the paragraph and write the jobs down as short phrases, in whatever order they occur to you.",
+    "code": "def ticket_order(age, count):\n    if age < 16:\n        price = 7\n    else:\n        price = 12\n    total = price * count\n    if count >= 5:\n        total = total * 0.9\n    return round(total, 2)\n\nprint(ticket_order(30, 2))\nprint(ticket_order(10, 5))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 4,
-      "text": "KeyError, not Exception - this handler claims one failure and no others."
-     },
-     {
-      "line": 7,
-      "text": "else runs only on the no-exception path, so a failure in the follow-up work is never mistaken for a lookup failure."
-     },
-     {
-      "line": 10,
-      "text": "finally still runs even though both branches above it already returned."
-     }
+     { "line": 2, "text": "Job one, buried: deciding the price of a single ticket. There is no way to ask this question on its own - you can only ask it by pricing a whole order." },
+     { "line": 7, "text": "Job three, buried: the discount rule. `0.9` is the entire rule, and it is one keystroke away from being wrong with nothing to warn you." },
+     { "line": 9, "text": "Job four: rounding. Small, but a real decision - money arithmetic on a computer produces amounts such as 30.599999999999998, and rounding is what stops one of those reaching a customer." }
     ],
     "checkpoint": {
-     "type": "output",
+     "type": "fill",
      "layer": "retrieval",
-     "prompt": "What does this program print?",
-     "code": "def risky(n):\n    try:\n        print(10 // n)\n    except ZeroDivisionError:\n        print(\"no\")\n    finally:\n        print(\"done\")\n\nrisky(5)\nrisky(0)",
-     "lang": "python",
-     "answer": "2\ndone\nno\ndone",
-     "concepts": [
-      "raising-and-handling-errors"
-     ],
-     "explain": "Both calls reach the finally block: the first arrives after the try succeeded, the second after the handler ran. That is the whole point of finally - it is the one block whose execution does not depend on which path was taken."
+     "prompt": "The same theatre problem, with the first job pulled out into a function of its own. Fill in the two blanks so that `order_total(10, 3)` gives 21 and `order_total(40, 3)` gives 36.",
+     "template": "def ticket_price(age):\n    if age < 16:\n        return 7\n    return ___\n\ndef order_total(age, count):\n    return ticket_price(age) * ___\n",
+     "blanks": ["12", "count"],
+     "concepts": ["problem-decomposition"],
+     "tags": ["problem-decomposition"],
+     "explain": "The tempting second blank is `age`, because `age` is the word you have just been thinking about. But `ticket_price(age)` has already finished with the age - it handed back a price, and a price is multiplied by a number of tickets. Once a job is behind a name you stop carrying its ingredients around with you, and that relief is most of what decomposition buys.",
+     "xp": 12
     }
    },
    {
-    "title": "Building One Class on Another",
-    "body": "`class RunicWard(Ward)` says a RunicWard **is a** Ward: it inherits every method Ward defines, for free.\n\nDefining a method the parent already has **overrides** it. `super()` reaches past your override to the parent's version, so you can extend behaviour instead of retyping it.\n\nA subclass that writes its own `__init__` must call `super().__init__(...)` itself - Python does not do it for you, and skipping it leaves every parent attribute unset.",
-    "code": "class Ward:\n    def __init__(self, name, strength):\n        self.name = name\n        self.strength = strength\n\n    def describe(self):\n        return f\"{self.name} ward, strength {self.strength}\"\n\n\nclass RunicWard(Ward):\n    def __init__(self, name, strength, rune):\n        super().__init__(name, strength)\n        self.rune = rune\n\n    def describe(self):\n        return super().describe() + f\", carved with {self.rune}\"\n\n\nprint(Ward(\"plain\", 3).describe())\nprint(RunicWard(\"sealed\", 9, \"algiz\").describe())\nprint(isinstance(RunicWard(\"sealed\", 9, \"algiz\"), Ward))",
+    "title": "A name is a promise",
+    "body": "A function's name is the only part of it most readers will ever look at. If the name is honest they never need to open it; if the name lies, they will trust it and be wrong. Naming is not decoration, it is the surface everyone else touches.\n\nThree habits cover nearly every case. A function that **works something out** takes a noun or noun phrase for the thing it hands back: `ticket_price`, `total_seconds`, `grade_for`. A function that **does something** takes a verb: `print_receipt`, `save_score`. A function that answers **yes or no** reads as a question, conventionally starting `is_` or `has_`, so that `if is_adult(age):` reads as English at the place it is used.\n\nOne test catches most bad names: if you cannot name the function without the word \"and\", it is two functions. `calculate_and_print_total` is a confession, not a name. Names like `data`, `do_it`, `helper`, `process` and `calc2` are the same confession said more quietly - they are what you write when you have not yet decided what the thing is.\n\nNames are read far more often than they are typed, so spend the extra characters. `n` is fine for a counter inside three lines of loop; it is not fine for a function the rest of the program depends on.",
+    "code": "def price_for_age(age):\n    if age < 16:\n        return 7\n    return 12\n\ndef is_discounted(count):\n    return count >= 5\n\nprint(price_for_age(10))\nprint(price_for_age(40))\nprint(is_discounted(5))\n\nif is_discounted(2):\n    print(\"discount applies\")\nelse:\n    print(\"full price\")",
     "lang": "python",
     "annotations": [
-     {
-      "line": 12,
-      "text": "Without this call, self.name and self.strength would never exist."
-     },
-     {
-      "line": 16,
-      "text": "super().describe() runs Ward's version, then this method adds to its result."
-     },
-     {
-      "line": 21,
-      "text": "isinstance follows the inheritance chain, which is what makes `is a` literally true."
-     }
+     { "line": 6, "text": "A yes-or-no question named as a question. Its body is a single comparison, which looks far too small to deserve a function - until line 13." },
+     { "line": 13, "text": "Here is the payoff. `if is_discounted(2):` says what the rule means; `if 2 >= 5:` says only what it does. The name is where the meaning of that 5 now lives." }
     ],
     "checkpoint": {
      "type": "code",
      "layer": "application",
-     "prompt": "`Loud` should behave exactly like `Note` except that `text()` returns the body uppercased. Override `text()` in `Loud`, building the uppercase result from the parent's version rather than from `self.body`.",
-     "fn": "loud_text",
-     "starterCode": "class Note:\n    def __init__(self, body):\n        self.body = body\n\n    def text(self):\n        return self.body\n\n\nclass Loud(Note):\n    pass\n\n\ndef loud_text(body):\n    return Loud(body).text()\n",
-     "solution": "class Note:\n    def __init__(self, body):\n        self.body = body\n\n    def text(self):\n        return self.body\n\n\nclass Loud(Note):\n    def text(self):\n        return super().text().upper()\n\n\ndef loud_text(body):\n    return Loud(body).text()\n",
+     "fn": "is_adult",
+     "prompt": "Write `is_adult(age)`, which hands back `True` when somebody is 18 or over and `False` otherwise.",
+     "starterCode": "def is_adult(age):\n    pass\n",
      "tests": [
-      {
-       "input": "'hi'",
-       "expected": "HI"
-      },
-      {
-       "input": "'MiXeD'",
-       "expected": "MIXED"
-      },
-      {
-       "input": "''",
-       "expected": ""
-      }
+      { "input": "18", "expected": true },
+      { "input": "17", "expected": false },
+      { "input": "0", "expected": false },
+      { "input": "65", "expected": true }
      ],
-     "concepts": [
-      "class-inheritance"
-     ],
-     "explain": "Going through super().text() means the subclass keeps working when Note later changes how it stores or formats its body. Reaching for self.body instead quietly copies the parent's implementation into the child, and copies rot."
+     "solution": "def is_adult(age):\n    return age >= 18\n",
+     "hint": "A comparison such as `age >= 18` is already `True` or `False`, so it can be handed straight back - no `if` is needed.",
+     "concepts": ["function-naming"],
+     "tags": ["function-naming"],
+     "explain": "Writing `if age >= 18: return True` followed by `else: return False` is not wrong, only noisy: the comparison is already the answer. The name matters more than the body here - because it is called `is_adult` rather than `check` or `age_test`, every line that calls it explains itself, and the number 18 is written down in exactly one place where it can be changed.",
+     "xp": 30
     }
    },
    {
-    "title": "Raising, and Errors of Your Own",
-    "body": "`raise` throws an exception yourself. It is how a function refuses a bad argument instead of returning a nonsense value that the caller will misread three frames later.\n\nExceptions are ordinary classes, so you make your own by subclassing `Exception` - everything from the previous section applies. A small hierarchy pays off immediately: `except WardError` also catches `WardBreached`, because a WardBreached **is a** WardError.\n\nGive the subclass extra attributes when the handler needs data rather than prose, and pass the human-readable message up with `super().__init__(...)`.",
-    "code": "class WardError(Exception):\n    pass\n\n\nclass WardBreached(WardError):\n    def __init__(self, name, damage):\n        super().__init__(f\"{name} breached for {damage}\")\n        self.name = name\n        self.damage = damage\n\n\ndef strike(name, strength, damage):\n    if damage < 0:\n        raise ValueError(\"damage cannot be negative\")\n    if damage >= strength:\n        raise WardBreached(name, damage)\n    return strength - damage\n\n\nprint(strike(\"sealed\", 9, 4))\ntry:\n    strike(\"sealed\", 9, 12)\nexcept WardError as e:\n    print(type(e).__name__, \"->\", e)",
+    "title": "One job, one reason to change",
+    "body": "\"One job\" sounds vague until you turn it into a question with a real answer: **what would make me edit this function?** If there are two unrelated answers, there are two functions living in one.\n\nThe commonest example, and the one that costs beginners the most time, is a function that works something out and then prints it. That is two jobs - deciding, and announcing - so it has two reasons to change: the sum could change, or the wording could change. Worse, its answer is unusable. `print` puts characters on a screen and hands back nothing, so whoever called it receives `None` and cannot add to it, compare it, or check it. Every reuse you might want is blocked by that one line.\n\nThe repair is always the same shape: the function **returns** the value, and whoever called it decides what to do with it. One function can then serve a receipt, a running total and a check, without knowing that any of them exist.\n\nThe same split wears other disguises: a function that asks the user for input and then calculates, or one that calculates and then writes a file. Deciding is one job. Talking to the outside world is another. Keep them apart and the deciding half becomes something you can examine on its own.",
+    "code": "def price_for_age(age):\n    if age < 16:\n        return 7\n    return 12\n\n# Two jobs in one: working the total out AND announcing it.\ndef show_total(age, count):\n    total = price_for_age(age) * count\n    print(\"Total: \" + str(total))\n\n# Split apart: this one only decides.\ndef total_for(age, count):\n    return price_for_age(age) * count\n\nshow_total(30, 2)\nprint(\"Total: \" + str(total_for(30, 2)))\nprint(total_for(30, 2) + total_for(10, 1))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 5,
-      "text": "WardBreached inherits from WardError, so one except clause can cover a whole family."
-     },
-     {
-      "line": 7,
-      "text": "The message goes to Exception's own __init__; str(e) reads it back later."
-     },
-     {
-      "line": 14,
-      "text": "A built-in class is the right choice when the failure is a plain bad argument."
-     },
-     {
-      "line": 23,
-      "text": "The handler names the parent and still catches the child."
-     }
+     { "line": 9, "text": "`print` hands back nothing at all, so the call `show_total(30, 2)` is worth `None`. The number was computed and then thrown away." },
+     { "line": 13, "text": "`str(...)` turns a number into text so it can be joined onto a string with `+`. The wording now lives at the place the value is used, which is where wording belongs." },
+     { "line": 17, "text": "This line is impossible with `show_total`, and it is the whole argument for returning: values can be combined, printed characters cannot." }
     ],
     "checkpoint": {
      "type": "code",
      "layer": "application",
-     "prompt": "Make `descend(depth)` raise `TooDeep` with the message `too deep` when `depth` is greater than 3, and otherwise return `depth`. Then make `safe_descend(depth)` return whatever `descend` returned, or the error's message text if it raised.",
-     "fn": "safe_descend",
-     "starterCode": "class TooDeep(Exception):\n    pass\n\n\ndef descend(depth):\n    # raise TooDeep here when depth is greater than 3\n    return depth\n\n\ndef safe_descend(depth):\n    # call descend and turn a TooDeep into its message text\n    return descend(depth)\n",
-     "solution": "class TooDeep(Exception):\n    pass\n\n\ndef descend(depth):\n    if depth > 3:\n        raise TooDeep(\"too deep\")\n    return depth\n\n\ndef safe_descend(depth):\n    try:\n        return descend(depth)\n    except TooDeep as e:\n        return str(e)\n",
+     "fn": "total_with_tax",
+     "prompt": "Somebody wrote this and cannot work out why `total_with_tax(100, 0.2) + 5` fails.\n\n`def total_with_tax(amount, rate):`\n`    print(round(amount * (1 + rate), 2))`\n\nWrite `total_with_tax(amount, rate)` so that it hands back the amount plus that rate of tax, rounded to two decimal places, instead.",
+     "starterCode": "def total_with_tax(amount, rate):\n    pass\n",
      "tests": [
-      {
-       "input": "2",
-       "expected": 2
-      },
-      {
-       "input": "4",
-       "expected": "too deep"
-      },
-      {
-       "input": "0",
-       "expected": 0
-      }
+      { "input": "100, 0.2", "expected": 120.0 },
+      { "input": "0, 0.2", "expected": 0.0 },
+      { "input": "19.99, 0.2", "expected": 23.99 },
+      { "input": "50, 0", "expected": 50.0 }
      ],
-     "concepts": [
-      "user-defined-errors",
-      "raising-and-handling-errors"
-     ],
-     "explain": "Raising and handling are two different jobs, and splitting them across two functions is what lets the same rule be enforced in one place and recovered from in many. str(e) recovers the message because Exception stored it when you passed it in."
+     "solution": "def total_with_tax(amount, rate):\n    return round(amount * (1 + rate), 2)\n",
+     "hint": "The arithmetic is already right. Change only what happens to the result: hand it back rather than putting it on the screen.",
+     "concepts": ["one-job-per-function"],
+     "tags": ["one-job-per-function"],
+     "explain": "The original looks like it works, because the right number does appear on the screen - which is exactly why this trap catches people. Nothing is wrong with the calculation; the fault is that the value was spent on a display and never given to the caller, so what actually runs is `None + 5`. A function that returns can always be printed by its caller, whereas a function that prints can never be un-printed.",
+     "xp": 30
     }
    },
    {
-    "title": "with, __enter__ and __exit__",
-    "body": "Some objects need cleaning up: a lock released, a buffer flushed, a connection closed. Doing that by hand means every early `return` and every exception is another chance to forget.\n\nA `with` statement makes the cleanup structural. Python calls the object's `__enter__` on the way in, binds whatever it returns to the `as` name, and **guarantees** `__exit__` on the way out - normal exit or exception, it runs.\n\n`__exit__` receives the exception's type, value and traceback, all `None` when the block finished normally. Return a falsy value and the exception carries on outwards; return `True` and you have silently swallowed it.",
-    "code": "class Ledger:\n    def __init__(self):\n        self.lines = []\n\n    def __enter__(self):\n        self.lines.append(\"opened\")\n        return self\n\n    def write(self, text):\n        self.lines.append(text)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.lines.append(\"closed\")\n        return False\n\n\nledger = Ledger()\nwith ledger as log:\n    log.write(\"first\")\nprint(ledger.lines)\n\ntry:\n    with ledger as log:\n        log.write(\"second\")\n        raise RuntimeError(\"boom\")\nexcept RuntimeError as e:\n    print(\"caught:\", e)\nprint(ledger.lines)",
+    "title": "Write the empty shapes first",
+    "body": "Here is the working order that makes all of this practical, and it is deliberately backwards from how it feels.\n\nFirst, list the jobs. Second, write a `def` line for each with the parameters you think it needs and a **docstring** - a plain sentence in triple quotes as the first line of the body - saying what it hands back. Give it a body of `pass`, which is Python's way of saying \"nothing here yet\" so that the file still runs. That empty shell is called a **stub**. Third, write the top-level function as nothing but calls to those names, and read it aloud: if the sentence it makes is true, your decomposition is right. Only then, fourth, fill in one stub at a time, checking each before starting the next.\n\nWhat this buys is that you meet your mistakes early and one at a time. Discovering at the stub stage that `discount_factor` also needs the price costs you ten seconds; discovering it after eighty lines costs an afternoon. And when a filled-in function misbehaves you know which one, because the others were working before you touched it.\n\nThe last step, calling small functions from a larger one to build the answer, is called **composing** them. Notice below that `order_total` contains no pricing rule at all - it says only how the pieces fit together. A function whose job is to combine other functions is doing one job too.",
+    "code": "def price_for_age(age):\n    \"\"\"Return the price of one ticket for somebody of this age.\"\"\"\n    if age < 16:\n        return 7\n    return 12\n\ndef discount_factor(count):\n    \"\"\"Return the multiplier an order of this size earns: 0.9 or 1.\"\"\"\n    if count >= 5:\n        return 0.9\n    return 1\n\ndef order_total(age, count):\n    \"\"\"Return the amount owed for the whole order, to two decimal places.\"\"\"\n    return round(price_for_age(age) * count * discount_factor(count), 2)\n\nprint(order_total(10, 5))\nprint(order_total(30, 2))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 5,
-      "text": "Whatever __enter__ returns is what `as log` is bound to - usually self."
-     },
-     {
-      "line": 13,
-      "text": "return False lets any exception continue outwards; True would swallow it."
-     },
-     {
-      "line": 25,
-      "text": "The RuntimeError escapes the with block, but 'closed' was already appended on the way out."
-     }
+     { "line": 2, "text": "The docstring is written before the body exists. If you cannot write this sentence, you do not yet know what the function is - a far cheaper thing to discover now than later." },
+     { "line": 8, "text": "This began life as a `def` line followed by `pass`. Handing back a multiplier rather than an already-discounted price keeps the rule separate from the sum it is applied to." },
+     { "line": 15, "text": "The composing line. Every rule from the paragraph lives in exactly one function, so the theatre changing its discount touches one line in one place." }
     ],
     "checkpoint": {
-     "type": "output",
+     "type": "order",
      "layer": "retrieval",
-     "prompt": "What does this program print?",
-     "code": "class Trace:\n    def __enter__(self):\n        print(\"enter\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        print(\"exit\", exc_type is None)\n        return False\n\n\nwith Trace():\n    print(\"body\")",
-     "lang": "python",
-     "answer": "enter\nbody\nexit True",
-     "concepts": [
-      "with-statement"
+     "prompt": "Put the four steps of the stubs-first working order into the order you would actually carry them out.",
+     "fragments": [
+      "Write a def line and a docstring for each job, with `pass` as the body",
+      "Fill in one function at a time, checking each before starting the next",
+      "Read the problem and write down each separate job it contains",
+      "Write the top-level function as calls to those names, and read it aloud"
      ],
-     "explain": "The three arguments to __exit__ are the exception's type, value and traceback, and they are all None on the clean path - which is exactly how a context manager tells success from failure without being told."
+     "answer": [2, 0, 3, 1],
+     "concepts": ["signatures-and-stubs"],
+     "tags": ["signatures-and-stubs"],
+     "explain": "The tempting order fills the small functions in before the top-level one is written, because that feels like doing the real work first. It is the expensive order: until the top-level function exists you do not know what the small ones must hand back, so you write several of them twice. Settling the shape while it is still free is the entire point of stubs.",
+     "xp": 20
     }
    }
   ]
  },
  "guided-practice": [
   {
-   "id": "py-8-g-01",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "def safe_div(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        return None\n\nprint(safe_div(9, 3))\nprint(safe_div(9, 0))",
-   "lang": "python",
-   "answer": "3.0\nNone",
-   "concepts": [
-    "raising-and-handling-errors"
+   "id": "py-8-gp-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "duration_text",
+   "prompt": "A number of seconds should be reported as text: 3661 becomes `1h 1m 1s`, and 59 becomes `0h 0m 59s`.\n\nThree stubs are waiting for you, one per job. Fill them in and let `duration_text` compose them. Recall that `//` is whole-number division and `%` is the remainder, so `130 // 60` is 2 and `130 % 60` is 10.",
+   "starterCode": "def whole_hours(total):\n    \"\"\"Return how many complete hours are in total seconds.\"\"\"\n    pass\n\ndef whole_minutes(total):\n    \"\"\"Return the leftover complete minutes once the hours are taken out.\"\"\"\n    pass\n\ndef whole_seconds(total):\n    \"\"\"Return the leftover seconds once the hours and minutes are taken out.\"\"\"\n    pass\n\ndef duration_text(seconds):\n    return str(whole_hours(seconds)) + \"h \" + str(whole_minutes(seconds)) + \"m \" + str(whole_seconds(seconds)) + \"s\"\n",
+   "tests": [
+    { "input": "0", "expected": "0h 0m 0s" },
+    { "input": "59", "expected": "0h 0m 59s" },
+    { "input": "3661", "expected": "1h 1m 1s" },
+    { "input": "7325", "expected": "2h 2m 5s" },
+    { "input": "86399", "expected": "23h 59m 59s" }
    ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "True division always produces a float, so 9 / 3 is 3.0 and not 3. The second call never reaches the return inside try - control jumps to the handler the moment the division raises.",
-   "xp": 20
+   "solution": "def whole_hours(total):\n    \"\"\"Return how many complete hours are in total seconds.\"\"\"\n    return total // 3600\n\ndef whole_minutes(total):\n    \"\"\"Return the leftover complete minutes once the hours are taken out.\"\"\"\n    return (total % 3600) // 60\n\ndef whole_seconds(total):\n    \"\"\"Return the leftover seconds once the hours and minutes are taken out.\"\"\"\n    return total % 60\n\ndef duration_text(seconds):\n    return str(whole_hours(seconds)) + \"h \" + str(whole_minutes(seconds)) + \"m \" + str(whole_seconds(seconds)) + \"s\"\n",
+   "hint": "Hours are `total // 3600`. For the minutes, first throw the whole hours away with `total % 3600`, then divide what is left by 60.",
+   "concepts": ["signatures-and-stubs", "composing-functions"],
+   "tags": ["signatures-and-stubs", "composing-functions"],
+   "explain": "The minutes stub is where this is won or lost: `total // 60` counts every minute in the whole duration, including the ones already reported as hours, so 3661 would come out as `1h 61m 1s`. Taking the remainder first is what makes the three answers add back up to the original rather than overlapping. The docstrings were written before the bodies precisely so this distinction - complete minutes against leftover minutes - was settled in English before it had to be settled in arithmetic.",
+   "xp": 60
   },
   {
-   "id": "py-8-g-02",
+   "id": "py-8-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "order_total",
+   "prompt": "**A cinema charges 9 pounds a ticket, or 5 for anyone under 14. An order of 4 tickets or more takes 15 per cent off the whole order. Report the amount owed, rounded to two decimal places.**\n\nThe jobs are the price of one ticket, the discount an order size earns, and the total that combines them. Fill in a function for each and let `order_total(age, count)` compose them.",
+   "starterCode": "def price_for(age):\n    \"\"\"Return the price of one ticket at this age.\"\"\"\n    pass\n\ndef discount_factor(count):\n    \"\"\"Return the multiplier an order of this size earns.\"\"\"\n    pass\n\ndef order_total(age, count):\n    \"\"\"Return the amount owed, rounded to two decimal places.\"\"\"\n    pass\n",
+   "tests": [
+    { "input": "30, 1", "expected": 9 },
+    { "input": "13, 3", "expected": 15 },
+    { "input": "10, 4", "expected": 17.0 },
+    { "input": "40, 4", "expected": 30.6 },
+    { "input": "13, 10", "expected": 42.5 }
+   ],
+   "solution": "def price_for(age):\n    \"\"\"Return the price of one ticket at this age.\"\"\"\n    if age < 14:\n        return 5\n    return 9\n\ndef discount_factor(count):\n    \"\"\"Return the multiplier an order of this size earns.\"\"\"\n    if count >= 4:\n        return 0.85\n    return 1\n\ndef order_total(age, count):\n    \"\"\"Return the amount owed, rounded to two decimal places.\"\"\"\n    return round(price_for(age) * count * discount_factor(count), 2)\n",
+   "hint": "15 per cent off means you keep 85 per cent, so the multiplier is `0.85`. `order_total` should contain no prices and no percentages of its own - only calls and a `round`.",
+   "concepts": ["problem-decomposition", "composing-functions"],
+   "tags": ["problem-decomposition", "composing-functions"],
+   "explain": "The boundaries are where the paragraph must be read exactly: 13 is under 14 so it pays 5, and 4 tickets counts as \"4 or more\" so it does earn the discount. Both are the kind of off-by-one a single lump of code hides and separate functions expose, because `discount_factor(4)` can be asked on its own. Notice too that `round` appears once, in the composing function - rounding each piece separately would give a different and wronger answer.",
+   "xp": 60
+  },
+  {
+   "id": "py-8-gp-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "average_of",
+   "prompt": "`average_of` is doing two jobs and the second has eaten the first: `average_of(3, 4, 5) + 1` fails with `TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'`. Repair it so it hands back the mean of the three numbers.",
+   "starterCode": "def average_of(a, b, c):\n    total = a + b + c\n    print(total / 3)\n",
+   "tests": [
+    { "input": "3, 4, 5", "expected": 4 },
+    { "input": "0, 0, 0", "expected": 0 },
+    { "input": "-3, 3, 9", "expected": 3 },
+    { "input": "1, 2, 3", "expected": 2 }
+   ],
+   "solution": "def average_of(a, b, c):\n    total = a + b + c\n    return total / 3\n",
+   "hint": "One word changes. Ask what the function should hand to whoever called it, and let them decide whether it goes on the screen.",
+   "concepts": ["one-job-per-function"],
+   "tags": ["one-job-per-function"],
+   "explain": "The traceback says `NoneType` because a function with no `return` hands back `None`: the mean was worked out, written to the screen, and discarded. The temptation is to add a `return` while keeping the `print`, which passes these tests and leaves the function still doing two jobs - it would then chatter into the output of every program that ever calls it. Deciding and announcing stay apart.",
+   "xp": 60
+  },
+  {
+   "id": "py-8-gp-04",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this parses `raw`, falls back to 0 on bad text, reports the value only when parsing succeeded, and always prints `done`.",
-   "template": "raw = '12'\ntry:\n    value = int(raw)\n___ ValueError:\n    value = 0\n___:\n    print('parsed', value)\n___:\n    print('done')",
-   "blanks": [
-    "except",
-    "else",
-    "finally"
-   ],
-   "lang": "python",
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "Moving the success work into else instead of leaving it at the end of try means a ValueError raised by that work is no longer mistaken for a parsing failure. finally comes last because it belongs to every path rather than to one of them.",
-   "xp": 20
+   "prompt": "Complete this stub. The docstring is already written, so the name and the placeholder body are all that is missing: the name should say what the docstring promises, and the body should be the keyword meaning \"nothing here yet\".",
+   "template": "def ___(year):\n    \"\"\"Return True when year is a leap year.\"\"\"\n    ___\n",
+   "blanks": ["is_leap", "pass"],
+   "concepts": ["signatures-and-stubs", "function-naming"],
+   "tags": ["signatures-and-stubs", "function-naming"],
+   "explain": "`leap_year` or `check_year` would run perfectly well, but a function handing back True or False reads best as a question, so that `if is_leap(year):` is a sentence at the place it is used. The body has to be `pass` rather than empty: Python refuses a `def` with no body at all, and `pass` is what lets an unfinished file still run so you can check the shape before writing any rules.",
+   "xp": 24
   },
   {
-   "id": "py-8-g-03",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `to_int(text)` returning `int(text)`, or `0` when `text` cannot be parsed as an integer. Catch only the exception `int` actually raises for bad text.",
-   "fn": "to_int",
-   "starterCode": "def to_int(text):\n    pass\n",
-   "solution": "def to_int(text):\n    try:\n        return int(text)\n    except ValueError:\n        return 0\n",
-   "tests": [
-    {
-     "input": "'42'",
-     "expected": 42
-    },
-    {
-     "input": "'-7'",
-     "expected": -7
-    },
-    {
-     "input": "'abc'",
-     "expected": 0
-    },
-    {
-     "input": "''",
-     "expected": 0
-    }
-   ],
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "int('') and int('abc') both raise ValueError, so one specific handler covers both without also catching the TypeError you would get from passing a list. Screening the text yourself with isdigit() instead would wrongly reject '-7'.",
-   "hint": "int() raises ValueError - not TypeError - when the text is not a number.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-g-04",
-   "type": "code",
-   "layer": "application",
-   "prompt": "`Spell.describe()` returns text like `Mend (2 mana)`. Finish `Ritual` so it takes `name, cost, minutes`, reuses `Spell.__init__` for the first two, and overrides `describe()` to append ` [5 min]` to the parent's text - so `ritual_line('Mend', 2, 5)` returns `Mend (2 mana) [5 min]`.",
-   "fn": "ritual_line",
-   "starterCode": "class Spell:\n    def __init__(self, name, cost):\n        self.name = name\n        self.cost = cost\n\n    def describe(self):\n        return f\"{self.name} ({self.cost} mana)\"\n\n\nclass Ritual(Spell):\n    pass\n\n\ndef ritual_line(name, cost, minutes):\n    return Ritual(name, cost, minutes).describe()\n",
-   "solution": "class Spell:\n    def __init__(self, name, cost):\n        self.name = name\n        self.cost = cost\n\n    def describe(self):\n        return f\"{self.name} ({self.cost} mana)\"\n\n\nclass Ritual(Spell):\n    def __init__(self, name, cost, minutes):\n        super().__init__(name, cost)\n        self.minutes = minutes\n\n    def describe(self):\n        return super().describe() + f\" [{self.minutes} min]\"\n\n\ndef ritual_line(name, cost, minutes):\n    return Ritual(name, cost, minutes).describe()\n",
-   "tests": [
-    {
-     "input": "'Mend', 2, 5",
-     "expected": "Mend (2 mana) [5 min]"
-    },
-    {
-     "input": "'Ward', 0, 1",
-     "expected": "Ward (0 mana) [1 min]"
-    },
-    {
-     "input": "'Bind', 10, 0",
-     "expected": "Bind (10 mana) [0 min]"
-    }
-   ],
-   "concepts": [
-    "class-inheritance"
-   ],
-   "tags": [
-    "class-inheritance"
-   ],
-   "explain": "Two calls to super() do two different jobs here: one hands the shared attributes to the parent's initialiser, the other borrows the parent's formatting. Neither line repeats anything Spell already knows, which is the test for whether inheritance is buying you anything.",
-   "hint": "Ritual needs its own __init__ that calls super().__init__(name, cost) first.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-g-05",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Make `cast(pool, cost)` raise `InsufficientMana` with the message `f\"need {cost}, have {pool}\"` when `cost` is greater than `pool`, and otherwise return the mana left over. Then make `cast_or_report(pool, cost)` return that remainder, or the error's message text when the cast is refused - so `cast_or_report(2, 5)` returns `need 5, have 2`.",
-   "fn": "cast_or_report",
-   "starterCode": "class InsufficientMana(Exception):\n    pass\n\n\ndef cast(pool, cost):\n    # raise InsufficientMana when cost is greater than pool\n    return pool - cost\n\n\ndef cast_or_report(pool, cost):\n    # call cast, and return the error's message text if it refuses\n    return cast(pool, cost)\n",
-   "solution": "class InsufficientMana(Exception):\n    pass\n\n\ndef cast(pool, cost):\n    if cost > pool:\n        raise InsufficientMana(f\"need {cost}, have {pool}\")\n    return pool - cost\n\n\ndef cast_or_report(pool, cost):\n    try:\n        return cast(pool, cost)\n    except InsufficientMana as e:\n        return str(e)\n",
-   "tests": [
-    {
-     "input": "10, 4",
-     "expected": 6
-    },
-    {
-     "input": "3, 3",
-     "expected": 0
-    },
-    {
-     "input": "2, 5",
-     "expected": "need 5, have 2"
-    },
-    {
-     "input": "0, 0",
-     "expected": 0
-    }
-   ],
-   "concepts": [
-    "user-defined-errors",
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "user-defined-errors",
-    "raising-and-handling-errors"
-   ],
-   "explain": "A named class is worth more than a boolean return here: a caller that cannot recover simply lets InsufficientMana travel, while one that can names it in an except clause. Note that cost == pool is allowed, which is the boundary a `>=` test would get wrong.",
-   "hint": "Only `cost > pool` is a failure - spending your last point is legal.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-g-06",
-   "type": "code",
-   "layer": "application",
-   "prompt": "`run_tally` is already written and uses `Tally` in a `with` block. Give `Tally` the two methods that make that legal: `__enter__` returning the tally itself, and `__exit__` setting `self.closed` to `True` without suppressing anything.",
-   "fn": "run_tally",
-   "starterCode": "class Tally:\n    def __init__(self):\n        self.total = 0\n        self.closed = False\n\n    def count(self, n):\n        self.total += n\n\n\ndef run_tally(numbers):\n    t = Tally()\n    with t as tally:\n        for n in numbers:\n            tally.count(n)\n    return [t.total, t.closed]\n",
-   "solution": "class Tally:\n    def __init__(self):\n        self.total = 0\n        self.closed = False\n\n    def __enter__(self):\n        return self\n\n    def count(self, n):\n        self.total += n\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.closed = True\n        return False\n\n\ndef run_tally(numbers):\n    t = Tally()\n    with t as tally:\n        for n in numbers:\n            tally.count(n)\n    return [t.total, t.closed]\n",
-   "tests": [
-    {
-     "input": "[1, 2, 3]",
-     "expected": [
-      6,
-      true
-     ]
-    },
-    {
-     "input": "[-5]",
-     "expected": [
-      -5,
-      true
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": [
-      0,
-      true
-     ]
-    }
-   ],
-   "concepts": [
-    "with-statement"
-   ],
-   "tags": [
-    "with-statement"
-   ],
-   "explain": "An object is usable in a with statement purely because it has those two methods - there is no interface to register and nothing to inherit from. Returning self from __enter__ is a convention rather than a rule, but it is what makes `with Tally() as t` read the way people expect.",
-   "hint": "__exit__ takes exactly three arguments after self: exc_type, exc_value, traceback.",
-   "xp": 50
-  }
- ],
- "debugging": [
-  {
-   "id": "py-8-d-01",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`parse_ratio('6/0')` should return `infinite`, but it returns `bad input`. Both handlers are present and both are individually correct. Fix the function without changing either message.",
-   "fn": "parse_ratio",
-   "starterCode": "def parse_ratio(text):\n    try:\n        a, b = text.split(\"/\")\n        return int(a) / int(b)\n    except Exception:\n        return \"bad input\"\n    except ZeroDivisionError:\n        return \"infinite\"\n",
-   "solution": "def parse_ratio(text):\n    try:\n        a, b = text.split(\"/\")\n        return int(a) / int(b)\n    except ZeroDivisionError:\n        return \"infinite\"\n    except Exception:\n        return \"bad input\"\n",
-   "tests": [
-    {
-     "input": "'6/3'",
-     "expected": 2.0
-    },
-    {
-     "input": "'-8/4'",
-     "expected": -2.0
-    },
-    {
-     "input": "'6/0'",
-     "expected": "infinite"
-    },
-    {
-     "input": "'oops'",
-     "expected": "bad input"
-    }
-   ],
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "Python takes the first except clause whose class matches, and ZeroDivisionError is a subclass of Exception, so a broad clause placed above it can never be reached. Order except clauses most specific first - nothing warns you about the dead one.",
-   "hint": "Which clause does Python try first, and does ZeroDivisionError match it?",
-   "xp": 50
-  },
-  {
-   "id": "py-8-d-02",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`dragon_status('Vex', 40, 'fire')` should return `Vex: 40 hp (fire)` but crashes with `AttributeError: 'Dragon' object has no attribute 'name'`. Fix `Dragon` without touching `Creature`.",
-   "fn": "dragon_status",
-   "starterCode": "class Creature:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def status(self):\n        return f\"{self.name}: {self.hp} hp\"\n\n\nclass Dragon(Creature):\n    def __init__(self, name, hp, breath):\n        self.breath = breath\n\n    def status(self):\n        return super().status() + f\" ({self.breath})\"\n\n\ndef dragon_status(name, hp, breath):\n    return Dragon(name, hp, breath).status()\n",
-   "solution": "class Creature:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n\n    def status(self):\n        return f\"{self.name}: {self.hp} hp\"\n\n\nclass Dragon(Creature):\n    def __init__(self, name, hp, breath):\n        super().__init__(name, hp)\n        self.breath = breath\n\n    def status(self):\n        return super().status() + f\" ({self.breath})\"\n\n\ndef dragon_status(name, hp, breath):\n    return Dragon(name, hp, breath).status()\n",
-   "tests": [
-    {
-     "input": "'Vex', 40, 'fire'",
-     "expected": "Vex: 40 hp (fire)"
-    },
-    {
-     "input": "'Nyx', 0, 'frost'",
-     "expected": "Nyx: 0 hp (frost)"
-    },
-    {
-     "input": "'Ash', 1, ''",
-     "expected": "Ash: 1 hp ()"
-    }
-   ],
-   "concepts": [
-    "class-inheritance"
-   ],
-   "tags": [
-    "class-inheritance"
-   ],
-   "explain": "Writing __init__ in a subclass replaces the parent's initialiser outright; nothing calls it implicitly. The attributes it would have set simply never exist, and the failure surfaces far from its cause - inside status(), which is why the traceback names the wrong method.",
-   "hint": "Overriding __init__ is still overriding. What has to run before self.breath is set?",
-   "xp": 50
-  },
-  {
-   "id": "py-8-d-03",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`guard(True)` should return `['open', 'close', 'error escaped']` because the ValueError escapes the `with` block, but it returns `['open', 'close', 'no error']`. Fix `Gate` without changing `guard`.",
-   "fn": "guard",
-   "starterCode": "class Gate:\n    def __init__(self):\n        self.log = []\n\n    def __enter__(self):\n        self.log.append(\"open\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.log.append(\"close\")\n        return True\n\n\ndef guard(should_fail):\n    gate = Gate()\n    try:\n        with gate:\n            if should_fail:\n                raise ValueError(\"cracked\")\n        return gate.log + [\"no error\"]\n    except ValueError:\n        return gate.log + [\"error escaped\"]\n",
-   "solution": "class Gate:\n    def __init__(self):\n        self.log = []\n\n    def __enter__(self):\n        self.log.append(\"open\")\n        return self\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.log.append(\"close\")\n        return False\n\n\ndef guard(should_fail):\n    gate = Gate()\n    try:\n        with gate:\n            if should_fail:\n                raise ValueError(\"cracked\")\n        return gate.log + [\"no error\"]\n    except ValueError:\n        return gate.log + [\"error escaped\"]\n",
-   "tests": [
-    {
-     "input": "False",
-     "expected": [
-      "open",
-      "close",
-      "no error"
-     ]
-    },
-    {
-     "input": "0",
-     "expected": [
-      "open",
-      "close",
-      "no error"
-     ]
-    },
-    {
-     "input": "True",
-     "expected": [
-      "open",
-      "close",
-      "error escaped"
-     ]
-    },
-    {
-     "input": "1",
-     "expected": [
-      "open",
-      "close",
-      "error escaped"
-     ]
-    }
-   ],
-   "concepts": [
-    "with-statement"
-   ],
-   "tags": [
-    "with-statement",
-    "raising-and-handling-errors"
-   ],
-   "explain": "A truthy return from __exit__ is Python's one way of saying `I have dealt with this exception, stop unwinding` - so returning True turns every failure inside the block into silence. Cleanup and suppression are separate decisions, and only a manager that genuinely handles the error should make the second one.",
-   "hint": "The cleanup itself runs correctly. Look at what __exit__ hands back afterwards.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-d-04",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`attempt('iron', 'gold')` should return `refused: 'iron' does not fit`, but the WrongKey escapes `attempt` uncaught. Fix it by changing one line, and do not widen the `except` clause.",
-   "fn": "attempt",
-   "starterCode": "class VaultError(Exception):\n    pass\n\n\nclass WrongKey(Exception):\n    pass\n\n\ndef open_vault(key, correct):\n    if key != correct:\n        raise WrongKey(f\"{key!r} does not fit\")\n    return \"open\"\n\n\ndef attempt(key, correct):\n    try:\n        return open_vault(key, correct)\n    except VaultError as e:\n        return f\"refused: {e}\"\n",
-   "solution": "class VaultError(Exception):\n    pass\n\n\nclass WrongKey(VaultError):\n    pass\n\n\ndef open_vault(key, correct):\n    if key != correct:\n        raise WrongKey(f\"{key!r} does not fit\")\n    return \"open\"\n\n\ndef attempt(key, correct):\n    try:\n        return open_vault(key, correct)\n    except VaultError as e:\n        return f\"refused: {e}\"\n",
-   "tests": [
-    {
-     "input": "'iron', 'iron'",
-     "expected": "open"
-    },
-    {
-     "input": "'iron', 'gold'",
-     "expected": "refused: 'iron' does not fit"
-    },
-    {
-     "input": "'', ''",
-     "expected": "open"
-    },
-    {
-     "input": "'', 'gold'",
-     "expected": "refused: '' does not fit"
-    }
-   ],
-   "concepts": [
-    "user-defined-errors",
-    "class-inheritance"
-   ],
-   "tags": [
-    "user-defined-errors",
-    "class-inheritance"
-   ],
-   "explain": "`except VaultError` matches that class and its descendants, and WrongKey was declared a sibling rather than a child - so the family it appears to belong to is not the family Python sees. Rooting your errors in one base class is what lets callers pick their own granularity later without you editing every raise site.",
-   "hint": "What does WrongKey inherit from now, and what would `except VaultError` need it to inherit from?",
-   "xp": 50
-  }
- ],
- "challenge-set": [
-  {
-   "id": "py-8-c-01",
-   "type": "trace",
-   "layer": "application",
-   "prompt": "`run(0)` is called. Give the letters it prints, in order, one per step.",
-   "code": "def run(x):\n    print(\"A\")\n    try:\n        print(\"B\")\n        y = 10 // x\n        print(\"C\")\n    except ZeroDivisionError:\n        print(\"D\")\n    else:\n        print(\"E\")\n    finally:\n        print(\"F\")\n    print(\"G\")\n\nrun(0)",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "1st line printed",
-     "expected": "A"
-    },
-    {
-     "label": "2nd line printed",
-     "expected": "B"
-    },
-    {
-     "label": "3rd line printed",
-     "expected": "D"
-    },
-    {
-     "label": "4th line printed",
-     "expected": "F"
-    },
-    {
-     "label": "5th line printed",
-     "expected": "G"
-    }
-   ],
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "C is skipped because the raise abandons the rest of the try block immediately, and E is skipped because else belongs to the no-exception path only. F and G both still run: the handler dealt with the exception, so execution resumes normally after the statement.",
-   "xp": 40
-  },
-  {
-   "id": "py-8-c-02",
+   "id": "py-8-gp-05",
    "type": "explain",
-   "layer": "application",
-   "prompt": "A teammate replaces `with Ledger() as log:` with three plain statements: `log = Ledger().__enter__()`, then the block's code, then `log.__exit__(None, None, None)`. It passes every test they wrote. Explain what goes wrong the first time a line inside that block raises, and what the `with` statement is doing that their rewrite is not.",
+   "layer": "retrieval",
+   "prompt": "Here is a function somebody wrote for a shop.\n\n`def checkout(price, quantity):`\n`    total = price * quantity`\n`    if quantity >= 10:`\n`        total = total * 0.9`\n`    print(\"You owe \" + str(round(total, 2)))`\n\nName the separate jobs hiding in it, and say what goes wrong when the shop later wants the same total shown somewhere else with different wording.",
    "rubric": {
-    "required": [
-     "exception",
-     "clean",
-     "guarantee"
-    ],
-    "optional": [
-     "finally",
-     "always",
-     "close",
-     "release",
-     "leak",
-     "propagat",
-     "skip",
-     "return"
-    ],
-    "forbidden": [],
+    "required": ["print", "return", "two"],
+    "optional": ["discount", "reuse", "wording", "name", "None", "test"],
     "minWords": 30
    },
-   "concepts": [
-    "with-statement"
-   ],
-   "tags": [
-    "with-statement",
-    "raising-and-handling-errors"
-   ],
-   "explain": "The rewrite is only correct on the happy path: an exception - or an early return, or a break - jumps past the __exit__ call and the resource is never released. `with` compiles to an implicit try/finally, which is why its guarantee holds for every way of leaving the block rather than just the one the tests exercised.",
-   "xp": 20
-  },
+   "hint": "Ask what would make you edit this function. A change to the discount would; a change to the sentence on the receipt would as well. That is two reasons.",
+   "concepts": ["one-job-per-function", "problem-decomposition"],
+   "tags": ["one-job-per-function", "problem-decomposition"],
+   "explain": "It has at least two reasons to change - the pricing rule and the wording - and because the result is printed rather than returned, the second display cannot reuse the first calculation at all. It would have to copy the arithmetic, and copied arithmetic is how a shop ends up running two different discount rules by accident. The repair is one function that returns the total and another that turns a total into a sentence.",
+   "xp": 24
+  }
+ ],
+ "independent-practice": [
   {
-   "id": "py-8-c-03",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Give `FieldError` an `__init__(self, field)` that passes the message `f\"missing {field}\"` up to `Exception` and stores `self.field = field`. Make `check(record)` raise it for the first of `'name'`, `'level'` missing from the dict and return `'ok'` when both are present. Then make `report(records)` return a list holding, for each record in order, either `'ok'` or the name of its first missing field.",
-   "fn": "report",
-   "starterCode": "class FieldError(Exception):\n    def __init__(self, field):\n        # set the message and keep the field name on the instance\n        pass\n\n\ndef check(record):\n    # raise FieldError for the first missing field\n    return \"ok\"\n\n\ndef report(records):\n    out = []\n    for record in records:\n        # append check(record), or the missing field name\n        pass\n    return out\n",
-   "solution": "class FieldError(Exception):\n    def __init__(self, field):\n        super().__init__(f\"missing {field}\")\n        self.field = field\n\n\ndef check(record):\n    for field in (\"name\", \"level\"):\n        if field not in record:\n            raise FieldError(field)\n    return \"ok\"\n\n\ndef report(records):\n    out = []\n    for record in records:\n        try:\n            out.append(check(record))\n        except FieldError as e:\n            out.append(e.field)\n    return out\n",
-   "tests": [
-    {
-     "input": "[{'name': 'a', 'level': 1}]",
-     "expected": [
-      "ok"
-     ]
-    },
-    {
-     "input": "[{'level': 1}, {'name': 'b'}]",
-     "expected": [
-      "name",
-      "level"
-     ]
-    },
-    {
-     "input": "[{}]",
-     "expected": [
-      "name"
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    }
-   ],
-   "concepts": [
-    "user-defined-errors",
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "user-defined-errors",
-    "raising-and-handling-errors"
-   ],
-   "explain": "Carrying `field` as an attribute rather than parsing it back out of the message text is the difference between an exception a program can act on and one only a human can read. Catching inside the loop, not around it, is what lets one bad record be reported without abandoning the rest.",
-   "hint": "e.field is available on the caught exception because __init__ put it there.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-c-04",
+   "id": "py-8-ip-01",
    "type": "design",
    "layer": "application",
-   "prompt": "Nothing is given to you. Write a context manager class `Transaction` whose `__init__` sets `self.applied = []`, whose `__enter__` returns the transaction, whose `apply(item)` appends `item` to `self.applied`, and whose `__exit__` empties `self.applied` when the block is leaving because of an exception, leaves it untouched otherwise, and never suppresses the exception. Then write `run_transaction(items, fail_on)`: it applies each item in order inside a `with` block, raises `ValueError` immediately after applying an item equal to `fail_on`, catches that `ValueError` outside the `with`, and returns the transaction's `applied` list.",
-   "fn": "run_transaction",
-   "solution": "class Transaction:\n    def __init__(self):\n        self.applied = []\n\n    def __enter__(self):\n        return self\n\n    def apply(self, item):\n        self.applied.append(item)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        if exc_type is not None:\n            self.applied = []\n        return False\n\n\ndef run_transaction(items, fail_on):\n    tx = Transaction()\n    try:\n        with tx as t:\n            for item in items:\n                t.apply(item)\n                if item == fail_on:\n                    raise ValueError(item)\n    except ValueError:\n        pass\n    return tx.applied\n",
-   "tests": [
-    {
-     "input": "['a', 'b', 'c'], None",
-     "expected": [
-      "a",
-      "b",
-      "c"
-     ]
-    },
-    {
-     "input": "['a', 'b', 'c'], 'b'",
-     "expected": []
-    },
-    {
-     "input": "['x'], 'x'",
-     "expected": []
-    },
-    {
-     "input": "[], 'x'",
-     "expected": []
-    }
-   ],
-   "concepts": [
-    "with-statement",
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "with-statement",
-    "raising-and-handling-errors"
-   ],
-   "explain": "The three arguments to __exit__ are not decoration: `exc_type is not None` is the entire test for `did this block fail`, and it is what turns a context manager from a cleanup hook into a rollback. Returning a falsy value keeps the two responsibilities apart - undo the work, but let the caller still learn that it failed.",
-   "xp": 100
+   "prompt": "**A car park charges nothing for the first 30 minutes. After that it charges 2.50 for every hour that has been started, so 31 minutes costs 2.50 and 61 minutes costs 5.00. No stay ever costs more than 15.00.**\n\nWrite the plan you would work from, before any code exists. For each piece of work, give the name you would give it, what it is handed, what it hands back, and the single job it does in one sentence. Then say which sentence of the paragraph ended up in which piece.",
+   "rubric": {
+    "required": ["free", "hour", "cap"],
+    "optional": ["return", "name", "docstring", "stub", "minutes", "30", "15", "round"],
+    "minWords": 45
+   },
+   "concepts": ["problem-decomposition", "function-naming"],
+   "tags": ["problem-decomposition", "function-naming"],
+   "explain": "The three rules in that paragraph are independent of one another - the free period, the started-hour charge, and the ceiling - and that independence is the signal that each deserves its own name. A plan with one piece per rule can be checked rule by rule against the prose, and any sentence of prose you cannot point at in your plan is a rule you have not implemented. Plans that describe steps of a calculation instead, such as \"work out the minutes, then multiply\", tend to collapse back into one lump, because a step of arithmetic cannot be asked as a question on its own.",
+   "xp": 120
   },
   {
-   "id": "py-8-c-05",
+   "id": "py-8-ip-02",
    "type": "code",
    "layer": "application",
-   "prompt": "Add `ManaError` and `TargetError` as subclasses of `SpellError`. Make `classify(kind)` raise `ManaError` for `'mana'`, `TargetError` for `'target'`, `SpellError` for `'other'`, and return `'fine'` for anything else. Then make `describe(kind)` return `'mana problem'`, `'target problem'`, `'spell problem'` or `'fine'` using a single `try` with three `except` clauses.",
-   "fn": "describe",
-   "starterCode": "class SpellError(Exception):\n    pass\n\n\n# ManaError and TargetError go here\n\n\ndef classify(kind):\n    # raise the matching error, or return \"fine\"\n    return \"fine\"\n\n\ndef describe(kind):\n    # one try, three except clauses, ordered so each one can fire\n    return classify(kind)\n",
-   "solution": "class SpellError(Exception):\n    pass\n\n\nclass ManaError(SpellError):\n    pass\n\n\nclass TargetError(SpellError):\n    pass\n\n\ndef classify(kind):\n    if kind == \"mana\":\n        raise ManaError(kind)\n    if kind == \"target\":\n        raise TargetError(kind)\n    if kind == \"other\":\n        raise SpellError(kind)\n    return \"fine\"\n\n\ndef describe(kind):\n    try:\n        return classify(kind)\n    except ManaError:\n        return \"mana problem\"\n    except TargetError:\n        return \"target problem\"\n    except SpellError:\n        return \"spell problem\"\n",
+   "fn": "parking_charge",
+   "prompt": "Make that car park work. `parking_charge(minutes)` hands back what a stay of this many minutes costs: nothing at all for 30 minutes or less, otherwise 2.50 for every hour that has been started, and never more than 15.00.",
+   "starterCode": "def parking_charge(minutes):\n    pass\n",
    "tests": [
-    {
-     "input": "'mana'",
-     "expected": "mana problem"
-    },
-    {
-     "input": "'target'",
-     "expected": "target problem"
-    },
-    {
-     "input": "'other'",
-     "expected": "spell problem"
-    },
-    {
-     "input": "'none'",
-     "expected": "fine"
-    },
-    {
-     "input": "''",
-     "expected": "fine"
-    }
+    { "input": "0", "expected": 0 },
+    { "input": "30", "expected": 0 },
+    { "input": "31", "expected": 2.5 },
+    { "input": "60", "expected": 2.5 },
+    { "input": "61", "expected": 5.0 },
+    { "input": "400", "expected": 15.0 },
+    { "input": "1440", "expected": 15.0 }
    ],
-   "concepts": [
-    "user-defined-errors",
-    "class-inheritance",
-    "raising-and-handling-errors"
+   "solution": "def is_free(minutes):\n    \"\"\"Return True when the stay is short enough to cost nothing.\"\"\"\n    return minutes <= 30\n\ndef started_hours(minutes):\n    \"\"\"Return how many hours a stay this long has started.\"\"\"\n    return (minutes + 59) // 60\n\ndef capped(charge):\n    \"\"\"Return the charge, never above the daily ceiling of 15.00.\"\"\"\n    if charge > 15.0:\n        return 15.0\n    return charge\n\ndef parking_charge(minutes):\n    \"\"\"Return the cost of a stay of this many minutes.\"\"\"\n    if is_free(minutes):\n        return 0.0\n    return capped(2.5 * started_hours(minutes))\n",
+   "concepts": ["problem-decomposition", "composing-functions"],
+   "tags": ["problem-decomposition", "composing-functions"],
+   "explain": "Exactly 60 minutes has started one hour and exactly 61 has started two, which is the boundary that plain division gets wrong in one direction or the other. The ceiling has to be applied after the multiplication rather than to the hours, because it is stated in pounds and not in hours: capping the hours at six agrees with these tests today and disagrees the day the rate changes. Rules written as separate functions can each be read back against the sentence of prose that produced them, which is how you notice that.",
+   "xp": 60
+  },
+  {
+   "id": "py-8-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "grade_report",
+   "prompt": "**A mark out of 100 earns a grade: A from 70, B from 60, C from 50, and F below that. A mark of 50 or more is a pass.** `grade_report(mark)` hands back one line of text in exactly this form.\n\n`Mark 72: grade A, pass`\n`Mark 41: grade F, fail`",
+   "starterCode": "def grade_report(mark):\n    pass\n",
+   "tests": [
+    { "input": "72", "expected": "Mark 72: grade A, pass" },
+    { "input": "50", "expected": "Mark 50: grade C, pass" },
+    { "input": "49", "expected": "Mark 49: grade F, fail" },
+    { "input": "0", "expected": "Mark 0: grade F, fail" },
+    { "input": "100", "expected": "Mark 100: grade A, pass" }
    ],
-   "tags": [
-    "user-defined-errors",
-    "class-inheritance",
-    "raising-and-handling-errors"
+   "solution": "def grade_for(mark):\n    \"\"\"Return the grade letter this mark earns.\"\"\"\n    if mark >= 70:\n        return \"A\"\n    if mark >= 60:\n        return \"B\"\n    if mark >= 50:\n        return \"C\"\n    return \"F\"\n\ndef outcome_for(mark):\n    \"\"\"Return 'pass' or 'fail' for this mark.\"\"\"\n    if mark >= 50:\n        return \"pass\"\n    return \"fail\"\n\ndef grade_report(mark):\n    \"\"\"Return the one-line report for this mark.\"\"\"\n    return \"Mark \" + str(mark) + \": grade \" + grade_for(mark) + \", \" + outcome_for(mark)\n",
+   "concepts": ["composing-functions", "one-job-per-function"],
+   "tags": ["composing-functions", "one-job-per-function"],
+   "explain": "Three jobs live in that paragraph and only one of them is obvious: the grade letter, the pass decision, and the sentence presenting both. Working the pass out from the letter - treating F as the only failure - happens to agree with today's thresholds and quietly breaks the moment the pass mark and the C boundary stop coinciding, which is the difference between a rule you read and a rule you inferred. Building the sentence in its own place also means the wording can change without anyone going near the thresholds.",
+   "xp": 60
+  },
+  {
+   "id": "py-8-ip-04",
+   "type": "debug",
+   "layer": "application",
+   "fn": "basket_total",
+   "prompt": "`basket_total(2, 3, 4, 5)` should give 26, and instead fails with `TypeError: unsupported operand type(s) for +: 'NoneType' and 'NoneType'`. Repair the program so the total comes back to whoever asked for it.",
+   "starterCode": "def line_total(price, quantity):\n    total = price * quantity\n    print(\"Line: \" + str(total))\n\ndef basket_total(price_a, qty_a, price_b, qty_b):\n    return line_total(price_a, qty_a) + line_total(price_b, qty_b)\n",
+   "tests": [
+    { "input": "2, 3, 4, 5", "expected": 26 },
+    { "input": "0, 1, 0, 1", "expected": 0 },
+    { "input": "1.5, 2, 2.5, 2", "expected": 8.0 },
+    { "input": "10, 0, 3, 3", "expected": 9 }
    ],
-   "explain": "The hierarchy is what gives the caller a choice of granularity: one clause for everything spell-related, or a separate clause per cause. It only works if the clauses are ordered leaf-first, because `except SpellError` would otherwise absorb both children before their own handlers were consulted.",
-   "hint": "Put the two children above the parent in your except chain.",
-   "xp": 50
+   "solution": "def line_total(price, quantity):\n    return price * quantity\n\ndef basket_total(price_a, qty_a, price_b, qty_b):\n    return line_total(price_a, qty_a) + line_total(price_b, qty_b)\n",
+   "concepts": ["one-job-per-function", "composing-functions"],
+   "tags": ["one-job-per-function", "composing-functions"],
+   "explain": "Both sides of the `+` are `None` because both calls printed and handed nothing back, and the message names both operands, which tells you the fault is in the function they share. The tempting repair is to abandon `line_total` and do the multiplication twice inside `basket_total`; that passes, and it throws away the one function worth keeping, so the next basket with three lines starts from nothing. A small function that returns can be reused; the same one printing is a dead end.",
+   "xp": 60
   }
  ],
  "exam": [
   {
-   "id": "py-8-e-01",
+   "id": "py-8-ex-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "A function hits a `return` inside its `try` block, and that `try` also has a `finally`. When does the `finally` block run?",
+   "prompt": "A function has one job when there is only one reason you would ever edit it. Which of these has more than one?",
    "choices": [
-    "It is skipped, because return leaves the function immediately",
-    "After the return value is computed, but before the caller receives it",
-    "Only when an exception was raised",
-    "After the caller has already received the value"
+    "`postage_for(grams)`, which returns the postage due on a parcel of that weight",
+    "`save_and_report(score)`, which writes the score to a file and prints a confirmation",
+    "`is_weekend(day)`, which returns True for Saturday and Sunday",
+    "`seconds_between(start, end)`, which returns how many seconds separate two times"
    ],
    "answer": 1,
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "The return value is evaluated, then held while finally runs, then handed over. That ordering is exactly why a `return` inside finally overwrites it - the pending value is still in flight when the block executes.",
-   "xp": 10
+   "concepts": ["one-job-per-function"],
+   "tags": ["one-job-per-function"],
+   "explain": "The \"and\" in its name is the confession: the file format could change, or the confirmation wording could change, and either sends you into the same function. The other three each answer a single question and hand back a single value, however much arithmetic that takes inside - length of body is not what one job means.",
+   "xp": 12
   },
   {
-   "id": "py-8-e-02",
+   "id": "py-8-ex-02",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "An exception is raised inside a `with` block, and the context manager's `__exit__` returns `True`. What happens next?",
+   "prompt": "What is a stub?",
    "choices": [
-    "The exception is re-raised as soon as __exit__ finishes",
-    "The exception is suppressed and execution continues after the with block",
-    "The with block runs again from the top",
-    "Python raises a TypeError because __exit__ must return None"
+    "A function that has been written and checked but is not called anywhere yet",
+    "A short function of one or two lines that a longer function calls",
+    "A function's `def` line and docstring with `pass` as its body, written before the real body exists",
+    "A comment describing code you intend to write later"
    ],
-   "answer": 1,
-   "concepts": [
-    "with-statement"
-   ],
-   "tags": [
-    "with-statement"
-   ],
-   "explain": "A truthy return is the protocol's way of saying the manager handled the exception, so the interpreter stops unwinding. It is the one line that turns a cleanup helper into an error swallower, which is why almost every __exit__ you write should end in a falsy value.",
-   "xp": 10
+   "answer": 2,
+   "concepts": ["signatures-and-stubs"],
+   "tags": ["signatures-and-stubs"],
+   "explain": "The second option tempts because small functions and stubs often look alike, but a stub is defined by being unfinished, not by being small - it exists so the shape of a program can be run and read before any of the work is done. A comment cannot do that job, because a comment cannot be called and so can never prove the pieces fit together.",
+   "xp": 12
   },
   {
-   "id": "py-8-e-03",
-   "type": "multi",
-   "layer": "retrieval",
-   "prompt": "Which of these are true of `super().__init__(...)` written inside a subclass's own `__init__`?",
-   "choices": [
-    "It runs the parent's initialiser, so the parent's attributes get set",
-    "Python calls it for you even if you never write it",
-    "It lets the subclass set its own attributes after the parent's are in place",
-    "It is only legal when the parent inherits directly from object"
-   ],
-   "answer": [
-    0,
-    2
-   ],
-   "concepts": [
-    "class-inheritance"
-   ],
-   "tags": [
-    "class-inheritance"
-   ],
-   "explain": "Defining __init__ replaces the parent's version rather than adding to it, so the call is yours to make and yours to place. Where you place it matters: parent state first, then the subclass's own, so the parent never observes a half-built object.",
-   "xp": 10
-  },
-  {
-   "id": "py-8-e-04",
+   "id": "py-8-ex-03",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "def load(values, i):\n    try:\n        v = values[i]\n    except IndexError:\n        return \"out of range\"\n    else:\n        return v * 2\n    finally:\n        print(\"checked\", i)\n\nprint(load([1, 2, 3], 1))\nprint(load([1, 2, 3], 9))",
-   "lang": "python",
-   "answer": "checked 1\n4\nchecked 9\nout of range",
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "Each finally line appears before its returned value because the print inside the function runs while the return is still pending, and the caller's print only happens once the call has come back. The else branch runs on the first call and is skipped on the second.",
-   "xp": 20
+   "prompt": "What does this program print?\n\n`def double(n):`\n`    return n * 2`\n\n`def add_ten(n):`\n`    return n + 10`\n\n`def transform(n):`\n`    return add_ten(double(n))`\n\n`print(transform(5))`\n`print(double(add_ten(5)))`",
+   "answer": "20\n30",
+   "concepts": ["composing-functions"],
+   "tags": ["composing-functions"],
+   "explain": "The inner call runs first and its result becomes the outer call's argument, so the first line doubles and then adds, while the second adds and then doubles. Both lines use the same two functions and give different answers, which is why the order of composition is a decision in its own right rather than a detail of layout.",
+   "xp": 24
   },
   {
-   "id": "py-8-e-05",
+   "id": "py-8-ex-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?\n\n`def add(a, b):`\n`    return a + b`\n\n`def show(a, b):`\n`    print(a + b)`\n\n`x = add(2, 3)`\n`y = show(4, 5)`\n`print(x)`\n`print(y)`",
+   "answer": "9\n5\nNone",
+   "concepts": ["one-job-per-function"],
+   "tags": ["one-job-per-function"],
+   "explain": "The 9 appears first, before either `print` at the bottom, because `show` prints while it is running instead of handing anything back. `y` is therefore `None`, the value of a function that returns nothing, and that `None` is the whole reason a printing function cannot be built on. Assuming the 9 came from `print(y)` is the trap.",
+   "xp": 24
+  },
+  {
+   "id": "py-8-ex-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so `Session` can be used as a context manager and the statement below actually uses it.",
-   "template": "class Session:\n    def ___(self):\n        print('open')\n        return self\n\n    def ___(self, exc_type, exc_value, traceback):\n        print('close')\n        return False\n\n___ Session() as s:\n    print('work')",
-   "blanks": [
-    "__enter__",
-    "__exit__",
-    "with"
-   ],
-   "lang": "python",
-   "concepts": [
-    "with-statement"
-   ],
-   "tags": [
-    "with-statement"
-   ],
-   "explain": "Those two dunder names are the entire contract - any object defining them works in a with statement, and no object without them does, whatever else it defines. The three extra parameters on the second one are not optional: Python always passes them.",
-   "xp": 20
+   "prompt": "The docstring is already written. Fill in the name it promises and the number that makes the body honest.",
+   "template": "def ___(hours, minutes):\n    \"\"\"Return the number of seconds in this many hours and minutes.\"\"\"\n    return hours * ___ + minutes * 60\n",
+   "blanks": ["total_seconds", "3600"],
+   "concepts": ["signatures-and-stubs", "function-naming"],
+   "tags": ["signatures-and-stubs", "function-naming"],
+   "explain": "The docstring is the specification, so the name is read off it rather than invented: it hands back a number of seconds, so it is named for that. 60 is the tempting second blank because 60 is the number already on the line, but hours reach seconds through two conversions rather than one.",
+   "xp": 24
   },
   {
-   "id": "py-8-e-06",
+   "id": "py-8-ex-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Order these fragments into a program that defines a custom exception and raises it when `n` exceeds 3.",
+   "prompt": "You have been handed a problem in a paragraph. Put these four actions into the order that costs you the least work.",
    "fragments": [
-    "    return n",
-    "class RetryLimit(Exception):",
-    "        raise RetryLimit(n)",
-    "    pass",
-    "def attempt(n):",
-    "    if n > 3:"
+    "Write the top-level function as calls to names that do not exist yet, and check it reads correctly",
+    "Fill in one function at a time, checking each before starting the next",
+    "Read the paragraph and write down each separate job it contains",
+    "Write a def line, a docstring and a `pass` body for each job"
    ],
-   "answer": [
-    1,
-    3,
-    4,
-    5,
-    2,
-    0
-   ],
-   "lang": "python",
-   "concepts": [
-    "user-defined-errors"
-   ],
-   "tags": [
-    "user-defined-errors"
-   ],
-   "explain": "The class has to exist before any line raises it, because `raise RetryLimit(n)` is looked up when the line runs, not when the function is defined. The bare `return n` sits outside the if, so it is reached only when the guard above it did not fire.",
-   "xp": 20
+   "answer": [2, 3, 0, 1],
+   "concepts": ["signatures-and-stubs", "problem-decomposition"],
+   "tags": ["signatures-and-stubs", "problem-decomposition"],
+   "explain": "Every step before the last is reversible in seconds, which is exactly why they come first: a wrong parameter list costs nothing to change while the body is still `pass`. Filling functions in before the top-level one exists is the natural instinct and the expensive order, because you are then guessing what each must hand back instead of reading it off the place it is used.",
+   "xp": 24
   },
   {
-   "id": "py-8-e-07",
+   "id": "py-8-ex-07",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "`abs(n)` gives the size of a number with any minus sign removed. Work through the calls this program makes.\n\n`def clean(n):`\n`    return abs(n)`\n\n`def scale(n):`\n`    return n * 3`\n\n`def prepare(n):`\n`    return scale(clean(n))`\n\n`print(prepare(-4))`",
+   "steps": [
+    { "label": "clean(-4) hands back", "expected": "4" },
+    { "label": "scale is then called with", "expected": "4" },
+    { "label": "scale(4) hands back", "expected": "12" },
+    { "label": "prepare(-4) hands back", "expected": "12" }
+   ],
+   "concepts": ["composing-functions"],
+   "tags": ["composing-functions"],
+   "explain": "`prepare` contains no arithmetic of its own; every value in this trace was produced by one of the two small functions, and `prepare` decides only the order they run in. That is what makes composed code easy to follow - each step of the trace has exactly one function to blame if it is wrong. Answering -12 anywhere means the sign was carried past `clean`, which is the one job `clean` exists to do.",
+   "xp": 48
+  },
+  {
+   "id": "py-8-ex-08",
    "type": "explain",
-   "layer": "application",
-   "prompt": "A teammate wraps a 40-line function in `try: ... except Exception: return None`. It has not crashed since. Last week the team spent two days chasing a wrong total that turned out to be a misspelled dictionary key. Explain what the broad handler cost them, and what you would write instead.",
+   "layer": "retrieval",
+   "prompt": "Why is a function that prints its result harder to build on than one that returns it? Answer in two or three sentences.",
    "rubric": {
-    "required": [
-     "specific",
-     "hid",
-     "exception"
-    ],
-    "optional": [
-     "KeyError",
-     "silent",
-     "narrow",
-     "bug",
-     "raise",
-     "log",
-     "None",
-     "crash"
-    ],
-    "forbidden": [],
-    "minWords": 30
+    "required": ["return", "print"],
+    "optional": ["None", "caller", "reuse", "screen", "combine", "check"],
+    "minWords": 25
    },
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "A handler that catches everything cannot distinguish a failure it anticipated from a bug it has never seen, so the KeyError from the typo became a plausible-looking None and travelled onwards disguised as data. Naming the classes you can actually recover from keeps the ones you cannot loud, and a loud crash is far cheaper than a quiet wrong answer.",
-   "xp": 20
+   "concepts": ["one-job-per-function"],
+   "tags": ["one-job-per-function"],
+   "explain": "Printing sends characters to the screen and hands back `None`, so the value itself is gone: the caller cannot add it to anything, compare it, or check it. Returning leaves the decision about display to whoever called, which is why one returning function can serve a screen, a file and a check at once, while a printing one serves only the screen.",
+   "xp": 24
   },
   {
-   "id": "py-8-e-08",
+   "id": "py-8-ex-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "shipping_total",
+   "prompt": "**A parcel costs 3.00 to send if it weighs 1000 grams or less. Every additional started kilogram adds 2.00, so 1001 grams costs 5.00 and 3000 grams costs 7.00. Express delivery doubles whatever the parcel would otherwise cost.** Write `shipping_total(grams, express)`, where `express` is True or False.",
+   "starterCode": "def shipping_total(grams, express):\n    pass\n",
+   "tests": [
+    { "input": "500, False", "expected": 3.0 },
+    { "input": "1000, True", "expected": 6.0 },
+    { "input": "1001, False", "expected": 5.0 },
+    { "input": "3000, False", "expected": 7.0 },
+    { "input": "2500, True", "expected": 14.0 }
+   ],
+   "solution": "def base_cost(grams):\n    \"\"\"Return what the parcel costs before any express charge.\"\"\"\n    if grams <= 1000:\n        return 3.0\n    extra_kilos = (grams - 1000 + 999) // 1000\n    return 3.0 + 2.0 * extra_kilos\n\ndef shipping_total(grams, express):\n    \"\"\"Return the cost of sending this parcel.\"\"\"\n    cost = base_cost(grams)\n    if express:\n        return cost * 2\n    return cost\n",
+   "hint": "Two questions live in here: what the parcel costs by weight, and what express does to a cost. Answer them in separate functions and the doubling never has to know about kilograms.",
+   "concepts": ["composing-functions", "problem-decomposition"],
+   "tags": ["composing-functions", "problem-decomposition"],
+   "explain": "2500 grams is 1500 grams over the first kilogram, which is two started kilograms rather than one and a half - rounding down there gives 12.00 and looks entirely plausible. Keeping the express rule out of the weight calculation is what makes such a slip cheap to fix: express doubles a cost, whatever that cost happens to be, so it never needs to see a weight at all.",
+   "xp": 60
+  },
+  {
+   "id": "py-8-ex-10",
    "type": "debug",
    "layer": "application",
-   "prompt": "`total([1, 'x'])` should return `-1` because the text cannot be converted, but it returns `1`. Fix the function so the `except` clause's value is the one that reaches the caller.",
-   "fn": "total",
-   "starterCode": "def total(values):\n    result = 0\n    try:\n        for v in values:\n            result += int(v)\n    except (TypeError, ValueError):\n        return -1\n    finally:\n        return result\n",
-   "solution": "def total(values):\n    result = 0\n    try:\n        for v in values:\n            result += int(v)\n    except (TypeError, ValueError):\n        return -1\n    return result\n",
+   "fn": "plot_summary",
+   "prompt": "`plot_summary(2, 3)` should give 16 - an area of 6 plus a fence of 10 - and instead fails with `TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'`. Repair it.",
+   "starterCode": "def area(width, height):\n    width * height\n\ndef fence_length(width, height):\n    return 2 * (width + height)\n\ndef plot_summary(width, height):\n    return area(width, height) + fence_length(width, height)\n",
    "tests": [
-    {
-     "input": "[1, 2, 3]",
-     "expected": 6
-    },
-    {
-     "input": "['1', '2']",
-     "expected": 3
-    },
-    {
-     "input": "[1, 'x']",
-     "expected": -1
-    },
-    {
-     "input": "[]",
-     "expected": 0
-    }
+    { "input": "2, 3", "expected": 16 },
+    { "input": "1, 1", "expected": 5 },
+    { "input": "0, 5", "expected": 10 },
+    { "input": "2.5, 4", "expected": 23.0 }
    ],
-   "concepts": [
-    "raising-and-handling-errors"
-   ],
-   "tags": [
-    "raising-and-handling-errors"
-   ],
-   "explain": "A `return` inside finally replaces any value already on its way out - and would equally discard an exception that was still propagating. finally is for cleanup that must happen; deciding what the function answers is not cleanup.",
-   "hint": "Which return actually wins when both the except clause and the finally block have one?",
-   "xp": 50
-  },
-  {
-   "id": "py-8-e-09",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Override `cost()` in both subclasses so each builds on the class above it: `Enchanted` doubles the parent's cost, `Cursed` subtracts 1 from the parent's cost. So `cursed_cost(10)` returns `19`.",
-   "fn": "cursed_cost",
-   "starterCode": "class Tool:\n    def __init__(self, base):\n        self.base = base\n\n    def cost(self):\n        return self.base\n\n\nclass Enchanted(Tool):\n    pass\n\n\nclass Cursed(Enchanted):\n    pass\n\n\ndef cursed_cost(base):\n    return Cursed(base).cost()\n",
-   "solution": "class Tool:\n    def __init__(self, base):\n        self.base = base\n\n    def cost(self):\n        return self.base\n\n\nclass Enchanted(Tool):\n    def cost(self):\n        return super().cost() * 2\n\n\nclass Cursed(Enchanted):\n    def cost(self):\n        return super().cost() - 1\n\n\ndef cursed_cost(base):\n    return Cursed(base).cost()\n",
-   "tests": [
-    {
-     "input": "10",
-     "expected": 19
-    },
-    {
-     "input": "1",
-     "expected": 1
-    },
-    {
-     "input": "0",
-     "expected": -1
-    },
-    {
-     "input": "-3",
-     "expected": -7
-    }
-   ],
-   "concepts": [
-    "class-inheritance"
-   ],
-   "tags": [
-    "class-inheritance"
-   ],
-   "explain": "Each super() call moves exactly one step up the chain, so the three implementations compose into base * 2 - 1 without any class knowing more than its immediate parent. Hard-coding `self.base * 2 - 1` in Cursed would pass these tests and break the moment Enchanted's rule changed.",
-   "hint": "Cursed's super() is Enchanted, not Tool.",
-   "xp": 50
-  },
-  {
-   "id": "py-8-e-10",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Build a small audit log. Add `Rejected` as a subclass of `AuditError`. Make `Audit` a context manager: `__enter__` returns the audit, `record(entry)` raises `Rejected(entry)` when `entry` is the empty string and otherwise appends it to `self.entries`, and `__exit__` appends the string `closed` to `self.entries` and suppresses nothing. Then make `audit(entries)` create one `Audit`, record every entry in order inside a `with` block, catch `AuditError` around that whole block, and return the audit's `entries`. So `audit(['a', '', 'c'])` returns `['a', 'closed']`.",
-   "fn": "audit",
-   "starterCode": "class AuditError(Exception):\n    pass\n\n\n# Rejected goes here\n\n\nclass Audit:\n    def __init__(self):\n        self.entries = []\n\n    def record(self, entry):\n        self.entries.append(entry)\n\n\ndef audit(entries):\n    log = Audit()\n    # use log as a context manager, record every entry, catch AuditError\n    return log.entries\n",
-   "solution": "class AuditError(Exception):\n    pass\n\n\nclass Rejected(AuditError):\n    pass\n\n\nclass Audit:\n    def __init__(self):\n        self.entries = []\n\n    def __enter__(self):\n        return self\n\n    def record(self, entry):\n        if entry == \"\":\n            raise Rejected(entry)\n        self.entries.append(entry)\n\n    def __exit__(self, exc_type, exc_value, traceback):\n        self.entries.append(\"closed\")\n        return False\n\n\ndef audit(entries):\n    log = Audit()\n    try:\n        with log as a:\n            for entry in entries:\n                a.record(entry)\n    except AuditError:\n        pass\n    return log.entries\n",
-   "tests": [
-    {
-     "input": "['a', 'b']",
-     "expected": [
-      "a",
-      "b",
-      "closed"
-     ]
-    },
-    {
-     "input": "['a', '', 'c']",
-     "expected": [
-      "a",
-      "closed"
-     ]
-    },
-    {
-     "input": "['']",
-     "expected": [
-      "closed"
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": [
-      "closed"
-     ]
-    }
-   ],
-   "concepts": [
-    "raising-and-handling-errors",
-    "user-defined-errors",
-    "with-statement",
-    "class-inheritance"
-   ],
-   "tags": [
-    "raising-and-handling-errors",
-    "user-defined-errors",
-    "with-statement",
-    "class-inheritance"
-   ],
-   "explain": "Everything on this floor meets here: `closed` still appears after a rejection because __exit__ runs on the way out of a failing block, `'c'` never appears because the raise abandoned the loop, and `except AuditError` catches Rejected only because inheritance made them one family. The try has to sit outside the with, or the cleanup would land after the handler rather than before it.",
-   "hint": "The with block goes inside the try, so the exception leaves the block before you catch it.",
-   "xp": 50
+   "solution": "def area(width, height):\n    return width * height\n\ndef fence_length(width, height):\n    return 2 * (width + height)\n\ndef plot_summary(width, height):\n    return area(width, height) + fence_length(width, height)\n",
+   "hint": "Only one of the two small functions is lying about its result. The message says which side of the `+` is empty.",
+   "concepts": ["one-job-per-function", "composing-functions"],
+   "tags": ["one-job-per-function", "composing-functions"],
+   "explain": "`width * height` is worked out and then dropped on the floor, because a line that is only an expression changes nothing - the missing word is `return`, not a missing calculation. The traceback names `plot_summary`, which is where the failure surfaced, while the fault is in `area`: `NoneType` on the left of the `+` and `int` on the right says which of the two calls handed back nothing, and reading that is faster than reading either function.",
+   "xp": 60
   }
  ]
 }

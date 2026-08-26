@@ -50,7 +50,8 @@ def main():
         total = meta.get("totalFloors") or 10
         n = fl.get("n")
         res = Result()
-        row = check_floor(fl, n - 1, total, dungeon, meta.get("disciplineType"), res)
+        row = check_floor(fl, n - 1, total, dungeon, meta.get("disciplineType"), res,
+                          meta.get("curriculum", 3))
         band = band_for(n, total)
         print("%s  floor %s of %s  band=%s  %d section(s)  %d challenge(s)  %d application"
               % (base, n, total, band, row["sections"], row["challenges"], row["app"]))
