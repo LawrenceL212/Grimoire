@@ -202,15 +202,39 @@ about the learner.
 
 ## 8. Two honest blockers
 
-**Runtime.** §5 says a programming learner must eventually write code that
-runs. Fourteen language dungeons have no runtime at all — the public Piston
-API has been whitelist-only since 2026-02-15, and this is a static site with
-no server to replace it. Those dungeons can reach Stage 1–2 on
-comprehension-shaped assessment and **cannot reach Stage 4 by any honest
-route**. The options are to add in-browser runtimes where they exist
-(Lua/Fengari, Ruby/ruby.wasm, C and C++/clang-wasm are all real), or to label
-the rest as reference tracks and say so on the dungeon page. What must not
-happen is a Rust dungeon that claims professional competence it cannot test.
+**Runtime — settled, and now a hard rule.** §5 says a programming learner must
+eventually write code that runs. Two kinds of language track therefore exist,
+and which one a dungeon is depends entirely on whether a viable backend can
+run its language:
+
+- **Executable track.** A genuinely viable runtime exists and is reachable.
+  The track may award any rank up to Master, because it can verify the claim.
+- **Reference track.** No viable runtime. The track may still teach the whole
+  subject and prepare someone for professional work, but it is **capped at
+  Adept** and can never set `mastered`. The dungeon page says so in as many
+  words, and says why.
+
+Viability is a judgement made honestly. A backend qualifies only if it really
+runs the language well enough to grade real work. Half-working transpilers,
+unmaintained shims and browser hacks do not qualify, and assessment standards
+are never lowered to let a dungeon call itself finished. A learner who passes
+against a fake runtime has learnt something we cannot vouch for, which is
+worse than a track that admits its limits.
+
+The rule binds in the mastery model, not in the presentation layer: a
+reference track's rank is capped where it is computed, so nothing downstream
+can quietly claim otherwise. Verified with a perfect record on both kinds -
+Python reaches Master, Rust stops at Adept and cannot be `mastered`.
+
+Theory and mathematics dungeons are **not** capped. They have no code to run
+by their nature, so nothing is missing from their assessment.
+
+`RUNTIME_BACKENDS` in `index.html` is the whole coupling surface. A backend
+declares its id, whether it is local or remote, the languages it runs, and how
+to tell whether it is available right now. Adding a self-hosted execution
+service, a new wasm engine, or something that does not exist yet is an edit to
+that table - the curriculum, the content and the mastery model do not know
+what a Piston is.
 
 **Scale.** Reaching Stage 4 in Python is roughly a 25–30 floor dungeon, not a
 10 floor one. The existing ten floors take a learner to about Stage 2 and stop

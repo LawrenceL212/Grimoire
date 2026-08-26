@@ -2069,52 +2069,134 @@ window.__assess = { TYPES, gradeRubric, runTests, xpFor, layerOf, APPLICATION_TY
    401. Point `pistonUrl` in content/index.json at a self-hosted instance to
    enable the compiled languages. */
 const PISTON_DEFAULT = "https://emkc.org/api/v2/piston/execute";
-const pistonUrl = () => State.index?.pistonUrl || PISTON_DEFAULT;
+const execUrl = () => State.index?.execUrl || State.index?.pistonUrl || PISTON_DEFAULT;
 
 /* Languages that genuinely execute in the browser. Everything else needs a
    backend, and the UI says so plainly rather than failing at Run time. */
-const BROWSER_RUNTIMES = {
-  python: "pyodide",
-  javascript: "worker",
-  typescript: "worker",
-  sql: "sqljs",
-  html: "iframe",
-  css: "iframe",
-  "html-css": "iframe",
-  prolog: "prolog",
-  ruby: "ruby",
-};
+/* ==========================================================================
+   RUNTIME REGISTRY
 
-/* No in-browser engine exists for these; they need a self-hosted Piston. */
-const NEEDS_BACKEND = new Set(["c", "cpp", "rust", "go", "java", "csharp", "swift",
-  "kotlin", "haskell", "lua", "r", "scala", "elixir", "zig", "assembly", "bash",
-  "octave", "php", "dart"]);
+   The curriculum must not be coupled to Piston, to WebAssembly, or to this
+   being a static site. A dungeon declares the LANGUAGE it teaches; a backend
+   declares which languages it can run and how to reach them. Swapping in a
+   self-hosted execution service, a new wasm engine, or a future runtime is a
+   change to this table and nothing else.
+
+   Each entry:
+     id        stable name, used by content and by Exec
+     kind      "browser" - runs on this machine, always available
+               "remote"  - needs a URL configured in content/index.json
+     langs     the language ids it can execute
+     available () -> boolean, asked at call time, never cached at boot
+     note      what to tell a learner who cannot run code right now
+
+   VIABILITY is a deliberate judgement, not a wish. A backend belongs here
+   only if it genuinely runs the language well enough to grade real work.
+   Half-working transpilers and unmaintained shims do not qualify: a learner
+   who passes against a fake runtime has learnt nothing we can vouch for.
+   ========================================================================== */
+const RUNTIME_BACKENDS = [
+  { id: "pyodide", kind: "browser", langs: ["python"],
+    available: () => true,
+    note: "CPython compiled to WebAssembly, running in a worker on this machine." },
+  { id: "worker", kind: "browser", langs: ["javascript", "typescript"],
+    available: () => true,
+    note: "A sandboxed Web Worker with a hard timeout." },
+  { id: "sqljs", kind: "browser", langs: ["sql"],
+    available: () => true,
+    note: "SQLite compiled to WebAssembly." },
+  { id: "iframe", kind: "browser", langs: ["html", "css", "html-css"],
+    available: () => true,
+    note: "A sandboxed iframe preview." },
+  { id: "prolog", kind: "browser", langs: ["prolog"],
+    available: () => true,
+    note: "Tau Prolog, in the browser." },
+  { id: "ruby", kind: "browser", langs: ["ruby"],
+    available: () => true,
+    note: "Ruby in compatibility mode via Opal, compiled to JavaScript. " +
+          "Most exercises behave identically, but this is not CRuby." },
+  { id: "piston", kind: "remote", langs: [
+      "c", "cpp", "rust", "go", "java", "csharp", "swift", "kotlin",
+      "haskell", "scala", "elixir", "lua", "r", "php", "zig", "bash",
+      "assembly-x86-64"],
+    available: () => !!State.index?.execUrl || !!State.index?.pistonUrl,
+    note: "This language needs an execution service. Point \"execUrl\" in " +
+          "content/index.json at a self-hosted Piston instance to enable it." },
+];
+
+const backendFor = (lang) =>
+  RUNTIME_BACKENDS.find((b) => b.langs.includes(String(lang || "").toLowerCase()));
 
 function runtimeFor(dungeon) {
   const lang = (dungeon.lang || "").toLowerCase();
-  if (dungeon.runtime && dungeon.runtime !== "piston") return dungeon.runtime;
-  if (BROWSER_RUNTIMES[lang]) return BROWSER_RUNTIMES[lang];
-  if (lang === "text" || lang === "" || !lang) return "none";
-  return "piston";
+  // content may pin a backend explicitly; "piston" is legacy for "remote"
+  if (dungeon.runtime && dungeon.runtime !== "piston" && dungeon.runtime !== "none") {
+    return dungeon.runtime;
+  }
+  if (!lang || lang === "text") return "none";
+  const b = backendFor(lang);
+  return b ? b.id : "none";
 }
 
 /* True when the dungeon can actually run code here and now. */
 function canExecute(dungeon) {
   const rt = runtimeFor(dungeon);
   if (rt === "none") return false;
-  if (rt !== "piston") return true;
-  return !!State.index?.pistonUrl;
+  const b = RUNTIME_BACKENDS.find((x) => x.id === rt);
+  return b ? b.available() : false;
+}
+
+/* ---- the curriculum rule -------------------------------------------------
+   A dungeon that cannot execute the learner's code cannot verify that the
+   learner can write it. Such a dungeon may still teach the whole subject and
+   prepare someone for professional work - but Grimoire must not award or
+   imply verified professional mastery for it, and must say why.
+
+   This is a hard rule, not a presentation detail: it is what stops a track
+   claiming a competence it has no means to test. See content/_CURRICULUM.md
+   sections 7 and 8. */
+/* Must be one of RANKS - a ceiling the engine does not recognise silently
+   does nothing, which is the worst possible failure for a rule like this.
+   Adept is reachable by reasoning about a language; Master asserts the
+   learner can write it, and only a runtime can establish that. */
+const REFERENCE_TRACK_CAP = "Adept";
+
+function trackKind(dungeon) {
+  if (!dungeon) return "reference";
+  const rt = runtimeFor(dungeon);
+  if (rt === "none") {
+    // theory and mathematics are not programming tracks; nothing is missing
+    return (dungeon.disciplineType === "language") ? "reference" : "theory";
+  }
+  return canExecute(dungeon) ? "executable" : "reference";
+}
+
+/* The highest rank a dungeon may honestly award, given what it can assess.
+   Only a REFERENCE track is capped: a theory or mathematics dungeon has no
+   code to run by its nature, so nothing is missing from its assessment and
+   capping it would be punishing content for a gap it does not have. */
+function rankCeiling(dungeon) {
+  return trackKind(dungeon) === "reference" ? REFERENCE_TRACK_CAP : null;
 }
 
 function backendNotice(dungeon) {
   const rt = runtimeFor(dungeon);
   if (rt === "none") {
+    if (dungeon.disciplineType === "language") {
+      return "Reference track. There is no execution backend for this language " +
+             "here, so your code cannot be run and checked. Everything is " +
+             "readable and the reasoning is assessed, but this track cannot " +
+             "verify that you can write working " + (dungeon.subject || "code") + ".";
+    }
     return "This dungeon is reading and reasoning - there is no code to run here.";
   }
-  return "This language requires a code execution backend. The lesson, challenge " +
-         "prompts and exam questions are all readable. To run code, set up a " +
-         "self-hosted Piston instance and point \"pistonUrl\" in content/index.json " +
-         "at it - see the README.";
+  const b = RUNTIME_BACKENDS.find((x) => x.id === rt);
+  if (b && !b.available()) {
+    return "Reference track. " + b.note + " Until then your code cannot be run " +
+           "and checked, so this track cannot verify that you can write working " +
+           (dungeon.subject || "code") + " - it can only assess your reasoning about it.";
+  }
+  return b ? b.note : "";
 }
 
 const Exec = {
@@ -2176,9 +2258,9 @@ const Exec = {
     });
   },
 
-  async runPiston(lang, code, stdin) {
+  async runRemote(lang, code, stdin) {
     try {
-      const r = await fetch(pistonUrl(), {
+      const r = await fetch(execUrl(), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: lang, version: "*", stdin: stdin || "",
                                files: [{ content: code }] }),
@@ -2277,11 +2359,11 @@ const Exec = {
       return Promise.resolve({ ok: false, stdout: "", unavailable: true,
                                stderr: backendNotice(dungeon) });
     }
-    if (!State.index?.pistonUrl) {
+    if (!canExecute(dungeon)) {
       return Promise.resolve({ ok: false, stdout: "", unavailable: true,
                                stderr: backendNotice(dungeon) });
     }
-    return Exec.runPiston(dungeon.lang, code, stdin);
+    return Exec.runRemote(dungeon.lang, code, stdin);
   },
 };
 window.__exec = Exec;
@@ -2796,15 +2878,31 @@ const Progress = {
       application * MASTERY_WEIGHTS.application +
       bossScore * MASTERY_WEIGHTS.boss));
 
+    // A track that cannot run the learner's code cannot verify that they can
+    // write it, so it may not award a rank that claims they can. The score is
+    // still earned and still shown; the CLAIM is what gets capped, and the
+    // reason travels with it so the cap is never mistaken for a shortfall in
+    // the learner. See content/_CURRICULUM.md sections 7 and 8.
+    const entryFull = contentCache[dungeonId] || entry || {};
+    const ceiling = rankCeiling(entryFull);
+    let rank = rankFor(score);
+    let capped = false;
+    if (ceiling && RANKS.findIndex(([, r]) => r === rank)
+                 < RANKS.findIndex(([, r]) => r === ceiling)) {
+      rank = ceiling;
+      capped = true;
+    }
+
     return {
-      score, rank: rankFor(score),
+      score, rank, rankCapped: capped, rankCeiling: ceiling,
       coverage: Math.round(coverage * 100),
       retention: Math.round(retention * 100),
       application: Math.round(application * 100),
       boss: Math.round(bossScore * 100),
       conceptsApplied: applied, conceptsTotal: declared.length,
       complete: score >= 75 && bossScore > 0,
-      mastered: score >= 90 && Reviews.retentionOver(dungeonId, 30) >= 0.8,
+      // "mastered" is a verified claim, so a reference track can never set it
+      mastered: !ceiling && score >= 90 && Reviews.retentionOver(dungeonId, 30) >= 0.8,
       updatedAt: Date.now(),
     };
   },
@@ -3815,6 +3913,15 @@ async function showFloorList(d) {
       <div class="label">${esc(content.subject || "")} &middot; ${esc(content.lang || "")} &middot; ${esc(runtimeFor(content))}</div>
       <h2 style="font-size:var(--text-xl);margin:var(--s2) 0">${esc(content.name || d.name)}</h2>
       ${content.blurb ? `<p style="color:var(--dim)">${esc(content.blurb)}</p>` : ""}
+      ${content.goal ? `<p style="color:var(--dim);margin-top:var(--s3)"><b>By the end you can:</b> ${esc(content.goal)}</p>` : ""}
+      ${trackKind(content) === "reference" ? `
+        <div class="backend-note" style="margin-top:var(--s4)">
+          <span class="ico" aria-hidden="true">!</span>
+          <span><b>Reference track.</b> ${esc(backendNotice(content))}
+          This track is capped at <b>${esc(rankCeiling(content))}</b>: it can teach the
+          subject in full and prepare you for professional work, but it cannot verify
+          that you write working code, so it will not claim that you do.</span>
+        </div>` : ""}
     </div>
     <div class="sectionhead"><span class="label">Floors</span></div>
     <div class="card">${floors.map((f) => `
@@ -4293,7 +4400,8 @@ window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSide
                      bandFor, renderMath, TYPES, gradeRubric, sm2, rankFor,
                      progressOf, openDungeon, updateReadProgress,
                      ARCHETYPES, Archetypes, renderIdentity, readableOn,
-                     backfillCleared };
+                     backfillCleared, trackKind, rankCeiling, backendNotice,
+                     RUNTIME_BACKENDS };
 
 boot();
 </script>

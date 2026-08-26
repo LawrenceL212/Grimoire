@@ -1,0 +1,1047 @@
+{
+ "n": 1,
+ "name": "Two Symbols and a Wire",
+ "cognitiveLevel": "recognition",
+ "concepts": [
+  "binary",
+  "hexadecimal",
+  "base-conversion",
+  "unsigned-range",
+  "twos-complement",
+  "sign-extension",
+  "overflow",
+  "wraparound",
+  "bitwise-logic",
+  "shifts",
+  "masking"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "conversion-drills",
+  "bit-level-reasoning",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Two Symbols, and What a Place Is Worth",
+    "body": "A wire carries a voltage, and the only question a circuit can answer about that voltage quickly, cheaply and reliably is whether it is nearer the top rail or nearer the ground. Ten distinguishable levels on one wire is not impossible, but every extra level shrinks the margin between a valid signal and noise, and that margin is the whole reason digital logic can be built out of imperfect parts at all. So the machine gets **two symbols**, and everything else - numbers, characters, instructions, pictures - is a convention laid on top of patterns of them.\n\nNumbers come first, and they use the notation you already know. In **positional notation** the value of a digit is the digit multiplied by a power of the base, and the power is fixed by the position. Base ten gives places worth $1, 10, 100, 1000$; base two gives places worth $1, 2, 4, 8, 16$, and the digit in each place can only be 0 or 1, so reading a binary number is nothing but adding up the place values that carry a 1. `10110101` is $128 + 32 + 16 + 4 + 1 = 181$.\n\nBecause each of the $n$ places is independently 0 or 1, $n$ bits have $2^n$ distinct patterns. Read as **unsigned** integers those patterns run from 0 to $2^n - 1$ - note the minus one, which exists because the count starts at zero rather than at one. An 8-bit register therefore holds 0 to 255, and one extra bit does not add one to the range, it **doubles** it.\n\nWidth is not a detail you can leave until later. A number in a machine always has a width, that width is fixed by the register or the memory word holding it, and every question on this floor - what is negative, what overflows, what a shift throws away - is a question about the same bits interpreted at a stated width.",
+    "code": "   place      128    64    32    16     8     4     2     1\n   power      2^7   2^6   2^5   2^4   2^3   2^2   2^1   2^0\n   bits         1     0     1     1     0     1     0     1\n\n   128 + 32 + 16 + 4 + 1  =  181       so 10110101 is 181\n\n   width      patterns          unsigned range\n    4 bits    2^4  =     16     0 .. 15\n    8 bits    2^8  =    256     0 .. 255\n   16 bits    2^16 = 65,536     0 .. 65,535\n   32 bits    2^32 = 4.29e9     0 .. 4,294,967,295",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The rightmost place is 2^0 = 1, not 2^1. An off-by-one here shifts every later answer by a factor of two."
+     },
+     {
+      "line": 5,
+      "text": "Only the places holding a 1 contribute, so reading unsigned binary is addition and nothing else."
+     },
+     {
+      "line": 8,
+      "text": "2^n patterns, but the largest value is 2^n - 1, because one of the patterns is spent on zero."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Read each binary number as unsigned, and give plain decimal digits with no separators.",
+     "template": "10100110 as an unsigned decimal is ___\nthe largest value 12 unsigned bits can hold is ___\nthe number of distinct patterns in 6 bits is ___",
+     "blanks": [
+      "166",
+      "4095",
+      "64"
+     ],
+     "concepts": [
+      "binary",
+      "unsigned-range"
+     ],
+     "tags": [
+      "binary",
+      "unsigned-range"
+     ],
+     "explain": "`10100110` is $128 + 32 + 4 + 2 = 166$: only the places holding a 1 count. Twelve bits have $2^{12} = 4096$ patterns but a largest value of 4095, and six bits have 64 patterns whose largest value is 63 - the tempting mistake is to swap those two figures, because the count of patterns and the largest value differ by exactly the pattern spent on zero.",
+     "xp": 20
+    }
+   },
+   {
+    "title": "Sixteen Symbols for Four Wires",
+    "body": "Binary is the machine's notation and a miserable one for people: eight bits is already a smear, and thirty-two is unreadable. Decimal is readable but it does not line up with anything - the decimal digits of a number tell you nothing about which of its bits are set, because 10 is not a power of 2. **Hexadecimal** is the compromise everybody settled on, for one reason: $16 = 2^4$, so one hex digit is exactly four bits.\n\nThat exactness is what makes hex worth learning. The conversion between binary and hex is **local**: you slice the bits into groups of four from the right, and translate each group on its own, with no carries and no arithmetic crossing the boundary. `10110101` splits into `1011` and `0101`, which are B and 5, so the byte is `0xB5`. Going back is the same table read the other way. A group of four bits is common enough to have its own name, a **nibble**, and a byte is exactly two of them.\n\nDecimal conversion is where actual arithmetic appears. Hex to decimal is positional notation with base 16: `0x1A3` is $1 \\times 256 + 10 \\times 16 + 3 = 419$. Decimal to any base is repeated division by that base, collecting remainders and reading them **bottom to top**, because the first remainder you produce is the least significant digit.\n\nThe `0x` prefix means hex and `0b` means binary in most languages and most documentation; a bare number is decimal. Getting the prefix wrong is not a typing slip but a different number - `0x20` is 32, `0b100000` is also 32, and `20` is twenty.",
+    "code": "   hex   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n   dec   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15\n   bits  0000 0001 0010 0011 0100 0101 0110 0111\n         1000 1001 1010 1011 1100 1101 1110 1111\n\n   binary  ->  hex, four bits at a time, right to left\n\n      1011 0101\n         B    5        so 10110101 is 0xB5, and 0xB5 is 181\n\n   hex  ->  decimal, positional again, base 16\n\n      0x1A3 = 1*256 + 10*16 + 3 = 256 + 160 + 3 = 419\n\n   decimal -> hex, repeated division by 16\n\n      1000 / 16 = 62 r  8\n        62 / 16 =  3 r 14 (E)\n         3 / 16 =  0 r  3        remainders bottom-up: 0x3E8",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Sixteen symbols, so A through F stand for ten through fifteen. There is no other reason for the letters."
+     },
+     {
+      "line": 8,
+      "text": "Group from the RIGHT. Grouping from the left goes wrong the moment the bit count is not a multiple of four."
+     },
+     {
+      "line": 19,
+      "text": "The first remainder out is the last digit written down, which is why the remainders are read bottom-up."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Convert between the three bases. Write binary as eight bits, and hex with a `0x` prefix and capital letters.",
+     "steps": [
+      {
+       "label": "0x9C in binary",
+       "expected": "10011100"
+      },
+      {
+       "label": "0x9C in decimal",
+       "expected": "156"
+      },
+      {
+       "label": "205 in hex",
+       "expected": "0xCD"
+      },
+      {
+       "label": "205 in binary",
+       "expected": "11001101"
+      }
+     ],
+     "concepts": [
+      "hexadecimal",
+      "base-conversion"
+     ],
+     "tags": [
+      "hexadecimal",
+      "base-conversion"
+     ],
+     "explain": "`0x9C` is nibble 9 = `1001` beside nibble C = `1100`, and as a decimal it is $9 \\times 16 + 12 = 156$. Going the other way, $205 = 12 \\times 16 + 13$, which is C then D. The route through hex is shorter than dividing by two eight times, and it is why people who read machine state read it in hex: the bits are still visible in the digits.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "Making Minus Out of Nothing",
+    "body": "A register of $n$ bits has no room for a minus sign, so a negative number has to be one of the $2^n$ patterns already there, taken away from the positives. The obvious scheme - steal the top bit as a sign flag - was tried and abandoned, because it gives two zeroes and, worse, it forces the hardware to inspect both signs and decide whether to add or to subtract. **Twos complement** asks a different question: which pattern, added to $x$, gives zero in $n$ bits? Arithmetic at a fixed width is arithmetic modulo $2^n$, so that pattern is $2^n - x$, and defining the negative that way means one adder handles signed and unsigned addition identically, with no sign inspection anywhere.\n\nThe recipe is **invert every bit and add one**, and it is not a coincidence. Inverting gives $\\lnot x = (2^n - 1) - x$, because $x$ and its inverse together light every bit; add one and you have $2^n - x$ exactly. Negation therefore costs a NOT gate per bit and one carry into the adder, which is why it is essentially free.\n\nThe range that falls out is **asymmetric**: 8 bits give $-128$ to $+127$, because there is one zero rather than two and the leftover pattern lands on the negative side. `1000 0000` is $-128$, and inverting and adding one returns `1000 0000` - the one value whose negation is not representable. Widening a value obeys the same logic: **sign extension** copies the top bit leftwards, so `0x9C` becomes `0xFF9C` and stays $-100$, while zero-extending it to `0x009C` silently turns it into $+156$.\n\nBecause width is fixed, arithmetic **wraps**. Two different wraps happen and the hardware raises two different flags for them. **Carry-out** says the unsigned result did not fit; **signed overflow** says the signed result did not, and it is true exactly when two operands of the same sign produce a result of the opposite sign, which the hardware computes as the carry into the top bit XOR the carry out of it. Neither flag implies the other, and $200 + 100$ beside $100 + 50$ in one byte is the pair that proves it.",
+    "code": "   negate 42 in 8 bits: invert every bit, then add one\n\n      42       0010 1010     0x2A\n      invert   1101 0101     0xD5\n      + 1      1101 0110     0xD6   = -42, and 256 - 42 = 214 = 0xD6\n\n   why it works:  x + ~x = 1111 1111 = 2^8 - 1\n                  so     ~x + 1 = 2^8 - x\n\n   8-bit twos complement:  1000 0000 .. 0111 1111  =  -128 .. +127\n                           one zero, and -128 has no positive twin\n                           negating -128 gives -128 back\n\n   sign extension, 8 bits -> 16 bits: copy the top bit leftwards\n\n      +100  0x64  ->  0x0064          -100  0x9C  ->  0xFF9C\n\n   two flags, two different questions\n\n      0xC8 + 0x64 = 0x2C   carry 1, overflow 0   (200+100 wraps unsigned)\n      0x64 + 0x32 = 0x96   carry 0, overflow 1   (100+50 wraps signed)\n      0x80 + 0x80 = 0x00   carry 1, overflow 1   (both wrap at once)",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "0xD6 read as unsigned is 214, read as twos complement is -42. The bits do not say which; the instruction using them does."
+     },
+     {
+      "line": 7,
+      "text": "This identity is the whole proof. Invert-and-add-one is not a trick to memorise, it is 2^n - x written in gates."
+     },
+     {
+      "line": 11,
+      "text": "The asymmetry is a real hazard, not trivia: the absolute value of -128 is -128 in a byte, and the same holds at every width."
+     },
+     {
+      "line": 20,
+      "text": "Carry set, overflow clear. As unsigned this addition is wrong; as signed it is -56 + 100 = 44, which is right."
+     },
+     {
+      "line": 21,
+      "text": "Carry clear, overflow set. The mirror image: correct as unsigned, and -106 as signed."
+     }
+    ],
+    "checkpoint": {
+     "type": "trace",
+     "layer": "retrieval",
+     "prompt": "Negate 96 in eight bits by inverting and adding one. Give each intermediate as eight binary digits, and the last two answers as the labels ask.",
+     "steps": [
+      {
+       "label": "96 in binary",
+       "expected": "01100000"
+      },
+      {
+       "label": "after inverting every bit",
+       "expected": "10011111"
+      },
+      {
+       "label": "after adding one",
+       "expected": "10100000"
+      },
+      {
+       "label": "that pattern in hex",
+       "expected": "0xA0"
+      },
+      {
+       "label": "that pattern read as an unsigned byte",
+       "expected": "160"
+      }
+     ],
+     "concepts": [
+      "twos-complement"
+     ],
+     "tags": [
+      "twos-complement"
+     ],
+     "explain": "$256 - 96 = 160$, so the negation of 96 must be the byte 160, and invert-and-add-one lands on it exactly because $\\lnot x + 1 = 2^8 - x$. The pattern `10100000` is $-96$ and 160 at the same time and the bits cannot tell you which; only the instruction reading them decides. Forgetting the add-one yields `10011111`, which is $-97$ - the classic off-by-one in this conversion.",
+     "xp": 30
+    }
+   },
+   {
+    "title": "Wires You Can Bend One at a Time",
+    "body": "Arithmetic treats a register as one number. The **bitwise** operators treat it as $n$ independent one-bit wires, applying the same gate to every column with no carries between them, which is why they are among the cheapest and fastest things a processor does. AND gives 1 only where both inputs are 1; OR gives 1 where either is; XOR gives 1 exactly where the inputs **differ**; NOT flips every bit.\n\nEach one exists to do a job on a chosen subset of bits, and the subset is named by a **mask** - a constant with 1s in the positions you care about. AND with a mask **keeps** those bits and clears everything else, which is how a field is extracted; AND with the **inverse** of a mask clears exactly those bits and keeps the rest. OR with a mask **sets** those bits without disturbing any other. XOR with a mask **toggles** them, and XOR with all ones is NOT. Testing is AND followed by a comparison against zero: `(s & 0x08) != 0` asks whether bit 3 is set and ignores every other bit. That vocabulary - extract, set, clear, test, toggle - is how device registers, permission bits and packed flags are manipulated everywhere.\n\n**Shifts** move the whole pattern sideways. Shifting left by $k$ multiplies by $2^k$ and feeds zeros in at the bottom, and bits pushed past the top are simply gone: `0x60 << 2` is 384, which does not fit in a byte, so what remains is `0x80`. Shifting right splits into two operations because there are two right answers. A **logical** right shift feeds in zeros and is correct for unsigned values; an **arithmetic** right shift copies the sign bit inwards and is correct for signed ones. `0xF8` shifted right by one is 124 under the first rule and $-4$ under the second.\n\nEven the arithmetic shift is not quite division. It rounds toward negative infinity rather than toward zero, so $-7$ arithmetic-shifted right by one is $-4$ where C's `/ 2` demands $-3$; that mismatch is why a compiler cannot turn signed division by a power of two into a bare shift without a correction first. Shifts also pair with masks constantly: to read a field that does not sit at the bottom of the word you shift it down, then mask it off.",
+    "code": "   a = 1011 0101 = 0xB5      b = 0110 1100 = 0x6C\n\n      a & b  0010 0100 = 0x24     1 only where BOTH are 1\n      a | b  1111 1101 = 0xFD     1 where EITHER is 1\n      a ^ b  1101 1001 = 0xD9     1 where they DIFFER\n        ~a   0100 1010 = 0x4A     every bit flipped\n\n   the five idioms, on a status byte s\n\n      extract   s & 0x0F          keep the low nibble, clear the rest\n      set       s | 0x20          force bit 5 to 1, leave the others\n      clear     s & ~0x08         force bit 3 to 0, leave the others\n      test      (s & 0x08) != 0   is bit 3 set?\n      toggle    s ^ 0x81          flip bits 0 and 7\n\n   shifts, in eight bits\n\n      0x1D << 3 = 0xE8        29 * 8 = 232, fits\n      0x60 << 2 = 0x80        96 * 4 = 384, does not fit - the top bits are gone\n      0xF8 >> 1 = 0x7C        logical:    124, zeros shifted in\n      0xF8 >> 1 = 0xFC        arithmetic: -4, the sign bit copied in",
+    "lang": "text",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "XOR is the difference detector, which is why a ^ b == 0 tests equality and why XOR with a mask toggles."
+     },
+     {
+      "line": 13,
+      "text": "The inverse of the mask, not the mask. Writing s & 0x08 here keeps bit 3 and destroys everything else."
+     },
+     {
+      "line": 19,
+      "text": "Left shift is multiplication that can lose the answer silently: nothing traps, the top bits just leave."
+     },
+     {
+      "line": 21,
+      "text": "Same bits, same distance, two different results. Whether the value is signed decides which shift is the correct one."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Take `x = 0xB5`, which is `1011 0101`. Give each result as a two-digit hex byte with a `0x` prefix and capital letters.",
+     "template": "x & 0x0F  = ___\nx | 0x40  = ___\nx & ~0x10 = ___\nx ^ 0xFF  = ___",
+     "blanks": [
+      "0x05",
+      "0xF5",
+      "0xA5",
+      "0x4A"
+     ],
+     "concepts": [
+      "bitwise-logic",
+      "masking"
+     ],
+     "tags": [
+      "bitwise-logic",
+      "masking"
+     ],
+     "explain": "AND with `0x0F` keeps the low nibble and clears the high one, leaving `0x05`; OR with `0x40` sets bit 6, which was 0, giving `0xF5`. AND with the inverted mask `~0x10` clears bit 4 alone and leaves `0xA5`, and XOR with all ones flips everything, which is NOT. The usual slip is on the third line: `x & 0x10` would clear every bit except bit 4, the exact opposite of what was asked.",
+     "xp": 20
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "ca-1-g-01",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Place values, both directions. Give binary as eight digits with no spaces, and decimals as plain digits.",
+   "template": "00101111 as an unsigned decimal is ___\n181 as an eight-bit binary number is ___\nthe place value of bit 6, counting from bit 0 at the right, is ___",
+   "blanks": [
+    "47",
+    "10110101",
+    "64"
+   ],
+   "concepts": [
+    "binary",
+    "base-conversion"
+   ],
+   "tags": [
+    "binary",
+    "base-conversion"
+   ],
+   "xp": 20,
+   "explain": "`00101111` is $32 + 8 + 4 + 2 + 1 = 47$, and 181 is $128 + 32 + 16 + 4 + 1$, which lights bits 7, 5, 4, 2 and 0. Bit 6 is worth $2^6 = 64$, not 128: the numbering starts at bit 0 for the units place, so bit $k$ is worth $2^k$ and the top bit of a byte is bit 7. Reading bit 6 as 128 is the standard off-by-one, and it doubles every answer that depends on it."
+  },
+  {
+   "id": "ca-1-g-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Nibble by nibble. Give hex with a `0x` prefix and capital letters, and binary as eight digits with no spaces.",
+   "template": "11001101 in hex is ___\n0x7E in binary is ___\n0x7E as an unsigned decimal is ___",
+   "blanks": [
+    "0xCD",
+    "01111110",
+    "126"
+   ],
+   "concepts": [
+    "hexadecimal",
+    "base-conversion"
+   ],
+   "tags": [
+    "hexadecimal",
+    "base-conversion"
+   ],
+   "xp": 20,
+   "explain": "`1100` is C and `1101` is D, so the byte is `0xCD`; the translation is local, with nothing carried between the nibbles. Back the other way, 7 is `0111` and E is `1110`, and as a decimal `0x7E` is $7 \\times 16 + 14 = 126$. The tempting error is to group the bits from the left, which only agrees with grouping from the right when the bit count is already a multiple of four."
+  },
+  {
+   "id": "ca-1-g-03",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Negate 42 in eight bits by inverting and adding one, then say what the same pattern means to an unsigned instruction. Binary answers are eight digits; hex answers carry a `0x` prefix and capital letters.",
+   "steps": [
+    {
+     "label": "42 in binary",
+     "expected": "00101010"
+    },
+    {
+     "label": "after inverting every bit",
+     "expected": "11010101"
+    },
+    {
+     "label": "after adding one",
+     "expected": "11010110"
+    },
+    {
+     "label": "that pattern in hex",
+     "expected": "0xD6"
+    },
+    {
+     "label": "that pattern read as unsigned",
+     "expected": "214"
+    }
+   ],
+   "concepts": [
+    "twos-complement"
+   ],
+   "tags": [
+    "twos-complement"
+   ],
+   "xp": 40,
+   "explain": "Inverting gives $255 - 42 = 213$ and the add-one carries it to $256 - 42 = 214$, which is the definition of the twos-complement negative. So `11010110` is $-42$ and 214 simultaneously, and nothing in the register distinguishes them - only the instruction reading it does. Stopping after the inversion yields $-43$, which is why ones-complement machines needed an end-around carry to fix up their arithmetic."
+  },
+  {
+   "id": "ca-1-g-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these five unsigned quantities in ascending order, smallest first. They are written in three different bases on purpose.",
+   "fragments": [
+    "0b1011",
+    "0x1F",
+    "18",
+    "0b100000",
+    "0x0A"
+   ],
+   "answer": [
+    4,
+    0,
+    2,
+    1,
+    3
+   ],
+   "concepts": [
+    "base-conversion",
+    "hexadecimal",
+    "binary"
+   ],
+   "tags": [
+    "base-conversion",
+    "hexadecimal",
+    "binary"
+   ],
+   "xp": 20,
+   "explain": "In decimal these are 11, 31, 18, 32 and 10, so the order is `0x0A`, `0b1011`, `18`, `0x1F`, `0b100000`. The prefix is doing all the work: `0b100000` looks like a hundred thousand and is 32, while `18` looks small beside `0b1011` and is larger. Comparing the written forms rather than the values is the whole trap, and it is a real one in code, where a literal's base is easy to misread."
+  }
+ ],
+ "conversion-drills": [
+  {
+   "id": "ca-1-d-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Convert the decimal number 181 to binary by repeated division by two. At each step give the quotient and remainder in the form `90 r 1`, then assemble the answer as eight binary digits.",
+   "steps": [
+    {
+     "label": "181 / 2",
+     "expected": "90 r 1"
+    },
+    {
+     "label": "90 / 2",
+     "expected": "45 r 0"
+    },
+    {
+     "label": "45 / 2",
+     "expected": "22 r 1"
+    },
+    {
+     "label": "22 / 2",
+     "expected": "11 r 0"
+    },
+    {
+     "label": "11 / 2",
+     "expected": "5 r 1"
+    },
+    {
+     "label": "5 / 2",
+     "expected": "2 r 1"
+    },
+    {
+     "label": "2 / 2",
+     "expected": "1 r 0"
+    },
+    {
+     "label": "1 / 2",
+     "expected": "0 r 1"
+    },
+    {
+     "label": "181 as eight binary digits",
+     "expected": "10110101"
+    }
+   ],
+   "concepts": [
+    "binary",
+    "base-conversion"
+   ],
+   "tags": [
+    "binary",
+    "base-conversion"
+   ],
+   "xp": 40,
+   "explain": "Each division peels off one bit: the remainder is the current least significant bit, and the quotient is what is left to convert. The remainders come out in the order 1, 0, 1, 0, 1, 1, 0, 1 - least significant first - so the written answer is that sequence reversed, `10110101`. Writing the remainders down in the order they appeared gives `10101101`, which is 173 rather than 181, and it is the one mistake this method invites."
+  },
+  {
+   "id": "ca-1-d-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Move between bases. Give hex with a `0x` prefix and capital letters, decimals as plain digits, and binary at the width stated in each label.",
+   "steps": [
+    {
+     "label": "0x2F as a decimal",
+     "expected": "47"
+    },
+    {
+     "label": "0x2F as eight binary digits",
+     "expected": "00101111"
+    },
+    {
+     "label": "0xC0 as a decimal",
+     "expected": "192"
+    },
+    {
+     "label": "0x1A3 as a decimal",
+     "expected": "419"
+    },
+    {
+     "label": "0x1A3 as twelve binary digits",
+     "expected": "000110100011"
+    },
+    {
+     "label": "the decimal 1000 in hex",
+     "expected": "0x3E8"
+    }
+   ],
+   "concepts": [
+    "hexadecimal",
+    "base-conversion"
+   ],
+   "tags": [
+    "hexadecimal",
+    "base-conversion"
+   ],
+   "xp": 40,
+   "explain": "Hex to decimal is positional arithmetic in base 16: `0x1A3` is $1 \\times 256 + 10 \\times 16 + 3 = 419$, and `0x2F` is $2 \\times 16 + 15 = 47$. Hex to binary needs no arithmetic at all - each digit becomes its own four bits, so 1, A, 3 become `0001 1010 0011`. Going from decimal, repeated division by 16 gives $1000 = 62 \\times 16 + 8$, then $62 = 3 \\times 16 + 14$, so the digits bottom-up are 3, E, 8; reading those remainders top-down instead gives `0x8E3`, which is 2275."
+  },
+  {
+   "id": "ca-1-d-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Represent each value in eight-bit twos complement, then widen it to sixteen bits. Give every answer in hex with a `0x` prefix and capital letters, at the width the label asks for.",
+   "steps": [
+    {
+     "label": "-100 as an eight-bit byte",
+     "expected": "0x9C"
+    },
+    {
+     "label": "-100 sign-extended to sixteen bits",
+     "expected": "0xFF9C"
+    },
+    {
+     "label": "+100 as an eight-bit byte",
+     "expected": "0x64"
+    },
+    {
+     "label": "+100 sign-extended to sixteen bits",
+     "expected": "0x0064"
+    },
+    {
+     "label": "-128 as an eight-bit byte",
+     "expected": "0x80"
+    },
+    {
+     "label": "-128 sign-extended to sixteen bits",
+     "expected": "0xFF80"
+    },
+    {
+     "label": "-100 widened to sixteen bits by ZERO extension instead",
+     "expected": "0x009C"
+    }
+   ],
+   "concepts": [
+    "twos-complement",
+    "sign-extension"
+   ],
+   "tags": [
+    "twos-complement",
+    "sign-extension"
+   ],
+   "xp": 40,
+   "explain": "$256 - 100 = 156$, which is `0x9C`, and widening a negative value means copying its top bit leftwards, so the eight new bits are all ones and the value stays $-100$. A positive value has a top bit of zero, so sign extension pads it with zeros and `0x64` becomes `0x0064` - one rule, not two. The last line is the bug this drill exists for: zero extension produces a perfectly valid sixteen-bit number, `0x009C`, that quietly means $+156$."
+  },
+  {
+   "id": "ca-1-d-04",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Add these bytes in an eight-bit register. For each addition give the stored result in hex, then the carry-out flag and the signed-overflow flag as `0` or `1`.",
+   "steps": [
+    {
+     "label": "0xC8 + 0x64, result",
+     "expected": "0x2C"
+    },
+    {
+     "label": "0xC8 + 0x64, carry-out",
+     "expected": "1"
+    },
+    {
+     "label": "0xC8 + 0x64, signed overflow",
+     "expected": "0"
+    },
+    {
+     "label": "0x64 + 0x32, result",
+     "expected": "0x96"
+    },
+    {
+     "label": "0x64 + 0x32, carry-out",
+     "expected": "0"
+    },
+    {
+     "label": "0x64 + 0x32, signed overflow",
+     "expected": "1"
+    },
+    {
+     "label": "0x80 + 0x80, result",
+     "expected": "0x00"
+    },
+    {
+     "label": "0x80 + 0x80, carry-out",
+     "expected": "1"
+    },
+    {
+     "label": "0x80 + 0x80, signed overflow",
+     "expected": "1"
+    }
+   ],
+   "concepts": [
+    "overflow",
+    "wraparound",
+    "unsigned-range"
+   ],
+   "tags": [
+    "overflow",
+    "wraparound",
+    "unsigned-range"
+   ],
+   "xp": 40,
+   "explain": "The adder does the same thing all three times, and the two flags answer two different questions about the result. $200 + 100 = 300$ leaves the unsigned range so carry is set, yet as signed it is $-56 + 100 = 44$, which fits, so overflow is clear. $100 + 50 = 150$ fits unsigned so carry is clear, but two positives produced `0x96`, a negative, so overflow is set. `0x80 + 0x80` wraps both ways at once. Treating carry-out as the overflow flag is the habitual error, and the first two rows are each a counterexample to it."
+  },
+  {
+   "id": "ca-1-d-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Give the endpoints of each range as plain decimal digits, with a leading minus sign where one is needed.",
+   "template": "unsigned 8-bit:          0 to ___\nunsigned 16-bit:         0 to ___\ntwos-complement 8-bit:  ___ to ___\ntwos-complement 16-bit: ___ to ___",
+   "blanks": [
+    "255",
+    "65535",
+    "-128",
+    "127",
+    "-32768",
+    "32767"
+   ],
+   "concepts": [
+    "unsigned-range",
+    "twos-complement"
+   ],
+   "tags": [
+    "unsigned-range",
+    "twos-complement"
+   ],
+   "xp": 20,
+   "explain": "Unsigned $n$ bits run to $2^n - 1$, and twos complement splits the same $2^n$ patterns as $-2^{n-1}$ up to $2^{n-1} - 1$. The asymmetry is not arbitrary: there is one zero rather than two, so the spare pattern falls to the negative side and the most negative value has no positive twin. Answering $-127$ and $+128$ is the natural guess from assuming symmetry, and it is wrong at every width."
+  }
+ ],
+ "bit-level-reasoning": [
+  {
+   "id": "ca-1-b-01",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Take `a = 0xB5`, which is `1011 0101`, and `b = 0x6C`, which is `0110 1100`, both eight bits wide. Give each result as a two-digit hex byte with a `0x` prefix and capital letters.",
+   "steps": [
+    {
+     "label": "a & b",
+     "expected": "0x24"
+    },
+    {
+     "label": "a | b",
+     "expected": "0xFD"
+    },
+    {
+     "label": "a ^ b",
+     "expected": "0xD9"
+    },
+    {
+     "label": "~a",
+     "expected": "0x4A"
+    },
+    {
+     "label": "a ^ a",
+     "expected": "0x00"
+    },
+    {
+     "label": "a & ~a",
+     "expected": "0x00"
+    },
+    {
+     "label": "a | ~a",
+     "expected": "0xFF"
+    }
+   ],
+   "concepts": [
+    "bitwise-logic"
+   ],
+   "tags": [
+    "bitwise-logic"
+   ],
+   "xp": 40,
+   "explain": "Each column is decided on its own with no carries, which is what separates these from arithmetic: `1011 0101` and `0110 1100` share 1s only in bits 5 and 2, giving `0x24`. XOR is the difference detector, so `a ^ a` is zero for any `a` at all, and that identity is why XOR is used both to clear a register and to compare for equality. The last two lines say that a bit and its complement never agree and always cover: `a & ~a` is all zeros, `a | ~a` all ones."
+  },
+  {
+   "id": "ca-1-b-02",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "A device's status byte holds `s = 0x5A`, which is `0101 1010`. Apply each operation to the original `s` - they are independent, not cumulative. Give hex answers with a `0x` prefix and capital letters, and answer the test question with `set` or `clear`.",
+   "steps": [
+    {
+     "label": "s & 0x0F, the low nibble",
+     "expected": "0x0A"
+    },
+    {
+     "label": "(s >> 4) & 0x0F, the high nibble",
+     "expected": "0x05"
+    },
+    {
+     "label": "s | 0x20, set bit 5",
+     "expected": "0x7A"
+    },
+    {
+     "label": "s & ~0x02, clear bit 1",
+     "expected": "0x58"
+    },
+    {
+     "label": "s ^ 0x81, toggle bits 0 and 7",
+     "expected": "0xDB"
+    },
+    {
+     "label": "is bit 3 set or clear?",
+     "expected": "set"
+    }
+   ],
+   "concepts": [
+    "masking",
+    "bitwise-logic",
+    "shifts"
+   ],
+   "tags": [
+    "masking",
+    "bitwise-logic",
+    "shifts"
+   ],
+   "xp": 40,
+   "explain": "A mask names the bits you mean, and the operator decides what happens to them: AND with the mask keeps them, AND with the inverted mask clears them, OR sets them, XOR toggles them. Reading the high nibble needs a shift first, because masking alone leaves the field where it sat - `s & 0xF0` is `0x50`, not `0x05`. In `0101 1010` bit 5 is 0 and bit 1 is 1, so both the set and the clear genuinely change the byte here; had either bit already been in the state asked for, the operation would have left the byte untouched, which is exactly the property that makes set and clear safe on a register you share."
+  },
+  {
+   "id": "ca-1-b-03",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Shifts in an eight-bit register. Give each result as a two-digit hex byte with a `0x` prefix and capital letters, and the two decimal readings as plain numbers with a minus sign where one is needed.",
+   "steps": [
+    {
+     "label": "0x1D << 3",
+     "expected": "0xE8"
+    },
+    {
+     "label": "0x60 << 2",
+     "expected": "0x80"
+    },
+    {
+     "label": "0xF8 >> 1, logical shift",
+     "expected": "0x7C"
+    },
+    {
+     "label": "0xF8 >> 1, arithmetic shift",
+     "expected": "0xFC"
+    },
+    {
+     "label": "the arithmetic result read as a signed byte",
+     "expected": "-4"
+    },
+    {
+     "label": "0xF9 >> 1 arithmetic, read as a signed byte",
+     "expected": "-4"
+    }
+   ],
+   "concepts": [
+    "shifts",
+    "wraparound"
+   ],
+   "tags": [
+    "shifts",
+    "wraparound"
+   ],
+   "xp": 40,
+   "explain": "`0x1D << 3` is $29 \\times 8 = 232$, which still fits, but `0x60 << 2` is $96 \\times 4 = 384$, and the bits beyond eight are simply lost, leaving `0x80`. That is why left shift is multiplication only while the answer fits, and why nothing traps when it does not. On the way back, `0xF8` is 248 unsigned and $-8$ signed, so the logical shift is right at 124 and the arithmetic shift is right at $-4$; the value's signedness picks the instruction. The last line is the sting: `0xF9` is $-7$, and shifting gives $-4$, because an arithmetic shift rounds toward negative infinity while C's `/ 2` rounds toward zero and would give $-3$."
+  },
+  {
+   "id": "ca-1-b-04",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A temperature sensor returns one byte in eight-bit twos complement, so $-2$ degrees arrives as `0xFE`. The firmware copies that byte into a sixteen-bit variable, and the logging display shows 254 rather than $-2$. At $+30$ degrees the same code shows 30 correctly, which is why it has been in production for months. Name the fault in the widening step, and explain why only the negative readings are wrong.",
+   "answer": "the byte is zero-extended instead of sign-extended",
+   "rubric": {
+    "required": [
+     "sign",
+     "exten",
+     "bit"
+    ],
+    "optional": [
+     "zero",
+     "twos",
+     "complement",
+     "negative",
+     "replicat",
+     "254",
+     "unsigned",
+     "width"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "sign-extension",
+    "twos-complement"
+   ],
+   "tags": [
+    "sign-extension",
+    "twos-complement"
+   ],
+   "xp": 40,
+   "explain": "Widening a twos-complement value means replicating its top bit into every new position, so `0xFE` must become `0xFFFE` and stay $-2$. Padding with zeros instead gives `0x00FE`, a valid sixteen-bit number meaning $+254$ - the bits were not corrupted, they were reinterpreted at a width where the old sign bit is no longer the top bit. Positive readings survive because their top bit is already zero, so zero extension and sign extension agree on them, which is exactly why the fault hid for months. The tempting diagnosis is a byte-order or overflow problem, but nothing overflowed here: 254 and $-2$ are the same eight bits read under two different conventions."
+  },
+  {
+   "id": "ca-1-b-05",
+   "type": "scenario",
+   "layer": "application",
+   "prompt": "You are writing the driver for a motor controller whose single eight-bit control register packs several fields: bit 7 is `ENABLE`, bit 6 is `FAULT` and is read-only, bits 5 to 4 hold a two-bit `MODE`, and bits 3 to 0 hold a four-bit `SPEED`. Reads and writes touch the whole byte at once. Describe the operations you would use to turn `ENABLE` on without changing anything else, to write a new `MODE` of binary `10` without disturbing `SPEED` or `ENABLE`, and to read the current `SPEED` as a plain number from 0 to 15. Give the actual masks in hex and say what each step is for.",
+   "rubric": {
+    "required": [
+     "mask",
+     "shift",
+     "clear",
+     "set"
+    ],
+    "optional": [
+     "0x80",
+     "0x30",
+     "0x0F",
+     "xor",
+     "toggl",
+     "nibbl",
+     "field",
+     "read",
+     "modify",
+     "write"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "masking",
+    "bitwise-logic",
+    "shifts"
+   ],
+   "tags": [
+    "masking",
+    "bitwise-logic",
+    "shifts"
+   ],
+   "xp": 40,
+   "explain": "All three are read-modify-write on a byte you may not disturb. Enabling is `reg | 0x80`, because OR sets the bits of the mask and leaves every other column untouched - assigning `0x80` outright would clear `MODE` and `SPEED` and stop the motor. A multi-bit field cannot be written by OR alone, because OR can only turn bits on: `MODE` must first be cleared with `reg & ~0x30` and then filled with `| (0x2 << 4)`, which is the shift-into-position step. Reading `SPEED` needs only `reg & 0x0F`, since that field already sits at the bottom of the byte, whereas reading `MODE` would need `(reg >> 4) & 0x03`. Writing a 1 back into the read-only `FAULT` bit is the other trap, and the reason drivers keep an explicit mask of the writable bits."
+  }
+ ],
+ "exam": [
+  {
+   "id": "ca-1-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In $n$-bit twos complement, which statement is exactly right?",
+   "choices": [
+    "The range is $-2^{n-1}$ to $2^{n-1} - 1$, and there is exactly one zero.",
+    "The range is $-2^{n-1} + 1$ to $2^{n-1} - 1$, and there are two zeroes.",
+    "The range is $-2^n$ to $2^n - 1$, and there is exactly one zero.",
+    "The range is symmetric about zero, exactly as sign-and-magnitude is."
+   ],
+   "answer": 0,
+   "concepts": [
+    "twos-complement",
+    "unsigned-range"
+   ],
+   "tags": [
+    "twos-complement",
+    "unsigned-range"
+   ],
+   "xp": 10,
+   "explain": "The $2^n$ patterns are split with one spent on zero, so the negatives get one more than the positives and the range is asymmetric by exactly one. The two-zeroes option describes sign-and-magnitude and ones complement, which is the defect twos complement was adopted to remove."
+  },
+  {
+   "id": "ca-1-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true as a definition.",
+   "choices": [
+    "One hexadecimal digit stands for exactly four bits.",
+    "XOR gives a 1 in each position where its two inputs differ.",
+    "A logical right shift feeds zeros into the top of the value.",
+    "Carry-out being set always means signed overflow occurred.",
+    "AND with a mask clears every bit the mask does not select."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    4
+   ],
+   "concepts": [
+    "hexadecimal",
+    "bitwise-logic",
+    "shifts",
+    "overflow"
+   ],
+   "tags": [
+    "hexadecimal",
+    "bitwise-logic",
+    "shifts",
+    "overflow"
+   ],
+   "xp": 10,
+   "explain": "Hex works because $16 = 2^4$, XOR is the difference detector, a logical shift pads with zeros while an arithmetic one copies the sign bit, and AND keeps only the masked positions. The false statement is the flags one: $200 + 100$ in a byte sets carry with no signed overflow, and $100 + 50$ sets overflow with no carry, so neither flag implies the other."
+  },
+  {
+   "id": "ca-1-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Convert between bases. Hex answers carry a `0x` prefix and capital letters; binary answers are eight digits with no spaces.",
+   "template": "0x7E in binary is ___\n0x7E as an unsigned decimal is ___\nthe decimal 45 in hex is ___\n0xB5 in binary is ___",
+   "blanks": [
+    "01111110",
+    "126",
+    "0x2D",
+    "10110101"
+   ],
+   "concepts": [
+    "hexadecimal",
+    "base-conversion",
+    "binary"
+   ],
+   "tags": [
+    "hexadecimal",
+    "base-conversion",
+    "binary"
+   ],
+   "xp": 20,
+   "explain": "Nibble by nibble, 7 is `0111` and E is `1110`, and as a decimal `0x7E` is $7 \\times 16 + 14 = 126$. Going the other way, $45 = 2 \\times 16 + 13$, so the digits are 2 and D. Reaching for decimal arithmetic on the binary conversions is what makes them slow and error-prone; the hex digit already is the four bits."
+  },
+  {
+   "id": "ca-1-x-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Read each byte as eight-bit twos complement and put them in ascending order, most negative first.",
+   "fragments": [
+    "0x7F",
+    "0x80",
+    "0xFF",
+    "0x01",
+    "0x00"
+   ],
+   "answer": [
+    1,
+    2,
+    4,
+    3,
+    0
+   ],
+   "concepts": [
+    "twos-complement"
+   ],
+   "tags": [
+    "twos-complement"
+   ],
+   "xp": 20,
+   "explain": "As signed bytes these are $127$, $-128$, $-1$, $1$ and $0$, so the order is `0x80`, `0xFF`, `0x00`, `0x01`, `0x7F`. Note that the largest unsigned byte, `0xFF`, is one of the smallest signed ones, and that `0x80` flips from 128 to $-128$ - sorting these as unsigned gives an almost completely different sequence, which is why a signed-versus-unsigned mix-up in a comparison is such a productive source of bugs."
+  },
+  {
+   "id": "ca-1-x-05",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Negate 96 in eight bits, then widen the result to sixteen bits correctly. Binary answers are eight digits; hex answers carry a `0x` prefix and capital letters.",
+   "steps": [
+    {
+     "label": "96 in binary",
+     "expected": "01100000"
+    },
+    {
+     "label": "after inverting every bit",
+     "expected": "10011111"
+    },
+    {
+     "label": "after adding one",
+     "expected": "10100000"
+    },
+    {
+     "label": "that byte in hex",
+     "expected": "0xA0"
+    },
+    {
+     "label": "-96 widened to sixteen bits",
+     "expected": "0xFFA0"
+    }
+   ],
+   "concepts": [
+    "twos-complement",
+    "sign-extension"
+   ],
+   "tags": [
+    "twos-complement",
+    "sign-extension"
+   ],
+   "xp": 40,
+   "explain": "Invert-and-add-one computes $2^8 - 96 = 160$, which is `0xA0`, and widening copies the top bit, so the eight new bits are ones and the value is still $-96$. Answering `0x00A0` keeps the same eight low bits and changes the number to $+160$, which is precisely the failure mode that makes sign extension a separate instruction rather than an afterthought."
+  },
+  {
+   "id": "ca-1-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Add these bytes in an eight-bit register. Give the stored result in hex with a `0x` prefix and capital letters, the two flags as `0` or `1`, and the signed reading as a plain decimal with a minus sign where one is needed.",
+   "steps": [
+    {
+     "label": "0x78 + 0x0A, result",
+     "expected": "0x82"
+    },
+    {
+     "label": "0x78 + 0x0A, carry-out",
+     "expected": "0"
+    },
+    {
+     "label": "0x78 + 0x0A, signed overflow",
+     "expected": "1"
+    },
+    {
+     "label": "0x78 + 0x0A, result read as signed",
+     "expected": "-126"
+    },
+    {
+     "label": "0xFF + 0x01, result",
+     "expected": "0x00"
+    },
+    {
+     "label": "0xFF + 0x01, carry-out",
+     "expected": "1"
+    },
+    {
+     "label": "0xFF + 0x01, signed overflow",
+     "expected": "0"
+    }
+   ],
+   "concepts": [
+    "overflow",
+    "wraparound"
+   ],
+   "tags": [
+    "overflow",
+    "wraparound"
+   ],
+   "xp": 40,
+   "explain": "$120 + 10 = 130$, which fits an unsigned byte, so no carry leaves the top - but two positive signed operands produced `0x82`, a negative, so signed overflow is set and the register reads $-126$. The second addition is the mirror image: unsigned it is $255 + 1 = 256$, which wraps to zero and sets carry, while signed it is $-1 + 1 = 0$, entirely correct, so overflow stays clear. Reading either flag as a general error indicator is the mistake; each answers one interpretation's question, and the program decides which one applies."
+  },
+  {
+   "id": "ca-1-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "An engineer proposes representing negatives with sign-and-magnitude instead - top bit is the sign, the remaining bits are the magnitude - arguing that it is far easier for a human to read off a display. Explain what that choice would cost in the hardware and in the arithmetic, and why twos complement won.",
+   "rubric": {
+    "required": [
+     "zero",
+     "add",
+     "sign"
+    ],
+    "optional": [
+     "circuit",
+     "hardwar",
+     "subtract",
+     "borrow",
+     "carr",
+     "complement",
+     "asymmetr",
+     "compar",
+     "magnitude"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "twos-complement",
+    "overflow"
+   ],
+   "tags": [
+    "twos-complement",
+    "overflow"
+   ],
+   "xp": 20,
+   "explain": "Sign-and-magnitude gives two distinct patterns for zero, so every equality test and every zero flag needs a special case, and hardware special cases are gates, latency and bugs. Worse, adding two sign-and-magnitude numbers requires inspecting both signs, comparing the magnitudes and deciding whether to add or subtract before anything can be computed. Twos complement is defined so that the negative of $x$ is the pattern that adds to it to give zero at that width, which means one ordinary adder handles signed and unsigned operands with identical logic, and subtraction is just addition of the negation. The price is a range asymmetric by one and a representation people cannot read at a glance - and readability is the cheapest thing to fix, because that is all a display routine is."
+  },
+  {
+   "id": "ca-1-x-08",
+   "type": "diagnose",
+   "layer": "application",
+   "prompt": "A stepper-motor loop uses an eight-bit signed counter: start at 0, increment by one each iteration, and stop when the counter equals 200. On the bench the motor never stops, and the counter, printed each pass, climbs to 127 and then reads $-128$. Name the fault and explain why the loop can never end.",
+   "answer": "the counter's width cannot hold 200, so it wraps from 127 to -128 and the condition is never true",
+   "rubric": {
+    "required": [
+     "wrap",
+     "rang",
+     "sign"
+    ],
+    "optional": [
+     "127",
+     "128",
+     "overflow",
+     "width",
+     "terminat",
+     "never",
+     "unsigned",
+     "wider",
+     "bit"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "wraparound",
+    "overflow",
+    "unsigned-range",
+    "twos-complement"
+   ],
+   "tags": [
+    "wraparound",
+    "overflow",
+    "unsigned-range",
+    "twos-complement"
+   ],
+   "xp": 40,
+   "explain": "An eight-bit signed counter spans $-128$ to $127$, so 200 is not a value it can ever hold: incrementing 127 wraps to $-128$, and the counter cycles for ever through 256 values that never include the target. Nothing is broken at the hardware level - fixed-width addition is arithmetic modulo $2^8$ and it did exactly that - but the loop's exit condition assumed a range the type does not have. The tempting fix is to switch to an unsigned byte, which does reach 200 and terminate but leaves the same trap one step away at 255; the honest fix is a counter wide enough for the range, and a comparison written with `>=` so that an overshoot cannot skip past the target."
+  }
+ ]
+}
