@@ -11,19 +11,18 @@
   }
  ],
  "description": {
-  "what": "How Python lets you reach into a piece of text: one character at a time by position, a run of characters at a time by slice, and whole transformations at a time by method.",
-  "why": "Almost everything a program receives from a person or a file arrives as text, and almost nothing useful can be done with it until it has been cut apart, cleaned up and put back together.",
-  "enables": "You will be able to pull a character or a run of characters out of any text by position, clean and reshape it with the built-in methods, build a formatted line from values you already hold, and cut a line into its parts and rejoin them in a new form.",
-  "assumes": "You can write a function with parameters and a return value, use a loop to build up a result, write an if statement, and call `len` on a piece of text.",
-  "assessed": "You will predict what indexing and slicing produce, repair code that tries to change a character in place, and write functions that take text apart and rebuild it - with the later prompts telling you only what the result should be, never how to get it."
+  "what": "How Python lets you reach into a piece of text: one character at a time by position, a run of characters at a time by slice, whole transformations at a time by method, and a finished line of output built from values you already hold.",
+  "why": "Almost everything a program is given by a person, a file or another program arrives as text, and almost nothing useful can be done with it until it has been cut apart, cleaned up and rebuilt into the shape the next step needs.",
+  "enables": "You will be able to pull a character or a run of characters out of any text by position, count from either end, reshape text with the built-in methods, and compose a formatted line from names and numbers without a chain of `+` and `str`.",
+  "assumes": "You can write a function with parameters and a return value, break a problem into functions, write a loop and an `if`, and call `len` on a piece of text.",
+  "assessed": "You will predict what indexing, slicing and method calls produce, repair a function that tries to edit a character in place, and write functions that take text apart and rebuild it, with the later prompts telling you only what the result must be."
  },
  "concepts": [
-  "indexing",
+  "string-indexing",
   "slicing",
   "string-methods",
   "f-strings",
-  "immutability",
-  "split-and-join"
+  "immutability"
  ],
  "sequence": [
   "lesson",
@@ -32,60 +31,65 @@
   "exam"
  ],
  "lesson": {
-  "title": "Text, Taken Apart",
   "sections": [
    {
-    "title": "Counting From Zero",
-    "body": "A piece of text is not one lump. It is a **sequence** of characters in a fixed order, and every character has a number - its **index** - saying where in that order it sits. Square brackets written after the text ask for the character at one index, so `word[0]` is the first.\n\nThe first index is `0`, not `1`. That looks like a trap and is actually the reason the arithmetic works out: an index is a distance from the start, so the first character is zero steps in. `len(word)` counts the characters, so the last index is always `len(word) - 1` - one less than the count, for exactly the same reason.\n\nBecause reaching the last character that way is so common, Python offers a shorthand: a **negative** index counts back from the end, so `word[-1]` is the last character and `word[-2]` the one before it. There is no `word[-0]`, because `-0` is `0`.\n\nAn index that does not exist is an error, not an empty answer. Asking for `word[8]` of an eight-character word raises `IndexError: string index out of range`, and the traceback points at the line that asked.",
-    "code": "word = \"grimoire\"\nprint(word[0])\nprint(word[3])\nprint(word[-1])\nprint(word[-2])\nprint(len(word))",
+    "title": "Counting From Zero, and From the End",
+    "body": "A piece of text is a run of characters with an order, and each character has a **position** - Python calls it an **index**. The first character is at index `0`, not `1`, so in `\"ansuz\"` the letter `a` is at 0, `n` at 1, `s` at 2, `u` at 3 and `z` at 4. Square brackets ask for one character by index: `rune[i]` hands back the single character sitting at position `i`, as a piece of text one character long.\n\nBecause the counting starts at zero, the last index of a text of length 5 is 4, never 5. Asking for `rune[5]` raises `IndexError: string index out of range` - the same kind of failure you learnt to read on the reading-failure floor, and it is telling the truth rather than being fussy.\n\nA **negative** index counts backwards from the end: `-1` is the last character, `-2` the one before it. This is worth more than it looks, because the last character of text whose length you do not know is `text[-1]` and nothing else needs working out.\n\n`len(text)` gives the number of characters, so the last index is always `len(text) - 1`. Those two facts together - zero at the front, `len - 1` at the back - are the whole of indexing.",
+    "code": "rune = \"ansuz\"\ni = 0\nprint(rune[i])\nprint(rune[i + 3])\nprint(rune[-1])\nprint(rune[-2])\nprint(len(rune))",
     "lang": "python",
     "annotations": [
      {
-      "line": 2,
-      "text": "Index 0 is the first character, so this prints g. Reading it as 'zero steps from the start' makes the counting stop feeling arbitrary."
+      "line": 3,
+      "text": "`i` is 0, so this is the first character. Positions are ordinary numbers: they can be held under a name and worked out."
      },
      {
-      "line": 4,
-      "text": "-1 is the last character. It is shorthand for word[len(word) - 1], which is the same thing written the long way."
+      "line": 5,
+      "text": "`-1` is the last character, whatever the length happens to be. Counting backwards never needs `len` at all."
      },
      {
-      "line": 6,
-      "text": "len counts characters, so the valid indexes here are 0 to 7. word[8] would raise IndexError."
+      "line": 7,
+      "text": "Five characters, so the valid indexes run 0 to 4. Asking for index 5 would raise IndexError."
      }
     ],
     "checkpoint": {
-     "type": "output",
+     "type": "fill",
      "layer": "retrieval",
-     "prompt": "What does this program print?",
-     "code": "name = \"python\"\nprint(name[1])\nprint(name[-3])",
-     "lang": "python",
-     "answer": "y\nh",
+     "prompt": "Fill the blanks so the program prints `c` on the first line and `n` on the second. Count forwards for the first and backwards for the second.",
+     "template": "word = \"cauldron\"\nprint(word[___])\nprint(word[___])",
+     "blanks": [
+      "0",
+      "-1"
+     ],
      "concepts": [
-      "indexing"
+      "string-indexing"
      ],
      "tags": [
-      "indexing"
+      "string-indexing"
      ],
-     "explain": "The tempting answer for the first line is `p`, from counting the first character as number one. The tempting answer for the second is `n`, from reading -3 as 'the third character'. Both come from one mistake: an index is a distance, and a negative index is a distance measured from the far end."
+     "explain": "The first character sits at 0 rather than 1, and the last at -1 rather than at the length. Writing 1 in the first blank prints `a`, which is the commonest slip in the language and never announces itself as an error."
     }
    },
    {
     "title": "Slices, and the Half-Open Interval",
-    "body": "One character at a time is rarely what you want. `word[start:end]` hands back a whole run of characters as a new piece of text - a **slice**.\n\nThe rule that catches everybody: the slice **includes** `start` and **excludes** `end`. `word[0:4]` gives you characters 0, 1, 2 and 3, and stops. This is the same half-open convention `range(0, 4)` uses, and it is deliberate rather than careless. It buys two things: the length of the slice is always `end - start`, and adjacent slices join up perfectly, so `word[0:4]` followed by `word[4:8]` rebuilds the whole word with nothing dropped and nothing repeated.\n\nEither end may be left out. `word[:4]` means from the beginning, `word[4:]` means to the end, and `word[:]` means the whole thing. Negative numbers work here too, so `word[-3:]` is the last three characters.\n\nA third number is the **step**: `word[1:7:2]` takes every second character, and `word[::-1]` steps backwards through the whole thing, which is how text gets reversed. Unlike indexing, a slice never raises for being out of range - it hands back whatever is actually there, which may be nothing at all.",
-    "code": "word = \"grimoire\"\nprint(word[0:4])\nprint(word[4:])\nprint(word[:4])\nprint(word[-3:])\nprint(word[1:7:2])\nprint(word[10:14] + \"(nothing)\")",
+    "body": "One character at a time is rarely what you want. `word[start:stop]` hands back a whole run of characters as a **new** piece of text - a **slice**.\n\nThe rule that catches everybody: a slice **includes** `start` and **excludes** `stop`. So a slice that stops at 4 gives you characters 0, 1, 2 and 3 and no more. This is exactly the convention `range(0, 4)` uses on the repetition floor, and it is deliberate. It buys two things: the length of the slice is always `stop - start`, and two adjacent slices join back up perfectly, dropping nothing and repeating nothing.\n\nEither end may be left out. `word[:cut]` means from the beginning, `word[cut:]` means to the end, and `word[:]` means all of it. Negative numbers work here too, so `word[-3:]` is the last three characters however long the word is.\n\nA third number is the **step**: `word[::-1]` walks the whole thing backwards, which is how text gets reversed. One more difference from indexing: a slice never raises for being out of range. It hands back whatever is really there, which may be nothing at all.",
+    "code": "word = \"grimoire\"\ncut = 4\nprint(word[:cut])\nprint(word[cut:])\nprint(word[-3:])\nprint(word[cut - 3:cut])\nprint(word[::-1])\nprint(word[:cut] + word[cut:])",
     "lang": "python",
     "annotations": [
      {
-      "line": 2,
-      "text": "Characters 0, 1, 2 and 3 - four of them, because 4 - 0 = 4. Index 4 is excluded, which is why the next line can start at 4 without repeating anything."
+      "line": 3,
+      "text": "From the beginning up to but not including index 4 - four characters, because 4 - 0 = 4."
      },
      {
-      "line": 6,
-      "text": "Start 1, stop before 7, step 2: indexes 1, 3 and 5. The step counts from the start index, not from zero."
+      "line": 4,
+      "text": "From index 4 to the end. The same number is the stop above and the start here, and the two slices meet exactly."
      },
      {
       "line": 7,
-      "text": "Both ends lie past the end of the word, so the slice is empty. Compare word[10], which would raise IndexError - slicing forgives where indexing refuses."
+      "text": "A step of -1 walks backwards through the whole text. Nothing was reversed in place: this builds a second piece of text."
+     },
+     {
+      "line": 8,
+      "text": "The two halves added back together are the original word, which is the half-open interval paying for itself."
      }
     ],
     "checkpoint": {
@@ -103,35 +107,35 @@
      "tags": [
       "slicing"
      ],
-     "explain": "`m` sits at index 3 and `r` at index 6, so the stop must be 7 - one past the last character wanted. Writing 6 is the commonest slip, and it silently gives `moi` rather than raising, which is why half-open intervals have to be understood rather than guessed at."
+     "explain": "`m` sits at index 3 and `r` at index 6, so the stop must be 7 - one past the last character wanted. Writing 6 is the usual slip and it gives `moi` in silence rather than raising, which is why the half-open interval has to be understood rather than guessed at."
     }
    },
    {
-    "title": "Methods, and the String You Cannot Edit",
-    "body": "A **method** is a function that belongs to a value and is called by writing a dot after it, as in `title.upper()`. Text comes with a large set of them, and a handful cover most real work: `strip` removes blank space from both ends, `lower` and `upper` change case, `replace` swaps one run of characters for another, `startswith` and `endswith` answer True or False, and `find` reports the index where something begins, or `-1` when it is not there at all.\n\nEvery one of those methods **returns a new piece of text and leaves the original exactly as it was**. Writing `title.strip()` on a line by itself accomplishes nothing: the cleaned-up text is built, nobody catches it, and it is thrown away. You have to keep the result with `title = title.strip()`, or use it on the spot.\n\nThe reason is that strings are **immutable** - once made, the characters inside one can never change. So `title[0] = \"T\"` is not a slow way of doing it or a matter of style, it is impossible, and Python says so with `TypeError: 'str' object does not support item assignment`.\n\nThat sounds like a restriction and mostly is not. It means text handed to a function cannot be altered behind the caller's back, and it is why methods chain safely: each one gives the next a fresh result instead of everybody scribbling on one shared value. To change a character, build a new string around it, as in `title[:1].upper() + title[1:]`.",
-    "code": "title = \"  the Serpent's Ascent  \"\nprint(title.strip())\nprint(title.strip().upper())\nprint(title.strip().replace(\"Serpent\", \"Dragon\"))\nprint(title.strip().startswith(\"the\"))\nprint(title.strip().find(\"Ascent\"))\nprint(len(title))",
+    "title": "Methods Hand Back a New String",
+    "body": "A **method** is a function that belongs to a value and is called with a dot: `text.upper()`. The ones worth knowing now are `upper`, `lower`, `title` and `capitalize` for case, `strip` for blank space at the ends, `replace` for swapping one run of characters for another, `find` for the index where something first appears and `-1` when it never does, `count` for how many times it appears, and `startswith` and `endswith` for yes-or-no questions about the ends.\n\nEvery one of them **returns a new piece of text and leaves the original exactly as it was**. `name.strip()` on a line of its own is not a mistake Python will report; it quietly builds the stripped text and throws it away. What you want is almost always `name = name.strip()`.\n\nThat is not an accident of the library. A string in Python is **immutable**: once it exists it cannot be altered. There is no method anywhere that edits text in place, and writing `word[0] = \"A\"` fails with `TypeError: 'str' object does not support item assignment`.\n\nSo the way to change text is to build the text you want out of the pieces you have - a slice, a method result, a `+` - and to give the result a name. Rebuilding, never editing.",
+    "code": "name = \"  merlin  \"\ntidy = name.strip()\nprint(tidy)\nprint(tidy.upper(), tidy.capitalize())\nprint(tidy.replace(\"m\", \"M\"))\nprint(tidy.find(\"l\"), tidy.count(\"l\"))\nprint(name.strip() == tidy, len(name))",
     "lang": "python",
     "annotations": [
      {
-      "line": 3,
-      "text": "Chaining reads left to right: strip runs first and hands its new string to upper. Neither one touches the value that title names."
+      "line": 2,
+      "text": "The result of `strip` is kept under a name. Without that assignment the tidied text would exist for an instant and vanish."
      },
      {
-      "line": 6,
-      "text": "find returns an index, and returns -1 rather than raising when the text is absent. -1 is itself a real index of a real character, so never use the answer without checking it."
+      "line": 5,
+      "text": "`replace` swaps every appearance, not merely the first, and hands back a new string. `tidy` is untouched by it."
      },
      {
       "line": 7,
-      "text": "Still 24. Five methods were called on it and title is untouched, because none of them could have touched it."
+      "text": "`name` still carries its blank space: the original was never modified, only read. Its length proves it."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
      "prompt": "What does this program print?",
-     "code": "s = \"quiet\"\ns.upper()\nprint(s)\nprint(s.upper())",
+     "code": "title = \"The Grey Tome\"\ntitle.lower()\nprint(title)\nprint(title.lower().replace(\" \", \"\"))",
      "lang": "python",
-     "answer": "quiet\nQUIET",
+     "answer": "The Grey Tome\nthegreytome",
      "concepts": [
       "immutability",
       "string-methods"
@@ -139,82 +143,67 @@
      "tags": [
       "immutability"
      ],
-     "explain": "The tempting answer is `QUIET` twice, from reading line 2 as an instruction that changes `s`. It is not one: it builds an uppercase string, hands it to nobody, and the value is discarded. Only the expression whose result gets used - line 4 - shows any effect."
+     "explain": "The second line builds a lower-case copy that nothing catches, so `title` is unchanged when it is printed. The tempting reading is that a method call is a command that alters the value; it is an expression that produces a new one."
     }
    },
    {
-    "title": "Taking Text Apart, and Building It Back",
-    "body": "`split` cuts text into its parts at a separator you name, and hands back a **list** - a numbered sequence of values, which has a whole floor of its own later; for now it is enough that `len` counts it and square brackets index it exactly as they do text. `line.split(\",\")` turns `\"a,b,c\"` into three separate pieces. Called with no separator at all, `split()` cuts on blank space and quietly ignores runs of it, which is nearly always what is wanted for breaking a sentence into words.\n\n`join` is the exact reverse, and its shape surprises people: you call it on the **separator** and hand it the parts. `\" - \".join(runes)` glues the parts back together with ` - ` between them. It reads backwards until you notice that the separator is the thing that knows how to do the gluing.\n\nTo build a line out of values you already hold, put an `f` before the opening quote and write the values in braces: `f\"{count} runes\"`. Any expression fits inside the braces and the result is an ordinary new string. Stitching pieces together with `+` instead forces you to convert every number by hand and buries the shape of the line in punctuation.\n\nCut apart, transform, put back is one of the most useful shapes in the language, and it is worth recognising as a shape rather than as three separate tricks.",
-    "code": "line = \"algiz,ehwaz,laguz\"\nrunes = line.split(\",\")\nprint(runes)\nprint(runes[1])\nprint(\" - \".join(runes))\nprint(\"algiz  ehwaz   laguz\".split())\ncount = len(runes)\nprint(f\"{count} runes, first is {runes[0]}\")",
+    "title": "Building a Line With f-strings",
+    "body": "Gluing text and numbers together with `+` needs a `str()` around every number and quickly turns into a wall of quotation marks. An **f-string** does the same job by putting the values inside the text. Write `f` immediately before the opening quote, and anything inside `{ }` is worked out and dropped into place.\n\nWhat goes inside the braces is a full expression, not merely a name: `f\"{name.upper()}\"`, `f\"{len(name)}\"` and `f\"{level * cost}\"` are all fine. Numbers are converted for you, so `str()` disappears from your code.\n\nA colon inside the braces adds formatting. `{value:.2f}` shows a number with exactly two decimal places, which is what money needs: `2.5` prints as `2.50` rather than `2.5`.\n\nAn f-string is an ordinary piece of text once it is built, so it can be returned from a function, stored under a name or printed - and, like every other string, it cannot be edited afterwards.",
+    "code": "name = \"elara\"\nlevel = 7\ncost = 2.5\nprint(name + \" is level \" + str(level))\nprint(f\"{name} is level {level}\")\nprint(f\"{name.upper()} pays {level * cost:.2f} mana\")\nprint(f\"{name.title()} has {len(name)} letters\")",
     "lang": "python",
     "annotations": [
      {
-      "line": 3,
-      "text": "The parts print inside square brackets with quotes round each one - that is a list being shown, not a piece of text."
+      "line": 4,
+      "text": "The long way round: every number needs `str()`, and one forgotten one raises TypeError."
+     },
+     {
+      "line": 5,
+      "text": "The same line as an f-string. The `f` before the quote is what makes the braces mean anything at all."
      },
      {
       "line": 6,
-      "text": "split() with no argument collapses the runs of spaces, so three words come back rather than a scattering of empty pieces."
-     },
-     {
-      "line": 8,
-      "text": "count is a number and the f-string converts it for you. Writing count + \" runes\" instead would raise TypeError."
+      "text": "An expression inside the braces, and `.2f` fixing the result at two decimal places."
      }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "prompt": "Write `dashed(text)` which returns the words of `text` in upper case, joined with single hyphens. `dashed(\"one two\")` is `\"ONE-TWO\"`, and runs of spaces between words must not produce empty pieces.",
-     "fn": "dashed",
-     "starterCode": "def dashed(text):\n    pass\n",
-     "solution": "def dashed(text):\n    return \"-\".join(text.upper().split())\n",
-     "tests": [
-      {
-       "input": "'one two'",
-       "expected": "ONE-TWO"
-      },
-      {
-       "input": "'  spaced   out '",
-       "expected": "SPACED-OUT"
-      },
-      {
-       "input": "'solo'",
-       "expected": "SOLO"
-      }
-     ],
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "gem = \"opal\"\ncount = 3\nprice = 2.5\nprint(f\"{count} x {gem} = {count * price:.2f}\")\nprint(f\"{gem.upper()}!\")",
+     "lang": "python",
+     "answer": "3 x opal = 7.50\nOPAL!",
      "concepts": [
-      "split-and-join",
-      "string-methods"
+      "f-strings"
      ],
      "tags": [
-      "split-and-join"
+      "f-strings"
      ],
-     "explain": "Cutting on the space character with `split(\" \")` passes the first test and fails the second, because a run of three spaces becomes two empty pieces between the words. The no-argument form exists precisely for this, and the second test is there to catch the version that does not use it."
+     "explain": "`.2f` pads 7.5 out to two decimal places, so the answer is not `7.5`. The second line shows that a method call inside the braces is worked out before the line is built, and that the exclamation mark outside them is ordinary text."
     }
    }
   ]
  },
  "guided-practice": [
   {
-   "id": "py-9-g-01",
+   "id": "py-9-gp-01",
    "type": "output",
    "layer": "retrieval",
    "prompt": "What does this program print?",
-   "code": "rune = \"ansuz\"\nprint(rune[0] + rune[-1])\nprint(rune[2])\nprint(len(rune))",
+   "code": "rune = \"ansuz\"\nprint(rune[-1] + rune[-5])\ni = 2\nprint(rune[i])\nprint(len(rune))",
    "lang": "python",
-   "answer": "az\ns\n5",
+   "answer": "za\ns\n5",
    "concepts": [
-    "indexing"
+    "string-indexing"
    ],
    "tags": [
-    "indexing"
+    "string-indexing"
    ],
-   "explain": "Two characters added together make a two-character string, not a sum - `+` between pieces of text joins them. The second line is the one that catches people: index 2 is the third character, because the counting started at zero.",
-   "xp": 24,
-   "hint": "Write the indexes above the letters: a is 0, n is 1, s is 2, u is 3, z is 4. Then read off what each expression asks for."
+   "explain": "Two single characters added together make a two-character piece of text rather than a sum, because `+` between text joins it. The second print is the one that catches people: index 2 is the third character, because the counting began at zero.",
+   "hint": "Write the indexes above the letters: a is 0, n is 1, s is 2, u is 3, z is 4. Then count backwards as well: z is -1, u is -2, s is -3, n is -4, a is -5.",
+   "xp": 24
   },
   {
-   "id": "py-9-g-02",
+   "id": "py-9-gp-02",
    "type": "fill",
    "layer": "retrieval",
    "prompt": "Fill the blanks so the program prints `cant` on the first line and `ation` on the second.",
@@ -231,11 +220,11 @@
     "slicing"
    ],
    "explain": "The same number 6 does two different jobs here: as a stop it is one past the last character taken, and as a start it is the first character taken. That is the half-open interval in a single program - the two slices meet at 6 and neither drop nor repeat a character.",
-   "xp": 24,
-   "hint": "Number the letters from zero: i0 n1 c2 a3 n4 t5 a6 t7 i8 o9 n10. Remember the stop index is excluded."
+   "hint": "Number the letters from zero: i0 n1 c2 a3 n4 t5 a6 t7 i8 o9 n10. The stop index is excluded.",
+   "xp": 24
   },
   {
-   "id": "py-9-g-03",
+   "id": "py-9-gp-03",
    "type": "output",
    "layer": "retrieval",
    "prompt": "What does this program print?",
@@ -249,18 +238,18 @@
    "tags": [
     "string-methods"
    ],
-   "explain": "Line 2 and line 5 both build new strings that nothing keeps, so `motto` is identical on the first and last lines of output. The tempting reading is that a method call is a command that modifies the value; it is an expression that produces one.",
-   "xp": 24,
-   "hint": "Ask of every method call: was the result stored anywhere, or used anywhere? If not, it changed nothing."
+   "explain": "Line 2 and line 5 both build new text that nothing keeps, so `motto` is identical on the first and the last line of output. The tempting reading is that a method call changes the value it is called on; it does not, and cannot, because that value is immutable.",
+   "hint": "Ask of every method call: was the result stored anywhere, or printed? If neither, it changed nothing at all.",
+   "xp": 24
   },
   {
-   "id": "py-9-g-04",
+   "id": "py-9-gp-04",
    "type": "debug",
    "layer": "application",
-   "prompt": "`capitalise_first(word)` should return the word with its first character in upper case and the rest untouched, and should return empty text unchanged. It raises `TypeError: 'str' object does not support item assignment`. Repair it.",
    "fn": "capitalise_first",
-   "starterCode": "def capitalise_first(word):\n    word[0] = word[0].upper()\n    return word\n",
-   "solution": "def capitalise_first(word):\n    return word[:1].upper() + word[1:]\n",
+   "prompt": "`capitalise_first(word)` should hand back the word with its first character in upper case and every other character untouched, and empty text unchanged.\n\nAs written it fails with `TypeError: 'str' object does not support item assignment` - it is trying to write a new character into the word it was given. Repair it so that it builds the answer instead.",
+   "starterCode": "def capitalise_first(word):\n    cut = 1\n    word[:cut] = word[:cut].upper()\n    return word\n",
+   "solution": "def capitalise_first(word):\n    cut = 1\n    return word[:cut].upper() + word[cut:]\n",
    "tests": [
     {
      "input": "'rune'",
@@ -277,6 +266,10 @@
     {
      "input": "'Rune'",
      "expected": "Rune"
+    },
+    {
+     "input": "'grim tome'",
+     "expected": "Grim tome"
     }
    ],
    "concepts": [
@@ -286,52 +279,52 @@
    "tags": [
     "immutability"
    ],
-   "explain": "No repair keeps the shape of the broken line, because assigning into a string is not something Python can do at all - the fix has to build a new string. Note that `word[0].upper() + word[1:]` passes three of the four tests and raises IndexError on the empty one; a one-character slice is empty rather than an error, which is what makes `word[:1]` the safer half of the pair.",
-   "xp": 60,
-   "hint": "You cannot change a character in place. Build the answer out of two pieces and add them together - and pick a first piece that survives an empty word."
+   "hint": "Nothing can be written into a string. Build the answer from two pieces - the first character in upper case, and everything from the second character onwards - and return that.",
+   "explain": "Empty text is the case that decides the shape: indexing the first character would raise IndexError on it, while a slice of empty text is simply empty and the `+` gives back nothing at all. The tempting repair is to reach for a method that upper-cases in place, and there is none, because immutability means every change is a new value.",
+   "xp": 60
   },
   {
-   "id": "py-9-g-05",
+   "id": "py-9-gp-05",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `ends(text)` returning the first and last characters of `text` stuck together. `ends(\"grimoire\")` is `\"ge\"`. Text of one character returns that character, and empty text returns empty text.",
-   "fn": "ends",
-   "starterCode": "def ends(text):\n    # guard the short cases first, then index both ends\n    pass\n",
-   "solution": "def ends(text):\n    if len(text) == 0:\n        return \"\"\n    if len(text) == 1:\n        return text\n    return text[0] + text[-1]\n",
+   "fn": "middle",
+   "prompt": "Write `middle(text)`, which returns the single character sitting exactly in the middle of `text`. You may assume the length of `text` is an odd number of at least one.\n\nFor `\"abc\"` the answer is `\"b\"`.",
+   "starterCode": "def middle(text):\n    # the middle position is worked out from the length\n    pass\n",
+   "solution": "def middle(text):\n    return text[len(text) // 2]\n",
    "tests": [
     {
-     "input": "'grimoire'",
-     "expected": "ge"
+     "input": "'abc'",
+     "expected": "b"
     },
     {
-     "input": "'ab'",
-     "expected": "ab"
+     "input": "'a'",
+     "expected": "a"
     },
     {
-     "input": "'x'",
-     "expected": "x"
+     "input": "'wizard!'",
+     "expected": "a"
     },
     {
-     "input": "''",
-     "expected": ""
+     "input": "'x y'",
+     "expected": " "
     }
    ],
    "concepts": [
-    "indexing"
+    "string-indexing"
    ],
    "tags": [
-    "indexing"
+    "string-indexing"
    ],
-   "explain": "`text[-1]` is the whole reason this stays short: without it you would write `text[len(text) - 1]` and get the minus one wrong sooner or later. The empty test is not decoration - `text[0]` on empty text raises IndexError, so the guard has to come before the indexing rather than after it.",
-   "xp": 60,
-   "hint": "`text[-1]` is the last character whatever the length. The one-character case needs its own answer, because otherwise the first and last character are the same one and it would appear twice."
+   "hint": "For text of length 7 the middle index is 3, and for length 1 it is 0. Whole-number division by 2 gives exactly that, and the result goes inside the square brackets.",
+   "explain": "Whole-number division is what makes this work: for length 7 there are three characters either side of index 3, and `7 // 2` is 3 rather than 3.5. Using `/` instead gives a float, and a float in square brackets raises TypeError - a position is counted, never measured.",
+   "xp": 60
   },
   {
-   "id": "py-9-g-06",
+   "id": "py-9-gp-06",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `mirror(text)` returning `text` followed immediately by the same text backwards. `mirror(\"ab\")` is `\"abba\"`. Reverse it with a slice that has a step, not with a loop.",
    "fn": "mirror",
+   "prompt": "Write `mirror(text)`, which returns `text` followed immediately by the same text backwards. `\"grim\"` becomes `\"grimmirg\"`, and empty text stays empty.",
    "starterCode": "def mirror(text):\n    # a slice can walk backwards\n    pass\n",
    "solution": "def mirror(text):\n    return text + text[::-1]\n",
    "tests": [
@@ -358,34 +351,34 @@
    "tags": [
     "slicing"
    ],
-   "explain": "`text[::-1]` leaves both ends blank and sets the step to -1, so it runs the whole thing backwards. `text[-1:0:-1]` is the near miss: it stops before index 0 and silently loses the first character, which the empty and one-character tests would not catch but `grim` does.",
-   "xp": 60,
-   "hint": "Leave the start and the stop of the slice empty and give it a step of -1."
+   "hint": "Leave both ends of the slice out and give it a step of -1. Then join the original and the backwards copy with `+`.",
+   "explain": "A step of -1 with both ends left out is the whole text walked from the back, and it costs one slice rather than a loop with a counter. Notice that nothing was reversed: `text` is exactly as it was, and a second, separate piece of text was built beside it.",
+   "xp": 60
   },
   {
-   "id": "py-9-g-07",
+   "id": "py-9-gp-07",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `tidy(name)` which returns `name` with blank space removed from both ends, put into lower case, and with every hyphen turned into a single space. `tidy(\"  Ada-Lovelace \")` is `\"ada lovelace\"`. Chain the string methods rather than writing a loop.",
    "fn": "tidy",
-   "starterCode": "def tidy(name):\n    # each method hands its result to the next\n    pass\n",
-   "solution": "def tidy(name):\n    return name.strip().lower().replace(\"-\", \" \")\n",
+   "prompt": "Write `tidy(name)`, which returns `name` with blank space removed from both ends, its first character in upper case and every other character in lower case.\n\n`\"  MERLIN \"` becomes `\"Merlin\"`, and text that is nothing but blank space becomes empty text.",
+   "starterCode": "def tidy(name):\n    # one method removes the blank space, another fixes the case\n    pass\n",
+   "solution": "def tidy(name):\n    return name.strip().capitalize()\n",
    "tests": [
     {
-     "input": "'  Ada-Lovelace '",
-     "expected": "ada lovelace"
+     "input": "'  MERLIN '",
+     "expected": "Merlin"
     },
     {
-     "input": "'PLAIN'",
-     "expected": "plain"
-    },
-    {
-     "input": "'a-b-c'",
-     "expected": "a b c"
+     "input": "'merlin'",
+     "expected": "Merlin"
     },
     {
      "input": "'   '",
      "expected": ""
+    },
+    {
+     "input": "'aLbUs pERCival'",
+     "expected": "Albus percival"
     }
    ],
    "concepts": [
@@ -394,133 +387,128 @@
    "tags": [
     "string-methods"
    ],
-   "explain": "The chain works because each method returns a new string for the next one to act on - nothing is modified along the way. The version that calls the three methods on separate lines without assigning anything looks almost identical and returns the original name untouched, which is the mistake this floor exists to make unmissable.",
-   "xp": 60,
-   "hint": "Three method calls in a row on one line: strip, then lower, then replace. `replace` takes what to look for first and what to put there second."
+   "hint": "`strip` hands back a new string, so the case method has to be called on that result rather than on the original. Two calls chain with a second dot.",
+   "explain": "The last test is the honest one: the method that fixes the first character also forces everything after it into lower case, so `pERCival` becomes `percival` and not `Percival`. It is one method with one behaviour, not a general title-caser, and choosing it means accepting what it does to the rest of the text.",
+   "xp": 60
   },
   {
-   "id": "py-9-g-08",
+   "id": "py-9-gp-08",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `summarise(csv_line)` which takes text holding pieces separated by commas and returns a summary line built with an f-string: the number of pieces, then ` items: `, then the pieces rejoined with ` | ` between them. `summarise(\"a,b,c\")` is `\"3 items: a | b | c\"`.",
-   "fn": "summarise",
-   "starterCode": "def summarise(csv_line):\n    parts = csv_line.split(\",\")\n    return f\"\"\n",
-   "solution": "def summarise(csv_line):\n    parts = csv_line.split(\",\")\n    return f\"{len(parts)} items: {' | '.join(parts)}\"\n",
+   "fn": "badge",
+   "prompt": "Write `badge(name, level, mana)`, which returns a single line of exactly this shape:\n\n`ELARA (level 7) 3.50 mana`\n\nThe name is shown in upper case, the level exactly as given, and the mana always with two decimal places.",
+   "starterCode": "def badge(name, level, mana):\n    # build the line as one piece of text, values dropped inside it\n    return \"\"\n",
+   "solution": "def badge(name, level, mana):\n    return f\"{name.upper()} (level {level}) {mana:.2f} mana\"\n",
    "tests": [
     {
-     "input": "'a,b,c'",
-     "expected": "3 items: a | b | c"
+     "input": "'elara', 7, 3.5",
+     "expected": "ELARA (level 7) 3.50 mana"
     },
     {
-     "input": "'x,y'",
-     "expected": "2 items: x | y"
+     "input": "'bo', 1, 0",
+     "expected": "BO (level 1) 0.00 mana"
     },
     {
-     "input": "'solo'",
-     "expected": "1 items: solo"
+     "input": "'', 12, 10.567",
+     "expected": " (level 12) 10.57 mana"
     },
     {
-     "input": "''",
-     "expected": "1 items: "
+     "input": "'Grim', 0, 100",
+     "expected": "GRIM (level 0) 100.00 mana"
     }
    ],
    "concepts": [
     "f-strings",
-    "split-and-join"
+    "string-methods"
    ],
    "tags": [
     "f-strings"
    ],
-   "explain": "The last test is the surprising one: cutting empty text at commas gives one piece, and that piece is empty, so the count is 1 rather than 0. Splitting never yields nothing - if the separator is absent you get the whole text back as a single piece, which is what the `solo` case shows.",
-   "xp": 60,
-   "hint": "Put the whole join expression inside the braces of the f-string. Use single quotes for the separator inside the braces so they do not close the double-quoted f-string."
+   "hint": "Put an `f` before the opening quote and write the fixed text out as it should appear, with each value in braces. Two decimal places is `{mana:.2f}`.",
+   "explain": "The whole number 0 has to come out as `0.00`, which is what the `.2f` is for - without it a whole number prints with no decimal point at all, so the line is wrong for exactly the values a test is most likely to try. The empty name is a reminder that the braces drop in whatever is there, including nothing, and the spacing around them is ordinary text either way.",
+   "xp": 60
   }
  ],
  "independent-practice": [
   {
-   "id": "py-9-i-01",
+   "id": "py-9-ip-01",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `initials(full_name)`. Given somebody's full name, return their initials: the first letter of each word in upper case, separated by full stops, with no full stop after the last one. `initials(\"ada byron lovelace\")` is `\"A.B.L\"`. Extra blank space anywhere in the name must not produce empty initials, and a name with no words at all returns empty text.",
    "fn": "initials",
-   "starterCode": "def initials(full_name):\n    pass\n",
-   "solution": "def initials(full_name):\n    out = \"\"\n    for part in full_name.split():\n        if out:\n            out = out + \".\"\n        out = out + part[0].upper()\n    return out\n",
+   "prompt": "Write `initials(full_name)`. A name arrives as exactly two words with a single space between them. Return the two initials in upper case, each followed by a full stop.\n\n`\"ada lovelace\"` gives `\"A.L.\"`",
+   "solution": "def initials(full_name):\n    gap = full_name.find(\" \")\n    first = full_name[:gap]\n    second = full_name[gap + 1:]\n    return first[:1].upper() + \".\" + second[:1].upper() + \".\"\n",
    "tests": [
     {
-     "input": "'ada byron lovelace'",
-     "expected": "A.B.L"
+     "input": "'ada lovelace'",
+     "expected": "A.L."
     },
     {
-     "input": "'  grace   hopper '",
-     "expected": "G.H"
+     "input": "'grace hopper'",
+     "expected": "G.H."
     },
     {
-     "input": "'solo'",
-     "expected": "S"
+     "input": "'x y'",
+     "expected": "X.Y."
     },
     {
-     "input": "''",
-     "expected": ""
+     "input": "'Alan Turing'",
+     "expected": "A.T."
     }
    ],
    "concepts": [
-    "split-and-join",
-    "indexing",
+    "string-indexing",
     "string-methods"
    ],
    "tags": [
-    "split-and-join"
+    "string-indexing"
    ],
-   "explain": "The separator goes between the initials, never after the last one, so adding a full stop each time round and trimming the end afterwards is the fiddly route. Adding the separator only when there is already something to separate from needs no cleanup at all, and it is the same reasoning that makes gluing pieces back together the natural fit here.",
+   "explain": "Everything turns on locating the space, because the second word begins one position after it and at no fixed index. `\"x y\"` is the case that punishes a hard-coded position: it comes out right only if the second initial is found relative to the gap rather than at index 2 by luck.",
    "xp": 60
   },
   {
-   "id": "py-9-i-02",
+   "id": "py-9-ip-02",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `redact(text, secret)`. Every appearance of `secret` inside `text` must come back replaced by a row of asterisks of the same length, so the line keeps its width. `redact(\"my code is 1234\", \"1234\")` is `\"my code is ****\"`. If the secret does not appear, the text comes back unchanged.",
    "fn": "redact",
-   "starterCode": "def redact(text, secret):\n    pass\n",
+   "prompt": "Write `redact(text, secret)`. Every appearance of `secret` inside `text` must come back as a run of asterisks of exactly the same length, and everything else must be untouched.\n\n`redact(\"the code is swordfish\", \"swordfish\")` gives `\"the code is *********\"`. You may assume `secret` is not empty.",
    "solution": "def redact(text, secret):\n    return text.replace(secret, \"*\" * len(secret))\n",
    "tests": [
     {
-     "input": "'my code is 1234', '1234'",
-     "expected": "my code is ****"
+     "input": "'the code is swordfish', 'swordfish'",
+     "expected": "the code is *********"
     },
     {
-     "input": "'nothing here', 'xyz'",
-     "expected": "nothing here"
+     "input": "'no secret here', 'dragon'",
+     "expected": "no secret here"
     },
     {
      "input": "'aaa', 'a'",
      "expected": "***"
     },
     {
-     "input": "'', 'abc'",
-     "expected": ""
+     "input": "'swordfish and swordfish', 'swordfish'",
+     "expected": "********* and *********"
     }
    ],
    "concepts": [
-    "string-methods",
-    "immutability"
+    "string-methods"
    ],
    "tags": [
     "string-methods"
    ],
-   "explain": "The third test rules out finding the secret once and rebuilding round that position - every appearance has to go, and there are three of them. `\"*\" * len(secret)` is repetition of text by a number, which is what keeps the replacement the original width instead of collapsing it to a single star.",
+   "explain": "`*` between a piece of text and a number repeats that text, which is how a mask of the right length is built without counting anything by hand. The second case is the one that catches an answer assuming the secret is present: the swap must simply do nothing when there is nothing to swap, and it does.",
    "xp": 60
   },
   {
-   "id": "py-9-i-03",
+   "id": "py-9-ip-03",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `is_palindrome(text)` returning `True` when `text` reads the same forwards and backwards once spaces are ignored and case is disregarded, and `False` otherwise. `is_palindrome(\"Never odd or even\")` is `True`. Text with nothing in it counts as a palindrome.",
    "fn": "is_palindrome",
-   "starterCode": "def is_palindrome(text):\n    pass\n",
-   "solution": "def is_palindrome(text):\n    cleaned = text.replace(\" \", \"\").lower()\n    return cleaned == cleaned[::-1]\n",
+   "prompt": "Write `is_palindrome(text)`, returning `True` when `text` reads the same forwards and backwards once spaces are ignored and upper and lower case count as the same, and `False` otherwise. Empty text counts as a palindrome.\n\n`\"A man a plan a canal Panama\"` is `True`.",
+   "solution": "def is_palindrome(text):\n    cleaned = \"\"\n    for character in text:\n        if character != \" \":\n            cleaned += character.lower()\n    return cleaned == cleaned[::-1]\n",
    "tests": [
     {
-     "input": "'Never odd or even'",
+     "input": "'never odd or even'",
      "expected": true
     },
     {
@@ -528,84 +516,52 @@
      "expected": false
     },
     {
-     "input": "'Was it a car or a cat I saw'",
+     "input": "''",
      "expected": true
     },
     {
-     "input": "''",
+     "input": "'A man a plan a canal Panama'",
      "expected": true
+    },
+    {
+     "input": "'ab'",
+     "expected": false
     }
    ],
    "concepts": [
     "slicing",
-    "string-methods"
+    "string-methods",
+    "string-indexing"
    ],
    "tags": [
     "slicing"
    ],
-   "explain": "Cleaning first and comparing once is far less error-prone than walking two positions towards each other, because the walking version has to skip spaces on both sides at the same time and its stopping condition is easy to get wrong. Comparing the cleaned text with its own reverse is a single expression with no boundary left to misjudge.",
+   "explain": "The cleaning has to happen before the comparison, because comparing `\"A man a plan\"` with itself backwards fails on the capital letter and the spaces long before the letters disagree. Building a cleaned copy is the only option available: text cannot be edited in place, so the tidied version has to live somewhere new.",
    "xp": 60
   },
   {
-   "id": "py-9-i-04",
+   "id": "py-9-ip-04",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `field(line, n)`. `line` holds pieces separated by commas, and `n` says which piece is wanted, counting the first as 0. Return that piece with any blank space at its ends removed. If `n` names a piece that is not there - including a negative `n` - return empty text. `field(\"a, b ,c\", 1)` is `\"b\"`.",
-   "fn": "field",
-   "starterCode": "def field(line, n):\n    pass\n",
-   "solution": "def field(line, n):\n    parts = line.split(\",\")\n    if n < 0 or n >= len(parts):\n        return \"\"\n    return parts[n].strip()\n",
+   "fn": "tail",
+   "prompt": "Write `tail(text, mark)`. `mark` is a single character. Return everything that comes after the last appearance of `mark` in `text`, and the whole of `text` when `mark` never appears at all.\n\n`tail(\"chapter/one/rune\", \"/\")` gives `\"rune\"`.",
+   "solution": "def tail(text, mark):\n    at = text.rfind(mark)\n    return text[at + 1:]\n",
    "tests": [
     {
-     "input": "'a, b ,c', 1",
-     "expected": "b"
+     "input": "'chapter/one/rune', '/'",
+     "expected": "rune"
     },
     {
-     "input": "'a,b', 5",
+     "input": "'rune', '/'",
+     "expected": "rune"
+    },
+    {
+     "input": "'a/b/', '/'",
      "expected": ""
     },
     {
-     "input": "'a,b', -1",
-     "expected": ""
-    },
-    {
-     "input": "'  solo  ', 0",
-     "expected": "solo"
-    }
-   ],
-   "concepts": [
-    "split-and-join",
-    "indexing"
-   ],
-   "tags": [
-    "split-and-join"
-   ],
-   "explain": "The negative test is the trap. Python is perfectly happy with position -1 and would hand back the last piece, so the guard has to reject negatives explicitly - a check that only asks whether `n` is too large passes three tests and quietly returns the wrong answer on the fourth.",
-   "xp": 60
-  },
-  {
-   "id": "py-9-i-05",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `title_line(heading)` returning `heading` with blank space at the ends removed, each word's first letter in upper case and the rest of each word in lower case, and exactly one space between words. `title_line(\"  the SERPENT's ascent \")` is `\"The Serpent's Ascent\"`.",
-   "fn": "title_line",
-   "starterCode": "def title_line(heading):\n    pass\n",
-   "solution": "def title_line(heading):\n    out = \"\"\n    for word in heading.split():\n        if out:\n            out = out + \" \"\n        out = out + word[:1].upper() + word[1:].lower()\n    return out\n",
-   "tests": [
-    {
-     "input": "\"  the SERPENT's ascent \"",
-     "expected": "The Serpent's Ascent"
-    },
-    {
-     "input": "'solo'",
-     "expected": "Solo"
-    },
-    {
-     "input": "'a  b'",
-     "expected": "A B"
-    },
-    {
-     "input": "''",
-     "expected": ""
+     "input": "'//x', '/'",
+     "expected": "x"
     }
    ],
    "concepts": [
@@ -615,43 +571,79 @@
    "tags": [
     "string-methods"
    ],
-   "explain": "Python has a built-in `title` method and it fails the first test, returning `The Serpent'S Ascent` - it treats the apostrophe as a word boundary and raises the letter after it. That is why the first test carries an apostrophe: the shortest answer here is the wrong one, and only a test that knows where it breaks will say so.",
+   "explain": "Searching from the left gives `\"one/rune\"` for the first case, so the direction of the search is the whole problem. There is a small piece of luck worth noticing rather than depending on: a failed search reports -1, and one past -1 is 0, so the missing-mark case falls out of the same expression instead of needing its own branch.",
    "xp": 60
   },
   {
-   "id": "py-9-i-06",
+   "id": "py-9-ip-05",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `describe(word)` returning a single line of exactly this shape: `grimoire has 8 letters, from g to e`. The number is the letter count, and the two single letters are the first and the last of the word. If the word is empty, return `empty` instead.",
-   "fn": "describe",
-   "starterCode": "def describe(word):\n    pass\n",
-   "solution": "def describe(word):\n    if word == \"\":\n        return \"empty\"\n    return f\"{word} has {len(word)} letters, from {word[0]} to {word[-1]}\"\n",
+   "fn": "receipt_line",
+   "prompt": "Write `receipt_line(item, count, price)`, which returns one line of exactly this shape:\n\n`candle x3 = 13.50`\n\nThe number after the `x` is the count, and the amount at the end is the count times the price, always shown with two decimal places.",
+   "solution": "def receipt_line(item, count, price):\n    return f\"{item} x{count} = {count * price:.2f}\"\n",
    "tests": [
     {
-     "input": "'grimoire'",
-     "expected": "grimoire has 8 letters, from g to e"
+     "input": "'candle', 3, 4.5",
+     "expected": "candle x3 = 13.50"
     },
     {
-     "input": "'x'",
-     "expected": "x has 1 letters, from x to x"
+     "input": "'rune', 1, 0.5",
+     "expected": "rune x1 = 0.50"
     },
     {
-     "input": "'ab'",
-     "expected": "ab has 2 letters, from a to b"
+     "input": "'tome', 0, 9.99",
+     "expected": "tome x0 = 0.00"
     },
     {
-     "input": "''",
-     "expected": "empty"
+     "input": "'oil', 2, 3.333",
+     "expected": "oil x2 = 6.67"
     }
    ],
    "concepts": [
-    "f-strings",
-    "indexing"
+    "f-strings"
    ],
    "tags": [
     "f-strings"
    ],
-   "explain": "Building this line by adding pieces together fails on the count, because a number cannot be added to text - it would need converting by hand at exactly the point where the line is already hardest to read. The one-letter test also shows why the empty case needs a branch of its own rather than a clever slice: with no letters there is no first and no last to name.",
+   "explain": "The last case shows that two decimal places is a rounding of the true total rather than a truncation of it: 6.666 is reported as 6.67. A count of zero is the other edge worth having, because a total of nothing must still be shown as `0.00` if the line is to sit squarely under every other line on the receipt.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "shorten",
+   "prompt": "Write `shorten(text, limit)`. When `text` is no longer than `limit` characters, return it exactly as it is. When it is longer, return its first `limit` characters with `...` on the end.\n\n`shorten(\"grimoire\", 4)` gives `\"grim...\"`.",
+   "solution": "def shorten(text, limit):\n    if len(text) <= limit:\n        return text\n    return text[:limit] + \"...\"\n",
+   "tests": [
+    {
+     "input": "'grimoire', 4",
+     "expected": "grim..."
+    },
+    {
+     "input": "'rune', 4",
+     "expected": "rune"
+    },
+    {
+     "input": "'rune', 10",
+     "expected": "rune"
+    },
+    {
+     "input": "'', 3",
+     "expected": ""
+    },
+    {
+     "input": "'abcde', 0",
+     "expected": "..."
+    }
+   ],
+   "concepts": [
+    "slicing"
+   ],
+   "tags": [
+    "slicing"
+   ],
+   "explain": "Text of exactly `limit` characters has to come back untouched, which is why the comparison must allow equality - `<` in place of `<=` hangs a needless `...` on text that fitted perfectly. A limit of 0 is the other end of the same idea: the cut is empty and the marker is all that survives.",
    "xp": 60
   }
  ],
@@ -662,19 +654,19 @@
    "layer": "retrieval",
    "prompt": "A Python string is **immutable**. Which of these is what that word means?",
    "choices": [
-    "Its characters cannot be read once it has been created.",
-    "No operation can alter the characters of an existing string; anything that looks like a change produces a new string instead.",
-    "It cannot be stored under more than one name at a time.",
-    "It can hold letters but never digits or punctuation."
+    "Once a string exists, no operation can alter it; every change produces a new string.",
+    "A string cannot be passed to a function, only copied into one.",
+    "A string cannot be compared with another string using `==`.",
+    "A string cannot contain a character that already appears in it."
    ],
-   "answer": 1,
+   "answer": 0,
    "concepts": [
     "immutability"
    ],
    "tags": [
     "immutability"
    ],
-   "explain": "Immutability is about writing, not reading, and the first option confuses the two. The point is that every method appears to change the text and in fact returns a fresh one, which is why forgetting to keep the result is such a common and silent bug.",
+   "explain": "Immutability is a fact about the value, not about what may be done with a name: `name = name.upper()` is perfectly legal because it points the name at a new string, while `name[0] = \"A\"` is not, because it asks the existing string to change. The second option is the usual confusion, mixing immutability up with how arguments are passed.",
    "xp": 12
   },
   {
@@ -686,7 +678,7 @@
     "2, 3 and 4",
     "2, 3, 4 and 5",
     "3, 4 and 5",
-    "only 2 and 5"
+    "2 and 5 only"
    ],
    "answer": 0,
    "concepts": [
@@ -695,7 +687,7 @@
    "tags": [
     "slicing"
    ],
-   "explain": "The stop is excluded, so the result holds 5 - 2 = 3 characters. The second option is the intuitive guess from everyday language, where 'two to five' includes five, and it is why so many slices come out one character too long on the first attempt.",
+   "explain": "The interval is half-open: the start is included and the stop excluded, so three characters come back and the length is 5 - 2. The second option is the natural reading of English rather than of Python, and this is the same convention `range(2, 5)` uses, which is why the two were taught as one idea.",
    "xp": 12
   },
   {
@@ -703,17 +695,16 @@
    "type": "output",
    "layer": "retrieval",
    "prompt": "What does this program print?",
-   "code": "word = \"sigil\"\nprint(word[1:4])\nprint(word[::-1])\nprint(word[-2])\nprint(word[7:9] + \"end\")",
+   "code": "word = \"grimoire\"\ncut = 4\nprint(word[:cut])\nprint(word[cut:])\nprint(word[-3:])\nprint(word[::-1])\nprint(word[cut:cut] + \"!\")",
    "lang": "python",
-   "answer": "igi\nligis\ni\nend",
+   "answer": "grim\noire\nire\neriomirg\n!",
    "concepts": [
-    "slicing",
-    "indexing"
+    "slicing"
    ],
    "tags": [
     "slicing"
    ],
-   "explain": "The last line is the one worth pausing on: `word[7]` would raise IndexError, but the slice `word[7:9]` is simply empty, so adding `end` to it prints `end` on its own. Slicing forgives out-of-range positions; indexing does not.",
+   "explain": "The last line is the one to think about: a slice whose start and stop are the same is empty rather than one character long, and it does not raise. That forgiveness is the difference between slicing and indexing, and it is why a slice is the safer tool when the numbers are worked out rather than typed.",
    "xp": 24
   },
   {
@@ -721,27 +712,27 @@
    "type": "output",
    "layer": "retrieval",
    "prompt": "What does this program print?",
-   "code": "raw = \"north::south::east\"\nparts = raw.split(\"::\")\nprint(parts)\nprint(len(parts))\nprint(\"/\".join(parts))\nprint(\"-\".join(\"ab\"))",
+   "code": "name = \"elara\"\nmana = 7\ncost = 2.5\nprint(f\"{name.title()} has {mana} mana\")\nprint(f\"{name.upper()}: {mana * cost:.2f}\")\nprint(f\"{len(name)} letters, last is {name[-1]}\")",
    "lang": "python",
-   "answer": "['north', 'south', 'east']\n3\nnorth/south/east\na-b",
+   "answer": "Elara has 7 mana\nELARA: 17.50\n5 letters, last is a",
    "concepts": [
-    "split-and-join"
+    "f-strings",
+    "string-methods"
    ],
    "tags": [
-    "split-and-join"
+    "f-strings"
    ],
-   "explain": "A separator can be longer than one character, so `::` cuts at each pair rather than at each colon - cutting on a single colon would give five pieces, two of them empty. The last line catches most people: gluing a piece of text walks its characters, so `ab` becomes `a-b`.",
+   "explain": "Braces hold whole expressions, so the method call, the multiplication and the `len` are all worked out before the line is built. The `.2f` turns 17.5 into `17.50`, which is the detail most people leave out when predicting this by eye.",
    "xp": 24
   },
   {
    "id": "py-9-x-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the three blanks with method names so the program prints `rune stone`.",
-   "template": "raw = \"  RUNE-STONE  \"\nprint(raw.___().___().___(\"-\", \" \"))",
+   "prompt": "Fill the blanks with method names so the program prints `fire bolt` with no blank space at either end. The first blank takes no arguments; the second takes the two shown.",
+   "template": "spell = \"  fire BOLT  \"\nprint(spell.___().___(\"BOLT\", \"bolt\"))",
    "blanks": [
     "strip",
-    "lower",
     "replace"
    ],
    "concepts": [
@@ -750,20 +741,20 @@
    "tags": [
     "string-methods"
    ],
-   "explain": "Each method hands its new string to the next, which is only possible because none of them modifies `raw`. The order of the first two does not matter here, but the two arguments to the last one do: `replace` takes what to look for first and what to put in its place second.",
+   "explain": "Each method hands back a new string, which is exactly what lets the next dot attach to the result rather than to the original. A chain reads left to right in the order the work happens, and neither call touches `spell` itself.",
    "xp": 24
   },
   {
    "id": "py-9-x-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Put these lines in order to make a working `last_word(sentence)` that returns the final word of a sentence in upper case, and empty text when there are no words.",
+   "prompt": "Put these lines in order to make a working `initial_dot(name)` that returns the first character of a name in upper case followed by a full stop, and empty text when the name is nothing but blank space.",
    "fragments": [
-    "    return words[-1].upper()",
-    "def last_word(sentence):",
+    "    return tidy[:1].upper() + \".\"",
+    "def initial_dot(name):",
     "        return \"\"",
-    "    words = sentence.split()",
-    "    if not words:"
+    "    tidy = name.strip()",
+    "    if tidy == \"\":"
    ],
    "answer": [
     1,
@@ -773,13 +764,13 @@
     0
    ],
    "concepts": [
-    "split-and-join",
-    "indexing"
+    "string-methods",
+    "slicing"
    ],
    "tags": [
-    "indexing"
+    "string-methods"
    ],
-   "explain": "The guard has to sit after the cutting and before the indexing, because it is the cut-up result that might be empty and the indexing that would fail on it. Putting the guard first would test the sentence rather than the words, and a sentence of nothing but spaces would slip past it straight into an IndexError.",
+   "explain": "The guard has to sit after the tidying and before the slicing, because it is the tidied text that might be empty and a name of pure blank space is not empty until it has been stripped. Testing `name` instead of `tidy` would let three spaces walk straight through to the end.",
    "xp": 24
   },
   {
@@ -808,80 +799,117 @@
    "tags": [
     "immutability"
    ],
-   "explain": "The line is not wrong so much as pointless: it builds the stripped text correctly and then throws it away, because nothing catches the result. This is the everyday consequence of immutability - `name = name.strip()` is the fix, and the same shape applies to every method on this floor.",
+   "explain": "The line is not wrong so much as pointless: it builds the stripped text correctly and then throws it away, because nothing catches the result. This is the everyday consequence of immutability, and `name = name.strip()` is the fix - the same shape that every method on this floor needs.",
    "xp": 24
   },
   {
    "id": "py-9-x-08",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `slugify(title)` returning `title` in lower case with the blank space at its ends removed and every run of spaces between words turned into a single hyphen. `slugify(\"  The Serpent's Ascent \")` is `\"the-serpent's-ascent\"`.",
    "fn": "slugify",
+   "prompt": "Write `slugify(title)`, which returns `title` with blank space removed from both ends, every letter in lower case, and each remaining space turned into a hyphen. You may assume the words inside the title are separated by exactly one space.\n\n`\"  The Grey Tome \"` gives `\"the-grey-tome\"`.",
    "starterCode": "def slugify(title):\n    pass\n",
-   "solution": "def slugify(title):\n    return \"-\".join(title.lower().split())\n",
+   "solution": "def slugify(title):\n    return title.strip().lower().replace(\" \", \"-\")\n",
    "tests": [
     {
-     "input": "\"  The Serpent's Ascent \"",
-     "expected": "the-serpent's-ascent"
+     "input": "\"  The Grey Tome \"",
+     "expected": "the-grey-tome"
     },
     {
      "input": "'One'",
      "expected": "one"
     },
     {
-     "input": "'a   b  c'",
-     "expected": "a-b-c"
-    },
-    {
      "input": "''",
      "expected": ""
+    },
+    {
+     "input": "'Fire Bolt II'",
+     "expected": "fire-bolt-ii"
     }
    ],
    "concepts": [
-    "split-and-join",
     "string-methods"
    ],
    "tags": [
-    "split-and-join"
+    "string-methods"
    ],
-   "explain": "Replacing every space with a hyphen passes the first two tests and fails the third, turning a run of three spaces into three hyphens. Cutting the text into words and gluing them back gets runs of space right for free, because the cutting has already discarded them.",
+   "hint": "Three method calls, chained: one for the ends, one for the case, one for the spaces. The order of the first two does not matter, but the stripping must happen before the spaces are swapped.",
+   "explain": "Swapping the spaces before stripping the ends is the trap: the outer spaces would become hyphens and the answer would be `-the-grey-tome-`. Chaining works at all only because each call hands back a new string for the next one to work on, which is immutability being useful rather than awkward.",
    "xp": 60
   },
   {
    "id": "py-9-x-09",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `initial_and_surname(full_name)` returning a name in the shape `A. Lovelace` - the first word reduced to its opening letter in upper case followed by a full stop and a space, then the last word with its first letter in upper case and the rest of it unchanged. A single word comes back with just its first letter raised, and a name with no words at all returns empty text.",
    "fn": "initial_and_surname",
+   "prompt": "Write `initial_and_surname(full_name)`. The name arrives as exactly two words with a single space between them. Return the first initial in upper case, a full stop, a space, then the surname with its first character in upper case and the rest of it as it was.\n\n`\"ada lovelace\"` gives `\"A. Lovelace\"`.",
    "starterCode": "def initial_and_surname(full_name):\n    pass\n",
-   "solution": "def initial_and_surname(full_name):\n    parts = full_name.split()\n    if not parts:\n        return \"\"\n    if len(parts) == 1:\n        return parts[0][:1].upper() + parts[0][1:]\n    last = parts[-1]\n    return f\"{parts[0][0].upper()}. {last[:1].upper()}{last[1:]}\"\n",
+   "solution": "def initial_and_surname(full_name):\n    cut = 1\n    gap = full_name.find(\" \")\n    first = full_name[:gap]\n    surname = full_name[gap + 1:]\n    return first[:cut].upper() + \". \" + surname[:cut].upper() + surname[cut:]\n",
    "tests": [
     {
      "input": "'ada lovelace'",
      "expected": "A. Lovelace"
     },
     {
-     "input": "'grace brewster hopper'",
+     "input": "'grace hopper'",
      "expected": "G. Hopper"
     },
     {
-     "input": "'cher'",
-     "expected": "Cher"
+     "input": "'x y'",
+     "expected": "X. Y"
     },
     {
-     "input": "'   '",
-     "expected": ""
+     "input": "'ALAN turing'",
+     "expected": "A. Turing"
     }
    ],
    "concepts": [
-    "f-strings",
-    "indexing",
-    "split-and-join"
+    "string-indexing",
+    "slicing",
+    "string-methods"
    ],
    "tags": [
-    "f-strings"
+    "string-indexing"
    ],
-   "explain": "The middle name in the second test is the point: taking the second word rather than the last one passes the first test and fails this one. Position -1 says what is actually meant - the final word - without needing to know how many words there are.",
+   "hint": "Find the space first: the surname starts one position after it. The surname is then its first character upper-cased, joined to everything from its second character onwards.",
+   "explain": "The last case decides whether the surname was upper-cased wholesale or one character at the front: only the first is touched, so `turing` becomes `Turing` while `ALAN` contributes nothing but its `A`. A surname of one character is the other edge, and it survives because the rest of it is an empty slice rather than an error.",
+   "xp": 60
+  },
+  {
+   "id": "py-9-x-10",
+   "type": "debug",
+   "layer": "application",
+   "fn": "between",
+   "prompt": "`between(text, start, stop)` should return the characters of `text` from position `start` up to but not including position `stop`, so `between(\"grimoire\", 0, 4)` is `\"grim\"`.\n\nIt is returning one character too few. Repair it.",
+   "starterCode": "def between(text, start, stop):\n    return text[start:stop - 1]\n",
+   "solution": "def between(text, start, stop):\n    return text[start:stop]\n",
+   "tests": [
+    {
+     "input": "'grimoire', 0, 4",
+     "expected": "grim"
+    },
+    {
+     "input": "'grimoire', 4, 8",
+     "expected": "oire"
+    },
+    {
+     "input": "'rune', 1, 1",
+     "expected": ""
+    },
+    {
+     "input": "'rune', 0, 4",
+     "expected": "rune"
+    }
+   ],
+   "concepts": [
+    "slicing"
+   ],
+   "tags": [
+    "slicing"
+   ],
+   "hint": "The stop of a slice is already excluded. Ask what the extra subtraction is correcting for, and whether anything needed correcting.",
+   "explain": "The subtraction was written by somebody guarding against an off-by-one that Python had already handled: the stop is excluded by the language, so taking one more away excludes two. The third case is where the mistaken version becomes visibly absurd rather than merely short, since an empty range turns into a backwards one.",
    "xp": 60
   }
  ]
