@@ -1,154 +1,137 @@
 {
  "n": 4,
- "name": "Vault of Collections",
- "concepts": [
-  "lists",
-  "list-methods",
-  "loops"
- ],
+ "name": "The Hall of Forking Ways",
+ "goal": "Direct a program down different paths using conditions, and predict which path runs.",
+ "stage": 1,
  "cognitiveLevel": "recall",
- "sequence": [
-  "lesson",
-  "guided-practice",
-  "challenge-set",
-  "exam"
+ "requires": [{ "dungeon": "python", "floor": 3 }],
+ "description": {
+  "what": "How a program asks a yes-or-no question about a value and then does something different depending on the answer.",
+  "why": "Every program that is worth writing behaves differently in different situations - a price that depends on age, a message that depends on whether anything was found - and a condition is the only way to say so.",
+  "enables": "Write a program that chooses between several outcomes, combine several questions into one, and say in advance which branch a given value will take.",
+  "assumes": "You can write and run a small program, store a value under a name, and work out the value and type of an expression by hand.",
+  "assessed": "You will predict what branching programs print, repair ones that branch wrongly, and write programs that pick their own path from a stated set of rules."
+ },
+ "concepts": [
+  "booleans",
+  "comparison-operators",
+  "if-elif-else",
+  "boolean-operators",
+  "truthiness",
+  "nested-conditions",
+  "indentation"
  ],
+ "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
  "lesson": {
-  "title": "The Vault of Collections",
   "sections": [
    {
-    "title": "A Row of Boxes",
-    "body": "A **list** is an ordered row of values written in square brackets, and it can hold anything - numbers, strings, even other lists.\n\nEach slot has an **index** counting from `0`, while negative indices count backwards from the end, so `xs[-1]` is always the last item.\n\nA **slice** `xs[start:stop]` copies out a new list running from `start` up to but not including `stop`, and `len(xs)` reports how many items the list holds.\n\nThe `in` operator asks whether a value sits somewhere in the list and answers `True` or `False`.",
-    "code": "loot = [\"sword\", \"torch\", \"rope\", \"gem\"]\nprint(loot[0], loot[-1])\nprint(loot[1:3])\nprint(len(loot))\nprint(\"rope\" in loot)",
+    "title": "A condition is an expression that answers yes or no",
+    "body": "Python has a type whose values are answers to questions. It is called **bool**, and it has exactly two values, written `True` and `False` - capital letter, no quotation marks. `True` is not the same thing as the piece of text `\"True\"`, and mixing the two up is the first mistake almost everybody makes.\n\nYou produce a bool by **comparing** two values. There are six comparison operators: `==` is equal to, `!=` is not equal to, `<` less than, `>` greater than, `<=` less than or equal to, `>=` greater than or equal to. Note the doubled `==`. A single `=` gives a name to a value, which is a completely different act, and Python will refuse the program rather than guess which you meant.\n\nThe important idea is that a comparison is an ordinary expression, exactly like `3 + 4`. It is worked out down to a single value before anything else happens to it, so you may print it, store it under a name, or hand it to the `if` you will meet in the next section. Python also lets you chain comparisons: `1 < x < 10` means what it looks like it means, and is worked out as both halves being true at once.\n\nOne warning that costs people real hours. Numbers with a decimal point are stored as approximations, so `0.1 + 0.2` is very slightly not `0.3` and `==` reports `False`. Comparing two such numbers for exact equality is nearly always the wrong test; ask instead whether the gap between them is small enough to ignore.",
+    "code": "temperature = 4\nfreezing = temperature < 0\nprint(freezing)\nprint(temperature == 4)\nprint(0.1 + 0.2 == 0.3)\nprint(1 < temperature < 10)",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "Index 0 is the first slot and -1 is the last, so you never need len(loot) - 1 to reach the end."
-     },
-     {
-      "line": 3,
-      "text": "The slice stops before index 3, so you get items 1 and 2 only - two items, not three."
-     },
-     {
-      "line": 5,
-      "text": "`in` searches by value and gives back a bool, not a position."
-     }
+     { "line": 2, "text": "The comparison is worked out first and produces a bool; `freezing` now refers to `False` in the same way a name could refer to `7` or to a piece of text. Nothing here is a question waiting to be asked later - it is an answer, already computed." },
+     { "line": 5, "text": "This prints `False`, and the program is not wrong. `0.1 + 0.2` is stored as 0.30000000000000004, so exact equality genuinely fails. This is the single commonest surprise with decimal numbers in every language, not a quirk of Python." },
+     { "line": 6, "text": "A chained comparison. Python reads it as `1 < temperature` and `temperature < 10` both holding, which is the mathematical reading. Most languages do not allow this and would give you nonsense instead." }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "runes = [\"ehwaz\", \"sowilo\", \"tiwaz\", \"berkano\"]\nprint(runes[2])\nprint(runes[-2])\nprint(runes[:2])",
+     "prompt": "What does this program print?",
+     "code": "x = 5\nprint(x != 5)\nprint(x >= 5)",
      "lang": "python",
-     "answer": "tiwaz\ntiwaz\n['ehwaz', 'sowilo']",
-     "concepts": [
-      "lists"
-     ],
-     "explain": "In a four-item list, counting 2 forward and 2 backward lands on the same slot - that is why `xs[-1]` and `xs[len(xs) - 1]` are interchangeable. A single index hands back the bare value, but a slice always hands back a list, even a one-item one."
+     "answer": "False\nTrue",
+     "concepts": ["booleans", "comparison-operators"],
+     "tags": ["comparison-operators"],
+     "explain": "`x != 5` asks whether they differ, and they do not, so it is `False`. `x >= 5` succeeds on the equal case, which is exactly the difference between `>` and `>=` - and the boundary where most off-by-one faults live.",
+     "xp": 20
     }
    },
    {
-    "title": "Reshaping the Row",
-    "body": "Lists are **mutable**, so the methods below change the list you already have instead of handing you a new one.\n\n`append(x)` adds to the end, `insert(i, x)` pushes an item in at index `i`, `pop()` removes **and returns** the last item (or the item at an index you pass it), and `remove(x)` deletes the first occurrence of a value.\n\n`sort()` and `reverse()` also rearrange in place and evaluate to `None`, which is why `xs = xs.sort()` destroys your data - `sorted(xs)` is the version that leaves the original alone and returns a new list.\n\nBecause `remove(x)` raises `ValueError` when the value is absent, check `x in xs` first.",
-    "code": "stack = [3, 1, 2]\nstack.append(4)\nstack.insert(0, 9)\nprint(stack)\n\ntaken = stack.pop()\nstack.remove(1)\nprint(taken, stack)\n\nprint(sorted(stack))\nstack.sort()\nstack.reverse()\nprint(stack)",
+    "title": "if, elif, else - and the indentation that makes them real",
+    "body": "`if` takes a condition and a block of statements indented beneath it, and runs that block only when the condition is `True`. `else` takes a block that runs when it was `False`. `elif` - short for \"else if\" - lets you test a further condition only when every condition above it has already failed.\n\nA chain runs **at most one** branch. Python tests the conditions from the top and stops dead at the first one that is `True`, never looking at the rest. That is why `elif` is not the same as writing a second `if`: two separate `if` statements are two independent decisions and both blocks can run, while an `if`/`elif` chain is one decision with several possible outcomes. If your branches overlap, the order you write them in is part of the logic.\n\nIndentation is not tidiness in Python; it is the syntax that says what belongs to the branch. Four spaces is the convention. A line indented under the `if` runs only when the condition holds, and the same line moved back out to the left runs every time. Changing the indentation of a line changes the meaning of the program, silently and completely.\n\nFrom here on, some exercises ask you for a **function**: a named recipe, written `def price(age):`, that is handed a value - here called `age` - and uses `return` to hand an answer back to whoever asked. Floor 7 teaches functions properly. For now, read `def` as \"here is a recipe with a name\", and `return` as \"this is the answer, stop here\".",
+    "code": "def ticket(age):\n    if age < 5:\n        return \"free\"\n    elif age < 18:\n        return \"child\"\n    else:\n        return \"adult\"\n\nprint(ticket(3))\nprint(ticket(17))\nprint(ticket(18))",
     "lang": "python",
     "annotations": [
-     {
-      "line": 3,
-      "text": "insert(0, 9) pushes 9 onto the front and shifts everything else right one slot."
-     },
-     {
-      "line": 6,
-      "text": "pop is the one mutating method that hands the removed item back to you."
-     },
-     {
-      "line": 10,
-      "text": "sorted() builds a new list; stack itself is still [9, 3, 2] on the next line."
-     }
+     { "line": 4, "text": "`age < 18` is only ever tested when `age < 5` has already failed, so this branch quietly means \"between 5 and 17\". Written as a separate `if`, it would also catch a 3-year-old and the order of the branches would stop protecting you." },
+     { "line": 6, "text": "`else` carries no condition because it cannot fail: it is everything the branches above did not catch. Every value of `age` therefore reaches exactly one `return`, which is what makes this recipe total rather than sometimes silent." },
+     { "line": 11, "text": "18 is not less than 18, so both conditions fail and the `else` runs. Boundary values like this one are where branching code is worth testing first, not last." }
     ],
     "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "nums = [5, 2, 9]\nprint(nums.sort())\nprint(nums)",
-     "lang": "python",
-     "answer": "None\n[2, 5, 9]",
-     "concepts": [
-      "list-methods"
+     "type": "code",
+     "layer": "application",
+     "fn": "sign_word",
+     "prompt": "Write `sign_word(n)`. It returns the text `\"positive\"` when `n` is greater than zero, `\"negative\"` when `n` is less than zero, and `\"zero\"` when it is neither.",
+     "starterCode": "def sign_word(n):\n    if n > 0:\n        return \"positive\"\n    # two more cases to go\n",
+     "tests": [
+      { "input": "5", "expected": "positive" },
+      { "input": "-3", "expected": "negative" },
+      { "input": "0", "expected": "zero" }
      ],
-     "explain": "Methods that mutate in place return `None` by convention, precisely so you cannot mistake a return value for the result. The work still happened - it happened to the list itself, which is what the second line reveals."
+     "solution": "def sign_word(n):\n    if n > 0:\n        return \"positive\"\n    elif n < 0:\n        return \"negative\"\n    else:\n        return \"zero\"\n",
+     "hint": "Three outcomes need three branches. The last one needs no condition at all, because anything that is neither above nor below zero is zero.",
+     "concepts": ["if-elif-else", "comparison-operators"],
+     "tags": ["if-elif-else"],
+     "explain": "Zero is the case people forget, because `> 0` and `< 0` between them look as though they cover the number line and they do not. Leaving it out does not raise an error - the recipe simply hands back nothing at all for zero, which is a far harder fault to notice.",
+     "xp": 25
     }
    },
    {
-    "title": "For Each, and range",
-    "body": "A `for` loop walks an **iterable** and binds each element in turn to your loop variable - it hands you the items, not their positions.\n\nWhen you genuinely need numbers, `range(stop)` counts from `0`, and `range(start, stop, step)` lets you choose where to begin, where to stop and how far to jump; the `stop` value is never produced.\n\nAn **accumulator** is a variable created before the loop and updated inside it, which is how you build up a total or grow a list one element at a time.\n\nWriting `total += n` is shorthand for `total = total + n`.",
-    "code": "spells = [\"ward\", \"bolt\", \"mend\"]\nfor spell in spells:\n    print(spell)\n\ntotal = 0\nfor n in range(2, 11, 3):\n    total += n\n    print(n, total)\n\nnames = []\nfor i in range(len(spells)):\n    names.append(str(i) + \":\" + spells[i])\nprint(names)",
+    "title": "and, or, not - and the half Python never reads",
+    "body": "Three words combine conditions. `a and b` is `True` only when both are; `a or b` is `True` when at least one is; `not a` flips the answer over. They bind with different strengths - `not` tightest, then `and`, then `or` - so `not x and y` means `(not x) and y`. When a combination takes more than a moment to read, put brackets in and stop relying on the rule.\n\nThe part worth remembering is that these two operators are lazy, which is called **short-circuit** evaluation. `and` works out the left side first, and if it is `False` the whole thing is already `False`, so the right side is never worked out at all. `or` does the mirror image: a `True` on the left ends it. This is not an optimisation you can ignore - it is a tool. Putting the cheap or protective test on the left lets it guard the dangerous one on the right, which is how `count != 0 and total / count > 5` avoids dividing by zero.\n\nYou can also put an `if` inside another `if`, which is called **nesting**, and the indentation shows what sits inside what. When the outer branch contains nothing but the inner `if`, nesting and `and` say exactly the same thing, and the flat version with `and` is easier to read. Nest when the outer branch has its own work to do, or its own `else` for the case where the outer test fails - because a flat `and` cannot tell you which half failed.",
+    "code": "count = 0\ntotal = 0\nif count != 0 and total / count > 5:\n    print(\"high average\")\nelse:\n    print(\"no average to report\")\n\nis_member = True\nage = 70\nprint(age < 12 or age >= 65)\nprint(not is_member)",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "spell is bound to each string in turn - there is no counter to manage."
-     },
-     {
-      "line": 6,
-      "text": "range(2, 11, 3) yields 2, 5 and 8; 11 is the stop, so it never appears."
-     },
-     {
-      "line": 11,
-      "text": "range(len(xs)) is how you loop over positions when you need the index itself."
-     }
+     { "line": 3, "text": "`count != 0` is `False`, so Python never works out the division and the program does not crash. Swap the two halves round and the same program dies with a ZeroDivisionError - the order of an `and` can be the difference between working and failing." },
+     { "line": 10, "text": "An `or` where both halves are ordinary comparisons: 70 is not under 12, but it is 65 or over, so one `True` is enough and the whole expression is `True`." },
+     { "line": 11, "text": "`not` takes the bool on its right and returns the other one. It does not modify `is_member`; like every operator so far it produces a new value and leaves its input alone." }
     ],
     "checkpoint": {
-     "type": "fill",
-     "layer": "retrieval",
-     "prompt": "Fill the blanks so this prints 10 - the sum of 1 through 4.",
-     "template": "total = 0\nfor n in ___(1, 5):\n    total ___ n\nprint(total)",
-     "blanks": [
-      "range",
-      "+="
+     "type": "code",
+     "layer": "application",
+     "fn": "can_vote",
+     "prompt": "Write `can_vote(age, is_citizen)`. It returns `True` when the person is 18 or older **and** `is_citizen` is `True`, and `False` otherwise. `is_citizen` is already a bool.",
+     "starterCode": "def can_vote(age, is_citizen):\n    return False\n",
+     "tests": [
+      { "input": "18, True", "expected": true },
+      { "input": "17, True", "expected": false },
+      { "input": "30, False", "expected": false }
      ],
-     "lang": "python",
-     "concepts": [
-      "loops"
-     ],
-     "explain": "The accumulator has to be initialised outside the loop or it would reset on every pass, and the upper bound is 5 because range stops one short of it."
+     "solution": "def can_vote(age, is_citizen):\n    return age >= 18 and is_citizen\n",
+     "hint": "You do not need an `if` at all. The combined condition is already the answer, so it can be handed back directly.",
+     "concepts": ["boolean-operators", "booleans"],
+     "tags": ["boolean-operators"],
+     "explain": "Writing `if age >= 18 and is_citizen: return True else: return False` works, but it takes a bool, tests it, and then builds the same bool again. When the answer you want is the condition itself, hand the condition back - and note that `is_citizen == True` is the same redundancy in miniature.",
+     "xp": 25
     }
    },
    {
-    "title": "While, Break, Continue, Nest",
-    "body": "A `while` loop repeats as long as its test is true, so **something in the body must move that test toward false** or the loop never ends.\n\nAn empty list is falsy and a non-empty one is truthy, which makes `while queue:` the idiomatic way to drain a list.\n\nInside any loop, `break` abandons the loop immediately and `continue` skips straight to the next iteration.\n\nLoops also nest: for every single step of the outer loop, the inner loop runs all the way through.",
-    "code": "queue = [\"ana\", \"bo\", \"cy\"]\nwhile queue:\n    print(queue.pop(0))\n\nfor n in range(1, 8):\n    if n % 2 == 0:\n        continue\n    if n > 5:\n        break\n    print(n)\n\nfor row in range(2):\n    for col in range(3):\n        print(row, col)",
+    "title": "Truthiness, and what an empty thing means",
+    "body": "`if` does not insist on a bool. It accepts any value at all and applies a fixed rule to decide whether that value counts as a yes. Values that count as no are called **falsy**, and the list is short: `False`, the number `0` (and `0.0`), empty text `\"\"`, and `None` - which is Python's word for the deliberate absence of any value. Every other value is **truthy**, including negative numbers, and including the piece of text `\"0\"`, which is not empty and therefore counts as a yes.\n\nThis is convenient. `if name:` reads as \"if there is a name\" and covers the empty case without a comparison. Groups of values that arrive on later floors follow exactly the same rule: an empty one is falsy, a non-empty one is truthy.\n\nIt is also a trap, and it is worth naming precisely. Truthiness collapses several very different situations into one answer. A stock count of `0` means sold out; a stock count of `None` means nobody has counted yet. Both are falsy, so `if count:` treats them identically and the difference you cared about disappears without any error being raised.\n\nThe rule of thumb: when the falsy values are genuinely all the same to you, lean on truthiness. When zero is a real, meaningful value, test for what you actually mean - `count is None` for absent, `count == 0` for sold out. `is None` is the standard way to test for `None`, and it is worth reading as one word.",
+    "code": "name = \"\"\nif name:\n    print(\"hello \" + name)\nelse:\n    print(\"hello stranger\")\n\ncount = 0\nprint(bool(count), bool(\"0\"), bool(None), bool(-1))\n\nif count is None:\n    print(\"unknown\")\nelif count == 0:\n    print(\"none left\")",
     "lang": "python",
     "annotations": [
-     {
-      "line": 2,
-      "text": "The list itself is the test; each pop(0) shortens it until it is empty and falsy."
-     },
-     {
-      "line": 7,
-      "text": "continue jumps straight to the next n without running the rest of the body."
-     },
-     {
-      "line": 9,
-      "text": "break leaves the loop entirely, so 7 is never printed."
-     },
-     {
-      "line": 13,
-      "text": "The inner loop restarts from scratch for each value of row: 2 x 3 = 6 lines."
-     }
+     { "line": 2, "text": "`name` is not a bool, and Python does not complain. Empty text is falsy, so the `else` runs. This is the idiom for \"did I actually get anything?\" and it is why an empty name never reaches the greeting." },
+     { "line": 8, "text": "`bool(value)` reports the very answer `if` would use, which makes it the way to check your understanding of any value. `\"0\"` is text one character long, so it is truthy - the digit inside it is not consulted." },
+     { "line": 10, "text": "This chain distinguishes the two falsy cases that mattered, in the order that matters: absent first, then zero. Written as `if not count:` both would land in the same branch and the program would say the wrong thing without ever failing." }
     ],
     "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "n = 0\nwhile n < 10:\n    n += 3\nprint(n)",
-     "lang": "python",
-     "answer": "12",
-     "concepts": [
-      "loops"
+     "type": "code",
+     "layer": "application",
+     "fn": "greeting",
+     "prompt": "Write `greeting(name)`. When `name` is a non-empty piece of text it returns `\"Hello, \"` followed by the name. When `name` is empty text it returns `\"Hello, stranger\"`.",
+     "starterCode": "def greeting(name):\n    return \"Hello, stranger\"\n",
+     "tests": [
+      { "input": "\"Ada\"", "expected": "Hello, Ada" },
+      { "input": "\"\"", "expected": "Hello, stranger" },
+      { "input": "\"Bo\"", "expected": "Hello, Bo" }
      ],
-     "explain": "The test is only checked between iterations, never mid-body, so the loop stops at the first value that fails it rather than at exactly 10. Overshooting a bound is normal for a stepped counter, and it is why `while n != 10` here would run forever."
+     "solution": "def greeting(name):\n    if name:\n        return \"Hello, \" + name\n    return \"Hello, stranger\"\n",
+     "hint": "Empty text is falsy, so the name itself can be the condition - no comparison with `\"\"` is needed, though one would work.",
+     "concepts": ["truthiness", "if-elif-else"],
+     "tags": ["truthiness"],
+     "explain": "`if name != \"\":` is correct here and reads fine, but it only covers empty text, while `if name:` also catches `None` if a missing name ever arrives that way. That breadth is the attraction of truthiness, and on the next floor of your own code it will also be the risk.",
+     "xp": 25
     }
    }
   ]
@@ -158,818 +141,330 @@
    "id": "py-4-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "gems = [\"ruby\", \"opal\", \"jade\"]\nprint(len(gems))\nprint(gems[1])",
+   "prompt": "What does this program print?",
+   "code": "print(0.1 + 0.2 == 0.3)\nprint(1 < 2 < 3)\nprint(not 5 > 3)",
    "lang": "python",
-   "answer": "3\nopal",
-   "concepts": [
-    "lists"
-   ],
-   "tags": [
-    "lists"
-   ],
-   "explain": "len counts items while an index selects one, and the two use different numbers for the same list: three items, but the last index is 2. Mixing them up is the source of nearly every IndexError.",
-   "xp": 20
+   "answer": "False\nTrue\nFalse",
+   "concepts": ["comparison-operators", "booleans"],
+   "tags": ["comparison-operators"],
+   "explain": "The first line is the decimal-approximation trap: the sum is 0.30000000000000004. The third line catches people because `not` looks as though it grabs the `5`; it does not - comparison binds tighter than `not`, so Python works out `5 > 3` first and then flips the `True` it produced.",
+   "xp": 25
   },
   {
    "id": "py-4-g-02",
-   "type": "fill",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this adds \"torch\" to the end of the bag and then takes the last item back off. It prints: ['rope'] torch",
-   "template": "bag = [\"rope\"]\nbag.___(\"torch\")\nlast = bag.___()\nprint(bag, last)",
-   "blanks": [
-    "append",
-    "pop"
-   ],
+   "prompt": "What does this program print?",
+   "code": "x = 12\nif x > 10:\n    print(\"big\")\nif x > 5:\n    print(\"medium\")\nprint(\"..\")\nif x > 10:\n    print(\"big\")\nelif x > 5:\n    print(\"medium\")",
    "lang": "python",
-   "concepts": [
-    "list-methods"
-   ],
-   "tags": [
-    "list-methods"
-   ],
-   "explain": "append and pop are a matched pair at the end of a list: one grows it and returns nothing, the other shrinks it and returns the item. That asymmetry is exactly why `last = bag.append(...)` would be wrong.",
-   "xp": 20
+   "answer": "big\nmedium\n..\nbig",
+   "concepts": ["if-elif-else"],
+   "tags": ["if-elif-else"],
+   "explain": "Two separate `if` statements are two separate decisions, so both run for a value that satisfies both. The `elif` version is one decision, and it stops at the first success - which is why swapping `elif` for a second `if` is never a cosmetic edit.",
+   "xp": 25
   },
   {
    "id": "py-4-g-03",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `total(xs)` returning the sum of every number in the list `xs`, using a loop. An empty list totals 0.",
-   "fn": "total",
-   "starterCode": "def total(xs):\n    running = 0\n    # loop over xs and add each value to running\n    return running\n",
-   "solution": "def total(xs):\n    running = 0\n    for x in xs:\n        running += x\n    return running\n",
-   "tests": [
-    {
-     "input": "[1, 2, 3]",
-     "expected": 6
-    },
-    {
-     "input": "[]",
-     "expected": 0
-    },
-    {
-     "input": "[-5]",
-     "expected": -5
-    },
-    {
-     "input": "[10, -10, 4]",
-     "expected": 4
-    }
-   ],
-   "concepts": [
-    "loops"
-   ],
-   "tags": [
-    "loops"
-   ],
-   "hint": "Create the accumulator before the loop, not inside it.",
-   "explain": "Starting the accumulator at 0 outside the loop is what makes the empty list return 0 with no special case - the body simply never runs. Initialising it inside the loop would throw away everything added so far on every pass.",
-   "xp": 50
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks. The first message should appear only when there is something to average and that average is above 5. The second should appear when either number is zero.",
+   "template": "if count > 0 ___ total / count > 5:\n    print('high average')\nif count == 0 ___ total == 0:\n    print('nothing to report')",
+   "blanks": ["and", "or"],
+   "lang": "python",
+   "concepts": ["boolean-operators"],
+   "tags": ["boolean-operators"],
+   "explain": "The first blank must be `and` for two reasons at once: both parts have to hold, and the left part has to protect the division on the right from a zero. The second blank is `or` because either zero on its own is enough to leave you with nothing worth reporting.",
+   "xp": 25
   },
   {
    "id": "py-4-g-04",
-   "type": "code",
+   "type": "debug",
    "layer": "application",
-   "prompt": "Write `middle(xs)` returning a new list containing everything except the first and last items. `middle([1, 2, 3, 4, 5])` is `[2, 3, 4]`. Lists of two items or fewer give back an empty list.",
-   "fn": "middle",
-   "starterCode": "def middle(xs):\n    # one slice is enough\n    pass\n",
-   "solution": "def middle(xs):\n    return xs[1:-1]\n",
+   "fn": "ticket_price",
+   "prompt": "`ticket_price(age)` should charge 0 for anyone under 5, 5 for anyone under 18, 5 for anyone 65 or over, and 10 for everybody else. It is right for children and pensioners but hands back nothing at all for a 30-year-old. Repair it.",
+   "starterCode": "def ticket_price(age):\n    if age < 5:\n        return 0\n    if age < 18:\n        return 5\n    if age >= 65:\n        return 5\n        return 10\n",
    "tests": [
-    {
-     "input": "[1, 2, 3, 4, 5]",
-     "expected": [
-      2,
-      3,
-      4
-     ]
-    },
-    {
-     "input": "[1, 2]",
-     "expected": []
-    },
-    {
-     "input": "[7]",
-     "expected": []
-    },
-    {
-     "input": "[]",
-     "expected": []
-    }
+    { "input": "3", "expected": 0 },
+    { "input": "10", "expected": 5 },
+    { "input": "70", "expected": 5 },
+    { "input": "30", "expected": 10 },
+    { "input": "65", "expected": 5 }
    ],
-   "concepts": [
-    "lists"
-   ],
-   "tags": [
-    "lists"
-   ],
-   "hint": "A slice can start at 1 and stop at -1.",
-   "explain": "Slicing never raises for out-of-range bounds - it clamps to what actually exists, so the short lists fall out for free instead of needing a length check. That forgiveness is the practical difference between slicing and indexing.",
-   "xp": 50
+   "solution": "def ticket_price(age):\n    if age < 5:\n        return 0\n    if age < 18:\n        return 5\n    if age >= 65:\n        return 5\n    return 10\n",
+   "hint": "Look at what the last line belongs to. Which values of `age` can ever reach it where it currently sits?",
+   "concepts": ["indentation", "if-elif-else"],
+   "tags": ["indentation"],
+   "explain": "`return 10` is indented under the `age >= 65` branch, so it sits after a `return` that has already left - it can never run, and a 30-year-old falls off the end of the recipe and gets nothing. Python raises no error, because the indentation is legal; it simply describes a different program from the one intended. That is what \"indentation is syntax\" costs when you get it wrong.",
+   "xp": 60
   },
   {
    "id": "py-4-g-05",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "scores = [3, 1, 2]\nscores.append(4)\nscores.reverse()\nprint(scores)\nprint(scores.pop(0))\nprint(scores)",
-   "lang": "python",
-   "answer": "[4, 2, 1, 3]\n4\n[2, 1, 3]",
-   "concepts": [
-    "list-methods"
-   ],
-   "tags": [
-    "list-methods"
-   ],
-   "explain": "reverse works on whatever the list holds at that moment, so the freshly appended 4 is carried to the front rather than staying at the end. pop then both yields a value and shortens the list, which is why the third line differs from the first.",
-   "xp": 20
-  },
-  {
-   "id": "py-4-g-06",
-   "type": "debug",
+   "type": "code",
    "layer": "application",
-   "prompt": "`evens_up_to(n)` should return every even number from 0 up to **and including** n. It currently drops the last one. Fix it.",
-   "fn": "evens_up_to",
-   "starterCode": "def evens_up_to(n):\n    result = []\n    for x in range(0, n, 2):\n        result.append(x)\n    return result\n",
-   "solution": "def evens_up_to(n):\n    result = []\n    for x in range(0, n + 1, 2):\n        result.append(x)\n    return result\n",
+   "fn": "describe_stock",
+   "prompt": "Write `describe_stock(count)`. `count` is `None` when nobody has counted the shelf yet, and otherwise a whole number. Return `\"unknown\"` for `None`, `\"out of stock\"` for 0, and `\"in stock\"` for anything higher.",
+   "starterCode": "def describe_stock(count):\n    # `None` and 0 are both falsy - tell them apart deliberately\n    return \"in stock\"\n",
    "tests": [
-    {
-     "input": "10",
-     "expected": [
-      0,
-      2,
-      4,
-      6,
-      8,
-      10
-     ]
-    },
-    {
-     "input": "0",
-     "expected": [
-      0
-     ]
-    },
-    {
-     "input": "1",
-     "expected": [
-      0
-     ]
-    },
-    {
-     "input": "7",
-     "expected": [
-      0,
-      2,
-      4,
-      6
-     ]
-    }
+    { "input": "None", "expected": "unknown" },
+    { "input": "0", "expected": "out of stock" },
+    { "input": "7", "expected": "in stock" }
    ],
-   "concepts": [
-    "loops"
-   ],
-   "tags": [
-    "loops"
-   ],
-   "hint": "range never produces its stop value.",
-   "explain": "range is half-open, so an inclusive upper bound has to be written as `stop + 1`. The fix stays safe for odd n: with 8 as the stop the sequence still ends at 6, because the step decides which values are ever reached.",
-   "xp": 50
+   "solution": "def describe_stock(count):\n    if count is None:\n        return \"unknown\"\n    elif count == 0:\n        return \"out of stock\"\n    else:\n        return \"in stock\"\n",
+   "hint": "Test for the absent case first and by name, then for zero, then let everything else fall through.",
+   "concepts": ["truthiness", "if-elif-else"],
+   "tags": ["truthiness"],
+   "explain": "The tempting first attempt is `if not count: return \"unknown\"`, which passes the `None` test and then quietly mislabels a sold-out shelf as uncounted. Both values are falsy, so truthiness cannot separate them; only `is None` and `== 0` can, and the order matters because `None == 0` is `False` but `None` would still be caught by any truthiness test placed first.",
+   "xp": 60
   }
  ],
- "challenge-set": [
+ "independent-practice": [
   {
-   "id": "py-4-c-01",
-   "type": "trace",
-   "layer": "application",
-   "prompt": "This loop serves a queue one person at a time. Trace both lists.",
-   "code": "queue = [\"a\", \"b\", \"c\"]\nserved = []\nwhile queue:\n    served.append(queue.pop(0))",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "queue after iteration 1",
-     "expected": "['b', 'c']"
-    },
-    {
-     "label": "served after iteration 2",
-     "expected": "['a', 'b']"
-    },
-    {
-     "label": "queue when the loop stops",
-     "expected": "[]"
-    },
-    {
-     "label": "served when the loop stops",
-     "expected": "['a', 'b', 'c']"
-    }
-   ],
-   "concepts": [
-    "loops",
-    "list-methods"
-   ],
-   "tags": [
-    "loops",
-    "list-methods"
-   ],
-   "explain": "pop(0) takes from the front, so order is preserved as items move between the two lists. Nothing counts the iterations: the loop ends the moment queue becomes empty, because an empty list is falsy.",
-   "xp": 40
-  },
-  {
-   "id": "py-4-c-02",
+   "id": "py-4-i-01",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `above_threshold(scores, threshold)` returning a list of every score greater than **or equal to** the threshold, in the order they appear.",
-   "fn": "above_threshold",
-   "starterCode": "def above_threshold(scores, threshold):\n    keep = []\n    # test each score, keep the ones that qualify\n    return keep\n",
-   "solution": "def above_threshold(scores, threshold):\n    keep = []\n    for score in scores:\n        if score >= threshold:\n            keep.append(score)\n    return keep\n",
+   "fn": "bmi_category",
+   "prompt": "A clinic labels a body-mass index as follows: below 18.5 is `\"under\"`; from 18.5 up to but not including 25 is `\"normal\"`; from 25 up to but not including 30 is `\"over\"`; 30 and above is `\"obese\"`. Write `bmi_category(bmi)` returning the right label.",
+   "starterCode": "def bmi_category(bmi):\n    pass\n",
    "tests": [
-    {
-     "input": "[40, 39, 95, 80, 25, 31, 70, 55, 40, 90], 98",
-     "expected": []
-    },
-    {
-     "input": "[88, 29, 91, 64, 78, 43, 41, 77, 36, 50], 80",
-     "expected": [
-      88,
-      91
-     ]
-    },
-    {
-     "input": "[100, 89], 100",
-     "expected": [
-      100
-     ]
-    },
-    {
-     "input": "[], 80",
-     "expected": []
-    }
+    { "input": "17", "expected": "under" },
+    { "input": "18.5", "expected": "normal" },
+    { "input": "25", "expected": "over" },
+    { "input": "29.9", "expected": "over" },
+    { "input": "31", "expected": "obese" }
    ],
-   "concepts": [
-    "loops",
-    "lists"
-   ],
-   "tags": [
-    "loops",
-    "lists"
-   ],
-   "hint": "Filtering is an accumulator that collects instead of adding.",
-   "explain": "Appending inside the loop preserves the original order for free, which a sort or a set would destroy. The boundary is the real test here: `>=` keeps an exact match, so a score of 100 against a threshold of 100 must survive.",
-   "xp": 50
+   "solution": "def bmi_category(bmi):\n    if bmi < 18.5:\n        return \"under\"\n    elif bmi < 25:\n        return \"normal\"\n    elif bmi < 30:\n        return \"over\"\n    else:\n        return \"obese\"\n",
+   "concepts": ["if-elif-else", "comparison-operators"],
+   "tags": ["if-elif-else"],
+   "explain": "Every boundary here belongs to the band above it, so each test is a strict `<` and the value 25 lands in `\"over\"`. Testing from the bottom upwards means each later condition can assume the earlier ones failed, which is why none of them needs a lower bound written out.",
+   "xp": 60
   },
   {
-   "id": "py-4-c-03",
-   "type": "order",
-   "layer": "retrieval",
-   "prompt": "Arrange these fragments into a function that returns the largest value in a non-empty list.",
-   "fragments": [
-    "    for x in xs:",
-    "def largest(xs):",
-    "    return best",
-    "        if x > best:",
-    "    best = xs[0]",
-    "            best = x"
-   ],
-   "answer": [
-    1,
-    4,
-    0,
-    3,
-    5,
-    2
-   ],
-   "lang": "python",
-   "concepts": [
-    "loops"
-   ],
-   "tags": [
-    "loops"
-   ],
-   "explain": "The accumulator is seeded with a real element rather than 0, otherwise a list of negative numbers would wrongly report 0 as its largest value. The return sits outside the loop, since returning inside it would stop after the very first comparison.",
-   "xp": 20
-  },
-  {
-   "id": "py-4-c-04",
+   "id": "py-4-i-02",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `remove_all(xs, item)` deleting **every** occurrence of `item` from `xs` and returning the list. Removing something that is not there must not raise.",
-   "fn": "remove_all",
-   "starterCode": "def remove_all(xs, item):\n    # .remove() only deletes the first match\n    return xs\n",
-   "solution": "def remove_all(xs, item):\n    while item in xs:\n        xs.remove(item)\n    return xs\n",
+   "fn": "shipping_cost",
+   "prompt": "A shop charges 5 to ship an order, plus 3 more when it weighs more than 10 kg. Members ship free, but only for orders of 2 kg or less; a heavier member order is charged like anyone else's. Write `shipping_cost(weight, is_member)` returning the amount charged. `is_member` is a bool.",
+   "starterCode": "def shipping_cost(weight, is_member):\n    pass\n",
    "tests": [
-    {
-     "input": "[1, 2, 1, 3], 1",
-     "expected": [
-      2,
-      3
-     ]
-    },
-    {
-     "input": "[1, 1, 1], 1",
-     "expected": []
-    },
-    {
-     "input": "[2, 3], 9",
-     "expected": [
-      2,
-      3
-     ]
-    },
-    {
-     "input": "[], 1",
-     "expected": []
-    }
+    { "input": "1.5, True", "expected": 0 },
+    { "input": "1.5, False", "expected": 5 },
+    { "input": "12, True", "expected": 8 },
+    { "input": "10, False", "expected": 5 },
+    { "input": "10.5, True", "expected": 8 }
    ],
-   "concepts": [
-    "list-methods",
-    "lists"
-   ],
-   "tags": [
-    "list-methods",
-    "lists"
-   ],
-   "hint": "`while item in xs` is both the guard against ValueError and the loop condition.",
-   "explain": "One membership test does double duty: it ends the loop and it guarantees remove never raises. A `for` loop over xs would be wrong for a subtler reason - deleting while iterating the same list shifts the remaining positions and silently skips elements.",
-   "xp": 50
+   "solution": "def shipping_cost(weight, is_member):\n    if is_member and weight <= 2:\n        return 0\n    if weight > 10:\n        return 8\n    return 5\n",
+   "concepts": ["boolean-operators", "nested-conditions"],
+   "tags": ["boolean-operators"],
+   "explain": "The free case needs both facts to hold at once, and once it has been handled the rest of the recipe no longer has to think about membership at all. Charging 5 first and then adding 3 works equally well; what fails is treating membership as a discount applied everywhere, because a 12 kg member order pays full price.",
+   "xp": 60
   },
   {
-   "id": "py-4-c-05",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`flatten(rows)` should return one flat list holding every item from every row, in order. Instead it hands back the rows unchanged. Fix it.",
-   "fn": "flatten",
-   "starterCode": "def flatten(rows):\n    result = []\n    for row in rows:\n        result.append(row)\n    return result\n",
-   "solution": "def flatten(rows):\n    result = []\n    for row in rows:\n        for item in row:\n            result.append(item)\n    return result\n",
-   "tests": [
-    {
-     "input": "[[1, 2], [3]]",
-     "expected": [
-      1,
-      2,
-      3
-     ]
-    },
-    {
-     "input": "[[], [4]]",
-     "expected": [
-      4
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    },
-    {
-     "input": "[[5]]",
-     "expected": [
-      5
-     ]
-    }
-   ],
-   "concepts": [
-    "loops",
-    "lists"
-   ],
-   "tags": [
-    "loops",
-    "lists"
-   ],
-   "hint": "Each row is itself a list, so it needs a loop of its own.",
-   "explain": "append adds exactly one item, and a whole list counts as one item - nesting a second loop is what turns rows of values into values. An empty inner row costs nothing, because its loop body simply never runs.",
-   "xp": 50
-  },
-  {
-   "id": "py-4-c-06",
+   "id": "py-4-i-03",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `podium(scores)` returning the three highest scores in descending order. Fewer than three scores means you return however many there are.",
-   "fn": "podium",
-   "starterCode": "def podium(scores):\n    # sort, flip, then take a slice\n    pass\n",
-   "solution": "def podium(scores):\n    scores.sort()\n    scores.reverse()\n    return scores[:3]\n",
+   "fn": "is_leap_year",
+   "prompt": "A year in the Gregorian calendar is a leap year when it divides exactly by 4, except that a year dividing exactly by 100 is not, unless it also divides exactly by 400 - so 1996 and 2000 are leap years and 1900 is not. Write `is_leap_year(year)` returning `True` or `False`.",
+   "starterCode": "def is_leap_year(year):\n    pass\n",
    "tests": [
-    {
-     "input": "[3, 9, 5, 1, 7]",
-     "expected": [
-      9,
-      7,
-      5
-     ]
-    },
-    {
-     "input": "[4, 4]",
-     "expected": [
-      4,
-      4
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    },
-    {
-     "input": "[1, 2, 3, 4]",
-     "expected": [
-      4,
-      3,
-      2
-     ]
-    },
-    {
-     "input": "[10]",
-     "expected": [
-      10
-     ]
-    }
+    { "input": "2024", "expected": true },
+    { "input": "1900", "expected": false },
+    { "input": "2000", "expected": true },
+    { "input": "2023", "expected": false }
    ],
-   "concepts": [
-    "list-methods",
-    "lists"
+   "solution": "def is_leap_year(year):\n    if year % 400 == 0:\n        return True\n    if year % 100 == 0:\n        return False\n    return year % 4 == 0\n",
+   "concepts": ["boolean-operators", "comparison-operators", "nested-conditions"],
+   "tags": ["boolean-operators"],
+   "explain": "The rule has an exception to an exception, so the surest way through it is to answer the most specific case first and let the general case fall to the bottom. Written as one combined expression it is also correct - `year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)` - and the brackets there are not optional, because `and` binds tighter than `or` and dropping them changes the answer for 1900.",
+   "xp": 60
+  },
+  {
+   "id": "py-4-i-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "display_name",
+   "prompt": "A profile page shows a person's nickname if they gave one, and their full name if they did not. A nickname that was never supplied arrives as `None`, and one that was submitted blank arrives as empty text; both mean \"they did not give one\". Write `display_name(nickname, full_name)` returning the text to show.",
+   "starterCode": "def display_name(nickname, full_name):\n    pass\n",
+   "tests": [
+    { "input": "\"Ada\", \"Ada Lovelace\"", "expected": "Ada" },
+    { "input": "\"\", \"Ada Lovelace\"", "expected": "Ada Lovelace" },
+    { "input": "None, \"Grace Hopper\"", "expected": "Grace Hopper" },
+    { "input": "\"Amazing Grace\", \"Grace Hopper\"", "expected": "Amazing Grace" }
    ],
-   "tags": [
-    "list-methods",
-    "lists"
+   "solution": "def display_name(nickname, full_name):\n    if nickname:\n        return nickname\n    return full_name\n",
+   "concepts": ["truthiness", "if-elif-else"],
+   "tags": ["truthiness"],
+   "explain": "Here the two empty cases genuinely mean the same thing, so collapsing them is the right call rather than a shortcut - this is precisely the situation truthiness exists for. Writing `if nickname is not None:` would pass three tests and show a blank name for the fourth, because empty text is not `None`.",
+   "xp": 60
+  },
+  {
+   "id": "py-4-i-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "classify_triangle",
+   "prompt": "Given three side lengths, report what triangle they make. Sides that are zero or negative, or where the two shorter sides do not add up to more than the longest, do not make a triangle at all and should give `\"not a triangle\"`. Otherwise return `\"equilateral\"` when all three match, `\"isosceles\"` when exactly two match, and `\"scalene\"` when none do. Write `classify_triangle(a, b, c)`.",
+   "starterCode": "def classify_triangle(a, b, c):\n    pass\n",
+   "tests": [
+    { "input": "3, 3, 3", "expected": "equilateral" },
+    { "input": "3, 4, 5", "expected": "scalene" },
+    { "input": "5, 5, 8", "expected": "isosceles" },
+    { "input": "1, 2, 3", "expected": "not a triangle" },
+    { "input": "0, 1, 1", "expected": "not a triangle" }
    ],
-   "hint": "sort() then reverse() gives descending order, and a slice handles the short lists.",
-   "explain": "Slicing past the end of a list is not an error, so `[:3]` covers the one- and two-score cases without any length check. Keep in mind that sort and reverse rewrite the caller's list - when that matters, start from `sorted(scores)` instead.",
-   "xp": 50
+   "solution": "def classify_triangle(a, b, c):\n    if a <= 0 or b <= 0 or c <= 0:\n        return \"not a triangle\"\n    if a + b <= c or a + c <= b or b + c <= a:\n        return \"not a triangle\"\n    if a == b and b == c:\n        return \"equilateral\"\n    if a == b or b == c or a == c:\n        return \"isosceles\"\n    return \"scalene\"\n",
+   "concepts": ["nested-conditions", "boolean-operators", "comparison-operators"],
+   "tags": ["nested-conditions"],
+   "explain": "Validity has to be settled before shape, because 1, 2 and 3 would otherwise be reported as a perfectly good scalene triangle - the flat case where the sides lie in a straight line is exactly why the test is `<=` and not `<`. Ordering equilateral before isosceles matters too: all three equal also satisfies \"two are equal\", so the more specific test has to come first.",
+   "xp": 60
   }
  ],
  "exam": [
   {
-   "id": "py-4-e-01",
+   "id": "py-4-x-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "What does `[10, 20, 30][-1]` evaluate to?",
+   "prompt": "In an `if` / `elif` / `elif` / `else` chain, three of the conditions happen to be `True`. How many branches run?",
    "choices": [
-    "10",
-    "30",
-    "IndexError",
-    "None"
+    "One - the first true one, and the rest are never tested",
+    "All three true ones, in order",
+    "The last true one",
+    "None; Python reports an ambiguous chain"
    ],
-   "answer": 1,
-   "concepts": [
-    "lists"
-   ],
-   "tags": [
-    "lists"
-   ],
-   "explain": "Negative indices count backwards from the end, with -1 meaning the last slot. That is the reason you almost never see `xs[len(xs) - 1]` in Python.",
-   "xp": 10
+   "answer": 0,
+   "concepts": ["if-elif-else"],
+   "tags": ["if-elif-else"],
+   "explain": "A chain is one decision with several possible outcomes, so it stops at the first success. The tempting answer is \"all three\", which is what would happen with three separate `if` statements - and confusing the two is the reason overlapping branches have to be ordered from most specific to most general.",
+   "xp": 15
   },
   {
-   "id": "py-4-e-02",
-   "type": "mcq",
-   "layer": "retrieval",
-   "prompt": "Given `xs = [5, 3, 8]`, which call deletes the **value** 3?",
-   "choices": [
-    "xs.pop(3)",
-    "xs.remove(3)",
-    "xs.delete(3)",
-    "xs.pop(-3)"
-   ],
-   "answer": 1,
-   "concepts": [
-    "list-methods"
-   ],
-   "tags": [
-    "list-methods"
-   ],
-   "explain": "remove takes a value while pop takes an index, so `pop(3)` reaches for a fourth slot that does not exist and `pop(-3)` drops the 5. Lists have no delete method at all.",
-   "xp": 10
-  },
-  {
-   "id": "py-4-e-03",
+   "id": "py-4-x-02",
    "type": "multi",
    "layer": "retrieval",
-   "prompt": "Which of these leave the original list `xs` unchanged?",
+   "prompt": "Which of these values are falsy - that is, which would send an `if` to its `else`?",
    "choices": [
-    "xs.sort()",
-    "sorted(xs)",
-    "xs[1:]",
-    "xs.reverse()"
+    "0",
+    "empty text, written \"\"",
+    "None",
+    "the text \"0\"",
+    "-1"
    ],
-   "answer": [
-    1,
-    2
-   ],
-   "concepts": [
-    "list-methods",
-    "lists"
-   ],
-   "tags": [
-    "list-methods",
-    "lists"
-   ],
-   "explain": "The built-in function and the slice each build a new list, while the two methods rearrange in place. The shape of the call is the tell: a method called on the list usually edits that list.",
-   "xp": 10
+   "answer": [0, 1, 2],
+   "concepts": ["truthiness"],
+   "tags": ["truthiness"],
+   "explain": "Falsy means `False`, `None`, zero and empty. The two distractors are the ones that catch people: `\"0\"` is a piece of text one character long, so it is not empty and counts as a yes, and -1 is truthy because the rule is about being zero, not about being positive.",
+   "xp": 15
   },
   {
-   "id": "py-4-e-04",
+   "id": "py-4-x-03",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "found = []\nfor n in range(10, 0, -3):\n    if n == 4:\n        break\n    found.append(n)\nprint(found)",
+   "prompt": "What does this program print?",
+   "code": "def loud(value):\n    print(\"checked\")\n    return value\n\nif False and loud(True):\n    print(\"yes\")\nif True or loud(True):\n    print(\"also yes\")\nif True and loud(False):\n    print(\"third\")",
    "lang": "python",
-   "answer": "[10, 7]",
-   "concepts": [
-    "loops"
-   ],
-   "tags": [
-    "loops"
-   ],
-   "explain": "A negative step counts downwards and still refuses to produce the stop value, giving 10, 7, 4 and 1. break fires on 4 before the append runs, so that value never reaches the list.",
-   "xp": 20
+   "answer": "also yes\nchecked",
+   "concepts": ["boolean-operators"],
+   "tags": ["boolean-operators"],
+   "explain": "`loud` announces itself whenever it is worked out, so counting the word `checked` counts the halves Python actually read. The first two conditions are settled by their left side alone and never touch `loud`; only the third has to look right, and even then its answer is `False`, so nothing follows it.",
+   "xp": 25
   },
   {
-   "id": "py-4-e-05",
+   "id": "py-4-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "print(bool(\"0\"))\nprint(bool(0.0))\nif \"False\":\n    print(\"text is truthy\")",
+   "lang": "python",
+   "answer": "True\nFalse\ntext is truthy",
+   "concepts": ["truthiness", "booleans"],
+   "tags": ["truthiness"],
+   "explain": "Text is judged on whether it is empty, never on what it says, so `\"0\"` and `\"False\"` are both yeses while the number `0.0` is a no. This is the exact fault behind text read from a keyboard or a file being treated as `True` when it plainly says `False`.",
+   "xp": 25
+  },
+  {
+   "id": "py-4-x-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks so this prints each name once, taken from the front of the queue, until the queue is empty.",
-   "template": "queue = [\"ana\", \"bo\"]\n___ queue:\n    print(queue.___(0))",
-   "blanks": [
-    "while",
-    "pop"
-   ],
+   "prompt": "A person may drive if they are 18 or over, or if they hold a permit. Fill the blanks so the warning prints exactly when they may not.",
+   "template": "if ___ (age >= 18 ___ has_permit):\n    print('may not drive')",
+   "blanks": ["not", "or"],
    "lang": "python",
-   "concepts": [
-    "loops",
-    "list-methods"
-   ],
-   "tags": [
-    "loops",
-    "list-methods"
-   ],
-   "explain": "The list is its own condition: non-empty is truthy, empty is falsy. pop(0) is what eventually makes that condition fail, so a version that only read the front item would loop forever.",
-   "xp": 20
+   "concepts": ["boolean-operators"],
+   "tags": ["boolean-operators"],
+   "explain": "The permission is an `or`, and the warning is its opposite, so the whole permission goes in brackets and `not` is applied to the result. Without the brackets `not age >= 18 or has_permit` reads as `(not (age >= 18)) or has_permit`, which prints the warning for any adult holding a permit.",
+   "xp": 25
   },
   {
-   "id": "py-4-e-06",
-   "type": "trace",
-   "layer": "application",
-   "prompt": "Trace the value of `total` after each element has been visited.",
-   "code": "total = 0\nfor n in [4, -1, 6, -3]:\n    if n < 0:\n        continue\n    total += n",
-   "lang": "python",
-   "steps": [
-    {
-     "label": "after 4",
-     "expected": "4"
-    },
-    {
-     "label": "after -1",
-     "expected": "4"
-    },
-    {
-     "label": "after 6",
-     "expected": "10"
-    },
-    {
-     "label": "after -3",
-     "expected": "10"
-    }
+   "id": "py-4-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Arrange these lines into a working recipe that returns `'gold'` for 90 and above, `'silver'` for 70 and above, and `'bronze'` for anything lower.",
+   "fragments": [
+    "def band(score):",
+    "    if score >= 90:",
+    "        return 'gold'",
+    "    elif score >= 70:",
+    "        return 'silver'",
+    "    else:",
+    "        return 'bronze'"
    ],
-   "concepts": [
-    "loops"
-   ],
-   "tags": [
-    "loops"
-   ],
-   "explain": "continue skips the rest of the body but not the iteration itself, so the negative elements are still visited - they just leave the accumulator untouched. Naming the value at every step is how you catch a guard written on the wrong side of the update.",
-   "xp": 40
+   "answer": [0, 1, 2, 3, 4, 5, 6],
+   "concepts": ["if-elif-else", "indentation"],
+   "tags": ["if-elif-else"],
+   "explain": "The higher threshold has to be tested first: with `score >= 70` at the top, a score of 95 satisfies it and never reaches the gold branch. The indentation carries the rest of the meaning - each `return` is indented one level deeper than the branch that owns it.",
+   "xp": 25
   },
   {
-   "id": "py-4-e-07",
-   "type": "explain",
-   "layer": "application",
-   "prompt": "A colleague writes `scores = scores.sort()` and every line after it crashes with `AttributeError: 'NoneType' object has no attribute ...`. Explain what went wrong and how you would fix it.",
-   "rubric": {
-    "required": [
-     "none",
-     "place"
-    ],
-    "optional": [
-     "sorted",
-     "returns",
-     "mutates",
-     "original"
-    ],
-    "forbidden": [],
-    "minWords": 20
-   },
-   "concepts": [
-    "list-methods"
-   ],
-   "tags": [
-    "list-methods"
-   ],
-   "explain": "sort did its job and then returned None, and the assignment threw the sorted list away by rebinding the name to that None. Either drop the assignment entirely, or call `sorted(scores)`, which is the version built for the value-returning case.",
-   "xp": 20
-  },
-  {
-   "id": "py-4-e-08",
+   "id": "py-4-x-07",
    "type": "code",
    "layer": "application",
-   "prompt": "Write `running_totals(xs)` returning a list of the running sum after each element. `running_totals([1, 2, 3])` is `[1, 3, 6]`.",
-   "fn": "running_totals",
-   "starterCode": "def running_totals(xs):\n    out = []\n    total = 0\n    # after each element, record the total so far\n    return out\n",
-   "solution": "def running_totals(xs):\n    out = []\n    total = 0\n    for x in xs:\n        total += x\n        out.append(total)\n    return out\n",
+   "fn": "overlaps",
+   "prompt": "Two bookings each run from a start hour to an end hour, and both ends count as occupied. Write `overlaps(a_start, a_end, b_start, b_end)` returning `True` when the two share at least one hour and `False` when they do not.",
+   "starterCode": "def overlaps(a_start, a_end, b_start, b_end):\n    return False\n",
    "tests": [
-    {
-     "input": "[1, 2, 3]",
-     "expected": [
-      1,
-      3,
-      6
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    },
-    {
-     "input": "[5]",
-     "expected": [
-      5
-     ]
-    },
-    {
-     "input": "[2, -2, 4]",
-     "expected": [
-      2,
-      0,
-      4
-     ]
-    }
+    { "input": "1, 5, 4, 9", "expected": true },
+    { "input": "1, 5, 6, 9", "expected": false },
+    { "input": "1, 5, 5, 9", "expected": true },
+    { "input": "3, 4, 1, 10", "expected": true }
    ],
-   "concepts": [
-    "loops",
-    "lists"
-   ],
-   "tags": [
-    "loops",
-    "lists"
-   ],
-   "hint": "Two accumulators: one number, one list.",
-   "explain": "The number accumulator carries state across iterations while the list accumulator records a snapshot of it, which is why the output always has exactly as many items as the input. Appending before the update would shift every entry by one element.",
-   "xp": 50
+   "solution": "def overlaps(a_start, a_end, b_start, b_end):\n    return a_start <= b_end and b_start <= a_end\n",
+   "concepts": ["comparison-operators", "boolean-operators", "booleans"],
+   "tags": ["comparison-operators"],
+   "explain": "It is far easier to say when two ranges miss each other - one finishes before the other starts - and to deny it, than to enumerate the ways they can meet. The third test is the one that punishes `<` instead of `<=`: they touch at hour 5, and touching counts because both ends are occupied.",
+   "xp": 60
   },
   {
-   "id": "py-4-e-09",
+   "id": "py-4-x-08",
    "type": "debug",
    "layer": "application",
-   "prompt": "`every_other(xs)` should return the items at index 0, 2, 4 and so on. It returns the wrong half. Fix it.",
-   "fn": "every_other",
-   "starterCode": "def every_other(xs):\n    result = []\n    for i in range(1, len(xs), 2):\n        result.append(xs[i])\n    return result\n",
-   "solution": "def every_other(xs):\n    result = []\n    for i in range(0, len(xs), 2):\n        result.append(xs[i])\n    return result\n",
+   "fn": "same_price",
+   "prompt": "`same_price(a, b)` should report `True` when two amounts of money differ by less than 0.01, and `False` otherwise. It reports `False` for two amounts that a shopper would call identical. Repair it.",
+   "starterCode": "def same_price(a, b):\n    return a == b\n",
    "tests": [
-    {
-     "input": "[1, 2, 3, 4, 5]",
-     "expected": [
-      1,
-      3,
-      5
-     ]
-    },
-    {
-     "input": "[]",
-     "expected": []
-    },
-    {
-     "input": "[9]",
-     "expected": [
-      9
-     ]
-    },
-    {
-     "input": "['a', 'b']",
-     "expected": [
-      "a"
-     ]
-    }
+    { "input": "0.1 + 0.2, 0.3", "expected": true },
+    { "input": "1.0, 1.0", "expected": true },
+    { "input": "1.0, 1.02", "expected": false },
+    { "input": "2.5, 2.5001", "expected": true }
    ],
-   "concepts": [
-    "loops",
-    "lists"
-   ],
-   "tags": [
-    "loops",
-    "lists"
-   ],
-   "hint": "The step is already right; the start is not.",
-   "explain": "The step controls the spacing and the start decides which half you land on, so only the start needed changing. Using `len(xs)` as the stop keeps every index legal for any length, including the empty list, where the loop simply never runs.",
-   "xp": 50
+   "solution": "def same_price(a, b):\n    return abs(a - b) < 0.01\n",
+   "concepts": ["comparison-operators", "booleans"],
+   "tags": ["comparison-operators"],
+   "explain": "`0.1 + 0.2` is stored as 0.30000000000000004, so exact equality is `False` even though the two amounts are the same money. Comparing the size of the gap against a tolerance is the standard repair; `abs` gives the gap without caring which amount was larger, and comparing `a - b < 0.01` alone would call 5.00 and 100.00 the same price.",
+   "xp": 60
   },
   {
-   "id": "py-4-e-10",
-   "type": "code",
+   "id": "py-4-x-09",
+   "type": "explain",
    "layer": "application",
-   "prompt": "Write `leaderboard(names, scores)` where both lists are already in ranking order and line up by position. Return a list of strings shaped `\"1. Ana: 90\"` - the rank counting from 1, then the name, a colon, a space and the score.",
-   "fn": "leaderboard",
-   "starterCode": "def leaderboard(names, scores):\n    rows = []\n    # you need the position, not just the name\n    return rows\n",
-   "solution": "def leaderboard(names, scores):\n    rows = []\n    for i in range(len(names)):\n        rows.append(str(i + 1) + \". \" + names[i] + \": \" + str(scores[i]))\n    return rows\n",
-   "tests": [
-    {
-     "input": "['Ana', 'Bo'], [90, 80]",
-     "expected": [
-      "1. Ana: 90",
-      "2. Bo: 80"
-     ]
-    },
-    {
-     "input": "[], []",
-     "expected": []
-    },
-    {
-     "input": "['Zed'], [100]",
-     "expected": [
-      "1. Zed: 100"
-     ]
-    },
-    {
-     "input": "['A', 'B', 'C'], [5, 4, 3]",
-     "expected": [
-      "1. A: 5",
-      "2. B: 4",
-      "3. C: 3"
-     ]
-    }
-   ],
-   "concepts": [
-    "loops",
-    "lists"
-   ],
-   "tags": [
-    "loops",
-    "lists"
-   ],
-   "hint": "range(len(names)) gives you i, and that one i indexes both lists.",
-   "explain": "When two lists are read in parallel you loop over positions rather than items, because a single index has to reach into both. The rank is `i + 1` for exactly the reason indices start at 0 - the display counts from one, the machine counts from zero.",
-   "xp": 50
-  },
-  {
-   "id": "py-4-e-11",
-   "type": "code",
-   "layer": "application",
-   "prompt": "Write `merge_sorted(a, b)` taking two lists already sorted ascending and returning one sorted list holding every item from both. Do it by repeatedly taking the smaller front item - do not call sort().",
-   "fn": "merge_sorted",
-   "starterCode": "def merge_sorted(a, b):\n    out = []\n    # while both lists still have items, take the smaller front one\n    # then drain whatever is left\n    return out\n",
-   "solution": "def merge_sorted(a, b):\n    out = []\n    while a and b:\n        if a[0] <= b[0]:\n            out.append(a.pop(0))\n        else:\n            out.append(b.pop(0))\n    while a:\n        out.append(a.pop(0))\n    while b:\n        out.append(b.pop(0))\n    return out\n",
-   "tests": [
-    {
-     "input": "[1, 3], [2, 4]",
-     "expected": [
-      1,
-      2,
-      3,
-      4
-     ]
-    },
-    {
-     "input": "[], [1]",
-     "expected": [
-      1
-     ]
-    },
-    {
-     "input": "[5], []",
-     "expected": [
-      5
-     ]
-    },
-    {
-     "input": "[], []",
-     "expected": []
-    },
-    {
-     "input": "[1, 1], [1]",
-     "expected": [
-      1,
-      1,
-      1
-     ]
-    },
-    {
-     "input": "[1, 2, 3], [10]",
-     "expected": [
-      1,
-      2,
-      3,
-      10
-     ]
-    }
-   ],
-   "concepts": [
-    "loops",
-    "lists",
-    "list-methods"
-   ],
-   "tags": [
-    "loops",
-    "lists",
-    "list-methods"
-   ],
-   "hint": "Three while loops: one for the comparison phase, then one to drain each leftover list.",
-   "explain": "Only the two front items ever need comparing, because everything behind them is already larger - that single observation is what makes merging a walk rather than a re-sort. The drain loops matter because one list always empties first, and `<=` rather than `<` is what keeps equal values in their original relative order.",
-   "xp": 50
+   "prompt": "A shop's stock count is `0` when the shelf is empty and `None` when nobody has counted it yet. Explain why `if count:` cannot tell those two situations apart, and say what to write instead. Name both values in your answer.",
+   "rubric": {
+    "required": ["none", "0"],
+    "optional": ["falsy", "empty", "zero", "is none", "truthiness"],
+    "forbidden": ["error"],
+    "minWords": 30
+   },
+   "concepts": ["truthiness"],
+   "tags": ["truthiness"],
+   "explain": "Both values are falsy, so `if count:` sends both down the same branch and no error is raised - which is what makes it dangerous rather than merely wrong. The repair is to test for the meaning you have in mind: `count is None` for never counted, `count == 0` for sold out, in that order.",
+   "xp": 30
   }
  ]
 }
