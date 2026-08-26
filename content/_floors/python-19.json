@@ -1,0 +1,920 @@
+{
+ "n": 19,
+ "name": "The Weighing Room",
+ "goal": "Predict how a program running time grows, and choose on measured evidence.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 18
+  }
+ ],
+ "description": {
+  "what": "What the operations you already use actually cost - reaching an item by index, adding to the end of a list, inserting at the front, asking whether a value is in a list against asking whether it is in a set or a dictionary - and how those costs compound when one of them is put inside a loop.",
+  "why": "A program that is correct on ten items and unusable on ten thousand is the commonest way working code fails in the world, and it almost never announces itself: nothing raises, nothing is wrong, the machine simply never comes back.",
+  "enables": "You will be able to look at a loop and say how its work grows with the size of its input, spot the membership test that quietly turned a linear job into a quadratic one, replace it, and back the change with a measurement rather than a feeling.",
+  "assumes": "You can write functions and loops, you know what a list, a set and a dictionary are and how to build one, and you can import a module from the standard library.",
+  "assessed": "You will count steps by hand, predict what a nested loop costs, repair programs that are correct but far too slow without being told where the fault is, and defend a decision about speed on evidence rather than on instinct."
+ },
+ "concepts": [
+  "big-o-in-practice",
+  "list-vs-dict-lookup",
+  "quadratic-traps",
+  "timeit",
+  "measuring-before-optimising"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Cost Is a Shape, Not a Number",
+    "body": "How long a program takes depends on the machine, the day and what else is running, so a number of seconds is a poor way to describe it. What does not change is the **shape**: how the work grows as the input grows. That shape is what we mean by cost.\n\nCount the steps instead of the seconds. If a function looks at every item in turn, then doubling the number of items doubles the steps, and ten times the items takes ten times as long. That is **linear** growth, written $O(n)$, where $n$ is the size of the input. If a function does the same fixed amount of work no matter how much data you hand it, that is **constant**, written $O(1)$.\n\nThe notation deliberately throws away everything except the shape. A function taking $3n + 40$ steps and one taking $n$ steps are both $O(n)$, because as $n$ grows the 3 and the 40 stop mattering next to the $n$. That looks like carelessness and is not: constants depend on the machine, and the shape does not.\n\nSo the question to ask of any piece of code is never \"is this fast\" but \"what happens to this when the input is a thousand times bigger\". The program below answers exactly that question by counting rather than timing, which is why its answers are the same every time you run it.",
+    "code": "def scan_steps(items, target):\n    steps = 0\n    for value in items:\n        steps += 1\n        if value == target:\n            return steps\n    return steps\n\nsmall = list(range(100))\nlarge = list(range(1000))\nprint(scan_steps(small, 99))\nprint(scan_steps(large, 999))\nprint(scan_steps(large, -1))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "One step per item looked at. Counting steps is measurement you can do on paper, and it does not vary with the weather."
+     },
+     {
+      "line": 12,
+      "text": "Ten times the items, ten times the steps: 100 becomes 1000. That straight-line relationship is what $O(n)$ names."
+     },
+     {
+      "line": 13,
+      "text": "The worst case. When the target is absent, every item must be examined before the function can honestly say no - which is why the worst case, not the lucky case, is what we quote."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def touches(items):\n    n = 0\n    for a in items:\n        for b in items:\n            n += 1\n    return n\n\nprint(touches([1, 2, 3]))\nprint(touches([1, 2, 3, 4, 5, 6]))",
+     "lang": "python",
+     "answer": "9\n36",
+     "concepts": [
+      "big-o-in-practice"
+     ],
+     "tags": [
+      "big-o-in-practice"
+     ],
+     "explain": "Doubling the list did not double the work, it quadrupled it: three items give 3 x 3 and six give 6 x 6. A loop inside a loop over the same data is $O(n^2)$, and the tempting answer of 18 comes from assuming the growth must be proportional because the input doubled."
+    }
+   },
+   {
+    "title": "What Each Built-In Operation Costs",
+    "body": "Python's containers are not interchangeable when it comes to cost, and the differences are large enough to decide whether a program finishes. A list is a run of slots in order, so reaching one by index is $O(1)$ - the position is arithmetic, not a search - and `append` is $O(1)$ too, because there is spare room at the end. `insert(0, x)` is $O(n)$: every existing item has to shuffle up one slot to make space at the front, and so does `pop(0)`.\n\nThe operation that catches people is `in`. On a list, `value in items` has no choice but to compare against each item until it finds a match or runs out, so it is $O(n)$. On a set or a dictionary it is $O(1)$: the value is put through a **hash function**, which turns it into a number, and that number says directly which bucket to look in. No scanning happens at all.\n\nThat is the single most useful cost fact in the language, and it is worth stating baldly:\n\n`\"x\" in a_list      looks at up to every item`\n`\"x\" in a_set       looks at one bucket`\n`\"x\" in a_dict      looks at one bucket`\n\nThe price of the set is memory and the requirement that the values be hashable, and the price of the dictionary is the same. Neither keeps the items in a useful order for indexing. Those are real costs, which is why you choose rather than always reach for the same one.",
+    "code": "shelf = [\"ash\", \"birch\", \"cedar\"]\nprint(shelf[2])\nshelf.append(\"elm\")\nshelf.insert(0, \"alder\")\nprint(shelf)\nprint(\"cedar\" in shelf)\n\ngrove = {\"ash\", \"birch\", \"cedar\"}\nprint(\"cedar\" in grove)\nheights = {\"ash\": 12, \"birch\": 40}\nprint(heights[\"birch\"])",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Indexing is arithmetic on an address, so it costs the same whether the list holds three items or three million."
+     },
+     {
+      "line": 4,
+      "text": "The expensive line. Making room at position 0 moves every other item along by one, so this alone is $O(n)$."
+     },
+     {
+      "line": 6,
+      "text": "This looks identical to the set version two lines below and costs something entirely different: up to one comparison per item."
+     },
+     {
+      "line": 11,
+      "text": "Fetching by key is hashed, not scanned. A dictionary of a million entries answers this as quickly as one of ten."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints `True` and answers the question without scanning the whole collection.",
+     "template": "grove = [\"ash\", \"birch\", \"cedar\"]\nfast = ___(grove)\nprint(\"cedar\" ___ fast)",
+     "blanks": [
+      "set",
+      "in"
+     ],
+     "concepts": [
+      "list-vs-dict-lookup"
+     ],
+     "tags": [
+      "list-vs-dict-lookup"
+     ],
+     "explain": "The keyword is the same either way, which is exactly the trap: `in` reads identically over a list and over a set while costing $O(n)$ in one case and $O(1)$ in the other. Building the set is itself $O(n)$, so this pays for itself only when you are going to ask more than once."
+    }
+   },
+   {
+    "title": "The Accidental Quadratic",
+    "body": "Nobody sets out to write $O(n^2)$ code. It arrives by accident, and almost always in the same way: a linear operation is placed inside a loop that is already linear, and the two multiply.\n\nThe classic is a membership test against a list inside a loop over another list. Each pass of the outer loop costs $O(n)$ because of the `in`, and there are $n$ passes, so the total is $n \\times n$. On fifty items that is 2500 comparisons and finishes before you notice. On fifty thousand it is two and a half billion, and the program appears to have hung. Nothing raised, nothing is incorrect - it is simply never coming back.\n\nThe repair is nearly always the same shape: hoist the expensive preparation out of the loop and do it once. Building a set from the second list costs $O(n)$ once, and then every test inside the loop is $O(1)$, so the whole job becomes $O(n)$ instead of $O(n^2)$.\n\nThe warning sign to train yourself on is not the nested `for`. It is any **linear operation hiding inside a loop**: `in` against a list, `list.index`, `list.remove`, `insert(0, x)`, `pop(0)`, or rebuilding a string with `+` one piece at a time. Each of them looks like a single innocent line.",
+    "code": "def shared_slow(a, b):\n    steps = 0\n    found = []\n    for x in a:\n        for y in b:\n            steps += 1\n            if x == y:\n                found.append(x)\n                break\n    return len(found), steps\n\n\ndef shared_fast(a, b):\n    steps = 0\n    lookup = set(b)\n    found = []\n    for x in a:\n        steps += 1\n        if x in lookup:\n            found.append(x)\n    return len(found), steps\n\n\nleft = list(range(0, 400))\nright = list(range(200, 600))\nprint(shared_slow(left, right))\nprint(shared_fast(left, right))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "The inner loop is what `x in b` would have done anyway - it is written out here only so the steps can be counted."
+     },
+     {
+      "line": 15,
+      "text": "The whole repair is this one line, and its position: outside the loop, so the $O(n)$ preparation happens once rather than $n$ times."
+     },
+     {
+      "line": 26,
+      "text": "100100 steps for the same 200 answers that the version below finds in 400. Both are correct; only one survives a bigger input."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def duplicates(items):\n    steps = 0\n    seen = []\n    for x in items:\n        for y in seen:\n            steps += 1\n        seen.append(x)\n    return steps\n\nprint(duplicates([1, 2, 3, 4]))\nprint(duplicates([1, 2, 3, 4, 5, 6, 7, 8]))",
+     "lang": "python",
+     "answer": "6\n28",
+     "concepts": [
+      "quadratic-traps"
+     ],
+     "tags": [
+      "quadratic-traps"
+     ],
+     "explain": "The inner loop runs over a list that is still growing, so the counts are 0 + 1 + 2 + 3 and 0 + 1 + ... + 7 rather than $n \\times n$. That halving is why the answer is 28 and not 64, and it changes nothing about the shape: half of $n^2$ is still $O(n^2)$."
+    }
+   },
+   {
+    "title": "Measure Before You Optimise",
+    "body": "Reasoning about shape tells you what will happen at scale. It does not tell you where the time is going right now, and on that question programmers are famously, reliably wrong. The line you suspect is rarely the line that costs, because constants, memory traffic and the interpreter's own overheads do not appear in the shape at all.\n\n`timeit` from the standard library is the tool for asking properly. It takes the statement to measure as a string, a `setup` string that builds whatever that statement needs, and a `number` of repetitions. It runs the statement that many times and reports the total seconds. Repetition is the point: a single run of a fast statement is mostly noise from the clock and the operating system, and repeating it thousands of times drowns that noise out.\n\nThe discipline that follows is short and non-negotiable. Get it correct first. Then measure, and find out which part actually dominates. Then change only that part, and keep the tests passing. Then measure again, and if the change did not earn the extra complexity, throw it away.\n\nOptimising code that was never slow is worse than doing nothing: it costs your time, it makes the code harder to read, and it sometimes makes the program slower. A measurement is cheap and an opinion is free, and only one of them is evidence.",
+    "code": "import timeit\n\nsetup = \"haystack = list(range(2000))\\nlookup = set(haystack)\"\nscan = timeit.timeit(\"1999 in haystack\", setup=setup, number=2000)\nprobe = timeit.timeit(\"1999 in lookup\", setup=setup, number=2000)\nprint(\"scan slower:\", scan > probe)\nprint(\"at least ten times faster:\", int(scan / probe) >= 10)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`setup` runs once and is not counted. Building the data inside the measured statement would time the building rather than the lookup."
+     },
+     {
+      "line": 4,
+      "text": "The statement is a string because `timeit` must be able to run it again and again itself, thousands of times."
+     },
+     {
+      "line": 7,
+      "text": "The verdict is printed as a comparison rather than as raw seconds, because the seconds differ on every machine and the ordering does not."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? The two collections hold exactly the same 500 values.",
+     "code": "import timeit\n\nsetup = \"data = list(range(500))\\nlookup = set(data)\"\nscan = timeit.timeit(\"499 in data\", setup=setup, number=500)\nprobe = timeit.timeit(\"499 in lookup\", setup=setup, number=500)\nprint(scan > probe)\nprint(probe < scan / 5)",
+     "lang": "python",
+     "answer": "True\nTrue",
+     "concepts": [
+      "timeit"
+     ],
+     "tags": [
+      "timeit"
+     ],
+     "explain": "Looking for the last value in a 500-item list means 500 comparisons, while the hashed lookup is one bucket, so the gap is not close and the second comparison holds with room to spare. Answering `False` to either line usually comes from expecting the exact seconds to be unpredictable - they are, but their ordering here is not."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-19-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def append_all(n):\n    out = []\n    for i in range(n):\n        out.append(i)\n    return out\n\n\ndef prepend_all(n):\n    out = []\n    for i in range(n):\n        out.insert(0, i)\n    return out\n\n\nprint(append_all(5))\nprint(prepend_all(5))\nprint(append_all(5) == prepend_all(5))",
+   "lang": "python",
+   "answer": "[0, 1, 2, 3, 4]\n[4, 3, 2, 1, 0]\nFalse",
+   "concepts": [
+    "big-o-in-practice"
+   ],
+   "tags": [
+    "big-o-in-practice"
+   ],
+   "explain": "`insert(0, i)` puts each new item in front of everything already there, so the result comes out reversed - and it also shifts every existing item along one slot, which makes the second function $O(n^2)$ where the first is $O(n)$. Expecting the same list twice is the natural reading, and it is wrong on both counts at once.",
+   "hint": "Work out what the list looks like after each of the five passes. `append` puts the new value last; `insert(0, ...)` puts it first.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This function is asked thousands of questions against the same `names`. Fill the blanks so the repeated membership test is hashed rather than scanned, and the answer is unchanged.",
+   "template": "def any_known(queries, names):\n    known = ___(names)\n    for q in queries:\n        if q ___ known:\n            return True\n    return False",
+   "blanks": [
+    "set",
+    "in"
+   ],
+   "concepts": [
+    "list-vs-dict-lookup",
+    "quadratic-traps"
+   ],
+   "tags": [
+    "list-vs-dict-lookup"
+   ],
+   "explain": "The conversion sits above the loop, so its $O(n)$ cost is paid once and every test inside the loop becomes $O(1)$. Writing the conversion inside the loop instead is the classic half-fix: it is still correct, still reads as an improvement, and is slower than the original because it rebuilds the whole thing on every pass.",
+   "hint": "The line that builds the fast lookup belongs above the loop, not inside it. The test itself uses the ordinary membership keyword.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-gp-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def scan_pairs(a, b):\n    steps = 0\n    for x in a:\n        for y in b:\n            steps += 1\n    return steps\n\nprint(scan_pairs([1, 2], [1, 2, 3]))\nprint(scan_pairs([1, 2, 3, 4], [1, 2, 3, 4, 5, 6]))\nprint(scan_pairs([], [1, 2, 3]))",
+   "lang": "python",
+   "answer": "6\n24\n0",
+   "concepts": [
+    "quadratic-traps"
+   ],
+   "tags": [
+    "quadratic-traps"
+   ],
+   "explain": "Two nested loops over different collections cost the product of their lengths, not the sum: 2 x 3 and 4 x 6. The last case is the one worth keeping: an empty outer collection means the inner loop never runs at all, so the cost of the inner work is irrelevant when the outer one is empty.",
+   "hint": "The inner loop runs from the start for every single pass of the outer loop. Multiply the lengths.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "probes",
+   "prompt": "Write `probes(haystack, needle)`, which reports how many items a plain left-to-right scan examines before it can answer. Look at the items in order, counting each one you look at, and stop as soon as you find `needle`. If `needle` never appears, you will have looked at all of them.\n\n`probes([10, 20, 30], 30)` gives `3`.",
+   "starterCode": "def probes(haystack, needle):\n    steps = 0\n    for value in haystack:\n        # count this look, then decide whether to stop\n        pass\n    return steps\n",
+   "solution": "def probes(haystack, needle):\n    steps = 0\n    for value in haystack:\n        steps += 1\n        if value == needle:\n            return steps\n    return steps\n",
+   "tests": [
+    {
+     "input": "[10, 20, 30], 10",
+     "expected": 1
+    },
+    {
+     "input": "[10, 20, 30], 30",
+     "expected": 3
+    },
+    {
+     "input": "[10, 20, 30], 99",
+     "expected": 3
+    },
+    {
+     "input": "[], 1",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "big-o-in-practice"
+   ],
+   "tags": [
+    "big-o-in-practice"
+   ],
+   "explain": "This is `in` on a list, written out so the cost is visible: the best case is one look, the worst case is one look per item, and the worst case is what $O(n)$ quotes. The empty list is the edge that catches an answer which counts before looping rather than inside it.",
+   "hint": "Increase the counter first, then compare. Returning from inside the loop is what makes the early cases cheap.",
+   "xp": 75
+  },
+  {
+   "id": "py-19-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "shared",
+   "prompt": "Write `shared(a, b)`, returning a list of the values from `a` that also appear in `b`, in the order they appear in `a`. Build a set from `b` once, before the loop, so that each membership test is $O(1)$ rather than $O(n)$. Keep every occurrence: if a value appears twice in `a` and once in `b`, it appears twice in the result.\n\n`shared([1, 2, 3], [2, 3, 4])` gives `[2, 3]`.",
+   "starterCode": "def shared(a, b):\n    known = set(b)\n    out = []\n    for x in a:\n        pass\n    return out\n",
+   "solution": "def shared(a, b):\n    known = set(b)\n    out = []\n    for x in a:\n        if x in known:\n            out.append(x)\n    return out\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3], [2, 3, 4]",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[1, 2], [3, 4]",
+     "expected": []
+    },
+    {
+     "input": "[], [1]",
+     "expected": []
+    },
+    {
+     "input": "[5, 5, 6], [5]",
+     "expected": [
+      5,
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "list-vs-dict-lookup",
+    "quadratic-traps"
+   ],
+   "tags": [
+    "list-vs-dict-lookup"
+   ],
+   "explain": "The set is built once and consulted many times, which turns $n \\times m$ comparisons into $n + m$. The duplicate case is deliberate: a set answers whether a value is present, never how many times, so the counting has to stay on the `a` side where the order also lives.",
+   "hint": "Inside the loop, test membership against `known` rather than against `b`, and append when the test passes.",
+   "xp": 75
+  },
+  {
+   "id": "py-19-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague reports that a report generator \"feels slow\". Without running anything, they rewrite an arithmetic expression in its innermost loop to save one multiplication, and the report still takes the same forty seconds. Explain what they should have done before touching the code, and why the change they made was extremely unlikely to help.",
+   "rubric": {
+    "required": [
+     "measure",
+     "timeit",
+     "evidence",
+     "dominates"
+    ],
+    "optional": [
+     "bottleneck",
+     "constant",
+     "guess",
+     "readable",
+     "shape",
+     "quadratic"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "measuring-before-optimising",
+    "timeit"
+   ],
+   "tags": [
+    "measuring-before-optimising",
+    "timeit"
+   ],
+   "explain": "Saving a multiplication changes a constant, and constants are precisely what growth ignores: if the slow part is a lookup whose cost grows with the data, no amount of arithmetic tidying will touch it. The right first move is a measurement - `timeit` on the candidate pieces, or timing the stages of the job - so the change lands on the part that actually dominates rather than on the part that happened to look expensive.",
+   "hint": "Two separate mistakes were made: acting without evidence, and choosing a change that affects a constant rather than a shape.",
+   "xp": 40
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-19-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_repeat",
+   "prompt": "A stream of reading identifiers arrives in order. Write `first_repeat(items)`, returning the first value that arrives for a second time, or `None` if every value is distinct. The stream may be tens of thousands of readings long and the answer is often near the end, so the function has to stay usable at that size.\n\n`first_repeat([3, 1, 4, 1, 5])` gives `1`.",
+   "solution": "def first_repeat(items):\n    seen = set()\n    for value in items:\n        if value in seen:\n            return value\n        seen.add(value)\n    return None\n",
+   "tests": [
+    {
+     "input": "[3, 1, 4, 1, 5, 9, 2, 6, 5]",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": null
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[7, 7]",
+     "expected": 7
+    },
+    {
+     "input": "list(range(8000)) + [4242]",
+     "expected": 4242
+    }
+   ],
+   "concepts": [
+    "quadratic-traps",
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "quadratic-traps",
+    "list-vs-dict-lookup"
+   ],
+   "explain": "Remembering what has already gone past is the whole problem, and where that memory is kept decides whether the function is $O(n)$ or $O(n^2)$: a growing list of seen values is scanned on every arrival, a hashed collection is not. The last test is the one that separates them - eight thousand distinct values before the answer means thirty-two million comparisons for the scanning version and eight thousand for the other.",
+   "xp": 80
+  },
+  {
+   "id": "py-19-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "unseen",
+   "prompt": "A warehouse holds a catalogue of item codes and a record of everything that has been delivered. Write `unseen(catalogue, delivered)`, returning the codes from `catalogue` that do not appear in `delivered`, in catalogue order. Both records can be very long. Duplicates in the catalogue are kept as they are.\n\n`unseen(['a', 'b', 'c'], ['b'])` gives `['a', 'c']`.",
+   "solution": "def unseen(catalogue, delivered):\n    arrived = set(delivered)\n    out = []\n    for code in catalogue:\n        if code not in arrived:\n            out.append(code)\n    return out\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'c'], ['b']",
+     "expected": [
+      "a",
+      "c"
+     ]
+    },
+    {
+     "input": "[], ['a']",
+     "expected": []
+    },
+    {
+     "input": "['a'], []",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "['a', 'a', 'b'], ['b']",
+     "expected": [
+      "a",
+      "a"
+     ]
+    },
+    {
+     "input": "list(range(8000)), list(range(1, 8000))",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "concepts": [
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "list-vs-dict-lookup"
+   ],
+   "explain": "Preparation done once outside the loop is amortised over every pass; preparation done inside is paid again on every pass. The empty cases matter because they are the two ends of that trade: with nothing to look up the preparation is pure waste, and it still costs less than a single scan of a long record would.",
+   "xp": 80
+  },
+  {
+   "id": "py-19-ip-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "busiest_page",
+   "prompt": "This function returns the page from `pages` that appears most often in `visits`, breaking ties in favour of whichever page comes first in `pages`, and `None` when `pages` is empty. It is correct, and on a real day's traffic - twenty thousand visits across two thousand pages - it takes minutes.\n\nMake it fast. The answer it returns for every input must not change.",
+   "starterCode": "def busiest_page(visits, pages):\n    if not pages:\n        return None\n    best = None\n    best_count = -1\n    for page in pages:\n        total = 0\n        for visit in visits:\n            if visit == page:\n                total += 1\n        if total > best_count:\n            best = page\n            best_count = total\n    return best\n",
+   "solution": "def busiest_page(visits, pages):\n    if not pages:\n        return None\n    counts = {}\n    for visit in visits:\n        counts[visit] = counts.get(visit, 0) + 1\n    best = None\n    best_count = -1\n    for page in pages:\n        total = counts.get(page, 0)\n        if total > best_count:\n            best = page\n            best_count = total\n    return best\n",
+   "tests": [
+    {
+     "input": "['/a', '/b', '/a'], ['/a', '/b', '/c']",
+     "expected": "/a"
+    },
+    {
+     "input": "['/c', '/c', '/b', '/b'], ['/a', '/b', '/c']",
+     "expected": "/b"
+    },
+    {
+     "input": "[], ['/a', '/b']",
+     "expected": "/a"
+    },
+    {
+     "input": "['/a'], []",
+     "expected": null
+    },
+    {
+     "input": "['/p' + str(i % 2000) for i in range(20000)], ['/p' + str(i) for i in range(2000)]",
+     "expected": "/p0"
+    }
+   ],
+   "concepts": [
+    "quadratic-traps",
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "quadratic-traps"
+   ],
+   "explain": "The original walks the whole visit log once per page, so the work is pages multiplied by visits - forty million comparisons on the real day. One pass over the visits that records how many times each one occurred turns that into visits plus pages, and every later question is answered by a single hashed fetch. The strict `>` in the comparison is load-bearing and must survive the rewrite: relaxing it to `>=` silently changes which page wins a tie.",
+   "xp": 85
+  },
+  {
+   "id": "py-19-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "label_orders",
+   "prompt": "`customers` is a list of two-item lists, each an id followed by a name. `orders` is a list of customer ids, one per order, and there can be a great many of them against a great many customers. Write `label_orders(customers, orders)`, returning the name for each order in order, or the text `unknown` where the id is not in `customers`. If an id appears more than once in `customers`, the later entry is the correct one.\n\n`label_orders([[1, 'Mira'], [2, 'Corvin']], [2, 1])` gives `['Corvin', 'Mira']`.",
+   "solution": "def label_orders(customers, orders):\n    names = {}\n    for pair in customers:\n        names[pair[0]] = pair[1]\n    out = []\n    for order in orders:\n        out.append(names.get(order, \"unknown\"))\n    return out\n",
+   "tests": [
+    {
+     "input": "[[1, 'Mira'], [2, 'Corvin']], [2, 1, 2]",
+     "expected": [
+      "Corvin",
+      "Mira",
+      "Corvin"
+     ]
+    },
+    {
+     "input": "[], [1]",
+     "expected": [
+      "unknown"
+     ]
+    },
+    {
+     "input": "[[1, 'Ash']], []",
+     "expected": []
+    },
+    {
+     "input": "[[1, 'Ash'], [1, 'Rowan']], [1]",
+     "expected": [
+      "Rowan"
+     ]
+    },
+    {
+     "input": "[[i, 'n' + str(i)] for i in range(4000)], [3999, 0, 9999]",
+     "expected": [
+      "n3999",
+      "n0",
+      "unknown"
+     ]
+    }
+   ],
+   "concepts": [
+    "list-vs-dict-lookup",
+    "big-o-in-practice"
+   ],
+   "tags": [
+    "list-vs-dict-lookup",
+    "big-o-in-practice"
+   ],
+   "explain": "Turning the pairs into a keyed structure once costs one pass and makes every order an $O(1)$ question, where searching the customer list per order costs orders multiplied by customers. The duplicate-id rule is not decoration: it says a later entry must overwrite an earlier one, which a keyed structure does for free and a search that stops at the first match gets exactly backwards.",
+   "xp": 80
+  },
+  {
+   "id": "py-19-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "dedupe",
+   "prompt": "Write `dedupe(items)`, returning the values of `items` with any later repeats removed, keeping the first appearance of each and the original order. The input may be long and mostly distinct.\n\n`dedupe(['a', 'b', 'a', 'c', 'b'])` gives `['a', 'b', 'c']`.",
+   "solution": "def dedupe(items):\n    seen = set()\n    out = []\n    for value in items:\n        if value not in seen:\n            seen.add(value)\n            out.append(value)\n    return out\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'a', 'c', 'b']",
+     "expected": [
+      "a",
+      "b",
+      "c"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[1, 1, 1]",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "[3, 2, 1]",
+     "expected": [
+      3,
+      2,
+      1
+     ]
+    }
+   ],
+   "concepts": [
+    "quadratic-traps",
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "quadratic-traps"
+   ],
+   "explain": "Two collections are needed here rather than one, and that is the insight: the output has to keep order, and the record of what has already been kept has to answer membership cheaply. Testing against the growing output itself is the tempting single-collection answer, and it is correct and $O(n^2)$ - mostly distinct input is its worst case, because nothing is ever skipped.",
+   "xp": 80
+  },
+  {
+   "id": "py-19-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "settle",
+   "prompt": "`entries` is a list of two-item lists, each an account name followed by an amount, which may be negative. Write `settle(entries)`, returning a mapping from each account name that appears to the total of its amounts. An account whose entries cancel out still appears, with a total of zero. There may be thousands of accounts and hundreds of thousands of entries.\n\n`settle([['a', 5], ['b', 2], ['a', -1]])` gives `{'a': 4, 'b': 2}`.",
+   "solution": "def settle(entries):\n    totals = {}\n    for entry in entries:\n        name = entry[0]\n        totals[name] = totals.get(name, 0) + entry[1]\n    return totals\n",
+   "tests": [
+    {
+     "input": "[['a', 5], ['b', 2], ['a', -1]]",
+     "expected": {
+      "a": 4,
+      "b": 2
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[['a', 3], ['a', -3]]",
+     "expected": {
+      "a": 0
+     }
+    },
+    {
+     "input": "[['a', 1], ['a', 2], ['a', 3]]",
+     "expected": {
+      "a": 6
+     }
+    },
+    {
+     "input": "[['a' + str(i % 3), 2] for i in range(9000)]",
+     "expected": {
+      "a0": 6000,
+      "a1": 6000,
+      "a2": 6000
+     }
+    }
+   ],
+   "concepts": [
+    "big-o-in-practice",
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "big-o-in-practice",
+    "list-vs-dict-lookup"
+   ],
+   "explain": "Accumulating into a keyed structure is one pass over the entries and constant work per entry, so the job is $O(n)$ however many accounts there are. Collecting the distinct account names first and then re-scanning the entries once per name is the shape that seems tidier and costs accounts multiplied by entries; the cancelling-to-zero case also punishes any answer that decides an account exists by whether its total is non-zero.",
+   "xp": 80
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-19-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A function is described as $O(n)$. Which statement is what that says?",
+   "choices": [
+    "Its work grows in proportion to the size of its input: ten times the data, roughly ten times the work.",
+    "It always takes exactly $n$ seconds, where $n$ is the number of items.",
+    "It never takes more than one second, whatever it is given.",
+    "It runs its body exactly once for every function that calls it."
+   ],
+   "answer": 0,
+   "concepts": [
+    "big-o-in-practice"
+   ],
+   "tags": [
+    "big-o-in-practice"
+   ],
+   "explain": "The notation describes a shape of growth, not a duration, and it deliberately discards the constant factor because that is the part that depends on the machine. The second option is the usual misreading, treating $n$ as a number of seconds rather than as a size.",
+   "xp": 15
+  },
+  {
+   "id": "py-19-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "In `timeit.timeit(stmt, setup=setup, number=10000)`, what is the `number` argument for?",
+   "choices": [
+    "How many times to run `stmt`, so that clock noise is small next to the total measured.",
+    "How many items the statement should be given to work on.",
+    "How many seconds to allow before giving up on the measurement.",
+    "How many times to run `setup`, so that the data is freshly built each time."
+   ],
+   "answer": 0,
+   "concepts": [
+    "timeit"
+   ],
+   "tags": [
+    "timeit"
+   ],
+   "explain": "A single run of a fast statement is dominated by the resolution of the clock and by whatever else the operating system was doing, so the repetition is what turns a reading into a measurement. The last option is the tempting one and is exactly wrong: `setup` runs once precisely so its cost is excluded from the figure.",
+   "xp": 15
+  },
+  {
+   "id": "py-19-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def probe_count(rows, wanted):\n    steps = 0\n    for row in rows:\n        for value in wanted:\n            steps += 1\n            if row == value:\n                break\n    return steps\n\nprint(probe_count([1, 2, 3], [3]))\nprint(probe_count([1, 2, 3], [1, 2, 3]))\nprint(probe_count([], [1, 2, 3]))",
+   "lang": "python",
+   "answer": "3\n6\n0",
+   "concepts": [
+    "quadratic-traps"
+   ],
+   "tags": [
+    "quadratic-traps"
+   ],
+   "explain": "The `break` makes the inner cost depend on where the match falls, so the second call costs 1 + 2 + 3 rather than 3 x 3. Answering 9 is the natural guess and is the worst case rather than this case - which is the point: an early exit improves the constant and leaves the $O(n^2)$ shape untouched, because a row that matches nothing still scans everything.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the data is built once and excluded from the measurement, and the summing statement is measured over a thousand runs.",
+   "template": "import timeit\n\nseconds = timeit.timeit(\"sum(data)\", ___=\"data = list(range(1000))\", ___=1000)\nprint(seconds > 0)",
+   "blanks": [
+    "setup",
+    "number"
+   ],
+   "concepts": [
+    "timeit"
+   ],
+   "tags": [
+    "timeit"
+   ],
+   "explain": "The two arguments do opposite jobs: `setup` is run once and not counted, `number` decides how many times the counted statement runs. Building the list inside the measured string instead is the commonest mistake and quietly times the construction, which on this input costs far more than the summing does.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into the order that a disciplined optimisation follows.",
+   "fragments": [
+    "Get the simplest version correct, with its tests passing.",
+    "Measure, and find which part of the work actually dominates.",
+    "Change only that part, keeping the tests passing.",
+    "Measure again, and discard the change if it did not earn its complexity."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "measuring-before-optimising"
+   ],
+   "tags": [
+    "measuring-before-optimising"
+   ],
+   "explain": "Correctness comes first because a fast wrong answer is worthless, and the second measurement is the step people skip - without it you have no idea whether the rewrite helped, and complicated code accumulates on the strength of hope. Optimising before measuring puts the effort wherever your intuition pointed, which is reliably the wrong place.",
+   "xp": 30
+  },
+  {
+   "id": "py-19-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "This function compares every item of a list against every item of the same list, including itself, performing exactly $n \\times n$ comparisons for a list of $n$ items. Give the number of comparisons for each size, as a plain number with no separators.",
+   "code": "def compare_all(items):\n    comparisons = 0\n    for a in items:\n        for b in items:\n            comparisons += 1\n    return comparisons",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "n = 10",
+     "expected": "100"
+    },
+    {
+     "label": "n = 100",
+     "expected": "10000"
+    },
+    {
+     "label": "n = 1000",
+     "expected": "1000000"
+    },
+    {
+     "label": "how many times more work n = 1000 is than n = 10",
+     "expected": "10000"
+    }
+   ],
+   "concepts": [
+    "big-o-in-practice",
+    "quadratic-traps"
+   ],
+   "tags": [
+    "big-o-in-practice"
+   ],
+   "explain": "The last row is the one that matters and is the reason quadratic code fails in production rather than in testing: a hundredfold increase in data is a ten-thousandfold increase in work. Expecting a hundred there is the linear intuition, and it is what makes a program that was fine on the sample dataset hang on the real one.",
+   "xp": 45
+  },
+  {
+   "id": "py-19-x-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "overlap_count",
+   "prompt": "Write `overlap_count(a, b)`, returning how many of the values in `a` also appear somewhere in `b`. Every occurrence in `a` counts separately. Both collections may hold many thousands of values.\n\n`overlap_count([1, 2, 3], [2, 3, 4])` gives `2`.",
+   "solution": "def overlap_count(a, b):\n    known = set(b)\n    total = 0\n    for value in a:\n        if value in known:\n            total += 1\n    return total\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3], [2, 3, 4]",
+     "expected": 2
+    },
+    {
+     "input": "[], [1]",
+     "expected": 0
+    },
+    {
+     "input": "[1], []",
+     "expected": 0
+    },
+    {
+     "input": "[1, 1], [1]",
+     "expected": 2
+    },
+    {
+     "input": "list(range(6000)), list(range(3000, 9000))",
+     "expected": 3000
+    }
+   ],
+   "concepts": [
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "list-vs-dict-lookup"
+   ],
+   "explain": "Preparing `b` once turns each of the $n$ questions from a scan into a single hashed probe, which is the difference between six thousand operations and eighteen million on the last test. The duplicate case rules out the tidy-looking answer that intersects the two collections and takes the size, because that discards the repeat.",
+   "xp": 75,
+   "starterCode": "def overlap_count(a, b):\n    pass\n"
+  },
+  {
+   "id": "py-19-x-08",
+   "type": "debug",
+   "layer": "application",
+   "fn": "has_duplicate",
+   "prompt": "This function reports whether any value appears more than once. It is correct, and it becomes unusable somewhere around ten thousand items - worst of all when there is no duplicate at all. Repair its cost without changing what it returns.",
+   "starterCode": "def has_duplicate(items):\n    for i in range(len(items)):\n        for j in range(len(items)):\n            if i != j and items[i] == items[j]:\n                return True\n    return False\n",
+   "solution": "def has_duplicate(items):\n    seen = set()\n    for value in items:\n        if value in seen:\n            return True\n        seen.add(value)\n    return False\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": false
+    },
+    {
+     "input": "[1, 2, 1]",
+     "expected": true
+    },
+    {
+     "input": "[]",
+     "expected": false
+    },
+    {
+     "input": "[5]",
+     "expected": false
+    },
+    {
+     "input": "list(range(7000))",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "quadratic-traps",
+    "list-vs-dict-lookup"
+   ],
+   "tags": [
+    "quadratic-traps"
+   ],
+   "explain": "The original can only return early when it finds a duplicate, so the all-distinct case walks the full $n^2$ pairs - forty-nine million comparisons on the last test, which is why the absence of a duplicate is its worst case rather than its easiest. Recording each value as it goes past makes the question a single hashed test per item and answers in one pass.",
+   "xp": 85
+  },
+  {
+   "id": "py-19-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Two implementations of the same function both pass the tests. Each is run once by hand with a stopwatch: one takes 0.9 seconds and the other 1.1 seconds. Explain why that is not yet evidence that the first is faster, and describe what a measurement you would act on would involve.",
+   "rubric": {
+    "required": [
+     "noise",
+     "repeat",
+     "timeit",
+     "measure"
+    ],
+    "optional": [
+     "setup",
+     "number",
+     "input",
+     "size",
+     "variance",
+     "same",
+     "smallest"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "timeit",
+    "measuring-before-optimising"
+   ],
+   "tags": [
+    "timeit",
+    "measuring-before-optimising"
+   ],
+   "explain": "A twenty per cent gap from a single pair of runs is well inside the range that scheduling, caches and background work produce on their own, so the ordering could reverse on the next attempt. A measurement worth acting on runs each version many times over the same input with `timeit`, keeps the data construction in `setup` so it is not counted, and checks the result at more than one input size - because two implementations with different growth can trade places as the input grows.",
+   "xp": 40
+  },
+  {
+   "id": "py-19-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A collection in a program never holds more than five items. A hashed lookup is measured against a plain scan over it, and the scan wins every single time. Explain how both of these can be true at once: the hashed lookup has the better growth, and the scan is the right choice here.",
+   "rubric": {
+    "required": [
+     "constant",
+     "small",
+     "growth",
+     "hash"
+    ],
+    "optional": [
+     "overhead",
+     "readable",
+     "simpler",
+     "memory",
+     "large",
+     "five"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "big-o-in-practice",
+    "measuring-before-optimising"
+   ],
+   "tags": [
+    "big-o-in-practice",
+    "measuring-before-optimising"
+   ],
+   "explain": "Growth notation throws away constants on purpose, and at five items the discarded constants are the whole of the cost: hashing a value, allocating the structure and building it are real work that a five-comparison scan simply does not do. The shape only decides the winner once the input is large enough for it to dominate, which is exactly why the shape tells you what will happen at scale and the measurement tells you what is happening now.",
+   "xp": 40
+  }
+ ]
+}

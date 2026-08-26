@@ -38,6 +38,11 @@ BROKEN = [
     # cardinality notation twice before I keyed on this instead.
     ("markdown table", re.compile(r"(?m)^\s*\|?\s*:?-{3,}:?\s*\|")),
     ("HTML tag", re.compile(r"</?(?:div|span|p|br|ul|li|table|tr|td|b|i|em|strong|h[1-6])\b")),
+    # md() renders **bold** and nothing else, so *emphasis* reaches the page
+    # with its asterisks showing. Code spans are masked before matching, or
+    # every multiplication operator written in prose reads as an italic.
+    ("single-asterisk italics",
+     re.compile(r"(?<![\*\w])\*(?!\*)[^\*\n]{1,80}(?<![\*\s])\*(?!\*)")),
 ]
 
 # Renders legibly, just not as a styled list: md() turns newlines into breaks,
@@ -54,8 +59,10 @@ def walk(node, path, hits):
     if isinstance(node, dict):
         for k, v in node.items():
             if isinstance(v, str) and k in PROSE_FIELDS:
+                # a backtick span is code; a `*` inside one is multiplication
+                live = re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), v)
                 for label, rx in UNSUPPORTED:
-                    m = rx.search(v)
+                    m = rx.search(live)
                     if m:
                         line = v[:m.start()].count("\n") + 1
                         snippet = v[max(0, m.start() - 30):m.start() + 50].replace("\n", " ")

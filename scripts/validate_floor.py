@@ -52,7 +52,7 @@ def main():
         res = Result()
         row = check_floor(fl, n - 1, total, dungeon, meta.get("disciplineType"), res,
                           meta.get("curriculum", 3))
-        band = band_for(n, total)
+        band = band_for(n, total, fl.get("stage"))
         print("%s  floor %s of %s  band=%s  %d section(s)  %d challenge(s)  %d application"
               % (base, n, total, band, row["sections"], row["challenges"], row["app"]))
         for where, msg in res.errors:

@@ -1,0 +1,947 @@
+{
+ "n": 12,
+ "name": "The Vault of Forms",
+ "goal": "Pick the right structure for a stated problem and defend it against the alternative.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 11
+  }
+ ],
+ "description": {
+  "what": "The fourth and last of Python's built-in containers - the tuple, a record of fixed shape that cannot change - together with unpacking, and the judgement of which of the four containers a stated problem actually wants.",
+  "why": "By this point you can make all four, and the mistake that will cost you most is no longer a syntax error but a working program built on the wrong structure: correct, slower than it needed to be by a factor of thousands, and inviting a change nobody intended.",
+  "enables": "You will be able to build and take apart tuples, unpack a pair straight into two names in a loop header, and choose between a list, a dict, a set and a tuple for a problem stated in plain English - then say out loud why the other three are worse.",
+  "assumes": "You can build and modify a list, look a value up in a dictionary, test membership in a set, tell aliasing from copying, and write a function that loops over a collection.",
+  "assessed": "You will predict what unpacking produces, repair code that tries to change a value chosen for being unchangeable, write functions whose prompts state the problem and never the structure, and argue in writing for a choice against its alternative."
+ },
+ "concepts": [
+  "tuples",
+  "unpacking",
+  "container-selection",
+  "cost-of-the-wrong-choice",
+  "immutability-as-a-signal"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The Fixed-Shape Record",
+    "body": "A **tuple** is a run of values in order, reachable by index, exactly like a list in that much - and unable to change once it exists. There is no `append`, no `sort`, no assigning to `point[0]`. That sounds like a list with things taken away, and if that were all it were, nobody would use one.\n\nWhat a tuple really is, is a different **message**. A list says **a collection of things of one kind, however many there turn out to be**. A tuple says *one thing made of several parts, and the parts sit at fixed positions and mean different things*. A point is `(x, y)`; a mage record is `(name, level, school)`. Position 1 of that record is not \"the second mage\", it is \"the level\", forever. The test that gives it away: if you catch yourself writing `thing[0]` and `thing[1]` and the two mean different **kinds** of thing, you are holding a record.\n\nThe **comma** is what builds a tuple, not the brackets. `record = \"Elara\", 3, \"fire\"` is a tuple of three. The brackets are usually written anyway because they make the grouping obvious, but they are punctuation, not construction - and this is the source of the one trap in the whole idea. `(7)` is just seven with brackets round it. A one-item tuple has to be written `(7,)`, trailing comma and all, and Python cannot help you here because both spellings are legal.\n\nBecause a tuple cannot change, it can be **hashed** - so it may be a key in a dict or a member of a set, which a list may never be. That is not a curiosity. It is the reason tuples appear all over real code the moment anything has to be looked up by a pair or a triple rather than by a single value.",
+    "code": "point = (3, 4)\nprint(point)\nprint(point[0], point[1])\nrecord = \"Elara\", 3, \"fire\"\nprint(record)\nprint(len(record))\nsingle = (7,)\nnot_a_tuple = (7)\nprint(len(single), not_a_tuple)\nseen = set()\nseen.add(point)\nprint(point in seen)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Indexing works exactly as it does on a list or a piece of text: position 0 first. What differs is that no assignment to `point[0]` will ever be accepted."
+     },
+     {
+      "line": 4,
+      "text": "No brackets at all, and this is still a tuple of three. The commas did the work."
+     },
+     {
+      "line": 8,
+      "text": "`(7)` is the integer 7 wearing brackets. Only the trailing comma on the line above makes a one-item tuple, and forgetting it is the classic slip."
+     },
+     {
+      "line": 11,
+      "text": "A tuple may be added to a set because it can never change under the set's feet. Try this line with a list in place of `point` and it raises `TypeError: unhashable type: 'list'`."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "box = (2,)\ncrate = (2)\nprint(len(box))\nprint(crate + 1)\n",
+     "lang": "python",
+     "answer": "1\n3",
+     "concepts": [
+      "tuples"
+     ],
+     "tags": [
+      "tuples"
+     ],
+     "explain": "`box` is a tuple of one item, so its length is 1. `crate` never became a tuple at all - the brackets grouped a single integer - so `crate + 1` is ordinary arithmetic and gives 3. The tempting answer is that both lines describe tuples and the second should fail; the comma, not the bracket, is what decides."
+    }
+   },
+   {
+    "title": "Taking a Shape Apart",
+    "body": "**Unpacking** is assignment that takes a shape apart in one line. `x, y = point` gives the first item the name `x` and the second the name `y`. The counts must agree exactly: too few and you get `ValueError: not enough values to unpack`, too many and `ValueError: too many values to unpack`. That strictness is a feature - it turns a record that has quietly grown a fourth field into a loud error rather than a silent wrong answer.\n\nIt reads better than indexing, and that is most of the point. `name, level, school = record` names the three parts on the spot, and every line after it says what it means. `record[1] + 1` requires the reader to remember what 1 was.\n\nThe right-hand side may be built on the spot, which is why `a, b = b, a` swaps two names with no temporary variable: Python builds the tuple `(b, a)` first, then unpacks it into the two names. Nothing is overwritten half way through.\n\nThe place you will use it every day is the loop header. `items()` hands back one pair per turn, so `for name, cost in prices.items():` takes each pair apart as it arrives and you never write `pair[0]` at all. Unpacking works on anything with the right number of parts, a list included, not only on tuples.",
+    "code": "point = (3, 4)\nx, y = point\nprint(x, y)\na = 1\nb = 2\na, b = b, a\nprint(a, b)\nprices = {\"ink\": 3, \"quill\": 5}\nfor name, cost in prices.items():\n    print(name, \"costs\", cost)\ntotal = 0\nfor name, cost in prices.items():\n    total = total + cost\nprint(total)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "One line, two names. Exactly two items must be on the right or this raises ValueError rather than guessing."
+     },
+     {
+      "line": 6,
+      "text": "The right-hand side becomes the tuple (2, 1) first and is then unpacked, so neither name is clobbered mid-swap."
+     },
+     {
+      "line": 9,
+      "text": "`items()` yields a pair each turn and the loop header takes it apart. This is the single commonest use of unpacking in real Python."
+     },
+     {
+      "line": 13,
+      "text": "Only the value is wanted here, but naming both parts still reads better than reaching into a pair by index."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this prints the name of every item held in more than five. The body of the loop tells you what the two names must be called.",
+     "template": "stock = {\"rope\": 2, \"torch\": 9}\nfor ___, ___ in stock.___():\n    if count > 5:\n        print(item)",
+     "blanks": [
+      "item",
+      "count",
+      "items"
+     ],
+     "concepts": [
+      "unpacking"
+     ],
+     "tags": [
+      "unpacking"
+     ],
+     "explain": "The order matters: `items()` gives the key first and the value second, so `item` must come before `count` or the comparison runs against a piece of text. Reaching for `keys()` is the usual wrong turn - it hands back one value per turn, not a pair, and unpacking it into two names raises ValueError."
+    }
+   },
+   {
+    "title": "Four Doors, and How to Pick One",
+    "body": "You now have four containers, and the decision between them is the real work of this floor. Choose by asking what **question** the data must answer, over and over, for the rest of the program's life. Not what the data looks like today.\n\n- **What is the value for this name?** - a **dict**. Keys in, values out, no scanning.\n- **Is this one in here?** or **how many different ones are there?** - a **set**. No order, no duplicates, no values, and membership costs nothing.\n- **What is the order, and what comes next?** - a **list**. Ordered, repeatable, grows and shrinks at the end cheaply.\n- **What are the parts of this one thing?** - a **tuple**. Fixed length, fixed meaning per position, cannot change.\n\nTwo of these often look interchangeable and are not. A set is not a list without duplicates: it has no order at all, so `stocked[0]` is not a thing you may ask. A tuple is not a frozen list: its positions mean different things, so `len` on it is usually a fact about the code rather than about the data.\n\nIt is entirely normal to use several at once, and the shapes nest. A dict whose keys are tuples and whose values are lists is not clever, it is Tuesday. What matters is that each layer was chosen for the question it answers.",
+    "code": "order = (\"rope\", 2, 4.5)\nbasket = [\"rope\", \"torch\", \"rope\"]\nprices = {\"rope\": 4.5, \"torch\": 1.25}\nstocked = {\"rope\", \"torch\", \"chalk\"}\nprint(order[1])\nprint(basket.count(\"rope\"))\nprint(prices[\"torch\"])\nprint(\"chalk\" in stocked)\nitem, quantity, unit_price = order\nprint(quantity * unit_price)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "One order: a thing, how many, what each costs. Three parts of one record, so a tuple."
+     },
+     {
+      "line": 3,
+      "text": "A question asked over and over - what does this cost - answered by name. That is a dict."
+     },
+     {
+      "line": 8,
+      "text": "The only question ever asked of `stocked` is whether something is in it, so a set is exactly the right size of tool."
+     },
+     {
+      "line": 9,
+      "text": "Unpacking names the three parts, and the line below reads as arithmetic about quantity and price rather than about positions 1 and 2."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "A program must answer one question and no other: has this rune already been cast? Fill the first blank with the expression that creates the right empty container, and the second with the method that puts something into it.",
+     "template": "cast = ___\ncast.___(\"ansuz\")\nprint(\"ansuz\" in cast)",
+     "blanks": [
+      "set()",
+      "add"
+     ],
+     "concepts": [
+      "container-selection"
+     ],
+     "tags": [
+      "container-selection"
+     ],
+     "explain": "Membership is the only question, there is no order and a rune cast twice is still just cast, so a set carries no weight this problem does not need. The tempting answer is a list with `append`, which is correct and gets slower every time a rune is added; and `{}` is not the empty set but the empty dict, which is why `set()` has to be spelled out."
+    }
+   },
+   {
+    "title": "What the Wrong Choice Costs",
+    "body": "A wrong container is rarely a bug. That is what makes it dangerous: the program gives the right answer and merely does far too much work, or invites a mistake nobody has made yet.\n\n**Membership in a list is a scan.** `word in banned` walks the list from the front until it finds a match or runs off the end. With five thousand banned words and fifty thousand words to check, that is up to two hundred and fifty million comparisons. The same test against a set jumps straight to the answer using the value's hash, and fifty thousand lookups finish before you have let go of the mouse. Same code, same result, minutes against an instant.\n\n**A dict keyed on 0, 1, 2 is a list wearing a costume.** You have paid for lookup by arbitrary key and bought nothing, because a list already answers `things[1]`; and you have thrown away everything the list gave you - appending, ordering, slicing - in exchange. **Ordering you never needed** is the same mistake in reverse: sorting a collection to answer a question that was only ever **is this in here** is work paid for and never spent.\n\n**Immutability is a message to the next reader.** Handing somebody a list says **this may grow, and you may change it**. Handing them a tuple says **this is fixed; if you need a different one, make a different one**. That message is enforced by the interpreter rather than by a comment, so it cannot rot. When a value is fixed for the whole run - a coordinate, a host and port, a row and seat - a tuple both documents the fact and makes the accident impossible.",
+    "code": "banned = [\"hex\", \"curse\", \"blight\"]\nbanned_fast = set(banned)\nprint(\"song\" in banned, \"song\" in banned_fast)\nby_index = {0: \"hex\", 1: \"curse\"}\nas_list = [\"hex\", \"curse\"]\nprint(by_index[1], as_list[1])\nconfig = (\"localhost\", 8080)\nhost, port = config\nprint(host, port)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Both print False. The first walked all three words to find out; the second went straight there. On three words nothing is lost, and that is precisely why the mistake survives into production."
+     },
+     {
+      "line": 4,
+      "text": "Keys 0 and 1: this dict answers exactly the question a list already answered, and can no longer be appended to or sliced."
+     },
+     {
+      "line": 7,
+      "text": "A host and a port, fixed for the run. The tuple says so, and no later line can quietly change the port to something else."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "seen = [\"a\", \"b\", \"a\"]\nunique = set(seen)\nprint(len(seen))\nprint(len(unique))\nprint(\"b\" in unique)\n",
+     "lang": "python",
+     "answer": "3\n2\nTrue",
+     "concepts": [
+      "cost-of-the-wrong-choice"
+     ],
+     "tags": [
+      "cost-of-the-wrong-choice"
+     ],
+     "explain": "Building a set from a list drops the repeats, so the two lengths differ and the difference is exactly the number of duplicates. The tempting answer is 3 on both lines, from reading `set(seen)` as a conversion that preserves what was there; it preserves the distinct values only, which is the whole reason the conversion is worth doing before a run of membership tests."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-12-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "point = (3, 4)\nx, y = point\nprint(x + y)\nprint(point[0])\nprint(len(point))\nsolo = (7,)\nprint(len(solo))\n",
+   "lang": "python",
+   "answer": "7\n3\n2\n1",
+   "concepts": [
+    "tuples",
+    "unpacking"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "hint": "Unpacking gives `x` the item at position 0 and `y` the one at position 1. Then count the items in each tuple, remembering what the trailing comma on the last one is doing.",
+   "explain": "The first line is arithmetic on the two unpacked numbers, not a joined pair, because they are integers rather than text. The last line catches people who read `(7,)` as a typo: the comma is deliberate and makes a tuple of length 1, where `(7)` would have been the bare integer and `len` would have raised TypeError.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the loop unpacks each key and value from the dictionary. The body tells you what the two names must be.",
+   "template": "prices = {\"ink\": 3, \"quill\": 5}\nfor ___, ___ in prices.___():\n    print(name + \" costs \" + str(cost))",
+   "blanks": [
+    "name",
+    "cost",
+    "items"
+   ],
+   "concepts": [
+    "unpacking"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "hint": "The method that hands back a key-and-value pair on every turn is the one whose name is the plural of what a dictionary is full of.",
+   "explain": "A dict iterated bare gives keys only, so the loop needs `items()` to receive a pair, and the pair is unpacked key-first. Reaching for `values()` is the near miss: it hands back one value per turn, and unpacking a single number into two names raises `TypeError: cannot unpack non-iterable int object`.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "summarise",
+   "prompt": "A mage record is a tuple of exactly three parts: a name, a level and a school. Write `summarise(record)` returning a single line in the form `Elara, level 3, fire`.\n\nUnpack the record into three names rather than reaching into it by index.",
+   "starterCode": "def summarise(record):\n    name, level, school = record\n    return \"\"\n",
+   "solution": "def summarise(record):\n    name, level, school = record\n    return name + \", level \" + str(level) + \", \" + school\n",
+   "tests": [
+    {
+     "input": "('Elara', 3, 'fire')",
+     "expected": "Elara, level 3, fire"
+    },
+    {
+     "input": "('Bran', 12, 'water')",
+     "expected": "Bran, level 12, water"
+    },
+    {
+     "input": "('Zo', 1, 'air')",
+     "expected": "Zo, level 1, air"
+    },
+    {
+     "input": "('Elara', 0, '')",
+     "expected": "Elara, level 0, "
+    }
+   ],
+   "concepts": [
+    "unpacking",
+    "tuples"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "hint": "`name, level, school = record` gives the three parts names. The level is a number, so it needs `str(level)` before it can be joined to text.",
+   "explain": "Unpacking is worth more here than three index lookups because every line afterwards says what it means: `level` rather than `record[1]`. The last test is the one that punishes a clever shortcut - a level of 0 and an empty school are perfectly legal values, so nothing may be skipped for being falsy.",
+   "xp": 70
+  },
+  {
+   "id": "py-12-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_repeat",
+   "prompt": "Write `first_repeat(items)`, returning the first value in `items` that has already appeared earlier in the list, or `None` when every value is different.\n\nKeep a set of what you have already seen, so that each test costs the same however long the list has grown.",
+   "starterCode": "def first_repeat(items):\n    seen = set()\n    for item in items:\n        pass\n    return None\n",
+   "solution": "def first_repeat(items):\n    seen = set()\n    for item in items:\n        if item in seen:\n            return item\n        seen.add(item)\n    return None\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'a', 'c']",
+     "expected": "a"
+    },
+    {
+     "input": "['a', 'b', 'c']",
+     "expected": null
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[1, 2, 3, 2, 1]",
+     "expected": 2
+    },
+    {
+     "input": "['x', 'x']",
+     "expected": "x"
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "hint": "Check whether the item is in `seen` before adding it, not after - otherwise every item has just been seen and the very first one looks like a repeat.",
+   "explain": "The set is doing one job and one only: answering whether a value has turned up before. A list of seen values would give the same answers and turn a walk down the input into a walk down the input for every item, which is the difference between a program that finishes and one that appears to hang. The empty list matters because the loop then never runs and the final `return None` is the only line that fires.",
+   "xp": 70
+  },
+  {
+   "id": "py-12-gp-05",
+   "type": "debug",
+   "layer": "application",
+   "fn": "distinct_pairs",
+   "prompt": "`distinct_pairs(pairs)` is given a list in which every entry is a two-item list, and must return how many **different** pairs it holds. It raises `TypeError: unhashable type: 'list'`.\n\nRepair it, keeping the same approach.",
+   "starterCode": "def distinct_pairs(pairs):\n    seen = set()\n    for pair in pairs:\n        seen.add(pair)\n    return len(seen)\n",
+   "solution": "def distinct_pairs(pairs):\n    seen = set()\n    for pair in pairs:\n        seen.add(tuple(pair))\n    return len(seen)\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [1, 2], [3, 4]]",
+     "expected": 2
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[[1, 2]]",
+     "expected": 1
+    },
+    {
+     "input": "[[1, 2], [2, 1]]",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "tuples",
+    "container-selection"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "hint": "A set member must be hashable, and a list never is, because it could change after it went in. `tuple(pair)` builds a fixed version of the same two values.",
+   "explain": "The error is not about sets being fussy: a set finds a value by its hash, and a value that can change would end up filed in the wrong place the moment somebody changed it, so Python refuses the whole idea. Converting each pair to a tuple gives a value that can never move. The last test guards the tempting shortcut of sorting or summing the pair - `(1, 2)` and `(2, 1)` are genuinely different pairs.",
+   "xp": 70
+  },
+  {
+   "id": "py-12-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A moderation script holds five thousand banned words in a list, and checks each of the fifty thousand words of a manuscript against it with `word in banned`. The script is correct and takes minutes.\n\nExplain why the list makes it slow, what you would hold the banned words in instead, and what - if anything - the change gives up.",
+   "rubric": {
+    "required": [
+     "set",
+     "list"
+    ],
+    "optional": [
+     "scan",
+     "hash",
+     "order",
+     "duplicat",
+     "membership",
+     "every",
+     "linear",
+     "memory"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "cost-of-the-wrong-choice",
+    "container-selection"
+   ],
+   "tags": [
+    "cost-of-the-wrong-choice"
+   ],
+   "explain": "The point to reach is that `in` on a list is a walk from the front, so the cost is the length of the banned list multiplied by the length of the manuscript, while the same test on a set goes straight to the answer through the value's hash. The honest second half is what is surrendered: the banned words lose their order and any duplicates in them collapse, and the words must be hashable - all of which this problem never wanted anyway, which is exactly why the set is free here and would not be everywhere.",
+   "xp": 50
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-12-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "unique_in_order",
+   "prompt": "Write `unique_in_order(words)`. Return a new list holding the values of `words` with every repeat removed, keeping the first appearance of each value in the position it originally had.\n\n`[\"b\", \"a\", \"b\", \"c\"]` gives `[\"b\", \"a\", \"c\"]`.",
+   "solution": "def unique_in_order(words):\n    seen = set()\n    result = []\n    for word in words:\n        if word not in seen:\n            seen.add(word)\n            result.append(word)\n    return result\n",
+   "tests": [
+    {
+     "input": "['b', 'a', 'b', 'c']",
+     "expected": [
+      "b",
+      "a",
+      "c"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['a', 'a', 'a']",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "['a', 'b', 'a', 'b', 'a']",
+     "expected": [
+      "a",
+      "b"
+     ]
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "Two questions are being asked at once and they want different structures: **have I met this before** wants no order and instant lookup, while **what does the answer look like** wants order preserved. Trying to do both with one collection is what makes this hard - either the result is unordered, or every check walks the result so far and the cost grows with the input. Two collaborating containers is the right answer, and recognising that is the exercise.",
+   "xp": 80
+  },
+  {
+   "id": "py-12-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "shared_count",
+   "prompt": "Write `shared_count(left, right)`. Return how many **different** values appear in both lists. A value appearing many times in either list still counts once.\n\n`[\"a\", \"b\", \"c\"]` and `[\"b\", \"c\", \"d\"]` give `2`.",
+   "solution": "def shared_count(left, right):\n    return len(set(left) & set(right))\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'c'], ['b', 'c', 'd']",
+     "expected": 2
+    },
+    {
+     "input": "[], ['a']",
+     "expected": 0
+    },
+    {
+     "input": "['a', 'a', 'b'], ['a', 'a']",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2], [3, 4]",
+     "expected": 0
+    },
+    {
+     "input": "[1, 1, 1], [1]",
+     "expected": 1
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "The word **different** in the prompt is the whole clue: duplicates must collapse, and something that collapses duplicates by its nature costs nothing to use. The nested-loop answer is correct too, and it is both slower and longer, and it quietly double-counts on the third test unless extra bookkeeping is bolted on - which is a good sign the structure, not the algorithm, was the wrong part.",
+   "xp": 80
+  },
+  {
+   "id": "py-12-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "busiest",
+   "prompt": "Write `busiest(entries)`. `entries` is a list of names, one per visit, in the order the visits happened. Return the name with the most visits, or `None` when there were none at all. If two names are level, return the one whose first visit came earlier.",
+   "solution": "def busiest(entries):\n    counts = {}\n    for name in entries:\n        counts[name] = counts.get(name, 0) + 1\n    best = None\n    best_count = 0\n    for name in entries:\n        if counts[name] > best_count:\n            best = name\n            best_count = counts[name]\n    return best\n",
+   "tests": [
+    {
+     "input": "['ana', 'bo', 'ana']",
+     "expected": "ana"
+    },
+    {
+     "input": "['ana', 'bo']",
+     "expected": "ana"
+    },
+    {
+     "input": "['bo', 'ana', 'bo', 'ana']",
+     "expected": "bo"
+    },
+    {
+     "input": "['solo']",
+     "expected": "solo"
+    },
+    {
+     "input": "[]",
+     "expected": null
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "The tally wants lookup by name, and the tie-break wants the original order, so the two halves of the problem pull towards different structures and both are needed - the counts in one, the ordering read back off the input itself. The second test is the trap: with everything level, only a strict `>` keeps the earliest name, because `>=` quietly replaces it with the last one seen.",
+   "xp": 80
+  },
+  {
+   "id": "py-12-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "repeat_bookings",
+   "prompt": "Write `repeat_bookings(bookings)`. Each entry of `bookings` is a two-item list holding a row number and a seat number, in the order the bookings were taken. Return how many of them ask for a place that an earlier booking has already taken.\n\n`[[1, 2], [1, 2], [3, 4]]` gives `1`.",
+   "solution": "def repeat_bookings(bookings):\n    taken = set()\n    clashes = 0\n    for booking in bookings:\n        row, seat = booking\n        place = (row, seat)\n        if place in taken:\n            clashes = clashes + 1\n        else:\n            taken.add(place)\n    return clashes\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [1, 2], [3, 4]]",
+     "expected": 1
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[[1, 2], [2, 1]]",
+     "expected": 0
+    },
+    {
+     "input": "[[1, 1], [1, 1], [1, 1]]",
+     "expected": 2
+    },
+    {
+     "input": "[[5, 5]]",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "tuples",
+    "container-selection"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "explain": "A place is identified by two numbers together, so the thing you need to remember is the pair, not either number - and the pair has to be in a form that can be filed and found again, which a list is not. The third test rules out adding or joining the numbers into one value: row 1 seat 2 and row 2 seat 1 are different places, and any scheme that merges them silently reports a clash that never happened.",
+   "xp": 80
+  },
+  {
+   "id": "py-12-ip-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A shop's program answers one question over and over: given a product code, what does that product cost? There are forty thousand products. A colleague has stored them as a list of small lists, each holding a code and a price, and walks it from the beginning on every enquiry.\n\nSay what that costs as the shop grows, what you would hold the products in instead, and what the change gives up.",
+   "rubric": {
+    "required": [
+     "dict",
+     "key"
+    ],
+    "optional": [
+     "scan",
+     "linear",
+     "hash",
+     "lookup",
+     "memory",
+     "order",
+     "duplicat",
+     "unique"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "The shape of the data is already a lookup table pretending to be a sequence: every enquiry walks on average half of forty thousand entries, and doubling the catalogue doubles the wait. A dict keyed on the product code answers in one step regardless of size. The half people leave out is the cost side - keys must be unique and hashable, so two rows for the same code stop being possible, which is usually a fix rather than a loss, and the original ordering of the file is no longer what you are storing.",
+   "xp": 80
+  },
+  {
+   "id": "py-12-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "The origin of a map - a pair of coordinates fixed for the entire run - is stored in one place and handed to several functions. One of them, by accident, writes a new value into the second coordinate, and the resulting bug is found three days later.\n\nSay how you would have stored that origin so the accident could not have happened, and what that choice tells the next person who reads the code.",
+   "rubric": {
+    "required": [
+     "tuple",
+     "immutab"
+    ],
+    "optional": [
+     "change",
+     "modif",
+     "accident",
+     "signal",
+     "intent",
+     "fixed",
+     "list",
+     "copy",
+     "reader",
+     "error"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "immutability-as-a-signal",
+    "tuples"
+   ],
+   "tags": [
+    "immutability-as-a-signal"
+   ],
+   "explain": "The technical half is that a fixed-length, unchangeable pair refuses the assignment outright, so the bug becomes a TypeError at the offending line on the first run instead of a wrong number three days later. The half that matters more is the message: a mutable container invites the reader to change it, and no comment saying please do not is enforced by anything. Copying defensively at every call site would also work and has to be remembered every time, which is why it is the weaker answer.",
+   "xp": 80
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-12-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these is true of a tuple and **not** of a list?",
+   "choices": [
+    "It can be a key in a dictionary or a member of a set.",
+    "It can hold values of several different types at once.",
+    "Its items can be reached by index, counting from zero.",
+    "It can be passed to a function without being copied."
+   ],
+   "answer": 0,
+   "concepts": [
+    "tuples"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "explain": "Only unchangeable values may be hashed, and hashing is how a dict finds a key and a set finds a member, so a list is barred and a tuple is not. The other three are all true of both, which is the point: tuples differ from lists in what may be done **to** them, not in what they may hold or how they are read.",
+   "xp": 15
+  },
+  {
+   "id": "py-12-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`x, y = pair` succeeds. What does that tell you about `pair`?",
+   "choices": [
+    "It holds exactly two items.",
+    "It is a tuple rather than a list.",
+    "Its two items are of the same type.",
+    "The names `x` and `y` already existed."
+   ],
+   "answer": 0,
+   "concepts": [
+    "unpacking"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "explain": "Unpacking asks only for a matching count: one item too few or too many and it raises ValueError. The second choice is the common belief and is wrong - unpacking works on a list, a tuple, a piece of text of length two, or anything else that can be walked through, because it is a property of the assignment rather than of the type.",
+   "xp": 15
+  },
+  {
+   "id": "py-12-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "pair = (\"n\", 5)\nname, count = pair\nprint(name, count)\na = 1\nb = 2\na, b = b, a\nprint(a, b)\nsolo = (9,)\nprint(len(solo), len(pair))\n",
+   "lang": "python",
+   "answer": "n 5\n2 1\n1 2",
+   "concepts": [
+    "unpacking",
+    "tuples"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "explain": "The swap is the line worth watching: the right-hand side is packed into `(2, 1)` before anything is assigned, so `a` is not overwritten before `b` reads it, which is exactly what goes wrong when the same swap is written as two separate assignments. The last line pairs a one-item tuple against a two-item one so the trailing comma has to be read rather than skimmed.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "words = [\"ink\", \"ink\", \"quill\"]\nunique = set(words)\nprint(len(words), len(unique))\ncounts = {}\nfor w in words:\n    counts[w] = counts.get(w, 0) + 1\nprint(counts[\"ink\"])\nprint(\"chalk\" in counts)\n",
+   "lang": "python",
+   "answer": "3 2\n2\nFalse",
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "The set answers **which values are there** and the dict answers **how many of each**, and the difference between 2 and 3 on the first line is precisely the information a set throws away. The last line is the reminder that `in` on a dict tests keys and not values, and that it is a lookup rather than a scan, which is why a dict works as a membership test as well as a set does.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the loop prints the name of every item held in more than five. The body tells you what the two names must be.",
+   "template": "stock = {\"rope\": 2, \"torch\": 9}\nfor ___, ___ in stock.___():\n    if count > 5:\n        print(item)",
+   "blanks": [
+    "item",
+    "count",
+    "items"
+   ],
+   "concepts": [
+    "unpacking"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "explain": "`items()` yields the key first and the value second on every turn, so the order of the two names is not a matter of taste - swap them and the comparison runs a piece of text against a number and raises TypeError. Iterating the dict bare would give keys only, and unpacking one key into two names fails.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order so that `seat_taken(bookings)` returns `True` as soon as a place is booked twice, and `False` when every booking is for a different place. Each entry of `bookings` is a two-item list.",
+   "fragments": [
+    "        if place in taken:",
+    "def seat_taken(bookings):",
+    "        taken.add(place)",
+    "    for booking in bookings:",
+    "            return True",
+    "    taken = set()",
+    "    return False",
+    "        place = tuple(booking)"
+   ],
+   "answer": [
+    1,
+    5,
+    3,
+    7,
+    0,
+    4,
+    2,
+    6
+   ],
+   "concepts": [
+    "tuples",
+    "container-selection"
+   ],
+   "tags": [
+    "tuples"
+   ],
+   "explain": "Two orderings matter. The conversion to a fixed pair has to happen before the pair is looked up or stored, because a list can be neither; and the check must come before the add, or the place has just been recorded and every booking looks like a repeat of itself. The final `return False` sits outside the loop, so it fires only once every booking has survived the check.",
+   "xp": 30
+  },
+  {
+   "id": "py-12-x-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_missing",
+   "prompt": "Write `first_missing(needed, have)`. Return the first value of `needed` that does not appear anywhere in `have`, or `None` when every one of them appears. `have` may be very long, and `needed` is checked against it many times a second.",
+   "starterCode": "def first_missing(needed, have):\n    pass\n",
+   "solution": "def first_missing(needed, have):\n    pool = set(have)\n    for item in needed:\n        if item not in pool:\n            return item\n    return None\n",
+   "tests": [
+    {
+     "input": "['a', 'b'], ['b', 'c']",
+     "expected": "a"
+    },
+    {
+     "input": "['a', 'b'], ['a', 'b']",
+     "expected": null
+    },
+    {
+     "input": "[], ['a']",
+     "expected": null
+    },
+    {
+     "input": "['z'], []",
+     "expected": "z"
+    },
+    {
+     "input": "[1, 2, 3], [3, 2]",
+     "expected": 1
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "container-selection"
+   ],
+   "explain": "Testing `item not in have` directly is correct and walks the long list once per needed value; converting `have` once up front pays a single pass and makes every test afterwards free. That trade is the whole judgement being assessed - the conversion is only worth it because the same collection is questioned repeatedly, and for a single lookup it would be waste.",
+   "xp": 75
+  },
+  {
+   "id": "py-12-x-08",
+   "type": "debug",
+   "layer": "application",
+   "fn": "bump_level",
+   "prompt": "`bump_level(record)` is given a mage record - a tuple of name, level and school - and must return a new record with the level raised by one, leaving the original untouched. It raises `TypeError: 'tuple' object does not support item assignment`.\n\nRepair it.",
+   "starterCode": "def bump_level(record):\n    record[1] = record[1] + 1\n    return record\n",
+   "solution": "def bump_level(record):\n    name, level, school = record\n    return (name, level + 1, school)\n",
+   "tests": [
+    {
+     "input": "('Elara', 3, 'fire')",
+     "expected": [
+      "Elara",
+      4,
+      "fire"
+     ]
+    },
+    {
+     "input": "('Bran', 0, 'water')",
+     "expected": [
+      "Bran",
+      1,
+      "water"
+     ]
+    },
+    {
+     "input": "('Zo', -1, 'air')",
+     "expected": [
+      "Zo",
+      0,
+      "air"
+     ]
+    },
+    {
+     "input": "('Q', 99, '')",
+     "expected": [
+      "Q",
+      100,
+      ""
+     ]
+    }
+   ],
+   "concepts": [
+    "tuples",
+    "immutability-as-a-signal"
+   ],
+   "tags": [
+    "immutability-as-a-signal"
+   ],
+   "explain": "The error is not an obstacle to work around, it is the tuple doing the job it was chosen for: the prompt says the original must be left untouched, and the type is what guarantees it rather than the programmer's care. So the repair is to build a new record from the parts, not to hunt for a way to write into the old one. Swapping the tuple for a list would silence the error and reintroduce exactly the bug the tuple was preventing.",
+   "xp": 75
+  },
+  {
+   "id": "py-12-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague has stored a to-do list as a dictionary whose keys are `0`, `1`, `2` and so on and whose values are the tasks, explaining that this lets them look a task up by its number.\n\nSay what this actually buys them, what it costs, and what you would hold the tasks in instead.",
+   "rubric": {
+    "required": [
+     "list",
+     "index"
+    ],
+    "optional": [
+     "order",
+     "insert",
+     "append",
+     "gap",
+     "renumber",
+     "key",
+     "dict",
+     "slice"
+    ],
+    "minWords": 35
+   },
+   "concepts": [
+    "container-selection",
+    "cost-of-the-wrong-choice"
+   ],
+   "tags": [
+    "cost-of-the-wrong-choice"
+   ],
+   "explain": "It buys nothing: a list already answers `tasks[2]` in one step, so the dict has paid for lookup by arbitrary key and then used only the keys a list hands out free. What it costs is everything else a sequence gives - appending without inventing the next number, iterating in a guaranteed order, slicing - and it introduces a failure a list cannot have, namely a gap in the numbering after a deletion, which every later index then has to work around.",
+   "xp": 50
+  },
+  {
+   "id": "py-12-x-10",
+   "type": "code",
+   "layer": "application",
+   "fn": "leaderboard",
+   "prompt": "Write `leaderboard(entries)`. Each entry of `entries` is a two-item list holding a player's name and the points they scored in one round; a player may appear many times. Return a list of two-item lists, one per player, holding the name and their total points, in the order the players first appear.\n\n`[[\"ana\", 3], [\"bo\", 5], [\"ana\", 2]]` gives `[[\"ana\", 5], [\"bo\", 5]]`.",
+   "starterCode": "def leaderboard(entries):\n    pass\n",
+   "solution": "def leaderboard(entries):\n    totals = {}\n    order = []\n    for entry in entries:\n        name, points = entry\n        if name not in totals:\n            totals[name] = 0\n            order.append(name)\n        totals[name] = totals[name] + points\n    result = []\n    for name in order:\n        result.append([name, totals[name]])\n    return result\n",
+   "tests": [
+    {
+     "input": "[['ana', 3], ['bo', 5], ['ana', 2]]",
+     "expected": [
+      [
+       "ana",
+       5
+      ],
+      [
+       "bo",
+       5
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[['solo', 0]]",
+     "expected": [
+      [
+       "solo",
+       0
+      ]
+     ]
+    },
+    {
+     "input": "[['a', 1], ['b', 2], ['a', -1]]",
+     "expected": [
+      [
+       "a",
+       0
+      ],
+      [
+       "b",
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[['a', 1], ['a', 1], ['a', 1]]",
+     "expected": [
+      [
+       "a",
+       3
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "container-selection",
+    "unpacking"
+   ],
+   "tags": [
+    "unpacking"
+   ],
+   "explain": "Three containers each do one job here: the dict totals by name, the list remembers the order of first appearance, and each entry is unpacked into two meaningful names rather than read by position. Trying to keep the order by scanning the result list for the player on every entry works and turns a single pass into a pass per entry - the same wrong-container cost as membership in a list, wearing a different hat.",
+   "xp": 80
+  }
+ ]
+}

@@ -1,0 +1,994 @@
+{
+ "n": 15,
+ "name": "The Chamber of Deliberate Failure",
+ "goal": "Raise, catch and design exceptions, and decide what must not be caught.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 14
+  }
+ ],
+ "description": {
+  "what": "How a Python program reports that it cannot do what it was asked, how another part of the program decides to handle that report, and how to tell the two kinds of failure apart: the ones a caller can recover from and the ones that mean the code itself is wrong.",
+  "why": "A program that keeps going after something has gone wrong is not robust, it is lying, and every hour spent hunting a bug that was silently turned into a zero somewhere upstream is an hour that a five-character handler cost somebody.",
+  "enables": "You will be able to stop a function with an error that names what went wrong, catch exactly the failures you have a plan for, run cleanup that happens whether or not the work succeeded, and argue for which failures a piece of code should present to its callers.",
+  "assumes": "You can read a traceback and name the exception type on its last line, write functions, loops and conditions, work with lists and dictionaries, and open a file with `with`.",
+  "assessed": "You will predict which handler runs and in what order, write functions that fail deliberately with a message the caller can act on, repair code that hides its own faults, and explain why a handler that catches everything is worse than no handler at all."
+ },
+ "concepts": [
+  "raise",
+  "try-except",
+  "else-finally",
+  "exception-hierarchy",
+  "custom-exceptions",
+  "eafp",
+  "never-swallow"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Refusing the job: `raise`",
+    "body": "Floor 6 taught you to read a traceback somebody else's code produced. This floor is about producing them on purpose. When a function is asked to do something it cannot honestly do, it has three choices: return a wrong answer, return some agreed-upon nonsense value like `-1` or `None`, or **stop**. Stopping is `raise`.\n\n`raise SomeError(\"message\")` abandons the rest of the function immediately, exactly as a `return` would, except that it does not hand a value back to the caller. It hands back a **failure** that the caller must either handle or pass further up. If nobody handles it, the program stops and prints the traceback you already know how to read - and that traceback is a gift, because it names the type, the message, and every line on the way down.\n\nThe type you choose is part of the message. `ValueError` means the argument was the right kind of thing but a wrong one - a negative age, an empty name. `TypeError` means it was the wrong kind of thing entirely - a list where a number was expected. `KeyError` and `IndexError` mean a lookup found nothing. `FileNotFoundError` means what it says. Reaching for a plain `Exception` every time is like labelling every box in a warehouse **stuff**: technically true, useless on the day you need one.\n\nThe message matters as much as the type. `raise ValueError(\"bad input\")` tells the person reading the traceback nothing they did not already know. Put the offending value in it. A message that says `deposit must be positive, got -5` closes the case on the spot.",
+    "code": "def deposit(balance, amount):\n    if amount <= 0:\n        raise ValueError(\"deposit must be positive, got \" + str(amount))\n    return balance + amount\n\nprint(deposit(100, 25))\nprint(deposit(100, -5))\nprint(\"this line never runs\")",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The check comes first and the function refuses before doing any work. Building the message with the actual value is the difference between a report and a shrug."
+     },
+     {
+      "line": 4,
+      "text": "This line is only reached when the argument was acceptable. A guard at the top means the rest of the function may assume its input is sound."
+     },
+     {
+      "line": 7,
+      "text": "This call raises. The traceback that follows names `ValueError`, prints the message, and shows both this line and the `raise` line - so you can see who asked and who refused."
+     },
+     {
+      "line": 8,
+      "text": "Nothing after an unhandled raise runs. A raise ends the call, and then ends its caller, and so on until something catches it or the program stops."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "require_even",
+     "prompt": "Write `require_even(n)`. If `n` is even, return it unchanged. If it is odd, raise a `ValueError` whose message contains the word `even`.",
+     "starterCode": "def require_even(n):\n    # refuse first, then return\n    return n\n",
+     "tests": [
+      {
+       "input": "4",
+       "expected": 4
+      },
+      {
+       "input": "0",
+       "expected": 0
+      },
+      {
+       "input": "7",
+       "throws": "even"
+      },
+      {
+       "input": "-3",
+       "throws": "ValueError"
+      }
+     ],
+     "solution": "def require_even(n):\n    if n % 2 != 0:\n        raise ValueError(\"expected an even number, got \" + str(n))\n    return n\n",
+     "hint": "`n % 2 != 0` is the odd test. Raise before the return, so the return is only reached by the values you approve of.",
+     "explain": "Zero is the test that catches people: it is even, and a guard written as `if not n % 2` would wrongly reject it after `int` conversion of a truthiness mistake. Returning the value on success and raising on failure means the caller never has to inspect the result to find out whether it worked.",
+     "tags": [
+      "raise"
+     ]
+    }
+   },
+   {
+    "title": "Catching, and catching narrowly",
+    "body": "`try` marks a block of work that might fail; `except` names the failure you have a plan for and gives you the code to run instead. Nothing else about the program changes: if no exception is raised the `except` block never runs, and if one is raised the rest of the `try` block is abandoned at that instant.\n\nThe hard part is deciding **what** to catch, and the answer comes from the fact that exception types form a family tree. `ZeroDivisionError` sits under `ArithmeticError`, which sits under `Exception`. `KeyError` and `IndexError` both sit under `LookupError`. `FileNotFoundError` and `PermissionError` both sit under `OSError`. An `except` clause catches its own type **and every descendant**, so `except LookupError` catches a missing key and a bad index both, and `except Exception` catches essentially everything your program can do wrong - including the typo you made three lines further down inside the same `try` block.\n\nThat is why the rule is: catch the narrowest type you actually have a plan for, and put the smallest possible amount of code inside the `try`. A `try` block wrapping twenty lines is claiming that you know what all twenty of them can do. One wrapping the single risky lookup is claiming something you can actually check.\n\nSooner or later no built-in type says what you mean. A configuration loader failing is not really a `ValueError`; it is a configuration error, and the caller may well want to catch that and nothing else. A program can declare its own failure type in one line - written `class ConfigError(ValueError):` with an indented `pass` beneath it - which creates a brand-new type hanging under `ValueError` in the family tree, so old code catching `ValueError` still works while new code can catch the specific thing. That line is class syntax and classes are floor 18's business, so you are not asked to write one yet. What you are asked to do here is judge **when** a program deserves its own failure types and **where in the family** they belong: distinct types for failures the caller reacts to differently, and one shared parent so a caller can say **anything this library considers its own fault** in a single clause.",
+    "code": "prices = {\"bread\": 2}\nbasket = [\"bread\", \"milk\"]\n\ndef price_of(name):\n    try:\n        return prices[name]\n    except KeyError:\n        return None\n\nfor item in basket:\n    print(item, price_of(item))\n\ntry:\n    print(basket[7])\nexcept LookupError as err:\n    print(\"caught by LookupError, but it really was a\", type(err).__name__)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "One expression inside the `try`. Everything the handler is claiming to understand is on this line, which is what makes the claim believable."
+     },
+     {
+      "line": 7,
+      "text": "`except KeyError` catches a missing key and nothing else. A missing key here is an ordinary, expected outcome - the basket may hold things the price list has never heard of."
+     },
+     {
+      "line": 15,
+      "text": "`LookupError` is the parent of both `KeyError` and `IndexError`, so this clause catches an index fault as well. `as err` binds the exception object so you can inspect it."
+     },
+     {
+      "line": 16,
+      "text": "`type(err).__name__` is the honest answer to what was actually caught. Catching a parent is a decision to treat a whole family the same way - fine when true, a trap when you only meant one of them."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def guard(job):\n    try:\n        job()\n    except ZeroDivisionError:\n        print(\"maths\")\n    except ArithmeticError:\n        print(\"arithmetic\")\n    except Exception:\n        print(\"something else\")\n\ndef a():\n    return 1 // 0\n\ndef b():\n    return \"x\" + 1\n\nguard(a)\nguard(b)",
+     "lang": "python",
+     "answer": "maths\nsomething else",
+     "hint": "Clauses are tried top to bottom and the first matching one wins. Ask which family each failure belongs to: is `\"x\" + 1` an arithmetic problem or a type problem?",
+     "explain": "The first call raises `ZeroDivisionError`, which matches the first clause even though it would also have matched `ArithmeticError` below it - order decides, not specificity. The second raises `TypeError`, which is not in the arithmetic family at all despite involving a `+`, so it falls through to the catch-all.",
+     "tags": [
+      "exception-hierarchy",
+      "try-except"
+     ]
+    }
+   },
+   {
+    "title": "`else` and `finally`: the other two blocks",
+    "body": "A `try` statement can carry two more blocks, and each exists to fix a specific problem with cramming everything into the `try` body.\n\n`else` runs only if the `try` block finished without raising. It is where the success path goes. The reason to use it rather than simply writing more lines inside `try` is precision: code in the `try` block is protected by your handler, and you almost never want the success path protected by a handler written for the risky part. If your `except KeyError` also silently swallows a `KeyError` raised by the code that runs **after** the lookup succeeded, you have built exactly the bug you were trying to prevent.\n\n`finally` runs no matter what: on success, on a caught exception, on an exception that is not caught and is on its way up, and even when the block is left by a `return`. It is for cleanup that must happen regardless - releasing a lock, closing a connection, recording that an attempt was made. This is precisely what `with` was doing for files on the last floor; `with` is the tidy version of a `try` and `finally` you would otherwise write by hand.\n\nOne trap worth naming: a `return` inside `finally` overwrites whatever the rest of the statement was doing, including an exception on its way up, which quietly deletes the failure. Put cleanup in `finally`, never the answer.",
+    "code": "def read_field(row, index):\n    try:\n        raw = row[index]\n    except IndexError:\n        print(\"no column\", index)\n        return None\n    else:\n        print(\"column\", index, \"ok\")\n        return raw.strip()\n    finally:\n        print(\"attempt recorded\")\n\nprint(read_field([\"  ana  \", \"3\"], 0))\nprint(read_field([\"  ana  \", \"3\"], 9))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The `try` body is one line, so the handler below it can only be triggered by the lookup itself."
+     },
+     {
+      "line": 8,
+      "text": "The `else` block is the success path. `raw.strip()` can raise an `AttributeError` if the row held a number, and putting it here means that fault is NOT swallowed by the `except IndexError` above."
+     },
+     {
+      "line": 10,
+      "text": "`finally` runs after the return value has been worked out but before the caller receives it, which is why both calls print this line - one after succeeding, one after failing."
+     },
+     {
+      "line": 14,
+      "text": "Index 9 does not exist, so the handler runs, `None` is returned, and `finally` still prints. Read the printed order carefully: it is the order the interpreter really uses."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "A file handle is opened by hand here. Fill the blanks so the success path is not protected by the handler, and the handle is closed whether or not the read succeeded.",
+     "template": "handle = open(\"data.txt\", encoding=\"utf-8\")\ntry:\n    text = handle.read()\n___:\n    print(\"read failed\")\n___:\n    print(len(text))\n___:\n    handle.close()",
+     "blanks": [
+      "except OSError",
+      "else",
+      "finally"
+     ],
+     "explain": "`print(len(text))` belongs in `else` because it is only meaningful when the read worked, and because a fault in it must not be mistaken for a read failure. The close belongs in `finally` because it is required on every path - which is the whole job `with` does for you in one line.",
+     "tags": [
+      "else-finally"
+     ]
+    }
+   },
+   {
+    "title": "Try first, and what must never be caught",
+    "body": "There are two ways to write code that might not work. You can **look before you leap**: check that the key exists, then use it. Or you can **ask forgiveness, not permission** - the style Python is named for in this context, usually shortened to **EAFP** - and just do it, with a handler ready. Python leans towards the second, for three reasons. It is faster in the common case, because the successful path pays nothing for the check. It avoids duplicating the lookup, which is where the two versions can drift apart. And in code where anything else may run in between, the answer to a check can be stale by the time you act on it, whereas a `try` block cannot be out of date about what actually happened.\n\nLooking first is still right when the check is cheap and the failure is common enough that exceptions would become the normal path, or when you want to avoid doing half a job before failing. The rule of thumb: if the failure is genuinely exceptional, try it; if it is routine, ask first.\n\nNow the half that matters most. `except Exception: pass` is the most expensive two words in Python. It does not make the program correct, it makes it **quiet**. The `AttributeError` from your typo, the `KeyError` from the field the API renamed last week, the `TypeError` from `None` arriving where a number should be - all of them become a zero, an empty list, or nothing at all, and the wrong answer travels on into a database, a report or a payment. A crash tells you where and when. A swallowed exception tells you nothing, and you will pay for the silence later with interest.\n\nA bare `except:` with no type is worse still, because it catches things that are not errors at all: `KeyboardInterrupt` when somebody presses Ctrl-C, and `SystemExit` when the program has been asked to shut down. Both sit **outside** `Exception` on purpose, precisely so that ordinary handlers do not eat them. So: catch what you have a plan for. If you catch something to log it and cannot actually handle it, end the handler with a bare `raise`, which re-raises the exception you are inside with its traceback intact. And if you truly cannot handle it, let it hit the top and crash - a loud, honest failure beats a silent wrong answer every single time.",
+    "code": "counts = {\"ana\": 2}\n\ndef bump_by_asking(name):\n    if name in counts:\n        counts[name] = counts[name] + 1\n    else:\n        counts[name] = 1\n\ndef bump_by_trying(name):\n    try:\n        counts[name] = counts[name] + 1\n    except KeyError:\n        counts[name] = 1\n\nbump_by_asking(\"ana\")\nbump_by_trying(\"bo\")\nprint(counts)\n\ndef swallow(text):\n    try:\n        return int(text)\n    except Exception:\n        return 0\n\nprint(swallow(\"12\"), swallow(\"oops\"), swallow(None))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Looking before leaping: the key is searched for once by `in`, then searched for again to read it. Two lookups, and two places to get the name wrong."
+     },
+     {
+      "line": 10,
+      "text": "Asking forgiveness: one lookup, and the failure path is the only one that costs anything. This is the shape you will see in most Python you read."
+     },
+     {
+      "line": 21,
+      "text": "The handler catches `Exception`, which is far wider than the `ValueError` that `int(\"oops\")` raises."
+     },
+     {
+      "line": 24,
+      "text": "The last call passes `None`, which raises `TypeError` - a bug, not bad user input. It is silently converted into a plausible-looking `0` that will now be added to a total somewhere."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "bump",
+     "prompt": "Write `bump(counts, name)` which adds one to `counts[name]`, treating a name that is not yet in the dictionary as having been zero. Return the dictionary. Do the increment first and handle the missing key when it happens, rather than testing for the key up front.",
+     "starterCode": "def bump(counts, name):\n    # try the increment; deal with the miss in the handler\n    return counts\n",
+     "tests": [
+      {
+       "input": "{\"ana\": 2}, \"ana\"",
+       "expected": {
+        "ana": 3
+       }
+      },
+      {
+       "input": "{\"ana\": 2}, \"bo\"",
+       "expected": {
+        "ana": 2,
+        "bo": 1
+       }
+      },
+      {
+       "input": "{}, \"ana\"",
+       "expected": {
+        "ana": 1
+       }
+      },
+      {
+       "input": "{\"ana\": 0}, \"ana\"",
+       "expected": {
+        "ana": 1
+       }
+      }
+     ],
+     "solution": "def bump(counts, name):\n    try:\n        counts[name] = counts[name] + 1\n    except KeyError:\n        counts[name] = 1\n    return counts\n",
+     "hint": "`counts[name] = counts[name] + 1` raises `KeyError` when the name is new. Catch exactly that and assign 1 instead.",
+     "explain": "The count of zero is the interesting case: a name already present with the value 0 must become 1, and any version that tests truthiness rather than membership gets it wrong. Catching `KeyError` specifically means a different fault - a `counts` that is not a dictionary, say - still reaches you rather than being turned into a fresh entry.",
+     "tags": [
+      "eafp",
+      "try-except"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-15-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Work out the order of the `else` and `finally` blocks relative to the `return` in each call.",
+   "code": "def risky(n):\n    try:\n        value = 10 // n\n    except ZeroDivisionError:\n        print(\"caught\")\n        return -1\n    else:\n        print(\"else runs\")\n        return value\n    finally:\n        print(\"finally runs\")\n\nprint(risky(5))\nprint(risky(0))",
+   "lang": "python",
+   "answer": "else runs\nfinally runs\n2\ncaught\nfinally runs\n-1",
+   "hint": "`finally` runs after the return value has been computed but before the caller gets it, so the print inside `risky` always appears before the `print` that surrounds the call.",
+   "explain": "The value `2` appears after `finally runs` because the outer `print` cannot run until `risky` has fully finished, and `finally` is part of finishing. Expecting `2` first is the natural mistake: it comes from reading `return` as **leave immediately**, when what it really does is set the answer aside and then complete the statement.",
+   "concepts": [
+    "else-finally"
+   ],
+   "tags": [
+    "else-finally",
+    "try-except"
+   ],
+   "xp": 30
+  },
+  {
+   "id": "py-15-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "parse_age",
+   "prompt": "Write `parse_age(text)`, which turns a piece of text into an age. Return the age as an `int` when the text is made only of digits and the number is 130 or below. Raise a `ValueError` whose message contains `not a number` when the text is not all digits, and a `ValueError` whose message contains `out of range` when the number is above 130.",
+   "starterCode": "def parse_age(text):\n    # refuse the two bad cases, then convert\n    return 0\n",
+   "tests": [
+    {
+     "input": "\"42\"",
+     "expected": 42
+    },
+    {
+     "input": "\"0\"",
+     "expected": 0
+    },
+    {
+     "input": "\"130\"",
+     "expected": 130
+    },
+    {
+     "input": "\"131\"",
+     "throws": "out of range"
+    },
+    {
+     "input": "\"abc\"",
+     "throws": "not a number"
+    },
+    {
+     "input": "\"\"",
+     "throws": "not a number"
+    }
+   ],
+   "solution": "def parse_age(text):\n    if not text.isdigit():\n        raise ValueError(\"not a number: \" + repr(text))\n    age = int(text)\n    if age > 130:\n        raise ValueError(\"age out of range: \" + text)\n    return age\n",
+   "hint": "`text.isdigit()` is `False` for the empty string as well as for letters, which handles two of the tests at once. Check that first, convert, then check the range.",
+   "explain": "Two different failures deserve two different messages even though both are `ValueError`, because the caller's user needs to know which rule they broke. The empty string is the case that catches people: it contains no non-digits, so a hand-rolled loop over the characters would happily accept it, whereas `isdigit` correctly refuses.",
+   "concepts": [
+    "raise"
+   ],
+   "tags": [
+    "raise",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-gp-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This function looks a name up in a price list and treats a name that is not listed as costing nothing. Fill the blanks so it catches exactly the failure a missing name produces and nothing wider.",
+   "template": "def price_of(prices, name):\n    try:\n        return prices[name]\n    ___ ___:\n        return 0",
+   "blanks": [
+    "except",
+    "KeyError"
+   ],
+   "explain": "A missing dictionary key raises `KeyError`, so that is the only type this handler has a plan for. Writing `except Exception` here would pass every test in the world and still be wrong, because it would also swallow the day somebody passes a list instead of a dictionary.",
+   "concepts": [
+    "try-except"
+   ],
+   "tags": [
+    "try-except",
+    "exception-hierarchy"
+   ],
+   "xp": 30
+  },
+  {
+   "id": "py-15-gp-04",
+   "type": "debug",
+   "layer": "application",
+   "fn": "total_price",
+   "prompt": "`total_price(items)` should multiply each item's `\"price\"` by its `\"qty\"` and add them up. An item with no `\"price\"` key is a free extra and contributes nothing. Any other problem - an item with no `\"qty\"`, for instance - is a fault in the data and must reach the caller. The handler here catches far too much, so nothing ever reaches anybody. Narrow it, and move the code that must not be protected out of the `try` block.",
+   "starterCode": "def total_price(items):\n    total = 0\n    for item in items:\n        try:\n            total += item[\"price\"] * item[\"qty\"]\n        except:\n            pass\n    return total\n",
+   "tests": [
+    {
+     "input": "[{\"price\": 2, \"qty\": 3}, {\"price\": 5, \"qty\": 1}]",
+     "expected": 11
+    },
+    {
+     "input": "[{\"price\": 2, \"qty\": 3}, {\"qty\": 9}]",
+     "expected": 6
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[{\"price\": 2}]",
+     "throws": "KeyError"
+    },
+    {
+     "input": "[{\"price\": 2, \"qty\": 0}]",
+     "expected": 0
+    }
+   ],
+   "solution": "def total_price(items):\n    total = 0\n    for item in items:\n        try:\n            price = item[\"price\"]\n        except KeyError:\n            continue\n        total += price * item[\"qty\"]\n    return total\n",
+   "hint": "Put only `item[\"price\"]` inside the `try`, catch `KeyError`, and use `continue` to skip the free extra. The multiplication then happens outside, unprotected.",
+   "explain": "The bare `except: pass` turns a missing quantity - a real data fault - into a silently smaller total, which is the worst kind of bug because the answer still looks like an answer. Shrinking the `try` to the single lookup you have a plan for is what lets the other `KeyError` through, and that is a feature, not an oversight.",
+   "concepts": [
+    "never-swallow"
+   ],
+   "tags": [
+    "never-swallow",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "trace_lookup",
+   "prompt": "Write `trace_lookup(steps, index)`, which returns a list of event strings recording what happened. Use `try`, `except IndexError`, `else` and `finally`. In the `try`, read `steps[index]`. In the handler, append `\"missing\"`. In the `else` block, append `\"found:\"` followed by the value. In the `finally` block, append `\"done\"`. Return the list.",
+   "starterCode": "def trace_lookup(steps, index):\n    events = []\n    try:\n        value = steps[index]\n    except IndexError:\n        pass\n    return events\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\"], 1",
+     "expected": [
+      "found:b",
+      "done"
+     ]
+    },
+    {
+     "input": "[\"a\"], 5",
+     "expected": [
+      "missing",
+      "done"
+     ]
+    },
+    {
+     "input": "[], 0",
+     "expected": [
+      "missing",
+      "done"
+     ]
+    },
+    {
+     "input": "[\"a\"], -1",
+     "expected": [
+      "found:a",
+      "done"
+     ]
+    }
+   ],
+   "solution": "def trace_lookup(steps, index):\n    events = []\n    try:\n        value = steps[index]\n    except IndexError:\n        events.append(\"missing\")\n    else:\n        events.append(\"found:\" + str(value))\n    finally:\n        events.append(\"done\")\n    return events\n",
+   "hint": "`\"found:\" + str(value)` builds the success event. The `else` block goes after the `except` clause and before `finally`.",
+   "explain": "`\"done\"` is always last because `finally` always runs, and it runs after whichever of the other two blocks applied. The negative index is the case worth staring at: `-1` is a perfectly valid index for a non-empty list, so it succeeds - `IndexError` is about being out of range, not about being negative.",
+   "concepts": [
+    "else-finally"
+   ],
+   "tags": [
+    "else-finally",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-gp-06",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Each of the three jobs fails in a different way, and `classify` decides how to describe it.",
+   "code": "def classify(job):\n    try:\n        job()\n    except LookupError as err:\n        print(\"lookup:\", type(err).__name__)\n    except Exception as err:\n        print(\"other:\", type(err).__name__)\n\ndef missing_key():\n    ages = {\"ana\": 3}\n    return ages[\"bo\"]\n\ndef bad_index():\n    letters = [\"a\"]\n    return letters[4]\n\ndef bad_maths():\n    return 1 // 0\n\nclassify(missing_key)\nclassify(bad_index)\nclassify(bad_maths)",
+   "lang": "python",
+   "answer": "lookup: KeyError\nlookup: IndexError\nother: ZeroDivisionError",
+   "hint": "`KeyError` and `IndexError` are both children of `LookupError`. `ZeroDivisionError` is not - it lives under `ArithmeticError`.",
+   "explain": "The first two are caught by a clause that never names their types, because catching a parent catches the whole family beneath it. The tempting wrong answer is `other: KeyError`, which comes from assuming a clause only matches the exact type written in it.",
+   "concepts": [
+    "exception-hierarchy"
+   ],
+   "tags": [
+    "exception-hierarchy",
+    "try-except"
+   ],
+   "xp": 30
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-15-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "withdraw",
+   "prompt": "A cash machine calls `withdraw(balance, amount)` and gets back the new balance. Two requests must not produce a balance at all, because there is no sensible number to return and continuing would be worse than stopping: an amount that is zero or negative, and an amount larger than the balance. In the first case the caller must be stopped with a message containing `amount`; in the second, with a message containing `funds`. A legitimate withdrawal returns the remaining balance.",
+   "tests": [
+    {
+     "input": "100, 30",
+     "expected": 70
+    },
+    {
+     "input": "50, 50",
+     "expected": 0
+    },
+    {
+     "input": "100, 0",
+     "throws": "amount"
+    },
+    {
+     "input": "100, -5",
+     "throws": "amount"
+    },
+    {
+     "input": "50, 80",
+     "throws": "funds"
+    }
+   ],
+   "solution": "def withdraw(balance, amount):\n    if amount <= 0:\n        raise ValueError(\"amount must be positive\")\n    if amount > balance:\n        raise ValueError(\"insufficient funds\")\n    return balance - amount\n",
+   "explain": "Returning `-1` or `None` for the bad cases would compile, run, and eventually credit somebody's account with nonsense, because nothing forces the caller to look. Withdrawing the entire balance is the boundary that must still succeed - `amount > balance` is the right test and `amount >= balance` is the classic off-by-one that locks people out of their last pound.",
+   "concepts": [
+    "raise"
+   ],
+   "tags": [
+    "raise",
+    "never-swallow"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "sum_counts",
+   "prompt": "Stock rows arrive as text in the form `widget:3`. Write `sum_counts(rows)`, which adds up the numbers after the colons and returns the total. A row that does not have exactly one colon, or whose second part is not a whole number, is corrupt data: the whole call must stop, and whoever is looking at the failure must be able to see the offending row itself in the message. An empty list of rows totals zero.",
+   "tests": [
+    {
+     "input": "[\"a:1\", \"b:2\"]",
+     "expected": 3
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[\"a:1\", \"oops\"]",
+     "throws": "oops"
+    },
+    {
+     "input": "[\"a:x\"]",
+     "throws": "a:x"
+    },
+    {
+     "input": "[\"a:1:2\"]",
+     "throws": "a:1:2"
+    }
+   ],
+   "solution": "def sum_counts(rows):\n    total = 0\n    for row in rows:\n        parts = row.split(\":\")\n        if len(parts) != 2:\n            raise ValueError(\"malformed row: \" + row)\n        try:\n            total += int(parts[1])\n        except ValueError:\n            raise ValueError(\"malformed row: \" + row)\n    return total\n",
+   "explain": "Putting the offending row into the message is the whole point: `bad data` sends somebody hunting through a file, while `malformed row: a:x` ends the investigation. The row with two colons is the case that separates a real check from a lazy one, since splitting and taking the last piece would quietly accept it.",
+   "concepts": [
+    "raise",
+    "try-except"
+   ],
+   "tags": [
+    "raise",
+    "try-except",
+    "never-swallow"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ip-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "parse_scores",
+   "prompt": "`parse_scores(text)` should turn lines of the form `ana,3` into a dictionary mapping name to score. Blank lines are ignored. A line that is not a name and a score separated by a single comma, or whose score is not a whole number, means the file is broken: the call must stop, and the message must contain `bad line ` followed by that line's number, counting from 1 and counting blank lines too. The version below never reports anything at all - it hands back whatever it managed to collect. Repair it.",
+   "starterCode": "def parse_scores(text):\n    scores = {}\n    number = 0\n    for line in text.split(\"\\n\"):\n        number += 1\n        try:\n            parts = line.strip().split(\",\")\n            scores[parts[0]] = int(parts[1])\n        except:\n            pass\n    return scores\n",
+   "tests": [
+    {
+     "input": "\"ana,3\\nbo,5\"",
+     "expected": {
+      "ana": 3,
+      "bo": 5
+     }
+    },
+    {
+     "input": "\"ana,3\\n\\nbo,5\"",
+     "expected": {
+      "ana": 3,
+      "bo": 5
+     }
+    },
+    {
+     "input": "\"ana,3\\nbo\"",
+     "throws": "bad line 2"
+    },
+    {
+     "input": "\"ana,x\"",
+     "throws": "bad line 1"
+    },
+    {
+     "input": "\"\"",
+     "expected": {}
+    },
+    {
+     "input": "\"ana,3\\n\\n\\nbo,z\"",
+     "throws": "bad line 4"
+    }
+   ],
+   "solution": "def parse_scores(text):\n    scores = {}\n    number = 0\n    for line in text.split(\"\\n\"):\n        number += 1\n        line = line.strip()\n        if not line:\n            continue\n        parts = line.split(\",\")\n        if len(parts) != 2:\n            raise ValueError(\"bad line \" + str(number))\n        try:\n            scores[parts[0]] = int(parts[1])\n        except ValueError:\n            raise ValueError(\"bad line \" + str(number))\n    return scores\n",
+   "explain": "A parser that returns partial results on corrupt input is the most dangerous thing in this floor: every caller downstream sees a perfectly valid dictionary and has no way to know half the file went missing. The line counter must advance on blank lines as well, otherwise the number in the report points at the wrong row and sends the reader to the wrong place in the file.",
+   "concepts": [
+    "never-swallow"
+   ],
+   "tags": [
+    "never-swallow",
+    "raise",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "to_number",
+   "prompt": "Write `to_number(text)`, which turns a piece of text into the most exact number it can: an `int` when the text names a whole number, a `float` when it names a decimal one. Text that names no number at all must stop the caller with a message containing the text itself. Do not inspect the characters to decide; let the conversions themselves settle it.",
+   "tests": [
+    {
+     "input": "\"42\"",
+     "expected": 42
+    },
+    {
+     "input": "\"3.5\"",
+     "expected": 3.5
+    },
+    {
+     "input": "\"  7 \"",
+     "expected": 7
+    },
+    {
+     "input": "\"-2.25\"",
+     "expected": -2.25
+    },
+    {
+     "input": "\"seven\"",
+     "throws": "seven"
+    },
+    {
+     "input": "\"\"",
+     "throws": true
+    }
+   ],
+   "solution": "def to_number(text):\n    try:\n        return int(text)\n    except ValueError:\n        pass\n    try:\n        return float(text)\n    except ValueError:\n        raise ValueError(\"not a number: \" + repr(text))\n",
+   "explain": "Deciding by hand which texts are numbers is a trap with no bottom - signs, leading spaces, exponents, underscores - and `int` and `float` already know all of those rules. The order matters: `float(\"42\")` succeeds and gives `42.0`, so trying `int` first is what preserves the more exact type.",
+   "concepts": [
+    "eafp"
+   ],
+   "tags": [
+    "eafp",
+    "try-except",
+    "raise"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ip-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A payments module you are writing has three ways to fail: the card is declined, the network is unreachable, and the amount passed in is not a valid sum of money. Callers react to each differently - one is worth retrying automatically, one must be shown to the customer, and one is a bug in the calling code. The module currently signals all three with `ValueError` and a different message each time. Describe what you would present to callers instead: how many failure types, how they relate to one another, and what a caller that wants to retry only the network case has to write. Then say what a caller of the current design has to write to do the same thing, and why that is fragile.",
+   "rubric": {
+    "required": [
+     "network",
+     "retry",
+     "caller",
+     "message"
+    ],
+    "optional": [
+     "parent",
+     "hierarchy",
+     "declined",
+     "catch",
+     "specific",
+     "base"
+    ],
+    "forbidden": [],
+    "minWords": 70
+   },
+   "explain": "The fragile answer is inspecting the message text - reading the string to decide what happened - which breaks the moment somebody improves the wording, and which no editor or type checker can help you with. Distinct types let each caller catch exactly the case it can act on, and giving them a shared parent means a caller that wants to treat all payment problems alike can still do it in one clause; that is the design decision, and the class syntax that expresses it is floor 18's business.",
+   "concepts": [
+    "custom-exceptions",
+    "exception-hierarchy"
+   ],
+   "tags": [
+    "custom-exceptions",
+    "exception-hierarchy"
+   ],
+   "xp": 40
+  },
+  {
+   "id": "py-15-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "apply_discount",
+   "prompt": "Write `apply_discount(price, code, table)`. `table` maps a discount code to a percentage off. Return the price after the discount, rounded to two decimal places. A code the table has never heard of is the customer typing something wrong, and the caller must be stopped with a message containing that code. A percentage in the table below 0 or above 100 is a mistake by whoever configured the table, and the caller must be stopped with a message containing `percent`. These two are not the same kind of problem and should not look the same to somebody reading the traceback.",
+   "tests": [
+    {
+     "input": "100, \"SAVE\", {\"SAVE\": 10}",
+     "expected": 90
+    },
+    {
+     "input": "0, \"SAVE\", {\"SAVE\": 10}",
+     "expected": 0
+    },
+    {
+     "input": "100, \"SAVE\", {\"SAVE\": 0}",
+     "expected": 100
+    },
+    {
+     "input": "20, \"HALF\", {\"HALF\": 50}",
+     "expected": 10.0
+    },
+    {
+     "input": "100, \"NOPE\", {\"SAVE\": 10}",
+     "throws": "NOPE"
+    },
+    {
+     "input": "100, \"BAD\", {\"BAD\": 150}",
+     "throws": "percent"
+    }
+   ],
+   "solution": "def apply_discount(price, code, table):\n    try:\n        percent = table[code]\n    except KeyError:\n        raise KeyError(\"unknown code: \" + code)\n    if percent < 0 or percent > 100:\n        raise ValueError(\"percent out of range: \" + str(percent))\n    return round(price - price * percent / 100, 2)\n",
+   "explain": "The two failures deserve different types because they have different audiences: one is a customer mistake a shop assistant can fix, the other is a configuration bug somebody has to go and repair. A zero percent entry must still be honoured rather than treated as missing, which is why the range check has to be a comparison and not a truthiness test.",
+   "concepts": [
+    "raise",
+    "exception-hierarchy"
+   ],
+   "tags": [
+    "raise",
+    "try-except",
+    "exception-hierarchy"
+   ],
+   "xp": 75
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-15-ex-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which single `except` clause catches both a missing dictionary key and an out-of-range list index, and nothing outside that family?",
+   "choices": [
+    "except Exception:",
+    "except LookupError:",
+    "except ValueError:",
+    "except ArithmeticError:"
+   ],
+   "answer": 1,
+   "explain": "`KeyError` and `IndexError` are both children of `LookupError`, so naming the parent catches exactly those two families and no more. `except Exception` would also work in the narrow sense of catching them, which is why it is the tempting answer - and it is wrong here because it catches everything else as well.",
+   "concepts": [
+    "exception-hierarchy"
+   ],
+   "tags": [
+    "exception-hierarchy"
+   ],
+   "xp": 15
+  },
+  {
+   "id": "py-15-ex-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def total(values):\n    running = 0\n    for value in values:\n        try:\n            running += int(value)\n        except Exception:\n            pass\n    return running\n\nprint(total([\"1\", \"2\", \"x\"]))\nprint(total([\"1\", None, 3]))\nprint(total([]))",
+   "lang": "python",
+   "answer": "3\n4\n0",
+   "hint": "`int(None)` does not raise `ValueError`; it raises `TypeError`. Ask what this handler does with that.",
+   "explain": "The second line is the lesson: `None` in the data is a bug, `int(None)` raises `TypeError`, and `except Exception` swallows it so the total silently becomes 4 instead of failing. A reader expecting a crash on line two has the right instinct and is defeated by a handler that was written far too wide.",
+   "concepts": [
+    "never-swallow"
+   ],
+   "tags": [
+    "never-swallow",
+    "exception-hierarchy"
+   ],
+   "xp": 30
+  },
+  {
+   "id": "py-15-ex-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so that an empty name stops the function with a `ValueError` carrying the message `name must not be empty`.",
+   "template": "def greet(name):\n    if not name:\n        ___ ___(\"name must not be empty\")\n    return \"hello \" + name",
+   "blanks": [
+    "raise",
+    "ValueError"
+   ],
+   "explain": "`raise` needs a type, not just a message, because the type is what a handler further up matches on. `ValueError` rather than `TypeError` because an empty string is the right kind of thing with a wrong value in it.",
+   "concepts": [
+    "raise"
+   ],
+   "tags": [
+    "raise"
+   ],
+   "xp": 30
+  },
+  {
+   "id": "py-15-ex-04",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these fragments in the only order Python accepts for a `try` statement that handles a failure, has a success path, and cleans up either way.",
+   "fragments": [
+    "try:",
+    "    risky()",
+    "except OSError:",
+    "    print('failed')",
+    "else:",
+    "    print('worked')",
+    "finally:",
+    "    release()"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "explain": "The order is fixed by the language: `try`, then handlers, then `else`, then `finally`. Putting `else` before `except` is a syntax error, and the reason the order is not arbitrary is that `else` means **no handler ran**, which cannot be known until every handler has been considered.",
+   "concepts": [
+    "else-finally"
+   ],
+   "tags": [
+    "else-finally",
+    "try-except"
+   ],
+   "xp": 30
+  },
+  {
+   "id": "py-15-ex-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_number",
+   "prompt": "Write `first_number(values)`, which returns the first item of `values` that can be turned into a whole number, converted, or `None` if no item can. The list may hold anything at all, including values that are not text.",
+   "starterCode": "def first_number(values):\n    for value in values:\n        pass\n    return None\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"12\", \"3\"]",
+     "expected": 12
+    },
+    {
+     "input": "[\"3.5\", \"7\"]",
+     "expected": 7
+    },
+    {
+     "input": "[None, \"x\", 4]",
+     "expected": 4
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[\"nope\"]",
+     "expected": null
+    }
+   ],
+   "solution": "def first_number(values):\n    for value in values:\n        try:\n            return int(value)\n        except (ValueError, TypeError):\n            continue\n    return None\n",
+   "hint": "Attempt the conversion inside the loop and let a failed attempt move on to the next item. Both `ValueError` and `TypeError` are possible.",
+   "explain": "`\"3.5\"` is the case that decides the design: it is a number but not a whole one, so `int` refuses it and the loop must carry on rather than stopping. Catching only `ValueError` passes four tests and then crashes on `None`, which raises `TypeError` instead.",
+   "concepts": [
+    "eafp"
+   ],
+   "tags": [
+    "eafp",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ex-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "checked_int",
+   "prompt": "Write `checked_int(text, low, high)`, which converts `text` to an `int` and returns it if it lies between `low` and `high` inclusive. Text that is not a whole number must raise a `ValueError` whose message contains `not a whole number`; a number outside the range must raise a `ValueError` whose message contains `out of range`.",
+   "starterCode": "def checked_int(text, low, high):\n    value = int(text)\n    return value\n",
+   "tests": [
+    {
+     "input": "\"5\", 1, 10",
+     "expected": 5
+    },
+    {
+     "input": "\"1\", 1, 10",
+     "expected": 1
+    },
+    {
+     "input": "\"10\", 1, 10",
+     "expected": 10
+    },
+    {
+     "input": "\"11\", 1, 10",
+     "throws": "out of range"
+    },
+    {
+     "input": "\"x\", 1, 10",
+     "throws": "not a whole number"
+    },
+    {
+     "input": "\"3.0\", 1, 10",
+     "throws": "not a whole number"
+    }
+   ],
+   "solution": "def checked_int(text, low, high):\n    try:\n        value = int(text)\n    except ValueError:\n        raise ValueError(\"not a whole number: \" + repr(text))\n    if value < low or value > high:\n        raise ValueError(\"out of range: \" + str(value))\n    return value\n",
+   "hint": "Wrap only the `int(text)` call, catch `ValueError`, and raise your own with a clearer message. The range check happens afterwards, outside the handler.",
+   "explain": "Both bounds are inclusive, so `1` and `10` must both survive - the commonest failure here is a strict comparison that rejects the endpoints. `\"3.0\"` is refused because `int` will not silently discard a decimal point in text, which is exactly the strictness you want when the field is meant to hold a whole number.",
+   "concepts": [
+    "raise",
+    "try-except"
+   ],
+   "tags": [
+    "raise",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ex-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague wraps every function body in their module in `try:` and ends it with `except Exception: pass`, arguing that the service must never go down. Explain why this makes the service less reliable rather than more, what it does to the next person who has to debug it, and what they should do instead in the case where they genuinely cannot handle a failure at that point in the code.",
+   "rubric": {
+    "required": [
+     "silent",
+     "bug",
+     "debug",
+     "raise"
+    ],
+    "optional": [
+     "traceback",
+     "wrong",
+     "crash",
+     "log",
+     "narrow",
+     "specific",
+     "data"
+    ],
+    "forbidden": [],
+    "minWords": 60
+   },
+   "explain": "The argument sounds like reliability and is actually the opposite: the service stays up while producing wrong answers, and wrong answers written to a database outlive any outage. The answer that earns full marks names the alternative concretely - catch narrowly, or log and re-raise with a bare `raise` so the traceback survives - rather than only condemning the pattern.",
+   "concepts": [
+    "never-swallow"
+   ],
+   "tags": [
+    "never-swallow",
+    "try-except"
+   ],
+   "xp": 40
+  },
+  {
+   "id": "py-15-ex-08",
+   "type": "debug",
+   "layer": "application",
+   "fn": "report",
+   "prompt": "`report(rows)` should build a line for each row as the name in capitals, a colon, and the score - and a row with no `\"name\"` key should use the name `unknown`, capitalised by the same rule as any other name. Every row does have a `\"score\"`. This version returns `unknown:0` for absolutely everything, because there is a typo inside the `try` block and the handler is wide enough to hide it. Find the typo, fix it, and narrow the handler so that it could not have hidden anything.",
+   "starterCode": "def report(rows):\n    lines = []\n    for row in rows:\n        try:\n            name = row[\"name\"]\n            lines.append(name.uppr() + \":\" + str(row[\"score\"]))\n        except Exception:\n            lines.append(\"unknown:0\")\n    return lines\n",
+   "tests": [
+    {
+     "input": "[{\"name\": \"ana\", \"score\": 3}]",
+     "expected": [
+      "ANA:3"
+     ]
+    },
+    {
+     "input": "[{\"score\": 7}]",
+     "expected": [
+      "UNKNOWN:7"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[{\"name\": \"bo\", \"score\": 0}, {\"score\": 1}]",
+     "expected": [
+      "BO:0",
+      "UNKNOWN:1"
+     ]
+    }
+   ],
+   "solution": "def report(rows):\n    lines = []\n    for row in rows:\n        try:\n            name = row[\"name\"]\n        except KeyError:\n            name = \"unknown\"\n        lines.append(name.upper() + \":\" + str(row[\"score\"]))\n    return lines\n",
+   "explain": "`uppr` is not a method, so every row raised `AttributeError` and every row was quietly relabelled - the handler turned a one-character typo into a plausible output that would have shipped. Once only `row[\"name\"]` sits inside the `try` and only `KeyError` is caught, the typo has nowhere to hide and announces itself on the first run.",
+   "concepts": [
+    "never-swallow",
+    "try-except"
+   ],
+   "tags": [
+    "never-swallow",
+    "try-except"
+   ],
+   "xp": 75
+  },
+  {
+   "id": "py-15-ex-09",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these statements about `finally` are true?",
+   "choices": [
+    "It runs whether or not an exception was raised.",
+    "It runs even when the `try` block is left by a `return`.",
+    "It runs only if no handler matched the exception.",
+    "A `return` inside it replaces whatever the statement was otherwise doing, including an exception on its way up.",
+    "It is the only place cleanup code may be written."
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "explain": "The third choice describes `else`, inverted, and is the commonest confusion between the two blocks. The last is false because `with` exists precisely to write the same cleanup guarantee in one line, and it is what you should reach for whenever the resource supports it.",
+   "concepts": [
+    "else-finally"
+   ],
+   "tags": [
+    "else-finally"
+   ],
+   "xp": 15
+  },
+  {
+   "id": "py-15-ex-10",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Note the bare `raise` on the last line of `inner`'s handler.",
+   "code": "def inner():\n    try:\n        raise ValueError(\"boom\")\n    except ValueError:\n        print(\"inner is logging this\")\n        raise\n\ndef outer():\n    try:\n        inner()\n    except ValueError as err:\n        print(\"outer saw\", err)\n    finally:\n        print(\"outer is done\")\n\nouter()",
+   "lang": "python",
+   "answer": "inner is logging this\nouter saw boom\nouter is done",
+   "hint": "A bare `raise` inside a handler re-raises the exception it is currently handling, with its traceback intact, instead of ending the handler quietly.",
+   "explain": "`inner` handles the exception long enough to record it and then puts it back, so `outer` sees it too - which is the correct pattern for code that wants to log a failure it cannot actually fix. Expecting only the first line is the natural error: it comes from reading `except` as **this failure is now dealt with**, when a bare `raise` explicitly says it is not.",
+   "concepts": [
+    "never-swallow",
+    "try-except"
+   ],
+   "tags": [
+    "never-swallow",
+    "try-except"
+   ],
+   "xp": 30
+  }
+ ]
+}

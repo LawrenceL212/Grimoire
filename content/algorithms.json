@@ -38,7 +38,7 @@
     "sections": [
      {
       "title": "What Makes a Procedure an Algorithm",
-      "body": "A recipe, a set of directions and a sorting routine are all **procedures**, but only some of them are **algorithms**. Three properties decide it: every step must be **definite** (unambiguous, with no room for judgement), the whole procedure must be **finite** (it halts on every legal input), and every step must be **effective** (a real operation the executor can actually carry out).\n\nFiniteness is the one that bites. Euclid's `gcd` halts because the remainder `a % b` is strictly smaller than `b`, so the second argument is a non-negative integer that decreases on every pass and cannot decrease forever.\n\nA loop whose guard moves *away* from false is a procedure, but not an algorithm - and no amount of speed matters for something that never returns an answer.",
+      "body": "A recipe, a set of directions and a sorting routine are all **procedures**, but only some of them are **algorithms**. Three properties decide it: every step must be **definite** (unambiguous, with no room for judgement), the whole procedure must be **finite** (it halts on every legal input), and every step must be **effective** (a real operation the executor can actually carry out).\n\nFiniteness is the one that bites. Euclid's `gcd` halts because the remainder `a % b` is strictly smaller than `b`, so the second argument is a non-negative integer that decreases on every pass and cannot decrease forever.\n\nA loop whose guard moves **away** from false is a procedure, but not an algorithm - and no amount of speed matters for something that never returns an answer.",
       "code": "function gcd(a, b) {\n  while (b !== 0) {\n    const r = a % b;\n    a = b;\n    b = r;\n  }\n  return a;\n}\n\nconsole.log(gcd(48, 18));\nconsole.log(gcd(17, 5));\n\nfunction neverStops(n) {\n  let steps = 0;\n  while (n > 0) {\n    n = n + 1;\n    steps = steps + 1;\n    if (steps === 5) return \"gave up after \" + steps + \" steps\";\n  }\n  return String(n);\n}\n\nconsole.log(neverStops(1));",
       "lang": "javascript",
       "annotations": [
@@ -108,7 +108,7 @@
      },
      {
       "title": "Big-O Is an Upper Bound on Growth",
-      "body": "Once the cost is a function of $n$, only its **shape** matters. **Big-O** keeps that shape and throws away everything else: constant factors and lower-order terms. So $3n + 7$ is $O(n)$, and $2n^2 + 100n$ is $O(n^2)$.\n\nRead $O(f(n))$ as *grows no faster than* $f(n)$ - it is an **upper bound**, not an exact count. That is why $O(n^2)$ is a perfectly true statement about a single loop, just a uselessly loose one; we always quote the tightest bound we can defend.\n\nThe shapes you meet first, ordered slowest-growing to fastest:\n\n- $O(1)$ - constant, the cost does not depend on $n$ at all\n- $O(\\log n)$ - halving, as in repeatedly cutting the input in two\n- $O(n)$ - one pass over the input\n- $O(n \\log n)$ - one pass for each halving level\n- $O(n^2)$ - a full pass over the input for every element of the input",
+      "body": "Once the cost is a function of $n$, only its **shape** matters. **Big-O** keeps that shape and throws away everything else: constant factors and lower-order terms. So $3n + 7$ is $O(n)$, and $2n^2 + 100n$ is $O(n^2)$.\n\nRead $O(f(n))$ as **grows no faster than** $f(n)$ - it is an **upper bound**, not an exact count. That is why $O(n^2)$ is a perfectly true statement about a single loop, just a uselessly loose one; we always quote the tightest bound we can defend.\n\nThe shapes you meet first, ordered slowest-growing to fastest:\n\n- $O(1)$ - constant, the cost does not depend on $n$ at all\n- $O(\\log n)$ - halving, as in repeatedly cutting the input in two\n- $O(n)$ - one pass over the input\n- $O(n \\log n)$ - one pass for each halving level\n- $O(n^2)$ - a full pass over the input for every element of the input",
       "code": "function halvingCost(n) {\n  let steps = 0;\n  while (n > 1) {\n    n = Math.floor(n / 2);\n    steps = steps + 1;\n  }\n  return steps;\n}\n\nfunction linearCost(arr) {\n  let ops = 0;\n  for (let i = 0; i < arr.length; i++) ops = ops + 1;\n  return ops;\n}\n\nfunction quadraticCost(arr) {\n  let ops = 0;\n  for (let i = 0; i < arr.length; i++)\n    for (let j = 0; j < arr.length; j++) ops = ops + 1;\n  return ops;\n}\n\nconst eight = [1, 2, 3, 4, 5, 6, 7, 8];\nconsole.log(halvingCost(8), halvingCost(1024));\nconsole.log(linearCost(eight), quadraticCost(eight));",
       "lang": "javascript",
       "annotations": [
@@ -734,7 +734,7 @@
       "big-o",
       "input-size"
      ],
-     "explain": "Big-O asserts *grows no faster than*, and n genuinely grows no faster than n^2, so the loose claim is true - merely uninformative. We demand the tightest defensible bound because Big-O exists in order to let two algorithms be compared, and if every linear routine may be reported as quadratic then the notation separates nothing and answers no question at all.",
+     "explain": "Big-O asserts **grows no faster than**, and n genuinely grows no faster than n^2, so the loose claim is true - merely uninformative. We demand the tightest defensible bound because Big-O exists in order to let two algorithms be compared, and if every linear routine may be reported as quadratic then the notation separates nothing and answers no question at all.",
      "hint": "Read O(f(n)) literally as a claim about growing no faster than f(n), then ask whether that claim is violated here.",
      "xp": 20
     },
@@ -1175,7 +1175,7 @@
       "nested-loops"
      ],
      "xp": 50,
-     "explain": "Both accepted answers - the simulation and `n * (n - 1) / 2` - produce identical numbers, which is the point: the closed form is what the nested loops *are*, and it is where the n^2 in O(n^2) becomes visible. The n = 0 and n = 1 cases matter because a loop that never enters still has a well-defined cost of zero."
+     "explain": "Both accepted answers - the simulation and `n * (n - 1) / 2` - produce identical numbers, which is the point: the closed form is what the nested loops **are**, and it is where the n^2 in O(n^2) becomes visible. The n = 0 and n = 1 cases matter because a loop that never enters still has a well-defined cost of zero."
     },
     {
      "id": "alg-02-gp-06",
@@ -1428,7 +1428,7 @@
       "logarithmic-time"
      ],
      "xp": 50,
-     "explain": "The function you just wrote *is* $\\lfloor \\log_2 n \\rfloor$, computed by a loop instead of a formula, and the counts it returns - 19 for a million - are why $O(\\log n)$ is treated as almost free. `n = 1` returning 0 is the edge case proving the loop is guarded at the top rather than run at least once."
+     "explain": "The function you just wrote **is** $\\lfloor \\log_2 n \\rfloor$, computed by a loop instead of a formula, and the counts it returns - 19 for a million - are why $O(\\log n)$ is treated as almost free. `n = 1` returning 0 is the edge case proving the loop is guarded at the top rather than run at least once."
     },
     {
      "id": "alg-02-ex-07",
@@ -2777,7 +2777,7 @@
      },
      {
       "title": "The Invariant and the Midpoint",
-      "body": "The **loop invariant** is the sentence that stays true before and after every iteration: *if the target is in `xs` at all, its index lies in `lo..hi`*. Each branch preserves it, because the half being discarded is provably all-too-small or all-too-large.\n\nThat invariant is what makes both return values correct. When the loop exits with `lo > hi` the window is empty, so by the invariant the target is absent - and `lo` is left sitting exactly where the target would have to be inserted to keep the array sorted.\n\nThe midpoint is written `lo + Math.floor((hi - lo) / 2)` rather than `Math.floor((lo + hi) / 2)`. The two agree in JavaScript, whose numbers are 64-bit doubles, but in a fixed-width integer language `lo + hi` can overflow to a negative index, while the subtracting form never leaves the window.\n\nThe property the midpoint really has to guarantee is $lo \\le mid \\le hi$, together with $mid < hi$ whenever $lo < hi$. Rounding **down** is what supplies it - round up and the window stops shrinking.",
+      "body": "The **loop invariant** is the sentence that stays true before and after every iteration: **if the target is in `xs` at all, its index lies in `lo..hi`**. Each branch preserves it, because the half being discarded is provably all-too-small or all-too-large.\n\nThat invariant is what makes both return values correct. When the loop exits with `lo > hi` the window is empty, so by the invariant the target is absent - and `lo` is left sitting exactly where the target would have to be inserted to keep the array sorted.\n\nThe midpoint is written `lo + Math.floor((hi - lo) / 2)` rather than `Math.floor((lo + hi) / 2)`. The two agree in JavaScript, whose numbers are 64-bit doubles, but in a fixed-width integer language `lo + hi` can overflow to a negative index, while the subtracting form never leaves the window.\n\nThe property the midpoint really has to guarantee is $lo \\le mid \\le hi$, together with $mid < hi$ whenever $lo < hi$. Rounding **down** is what supplies it - round up and the window stops shrinking.",
       "code": "const xs = [1, 3, 5, 7, 9, 11];\nconst target = 11;\nlet lo = 0;\nlet hi = xs.length - 1;\nwhile (lo <= hi) {\n  const mid = lo + Math.floor((hi - lo) / 2);\n  console.log(\"lo\", lo, \"hi\", hi, \"mid\", mid, \"inside window:\", lo <= mid && mid <= hi);\n  if (xs[mid] === target) break;\n  if (xs[mid] < target) lo = mid + 1;\n  else hi = mid - 1;\n}\nconsole.log(\"lo stopped at\", lo);\n\nconst big = 2147483647;\nconsole.log(Math.floor((big + big) / 2));\nconsole.log(big + Math.floor((big - big) / 2));",
       "lang": "javascript",
       "annotations": [
@@ -3166,7 +3166,7 @@
       "off-by-one",
       "loop-invariant"
      ],
-     "explain": "Returning on the first hit answers a different question - *is it here* rather than *where does it start* - because the midpoint of a run of duplicates is an arbitrary member of that run. Strengthening the invariant to 'best is the leftmost hit seen so far, and any earlier one lies in lo..hi' keeps the cost at $O(\\log n)$, whereas a leftward scan would degrade it to $O(n)$ on an array of equal values.",
+     "explain": "Returning on the first hit answers a different question - **is it here** rather than **where does it start** - because the midpoint of a run of duplicates is an arbitrary member of that run. Strengthening the invariant to 'best is the leftmost hit seen so far, and any earlier one lies in lo..hi' keeps the cost at $O(\\log n)$, whereas a leftward scan would degrade it to $O(n)$ on an array of equal values.",
      "xp": 50
     },
     {
@@ -3773,7 +3773,7 @@
      },
      {
       "title": "Partitioning: Quicksort's Whole Idea",
-      "body": "Quicksort does no work combining and all of its work dividing. **Partition** picks a pivot, then rearranges the range so everything smaller sits left of the pivot and everything larger sits right; the pivot is then in its final position forever.\n\nThe Lomuto scheme below takes the last element as pivot and keeps a boundary `i`, with everything before `i` known to be smaller. Each `j` step costs one comparison, so partitioning $m$ elements costs exactly $m - 1$ comparisons whatever the data.\n\nAfter partitioning you recurse on the two sides *excluding* the pivot - that exclusion is what shrinks the problem and guarantees termination.",
+      "body": "Quicksort does no work combining and all of its work dividing. **Partition** picks a pivot, then rearranges the range so everything smaller sits left of the pivot and everything larger sits right; the pivot is then in its final position forever.\n\nThe Lomuto scheme below takes the last element as pivot and keeps a boundary `i`, with everything before `i` known to be smaller. Each `j` step costs one comparison, so partitioning $m$ elements costs exactly $m - 1$ comparisons whatever the data.\n\nAfter partitioning you recurse on the two sides **excluding** the pivot - that exclusion is what shrinks the problem and guarantees termination.",
       "code": "function partition(a, lo, hi) {\n  const pivot = a[hi];\n  let i = lo;\n  for (let j = lo; j < hi; j++) {\n    if (a[j] < pivot) {\n      const t = a[i]; a[i] = a[j]; a[j] = t;\n      i++;\n    }\n    console.log(\"j=\" + j, JSON.stringify(a), \"i=\" + i);\n  }\n  const t = a[i]; a[i] = a[hi]; a[hi] = t;\n  return i;\n}\nconst demo = [7, 2, 9, 4, 3, 8, 5];\nconst p = partition(demo, 0, demo.length - 1);\nconsole.log(JSON.stringify(demo), \"pivot landed at index\", p);",
       "lang": "javascript",
       "annotations": [
@@ -4982,7 +4982,7 @@
     "sections": [
      {
       "title": "A Node Is a Plain Object",
-      "body": "A **binary tree** needs no class: a node is an object with a `value` and two links, `left` and `right`, each holding either another node or `null`. The single node nothing points at is the **root**; a node whose links are both `null` is a **leaf**.\n\nBecause `left` and `right` are themselves trees - possibly empty ones - almost every tree function is recursive with `null` as its base case. `countNodes` below asks each subtree for its own count and adds one for itself.\n\nNothing here enforces order yet. This is only the shape: values, links, and a `null` that means *no subtree*.",
+      "body": "A **binary tree** needs no class: a node is an object with a `value` and two links, `left` and `right`, each holding either another node or `null`. The single node nothing points at is the **root**; a node whose links are both `null` is a **leaf**.\n\nBecause `left` and `right` are themselves trees - possibly empty ones - almost every tree function is recursive with `null` as its base case. `countNodes` below asks each subtree for its own count and adds one for itself.\n\nNothing here enforces order yet. This is only the shape: values, links, and a `null` that means **no subtree**.",
       "code": "const tree = {\n  value: 8,\n  left:  { value: 3,  left: null, right: null },\n  right: { value: 10, left: null, right: null }\n};\n\nfunction isLeaf(n) {\n  return n.left === null && n.right === null;\n}\n\nfunction countNodes(n) {\n  if (n === null) return 0;\n  return 1 + countNodes(n.left) + countNodes(n.right);\n}\n\nconsole.log(tree.value);\nconsole.log(tree.left.value, tree.right.value);\nconsole.log(tree.left.left);\nconsole.log(isLeaf(tree), isLeaf(tree.left));\nconsole.log(countNodes(tree));",
       "lang": "javascript",
       "annotations": [
@@ -5089,7 +5089,7 @@
      },
      {
       "title": "Three Walks, One Shape",
-      "body": "A **traversal** visits every node once; the three classic orders differ only in *when* a node records itself relative to its two recursive calls. **Pre-order** records before descending, **in-order** records between the two descents, and **post-order** records after both.\n\nOn a BST, in-order is special. The recursion emits everything smaller than the node, then the node, then everything larger - and by the invariant that is exactly ascending order, at every node, all the way down.\n\nSo an in-order walk of a BST is a sorted listing, and it costs $O(n)$ because each node is pushed exactly once. Pre-order and post-order visit the same nodes for the same cost but offer no such guarantee.",
+      "body": "A **traversal** visits every node once; the three classic orders differ only in **when** a node records itself relative to its two recursive calls. **Pre-order** records before descending, **in-order** records between the two descents, and **post-order** records after both.\n\nOn a BST, in-order is special. The recursion emits everything smaller than the node, then the node, then everything larger - and by the invariant that is exactly ascending order, at every node, all the way down.\n\nSo an in-order walk of a BST is a sorted listing, and it costs $O(n)$ because each node is pushed exactly once. Pre-order and post-order visit the same nodes for the same cost but offer no such guarantee.",
       "code": "function insert(root, value) {\n  if (root === null) return { value: value, left: null, right: null };\n  if (value < root.value) root.left = insert(root.left, value);\n  else if (value > root.value) root.right = insert(root.right, value);\n  return root;\n}\n\nfunction preOrder(n, out) {\n  if (n === null) return out;\n  out.push(n.value);\n  preOrder(n.left, out);\n  preOrder(n.right, out);\n  return out;\n}\n\nfunction inOrder(n, out) {\n  if (n === null) return out;\n  inOrder(n.left, out);\n  out.push(n.value);\n  inOrder(n.right, out);\n  return out;\n}\n\nfunction postOrder(n, out) {\n  if (n === null) return out;\n  postOrder(n.left, out);\n  postOrder(n.right, out);\n  out.push(n.value);\n  return out;\n}\n\nlet tree = null;\nfor (const v of [8, 3, 10, 1, 6, 14]) tree = insert(tree, v);\n\nconsole.log(preOrder(tree, []).join(\" \"));\nconsole.log(inOrder(tree, []).join(\" \"));\nconsole.log(postOrder(tree, []).join(\" \"));",
       "lang": "javascript",
       "annotations": [
@@ -5214,7 +5214,7 @@
      "code": "const t = {\n  value: 7,\n  left: { value: 4, left: null, right: { value: 5, left: null, right: null } },\n  right: { value: 9, left: null, right: null }\n};\n\nconsole.log(t.left.value, t.right.value);\nconsole.log(t.left.right.value);\nconsole.log(t.left.left);\nconsole.log(t.right.left === null, t.left.right.right === null);",
      "lang": "javascript",
      "answer": "4 9\n5\nnull\ntrue true",
-     "explain": "Reading a tree is nothing but following named properties, and `null` is a real value you can print and compare - it is the marker for *no subtree*, not an error. Note that `t.left.left` prints `null` while `t.left.left.value` would throw, which is why every recursive tree function tests for `null` before touching `.value`.",
+     "explain": "Reading a tree is nothing but following named properties, and `null` is a real value you can print and compare - it is the marker for **no subtree**, not an error. Note that `t.left.left` prints `null` while `t.left.left.value` would throw, which is why every recursive tree function tests for `null` before touching `.value`.",
      "xp": 20,
      "tags": [
       "tree-nodes"
@@ -6089,7 +6089,7 @@
        "expected": "false"
       }
      ],
-     "explain": "The search compares three of the six nodes and then falls off the tree, which is the whole economy of a BST: an unsuccessful search costs the depth of where the value *would* have gone, not a scan. The `null` it lands on is exactly the spot `insert(root, 7)` would fill - search and insert follow the identical path.",
+     "explain": "The search compares three of the six nodes and then falls off the tree, which is the whole economy of a BST: an unsuccessful search costs the depth of where the value **would** have gone, not a scan. The `null` it lands on is exactly the spot `insert(root, 7)` would fill - search and insert follow the identical path.",
      "xp": 40,
      "tags": [
       "bst-search",
@@ -6130,7 +6130,7 @@
       }
      ],
      "solution": "function depthOf(root, value) {\n  let cur = root;\n  let d = 0;\n  while (cur !== null) {\n    if (value === cur.value) return d;\n    cur = value < cur.value ? cur.left : cur.right;\n    d += 1;\n  }\n  return -1;\n}",
-     "explain": "The depth a value sits at *is* the cost of finding it, so this function measures the very quantity every complexity claim on this floor is about. Writing it as a loop rather than a recursion is possible only because the search never backtracks - there is no work left to do on the way back up, which is not true of a search through a general binary tree.",
+     "explain": "The depth a value sits at **is** the cost of finding it, so this function measures the very quantity every complexity claim on this floor is about. Writing it as a loop rather than a recursion is possible only because the search never backtracks - there is no work left to do on the way back up, which is not true of a search through a general binary tree.",
      "hint": "A `while (cur !== null)` loop that increments a counter each time it steps down.",
      "xp": 50,
      "tags": [
@@ -6167,7 +6167,7 @@
       "forbidden": [],
       "minWords": 30
      },
-     "explain": "A traversal has no decisions to make: it visits every node exactly once and does constant work there, so it is $\\Theta(n)$ on any shape. Search is different precisely because it *skips* - its cost is the length of the path it takes, so shape governs it. The one thing shape still controls here is the recursion stack, which is $O(h)$ and so degrades from $O(\\log n)$ to $O(n)$ on a chain.",
+     "explain": "A traversal has no decisions to make: it visits every node exactly once and does constant work there, so it is $\\Theta(n)$ on any shape. Search is different precisely because it **skips** - its cost is the length of the path it takes, so shape governs it. The one thing shape still controls here is the recursion stack, which is $O(h)$ and so degrades from $O(\\log n)$ to $O(n)$ on a chain.",
      "xp": 40,
      "tags": [
       "tree-traversal",
@@ -6402,7 +6402,7 @@
     "sections": [
      {
       "title": "A Graph Is a Map From Names to Neighbours",
-      "body": "A **graph** is a set of vertices joined by edges, and the cheapest way to hold one in JavaScript is an **adjacency list**: a plain object whose keys are vertex names and whose values are arrays of neighbours.\n\nAn undirected edge appears **twice**, once in each endpoint's list, so summing every list length counts each edge twice and $E = \\frac{1}{2}\\sum_v \\deg(v)$.\n\nThe cost model follows from the shape: asking *who is next to C* is one property lookup plus a walk of that one list, while asking *is A next to D* costs $O(\\deg(A))$ because you must scan.\n\nAn adjacency list stores $V$ keys and $2E$ names, so it is $O(V + E)$ space, which is why it beats a $V \\times V$ matrix on the sparse graphs you actually meet.",
+      "body": "A **graph** is a set of vertices joined by edges, and the cheapest way to hold one in JavaScript is an **adjacency list**: a plain object whose keys are vertex names and whose values are arrays of neighbours.\n\nAn undirected edge appears **twice**, once in each endpoint's list, so summing every list length counts each edge twice and $E = \\frac{1}{2}\\sum_v \\deg(v)$.\n\nThe cost model follows from the shape: asking **who is next to C** is one property lookup plus a walk of that one list, while asking **is A next to D** costs $O(\\deg(A))$ because you must scan.\n\nAn adjacency list stores $V$ keys and $2E$ names, so it is $O(V + E)$ space, which is why it beats a $V \\times V$ matrix on the sparse graphs you actually meet.",
       "code": "const CISTERN = {\n  A: [\"B\", \"C\"],\n  B: [\"A\", \"D\"],\n  C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"],\n  E: [\"C\", \"F\"],\n  F: [\"D\", \"E\"]\n};\n\nconsole.log(\"neighbours of C:\", CISTERN.C.join(\", \"));\nconsole.log(\"degree of C:\", CISTERN.C.length);\n\nlet ends = 0;\nfor (const node of Object.keys(CISTERN)) ends += CISTERN[node].length;\nconsole.log(\"V =\", Object.keys(CISTERN).length, \"E =\", ends / 2);\nconsole.log(\"is A adjacent to D?\", CISTERN.A.includes(\"D\"));",
       "lang": "javascript",
       "annotations": [
@@ -6546,7 +6546,7 @@
      },
      {
       "title": "DFS, and Why Both Cost $O(V + E)$",
-      "body": "**Depth-first search** swaps the queue for a **stack**, either explicit or the call stack via recursion. It follows one branch as far as it will go, then backtracks.\n\nDFS answers *is there a path* just as well as BFS, but its paths are not shortest. On the Cistern it reaches F fifth, along the route A, B, D, C, E, F, where BFS reports F at distance 3.\n\nBoth cost $O(V + E)$, for the same reason. The visited set lets each vertex be expanded once, contributing $O(V)$; expanding a vertex scans its list once, and $\\sum_v \\deg(v) = 2E$, contributing $O(E)$. Neither term dominates in general, so you must write both: on a sparse graph $E$ is near $V$, on a dense one $E$ is $\\Theta(V^2)$.\n\nThe real difference is **space**. BFS holds a whole layer, DFS holds one root-to-frontier path, and both are $O(V)$ in the worst case, but they are worst on different graphs.",
+      "body": "**Depth-first search** swaps the queue for a **stack**, either explicit or the call stack via recursion. It follows one branch as far as it will go, then backtracks.\n\nDFS answers **is there a path** just as well as BFS, but its paths are not shortest. On the Cistern it reaches F fifth, along the route A, B, D, C, E, F, where BFS reports F at distance 3.\n\nBoth cost $O(V + E)$, for the same reason. The visited set lets each vertex be expanded once, contributing $O(V)$; expanding a vertex scans its list once, and $\\sum_v \\deg(v) = 2E$, contributing $O(E)$. Neither term dominates in general, so you must write both: on a sparse graph $E$ is near $V$, on a dense one $E$ is $\\Theta(V^2)$.\n\nThe real difference is **space**. BFS holds a whole layer, DFS holds one root-to-frontier path, and both are $O(V)$ in the worst case, but they are worst on different graphs.",
       "code": "const CISTERN = {\n  A: [\"B\", \"C\"], B: [\"A\", \"D\"], C: [\"A\", \"D\", \"E\"],\n  D: [\"B\", \"C\", \"F\"], E: [\"C\", \"F\"], F: [\"D\", \"E\"]\n};\n\nfunction dfsRecursive(graph, node, visited = new Set()) {\n  if (visited.has(node)) return [];\n  visited.add(node);\n  let order = [node];\n  for (const nb of graph[node]) order = order.concat(dfsRecursive(graph, nb, visited));\n  return order;\n}\n\nfunction dfsStack(graph, start) {\n  const visited = new Set();\n  const stack = [start];\n  const order = [];\n  while (stack.length > 0) {\n    const node = stack.pop();\n    if (visited.has(node)) continue;\n    visited.add(node);\n    order.push(node);\n    for (const nb of graph[node]) stack.push(nb);\n  }\n  return order;\n}\n\nconsole.log(\"recursive:\", dfsRecursive(CISTERN, \"A\").join(\" \"));\nconsole.log(\"stack:\", dfsStack(CISTERN, \"A\").join(\" \"));",
       "lang": "javascript",
       "annotations": [
@@ -6573,7 +6573,7 @@
        "concepts": [
         "dfs"
        ],
-       "explain": "Recursion descends into the first neighbour first; an explicit stack pops the last vertex pushed, so it enters C before B. Both are valid depth-first orders, which is the point: *the* DFS order is a property of the neighbour ordering and the container, never of the graph alone."
+       "explain": "Recursion descends into the first neighbour first; an explicit stack pops the last vertex pushed, so it enters C before B. Both are valid depth-first orders, which is the point: **the** DFS order is a property of the neighbour ordering and the container, never of the graph alone."
       }
      }
     ]
@@ -6664,7 +6664,7 @@
       "bfs-shortest-path"
      ],
      "xp": 20,
-     "explain": "Removing from the front before expanding is what makes the frontier a queue rather than a bag. Marking the neighbour visited *before* pushing it, in the same breath as setting its distance, is the step that keeps a vertex out of the queue twice and fixes its distance at its first discovery.",
+     "explain": "Removing from the front before expanding is what makes the frontier a queue rather than a bag. Marking the neighbour visited **before** pushing it, in the same breath as setting its distance, is the step that keeps a vertex out of the queue twice and fixes its distance at its first discovery.",
      "fragments": [
       "const node = queue.shift();",
       "order.push(node);",
@@ -7170,7 +7170,7 @@
       "bfs-shortest-path"
      ],
      "xp": 10,
-     "explain": "Both traversals find *a* path in $O(V + E)$, so the choice is decided by the guarantee, not the cost. Only the FIFO frontier discovers vertices in non-decreasing distance, and only on an unweighted graph does hop count equal path cost.",
+     "explain": "Both traversals find **a** path in $O(V + E)$, so the choice is decided by the guarantee, not the cost. Only the FIFO frontier discovers vertices in non-decreasing distance, and only on an unweighted graph does hop count equal path cost.",
      "choices": [
       "DFS, because recursion explores further per step and so reaches the target sooner",
       "BFS, because a FIFO frontier discovers vertices in non-decreasing distance from the start",
@@ -8460,7 +8460,7 @@
      },
      {
       "title": "The Exchange Argument",
-      "body": "The standard proof that a greedy rule is safe is the **exchange argument**. Take any optimal solution $O$, find the first place it disagrees with the greedy solution $G$, and show the greedy choice can be swapped into $O$ without making it worse.\n\nRepeating the swap turns $O$ into $G$ one step at a time, so $G$ is optimal too. For **interval scheduling** - pick as many pairwise non-overlapping intervals as possible - the greedy rule is *earliest finishing time first*, and the exchange is: replacing $O$'s first interval by the one that finishes soonest can only leave more room for the rest.\n\nNote what is not proved: that greedy finds the same solution as $O$. Only that it finds one just as good.",
+      "body": "The standard proof that a greedy rule is safe is the **exchange argument**. Take any optimal solution $O$, find the first place it disagrees with the greedy solution $G$, and show the greedy choice can be swapped into $O$ without making it worse.\n\nRepeating the swap turns $O$ into $G$ one step at a time, so $G$ is optimal too. For **interval scheduling** - pick as many pairwise non-overlapping intervals as possible - the greedy rule is **earliest finishing time first**, and the exchange is: replacing $O$'s first interval by the one that finishes soonest can only leave more room for the rest.\n\nNote what is not proved: that greedy finds the same solution as $O$. Only that it finds one just as good.",
       "code": "function selectEarliestFinish(intervals) {\n  const sorted = intervals.slice().sort((a, b) => a[1] - b[1]);\n  const chosen = [];\n  let lastEnd = -Infinity;\n  for (const iv of sorted) {\n    if (iv[0] >= lastEnd) { chosen.push(iv); lastEnd = iv[1]; }\n  }\n  return chosen;\n}\n\nconsole.log(selectEarliestFinish([[1, 4], [3, 5], [0, 6], [5, 7], [3, 9], [6, 10], [8, 11]]));",
       "lang": "javascript",
       "annotations": [
@@ -9378,7 +9378,7 @@
       "checkpoint": {
        "type": "complexity",
        "layer": "application",
-       "prompt": "Scoring a single-term query against a finished inverted index means visiting each document in that term's postings list and computing $\\mathrm{tf} \\times \\mathrm{idf}$ for it. State the cost in terms of $\\mathrm{df}$, the number of documents containing the term, and justify it: say what the query does *not* touch, and where the corpus-sized work went.",
+       "prompt": "Scoring a single-term query against a finished inverted index means visiting each document in that term's postings list and computing $\\mathrm{tf} \\times \\mathrm{idf}$ for it. State the cost in terms of $\\mathrm{df}$, the number of documents containing the term, and justify it: say what the query does **not** touch, and where the corpus-sized work went.",
        "answer": "O(df)",
        "rubric": {
         "required": [

@@ -4,7 +4,12 @@
  "goal": "Package behaviour behind a name with parameters and a return value.",
  "stage": 1,
  "cognitiveLevel": "recall",
- "requires": [{ "dungeon": "python", "floor": 6 }],
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 6
+  }
+ ],
  "description": {
   "what": "How to give a piece of behaviour a name, hand it the values it needs, and get an answer back out of it.",
   "why": "Everything you write from here on is made of functions, and the one habit that decides whether a program stays readable is whether each idea in it has a name.",
@@ -20,7 +25,12 @@
   "implicit-none",
   "docstrings"
  ],
- "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
  "lesson": {
   "sections": [
    {
@@ -29,9 +39,18 @@
     "code": "def greet(name):\n    print(\"Hello, \" + name + \"!\")\n\ngreet(\"Ada\")\ngreet(\"Grace\")\nprint(\"done\")",
     "lang": "python",
     "annotations": [
-     { "line": 1, "text": "This line runs, but it does not greet anybody. It creates the name `greet` and attaches the indented body to it. Reaching this line produces no output at all." },
-     { "line": 2, "text": "The body. Indented, exactly like the body of an `if` or a loop - Python uses indentation everywhere to mean 'this belongs inside that'." },
-     { "line": 4, "text": "The first call. Now the body runs, with `name` standing for the text `\"Ada\"`. Then the body finishes and Python carries on at line 5." }
+     {
+      "line": 1,
+      "text": "This line runs, but it does not greet anybody. It creates the name `greet` and attaches the indented body to it. Reaching this line produces no output at all."
+     },
+     {
+      "line": 2,
+      "text": "The body. Indented, exactly like the body of an `if` or a loop - Python uses indentation everywhere to mean 'this belongs inside that'."
+     },
+     {
+      "line": 4,
+      "text": "The first call. Now the body runs, with `name` standing for the text `\"Ada\"`. Then the body finishes and Python carries on at line 5."
+     }
     ],
     "checkpoint": {
      "type": "code",
@@ -40,35 +59,63 @@
      "prompt": "Write a function called `double` that takes one number and gives back twice that number. `double(5)` must produce `10`.",
      "starterCode": "def double(n):\n    pass\n",
      "tests": [
-      { "input": "5", "expected": 10 },
-      { "input": "0", "expected": 0 },
-      { "input": "-3", "expected": -6 }
+      {
+       "input": "5",
+       "expected": 10
+      },
+      {
+       "input": "0",
+       "expected": 0
+      },
+      {
+       "input": "-3",
+       "expected": -6
+      }
      ],
      "solution": "def double(n):\n    return n * 2\n",
      "hint": "The body is one line: `return n * 2`. `return` is the word that hands a value back to whoever called the function.",
-     "concepts": ["def", "return"],
-     "tags": ["def", "return"],
+     "concepts": [
+      "def",
+      "return"
+     ],
+     "tags": [
+      "def",
+      "return"
+     ],
      "explain": "`pass` is Python's way of writing a body that does nothing, and a function whose body does nothing hands back nothing. Replacing it with `return n * 2` is the whole exercise: `def double(n):` names the behaviour, and `return` is how the answer gets out.",
      "xp": 25
     }
    },
    {
     "title": "Parameters and arguments",
-    "body": "A function that always greets Ada is not much use. The names in the brackets of the `def` line are **parameters**: placeholders for values the function does not have yet. The values you put in the brackets when you call it are **arguments**. Parameter is the slot; argument is what goes in the slot.\n\nThe two words are worth keeping apart, because they live in different places. A parameter exists in the definition and only inside the body. An argument exists at the call. `def label(colour, shape)` has two parameters; `label(\"red\", \"square\")` supplies two arguments.\n\n**Position decides everything.** The first argument lands in the first parameter, the second in the second, and Python has no idea what the words mean. Handing over `\"square\"` and `\"red\"` in that order is not an error - it is a perfectly legal call that produces nonsense, which makes it far harder to spot than an error would be.\n\nGiving the wrong *number* of arguments, on the other hand, is caught immediately. `label(\"red\")` stops the program with `TypeError: label() missing 1 required positional argument: 'shape'`, and by now you know how to read that: the last line names the fault, and the lines above it point at the call. Each call gets its own fresh set of parameter values, so two calls never interfere with one another.",
+    "body": "A function that always greets Ada is not much use. The names in the brackets of the `def` line are **parameters**: placeholders for values the function does not have yet. The values you put in the brackets when you call it are **arguments**. Parameter is the slot; argument is what goes in the slot.\n\nThe two words are worth keeping apart, because they live in different places. A parameter exists in the definition and only inside the body. An argument exists at the call. `def label(colour, shape)` has two parameters; `label(\"red\", \"square\")` supplies two arguments.\n\n**Position decides everything.** The first argument lands in the first parameter, the second in the second, and Python has no idea what the words mean. Handing over `\"square\"` and `\"red\"` in that order is not an error - it is a perfectly legal call that produces nonsense, which makes it far harder to spot than an error would be.\n\nGiving the wrong **number** of arguments, on the other hand, is caught immediately. `label(\"red\")` stops the program with `TypeError: label() missing 1 required positional argument: 'shape'`, and by now you know how to read that: the last line names the fault, and the lines above it point at the call. Each call gets its own fresh set of parameter values, so two calls never interfere with one another.",
     "code": "def label(colour, shape):\n    print(colour + \" \" + shape)\n\nlabel(\"red\", \"square\")\nlabel(\"square\", \"red\")",
     "lang": "python",
     "annotations": [
-     { "line": 1, "text": "Two parameters. Inside the body, `colour` and `shape` behave like ordinary names - the difference is that their values arrive from outside." },
-     { "line": 4, "text": "Two arguments, matched by position: `colour` becomes `\"red\"`, `shape` becomes `\"square\"`. Prints `red square`." },
-     { "line": 5, "text": "The same two words, swapped. Python raises nothing - it prints `square red` and moves on. Argument order is a bug the language cannot catch for you." }
+     {
+      "line": 1,
+      "text": "Two parameters. Inside the body, `colour` and `shape` behave like ordinary names - the difference is that their values arrive from outside."
+     },
+     {
+      "line": 4,
+      "text": "Two arguments, matched by position: `colour` becomes `\"red\"`, `shape` becomes `\"square\"`. Prints `red square`."
+     },
+     {
+      "line": 5,
+      "text": "The same two words, swapped. Python raises nothing - it prints `square red` and moves on. Argument order is a bug the language cannot catch for you."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
      "prompt": "What does this program print?\n\n`def order(first, second):`\n`    print(first + \" then \" + second)`\n\n`order(\"soup\", \"bread\")`\n`order(\"bread\", \"soup\")`",
      "answer": "soup then bread\nbread then soup",
-     "concepts": ["parameters-arguments"],
-     "tags": ["parameters-arguments"],
+     "concepts": [
+      "parameters-arguments"
+     ],
+     "tags": [
+      "parameters-arguments"
+     ],
      "explain": "Both calls are legal and neither raises anything - only the order of the arguments differs, and that order alone decides which word each parameter stands for. The tempting answer is that the second call is wrong somehow; it is not wrong, it is just different, and that is exactly why swapped arguments are such a quiet source of bugs.",
      "xp": 25
     }
@@ -79,30 +126,54 @@
     "code": "def area(width, height):\n    return width * height\n\ndef describe(width, height):\n    print(\"Area is \" + str(area(width, height)))\n\ndescribe(3, 4)\nprint(describe(3, 4))",
     "lang": "python",
     "annotations": [
-     { "line": 2, "text": "`area` returns. The call `area(3, 4)` becomes the value 12 wherever it appears, which is why it can sit inside `str(...)` on line 5." },
-     { "line": 5, "text": "`describe` prints and never returns. It is useful to a human and useless to a caller." },
-     { "line": 8, "text": "Printing the result of a printing function. `describe` shows `Area is 12`, then falls off the end, so the call produces `None` - and the outer `print` puts that `None` on the screen underneath." }
+     {
+      "line": 2,
+      "text": "`area` returns. The call `area(3, 4)` becomes the value 12 wherever it appears, which is why it can sit inside `str(...)` on line 5."
+     },
+     {
+      "line": 5,
+      "text": "`describe` prints and never returns. It is useful to a human and useless to a caller."
+     },
+     {
+      "line": 8,
+      "text": "Printing the result of a printing function. `describe` shows `Area is 12`, then falls off the end, so the call produces `None` - and the outer `print` puts that `None` on the screen underneath."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
      "prompt": "What does this program print, on two lines?\n\n`def shout(word):`\n`    print(word + \"!\")`\n\n`result = shout(\"fire\")`\n`print(result)`",
      "answer": "fire!\nNone",
-     "concepts": ["return", "implicit-none"],
-     "tags": ["return", "implicit-none"],
+     "concepts": [
+      "return",
+      "implicit-none"
+     ],
+     "tags": [
+      "return",
+      "implicit-none"
+     ],
      "explain": "`shout` puts `fire!` on the screen and then reaches the end of its body without a `return`, so the call gives back `None` and that is what lands in `result`. The tempting answer is `fire!` twice - it comes from reading `result` as 'the thing the function showed me', when a name can only ever hold what the function actually returned.",
      "xp": 25
     }
    },
    {
     "title": "Local names, and the sentence that states the contract",
-    "body": "A name created inside a function body is **local** to that call. It comes into existence when the call starts and disappears when the call ends, and no code outside the function can see it. Trying to use it outside gives `NameError: name 'deduction' is not defined`, which is the traceback saying, correctly, that outside the function there is no such name.\n\nThis is a feature, not a restriction. It means you can call a parameter `total` inside one function without wondering what some other function did with a name called `total`. Each call gets a clean, private set of names.\n\nA name created at the top level of the file, outside every function, is **global** - and a function body may read it, as `net_pay` reads `TAX_RATE` below. Reading a global is fine and common for settings and constants. *Assigning* to one inside a function does not change it; it quietly creates a local of the same name instead, and that mismatch is a classic source of a function that seems to do nothing.\n\nFinally: nobody calling your function can see its body, so the function must say what it does. A **docstring** is a string on the first line of the body, written in triple quotes, and it is the function's contract - what it gives back, and what its parameters mean. Write it for the person who has your function's name and nothing else, because in three weeks that person is you.",
+    "body": "A name created inside a function body is **local** to that call. It comes into existence when the call starts and disappears when the call ends, and no code outside the function can see it. Trying to use it outside gives `NameError: name 'deduction' is not defined`, which is the traceback saying, correctly, that outside the function there is no such name.\n\nThis is a feature, not a restriction. It means you can call a parameter `total` inside one function without wondering what some other function did with a name called `total`. Each call gets a clean, private set of names.\n\nA name created at the top level of the file, outside every function, is **global** - and a function body may read it, as `net_pay` reads `TAX_RATE` below. Reading a global is fine and common for settings and constants. **Assigning** to one inside a function does not change it; it quietly creates a local of the same name instead, and that mismatch is a classic source of a function that seems to do nothing.\n\nFinally: nobody calling your function can see its body, so the function must say what it does. A **docstring** is a string on the first line of the body, written in triple quotes, and it is the function's contract - what it gives back, and what its parameters mean. Write it for the person who has your function's name and nothing else, because in three weeks that person is you.",
     "code": "TAX_RATE = 0.2\n\ndef net_pay(gross):\n    \"\"\"Return what is left of `gross` after tax at TAX_RATE.\"\"\"\n    deduction = gross * TAX_RATE\n    return gross - deduction\n\nprint(net_pay(100))\nprint(TAX_RATE)",
     "lang": "python",
     "annotations": [
-     { "line": 4, "text": "The docstring. It is an ordinary string that nothing does anything with at run time - its whole job is to tell a reader what the call produces, so they never have to read line 5." },
-     { "line": 5, "text": "`deduction` is local. It exists only while this call runs. Adding `print(deduction)` after line 9 would raise `NameError`." },
-     { "line": 9, "text": "`TAX_RATE` was created outside every function, so it is still here after the call - and it is still `0.2`, because the function only read it." }
+     {
+      "line": 4,
+      "text": "The docstring. It is an ordinary string that nothing does anything with at run time - its whole job is to tell a reader what the call produces, so they never have to read line 5."
+     },
+     {
+      "line": 5,
+      "text": "`deduction` is local. It exists only while this call runs. Adding `print(deduction)` after line 9 would raise `NameError`."
+     },
+     {
+      "line": 9,
+      "text": "`TAX_RATE` was created outside every function, so it is still here after the call - and it is still `0.2`, because the function only read it."
+     }
     ],
     "checkpoint": {
      "type": "code",
@@ -111,15 +182,33 @@
      "prompt": "A shop keeps its tax rate in one place: `VAT = 0.2`, written at the top of the file outside every function. Write `final_price(price)`, which gives back `price` with that much added - `final_price(100)` is `120.0`. Give the function a docstring saying what it returns.",
      "starterCode": "VAT = 0.2\n\ndef final_price(price):\n    \"\"\"...\"\"\"\n    pass\n",
      "tests": [
-      { "input": "100", "expected": 120.0 },
-      { "input": "0", "expected": 0.0 },
-      { "input": "55", "expected": 66.0 },
-      { "input": "9.5", "expected": 11.4 }
+      {
+       "input": "100",
+       "expected": 120.0
+      },
+      {
+       "input": "0",
+       "expected": 0.0
+      },
+      {
+       "input": "55",
+       "expected": 66.0
+      },
+      {
+       "input": "9.5",
+       "expected": 11.4
+      }
      ],
      "solution": "VAT = 0.2\n\ndef final_price(price):\n    \"\"\"Return `price` with VAT added.\"\"\"\n    return price + price * VAT\n",
      "hint": "The body may read `VAT` directly - it does not need to be a parameter, because it is the same for every call. Return `price + price * VAT`.",
-     "concepts": ["scope", "docstrings"],
-     "tags": ["scope", "docstrings"],
+     "concepts": [
+      "scope",
+      "docstrings"
+     ],
+     "tags": [
+      "scope",
+      "docstrings"
+     ],
      "explain": "Keeping the rate global means one edit changes every price in the program, which is the whole reason constants live outside functions. Passing it in as a second parameter would also work, but then every caller has to know the tax rate, and that is knowledge they should not need.",
      "xp": 25
     }
@@ -135,15 +224,35 @@
    "prompt": "Write `celsius_to_fahrenheit(c)`, which takes a temperature in Celsius and returns the same temperature in Fahrenheit. The conversion is `c * 9 / 5 + 32`. Give the function a docstring saying what it returns.",
    "starterCode": "def celsius_to_fahrenheit(c):\n    \"\"\"...\"\"\"\n    pass\n",
    "tests": [
-    { "input": "0", "expected": 32 },
-    { "input": "100", "expected": 212 },
-    { "input": "-40", "expected": -40 },
-    { "input": "37", "expected": 98.6 }
+    {
+     "input": "0",
+     "expected": 32
+    },
+    {
+     "input": "100",
+     "expected": 212
+    },
+    {
+     "input": "-40",
+     "expected": -40
+    },
+    {
+     "input": "37",
+     "expected": 98.6
+    }
    ],
    "solution": "def celsius_to_fahrenheit(c):\n    \"\"\"Return the temperature `c`, given in Celsius, converted to Fahrenheit.\"\"\"\n    return c * 9 / 5 + 32\n",
    "hint": "One line of body: `return c * 9 / 5 + 32`. The docstring goes above it, in triple quotes.",
-   "concepts": ["def", "return", "docstrings"],
-   "tags": ["def", "return", "docstrings"],
+   "concepts": [
+    "def",
+    "return",
+    "docstrings"
+   ],
+   "tags": [
+    "def",
+    "return",
+    "docstrings"
+   ],
    "explain": "-40 is the edge case worth noticing: it is the one temperature where both scales agree, so a solution that muddled the multiplication and the addition would still pass on 0 and fail here. The docstring matters because `celsius_to_fahrenheit(37)` does not say which way round the conversion goes - the sentence does.",
    "xp": 60
   },
@@ -155,14 +264,29 @@
    "prompt": "Write `full_name(first, last)`, which returns the two names joined by a single space. `full_name(\"Ada\", \"Lovelace\")` must return `\"Ada Lovelace\"` - note that the parameters are in that order, and the caller relies on it.",
    "starterCode": "def full_name(first, last):\n    pass\n",
    "tests": [
-    { "input": "\"Ada\", \"Lovelace\"", "expected": "Ada Lovelace" },
-    { "input": "\"Grace\", \"Hopper\"", "expected": "Grace Hopper" },
-    { "input": "\"\", \"Bond\"", "expected": " Bond" }
+    {
+     "input": "\"Ada\", \"Lovelace\"",
+     "expected": "Ada Lovelace"
+    },
+    {
+     "input": "\"Grace\", \"Hopper\"",
+     "expected": "Grace Hopper"
+    },
+    {
+     "input": "\"\", \"Bond\"",
+     "expected": " Bond"
+    }
    ],
    "solution": "def full_name(first, last):\n    return first + \" \" + last\n",
    "hint": "`return first + \" \" + last`. Two joins, not one: the space is its own piece of text.",
-   "concepts": ["parameters-arguments", "return"],
-   "tags": ["parameters-arguments", "return"],
+   "concepts": [
+    "parameters-arguments",
+    "return"
+   ],
+   "tags": [
+    "parameters-arguments",
+    "return"
+   ],
    "explain": "The empty-first-name case is the edge: the answer still has the space, because the function joins whatever it is given rather than deciding what looks tidy. Writing `last + \" \" + first` would pass no test here, and that is the point of the third case - argument order is part of the contract, and only the tests can tell you that you read it backwards.",
    "xp": 60
   },
@@ -174,15 +298,33 @@
    "prompt": "`area(width, height)` is supposed to hand the rectangle's area back to whoever called it, so the caller can store it, compare it or print it. On screen it looks right, but every test receives `None`. Fix the function.",
    "starterCode": "def area(width, height):\n    print(width * height)\n",
    "tests": [
-    { "input": "3, 4", "expected": 12 },
-    { "input": "5, 5", "expected": 25 },
-    { "input": "0, 9", "expected": 0 },
-    { "input": "2.5, 4", "expected": 10.0 }
+    {
+     "input": "3, 4",
+     "expected": 12
+    },
+    {
+     "input": "5, 5",
+     "expected": 25
+    },
+    {
+     "input": "0, 9",
+     "expected": 0
+    },
+    {
+     "input": "2.5, 4",
+     "expected": 10.0
+    }
    ],
    "solution": "def area(width, height):\n    return width * height\n",
    "hint": "The arithmetic was never wrong. Swap `print` for `return` so the value goes back to the caller instead of onto the screen.",
-   "concepts": ["return", "implicit-none"],
-   "tags": ["return", "implicit-none"],
+   "concepts": [
+    "return",
+    "implicit-none"
+   ],
+   "tags": [
+    "return",
+    "implicit-none"
+   ],
    "explain": "The output looked correct, which is exactly what makes this bug slow to find: the value existed and was shown, but nothing was ever handed back, so the body ran to its end and the call produced `None`. Printing is for a human at the edge of the program; returning is for the rest of your code.",
    "xp": 60
   },
@@ -194,15 +336,31 @@
    "prompt": "`receipt(price)` should return a line like `\"You pay 90.0\"` for a price of 100, using the discounted figure that `apply_discount` works out. Running it raises `NameError: name 'discounted' is not defined`. Fix `receipt` without changing `apply_discount`.",
    "starterCode": "def apply_discount(price):\n    discounted = price * 0.9\n    return discounted\n\ndef receipt(price):\n    return \"You pay \" + str(discounted)\n",
    "tests": [
-    { "input": "100", "expected": "You pay 90.0" },
-    { "input": "0", "expected": "You pay 0.0" },
-    { "input": "10", "expected": "You pay 9.0" },
-    { "input": "250", "expected": "You pay 225.0" }
+    {
+     "input": "100",
+     "expected": "You pay 90.0"
+    },
+    {
+     "input": "0",
+     "expected": "You pay 0.0"
+    },
+    {
+     "input": "10",
+     "expected": "You pay 9.0"
+    },
+    {
+     "input": "250",
+     "expected": "You pay 225.0"
+    }
    ],
    "solution": "def apply_discount(price):\n    discounted = price * 0.9\n    return discounted\n\ndef receipt(price):\n    return \"You pay \" + str(apply_discount(price))\n",
    "hint": "`discounted` is local to `apply_discount` and invisible everywhere else. `receipt` cannot borrow the name - it has to call the function and use what comes back.",
-   "concepts": ["scope"],
-   "tags": ["scope"],
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope"
+   ],
    "explain": "Reading the code top to bottom makes `discounted` look like it is just sitting there, but a local name exists only while its own call is running and vanishes when that call ends. The way to get at a function's work is the value it returns, which is precisely why `apply_discount` returning rather than printing is what makes the fix possible at all.",
    "xp": 60
   },
@@ -212,10 +370,22 @@
    "layer": "retrieval",
    "prompt": "Complete this function so that `net_price(200, 10)` returns `180.0`.",
    "template": "___ net_price(price, discount):\n    \"\"\"Return `price` after taking off `discount` percent.\"\"\"\n    reduction = price * discount / 100\n    ___ price - ___\n",
-   "blanks": ["def", "return", "reduction"],
+   "blanks": [
+    "def",
+    "return",
+    "reduction"
+   ],
    "hint": "The first blank is the keyword that begins every function definition; the second is the keyword that hands a value back; the third is the local name computed on the line above.",
-   "concepts": ["def", "return", "scope"],
-   "tags": ["def", "return", "scope"],
+   "concepts": [
+    "def",
+    "return",
+    "scope"
+   ],
+   "tags": [
+    "def",
+    "return",
+    "scope"
+   ],
    "explain": "`reduction` is a local working value - useful inside the body and gone the moment the call ends, which is fine because what the caller needs is the price after the deduction, not the deduction itself. Writing `print` in the second blank would show the right number and still hand back `None`.",
    "xp": 24
   }
@@ -228,13 +398,30 @@
    "fn": "bmi",
    "prompt": "Body mass index is a person's mass in kilograms divided by the square of their height in metres. Produce `bmi(weight_kg, height_m)` so that a caller can store the figure and compare it against a threshold. `bmi(70, 2.0)` is `17.5`.",
    "tests": [
-    { "input": "70, 2.0", "expected": 17.5 },
-    { "input": "81, 1.8", "expected": 25.0 },
-    { "input": "0, 1.5", "expected": 0.0 }
+    {
+     "input": "70, 2.0",
+     "expected": 17.5
+    },
+    {
+     "input": "81, 1.8",
+     "expected": 25.0
+    },
+    {
+     "input": "0, 1.5",
+     "expected": 0.0
+    }
    ],
    "solution": "def bmi(weight_kg, height_m):\n    \"\"\"Return the body mass index for a mass in kg and a height in metres.\"\"\"\n    return weight_kg / (height_m * height_m)\n",
-   "concepts": ["def", "parameters-arguments", "return"],
-   "tags": ["def", "parameters-arguments", "return"],
+   "concepts": [
+    "def",
+    "parameters-arguments",
+    "return"
+   ],
+   "tags": [
+    "def",
+    "parameters-arguments",
+    "return"
+   ],
    "explain": "The brackets around the height are not optional: without them Python divides by the height and then multiplies by it again, which for a height of 2.0 gives 70 instead of 17.5. The zero-mass case checks that nothing special was invented for it - a plain division handles it, and adding a check for it would be code nobody asked for.",
    "xp": 60
   },
@@ -245,17 +432,44 @@
    "fn": "ticket_price",
    "prompt": "A cinema charges nothing for anyone under 5, then 6 pounds from 5 up to but not including 18, then 11 pounds from 18 up to but not including 65, and 7 pounds from 65 onwards. Produce `ticket_price(age)` so the rest of the program can add prices together. Give back whole numbers: `0`, `6`, `11` or `7`.",
    "tests": [
-    { "input": "3", "expected": 0 },
-    { "input": "5", "expected": 6 },
-    { "input": "17", "expected": 6 },
-    { "input": "18", "expected": 11 },
-    { "input": "64", "expected": 11 },
-    { "input": "65", "expected": 7 },
-    { "input": "0", "expected": 0 }
+    {
+     "input": "3",
+     "expected": 0
+    },
+    {
+     "input": "5",
+     "expected": 6
+    },
+    {
+     "input": "17",
+     "expected": 6
+    },
+    {
+     "input": "18",
+     "expected": 11
+    },
+    {
+     "input": "64",
+     "expected": 11
+    },
+    {
+     "input": "65",
+     "expected": 7
+    },
+    {
+     "input": "0",
+     "expected": 0
+    }
    ],
    "solution": "def ticket_price(age):\n    \"\"\"Return the ticket price in pounds for a customer of the given age.\"\"\"\n    if age < 5:\n        return 0\n    if age < 18:\n        return 6\n    if age >= 65:\n        return 7\n    return 11\n",
-   "concepts": ["def", "return"],
-   "tags": ["def", "return"],
+   "concepts": [
+    "def",
+    "return"
+   ],
+   "tags": [
+    "def",
+    "return"
+   ],
    "explain": "Every boundary is tested on both sides, because 5, 18 and 65 are where this kind of code goes wrong - `<` and `<=` look interchangeable until one of them charges a five-year-old. Note also that `return` ends the call outright, so once a band matches, the later checks never run at all.",
    "xp": 60
   },
@@ -267,14 +481,32 @@
    "prompt": "`largest(a, b)` should give back whichever of the two numbers is bigger, or the shared value when they are equal. It works for `largest(9, 1)` and produces `None` for `largest(2, 5)`. Fix it.",
    "starterCode": "def largest(a, b):\n    if a > b:\n        return a\n",
    "tests": [
-    { "input": "2, 5", "expected": 5 },
-    { "input": "9, 1", "expected": 9 },
-    { "input": "4, 4", "expected": 4 },
-    { "input": "-3, -7", "expected": -3 }
+    {
+     "input": "2, 5",
+     "expected": 5
+    },
+    {
+     "input": "9, 1",
+     "expected": 9
+    },
+    {
+     "input": "4, 4",
+     "expected": 4
+    },
+    {
+     "input": "-3, -7",
+     "expected": -3
+    }
    ],
    "solution": "def largest(a, b):\n    if a > b:\n        return a\n    return b\n",
-   "concepts": ["implicit-none", "return"],
-   "tags": ["implicit-none", "return"],
+   "concepts": [
+    "implicit-none",
+    "return"
+   ],
+   "tags": [
+    "implicit-none",
+    "return"
+   ],
    "explain": "Nothing here raises an error, which is why the fault only shows up as a strange `None` further down the program: when the condition is false the body simply runs out, and running out is a legal way to end a call. The equal case is the one that catches an over-careful fix - three separate branches for greater, less and equal all work, but so does letting the fall-through handle both.",
    "xp": 60
   },
@@ -284,12 +516,28 @@
    "layer": "application",
    "prompt": "A colleague will call `overdue_fee(days_late, daily_rate)` from their own code. They will not read its body. Write the sentence that belongs at the very top of that function so they can use it correctly, and then say what they would otherwise be forced to guess about it.",
    "rubric": {
-    "required": ["return", "parameter", "value"],
-    "optional": ["docstring", "contract", "unit", "None", "assume"],
+    "required": [
+     "return",
+     "parameter",
+     "value"
+    ],
+    "optional": [
+     "docstring",
+     "contract",
+     "unit",
+     "None",
+     "assume"
+    ],
     "minWords": 30
    },
-   "concepts": ["docstrings", "return"],
-   "tags": ["docstrings", "return"],
+   "concepts": [
+    "docstrings",
+    "return"
+   ],
+   "tags": [
+    "docstrings",
+    "return"
+   ],
    "explain": "Without that sentence a caller cannot tell whether `daily_rate` is in pounds or pence, whether a negative `days_late` means anything, or whether the function gives the fee back or merely prints it - and every one of those guesses becomes a bug in their code, not yours. Naming the parameters well narrows the guessing; stating what the call gives back removes it.",
    "xp": 24
   }
@@ -307,8 +555,12 @@
     "A global name, since it appears before the body"
    ],
    "answer": 1,
-   "concepts": ["parameters-arguments"],
-   "tags": ["parameters-arguments"],
+   "concepts": [
+    "parameters-arguments"
+   ],
+   "tags": [
+    "parameters-arguments"
+   ],
    "explain": "The slot in the definition is the parameter; the value put into it at the call is the argument. The wrong answer is tempting because both words point at the same thing while a call is running - but only one of them exists when no call is running, and that one is the parameter.",
    "xp": 12
   },
@@ -324,8 +576,12 @@
     "`0`"
    ],
    "answer": 2,
-   "concepts": ["implicit-none"],
-   "tags": ["implicit-none"],
+   "concepts": [
+    "implicit-none"
+   ],
+   "tags": [
+    "implicit-none"
+   ],
    "explain": "Every call produces a value, and when no `return` says which, Python supplies `None`. 'The last value computed' is the tempting answer because that value was often just printed - but printing is not returning, and Python never guesses which of the body's values you meant.",
    "xp": 12
   },
@@ -335,8 +591,14 @@
    "layer": "retrieval",
    "prompt": "What does this program print, on two lines?\n\n`def check(score):`\n`    if score >= 50:`\n`        return \"pass\"`\n\n`print(check(70))`\n`print(check(20))`",
    "answer": "pass\nNone",
-   "concepts": ["implicit-none", "return"],
-   "tags": ["implicit-none", "return"],
+   "concepts": [
+    "implicit-none",
+    "return"
+   ],
+   "tags": [
+    "implicit-none",
+    "return"
+   ],
    "explain": "The first call reaches the `return`; the second finds the condition false, falls off the end of the body and produces `None`. Expecting `fail` or a blank line is the usual mistake - the function was never told what to do when the score is low, so Python's own default answer is what appears.",
    "xp": 24
   },
@@ -346,8 +608,12 @@
    "layer": "retrieval",
    "prompt": "What does this program print, on two lines?\n\n`message = \"outer\"`\n\n`def relabel():`\n`    message = \"inner\"`\n`    print(message)`\n\n`relabel()`\n`print(message)`",
    "answer": "inner\nouter",
-   "concepts": ["scope"],
-   "tags": ["scope"],
+   "concepts": [
+    "scope"
+   ],
+   "tags": [
+    "scope"
+   ],
    "explain": "Assigning inside the body creates a local `message` that hides the global one and disappears when the call ends, so the name at the top level is untouched. Answering `inner` twice is the natural guess and it is what makes this pattern dangerous: the function looks as though it changed something, and it changed nothing that outlives the call.",
    "xp": 24
   },
@@ -357,9 +623,18 @@
    "layer": "retrieval",
    "prompt": "Fill the blanks so this program prints `hahaha`.",
    "template": "def repeat(word, times):\n    return word * ___\n\nphrase = repeat(\"ha\", 3)\nprint(___)\n",
-   "blanks": ["times", "phrase"],
-   "concepts": ["parameters-arguments", "return"],
-   "tags": ["parameters-arguments", "return"],
+   "blanks": [
+    "times",
+    "phrase"
+   ],
+   "concepts": [
+    "parameters-arguments",
+    "return"
+   ],
+   "tags": [
+    "parameters-arguments",
+    "return"
+   ],
    "explain": "Inside the body only the parameter names exist, so the repetition count is `times`, never `3` - the whole point of a parameter is that the body does not know the value in advance. Outside, `phrase` holds what the call gave back, which is only possible because the body returns rather than prints.",
    "xp": 24
   },
@@ -375,9 +650,23 @@
     "    return subtotal",
     "print(total_cost(4, 3))"
    ],
-   "answer": [0, 1, 2, 3, 4],
-   "concepts": ["def", "docstrings", "return"],
-   "tags": ["def", "docstrings", "return"],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "def",
+    "docstrings",
+    "return"
+   ],
+   "tags": [
+    "def",
+    "docstrings",
+    "return"
+   ],
    "explain": "The docstring has to be the first thing in the body or it is just a stray string in the middle of the code, and the call must come after the definition because `def` is a line that runs - the name does not exist until Python has executed it. The `return` is last because anything after it in a body is never reached.",
    "xp": 24
   },
@@ -387,12 +676,29 @@
    "layer": "retrieval",
    "prompt": "Trace the call `stack_up(3, 4)` through this function, giving the value asked for at each step.\n\n`def stack_up(a, b):`\n`    total = a + b`\n`    total = total * 2`\n`    return total - 1`",
    "steps": [
-    { "label": "`total` after the first assignment", "expected": "7" },
-    { "label": "`total` after the second assignment", "expected": "14" },
-    { "label": "the value the call gives back", "expected": "13" }
+    {
+     "label": "`total` after the first assignment",
+     "expected": "7"
+    },
+    {
+     "label": "`total` after the second assignment",
+     "expected": "14"
+    },
+    {
+     "label": "the value the call gives back",
+     "expected": "13"
+    }
    ],
-   "concepts": ["parameters-arguments", "return", "scope"],
-   "tags": ["parameters-arguments", "return", "scope"],
+   "concepts": [
+    "parameters-arguments",
+    "return",
+    "scope"
+   ],
+   "tags": [
+    "parameters-arguments",
+    "return",
+    "scope"
+   ],
    "explain": "`total` is a local working name, reassigned freely inside the call and gone the instant the call ends - and the value that escapes is only the one the `return` expression produces, which is not `total` itself. Answering 14 for the last step is the common slip: it treats the final line as if it reported the variable rather than an expression built from it.",
    "xp": 48
   },
@@ -404,16 +710,39 @@
    "prompt": "Write `clamp(value, low, high)`, which returns `value` when it lies between `low` and `high`, `low` when it is below, and `high` when it is above. Both bounds count as inside the range.",
    "starterCode": "def clamp(value, low, high):\n    pass\n",
    "tests": [
-    { "input": "5, 1, 10", "expected": 5 },
-    { "input": "-2, 0, 10", "expected": 0 },
-    { "input": "99, 0, 10", "expected": 10 },
-    { "input": "0, 0, 10", "expected": 0 },
-    { "input": "10, 0, 10", "expected": 10 }
+    {
+     "input": "5, 1, 10",
+     "expected": 5
+    },
+    {
+     "input": "-2, 0, 10",
+     "expected": 0
+    },
+    {
+     "input": "99, 0, 10",
+     "expected": 10
+    },
+    {
+     "input": "0, 0, 10",
+     "expected": 0
+    },
+    {
+     "input": "10, 0, 10",
+     "expected": 10
+    }
    ],
    "solution": "def clamp(value, low, high):\n    \"\"\"Return `value` held inside the inclusive range `low` to `high`.\"\"\"\n    if value < low:\n        return low\n    if value > high:\n        return high\n    return value\n",
    "hint": "Three outcomes, so three `return` statements: below the floor, above the ceiling, and otherwise the value itself.",
-   "concepts": ["def", "parameters-arguments", "return"],
-   "tags": ["def", "parameters-arguments", "return"],
+   "concepts": [
+    "def",
+    "parameters-arguments",
+    "return"
+   ],
+   "tags": [
+    "def",
+    "parameters-arguments",
+    "return"
+   ],
    "explain": "The two tests sitting exactly on the bounds are the ones that matter, because `<=` in place of `<` sends a value that already equals `low` down the wrong branch - harmless here, and not harmless the moment the bounds are computed rather than given. Three returns beat one long condition because each says plainly which case it handles.",
    "xp": 60
   },
@@ -425,15 +754,31 @@
    "prompt": "`split_bill(people, total)` should return each person's share, so `split_bill(4, 100)` is `25.0`. It returns `0.04` instead. The arithmetic in `per_person` is correct - fix the call.",
    "starterCode": "def per_person(total, people):\n    return total / people\n\ndef split_bill(people, total):\n    return per_person(people, total)\n",
    "tests": [
-    { "input": "4, 100", "expected": 25.0 },
-    { "input": "2, 7", "expected": 3.5 },
-    { "input": "1, 5", "expected": 5.0 },
-    { "input": "8, 2", "expected": 0.25 }
+    {
+     "input": "4, 100",
+     "expected": 25.0
+    },
+    {
+     "input": "2, 7",
+     "expected": 3.5
+    },
+    {
+     "input": "1, 5",
+     "expected": 5.0
+    },
+    {
+     "input": "8, 2",
+     "expected": 0.25
+    }
    ],
    "solution": "def per_person(total, people):\n    return total / people\n\ndef split_bill(people, total):\n    return per_person(total, people)\n",
    "hint": "Read the two `def` lines side by side. The two functions take the same pair of values in opposite orders, and the call passes them straight through.",
-   "concepts": ["parameters-arguments"],
-   "tags": ["parameters-arguments"],
+   "concepts": [
+    "parameters-arguments"
+   ],
+   "tags": [
+    "parameters-arguments"
+   ],
    "explain": "Nothing raises here: both arguments are numbers, both parameters accept numbers, and only the answer is wrong, which is the signature of an argument-order fault. The last test is worth reading twice - 8 and 2 give a plausible-looking small number either way round, and a plausible answer is how this bug survives a quick glance.",
    "xp": 60
   },
@@ -443,12 +788,27 @@
    "layer": "retrieval",
    "prompt": "A function that prints its answer and a function that returns its answer look identical when you run them by hand. Explain what the difference costs you as soon as some other code needs that answer.",
    "rubric": {
-    "required": ["return", "print", "caller"],
-    "optional": ["None", "store", "reuse", "screen"],
+    "required": [
+     "return",
+     "print",
+     "caller"
+    ],
+    "optional": [
+     "None",
+     "store",
+     "reuse",
+     "screen"
+    ],
     "minWords": 30
    },
-   "concepts": ["return", "implicit-none"],
-   "tags": ["return", "implicit-none"],
+   "concepts": [
+    "return",
+    "implicit-none"
+   ],
+   "tags": [
+    "return",
+    "implicit-none"
+   ],
    "explain": "A printed value has already left the program by the time you see it, so the caller receives `None` and cannot store, compare or pass on anything. This is why the habit is to give the answer back from the function and print at the edge: a returning function can always be printed by its caller, while a printing one can never be reused.",
    "xp": 24
   }

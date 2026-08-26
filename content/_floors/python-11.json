@@ -1,0 +1,970 @@
+{
+ "n": 11,
+ "name": "The Ledger of Keys",
+ "goal": "Look things up by key and test membership without scanning.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 10
+  }
+ ],
+ "description": {
+  "what": "How Python stores a value under a key you choose rather than at a position it chooses, so that finding something is one direct step instead of a walk through everything you hold, and how the same machinery gives you a collection whose only job is to answer whether a value is in it.",
+  "why": "A list makes you search, and searching costs more the more you own, so programs built entirely out of lists slow down exactly as they become useful; almost every counter, lookup table, index, cache and de-duplication in working code is a dict or a set.",
+  "enables": "You will be able to build a lookup from keys to values, ask it for a key that may not be there without crashing, walk its keys and values, count occurrences of anything in three lines, and use a set to remove duplicates or answer membership at a fixed cost.",
+  "assumes": "You can write a function with parameters and a return value, loop over a list, index and slice text, call string methods such as `split` and `join`, and read a traceback well enough to tell which line raised.",
+  "assessed": "You will predict what dictionary and set operations produce, repair a function that tries to file something under a key that cannot be one, and write functions that count, de-duplicate and look up - with the later prompts telling you only what the answer must be, never what to reach for."
+ },
+ "concepts": [
+  "dict-literals",
+  "keys-values-items",
+  "dict-methods",
+  "sets",
+  "membership",
+  "counting",
+  "hashability"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The Lookup That Does Not Look",
+    "body": "A **dictionary** - a `dict` - stores pairs. Each pair is a **key** and the value filed under it, and you write the whole thing in braces with a colon between the two halves: `{\"salt\": 3, \"sage\": 1}`. Square brackets then ask for a value **by its key** rather than by a position, so `stock[\"sage\"]` hands back `1`.\n\nThat one difference is the whole point of the structure. To find the sage in a list you would walk the list from the front comparing as you go, and with ten thousand entries that is ten thousand comparisons. A dict does not walk. It computes a number from the key - a **hash** - uses that number to decide where the pair is filed, and goes straight there, whether the dict holds ten pairs or ten million.\n\nAssignment does double duty. `stock[\"sage\"] = 4` replaces the value under a key that already exists; `stock[\"iron\"] = 2` creates a key that was not there. Nothing tells you which of the two just happened, which is worth remembering when a mistyped key silently invents a new pair instead of updating the one you meant.\n\nAsking for a key that does not exist is not a quiet `None` - it raises `KeyError`, naming the key it could not find. `len` counts **pairs**, not keys and values separately, so a dict of three pairs has length 3.",
+    "lang": "python",
+    "code": "stock = {\"salt\": 3, \"sage\": 1, \"moss\": 7}\nprint(stock[\"sage\"])\nstock[\"sage\"] = 4\nstock[\"iron\"] = 2\nprint(stock[\"sage\"])\nprint(len(stock))\nprint(stock)",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Looked up by key, not by position. There is no `stock[0]` here - a dict has no first pair to ask for."
+     },
+     {
+      "line": 3,
+      "text": "The key already exists, so this replaces the value and the dict does not grow."
+     },
+     {
+      "line": 4,
+      "text": "This key did not exist, so this creates the pair. Identical syntax, opposite effect - which is why a mistyped key adds rubbish rather than complaining."
+     },
+     {
+      "line": 6,
+      "text": "Four pairs, so 4. `len` never counts keys and values as separate things."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "lang": "python",
+     "code": "runes = {\"a\": \"ansuz\", \"s\": \"sowilo\"}\nprint(runes[\"a\"])\nrunes[\"a\"] = \"algiz\"\nprint(runes[\"a\"])\nprint(len(runes))",
+     "answer": "ansuz\nalgiz\n2",
+     "concepts": [
+      "dict-literals"
+     ],
+     "tags": [
+      "dict-literals"
+     ],
+     "explain": "The second assignment overwrites rather than adds, because the key `\"a\"` was already present, so the dict still holds two pairs at the end. Answering 3 is the natural slip: with a list, putting something in always makes it longer, and with a dict it only does so when the key is new."
+    }
+   },
+   {
+    "title": "Asking Without Being Punished",
+    "body": "A `KeyError` is the right behaviour when a missing key means the program is wrong, and the wrong behaviour when a missing key is simply a case you expect. Most of the time you want a **default**, and `get` is how you say so: `prices.get(\"eggs\", 0.0)` returns the price if the key is there and `0.0` if it is not. With no second argument, `get` hands back `None` instead of raising.\n\nThe keyword `in` asks a dict whether it holds a **key**, never a value. `\"bread\" in prices` is `True` because `bread` is a key; `2.5 in prices` is `False` even though `2.5` is one of the values sitting in there. This catches almost everybody once.\n\nYou could write the fallback yourself, and it is worth seeing why you should not. Checking `if \"eggs\" in prices` and then reading `prices[\"eggs\"]` performs two lookups where one would do, spreads the key name across three lines where it can drift out of step during an edit, and grows a branch that says nothing the word `get` does not already say. Reach for `get` when a default is what you mean, and for plain brackets when a missing key really is a bug you want to hear about loudly.\n\n`del prices[\"milk\"]` removes a pair, and raises `KeyError` if it was not there in the first place.",
+    "lang": "python",
+    "code": "prices = {\"bread\": 2.5, \"milk\": 1.2}\nprint(\"bread\" in prices)\nprint(2.5 in prices)\nprint(prices.get(\"eggs\"))\nprint(prices.get(\"eggs\", 0.0))\nprint(prices.get(\"bread\", 0.0))\ndel prices[\"milk\"]\nprint(prices)",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`in` looks at keys only. The value 2.5 really is in there, but not as a key, so the answer is False."
+     },
+     {
+      "line": 4,
+      "text": "No default given, so a missing key comes back as `None` rather than raising."
+     },
+     {
+      "line": 6,
+      "text": "The default is ignored entirely when the key is present - `get` is not a fallback that replaces the real value."
+     },
+     {
+      "line": 7,
+      "text": "`del` removes the pair. Deleting a key that is not there raises KeyError, exactly as reading one does."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints `80` and then `24`, and never raises `KeyError`.",
+     "template": "settings = {\"width\": 80}\nprint(settings.___(\"width\", 24))\nprint(settings.___(\"height\", 24))",
+     "blanks": [
+      "get",
+      "get"
+     ],
+     "concepts": [
+      "dict-methods"
+     ],
+     "tags": [
+      "dict-methods"
+     ],
+     "explain": "The same call serves both lines because the default is only consulted when the key is absent - it never overrides a value that is really there. Plain brackets would work on the first line and raise on the second, which is the trap: code that is right for the data you tested with and wrong for the data you did not."
+    }
+   },
+   {
+    "title": "Walking the Pairs, and Counting",
+    "body": "Looping over a dict gives you its **keys**, one at a time, in the order they were first inserted. `keys()` says that out loud, `values()` gives the values instead, and `items()` gives each key together with its value - you will use `items()` in its full form on the next floor, once a pair of values has a name of its own. `list(scores.values())` turns any of these views into an ordinary list you can print or index.\n\nThe pattern this floor exists for is **counting**, and it is three lines. Start with an empty dict. For each thing you see, set its count to the count it already had, plus one. The count it already had is `counts.get(word, 0)` - zero when this is the first sighting - so a key appears the moment it is needed and nothing has to be set up in advance.\n\nRead `counts[word] = counts.get(word, 0) + 1` until it is obvious, because that one line counts words, letters, votes, error codes and dice rolls without changing. It is also the clearest argument for `get`: the version without it needs an `if` to handle the first sighting of every single key.\n\nOne detail to respect: while you are looping over a dict you may change a value, but you may not add or remove keys. Doing so raises `RuntimeError: dictionary changed size during iteration`, which is Python refusing to walk a structure that is moving underneath it.",
+    "lang": "python",
+    "code": "scores = {\"ash\": 2, \"elm\": 5}\nfor name in scores:\n    print(name + \" scores \" + str(scores[name]))\nprint(list(scores.keys()))\nprint(list(scores.values()))\n\nwords = [\"ash\", \"elm\", \"ash\", \"oak\", \"ash\"]\ncounts = {}\nfor word in words:\n    counts[word] = counts.get(word, 0) + 1\nprint(counts)\nprint(counts[\"ash\"])",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The loop variable is the key. To reach the value you look it up: `scores[name]`."
+     },
+     {
+      "line": 5,
+      "text": "`values()` is a live view of the dict rather than a list, so `list` is what makes it printable and indexable."
+     },
+     {
+      "line": 10,
+      "text": "The whole counting pattern. On the first sighting `get` returns 0 and the assignment creates the key; on every later one it returns the running total."
+     },
+     {
+      "line": 11,
+      "text": "Insertion order, so `ash` prints first because it was seen first - not because its count is the largest."
+     }
+    ],
+    "checkpoint": {
+     "type": "code",
+     "layer": "application",
+     "fn": "tally",
+     "prompt": "Write `tally(words)`. It takes a list of words and returns a count of how many times each distinct word appears.\n\n`tally([\"ash\", \"elm\", \"ash\"])` gives `{\"ash\": 2, \"elm\": 1}`",
+     "starterCode": "def tally(words):\n    counts = {}\n    for word in words:\n        pass\n    return counts\n",
+     "solution": "def tally(words):\n    counts = {}\n    for word in words:\n        counts[word] = counts.get(word, 0) + 1\n    return counts\n",
+     "tests": [
+      {
+       "input": "['ash', 'elm', 'ash']",
+       "expected": {
+        "ash": 2,
+        "elm": 1
+       }
+      },
+      {
+       "input": "[]",
+       "expected": {}
+      },
+      {
+       "input": "['solo']",
+       "expected": {
+        "solo": 1
+       }
+      }
+     ],
+     "concepts": [
+      "counting"
+     ],
+     "tags": [
+      "counting"
+     ],
+     "hint": "`counts.get(word, 0)` is the count so far, and zero the first time you see a word. Add one to it and put it back under the same key.",
+     "explain": "The empty list is the case that shows why starting from an empty dict is right rather than lazy: there is nothing to set up, so the answer is simply an empty dict. Writing `counts[word] = 1` instead is the usual slip, and it is invisible until a word turns up twice."
+    }
+   },
+   {
+    "title": "Sets, and What May Be a Key",
+    "body": "A **set** is a dict with the values thrown away: keys only, each appearing at most once, all of the fast membership and none of the lookup. Write one in braces without colons - `{\"n\", \"e\", \"s\"}` - or build one from any sequence with `set(words)`, which is the shortest way in the language to remove duplicates. The empty set is `set()` and never `{}`, because `{}` was already spoken for by the empty dict.\n\n`add` puts a value in, and adding something already present does nothing at all rather than failing. `discard` takes one out without complaining if it was absent. `in` is the operation a set exists for, and it is fast for exactly the reason a dict lookup is. Sets also do the arithmetic of collections: `a | b` is everything in either, `a & b` is what they share, and `a - b` is what only `a` has. A set has no order of its own, so `sorted(a)` is how you look at one predictably.\n\nNow the restriction. A key of a dict, or a member of a set, must be **hashable**: Python must be able to compute a fixed number from it in order to decide where to file it. Numbers, strings and booleans are hashable. A **list is not**, and neither is a dict, and trying raises `TypeError: unhashable type: list`.\n\nThat is not an arbitrary rule, it is a consequence of how the filing works. If a list could be a key, appending to it afterwards would change its hash, the pair would still be sitting at the address computed from the old contents, and it would become permanently unfindable. So the real rule is: **only things that cannot change may be keys**. When you need a key shaped like a list, you first make something unchanging out of it, and `\"-\".join(parts)` is usually the cheapest way.",
+    "lang": "python",
+    "code": "seen = set()\nseen.add(\"ash\")\nseen.add(\"elm\")\nseen.add(\"ash\")\nprint(len(seen))\nprint(\"ash\" in seen)\nprint(sorted(set(\"banana\")))\nnorth = {\"n\", \"e\", \"s\", \"w\"}\nwarm = {\"s\", \"e\"}\nprint(sorted(north - warm))\nprint(sorted(north & warm))",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Adding a value already in the set changes nothing and raises nothing. That silence is the feature, not an oversight."
+     },
+     {
+      "line": 7,
+      "text": "A set built from text holds its distinct characters, so six letters collapse to three. `sorted` is needed because a set has no order to print."
+     },
+     {
+      "line": 10,
+      "text": "Difference: in `north` and not in `warm`. Reading it as subtraction of counts is the wrong picture - nothing is counted here at all."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints `2` and then `True`. The list holds three tags but only two distinct ones.",
+     "template": "tags = [\"fire\", \"ice\", \"fire\"]\nunique = ___(tags)\nprint(len(unique))\nprint(\"ice\" ___ unique)",
+     "blanks": [
+      "set",
+      "in"
+     ],
+     "concepts": [
+      "sets",
+      "membership"
+     ],
+     "tags": [
+      "sets"
+     ],
+     "explain": "Building a set is the whole of de-duplication - the repeat is dropped on the way in rather than detected afterwards. A loop with a `not in` guard gives the same answer and takes five lines to say what one word says here."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-11-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "lang": "python",
+   "code": "stock = {\"salt\": 3, \"sage\": 1}\nstock[\"sage\"] = stock[\"sage\"] + 4\nstock[\"moss\"] = 2\nprint(stock[\"sage\"])\nprint(len(stock))\nprint(\"iron\" in stock)\nprint(3 in stock)",
+   "concepts": [
+    "dict-literals",
+    "membership"
+   ],
+   "tags": [
+    "dict-literals"
+   ],
+   "answer": "5\n3\nFalse\nFalse",
+   "hint": "Work out for each assignment whether the key was already there. Then remember that `in` on a dict asks about keys and nothing else.",
+   "explain": "The last line is the one that separates people who have read about `in` from people who have been bitten by it: `3` is a value in this dict, but `in` only ever consults the keys, so the answer is False. The length is 3 because only `moss` was a new key - updating `sage` moved no needles.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `0` on the first line and `True` on the second. Nothing may raise.",
+   "template": "prices = {\"bread\": 2, \"milk\": 1}\nprint(prices.___(\"eggs\", 0))\nprint(\"milk\" ___ prices)",
+   "blanks": [
+    "get",
+    "in"
+   ],
+   "concepts": [
+    "dict-methods",
+    "membership"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "hint": "One of these two is the method that takes a fallback value; the other is a keyword that answers True or False.",
+   "explain": "Plain brackets on the first line would raise `KeyError` rather than print zero, which is the distinction the whole technique rests on: brackets assert the key is there, the method admits it might not be.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "price_of",
+   "prompt": "Write `price_of(prices, item)`. `prices` maps an item name to its price. Return the price of `item`, or `0.0` when the shop does not stock it. It must not raise.\n\n`price_of({\"bread\": 2.5}, \"eggs\")` gives `0.0`",
+   "starterCode": "def price_of(prices, item):\n    return 0.0\n",
+   "solution": "def price_of(prices, item):\n    return prices.get(item, 0.0)\n",
+   "tests": [
+    {
+     "input": "{'bread': 2.5, 'milk': 1.2}, 'bread'",
+     "expected": 2.5
+    },
+    {
+     "input": "{'bread': 2.5, 'milk': 1.2}, 'eggs'",
+     "expected": 0.0
+    },
+    {
+     "input": "{}, 'bread'",
+     "expected": 0.0
+    },
+    {
+     "input": "{'free': 0.0}, 'free'",
+     "expected": 0.0
+    }
+   ],
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "hint": "`get` takes a second argument: the value to hand back when the key is missing. One line is enough.",
+   "explain": "The last test is the reason a default must be supplied rather than inferred: an item that really costs nothing and an item that is not stocked both come back as `0.0`, and a version built on `if prices[item]` would treat the free item as missing. A default answers the question \"was the key there\", never \"is the value interesting\".",
+   "xp": 75
+  },
+  {
+   "id": "py-11-gp-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "lang": "python",
+   "code": "scores = {\"ash\": 2, \"elm\": 5}\nfor name in scores:\n    print(name)\ntotal = 0\nfor value in scores.values():\n    total = total + value\nprint(total)\nprint(list(scores.keys()))",
+   "concepts": [
+    "keys-values-items"
+   ],
+   "tags": [
+    "keys-values-items"
+   ],
+   "answer": "ash\nelm\n7\n['ash', 'elm']",
+   "hint": "Looping over the dict itself gives you one thing per pair. Decide which of the two halves that is before predicting the first two lines.",
+   "explain": "Looping over a dict yields keys, not values and not pairs, so the first two lines are names rather than numbers. Expecting `2` and `5` is the commonest wrong answer and comes from reading a dict as if it were a list of its contents.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "count_letters",
+   "prompt": "Write `count_letters(text)` using the counting pattern from the lesson. Return how many times each distinct character appears in `text`.\n\n`count_letters(\"aab\")` gives `{\"a\": 2, \"b\": 1}`",
+   "starterCode": "def count_letters(text):\n    counts = {}\n    for ch in text:\n        pass\n    return counts\n",
+   "solution": "def count_letters(text):\n    counts = {}\n    for ch in text:\n        counts[ch] = counts.get(ch, 0) + 1\n    return counts\n",
+   "tests": [
+    {
+     "input": "'aab'",
+     "expected": {
+      "a": 2,
+      "b": 1
+     }
+    },
+    {
+     "input": "'xyz'",
+     "expected": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+     }
+    },
+    {
+     "input": "''",
+     "expected": {}
+    },
+    {
+     "input": "'aaaa'",
+     "expected": {
+      "a": 4
+     }
+    },
+    {
+     "input": "'a a'",
+     "expected": {
+      "a": 2,
+      " ": 1
+     }
+    }
+   ],
+   "concepts": [
+    "counting",
+    "dict-methods"
+   ],
+   "tags": [
+    "counting"
+   ],
+   "hint": "`counts.get(ch, 0) + 1` is the new count. Assign it back to `counts[ch]`.",
+   "explain": "The last test is deliberately unkind: a space is a character like any other, and a solution that quietly skipped it would be inventing a rule the prompt never stated. Counting means counting what is there, and deciding what to ignore is the caller's job rather than the counter's.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-gp-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "unique_sorted",
+   "prompt": "Write `unique_sorted(words)`. Build a set from the list to drop the duplicates, then return the distinct words as a list in alphabetical order.\n\n`unique_sorted([\"elm\", \"ash\", \"elm\"])` gives `[\"ash\", \"elm\"]`",
+   "starterCode": "def unique_sorted(words):\n    distinct = set()\n    return sorted(distinct)\n",
+   "solution": "def unique_sorted(words):\n    return sorted(set(words))\n",
+   "tests": [
+    {
+     "input": "['elm', 'ash', 'elm']",
+     "expected": [
+      "ash",
+      "elm"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['a', 'a', 'a']",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "['c', 'b', 'a']",
+     "expected": [
+      "a",
+      "b",
+      "c"
+     ]
+    }
+   ],
+   "concepts": [
+    "sets"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "hint": "`set(words)` and `sorted(...)` can be written as one expression: sorting a set gives a list back.",
+   "explain": "Sorting is not optional decoration here - a set has no order at all, so returning it directly would give a result you cannot rely on comparing. The three-identical-words case is the one that shows the set really collapses rather than merely hides duplicates.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-11-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_repeat",
+   "prompt": "A gate log records the name of everybody who walks through, in order. Write `first_repeat(names)`, which returns the first name that walks through for a **second** time. If nobody comes through twice, return `\"\"`.\n\n`first_repeat([\"ada\", \"bea\", \"ada\", \"cyd\"])` gives `\"ada\"`",
+   "solution": "def first_repeat(names):\n    seen = set()\n    for name in names:\n        if name in seen:\n            return name\n        seen.add(name)\n    return \"\"\n",
+   "tests": [
+    {
+     "input": "['ada', 'bea', 'ada', 'cyd']",
+     "expected": "ada"
+    },
+    {
+     "input": "['ada', 'bea', 'cyd']",
+     "expected": ""
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "['q', 'w', 'e', 'w', 'q']",
+     "expected": "w"
+    },
+    {
+     "input": "['x', 'x']",
+     "expected": "x"
+    }
+   ],
+   "concepts": [
+    "sets",
+    "membership"
+   ],
+   "tags": [
+    "sets",
+    "membership"
+   ],
+   "explain": "The fourth case is the discriminator: `q` is the name that repeats furthest apart, but `w` repeats first, so any solution that scans for the earliest name with more than one appearance gets it wrong. Answering the question as asked means deciding at each arrival, not at the end.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "most_common",
+   "prompt": "Write `most_common(text)`. The text is words separated by spaces. Return the word that appears most often; if several tie, return whichever of them appears earliest in the text. Empty text gives `\"\"`.\n\n`most_common(\"one two two three three\")` gives `\"two\"`",
+   "solution": "def most_common(text):\n    words = text.split()\n    counts = {}\n    for word in words:\n        counts[word] = counts.get(word, 0) + 1\n    best = \"\"\n    best_count = 0\n    for word in words:\n        if counts[word] > best_count:\n            best = word\n            best_count = counts[word]\n    return best\n",
+   "tests": [
+    {
+     "input": "'one two two three three'",
+     "expected": "two"
+    },
+    {
+     "input": "'a b a'",
+     "expected": "a"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    },
+    {
+     "input": "'solo'",
+     "expected": "solo"
+    },
+    {
+     "input": "'z y y z x'",
+     "expected": "z"
+    }
+   ],
+   "concepts": [
+    "counting",
+    "keys-values-items"
+   ],
+   "tags": [
+    "counting",
+    "keys-values-items"
+   ],
+   "explain": "Two passes are what the tie rule really demands: one to establish the totals, and a second in the original order so that the earliest of the joint winners is met first. Walking the counts themselves also works because insertion order is first-sighting order, but a strict `>` is essential either way - `>=` hands the tie to the last word instead of the first.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "is_anagram",
+   "prompt": "Write `is_anagram(a, b)`, returning `True` when the two pieces of text are built from exactly the same letters in a different arrangement. Spaces do not count, and capitals do not matter.\n\n`is_anagram(\"Dormitory\", \"dirty room\")` gives `True`",
+   "solution": "def is_anagram(a, b):\n    left = {}\n    for ch in a.lower():\n        if ch != \" \":\n            left[ch] = left.get(ch, 0) + 1\n    right = {}\n    for ch in b.lower():\n        if ch != \" \":\n            right[ch] = right.get(ch, 0) + 1\n    return left == right\n",
+   "tests": [
+    {
+     "input": "'listen', 'silent'",
+     "expected": true
+    },
+    {
+     "input": "'Dormitory', 'dirty room'",
+     "expected": true
+    },
+    {
+     "input": "'abc', 'abd'",
+     "expected": false
+    },
+    {
+     "input": "'aab', 'abb'",
+     "expected": false
+    },
+    {
+     "input": "'', ''",
+     "expected": true
+    }
+   ],
+   "concepts": [
+    "counting",
+    "dict-methods"
+   ],
+   "tags": [
+    "counting"
+   ],
+   "explain": "The `aab` against `abb` pair is the case that kills every solution built on distinct letters: both use exactly the letters a and b, so anything that ignores how many of each there are says True. Anagrams are a statement about multiplicities, which is why a count and not a collection of the letters present is the right thing to compare.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "unknown_ids",
+   "prompt": "A door reads badge numbers. `known` lists every badge the door was issued with, and `seen` lists every badge presented today, possibly with repeats. Write `unknown_ids(known, seen)` returning, in increasing order and without repeats, the badges presented that the door was never told about.\n\n`unknown_ids([1, 2, 3], [2, 4, 4])` gives `[4]`",
+   "solution": "def unknown_ids(known, seen):\n    return sorted(set(seen) - set(known))\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3], [2, 4, 4]",
+     "expected": [
+      4
+     ]
+    },
+    {
+     "input": "[], [5, 5, 1]",
+     "expected": [
+      1,
+      5
+     ]
+    },
+    {
+     "input": "[1, 2], [1, 2]",
+     "expected": []
+    },
+    {
+     "input": "[9], []",
+     "expected": []
+    },
+    {
+     "input": "[3], [7, 3, 5, 7]",
+     "expected": [
+      5,
+      7
+     ]
+    }
+   ],
+   "concepts": [
+    "sets",
+    "membership"
+   ],
+   "tags": [
+    "sets",
+    "membership"
+   ],
+   "explain": "Repeats in `seen` are what make the naive loop wrong rather than merely slow: appending every unrecognised badge as it arrives reports `4` twice. The other trap is checking membership against `known` while it is still a list, which is correct but re-scans the whole list of issued badges once per presentation.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "expand",
+   "prompt": "A glossary arrives as a list of strings shaped `\"term=meaning\"`, and later entries override earlier ones for the same term. Write `expand(glossary, words)`, returning a new list in which each word of `words` has been replaced by its meaning, leaving any word the glossary does not cover exactly as it was.\n\n`expand([\"cpu=processor\"], [\"cpu\", \"gpu\"])` gives `[\"processor\", \"gpu\"]`",
+   "solution": "def expand(glossary, words):\n    table = {}\n    for entry in glossary:\n        gap = entry.find(\"=\")\n        table[entry[:gap]] = entry[gap + 1:]\n    out = []\n    for word in words:\n        out.append(table.get(word, word))\n    return out\n",
+   "tests": [
+    {
+     "input": "['cpu=processor', 'ram=memory'], ['cpu', 'gpu', 'ram']",
+     "expected": [
+      "processor",
+      "gpu",
+      "memory"
+     ]
+    },
+    {
+     "input": "[], ['a']",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "['a=b'], []",
+     "expected": []
+    },
+    {
+     "input": "['x=1', 'x=2'], ['x']",
+     "expected": [
+      "2"
+     ]
+    },
+    {
+     "input": "['k=v'], ['k', 'k']",
+     "expected": [
+      "v",
+      "v"
+     ]
+    }
+   ],
+   "concepts": [
+    "dict-literals",
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-literals",
+    "dict-methods"
+   ],
+   "explain": "Two rules of the problem fall straight out of a lookup table built once up front: assigning the same term twice makes the later entry win for free, and a fallback of the word itself covers the uncovered words in the same expression that covers the rest. Re-scanning the glossary for every word also works, and quietly gets the override backwards unless you scan from the end.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_unique",
+   "prompt": "Write `first_unique(text)`, returning the first character of `text` that appears exactly once in the whole of it, or `\"\"` when every character is repeated.\n\n`first_unique(\"swiss\")` gives `\"w\"`",
+   "solution": "def first_unique(text):\n    counts = {}\n    for ch in text:\n        counts[ch] = counts.get(ch, 0) + 1\n    for ch in text:\n        if counts[ch] == 1:\n            return ch\n    return \"\"\n",
+   "tests": [
+    {
+     "input": "'swiss'",
+     "expected": "w"
+    },
+    {
+     "input": "'aabbc'",
+     "expected": "c"
+    },
+    {
+     "input": "'aabb'",
+     "expected": ""
+    },
+    {
+     "input": "''",
+     "expected": ""
+    },
+    {
+     "input": "'x'",
+     "expected": "x"
+    }
+   ],
+   "concepts": [
+    "counting",
+    "membership"
+   ],
+   "tags": [
+    "counting",
+    "membership"
+   ],
+   "explain": "The word \"first\" and the word \"exactly once\" pull in opposite directions: you cannot know whether the opening character is unique until you have read the last one, so a single pass that decides as it goes cannot be right. Counting everything and then re-walking the original order settles both halves of the question, and it reads the text twice rather than once per character.",
+   "xp": 75
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-11-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A value must be **hashable** to serve as a dictionary key. Which statement says what that requirement really is?",
+   "choices": [
+    "Python must be able to compute a fixed number from the value, which is why values that can change are refused.",
+    "The value must be text; numbers are converted to text before being used as keys.",
+    "The value must be smaller than the values stored under it.",
+    "The value must not already appear as a key anywhere else in the program."
+   ],
+   "answer": 0,
+   "concepts": [
+    "hashability"
+   ],
+   "tags": [
+    "hashability"
+   ],
+   "explain": "The number decides where the pair is filed, so a value whose contents could change afterwards would leave the pair stranded at an address nobody will ever compute again. The second option is the popular guess and is easy to disprove: integers make perfectly good keys and are not converted to anything.",
+   "xp": 15
+  },
+  {
+   "id": "py-11-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`ages` is a dict that has no key `\"kim\"`. What is the difference between `ages[\"kim\"]` and `ages.get(\"kim\")`?",
+   "choices": [
+    "The first raises `KeyError`; the second returns `None`.",
+    "The first returns `None`; the second raises `KeyError`.",
+    "Both raise `KeyError`, but the second names the key in the message.",
+    "Both return `None`, but the first is faster."
+   ],
+   "answer": 0,
+   "concepts": [
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-methods"
+   ],
+   "explain": "Brackets assert that the key is there and complain loudly when it is not, which is exactly what you want when a missing key means a bug. `get` admits the key may be absent and hands back a default instead, `None` when you name none - so choosing between them is really a decision about whether absence is normal.",
+   "xp": 15
+  },
+  {
+   "id": "py-11-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "lang": "python",
+   "code": "stock = {\"salt\": 3, \"sage\": 1}\nstock[\"salt\"] = stock[\"salt\"] + 2\nstock[\"moss\"] = 7\nprint(stock[\"salt\"])\nprint(len(stock))\nprint(stock.get(\"iron\", 0))\nprint(\"sage\" in stock)",
+   "answer": "5\n3\n0\nTrue",
+   "concepts": [
+    "dict-literals",
+    "dict-methods"
+   ],
+   "tags": [
+    "dict-literals"
+   ],
+   "explain": "Updating `salt` leaves the size alone while adding `moss` raises it, so the length is 3 rather than 4. The `get` line prints the default because the key is genuinely absent, which is the whole reason nothing raised on the way past.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "lang": "python",
+   "code": "a = {\"n\", \"s\", \"e\"}\nb = {\"e\", \"w\"}\nprint(len(a & b))\nprint(sorted(a | b))\nprint(sorted(a - b))\nprint(\"w\" in a)",
+   "answer": "1\n['e', 'n', 's', 'w']\n['n', 's']\nFalse",
+   "concepts": [
+    "sets",
+    "membership"
+   ],
+   "tags": [
+    "sets"
+   ],
+   "explain": "Union counts each shared value once, which is why four distinct letters come out of two sets holding five between them. Difference is the line people misread as arithmetic: `a - b` is everything of `a` that `b` does not also have, so `e` disappears and `w` never had a chance to appear, since it was not in `a` to begin with.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so this prints `2` and then `True`.",
+   "template": "seen = set()\nseen.___(\"ash\")\nseen.___(\"elm\")\nseen.___(\"ash\")\nprint(len(seen))\nprint(\"ash\" ___ seen)",
+   "blanks": [
+    "add",
+    "add",
+    "add",
+    "in"
+   ],
+   "concepts": [
+    "sets",
+    "membership"
+   ],
+   "tags": [
+    "sets",
+    "membership"
+   ],
+   "explain": "Three calls and a length of 2 is the point of the question: the repeated value is absorbed without complaint, so a set never needs a guard before putting something in. Reaching for `append` is the reflex carried over from lists, and a set does not have one.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order to make a working `tally(words)` that returns how many times each distinct word appears in the list.",
+   "fragments": [
+    "    return counts",
+    "    for word in words:",
+    "def tally(words):",
+    "        counts[word] = counts.get(word, 0) + 1",
+    "    counts = {}"
+   ],
+   "answer": [
+    2,
+    4,
+    1,
+    3,
+    0
+   ],
+   "concepts": [
+    "counting"
+   ],
+   "tags": [
+    "counting"
+   ],
+   "explain": "The empty dict has to be created before the loop and not inside it, or every word would be counted against a fresh dict and the answer would only ever describe the last word. The `return` sits outside the loop for the mirror-image reason: returning inside it would report after a single word.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague keeps fifty thousand forbidden words in a list and checks each incoming word with `word in forbidden`. It is far too slow. Say what `in` has to do when the thing on the right is a list, name the structure you would hold the words in instead, say what it computes from the word in order to find it, and give one situation in which the list would still be the right choice.",
+   "rubric": {
+    "required": [
+     "set",
+     "hash"
+    ],
+    "optional": [
+     "order",
+     "scan",
+     "duplicate",
+     "position",
+     "index",
+     "compare",
+     "membership",
+     "one by one"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "membership",
+    "sets",
+    "hashability"
+   ],
+   "tags": [
+    "membership",
+    "sets"
+   ],
+   "explain": "On a list, `in` compares the word against entry after entry until it matches or runs out, so the cost rises with the number of forbidden words; the replacement computes a hash of the word and looks in one place, so the cost barely moves. The last part of the question is the part worth getting right - the list keeps its order and its duplicates, so if the position of a word or how many times it was added matters, the faster structure has thrown away the very thing you needed.",
+   "xp": 30
+  },
+  {
+   "id": "py-11-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "shared_keys",
+   "prompt": "Write `shared_keys(a, b)`. Both arguments are dicts. Return, in alphabetical order, every key that appears in both of them.\n\n`shared_keys({\"x\": 1, \"y\": 2}, {\"y\": 3, \"z\": 4})` gives `[\"y\"]`",
+   "starterCode": "def shared_keys(a, b):\n    return []\n",
+   "solution": "def shared_keys(a, b):\n    return sorted(set(a) & set(b))\n",
+   "tests": [
+    {
+     "input": "{'x': 1, 'y': 2}, {'y': 3, 'z': 4}",
+     "expected": [
+      "y"
+     ]
+    },
+    {
+     "input": "{}, {'a': 1}",
+     "expected": []
+    },
+    {
+     "input": "{'a': 1}, {'a': 9}",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "{'a': 1, 'b': 2}, {'b': 0, 'a': 0}",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "input": "{'a': 1}, {'A': 1}",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "keys-values-items",
+    "sets",
+    "membership"
+   ],
+   "tags": [
+    "keys-values-items",
+    "sets"
+   ],
+   "explain": "Handing a dict to `set` gives its keys, because iterating a dict gives keys - so the two dicts become comparable without a loop at all. The third case is the reminder that the question was about keys: the values differ completely and the answer is unaffected.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-x-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "invert",
+   "prompt": "Write `invert(mapping)`. Every key and value in `mapping` is text. Return a new dict in which each value has become a key and each key has become its value. If two keys shared a value, the one that appears later in the original wins.\n\n`invert({\"a\": \"x\", \"b\": \"y\"})` gives `{\"x\": \"a\", \"y\": \"b\"}`",
+   "starterCode": "def invert(mapping):\n    out = {}\n    for key in mapping:\n        pass\n    return out\n",
+   "solution": "def invert(mapping):\n    out = {}\n    for key in mapping:\n        out[mapping[key]] = key\n    return out\n",
+   "tests": [
+    {
+     "input": "{'a': 'x', 'b': 'y'}",
+     "expected": {
+      "x": "a",
+      "y": "b"
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {}
+    },
+    {
+     "input": "{'a': 'z', 'b': 'z'}",
+     "expected": {
+      "z": "b"
+     }
+    },
+    {
+     "input": "{'solo': 'one'}",
+     "expected": {
+      "one": "solo"
+     }
+    }
+   ],
+   "concepts": [
+    "keys-values-items",
+    "dict-literals"
+   ],
+   "tags": [
+    "keys-values-items",
+    "dict-literals"
+   ],
+   "explain": "The collision case is why an inverted dict can be shorter than the one it came from: two keys may share a value, but a key may only appear once, so information is genuinely lost. The \"later wins\" rule needs no code because assignment already overwrites, and insertion order is the order the loop visits the keys in.",
+   "xp": 75
+  },
+  {
+   "id": "py-11-x-10",
+   "type": "debug",
+   "layer": "application",
+   "fn": "first_repeated_group",
+   "prompt": "`first_repeated_group(groups)` takes a list of groups, each group being a list of tags. It should return the first group that has already been seen earlier in the list, joined with hyphens, or `\"\"` if no group repeats.\n\n`first_repeated_group([[\"a\", \"b\"], [\"c\"], [\"a\", \"b\"]])` gives `\"a-b\"`.\n\nIt raises `TypeError: unhashable type: list` on the very first group. Repair it.",
+   "starterCode": "def first_repeated_group(groups):\n    seen = set()\n    for group in groups:\n        if group in seen:\n            return \"-\".join(group)\n        seen.add(group)\n    return \"\"\n",
+   "solution": "def first_repeated_group(groups):\n    seen = set()\n    for group in groups:\n        key = \"-\".join(group)\n        if key in seen:\n            return key\n        seen.add(key)\n    return \"\"\n",
+   "tests": [
+    {
+     "input": "[['a', 'b'], ['c'], ['a', 'b']]",
+     "expected": "a-b"
+    },
+    {
+     "input": "[['a'], ['b']]",
+     "expected": ""
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "[['x'], ['x']]",
+     "expected": "x"
+    },
+    {
+     "input": "[['a', 'b'], ['b', 'a']]",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "hashability",
+    "sets"
+   ],
+   "tags": [
+    "hashability",
+    "sets"
+   ],
+   "hint": "A member of a set must be something that cannot change. The groups are lists; the joined text already being built on the return line is not.",
+   "explain": "The fix is not to abandon the set but to put something unchanging into it, and the joined text was already being computed one line later - the broken version simply stored it too late to help. The final test is the honest limitation of that key: two groups holding the same tags in a different order become different keys, which is right here because the prompt asked about repeated groups rather than repeated contents.",
+   "xp": 75
+  }
+ ]
+}

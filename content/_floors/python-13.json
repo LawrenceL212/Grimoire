@@ -1,0 +1,970 @@
+{
+ "n": 13,
+ "name": "The Loom of One Line",
+ "goal": "Transform a collection in one readable expression, and know when not to.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 12
+  }
+ ],
+ "description": {
+  "what": "The comprehension: a loop that exists only to build a collection, written instead as one expression that says what the new collection contains rather than describing the steps that fill it.",
+  "why": "Building a new list, dictionary or set out of an old one is the single commonest thing a Python program does, and the three-line loop that does it buries one small idea - what each item becomes, and which items are wanted - inside machinery that never changes.",
+  "enables": "You will be able to turn a build-a-collection loop into a list, dictionary or set comprehension, filter items out as you go, express a nested walk over rows and values, and recognise the point at which the one-expression form has become harder to read than the loop it replaced.",
+  "assumes": "You can write a `for` loop with an accumulator, call methods on a string, and build and index lists, dictionaries, sets and tuples, including `items()` on a dictionary.",
+  "assessed": "You will predict what comprehensions produce, complete and repair them, write functions that must decide their own shape from the result required, and argue in prose about a one-liner that has gone too far."
+ },
+ "concepts": [
+  "list-comprehension",
+  "dict-comprehension",
+  "set-comprehension",
+  "filtering",
+  "readability-limits",
+  "nested-comprehension"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Loop Folded Into One Expression",
+    "body": "Look at the shape of the loop you have written a hundred times: make an empty list, walk over something, append one new value per item, and end up with the list. Four lines, of which three are machinery. The only part that differs from one such loop to the next is the small expression inside `append`.\n\nA **comprehension** is that loop written as a single expression, with the interesting part at the front: `[len(word) for word in words]`. Read it aloud as \"the length of word, for each word in words\". There are three pieces - the **expression** that each item becomes, the **name** each item is bound to, and the **source** being walked - and they appear in that order inside square brackets.\n\nIt is not a different kind of loop. It runs the same number of times, in the same order, and produces a genuinely new list: the source is not touched, and neither is any list that happened to share a name with it. What has gone is the empty list, the `append` and the chance of forgetting either.\n\nThe loop variable belongs to the comprehension and does not leak out of it. After `[len(word) for word in words]` runs, there is no `word` left lying around, which is one fewer stale name in the function than the loop version leaves behind.",
+    "code": "words = [\"rune\", \"sigil\", \"ash\"]\n\nlengths = []\nfor word in words:\n    lengths.append(len(word))\nprint(lengths)\n\nlengths = [len(word) for word in words]\nprint(lengths)\nprint([word.upper() for word in words])\nprint(words)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The empty list, the walk and the append: three lines whose only variable part is `len(word)`."
+     },
+     {
+      "line": 8,
+      "text": "The same three ideas in one expression. The value each item becomes comes first, the source last."
+     },
+     {
+      "line": 10,
+      "text": "Any expression may sit at the front, including a method call on the item."
+     },
+     {
+      "line": 11,
+      "text": "`words` is unchanged. A comprehension always builds something new rather than editing what it walks."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints `[2, 4, 6]`.",
+     "template": "numbers = [1, 2, 3]\nprint([n * 2 ___ n ___ numbers])",
+     "blanks": [
+      "for",
+      "in"
+     ],
+     "concepts": [
+      "list-comprehension"
+     ],
+     "tags": [
+      "list-comprehension"
+     ],
+     "explain": "The keywords are the same two the loop uses, in the same order; only the value being collected has moved to the front. Writing them the other way round is the usual first slip, and it is a SyntaxError rather than a wrong answer, which is a mercy."
+    }
+   },
+   {
+    "title": "Keeping Only What You Want",
+    "body": "A trailing `if` at the end of a comprehension **filters**: an item that fails the condition contributes nothing at all, so the result is shorter than the source. `[n for n in numbers if n > 5]` is the loop with an `if` wrapped round its `append`, and it reads the same way - \"n, for each n in numbers, if n is greater than 5\".\n\nThere is a second `if` that looks similar and does something else entirely. Python has a **conditional expression**, `a if condition else b`, which is not a statement but a value: it works out the condition and yields `a` or `b`. Put one at the **front** of a comprehension and every item still contributes something - it just contributes one of two values.\n\nSo position decides meaning. `[n if n > 5 else 0 for n in numbers]` keeps every item and replaces the small ones with zero; `[n for n in numbers if n > 5]` throws the small ones away. The first result is always as long as the source, the second usually shorter, and confusing the two is the commonest comprehension bug there is.\n\nThe filter is a full condition, so `and`, `or`, `not` and `in` are all available. Guard against putting too much in it: a filter you cannot read at a glance is the first sign that this ought to have stayed a loop.",
+    "code": "numbers = [3, 8, 1, 12, 7]\n\nprint([n for n in numbers if n > 5])\nprint([n * n for n in numbers if n % 2 == 1])\nprint([n if n > 5 else 0 for n in numbers])\nprint(len(numbers))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A trailing filter: 3 and 1 fail the test and simply do not appear, so three of the five survive."
+     },
+     {
+      "line": 4,
+      "text": "Transform and filter together - the filter decides which items survive, the front decides what they become."
+     },
+     {
+      "line": 5,
+      "text": "A conditional expression at the front. Nothing is dropped: five items in, five out, with two of them replaced."
+     },
+     {
+      "line": 6,
+      "text": "The source is still five items long, whichever of the three lines above ran."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "scores = [40, 75, 60]\nprint([s for s in scores if s >= 60])\nprint([s if s >= 60 else 0 for s in scores])",
+     "lang": "python",
+     "answer": "[75, 60]\n[0, 75, 60]",
+     "concepts": [
+      "filtering"
+     ],
+     "tags": [
+      "filtering"
+     ],
+     "explain": "The two lines differ only in where the condition sits, and that is the whole lesson: a trailing `if` shortens the list, a leading `if ... else` never can. Expecting `[0, 75, 60]` from the first line is the mistake to notice in yourself now rather than in a failing test later."
+    }
+   },
+   {
+    "title": "The Same Shape for Dictionaries and Sets",
+    "body": "Change the brackets and the same idea builds the other containers. Curly braces with a `key: value` pair at the front build a dictionary: `{word: len(word) for word in words}`. Curly braces with a single expression at the front build a set: `{len(word) for word in words}`. The `for` and the optional trailing `if` are identical in all three forms, so there is one piece of grammar to learn, not three.\n\nWalking a dictionary you already have is done with `items()`, which hands out a key and a value at a time: `{name: cost for name, cost in prices.items() if cost < 10}` copies across only the cheap entries. That is how a dictionary gets filtered, since there is no such thing as removing entries from it while walking it - build a new one instead.\n\nThe containers keep their own promises inside a comprehension. A dictionary holds one value per key, so if two items produce the same key the later one wins silently and the result is shorter than the source. A set holds no duplicates and no order, so a set comprehension is the shortest honest way to answer \"how many different values are there\" - and its printed order must never be relied upon; wrap it in `sorted` when order matters.\n\nNothing here is a special abbreviation for a special case. The comprehension describes what the new container holds, and the braces or brackets say which container it is.",
+    "code": "words = [\"rune\", \"sigil\", \"ash\", \"ward\"]\nsizes = {word: len(word) for word in words}\nprint(sizes)\nprices = {\"rune\": 3, \"sigil\": 12, \"ash\": 7}\nprint({name: cost for name, cost in prices.items() if cost < 10})\nprint(sorted({len(word) for word in words}))\nprint(len({len(word) for word in words}))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "A `key: value` pair at the front and braces round the whole thing: that is the entire difference from the list form."
+     },
+     {
+      "line": 5,
+      "text": "`items()` gives two names to bind, so the filter can test the value while the key is carried across."
+     },
+     {
+      "line": 6,
+      "text": "Four words, three distinct lengths: `rune` and `ward` collapse. `sorted` is what makes the printed order safe to state."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "words = [\"ash\", \"yew\", \"elder\"]\nprint({w: len(w) for w in words})\nprint(sorted({len(w) for w in words}))",
+     "lang": "python",
+     "answer": "{'ash': 3, 'yew': 3, 'elder': 5}\n[3, 5]",
+     "concepts": [
+      "dict-comprehension",
+      "set-comprehension"
+     ],
+     "tags": [
+      "dict-comprehension"
+     ],
+     "explain": "The dictionary keeps all three words because the words are the keys and they differ; the set keeps two lengths because 3 arrived twice and a set holds one of each. Reading the second line as `[3, 3, 5]` is the trap, and it is the difference between the two containers rather than anything about comprehensions."
+    }
+   },
+   {
+    "title": "Nesting, and When to Stop",
+    "body": "Two `for` clauses in one comprehension mean a nested loop, and they read in exactly the order you would write the loops: `[value for row in grid for value in row]` is the outer walk first, the inner walk second. That flattens a list of lists into one list, and it is the one nested form worth memorising.\n\nPutting a whole comprehension inside another one is different and much heavier. `[[row[i] for row in grid] for i in range(2)]` transposes a grid - it is correct, and it asks the reader to hold two separate walks in their head at once.\n\nHere is the honest limit. A comprehension is a good trade when it fits on one line, has at most one `for` and at most one `if`, and its front expression can be read at a glance. Past that the loop was clearer, and the loop is the right answer: a loop can carry a comment, an intermediate name, an early exit and a breakpoint, and a comprehension can carry none of these. Reaching for the loop is not a failure to be clever - the reader is a real cost.\n\nTwo other places to stop. A comprehension whose result you throw away is being used for its side effects and should be a loop, because it builds a whole list of `None` to say so. And because it builds the entire collection before anything else happens, a comprehension over something enormous costs the memory to hold all of it - a limit you will meet properly when generators arrive.",
+    "code": "grid = [[1, 2], [3, 4], [5, 6]]\nprint([value for row in grid for value in row])\n\nflat = []\nfor row in grid:\n    for value in row:\n        flat.append(value)\nprint(flat)\n\nprint([[row[i] for row in grid] for i in range(2)])",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Two `for` clauses, outer then inner - the same order as the loops below, which is why this one is readable."
+     },
+     {
+      "line": 5,
+      "text": "The loop it replaces. Identical output, four lines, and a place to put a comment or a breakpoint."
+     },
+     {
+      "line": 10,
+      "text": "A comprehension inside a comprehension. Correct, and about the limit of what a reader will thank you for."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "rows = [[\"a\", \"b\"], [\"c\"], []]\nprint([item for row in rows for item in row])\nprint([len(row) for row in rows])",
+     "lang": "python",
+     "answer": "['a', 'b', 'c']\n[2, 1, 0]",
+     "concepts": [
+      "nested-comprehension"
+     ],
+     "tags": [
+      "nested-comprehension"
+     ],
+     "explain": "Careful with the second line: it is a single walk over the rows, so it has one entry per row, and the empty row still counts - its length is 0, not nothing. The first line has three items because the empty row contributes none, which is what makes flattening a change of length as well as of shape."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-13-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "words = [\"ash\", \"rune\", \"sigil\"]\nprint([len(w) for w in words])\nprint([w.upper() for w in words if len(w) > 3])\nprint({w: len(w) for w in words})",
+   "lang": "python",
+   "answer": "[3, 4, 5]\n['RUNE', 'SIGIL']\n{'ash': 3, 'rune': 4, 'sigil': 5}",
+   "concepts": [
+    "list-comprehension",
+    "filtering",
+    "dict-comprehension"
+   ],
+   "tags": [
+    "list-comprehension"
+   ],
+   "hint": "Take the three lines one at a time, and for each ask two questions: what does each item become, and is any item dropped? Only the middle line drops anything.",
+   "explain": "The middle line is where the count changes: `ash` has three characters, fails a test for more than three, and never reaches the result. The third line shows that a dictionary comprehension keeps insertion order, so the keys come out in the order the words were walked rather than sorted.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the three blanks so the program prints `[4, 16]` - the square of each even number.",
+   "template": "numbers = [1, 2, 3, 4]\nprint([n * n ___ n ___ numbers ___ n % 2 == 0])",
+   "blanks": [
+    "for",
+    "in",
+    "if"
+   ],
+   "concepts": [
+    "list-comprehension",
+    "filtering"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "hint": "The order inside the brackets is always the same: what each item becomes, then `for name in source`, then the condition that decides which items are wanted at all.",
+   "explain": "The filter must come last, after the source, because it is a question asked of each item once it has been taken from that source. Squaring first and filtering afterwards would be a different program - it would test `n * n` for evenness, and every square of an even number is even anyway.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "lengths",
+   "prompt": "Write `lengths(words)`, which returns a list holding the number of characters in each word of `words`, in the same order.\n\n`lengths([\"ash\", \"rune\"])` gives `[3, 4]`.",
+   "starterCode": "def lengths(words):\n    # one expression: what each word becomes, and where the words come from\n    return []\n",
+   "solution": "def lengths(words):\n    return [len(word) for word in words]\n",
+   "tests": [
+    {
+     "input": "['ash', 'rune']",
+     "expected": [
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['x']",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "['', 'ab']",
+     "expected": [
+      0,
+      2
+     ]
+    }
+   ],
+   "concepts": [
+    "list-comprehension"
+   ],
+   "tags": [
+    "list-comprehension"
+   ],
+   "hint": "`[` then the value one word turns into, then `for word in words`, then `]`. No empty list and no `append` are needed.",
+   "explain": "The empty list is the case that shows why no special handling is needed: a comprehension over nothing produces an empty list without a guard, exactly as a loop over nothing appends nothing. Empty text is the other edge - it is a perfectly good word of length 0, and dropping it would be a filter nobody asked for.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "long_words",
+   "prompt": "Write `long_words(words, least)`, which returns a list of the words in `words` that have **more** than `least` characters, in their original order and unchanged.\n\n`long_words([\"ash\", \"rune\", \"sigil\"], 3)` gives `[\"rune\", \"sigil\"]`.",
+   "starterCode": "def long_words(words, least):\n    # the same comprehension as before, with a condition on the end\n    return []\n",
+   "solution": "def long_words(words, least):\n    return [word for word in words if len(word) > least]\n",
+   "tests": [
+    {
+     "input": "['ash', 'rune', 'sigil'], 3",
+     "expected": [
+      "rune",
+      "sigil"
+     ]
+    },
+    {
+     "input": "['ash'], 3",
+     "expected": []
+    },
+    {
+     "input": "['ash', 'rune'], 0",
+     "expected": [
+      "ash",
+      "rune"
+     ]
+    },
+    {
+     "input": "[], 2",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "filtering",
+    "list-comprehension"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "hint": "The front of the comprehension is just `word` this time, because the words come back unchanged. All the work is in the trailing condition.",
+   "explain": "A word of exactly `least` characters must not survive, which is why the comparison is `>` and not `>=` - the second test exists only to catch that. Notice the front expression is a bare name here: a comprehension that filters without transforming is a perfectly ordinary use of it.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "word_lengths",
+   "prompt": "Write `word_lengths(words)`, which returns a dictionary whose keys are the words of `words` and whose values are the number of characters in each.\n\n`word_lengths([\"ash\", \"rune\"])` gives `{\"ash\": 3, \"rune\": 4}`.",
+   "starterCode": "def word_lengths(words):\n    # braces, and a key: value pair at the front\n    return {}\n",
+   "solution": "def word_lengths(words):\n    return {word: len(word) for word in words}\n",
+   "tests": [
+    {
+     "input": "['ash', 'rune']",
+     "expected": {
+      "ash": 3,
+      "rune": 4
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "['ash', 'ash']",
+     "expected": {
+      "ash": 3
+     }
+    },
+    {
+     "input": "['x', 'yz', 'w']",
+     "expected": {
+      "x": 1,
+      "yz": 2,
+      "w": 1
+     }
+    }
+   ],
+   "concepts": [
+    "dict-comprehension"
+   ],
+   "tags": [
+    "dict-comprehension"
+   ],
+   "hint": "The only change from the list form is the brackets and the front: `{word: len(word) for word in words}`.",
+   "explain": "The repeated word is the test that teaches something: a dictionary holds one value per key, so two identical words produce one entry and the result is shorter than the input. That is not a fault to be worked around - it is the container being asked the question it exists to answer, and it is why a dictionary comprehension over data with duplicates needs a moment's thought about which one you want to win.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-gp-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "distinct_lengths",
+   "prompt": "Write `distinct_lengths(words)`, which returns a sorted list of the different word lengths appearing in `words`, each length appearing once.\n\n`distinct_lengths([\"ash\", \"yew\", \"elder\"])` gives `[3, 5]`.",
+   "starterCode": "def distinct_lengths(words):\n    # build the lengths with the duplicates already gone, then sort them\n    return []\n",
+   "solution": "def distinct_lengths(words):\n    return sorted({len(word) for word in words})\n",
+   "tests": [
+    {
+     "input": "['ash', 'yew', 'elder']",
+     "expected": [
+      3,
+      5
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['ab', 'cd']",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "['elder', 'x', 'ward']",
+     "expected": [
+      1,
+      4,
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "set-comprehension"
+   ],
+   "tags": [
+    "set-comprehension"
+   ],
+   "hint": "A set comprehension is braces with one expression at the front. `sorted` turns any set into a list in ascending order.",
+   "explain": "The set does the de-duplicating, so no `if length not in seen` check is needed and none should be written. The `sorted` is not decoration: a set has no order at all, so printing one directly gives an arrangement you must never depend on, and turning it into a sorted list is what makes the answer something you can state.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-13-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "clean",
+   "prompt": "Write `clean(lines)`. Each item of `lines` is a piece of text. Return a list holding those same lines with blank space removed from both ends, leaving out any line that has nothing left once that space is gone.\n\n`clean([\"  ash \", \"   \", \"rune\"])` gives `[\"ash\", \"rune\"]`.",
+   "solution": "def clean(lines):\n    return [line.strip() for line in lines if line.strip()]\n",
+   "tests": [
+    {
+     "input": "['  ash ', '   ', 'rune']",
+     "expected": [
+      "ash",
+      "rune"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['   ']",
+     "expected": []
+    },
+    {
+     "input": "[' a ', '', 'b']",
+     "expected": [
+      "a",
+      "b"
+     ]
+    }
+   ],
+   "concepts": [
+    "filtering",
+    "list-comprehension"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "explain": "The order matters more than it looks: a line of pure blank space is not empty until it has been tidied, so the test for emptiness has to be applied to the tidied text and not to the original. Doing it the other way round lets three spaces through as an empty entry, which is the bug this exercise exists to provoke.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "low_stock",
+   "prompt": "Write `low_stock(stock, low)`. `stock` maps an item name to how many of it are held. Return the part of `stock` holding only those items whose count is strictly below `low`, with their counts unchanged.\n\n`low_stock({\"ash\": 2, \"rune\": 9}, 5)` gives `{\"ash\": 2}`.",
+   "solution": "def low_stock(stock, low):\n    return {name: count for name, count in stock.items() if count < low}\n",
+   "tests": [
+    {
+     "input": "{'ash': 2, 'rune': 9}, 5",
+     "expected": {
+      "ash": 2
+     }
+    },
+    {
+     "input": "{}, 5",
+     "expected": {}
+    },
+    {
+     "input": "{'ash': 5}, 5",
+     "expected": {}
+    },
+    {
+     "input": "{'ash': 0, 'rune': 1}, 2",
+     "expected": {
+      "ash": 0,
+      "rune": 1
+     }
+    }
+   ],
+   "concepts": [
+    "dict-comprehension",
+    "filtering"
+   ],
+   "tags": [
+    "dict-comprehension"
+   ],
+   "explain": "The result has to be the same kind of thing as the input, which rules out collecting the names alone and rules out deleting entries from `stock` as you walk it - a container may not be resized while it is being iterated. Building a new one sidesteps both problems, and the count of exactly `low` is the boundary the third test guards.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "distinct_initials",
+   "prompt": "Write `distinct_initials(names)`. Return, in alphabetical order, every different letter that a name in `names` begins with, in upper case, with no letter appearing twice. You may assume no name is empty.\n\n`distinct_initials([\"ada\", \"Alan\", \"bo\"])` gives `[\"A\", \"B\"]`.",
+   "solution": "def distinct_initials(names):\n    return sorted({name[0].upper() for name in names})\n",
+   "tests": [
+    {
+     "input": "['ada', 'Alan', 'bo']",
+     "expected": [
+      "A",
+      "B"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['zed']",
+     "expected": [
+      "Z"
+     ]
+    },
+    {
+     "input": "['a', 'A', 'b']",
+     "expected": [
+      "A",
+      "B"
+     ]
+    }
+   ],
+   "concepts": [
+    "set-comprehension",
+    "list-comprehension"
+   ],
+   "tags": [
+    "set-comprehension"
+   ],
+   "explain": "Two decisions have to be made in the right order: the case must be normalised before the duplicates are removed, or `a` and `A` count as two different letters and both survive. The word **different** in the prompt is the clue that a container which refuses duplicates will do the work that an `in` check would otherwise have to do by hand.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "flatten",
+   "prompt": "Write `flatten(rows)`. Each item of `rows` is itself a list. Return a single list holding every value from every row, row by row and left to right within each row.\n\n`flatten([[1, 2], [3], [4, 5]])` gives `[1, 2, 3, 4, 5]`.",
+   "solution": "def flatten(rows):\n    return [value for row in rows for value in row]\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [3], [4, 5]]",
+     "expected": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[]]",
+     "expected": []
+    },
+    {
+     "input": "[[1], [], [2]]",
+     "expected": [
+      1,
+      2
+     ]
+    }
+   ],
+   "concepts": [
+    "nested-comprehension",
+    "list-comprehension"
+   ],
+   "tags": [
+    "nested-comprehension"
+   ],
+   "explain": "The two walks have to happen in the order the rows are laid out - outer first, then inner - and swapping them either raises a NameError or quietly produces the wrong order. A list holding one empty list is the edge worth pausing on: there is one row, so the outer walk runs once, and it contributes nothing, so the answer is empty rather than `[[]]`.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "transpose",
+   "prompt": "Write `transpose(grid)`. `grid` is a list of rows, and every row holds the same number of values. Return a new grid whose first row holds the first value of each old row, whose second row holds the second value of each old row, and so on. An empty grid gives an empty grid.\n\n`transpose([[1, 2], [3, 4], [5, 6]])` gives `[[1, 3, 5], [2, 4, 6]]`.",
+   "solution": "def transpose(grid):\n    if not grid:\n        return []\n    width = len(grid[0])\n    return [[row[i] for row in grid] for i in range(width)]\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [3, 4], [5, 6]]",
+     "expected": [
+      [
+       1,
+       3,
+       5
+      ],
+      [
+       2,
+       4,
+       6
+      ]
+     ]
+    },
+    {
+     "input": "[[1, 2, 3]]",
+     "expected": [
+      [
+       1
+      ],
+      [
+       2
+      ],
+      [
+       3
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[7]]",
+     "expected": [
+      [
+       7
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "nested-comprehension",
+    "list-comprehension"
+   ],
+   "tags": [
+    "nested-comprehension"
+   ],
+   "explain": "The number of rows in the answer is the number of values in a row of the input, which is why the outer walk counts positions rather than rows - getting that the wrong way round produces the original grid back for a square input and an IndexError for anything else. The empty grid needs its own line whichever way you write this, because asking for the width means reaching into a first row that is not there.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "running_totals",
+   "prompt": "Write `running_totals(numbers)`. Return a list of the same length as `numbers`, where the value at each position is the total of every number up to and including that position.\n\n`running_totals([1, 2, 3])` gives `[1, 3, 6]`.",
+   "solution": "def running_totals(numbers):\n    totals = []\n    so_far = 0\n    for number in numbers:\n        so_far += number\n        totals.append(so_far)\n    return totals\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      3,
+      6
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[2, -2, 4]",
+     "expected": [
+      2,
+      0,
+      4
+     ]
+    }
+   ],
+   "concepts": [
+    "readability-limits",
+    "list-comprehension"
+   ],
+   "tags": [
+    "readability-limits"
+   ],
+   "explain": "This one can be squeezed into a single expression by re-adding a longer and longer slice at every position, and that version is both slower - it does the same additions over and over - and harder to read than the four-line loop. The tell is that each answer depends on the one before it: a comprehension has no memory between items, and a plain running total in a loop is the right tool the moment it does.",
+   "xp": 75
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-13-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Which of these best describes what a list comprehension **is**?",
+   "choices": [
+    "An expression that builds and returns a new list, working out one value for each item of the thing it walks over.",
+    "A statement that changes an existing list in place, item by item, without building a new one.",
+    "A faster spelling of a `for` loop, which may contain any statement the loop could.",
+    "A declaration of which types a list is allowed to hold."
+   ],
+   "answer": 0,
+   "concepts": [
+    "list-comprehension"
+   ],
+   "tags": [
+    "list-comprehension"
+   ],
+   "explain": "Two things in that sentence do the work: it is an **expression**, so it has a value and can be returned or passed straight to another call, and it builds a **new** list, so nothing it walks over is altered. The second option is the belief that causes people to write a comprehension and then wonder why the original is unchanged.",
+   "xp": 15
+  },
+  {
+   "id": "py-13-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is the difference between an `if` written at the **end** of a comprehension and an `if ... else` written at the **front**, before the `for`?",
+   "choices": [
+    "The trailing `if` decides which items appear at all; the front `if ... else` chooses a value for every item and drops none.",
+    "They are two spellings of the same thing, and the position is a matter of taste.",
+    "The trailing `if` filters, and an `if ... else` before the `for` is a syntax error.",
+    "The trailing `if` works only in dictionary comprehensions, the front form only in list comprehensions."
+   ],
+   "answer": 0,
+   "concepts": [
+    "filtering"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "explain": "The length of the result is what separates them: a filter can only shorten, a front conditional never changes the count. The third option is the near-miss worth knowing about, because an `if` with no `else` at the front really is a syntax error - the front position needs a complete conditional expression, since every item must be given some value.",
+   "xp": 15
+  },
+  {
+   "id": "py-13-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "runes = [\"ash\", \"elder\", \"yew\"]\nprint([r[0] for r in runes])\nprint([r for r in runes if \"e\" in r])\nprint({r: len(r) for r in runes if len(r) > 3})",
+   "lang": "python",
+   "answer": "['a', 'e', 'y']\n['elder', 'yew']\n{'elder': 5}",
+   "concepts": [
+    "list-comprehension",
+    "filtering",
+    "dict-comprehension"
+   ],
+   "tags": [
+    "list-comprehension"
+   ],
+   "explain": "The middle line catches people twice: `yew` contains an `e` and stays, and the surviving words come back whole rather than as their first letters, because the front expression is a bare `r`. The last line filters first and builds pairs from what is left, so only one entry survives even though the source had three.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "scores = [40, 75, 60]\nprint([s for s in scores if s >= 60])\nprint([s if s >= 60 else 0 for s in scores])\nprint(sorted({s // 10 for s in scores}))",
+   "lang": "python",
+   "answer": "[75, 60]\n[0, 75, 60]\n[4, 6, 7]",
+   "concepts": [
+    "filtering",
+    "set-comprehension"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "explain": "The first two lines are the same condition in the two positions, and they differ in length: two items against three. The third shows why `sorted` was wrapped round the set at all - the set itself has no order to print, and the ascending list is the only form of the answer that can be written down and checked.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the three blanks so the program prints `{'ash': 3}`.",
+   "template": "prices = {\"ash\": 3, \"rune\": 12}\ncheap = {name: cost for name, cost ___ prices.___() ___ cost < 10}\nprint(cheap)",
+   "blanks": [
+    "in",
+    "items",
+    "if"
+   ],
+   "concepts": [
+    "dict-comprehension",
+    "filtering"
+   ],
+   "tags": [
+    "dict-comprehension"
+   ],
+   "explain": "Two names are being bound at once, so the source has to hand out two things at a time, and that is what `items()` is for. Walking `prices` directly gives keys alone and fails with a ValueError about unpacking, which is the error to recognise rather than to guess at.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order to make a working `shout(words)`, which tidies the blank space off each word, throws away any that are then empty, and returns the rest in upper case.",
+   "fragments": [
+    "    return [w.upper() for w in tidy]",
+    "def shout(words):",
+    "    tidy = [w.strip() for w in words]",
+    "    tidy = [w for w in tidy if w]"
+   ],
+   "answer": [
+    1,
+    2,
+    3,
+    0
+   ],
+   "concepts": [
+    "list-comprehension",
+    "filtering"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "explain": "The tidying has to happen before the emptiness test, because a word of pure blank space is not empty until it has been stripped, and swapping those two lines lets it through. Three separate comprehensions in a row is a deliberate choice here: each one does a single thing with a name attached, which reads better than one expression doing all three.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague replaces a nine-line loop with this single expression:\n\n`out = {k: [x for x in v if x > 0] for k, v in data.items() if len(v) > 2 and k not in skip}`\n\nIt is correct, and all the tests pass. Explain why you might still ask them to put the loop back, and state the rule you would use to decide when a one-expression form has gone too far.",
+   "rubric": {
+    "required": [
+     "read",
+     "loop"
+    ],
+    "optional": [
+     "nest",
+     "condition",
+     "debug",
+     "name",
+     "one thing",
+     "line"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "readability-limits"
+   ],
+   "tags": [
+    "readability-limits"
+   ],
+   "explain": "Correctness is not the standard being applied here: the cost is paid by every future reader, who must hold an outer walk, an inner walk and two unrelated conditions in their head at once to see what a single line does. A workable rule is one `for` and at most one `if`, a front expression readable at a glance, and the whole thing on one line - and a loop when any of those fails, because a loop can carry intermediate names, a comment and a breakpoint, and this cannot.",
+   "xp": 30
+  },
+  {
+   "id": "py-13-x-08",
+   "type": "debug",
+   "layer": "application",
+   "fn": "loud_words",
+   "prompt": "`loud_words(words)` should return only the words of more than three characters, in upper case, and leave the shorter ones out altogether.\n\nAs written it returns one item for every word it is given. Repair it.",
+   "starterCode": "def loud_words(words):\n    return [w.upper() if len(w) > 3 else w for w in words]\n",
+   "solution": "def loud_words(words):\n    return [w.upper() for w in words if len(w) > 3]\n",
+   "tests": [
+    {
+     "input": "['ash', 'rune', 'sigil']",
+     "expected": [
+      "RUNE",
+      "SIGIL"
+     ]
+    },
+    {
+     "input": "['ash']",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['ward', 'x']",
+     "expected": [
+      "WARD"
+     ]
+    }
+   ],
+   "concepts": [
+    "filtering"
+   ],
+   "tags": [
+    "filtering"
+   ],
+   "hint": "Ask what the condition in front of the `for` can and cannot do. It can choose between two values for an item; it has no way of declining to produce one.",
+   "explain": "The broken version uses a conditional expression, which must yield something for every item, so the short words come back untouched instead of being dropped. Moving the condition behind the source turns it into a filter, and the giveaway in the symptom was the length of the result rather than the content of any one entry.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-x-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "invert",
+   "prompt": "Write `invert(labels)`. `labels` maps a code to a name, and no two codes share a name. Return a dictionary mapping each name back to its code.\n\n`invert({\"a\": \"ash\", \"r\": \"rune\"})` gives `{\"ash\": \"a\", \"rune\": \"r\"}`.",
+   "starterCode": "def invert(labels):\n    return {}\n",
+   "solution": "def invert(labels):\n    return {name: code for code, name in labels.items()}\n",
+   "tests": [
+    {
+     "input": "{'a': 'ash', 'r': 'rune'}",
+     "expected": {
+      "ash": "a",
+      "rune": "r"
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {}
+    },
+    {
+     "input": "{'x': 'yew'}",
+     "expected": {
+      "yew": "x"
+     }
+    },
+    {
+     "input": "{'a': 'ash', 'b': 'ash'}",
+     "expected": {
+      "ash": "b"
+     }
+    }
+   ],
+   "concepts": [
+    "dict-comprehension"
+   ],
+   "tags": [
+    "dict-comprehension"
+   ],
+   "hint": "`items()` hands out the key and the value together. Which of the two goes in front of the colon decides which way round the new dictionary is.",
+   "explain": "The last test is the one that shows why the prompt promised unique names: when two codes share a name the later pair overwrites the earlier one and an entry vanishes, silently. That is not a flaw in the comprehension - it is what a dictionary always does with a repeated key, and inverting a mapping is exactly the operation that turns duplicate values into duplicate keys.",
+   "xp": 75
+  },
+  {
+   "id": "py-13-x-10",
+   "type": "code",
+   "layer": "application",
+   "fn": "all_names",
+   "prompt": "Write `all_names(groups)`. Each item of `groups` is a list of names. Return a sorted list of every different name that appears anywhere, in upper case, with no name repeated.\n\n`all_names([[\"ada\", \"bo\"], [\"ada\"]])` gives `[\"ADA\", \"BO\"]`.",
+   "starterCode": "def all_names(groups):\n    return []\n",
+   "solution": "def all_names(groups):\n    return sorted({name.upper() for group in groups for name in group})\n",
+   "tests": [
+    {
+     "input": "[['ada', 'bo'], ['ada']]",
+     "expected": [
+      "ADA",
+      "BO"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[]]",
+     "expected": []
+    },
+    {
+     "input": "[['z'], ['a', 'Z']]",
+     "expected": [
+      "A",
+      "Z"
+     ]
+    }
+   ],
+   "concepts": [
+    "nested-comprehension",
+    "set-comprehension"
+   ],
+   "tags": [
+    "nested-comprehension"
+   ],
+   "hint": "Two `for` clauses walk the groups and then the names inside each group. Braces with a single expression at the front remove the repeats before `sorted` puts them in order.",
+   "explain": "The last test needs both ideas at once: the walk must reach inside the groups, and the case must be forced before the duplicates are removed, or `z` and `Z` survive as two entries. A list of one empty group is the quiet edge - the outer walk runs, the inner one does not, and the answer is empty rather than a list holding an empty list.",
+   "xp": 75
+  }
+ ]
+}

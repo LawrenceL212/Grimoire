@@ -1,0 +1,989 @@
+{
+ "n": 16,
+ "name": "The Sundered Library",
+ "goal": "Split a program across files and control what each exposes.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 15
+  }
+ ],
+ "description": {
+  "what": "How a program stops being one file: what `import` actually does when it runs, how a module's namespace keeps its names separate from yours, which form of import to write, and how a file can be both a program and a library at once.",
+  "why": "Every Python project larger than a script is a set of modules, and almost everything that makes an unfamiliar codebase hard to read - work happening at import time, names arriving from nowhere, two files that cannot be untangled - is a decision made at this level.",
+  "enables": "You will be able to lay a program out across files with the dependencies pointing one way, choose between the import forms on purpose, guard the code that should only run when the file is the program, and recognise a circular import as a design fault rather than a syntax error.",
+  "assumes": "You can write functions, dictionaries and lists, read a traceback, and raise and catch an exception - and you know that a name is a binding to a value rather than the value itself.",
+  "assessed": "You will load modules by hand from their source text, decide what a module exposes, work out whether a module does its work when it is imported, find a cycle in a project's imports, and repair two faults that leave a module looking perfectly correct."
+ },
+ "concepts": [
+  "import",
+  "from-import",
+  "namespaces",
+  "name-main",
+  "module-layout",
+  "circular-imports"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "One File Stops Working",
+    "body": "A program that lives in one file is a pleasure right up until it is not. Once a single file holds every function you have written you cannot find anything in it, two people cannot work on it at the same time, and the part that formats a report can break the part that reads the input, because every name in the file shares one pool. A **module** is the cure, and you have been writing them all along: every `.py` file is a module, and a module is simply a file that another file can pull in by name.\n\n`import math` does three things, in this order. It **finds** a module called `math` by searching the directories listed in `sys.path`. It **executes** that module from top to bottom in a brand new empty namespace. It **binds** one name in your file - `math` - to a module object wrapping that namespace. Notice what it does not do: it does not copy any code into your file. `math.sqrt` means the name `sqrt` inside the namespace called `math`, and the dot is the only door into it.\n\nThe executing happens **once**. Python records every module it has loaded in `sys.modules`, and a second `import math` - in your file, in another module, anywhere in the program - finds it already sitting there and skips straight to the binding. That is why importing is cheap, and it is also why a module's top level is the wrong place for work that must happen more than once.\n\nA **namespace** is exactly what the word suggests: names mapped to values, with a boundary drawn round them. Your file has one, every module has one, and the whole point is that a `total` in one module and a `total` in another are two unrelated variables which cannot collide. Splitting a program across files is not tidying - it is drawing those boundaries deliberately.",
+    "code": "import math\nimport sys\nprint(type(math).__name__)\nprint(math.sqrt(16))\nprint(\"math\" in sys.modules)\nprint(math.__name__)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "One statement: find the module, run it once, bind the name `math` here. Nothing was copied into this file."
+     },
+     {
+      "line": 3,
+      "text": "The value bound to `math` is an object whose type is `module` - an ordinary value that happens to wrap a namespace."
+     },
+     {
+      "line": 5,
+      "text": "`sys.modules` is the register of everything already loaded. A second import of `math` finds it here and does not run the file again."
+     },
+     {
+      "line": 6,
+      "text": "Every module knows its own name. Remember this line - the third section is entirely about what that name is."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "import sys\nimport math\nprint(\"math\" in sys.modules)\nprint(\"grimoire\" in sys.modules)\n",
+     "lang": "python",
+     "answer": "True\nFalse",
+     "concepts": [
+      "import"
+     ],
+     "tags": [
+      "import"
+     ],
+     "explain": "Importing a module puts it into `sys.modules` under its name, which is how the second import of anything becomes nearly free. `grimoire` was never imported, so it is simply absent - `sys.modules` records what has been loaded, it is not a catalogue of what could be."
+    }
+   },
+   {
+    "title": "The Four Forms, and Which to Prefer",
+    "body": "There are four ways to write an import and they do not do the same thing. `import math` binds the module itself. `import math as m` binds it under a shorter name. `from math import pi` reaches inside the module and binds that one name directly in your file, with no `math` in sight. `from math import *` binds everything the module considers public, and you should not write it.\n\nA `from` import **copies the binding, not the variable**. After `from math import pi` there are two names pointing at one value: `math.pi` over there and `pi` here. Rebinding yours - `pi = 3` - moves your name and leaves the module's exactly where it was. Neither can see the other again, which surprises people who expect an import to be a live link.\n\nPrefer the plain `import module` form. A qualified name such as `text.clean(line)` tells anybody reading that line where `clean` came from, and a reader of code they did not write needs that far more than you need the six saved characters. Reach for `from` when a name is used constantly and says enough on its own. Reach for `as` to shorten a genuinely long name or to settle a collision, and for nothing else.\n\nThe star form is the one to refuse. It drags an unknown set of names into your file, so no reader can tell where anything came from, and it silently overwrites any of your own names that clash - including, cheerfully, ones you defined earlier in the same file. What it saves in typing it takes back the first time somebody has to debug it.",
+    "code": "import math\nfrom math import pi\nimport math as m\npi = 3\nprint(pi)\nprint(math.pi == m.pi)\nprint(round(m.pi, 3))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "`pi` is now a name in this file, bound to the same float the module's `pi` is bound to."
+     },
+     {
+      "line": 3,
+      "text": "A third name for the one module object. `math` and `m` are two doors into a single namespace, not two copies of it."
+     },
+     {
+      "line": 4,
+      "text": "This rebinds the local `pi` only. The module never learns of it, which is the whole difference between a copy and a link."
+     },
+     {
+      "line": 6,
+      "text": "True: the module was loaded once, so `math` and `m` are the same object and their `pi` is the untouched one."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "import math as m\nfrom math import floor\nfloor = 99\nprint(floor)\nprint(m.floor(2.9))\n",
+     "lang": "python",
+     "answer": "99\n2",
+     "concepts": [
+      "from-import"
+     ],
+     "tags": [
+      "from-import"
+     ],
+     "explain": "`floor = 99` replaces the name the `from` import bound in this file; it cannot reach into the module. The tempting reading is that the module has been damaged, but `m.floor` still works perfectly - which is precisely the argument for the qualified form."
+    }
+   },
+   {
+    "title": "Running a File and Importing a File",
+    "body": "Every module has a name of its own, held in the variable `__name__`. When Python runs a file as the program - `python report.py` - that file's `__name__` is the string `\"__main__\"`. When the very same file is imported by another module, its `__name__` is `\"report\"`. That single difference is the whole mechanism, and everything below is built on it.\n\nThis matters because **importing a module executes all of its top-level code**. If the last line of `report.py` is `main()`, then anybody who imports `report` to reuse one small function gets the entire report run at them as a side effect of the import, before their own program has done a thing. Worse, they cannot prevent it: the import statement is the trigger.\n\nSo a module puts everything it does when it is run inside `if __name__ == \"__main__\":`. The block is entered when this file is the program and skipped when this file is a library. The usual shape is a `main()` function holding the work and a two-line guard at the bottom calling it - which also means the work can be called from a test, or from another program, without being launched by accident.\n\nTreat the guard as structural rather than decorative. A module without one cannot be imported safely, so it cannot be tested, reused or picked apart for its useful half; a module with one is both a program and a library at a cost of two lines.",
+    "code": "def main():\n    print(\"counting the runes\")\n\nprint(\"this line runs whenever the file is loaded\")\nif __name__ == \"__main__\":\n    main()\nprint(__name__)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Top-level code. It runs when the file is the program AND when the file is imported - there is no third case."
+     },
+     {
+      "line": 5,
+      "text": "The guard. True here because this file is being run directly; false for every module that is imported."
+     },
+     {
+      "line": 7,
+      "text": "Printed as `__main__`. Saved as `report.py` and imported by another file, the same line would print `report`."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This file is saved as `spell.py` and run directly, with `python spell.py`. What does it print?",
+     "code": "print(\"top of the file, name is\", __name__)\n\ndef main():\n    print(\"the work\")\n\nif __name__ == \"__main__\":\n    main()\n",
+     "lang": "python",
+     "answer": "top of the file, name is __main__\nthe work",
+     "concepts": [
+      "name-main"
+     ],
+     "tags": [
+      "name-main"
+     ],
+     "explain": "Run directly, the file's `__name__` really is the string `__main__`, so the guard is true and `main` runs. The name of the file has nothing to do with it: this prints `__main__` here and would print `spell` the moment another module imported it instead."
+    }
+   },
+   {
+    "title": "Laying It Out, and Circular Imports",
+    "body": "A **package** is a directory of modules, and the import path mirrors the directory on disk:\n\n`grimoire/`\n`    __init__.py`\n`    text.py`\n`    runes.py`\n`main.py`\n\nFrom `main.py` you write `from grimoire import text` or `from grimoire.text import clean`. The `__init__.py` file marks the directory as a package and is itself a module - it runs when anything inside the package is first imported, which makes it a good place to state the package's public surface and a bad place to do work. Inside a module, a leading underscore on a name (`_cache`, `_parse_line`) says this is not part of what I offer; a list called `__all__` says the opposite, naming exactly what the module means to expose.\n\nDependencies must point one way. When `orders.py` imports `customers.py` and `customers.py` imports `orders.py` you have a **circular import**, and Python does not loop forever - it does something more confusing. The second import finds the first module already registered in `sys.modules`, half executed, and hands it back **partially initialised**, so a name defined further down that file does not exist yet: `ImportError: cannot import name 'format_order' from partially initialized module 'orders'`. Moving the import inside a function makes the message go away without making the design any better. The real fixes are design fixes: lift what both modules need into a third module that neither imports back, or decide which of the two is the lower layer and pass the value in.\n\nOne honest note about this floor. The runner executes a single program, so it cannot hand you two files. The exercises therefore hand you a module's **source text** and ask you to load it yourself: make an empty namespace, put a `__name__` into it, execute the source into it. That is not a trick to get round the runner - it is what `import` does once it has found the file, minus the searching and the caching, and doing it by hand is the clearest way to see that a module really is a namespace with a name.",
+    "code": "source = '\"\"\"Tidy text for the ledger.\"\"\"\\nWIDTH = 40\\n_cache = {}\\ndef clean(text):\\n    return text.strip()\\n'\nns = {\"__name__\": \"clean\"}\nexec(source, ns)\nprint(ns[\"__name__\"])\nprint(ns[\"clean\"](\"  hail  \"))\nprint(sorted([n for n in ns if not n.startswith(\"_\")]))\nprint(ns[\"__doc__\"])\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The namespace a module gets before its body runs: empty, apart from the name it is about to be known by."
+     },
+     {
+      "line": 3,
+      "text": "`exec(source, ns)` runs the text as a module body, and every name it defines lands in `ns` rather than in this file. That boundary is the namespace."
+     },
+     {
+      "line": 6,
+      "text": "Filtering out the leading underscore is the convention made literal: `_cache` is the module's own business, `WIDTH` and `clean` are what it offers."
+     },
+     {
+      "line": 7,
+      "text": "A module's docstring is bound to `__doc__` inside its namespace, exactly as a function's is."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "source = 'x = 1\\n_hidden = 2\\ndef f():\\n    return 1\\n'\nns = {}\nexec(source, ns)\nprint(sorted([n for n in ns if not n.startswith(\"_\")]))\nprint(\"_hidden\" in ns)\n",
+     "lang": "python",
+     "answer": "['f', 'x']\nTrue",
+     "concepts": [
+      "namespaces",
+      "module-layout"
+     ],
+     "tags": [
+      "namespaces"
+     ],
+     "explain": "The underscore is a convention about intent, not a lock: `_hidden` is still sitting in the namespace, and the second line proves it. Filtering decides only what a listing chooses to show, never what a module actually contains."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-16-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "import math as m\nfrom math import sqrt\nprint(m.sqrt(9))\nprint(sqrt(16))\nprint(type(m).__name__)\nprint(m.sqrt is sqrt)\n",
+   "lang": "python",
+   "answer": "3.0\n4.0\nmodule\nTrue",
+   "concepts": [
+    "import",
+    "from-import"
+   ],
+   "tags": [
+    "import",
+    "from-import"
+   ],
+   "hint": "`as` renames the binding in this file and nothing else. The last line asks whether the two names lead to the same function object - and only one `math` module was ever loaded.",
+   "explain": "`m.sqrt` and `sqrt` are two names for one function, because `from` copies a binding out of the module rather than making a second copy of the module. The tempting answers are `3` for the first line - `math.sqrt` always returns a float - and `False` for the last, which would only be right if importing duplicated anything.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-gp-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "This program loads a module by hand: it executes the module's source text into a fresh namespace. What does it print?",
+   "code": "source = 'print(\"tally is being loaded\")\\ntotal = 0\\ndef add(n):\\n    return total + n\\n'\nprint(\"before\")\nns = {\"__name__\": \"tally\"}\nexec(source, ns)\nprint(\"after\", ns[\"total\"], ns[\"__name__\"])\n",
+   "lang": "python",
+   "answer": "before\ntally is being loaded\nafter 0 tally",
+   "concepts": [
+    "import",
+    "namespaces"
+   ],
+   "tags": [
+    "import",
+    "namespaces"
+   ],
+   "hint": "Work out when the module's own `print` runs relative to the two in the outer program. The module body is executed at the moment of loading, not when something in it is later called.",
+   "explain": "Loading a module runs every top-level line in it there and then, which is why the module's message lands between `before` and `after`. The names it defined are in `ns`, not in the outer program - `total` on its own would raise NameError, which is exactly the boundary a namespace draws.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-gp-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "A project is laid out like this:\n\n`tools/`\n`    __init__.py`\n`    text.py`\n`main.py`\n\n`text.py` defines a function `clean(line)` that strips the blank space from both ends. Fill the blanks in `main.py` so that the call below works as written.",
+   "template": "from tools.___ import ___\n\nprint(clean(\"  hail  \"))",
+   "blanks": [
+    "text",
+    "clean"
+   ],
+   "concepts": [
+    "module-layout",
+    "from-import"
+   ],
+   "tags": [
+    "module-layout",
+    "from-import"
+   ],
+   "hint": "The dotted path mirrors the directory: package first, then the module file without its `.py`. The name after `import` is the one that ends up usable on its own.",
+   "explain": "The import path follows the folders on disk, so the module inside the package is `tools.text`, and the `from` form is what makes the bare name `clean` usable. Writing `from tools import text` would work too, but then the call would have to be `text.clean(...)` - the form you choose decides what the call site looks like.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "public_names",
+   "prompt": "Write `public_names(source)`. It is given the source text of a module. Execute it in a fresh namespace and return a sorted list of the names the module defines that do not begin with an underscore.\n\nFor the module `x = 1` with `_hidden = 2` beneath it, the answer is `[\"x\"]`.",
+   "starterCode": "def public_names(source):\n    ns = {}\n    # exec(source, ns) runs the module body, filling ns\n    pass\n",
+   "tests": [
+    {
+     "input": "'a = 1\\nb = 2\\n'",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "input": "'x = 1\\n_hidden = 2\\ndef f():\\n    return 1\\n'",
+     "expected": [
+      "f",
+      "x"
+     ]
+    },
+    {
+     "input": "''",
+     "expected": []
+    },
+    {
+     "input": "'__version__ = \"1.0\"\\nname = \"tome\"\\n'",
+     "expected": [
+      "name"
+     ]
+    }
+   ],
+   "concepts": [
+    "namespaces",
+    "import"
+   ],
+   "tags": [
+    "namespaces",
+    "import"
+   ],
+   "hint": "`exec(source, ns)` puts every name the module defines into `ns`. Looping over a dictionary gives its keys, and `name.startswith(\"_\")` is the test for the ones to leave out.",
+   "explain": "Executing into a namespace you supply is precisely what makes a module a module: the names land in `ns` rather than in your own file. `exec` also adds `__builtins__` to the namespace, and the underscore filter quietly removes it - which is a hint about why the convention was chosen in the first place.",
+   "xp": 75,
+   "solution": "def public_names(source):\n    ns = {}\n    exec(source, ns)\n    return sorted([name for name in ns if not name.startswith(\"_\")])\n"
+  },
+  {
+   "id": "py-16-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "value_of",
+   "prompt": "Write `value_of(source, name)`. Execute the module source in a fresh namespace and return the value bound to `name` inside it. When the module never defines that name, return `None` rather than failing.",
+   "starterCode": "def value_of(source, name):\n    ns = {}\n    exec(source, ns)\n    # the namespace is an ordinary dictionary\n    pass\n",
+   "tests": [
+    {
+     "input": "'a = 1\\nb = 2\\n', 'b'",
+     "expected": 2
+    },
+    {
+     "input": "'__version__ = \"1.0\"\\nname = \"tome\"\\n', 'tau'",
+     "expected": null
+    },
+    {
+     "input": "'\"\"\"Tidy text for the ledger.\"\"\"\\nWIDTH = 40\\n_cache = {}\\ndef clean(text):\\n    return text.strip()\\n', 'WIDTH'",
+     "expected": 40
+    },
+    {
+     "input": "'def f():\\n    return 7\\nn = f()\\n', 'n'",
+     "expected": 7
+    }
+   ],
+   "concepts": [
+    "namespaces"
+   ],
+   "tags": [
+    "namespaces"
+   ],
+   "hint": "The namespace behaves like any other dictionary, so the method that looks a key up without raising when it is missing is the one you want here.",
+   "explain": "A module's namespace really is a dictionary, and `module.name` is a lookup in it - which is why an import can fail with AttributeError rather than anything import-specific. Reaching for square brackets would raise KeyError on the missing name, and the prompt asked for a quiet `None` instead.",
+   "xp": 75,
+   "solution": "def value_of(source, name):\n    ns = {}\n    exec(source, ns)\n    return ns.get(name)\n"
+  },
+  {
+   "id": "py-16-gp-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "run_module",
+   "prompt": "`run_module(source, name)` should load a module's source under the name it is given - as `\"__main__\"` when the file is being run directly, or as its module name when it is being imported - and return the list called `log` that the module leaves behind.\n\nIt currently reports that the work was done no matter how the module was loaded. Repair it.",
+   "starterCode": "def run_module(source, name):\n    ns = {\"__name__\": \"__main__\"}\n    exec(source, ns)\n    return ns[\"log\"]\n",
+   "tests": [
+    {
+     "input": "'log = []\\ndef main():\\n    log.append(\"ran\")\\nif __name__ == \"__main__\":\\n    main()\\n', '__main__'",
+     "expected": [
+      "ran"
+     ]
+    },
+    {
+     "input": "'log = []\\ndef main():\\n    log.append(\"ran\")\\nif __name__ == \"__main__\":\\n    main()\\n', 'report'",
+     "expected": []
+    },
+    {
+     "input": "'log = [__name__]\\n', 'report'",
+     "expected": [
+      "report"
+     ]
+    },
+    {
+     "input": "'log = [\"always\"]\\n', 'tally'",
+     "expected": [
+      "always"
+     ]
+    }
+   ],
+   "concepts": [
+    "name-main",
+    "import"
+   ],
+   "tags": [
+    "name-main",
+    "import"
+   ],
+   "hint": "The guard inside the module compares `__name__` against `\"__main__\"`. Look at what this function puts into the namespace before executing the source, and ask where the `name` argument went.",
+   "explain": "Hard-coding `\"__main__\"` makes every load look like a direct run, so the guard is always true and an imported module does its work anyway - the exact bug the guard exists to prevent. It passes the first test, which is how a fault like this survives: the case it breaks is the one nobody runs by hand.",
+   "xp": 75,
+   "solution": "def run_module(source, name):\n    ns = {\"__name__\": name}\n    exec(source, ns)\n    return ns[\"log\"]\n"
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-16-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "exports",
+   "prompt": "Write `exports(source)`. Given the source text of a module, return a sorted list of the names that module offers to the rest of the program.\n\nA module may state that surface for itself by defining `__all__`, a list of name strings; when it does, that list is the answer. When it does not, every name it defines except those beginning with an underscore counts as offered.",
+   "tests": [
+    {
+     "input": "'__all__ = [\"clean\"]\\ndef clean(t):\\n    return t\\ndef helper(t):\\n    return t\\n'",
+     "expected": [
+      "clean"
+     ]
+    },
+    {
+     "input": "'x = 1\\n_hidden = 2\\ndef f():\\n    return 1\\n'",
+     "expected": [
+      "f",
+      "x"
+     ]
+    },
+    {
+     "input": "'__all__ = []\\nvalue = 3\\n'",
+     "expected": []
+    },
+    {
+     "input": "''",
+     "expected": []
+    },
+    {
+     "input": "'\"\"\"Tidy text for the ledger.\"\"\"\\nWIDTH = 40\\n_cache = {}\\ndef clean(text):\\n    return text.strip()\\n'",
+     "expected": [
+      "WIDTH",
+      "clean"
+     ]
+    }
+   ],
+   "concepts": [
+    "module-layout",
+    "namespaces"
+   ],
+   "tags": [
+    "module-layout",
+    "namespaces"
+   ],
+   "explain": "A module states its public surface either explicitly with `__all__` or implicitly by the underscore convention, and a reader has to check the explicit one first. `EMPTYALL` is the case that catches a solution which tests whether `__all__` is truthy rather than whether it is present: an empty list is a deliberate statement that the module offers nothing.",
+   "xp": 75,
+   "solution": "def exports(source):\n    ns = {}\n    exec(source, ns)\n    if \"__all__\" in ns:\n        return sorted(ns[\"__all__\"])\n    return sorted([name for name in ns if not name.startswith(\"_\")])\n"
+  },
+  {
+   "id": "py-16-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "take",
+   "prompt": "Write `take(source, names)`. Load the module source, then hand back a dictionary pairing each name in `names` with the value it has inside that module.\n\nIf the module does not define one of them, raise `ImportError` with a message containing `cannot import name`, which is what Python itself says when a `from` import asks for something that is not there.",
+   "tests": [
+    {
+     "input": "'a = 1\\nb = 2\\n', ['b', 'a']",
+     "expected": {
+      "b": 2,
+      "a": 1
+     }
+    },
+    {
+     "input": "'\"\"\"Tidy text for the ledger.\"\"\"\\nWIDTH = 40\\n_cache = {}\\ndef clean(text):\\n    return text.strip()\\n', ['WIDTH']",
+     "expected": {
+      "WIDTH": 40
+     }
+    },
+    {
+     "input": "'a = 1\\nb = 2\\n', []",
+     "expected": {}
+    },
+    {
+     "input": "'x = 1\\n_hidden = 2\\ndef f():\\n    return 1\\n', ['_hidden']",
+     "expected": {
+      "_hidden": 2
+     }
+    },
+    {
+     "input": "'a = 1\\nb = 2\\n', ['c']",
+     "throws": "cannot import name"
+    }
+   ],
+   "concepts": [
+    "from-import",
+    "namespaces"
+   ],
+   "tags": [
+    "from-import",
+    "namespaces"
+   ],
+   "explain": "This is the `from module import a, b` form written out longhand: the module is executed in full first, and only then are the requested names lifted out of its namespace. The underscore case is the honest one - the convention is advice to a reader, so an explicit request for `_hidden` succeeds, and only the star form takes any notice of it.",
+   "xp": 75,
+   "solution": "def take(source, names):\n    ns = {}\n    exec(source, ns)\n    taken = {}\n    for name in names:\n        if name not in ns:\n            raise ImportError(\"cannot import name \" + repr(name))\n        taken[name] = ns[name]\n    return taken\n"
+  },
+  {
+   "id": "py-16-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "import_order",
+   "prompt": "Write `import_order(sources, requested)`. `sources` pairs each module name with its source text, and `requested` lists the names a program asks for, in the order it asks for them - possibly asking for the same one more than once.\n\nA module body is executed the first time it is asked for and never again; later requests for it find it already loaded. Return the list of names whose bodies actually ran, in the order they ran.",
+   "tests": [
+    {
+     "input": "{'a': 'x = 1', 'b': 'y = 2'}, ['a', 'b', 'a']",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "input": "{'a': 'x = 1', 'b': 'y = 2'}, []",
+     "expected": []
+    },
+    {
+     "input": "{'a': 'x = 1', 'b': 'y = 2'}, ['b', 'b', 'b']",
+     "expected": [
+      "b"
+     ]
+    },
+    {
+     "input": "{'a': 'log = 1'}, ['a', 'a']",
+     "expected": [
+      "a"
+     ]
+    },
+    {
+     "input": "{'a': 'x = 1', 'b': 'y = 2'}, ['b', 'a', 'b', 'a']",
+     "expected": [
+      "b",
+      "a"
+     ]
+    }
+   ],
+   "concepts": [
+    "import",
+    "namespaces"
+   ],
+   "tags": [
+    "import",
+    "namespaces"
+   ],
+   "explain": "This is `sys.modules`: Python keeps what it has loaded and a repeated import costs a lookup rather than a second execution. It is why a module's top level is safe for definitions and dangerous for work - the work happens once, at an unpredictable moment, decided by whoever imported first.",
+   "xp": 75,
+   "solution": "def import_order(sources, requested):\n    loaded = {}\n    ran = []\n    for name in requested:\n        if name in loaded:\n            continue\n        ns = {\"__name__\": name}\n        exec(sources[name], ns)\n        loaded[name] = ns\n        ran.append(name)\n    return ran\n"
+  },
+  {
+   "id": "py-16-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "runs_when_imported",
+   "prompt": "Write `runs_when_imported(source)`, returning `True` or `False`.\n\nEvery module you are given defines a list called `log` and appends to it whenever it does any of its work. Report whether that work would happen to somebody who pulls this module into their own program under the name `report`, rather than running the file directly.",
+   "tests": [
+    {
+     "input": "'log = []\\ndef main():\\n    log.append(\"ran\")\\nif __name__ == \"__main__\":\\n    main()\\n'",
+     "expected": false
+    },
+    {
+     "input": "'log = []\\ndef main():\\n    log.append(\"ran\")\\nmain()\\n'",
+     "expected": true
+    },
+    {
+     "input": "'log = [\"setup\"]\\n'",
+     "expected": true
+    },
+    {
+     "input": "'log = []\\ndef main():\\n    log.append(\"ran\")\\n'",
+     "expected": false
+    },
+    {
+     "input": "'log = []\\nif __name__ != \"__main__\":\\n    log.append(\"imported\")\\n'",
+     "expected": true
+    }
+   ],
+   "concepts": [
+    "name-main",
+    "import"
+   ],
+   "tags": [
+    "name-main",
+    "import"
+   ],
+   "explain": "The only difference between being imported and being run is the string in `__name__`, so the question is answered by loading the module under a name that is not `__main__` and looking at what it did. Reading the source for the word `main` instead would call the last case wrong, and would be fooled by any guard written the other way round.",
+   "xp": 75,
+   "solution": "def runs_when_imported(source):\n    ns = {\"__name__\": \"report\"}\n    exec(source, ns)\n    return len(ns[\"log\"]) > 0\n"
+  },
+  {
+   "id": "py-16-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "has_cycle",
+   "prompt": "Write `has_cycle(imports)`, returning `True` or `False`. `imports` pairs each module name with the list of modules it imports.\n\nReport whether any module in the project can, by following imports, end up back at itself. A module that imports itself counts.",
+   "tests": [
+    {
+     "input": "{'a': ['b'], 'b': ['c'], 'c': []}",
+     "expected": false
+    },
+    {
+     "input": "{'a': ['b'], 'b': ['a']}",
+     "expected": true
+    },
+    {
+     "input": "{}",
+     "expected": false
+    },
+    {
+     "input": "{'a': ['a']}",
+     "expected": true
+    },
+    {
+     "input": "{'a': ['b', 'c'], 'b': [], 'c': ['a']}",
+     "expected": true
+    },
+    {
+     "input": "{'a': ['b'], 'b': [], 'c': ['a', 'b']}",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "circular-imports",
+    "module-layout"
+   ],
+   "tags": [
+    "circular-imports",
+    "module-layout"
+   ],
+   "explain": "A project whose imports lead back to their starting point has a layering problem, and the answer is found by following the arrows rather than by reading any one file - which is why nobody spots one by eye in a project of thirty modules. The last case is the trap: two modules both depending on a third is a diamond, not a cycle, and is perfectly healthy.",
+   "xp": 75,
+   "solution": "def has_cycle(imports):\n    for start in imports:\n        pending = list(imports.get(start, []))\n        seen = []\n        while pending:\n            name = pending.pop()\n            if name == start:\n                return True\n            if name in seen:\n                continue\n            seen.append(name)\n            for other in imports.get(name, []):\n                pending.append(other)\n    return False\n"
+  },
+  {
+   "id": "py-16-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "module_card",
+   "prompt": "Write `module_card(source, name)`. Load the module source under the name it is given and return a dictionary with exactly three keys:\n\n- `\"name\"` - the name the module knows itself by while it is loading\n- `\"summary\"` - the first line of the module's docstring, or an empty string when it has none\n- `\"public\"` - a sorted list of the names it defines that do not begin with an underscore\n\nFor the module `\"\"\"Tidy text.\"\"\"` followed by `WIDTH = 40`, loaded as `clean`, the summary is `Tidy text.` and the public list is `[\"WIDTH\"]`.",
+   "tests": [
+    {
+     "input": "'\"\"\"Tidy text for the ledger.\"\"\"\\nWIDTH = 40\\n_cache = {}\\ndef clean(text):\\n    return text.strip()\\n', 'clean'",
+     "expected": {
+      "name": "clean",
+      "summary": "Tidy text for the ledger.",
+      "public": [
+       "WIDTH",
+       "clean"
+      ]
+     }
+    },
+    {
+     "input": "'a = 1\\nb = 2\\n', 'tally'",
+     "expected": {
+      "name": "tally",
+      "summary": "",
+      "public": [
+       "a",
+       "b"
+      ]
+     }
+    },
+    {
+     "input": "'', 'empty'",
+     "expected": {
+      "name": "empty",
+      "summary": "",
+      "public": []
+     }
+    },
+    {
+     "input": "'\"\"\"First line.\\n\\nMore detail lives here.\\n\"\"\"\\nvalue = 1\\n', 'notes'",
+     "expected": {
+      "name": "notes",
+      "summary": "First line.",
+      "public": [
+       "value"
+      ]
+     }
+    },
+    {
+     "input": "'log = [__name__]\\n', 'report'",
+     "expected": {
+      "name": "report",
+      "summary": "",
+      "public": [
+       "log"
+      ]
+     }
+    }
+   ],
+   "concepts": [
+    "namespaces",
+    "module-layout",
+    "name-main"
+   ],
+   "tags": [
+    "namespaces",
+    "module-layout",
+    "name-main"
+   ],
+   "explain": "Everything a summary of a module needs is in its namespace once the body has run: its name, its docstring under `__doc__`, and the names it defined. A module with no docstring has no `__doc__` to read at all, which is why the empty-string case has to be handled rather than assumed.",
+   "xp": 75,
+   "solution": "def module_card(source, name):\n    ns = {\"__name__\": name}\n    exec(source, ns)\n    doc = ns.get(\"__doc__\")\n    if doc is None:\n        doc = \"\"\n    lines = doc.splitlines()\n    summary = \"\"\n    if lines:\n        summary = lines[0]\n    return {\n        \"name\": ns[\"__name__\"],\n        \"summary\": summary,\n        \"public\": sorted([n for n in ns if not n.startswith(\"_\")]),\n    }\n"
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-16-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A file `tally.py` sits beside your program and you write `import tally`. What is the name `tally` now bound to?",
+   "choices": [
+    "The text of `tally.py`, copied into your file before it runs.",
+    "A module object wrapping the namespace produced by executing `tally.py` once.",
+    "Every name defined in `tally.py`, each bound separately in your own file.",
+    "The path to `tally.py`, which Python reopens each time you write a dot."
+   ],
+   "answer": 1,
+   "concepts": [
+    "import",
+    "namespaces"
+   ],
+   "tags": [
+    "import",
+    "namespaces"
+   ],
+   "explain": "Import binds one name to one object, and that object holds the namespace the module's body built. The third answer describes the `from tally import *` form, which is a different statement and the reason people muddle the two.",
+   "xp": 15
+  },
+  {
+   "id": "py-16-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`report.py` is imported by `main.py`. While the top-level code of `report.py` is running, what is the value of `__name__` inside it?",
+   "choices": [
+    "\"__main__\"",
+    "\"report\"",
+    "\"main\"",
+    "It has no value until the module has finished loading."
+   ],
+   "answer": 1,
+   "concepts": [
+    "name-main"
+   ],
+   "tags": [
+    "name-main"
+   ],
+   "explain": "An imported module's `__name__` is its own module name, and only the file Python was actually told to run gets `\"__main__\"`. Answering `\"main\"` is the common muddle: `__name__` describes the module it appears in, not the module that imported it.",
+   "xp": 15
+  },
+  {
+   "id": "py-16-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "import math\nfrom math import pi\npi = 3\nprint(pi)\nprint(math.pi == 3)\nprint(round(math.pi, 2))\n",
+   "lang": "python",
+   "answer": "3\nFalse\n3.14",
+   "concepts": [
+    "from-import"
+   ],
+   "tags": [
+    "from-import"
+   ],
+   "explain": "The `from` import copied a binding into this file, so rebinding it here moved this file's name and left `math.pi` untouched. Expecting `True` on the second line means reading the import as a live link into the module, which is the misunderstanding this program exists to break.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "The same module source is loaded twice by hand: once under the name it would have when imported, once under the name it would have when run directly. What does this program print?",
+   "code": "source = 'log = []\\ndef main():\\n    log.append(\"ran\")\\nif __name__ == \"__main__\":\\n    main()\\n'\nimported = {\"__name__\": \"report\"}\nexec(source, imported)\nprint(imported[\"log\"])\nrun_directly = {\"__name__\": \"__main__\"}\nexec(source, run_directly)\nprint(run_directly[\"log\"])\n",
+   "lang": "python",
+   "answer": "[]\n['ran']",
+   "concepts": [
+    "name-main",
+    "namespaces"
+   ],
+   "tags": [
+    "name-main",
+    "namespaces"
+   ],
+   "explain": "One string decides everything: with `__name__` set to `report` the guard is false and `main` never runs, and with it set to `__main__` the same source does its work. The two namespaces are independent, so the second load starts from an empty `log` rather than adding to the first.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so that `main()` runs when this file is executed directly and is skipped when the file is imported. The second blank is a string literal - include the double quotation marks.",
+   "template": "def main():\n    print(\"the ledger is balanced\")\n\nif ___ == ___:\n    main()",
+   "blanks": [
+    "__name__",
+    "\"__main__\""
+   ],
+   "concepts": [
+    "name-main"
+   ],
+   "tags": [
+    "name-main"
+   ],
+   "explain": "The guard compares the module's own name against the string Python gives to the file it was told to run. Writing the name of the file, or leaving the quotation marks off, gives a comparison against a variable that does not exist - and a NameError at import time.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Assemble these lines into a module laid out the conventional way: what the module is, what it needs, what it defines, and last of all what it does when it is run directly.",
+   "fragments": [
+    "def main():",
+    "if __name__ == \"__main__\":",
+    "\"\"\"Count the runes in a line.\"\"\"",
+    "    return len(line.split(SEPARATOR))",
+    "import sys",
+    "    main()",
+    "def count_runes(line):",
+    "    print(count_runes(\"fire bolt\"))",
+    "SEPARATOR = \" \""
+   ],
+   "answer": [
+    2,
+    4,
+    8,
+    6,
+    3,
+    0,
+    7,
+    1,
+    5
+   ],
+   "concepts": [
+    "module-layout",
+    "name-main"
+   ],
+   "tags": [
+    "module-layout",
+    "name-main"
+   ],
+   "explain": "Docstring, imports, constants, definitions, guard: a reader opening an unfamiliar module can then learn what it is and what it needs from the first two lines. The guard has to come after `main` is defined, because the line calling it runs the moment it is reached.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "`orders.py` starts with `from customers import discount_for`, and `customers.py` starts with `from orders import format_order`. Running the program fails with `ImportError: cannot import name 'format_order' from partially initialized module 'orders'`.\n\nExplain what Python was doing at the moment it failed, why the name was missing, why moving one of those imports inside a function is not really a fix, and what you would do instead.",
+   "rubric": {
+    "required": [
+     "partially",
+     "defined",
+     "design"
+    ],
+    "optional": [
+     "sys.modules",
+     "third",
+     "direction",
+     "layer",
+     "top"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "circular-imports",
+    "import"
+   ],
+   "tags": [
+    "circular-imports",
+    "import"
+   ],
+   "explain": "Python registers a module before running its body, so the second import gets the half-executed module back and the name lower down does not exist yet - it is a timing problem, not a spelling one. Deferring the import until the function is called dodges the timing and leaves the two-way dependency in place, so the real answer is to move the shared piece into a module both can import, or to make one of the two the lower layer and pass what it needs in.",
+   "xp": 30
+  },
+  {
+   "id": "py-16-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "dotted",
+   "prompt": "Write `dotted(path)`, which turns the path of a file inside a project into the dotted module path an import would use.\n\n`\"tools/text/clean.py\"` becomes `\"tools.text.clean\"`. A file named `__init__.py` is the package itself rather than a module inside it, so `\"tools/__init__.py\"` becomes `\"tools\"`.",
+   "starterCode": "def dotted(path):\n    parts = path.split(\"/\")\n    # the last part decides whether it is a module or the package itself\n    pass\n",
+   "tests": [
+    {
+     "input": "'tools/text/clean.py'",
+     "expected": "tools.text.clean"
+    },
+    {
+     "input": "'tools/__init__.py'",
+     "expected": "tools"
+    },
+    {
+     "input": "'main.py'",
+     "expected": "main"
+    },
+    {
+     "input": "'grimoire/runes.py'",
+     "expected": "grimoire.runes"
+    },
+    {
+     "input": "'a/b/c/__init__.py'",
+     "expected": "a.b.c"
+    }
+   ],
+   "concepts": [
+    "module-layout"
+   ],
+   "tags": [
+    "module-layout"
+   ],
+   "hint": "Split on the separator, deal with the last piece on its own - either drop it entirely or cut the last three characters off it - and join what is left with full stops.",
+   "explain": "The import path is the directory path with the separators swapped and the extension removed, which is why a mislaid file breaks an import that looks correct. `__init__.py` is the exception worth knowing: it is the package's own body, so its module path stops at the directory.",
+   "xp": 75,
+   "solution": "def dotted(path):\n    parts = path.split(\"/\")\n    last = parts[-1]\n    if last == \"__init__.py\":\n        parts = parts[:-1]\n    else:\n        parts[-1] = last[:-3]\n    return \".\".join(parts)\n"
+  },
+  {
+   "id": "py-16-x-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "star_import",
+   "prompt": "Write `star_import(source)`, which returns a dictionary of every name and value that `from module import *` would bind in the importing file.\n\nWhen the module defines `__all__`, that list decides exactly what is bound. Otherwise every name that does not begin with an underscore is bound. Assume the modules you are given define values, not functions.",
+   "starterCode": "def star_import(source):\n    ns = {}\n    exec(source, ns)\n    # __all__ decides, when the module bothered to state one\n    pass\n",
+   "tests": [
+    {
+     "input": "'a = 1\\nb = 2\\n'",
+     "expected": {
+      "a": 1,
+      "b": 2
+     }
+    },
+    {
+     "input": "'__version__ = \"1.0\"\\nname = \"tome\"\\n'",
+     "expected": {
+      "name": "tome"
+     }
+    },
+    {
+     "input": "'__all__ = [\"width\"]\\nwidth = 40\\nheight = 10\\n'",
+     "expected": {
+      "width": 40
+     }
+    },
+    {
+     "input": "'__all__ = []\\nvalue = 3\\n'",
+     "expected": {}
+    },
+    {
+     "input": "''",
+     "expected": {}
+    }
+   ],
+   "concepts": [
+    "from-import",
+    "module-layout"
+   ],
+   "tags": [
+    "from-import",
+    "module-layout"
+   ],
+   "hint": "Two cases, decided by whether `__all__` is one of the names in the namespace. In the second case the same underscore filter as before applies, and the value for each surviving name is looked up in the namespace.",
+   "explain": "Writing the star form out longhand shows what it costs: an unknown set of names, decided by a file you are not looking at, dropped into yours. `__version__` staying behind in the second case is the underscore convention doing its one job - and `__all__` doing it deliberately in the third.",
+   "xp": 75,
+   "solution": "def star_import(source):\n    ns = {}\n    exec(source, ns)\n    if \"__all__\" in ns:\n        return {name: ns[name] for name in ns[\"__all__\"]}\n    return {name: ns[name] for name in ns if not name.startswith(\"_\")}\n"
+  },
+  {
+   "id": "py-16-x-10",
+   "type": "debug",
+   "layer": "application",
+   "fn": "defined_names",
+   "prompt": "`defined_names(source)` should load a module's source and return a sorted list of the names it defines that do not begin with an underscore. It returns an empty list for every module it is given. Repair it.",
+   "starterCode": "def defined_names(source):\n    ns = {}\n    exec(source)\n    return sorted([name for name in ns if not name.startswith(\"_\")])\n",
+   "tests": [
+    {
+     "input": "'a = 1\\nb = 2\\n'",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "input": "'x = 1\\n_hidden = 2\\ndef f():\\n    return 1\\n'",
+     "expected": [
+      "f",
+      "x"
+     ]
+    },
+    {
+     "input": "'__version__ = \"1.0\"\\nname = \"tome\"\\n'",
+     "expected": [
+      "name"
+     ]
+    },
+    {
+     "input": "''",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "namespaces",
+    "import"
+   ],
+   "tags": [
+    "namespaces",
+    "import"
+   ],
+   "hint": "Ask where the names the module defines are being put. `exec` needs to be told which namespace to fill, and with no answer it fills the one it is standing in.",
+   "explain": "`exec(source)` with no namespace executes into whatever scope it finds itself in, so the module's names never reach `ns` and the listing is empty. The bug is invisible in the source - nothing raises, and the function confidently reports that every module defines nothing, which is exactly why the namespace argument is the point of the exercise.",
+   "xp": 75,
+   "solution": "def defined_names(source):\n    ns = {}\n    exec(source, ns)\n    return sorted([name for name in ns if not name.startswith(\"_\")])\n"
+  }
+ ]
+}

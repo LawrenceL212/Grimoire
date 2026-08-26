@@ -1,0 +1,979 @@
+{
+ "n": 10,
+ "name": "The Vault of Many Things",
+ "goal": "Build and modify sequences, tell aliasing from copying, and turn text into a sequence and back.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 9
+  }
+ ],
+ "description": {
+  "what": "The list: an ordered collection of values that, unlike a string, can be changed after it has been made - grown, shortened, reordered and edited in place - together with the two methods that turn a line of text into a list of pieces and put it back together again.",
+  "why": "Almost every program holds more than one of something, and without a container that can change you are forced to rebuild the whole collection every time one value moves; mutability buys that cheaply and charges for it in surprise, because a list can be changed through any name that refers to it.",
+  "enables": "You will be able to build a collection as a program runs, edit it by position or by method, walk it, nest one inside another to hold a table, hand it to a function without corrupting the caller's copy by accident, and move between text and sequence with `split` and `join`.",
+  "assumes": "You can write a function with parameters and a return value, write a `for` loop and an `if`, and index and slice a piece of text - lists answer indexing and slicing in exactly the same notation.",
+  "assessed": "You will predict what mutation and aliasing do to a printed list, repair code that assumes a list method returns the new list, and write functions that build, reshape and rebuild sequences from prompts that state only what the result must be."
+ },
+ "concepts": [
+  "list-literals",
+  "mutation",
+  "list-methods",
+  "iteration",
+  "aliasing",
+  "copying",
+  "nested-lists",
+  "split-join"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A List Is a Sequence You Are Allowed to Change",
+    "body": "A **list** is an ordered run of values held under one name. You write it as values separated by commas inside square brackets: `[\"ash\", \"yew\", \"elm\"]`. The values need not be of the same type, the list may be empty (`[]`), and its length is not fixed when it is created.\n\nEverything you learnt about reaching into text on the previous floor carries over exactly, and that is deliberate rather than a coincidence: `stock[0]` is the first item, `stock[-1]` the last, `stock[1:3]` a slice holding the items at 1 and 2, `len(stock)` the count, and `for item in stock` walks it from front to back. A string and a list are both **sequences**, so they answer the same questions in the same notation.\n\nOne thing is new, and it is the whole point of the floor. A string is immutable: `word[0] = \"A\"` raises `TypeError`. A list is **mutable**, so `stock[0] = \"oak\"` is legal and it changes the list that already exists rather than building a second one. Nothing is copied and no new name is needed.\n\nSo a list is what you reach for when a collection has to grow, shrink or be edited as the program runs, and text is what you reach for when it must not.",
+    "code": "stock = [\"ash\", \"yew\", \"elm\"]\nprint(stock[0], stock[-1])\nprint(stock[1:], len(stock))\nstock[0] = \"oak\"\nprint(stock)\nfor tree in stock:\n    print(tree.upper())\nprint(\"yew\" in stock)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "Indexing is identical to indexing a string: zero at the front, -1 at the back."
+     },
+     {
+      "line": 4,
+      "text": "Item assignment. The string equivalent of this line raises TypeError; here it quietly succeeds and the list is now different."
+     },
+     {
+      "line": 6,
+      "text": "`for` hands you the items themselves, not their positions, so no index arithmetic is needed to read a list."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "runes = [\"ansuz\", \"berkano\", \"cen\"]\nprint(len(runes))\nprint(runes[-1][0])\nrunes[1] = \"dagaz\"\nprint(runes)",
+     "lang": "python",
+     "answer": "3\nc\n['ansuz', 'dagaz', 'cen']",
+     "concepts": [
+      "list-literals",
+      "mutation"
+     ],
+     "tags": [
+      "list-literals"
+     ],
+     "explain": "`runes[-1][0]` is two steps: the last item of the list, then the first character of that string, so it is `c` and not `cen`. Printing the list shows Python's own notation, quotation marks and all, which is what the runner compares your answer against."
+    }
+   },
+   {
+    "title": "The Methods That Change It, and Return Nothing",
+    "body": "A handful of methods do the growing and shrinking. `append(x)` adds one item to the end; `insert(i, x)` puts one item at position `i` and shifts the rest along; `extend(other)` adds every item of another list; `remove(x)` deletes the **first** item equal to `x` and raises `ValueError` if there is none; `pop()` removes and hands back the last item, and `pop(i)` the item at `i`; `sort()` reorders the list into ascending order; `reverse()` turns it back to front.\n\nHere is the mirror image of the string floor, and the commonest single mistake in beginner Python. A string method could not change the string, so it had to return a new one. A list method **can** change the list, so it does - and it returns `None`. `ranked = scores.sort()` therefore sorts `scores` and leaves `ranked` bound to `None`, and the next line fails with something like `TypeError: object of type 'NoneType' has no len()` a long way from the real mistake.\n\nThe rule is worth memorising in one sentence: a method that changes the list in place returns `None`, so never assign its result. Write `scores.sort()` on a line of its own.\n\nWhen you want the sorted order **without** disturbing the original, ask for a different tool: `sorted(scores)` is a function, not a method, and it builds and returns a new list. `sorted` returns, `sort` mutates - two shapes for two different jobs.",
+    "code": "scores = [30, 10, 20]\nscores.append(40)\nscores.insert(0, 5)\nprint(scores)\nlast = scores.pop()\nscores.remove(10)\nprint(scores, last)\nprint(scores.sort())\nprint(scores, sorted([3, 1, 2]))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`pop` is the exception that proves the rule: it removes AND returns the removed item, so its result is worth catching."
+     },
+     {
+      "line": 8,
+      "text": "Printing the result of `sort` prints None. The sorting really happened - it happened to `scores`, not to a returned value."
+     },
+     {
+      "line": 9,
+      "text": "`sorted` is the copying counterpart: it leaves its argument alone and hands back a new list."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "tally = [3, 1, 2]\nranked = tally.sort()\nprint(tally)\nprint(ranked)\nprint(sorted([3, 1, 2]))",
+     "lang": "python",
+     "answer": "[1, 2, 3]\nNone\n[1, 2, 3]",
+     "concepts": [
+      "list-methods",
+      "mutation"
+     ],
+     "tags": [
+      "list-methods"
+     ],
+     "explain": "The tempting answer is that `ranked` holds the sorted list and `tally` is untouched, which is exactly how the string methods behaved. `sort` reordered `tally` itself and returned nothing, so the sorted list has one name and it is not the one you chose."
+    }
+   },
+   {
+    "title": "Two Names, One List",
+    "body": "`b = a` does not copy anything. It gives the list a second name, and both names refer to the one list, so `b.append(4)` changes what `a` sees as well. With strings this could never bite, because nothing could change a string; with lists it is the source of bugs that look like action at a distance.\n\nThe same thing happens across a function call. A parameter is a new name for the argument that was passed in, not a copy of it, so a function that calls `items.append(...)` has changed the caller's list. That is sometimes exactly what you want, but if it is not what the caller expected it is a defect, and the caller cannot see it in the function's signature.\n\nCopying has to be asked for. `b = a[:]` slices the whole list, and a slice always builds a new list; `b = list(a)` does the same thing and says so more plainly. Now `b.append(4)` leaves `a` alone.\n\nOne caution to carry into the next section: both of those are **shallow** copies. They build a new outer list whose items are the same objects as before, so if the items are themselves lists, the inner ones are still shared. Copying the outer level is enough surprisingly often, and knowing that it is only the outer level is what stops the remaining surprise.",
+    "code": "a = [1, 2, 3]\nb = a\nc = a[:]\nb.append(4)\nprint(a)\nprint(c)\n\ndef add_zero(items):\n    items.append(0)\n\nadd_zero(a)\nprint(a)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "A second name for the same list. No new list exists after this line."
+     },
+     {
+      "line": 3,
+      "text": "A full slice, which is the shortest way to ask for a genuine copy."
+     },
+     {
+      "line": 9,
+      "text": "The parameter `items` is another name for the caller's list, so this line reaches out of the function and changes `a`."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "first = [\"a\", \"b\"]\nsecond = first\nthird = first[:]\nsecond.append(\"c\")\nthird.append(\"d\")\nprint(first)\nprint(second)\nprint(third)",
+     "lang": "python",
+     "answer": "['a', 'b', 'c']\n['a', 'b', 'c']\n['a', 'b', 'd']",
+     "concepts": [
+      "aliasing",
+      "copying"
+     ],
+     "tags": [
+      "aliasing"
+     ],
+     "explain": "`second` and `first` are one list under two names, so the append through either name shows through both. `third` was built by a slice and is a separate list, which is why `d` appears in exactly one of the three lines rather than in all of them."
+    }
+   },
+   {
+    "title": "Text In, Sequence Out, Text Back",
+    "body": "`text.split(sep)` cuts a string wherever `sep` appears and hands back a **list** of the pieces - which is why it lands on this floor rather than the last one. `\"3,4,10\".split(\",\")` gives `['3', '4', '10']`. Called with no argument at all, `split()` splits on runs of whitespace and throws the empty pieces away, so it copes with a double space and a trailing newline without being asked; `split(\" \")` does not, and will hand you empty strings from between adjacent spaces.\n\n`sep.join(items)` is the way back, and note which side the separator is on: it is a **string** method taking a list, so it is written `\", \".join(parts)`, never `parts.join(\", \")`. Every item must already be a string or it raises `TypeError`.\n\nThe pair is the standard shape of almost all text handling: split the line into a list, work on the list with everything else from this floor, then join it back into a line. Splitting cleans nothing up, so `strip()` on each piece is usually the second step.\n\nA list may hold lists, which is how a table is represented: a list of rows, each row a list of fields. `table[1][0]` reads row 1, then field 0 of that row - two ordinary indexing steps, left to right, and nothing new to learn.",
+    "code": "line = \" ash , yew,elm \"\nparts = line.split(\",\")\nprint(parts)\ntidy = []\nfor part in parts:\n    tidy.append(part.strip())\nprint(tidy)\nprint(\" | \".join(tidy))\nprint(\"one  two three\".split())\ntable = [[1, 2], [3, 4]]\nprint(table[1][0], len(table))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Split kept every space it was not asked about: the pieces are ' ash ', ' yew' and 'elm '."
+     },
+     {
+      "line": 8,
+      "text": "The separator goes on the left of the dot and the list inside the brackets. Written the other way round it raises AttributeError."
+     },
+     {
+      "line": 9,
+      "text": "No argument means split on whitespace, collapsing the double space instead of producing an empty piece."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints `ash-yew-elm`.",
+     "template": "line = \"ash yew elm\"\nparts = line.___()\nprint(\"-\".___(parts))",
+     "blanks": [
+      "split",
+      "join"
+     ],
+     "concepts": [
+      "split-join"
+     ],
+     "tags": [
+      "split-join"
+     ],
+     "explain": "The separator you are joining with owns the `join` call, so it is `\"-\".join(parts)`. Writing `parts.join(\"-\")` is the natural guess from English word order and raises AttributeError, because a list has no `join` method at all."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-10-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Read each line before running it.",
+   "code": "runes = [\"ansuz\", \"berkano\", \"cen\"]\nprint(len(runes), runes[-1])\ntail = runes[1:]\ntail.append(\"dagaz\")\nprint(len(runes), len(tail))\nprint(tail)",
+   "lang": "python",
+   "answer": "3 cen\n3 3\n['berkano', 'cen', 'dagaz']",
+   "hint": "A slice always builds a new list. Work out what `tail` holds on its own before deciding what happened to `runes`.",
+   "concepts": [
+    "list-literals",
+    "iteration"
+   ],
+   "tags": [
+    "list-literals"
+   ],
+   "explain": "The slice on line 3 builds a second list, so appending to `tail` cannot reach `runes`, whose length is still 3. The last line is the other trap: printing a list shows Python's own notation with quotation marks around each string, not the bare words.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This program should print `['ash', 'oak', 'elm', 'holly']`. Fill the blanks: the first replaces the item at one position, the second adds an item to the end.",
+   "template": "stock = [\"ash\", \"yew\", \"elm\"]\nstock[___] = \"oak\"\nstock.___(\"holly\")\nprint(stock)",
+   "blanks": [
+    "1",
+    "append"
+   ],
+   "hint": "`yew` sits at index 1. The method that adds a single item to the end takes exactly one argument.",
+   "concepts": [
+    "mutation",
+    "list-methods"
+   ],
+   "tags": [
+    "mutation"
+   ],
+   "explain": "Item assignment overwrites in place and needs the index, while `append` takes the value alone and always goes to the end. Reaching for `append` in the first blank would give a list of five items, and `insert` in the second would need a position as well and raise TypeError without one.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-gp-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "letters = [\"c\", \"a\", \"b\"]\nbackwards = letters.reverse()\nprint(letters)\nprint(backwards)\nletters.sort()\nprint(letters, sorted([\"z\", \"y\"]))",
+   "lang": "python",
+   "answer": "['b', 'a', 'c']\nNone\n['a', 'b', 'c'] ['y', 'z']",
+   "hint": "Ask of every method call whether it changes the list or returns a new one. Only one of the two ever happens.",
+   "concepts": [
+    "list-methods",
+    "mutation"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "`reverse` and `sort` both change the list in place and both return `None`, so `backwards` never holds a list at all. `sorted` is the one that returns a list, which is why the last line prints a list while the middle line prints None.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-gp-04",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`ranked(scores)` should return the scores in ascending order **without** changing the list it was given. It currently returns `None` for every input. Repair it.\n\n`ranked([3, 1, 2])` gives `[1, 2, 3]`.",
+   "fn": "ranked",
+   "starterCode": "def ranked(scores):\n    return scores.sort()\n",
+   "solution": "def ranked(scores):\n    return sorted(scores)\n",
+   "tests": [
+    {
+     "input": "[3, 1, 2]",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[2, 2, 1]",
+     "expected": [
+      1,
+      2,
+      2
+     ]
+    }
+   ],
+   "hint": "One method sorts in place and returns nothing; one function returns a sorted copy. Only the second can be returned, and only the second leaves the argument alone.",
+   "concepts": [
+    "list-methods",
+    "copying"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "`sort` returns `None` because it has already done its work to the list itself, so returning its result can only ever return None. `sorted` is the version that builds a new list and leaves the caller's list exactly as it was, which is the second half of what the prompt asked for.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-gp-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `first_letters(words)`, which is given a list of non-empty words and returns a new list holding the first character of each one, in the same order. Build the result by starting from an empty list and appending inside a loop over `words`.\n\n`first_letters([\"ash\", \"yew\"])` gives `[\"a\", \"y\"]`.",
+   "fn": "first_letters",
+   "starterCode": "def first_letters(words):\n    result = []\n    for word in words:\n        pass\n    return result\n",
+   "solution": "def first_letters(words):\n    result = []\n    for word in words:\n        result.append(word[0])\n    return result\n",
+   "tests": [
+    {
+     "input": "['ash', 'yew']",
+     "expected": [
+      "a",
+      "y"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['x']",
+     "expected": [
+      "x"
+     ]
+    },
+    {
+     "input": "['Oak', 'elm', 'ivy']",
+     "expected": [
+      "O",
+      "e",
+      "i"
+     ]
+    }
+   ],
+   "hint": "`word[0]` is the first character. Append it to `result`, and do not assign the result of `append` to anything.",
+   "concepts": [
+    "iteration",
+    "list-literals"
+   ],
+   "tags": [
+    "iteration"
+   ],
+   "explain": "This is the accumulator pattern from the repetition floor with a list as the accumulator instead of a number: start empty, append once per item, return at the end. An empty input needs no special case at all, because the loop simply never runs and the empty list you started with is already the right answer.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-gp-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `drop_lowest(scores)`, which returns a new list holding the scores in ascending order with the single lowest one removed. The list you are given must not be changed. Use `sorted` and a slice.\n\n`drop_lowest([3, 1, 2])` gives `[2, 3]`, and `drop_lowest([5])` gives `[]`.",
+   "fn": "drop_lowest",
+   "starterCode": "def drop_lowest(scores):\n    pass\n",
+   "solution": "def drop_lowest(scores):\n    return sorted(scores)[1:]\n",
+   "tests": [
+    {
+     "input": "[3, 1, 2]",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[5]",
+     "expected": []
+    },
+    {
+     "input": "[2, 2, 1]",
+     "expected": [
+      2,
+      2
+     ]
+    },
+    {
+     "input": "[10, 4, 7, 4]",
+     "expected": [
+      4,
+      7,
+      10
+     ]
+    }
+   ],
+   "hint": "`sorted(scores)` gives a new list in ascending order. Everything except its first item is the slice that starts at 1.",
+   "concepts": [
+    "list-methods",
+    "copying"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "Sorting first turns 'the lowest' into 'the one at the front', so removing it becomes a slice rather than a search. The one-item case is why a slice beats `pop(0)` here: `[1:]` on a one-item list is empty and never raises, whereas popping from an empty list would.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-10-ip-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `running_total(numbers)`. Given a list of numbers, return a new list of the same length whose entry at each position is the total of every number up to and including that position.\n\n`running_total([1, 2, 3])` gives `[1, 3, 6]`.",
+   "fn": "running_total",
+   "solution": "def running_total(numbers):\n    totals = []\n    total = 0\n    for number in numbers:\n        total = total + number\n        totals.append(total)\n    return totals\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": [
+      1,
+      3,
+      6
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[2, -2, 4]",
+     "expected": [
+      2,
+      0,
+      4
+     ]
+    }
+   ],
+   "concepts": [
+    "iteration",
+    "list-literals"
+   ],
+   "tags": [
+    "iteration"
+   ],
+   "explain": "Carrying the total forward in one name costs a single addition per item, while working out the sum of a slice at every position redoes work already done. The empty input is the case that decides whether the answer was written as a general loop or as something that assumes at least one number exists.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-ip-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `reverse_words(sentence)`. The sentence holds words separated by whitespace, possibly more than one space between them and possibly space at the ends. Return a single string holding the same words in the opposite order with exactly one space between them.\n\n`reverse_words(\"the grey tome\")` gives `\"tome grey the\"`.",
+   "fn": "reverse_words",
+   "solution": "def reverse_words(sentence):\n    words = sentence.split()\n    words.reverse()\n    return \" \".join(words)\n",
+   "tests": [
+    {
+     "input": "'the grey tome'",
+     "expected": "tome grey the"
+    },
+    {
+     "input": "'one'",
+     "expected": "one"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    },
+    {
+     "input": "'  a   b '",
+     "expected": "b a"
+    }
+   ],
+   "concepts": [
+    "split-join",
+    "list-methods"
+   ],
+   "tags": [
+    "split-join"
+   ],
+   "explain": "Cutting on whitespace with no argument does the tidying for free: it collapses runs of spaces and drops the empty pieces at the ends, so nothing has to be stripped afterwards. Cutting on `\" \"` instead is the trap, because a double space produces an empty piece that reappears as a stray space when the words are put back together.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-ip-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `prefixes(items)`. Return a list whose first entry holds only the first item, whose second entry holds the first two items, and so on, with one entry for every position in `items`. Each entry must be independent: changing one of them afterwards must not affect any of the others.\n\n`prefixes([\"a\", \"b\", \"c\"])` gives `[[\"a\"], [\"a\", \"b\"], [\"a\", \"b\", \"c\"]]`.",
+   "fn": "prefixes",
+   "solution": "def prefixes(items):\n    result = []\n    length = 1\n    while length <= len(items):\n        result.append(items[:length])\n        length = length + 1\n    return result\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'c']",
+     "expected": [
+      [
+       "a"
+      ],
+      [
+       "a",
+       "b"
+      ],
+      [
+       "a",
+       "b",
+       "c"
+      ]
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "['x']",
+     "expected": [
+      [
+       "x"
+      ]
+     ]
+    },
+    {
+     "input": "[1, 2]",
+     "expected": [
+      [
+       1
+      ],
+      [
+       1,
+       2
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "aliasing",
+    "copying"
+   ],
+   "tags": [
+    "aliasing"
+   ],
+   "explain": "Growing one working list and adding it to the result each time round produces a result whose entries are all the same list under several names, so every entry ends up equal to the longest one. Building each entry afresh sidesteps that entirely, which is why the independence clause in the prompt is the real specification rather than a formality.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-ip-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `column(rows, position)`. `rows` is a list of rows, each row itself a list, and every row is long enough to have an item at `position`. Return the item at that position taken from each row, in order.\n\n`column([[1, 2], [3, 4]], 1)` gives `[2, 4]`.",
+   "fn": "column",
+   "solution": "def column(rows, position):\n    picked = []\n    for row in rows:\n        picked.append(row[position])\n    return picked\n",
+   "tests": [
+    {
+     "input": "[[1, 2], [3, 4]], 1",
+     "expected": [
+      2,
+      4
+     ]
+    },
+    {
+     "input": "[], 0",
+     "expected": []
+    },
+    {
+     "input": "[[7, 8, 9]], 2",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[[1, 2], [3, 4], [5, 6]], 0",
+     "expected": [
+      1,
+      3,
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "nested-lists",
+    "iteration"
+   ],
+   "tags": [
+    "nested-lists"
+   ],
+   "explain": "Two indexing steps read left to right: the loop names one row, and `row[position]` reads inside it, so no double-index arithmetic is needed. Getting the two the wrong way round - reading `rows[position]` - returns one whole row and happens to pass the two-row example by luck, which is why the three-row case is here.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-ip-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `insert_in_order(items, value)`. `items` is already in ascending order. Return a new list holding everything in `items` plus `value`, still in ascending order. The list you were given must be exactly as it was when your function returns.\n\n`insert_in_order([1, 3, 5], 4)` gives `[1, 3, 4, 5]`.",
+   "fn": "insert_in_order",
+   "solution": "def insert_in_order(items, value):\n    result = items[:]\n    position = 0\n    while position < len(result) and result[position] <= value:\n        position = position + 1\n    result.insert(position, value)\n    return result\n",
+   "tests": [
+    {
+     "input": "[1, 3, 5], 4",
+     "expected": [
+      1,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[], 9",
+     "expected": [
+      9
+     ]
+    },
+    {
+     "input": "[2, 4], 1",
+     "expected": [
+      1,
+      2,
+      4
+     ]
+    },
+    {
+     "input": "[2, 4], 9",
+     "expected": [
+      2,
+      4,
+      9
+     ]
+    },
+    {
+     "input": "[1, 1], 1",
+     "expected": [
+      1,
+      1,
+      1
+     ]
+    }
+   ],
+   "concepts": [
+    "copying",
+    "mutation",
+    "list-methods"
+   ],
+   "tags": [
+    "copying"
+   ],
+   "explain": "The position wanted is the first one holding something larger than the value, and when there is none the value belongs at the end - which is what makes the tests at both ends worth writing. Working on `items` itself would satisfy the returned value and still break the promise made in the last sentence of the prompt, and nothing in the return value would ever reveal it.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-ip-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `tidy_names(line)`. The line holds names separated by commas, with any amount of stray space around each one. Return a single string of those names in alphabetical order, separated by a comma and one space. If the line holds no names at all, return the empty string.\n\n`tidy_names(\"  yew , ash,elm \")` gives `\"ash, elm, yew\"`.",
+   "fn": "tidy_names",
+   "solution": "def tidy_names(line):\n    if line.strip() == \"\":\n        return \"\"\n    names = []\n    for piece in line.split(\",\"):\n        names.append(piece.strip())\n    names.sort()\n    return \", \".join(names)\n",
+   "tests": [
+    {
+     "input": "'  yew , ash,elm '",
+     "expected": "ash, elm, yew"
+    },
+    {
+     "input": "'solo'",
+     "expected": "solo"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    },
+    {
+     "input": "'   '",
+     "expected": ""
+    },
+    {
+     "input": "'b,a'",
+     "expected": "a, b"
+    }
+   ],
+   "concepts": [
+    "split-join",
+    "list-methods",
+    "mutation"
+   ],
+   "tags": [
+    "split-join"
+   ],
+   "explain": "Cutting on the comma has to come first, because cutting on whitespace would break a two-word name in half, and the tidying of each piece has to come after, because the stray space sits next to the separator. An empty line has to be answered before anything is ordered, since cutting an empty string on a comma yields one empty piece rather than none.",
+   "xp": 75
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-10-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `scores.sort()` evaluate to?",
+   "choices": [
+    "A new list holding the scores in ascending order",
+    "`None`, having reordered `scores` itself",
+    "The number of items that moved",
+    "The original list, in its original order"
+   ],
+   "answer": 1,
+   "concepts": [
+    "list-methods"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "A method that does its work by changing the list has nothing useful left to return, so Python returns `None` to make that plain. The tempting answer is the sorted list, because that is how every string method behaved, and it is exactly why `ranked = scores.sort()` gets written so often.",
+   "xp": 15
+  },
+  {
+   "id": "py-10-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Which of these are true of a Python list? Select every one that applies.",
+   "choices": [
+    "Its items have an order, and that order is part of the value",
+    "Its items may be replaced, added or removed after it is created",
+    "Every item must be of the same type",
+    "Its length is fixed when it is created",
+    "An item of a list may itself be a list"
+   ],
+   "answer": [
+    0,
+    1,
+    4
+   ],
+   "concepts": [
+    "list-literals"
+   ],
+   "tags": [
+    "list-literals"
+   ],
+   "explain": "The first two are the definition: order is part of a list's value, and its contents and length may both change after it is built. A list is not restricted to one type and its items may themselves be lists, which is what makes a list of rows possible at all.",
+   "xp": 15
+  },
+  {
+   "id": "py-10-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "first = [\"a\", \"b\"]\nsecond = first\nthird = first[:]\nsecond.append(\"c\")\nthird.append(\"d\")\nprint(first)\nprint(third)\nprint(len(first), len(second), len(third))",
+   "lang": "python",
+   "answer": "['a', 'b', 'c']\n['a', 'b', 'd']\n3 3 3",
+   "concepts": [
+    "aliasing",
+    "copying"
+   ],
+   "tags": [
+    "aliasing"
+   ],
+   "explain": "`second` is a second name for the same list, so the append through it shows up when `first` is printed; `third` came from a slice and is genuinely separate. The final line is what separates the two ideas, because it makes clear that the two appends landed in different lists rather than the same one.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "line = \" ash,yew ,elm\"\nparts = line.split(\",\")\nprint(parts)\nprint(len(parts))\nprint(parts[1].strip())\nprint(\"|\".join(parts))",
+   "lang": "python",
+   "answer": "[' ash', 'yew ', 'elm']\n3\nyew\n ash|yew |elm",
+   "concepts": [
+    "split-join"
+   ],
+   "tags": [
+    "split-join"
+   ],
+   "explain": "Cutting on a comma cuts only where it is told and keeps every space it was not asked about, so the pieces carry their padding and that padding reappears when they are put back together. Expecting tidy pieces is the usual assumption, and it is why tidying each piece is nearly always the step straight after.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This program should print `[1, 2, 3] [1, 2, 3, 4]`. Fill the blanks so that adding an item to `spare` leaves `original` alone.",
+   "template": "original = [1, 2, 3]\nspare = original[___]\nspare.___(4)\nprint(original, spare)",
+   "blanks": [
+    ":",
+    "append"
+   ],
+   "concepts": [
+    "copying",
+    "aliasing"
+   ],
+   "tags": [
+    "copying"
+   ],
+   "explain": "A slice with both ends left out covers the whole list and, like every slice, builds a new one. Leaving the brackets out altogether is the failing version: it would give the one list a second name, and both would then print with four items.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order so that `top_two(scores)` returns the two highest scores, highest first, without changing the list it was given.",
+   "fragments": [
+    "    ranked.reverse()",
+    "def top_two(scores):",
+    "    return ranked[:2]",
+    "    ranked = sorted(scores)"
+   ],
+   "answer": [
+    1,
+    3,
+    0,
+    2
+   ],
+   "concepts": [
+    "list-methods",
+    "copying"
+   ],
+   "tags": [
+    "list-methods"
+   ],
+   "explain": "The copying step has to come first, because `reverse` works in place and would otherwise reorder the caller's list. Slicing comes last and is what turns the whole descending list into just the front of it; it is safe on a one-item list because a slice never raises for running past the end.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague's function takes a list of readings and calls `readings.sort()` on it before working out an average. Callers report that their own lists come back reordered. Explain in your own words why this happens and what the function should do instead.",
+   "rubric": {
+    "required": [
+     "copy",
+     "caller",
+     "sort"
+    ],
+    "optional": [
+     "slice",
+     "in place",
+     "same list",
+     "parameter",
+     "name"
+    ],
+    "minWords": 30
+   },
+   "concepts": [
+    "aliasing",
+    "copying"
+   ],
+   "tags": [
+    "aliasing"
+   ],
+   "explain": "The parameter is a further name for the caller's list rather than a copy of it, so an in-place method reaches back out of the function and changes something the caller never offered up. The remedy is to work on a copy, and the reason this catches people is that a function's signature gives no hint about which of its arguments it will modify.",
+   "xp": 30
+  },
+  {
+   "id": "py-10-x-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `remove_all(items, value)`, which returns a new list holding every item of `items` that is not equal to `value`, in the original order. The list you were given must not be changed.\n\n`remove_all([1, 2, 1, 3], 1)` gives `[2, 3]`.",
+   "fn": "remove_all",
+   "starterCode": "def remove_all(items, value):\n    pass\n",
+   "solution": "def remove_all(items, value):\n    kept = []\n    for item in items:\n        if item != value:\n            kept.append(item)\n    return kept\n",
+   "tests": [
+    {
+     "input": "[1, 2, 1, 3], 1",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[], 5",
+     "expected": []
+    },
+    {
+     "input": "[2, 2], 2",
+     "expected": []
+    },
+    {
+     "input": "[1, 2], 9",
+     "expected": [
+      1,
+      2
+     ]
+    }
+   ],
+   "hint": "Walk the list once and append the items you want to keep to a list you started empty. Do not delete from the list you are looping over.",
+   "concepts": [
+    "iteration",
+    "mutation"
+   ],
+   "tags": [
+    "iteration"
+   ],
+   "explain": "Building a new list and keeping what you want is both simpler and safer than deleting from the list you are walking over, because removing an item during a loop makes the loop skip the item after it. `remove` also deletes only the first match and raises `ValueError` when there is none, so the all-matching and no-matching tests are here to catch that shortcut.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-x-09",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `longest_word(sentence)`, which returns the longest word in the sentence. Words are separated by whitespace. If two words are equally long, return the one that appears first; if the sentence holds no words, return the empty string.\n\n`longest_word(\"the grey tome\")` gives `\"grey\"`.",
+   "fn": "longest_word",
+   "starterCode": "def longest_word(sentence):\n    pass\n",
+   "solution": "def longest_word(sentence):\n    best = \"\"\n    for word in sentence.split():\n        if len(word) > len(best):\n            best = word\n    return best\n",
+   "tests": [
+    {
+     "input": "'the grey tome'",
+     "expected": "grey"
+    },
+    {
+     "input": "'a'",
+     "expected": "a"
+    },
+    {
+     "input": "''",
+     "expected": ""
+    },
+    {
+     "input": "'one three two'",
+     "expected": "three"
+    },
+    {
+     "input": "'  ash   yew  '",
+     "expected": "ash"
+    }
+   ],
+   "hint": "Split the sentence into words, then keep the best one seen so far under a name that starts as the empty string.",
+   "concepts": [
+    "split-join",
+    "iteration"
+   ],
+   "tags": [
+    "split-join"
+   ],
+   "explain": "Starting the best-so-far at the empty string makes the no-words case fall out of the loop rather than needing a branch of its own. The tie rule decides the comparison: replacing only when a word is strictly longer keeps the earlier one, while `>=` would quietly return the last of the equals instead.",
+   "xp": 75
+  },
+  {
+   "id": "py-10-x-10",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`repeated(item, times)` should return `times` lists, where the first holds the item once, the second holds it twice, and so on. Instead every list it returns is the full length. Repair it.\n\n`repeated(\"x\", 3)` gives `[[\"x\"], [\"x\", \"x\"], [\"x\", \"x\", \"x\"]]`.",
+   "fn": "repeated",
+   "starterCode": "def repeated(item, times):\n    row = []\n    table = []\n    count = 0\n    while count < times:\n        row.append(item)\n        table.append(row)\n        count = count + 1\n    return table\n",
+   "solution": "def repeated(item, times):\n    row = []\n    table = []\n    count = 0\n    while count < times:\n        row.append(item)\n        table.append(row[:])\n        count = count + 1\n    return table\n",
+   "tests": [
+    {
+     "input": "'x', 3",
+     "expected": [
+      [
+       "x"
+      ],
+      [
+       "x",
+       "x"
+      ],
+      [
+       "x",
+       "x",
+       "x"
+      ]
+     ]
+    },
+    {
+     "input": "'a', 1",
+     "expected": [
+      [
+       "a"
+      ]
+     ]
+    },
+    {
+     "input": "'a', 0",
+     "expected": []
+    },
+    {
+     "input": "7, 2",
+     "expected": [
+      [
+       7
+      ],
+      [
+       7,
+       7
+      ]
+     ]
+    }
+   ],
+   "hint": "Print `table` on every pass. The entries are not three different lists - work out how many lists this function ever creates.",
+   "concepts": [
+    "aliasing",
+    "copying",
+    "nested-lists"
+   ],
+   "tags": [
+    "aliasing"
+   ],
+   "explain": "There is only ever one inner list here: it is added to `table` three times, so `table` holds three names for the one list and the later appends show through all of them. Adding a copy instead freezes the row as it was at that moment, which is the whole difference between a snapshot and a live reference.",
+   "xp": 75
+  }
+ ]
+}

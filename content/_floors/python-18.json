@@ -1,0 +1,993 @@
+{
+ "n": 18,
+ "name": "The Reliquary of Forms",
+ "goal": "Model state and behaviour together, and judge when a class is the wrong answer.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 17
+  }
+ ],
+ "description": {
+  "what": "How to define a kind of thing - a class - so that the data an instance carries and the operations allowed to change it live in one place, and how Python decides what your objects look like and when two of them count as the same.",
+  "why": "Once a program holds several things of the same kind, each with its own state and rules about that state, keeping the data in one structure and the rules in scattered functions is how those rules get broken; a class is the language's answer, and knowing when it is not the answer keeps a codebase from filling with types that carry nothing.",
+  "enables": "You will be able to define a class with its own state and methods, give it a repr that makes debugging possible and an equality that means what you intend, remove the boilerplate with a dataclass, and argue from the code in front of you whether a class, a dataclass, a dictionary or a plain function is the right shape.",
+  "assumes": "You can write functions with parameters and return values, use lists and dictionaries, build strings with f-strings, and import a name from a module.",
+  "assessed": "You will predict what a class prints and how its instances compare, repair a class whose methods forgot the instance, write classes that hold state under a rule, and decide - with no technique named - which of these problems actually wants one."
+ },
+ "concepts": [
+  "class",
+  "init-and-self",
+  "methods",
+  "dunder-str-repr",
+  "dunder-eq",
+  "dataclasses",
+  "when-not-to-use-a-class"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Class Is State With Its Operations Attached",
+    "body": "Everything so far has kept data in one place and the code that works on it in another. A dictionary holds a bank balance; a separate function adds to it; nothing in the language connects the two, and nothing stops a caller from setting the balance to `\"banana\"`. A **class** closes that gap. It says: here is a kind of thing, here is the state each one of them carries, and here are the only operations that are supposed to touch it.\n\nThe `class` statement creates a **type**. Calling that type - `Vault(\"Ada\", 100)` - creates an **instance**: one particular vault, with its own state, quite separate from every other vault. The values an instance carries are its **attributes**, reached with a dot: `a.balance`. Two instances made from the same class share their behaviour and share nothing else, which is exactly the point.\n\n`__init__` is the method Python calls immediately after a new instance is made, and its job is to put the instance into a legal starting state. It is not a constructor in the C++ sense and it does not return the instance - by the time it runs, the instance already exists and arrives as its first argument. The arguments you passed to `Vault(...)` arrive as the rest.\n\nThe double underscores mark a **dunder** - a name Python itself looks up at defined moments. You never call `__init__` yourself; you call `Vault(...)` and Python calls `__init__` for you. That pattern - you write the dunder, the language decides when it runs - is most of what follows on this floor.",
+    "code": "class Vault:\n    def __init__(self, owner, balance):\n        self.owner = owner\n        self.balance = balance\n\n    def deposit(self, amount):\n        self.balance = self.balance + amount\n\n\na = Vault(\"Ada\", 100)\nb = Vault(\"Bea\", 0)\na.deposit(50)\nprint(a.owner, a.balance)\nprint(b.owner, b.balance)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "`__init__` runs once per instance, straight after it is created. Its first parameter is the instance itself."
+     },
+     {
+      "line": 3,
+      "text": "`self.owner = owner` stores a value ON the instance. Without the `self.` this would set a local variable that vanishes when `__init__` returns - the single commonest beginner fault in this whole floor."
+     },
+     {
+      "line": 10,
+      "text": "Calling the class makes an instance. `Vault` is the type; `a` is one vault."
+     },
+     {
+      "line": 13,
+      "text": "Prints `Ada 150`. The deposit changed `a` and nothing else - `b` still holds 0, because the two instances have separate state."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so `Kettle(2)` makes a kettle holding 2 litres and the program prints `2`.",
+     "template": "___ Kettle:\n    def __init__(___, litres):\n        ___.litres = litres\n\n\nk = Kettle(2)\nprint(k.litres)",
+     "blanks": [
+      "class",
+      "self",
+      "self"
+     ],
+     "concepts": [
+      "class",
+      "init-and-self"
+     ],
+     "tags": [
+      "class",
+      "init-and-self"
+     ],
+     "explain": "The last blank is the one that matters: `litres = litres` would assign a local name inside `__init__` and lose it the moment the method returned, and the failure would only surface later as an AttributeError on `k.litres`."
+    }
+   },
+   {
+    "title": "`self` Is the Instance, and Python Makes You Write It",
+    "body": "A **method** is an ordinary function that happens to live inside a class body. What makes it feel different is one rewriting rule: `c.bump(2)` means `Counter.bump(c, 2)`. The thing before the dot is passed in as the first argument, and by universal convention that parameter is called `self`. There is no magic in the name - `this` or `me` would work - but every Python programmer alive expects `self`, so using anything else is a small act of vandalism.\n\nThis explains two things that otherwise look arbitrary. A method is defined with one more parameter than it is called with, and forgetting `self` in the definition produces `TypeError: bump() takes 1 positional argument but 2 were given` - a message that reads as nonsense until you know the rewriting rule, and then reads as an exact description of what happened.\n\nIt also explains why every attribute access inside a method needs the `self.` prefix. Inside `bump`, the bare name `n` is a local variable and `self.n` is the instance's state. Python could have made attributes implicit, as C++ and Java partly do; it deliberately did not, because then a reader could not tell a local from a field by looking, and a reader is who code is written for.\n\nMethods are the whole point of putting state in a class: they are the operations that are allowed to change it, and they are where the rules about what is legal live. A `withdraw` that refuses to overdraw belongs in the class, not scattered across every caller.",
+    "code": "class Counter:\n    def __init__(self):\n        self.n = 0\n\n    def bump(self, by):\n        self.n = self.n + by\n        return self.n\n\n\nc = Counter()\nprint(c.bump(2))\nprint(Counter.bump(c, 3))\nprint(c.n)\nd = Counter()\nprint(d.n)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Two parameters in the definition; callers pass one. The first is filled in by whatever sat before the dot."
+     },
+     {
+      "line": 11,
+      "text": "The normal spelling."
+     },
+     {
+      "line": 12,
+      "text": "The same call written out longhand. It really is one function and one explicit first argument - this line proves it rather than asserting it."
+     },
+     {
+      "line": 15,
+      "text": "A fresh instance starts at 0. `__init__` gave each Counter its own `n`, so `c` and `d` cannot interfere."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "class Lamp:\n    def __init__(self):\n        self.on = False\n\n    def toggle(self):\n        self.on = not self.on\n        return self.on\n\n\nx = Lamp()\ny = Lamp()\nprint(x.toggle())\nprint(x.toggle())\nprint(y.on)",
+     "lang": "python",
+     "answer": "True\nFalse\nFalse",
+     "concepts": [
+      "methods",
+      "init-and-self"
+     ],
+     "tags": [
+      "methods"
+     ],
+     "explain": "The last line separates the two mental models. `y` was never toggled, so `y.on` is still the `False` its own `__init__` gave it; answering `True` there treats `on` as something the class owns and every instance shares, rather than something each instance carries privately."
+    }
+   },
+   {
+    "title": "Showing an Object, and Deciding When Two Are the Same",
+    "body": "Print an instance of a class that says nothing about itself and you get `<__main__.Point object at 0x7f3c1a0>`. That is not Python being unhelpful; it is Python refusing to guess. The address is the only thing it knows for certain, and it is useless to you - which is why an object you cannot read is an object you cannot debug.\n\nTwo dunders fix it, and they are not the same job. `__repr__` is for **you**: it should look like the code that would rebuild the object, it is what the debugger and the interactive prompt show, and it is what appears when the object sits inside a list. `__str__` is for the **reader of your program's output**: friendly, possibly lossy. If you only write one, write `__repr__` - `str()` falls back to it, so one dunder covers both, whereas defining only `__str__` leaves every list of your objects unreadable.\n\n`__eq__` decides what `==` means. By default `==` on instances is **identity**: `p == q` is true only when they are the same object in memory, so two points at (1, 2) come out unequal. For a value-like thing that is almost never what you want, and writing `__eq__` is how you say what sameness actually means - which fields count, and which are incidental. Return `NotImplemented` for a type you do not understand, and Python will try the other operand's `__eq__` before falling back to identity.\n\nOne consequence catches people. Defining `__eq__` sets `__hash__` to `None`, so instances can no longer be dictionary keys or set members. Python does that on purpose: things that compare equal must hash equally, and it will not invent a hash that might break that promise. If you need both, a dataclass frozen against change gives you both, and the next section is where that starts.",
+    "code": "class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __repr__(self):\n        return f\"Point(x={self.x}, y={self.y})\"\n\n    def __str__(self):\n        return f\"({self.x}, {self.y})\"\n\n    def __eq__(self, other):\n        if not isinstance(other, Point):\n            return NotImplemented\n        return self.x == other.x and self.y == other.y\n\n\np = Point(1, 2)\nq = Point(1, 2)\nprint(p)\nprint(repr(p))\nprint([p, q])\nprint(p == q, p is q)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "`__repr__` should read like the call that would rebuild this object. That habit costs nothing and pays every time something goes wrong."
+     },
+     {
+      "line": 12,
+      "text": "`__eq__` receives the other operand. The isinstance guard is not ceremony: without it, `p == 4` raises AttributeError instead of answering False."
+     },
+     {
+      "line": 20,
+      "text": "`print` of the object itself uses `__str__`, so this line prints `(1, 2)`."
+     },
+     {
+      "line": 22,
+      "text": "A list prints its items with `__repr__`, never `__str__` - so this prints `[Point(x=1, y=2), Point(x=1, y=2)]`. That asymmetry is the reason `__repr__` is the one to write first."
+     },
+     {
+      "line": 23,
+      "text": "`True False`: equal by value because `__eq__` says so, but not the same object, which `is` still reports honestly."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "class Coin:\n    def __init__(self, value):\n        self.value = value\n\n    def __repr__(self):\n        return \"Coin(\" + str(self.value) + \")\"\n\n\na = Coin(5)\nb = Coin(5)\nprint(a)\nprint(a == b)\nprint(a.value == b.value)",
+     "lang": "python",
+     "answer": "Coin(5)\nFalse\nTrue",
+     "concepts": [
+      "dunder-str-repr",
+      "dunder-eq"
+     ],
+     "tags": [
+      "dunder-str-repr",
+      "dunder-eq"
+     ],
+     "explain": "The first line works because `str()` falls back to `__repr__` when no `__str__` exists. The second is `False` because no `__eq__` was written, so `==` still asks whether these are the same object - and comparing the fields by hand on the third line shows what was wanted all along."
+    }
+   },
+   {
+    "title": "Dataclasses, and the Class You Should Not Have Written",
+    "body": "Look at what the Point class cost: three fields written out three times each, in `__init__`, in `__repr__` and in `__eq__`. That is boilerplate, and boilerplate is where mistakes hide - add a field and forget to add it to `__eq__` and you have a bug no test will find until it matters. The `dataclasses` module writes those methods for you from a list of field names and their types.\n\nYou will meet this written as `@dataclass` on the line above `class`, which is a **decorator** - a later floor's subject. It means exactly the line written out below: take the class, hand it to the `dataclass` function, and use what comes back. That version of `Reading` has an `__init__` taking `station` and `celsius`, a `__repr__` naming both, and an `__eq__` comparing both, none of which you wrote.\n\nNow the judgement half of this floor, which matters as much as the syntax. A class earns its place when there is **state with rules about it**: several instances, each holding data that the operations must keep consistent. Three cases where it does not earn its place, all of them common:\n\n- **One method, no state.** A class whose `__init__` stores nothing and whose single method uses only its arguments is a function wearing a costume. Write the function.\n- **A bag of fields with no rules.** If nothing can be inconsistent, you want a dataclass at most, and often a plain dictionary - especially if the fields came from JSON and are going straight back out again.\n- **A class as a namespace.** Methods that never touch `self` are just functions that have been made harder to call. A module already groups related functions.\n\nThe question to ask is not \"could this be a class?\" - anything could. It is: **is there an invariant here that somebody has to protect?** If yes, a class is the place to protect it. If no, you have added a layer for nothing, and the reader pays for it every time.",
+    "code": "from dataclasses import dataclass\n\n\nclass Reading:\n    station: str\n    celsius: float\n\n\nReading = dataclass(Reading)\n\nr = Reading(\"kew\", 12.5)\ns = Reading(\"kew\", 12.5)\nprint(r)\nprint(r == s)\nprint(r.station)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Field declarations, not assignments. `dataclass` reads these names in order to build `__init__`, `__repr__` and `__eq__`; the types are documentation here and are not enforced at runtime."
+     },
+     {
+      "line": 9,
+      "text": "The plain-call spelling of `@dataclass`. Identical in effect - the `@` form is only nicer to read, and it is taught properly on the decorators floor."
+     },
+     {
+      "line": 13,
+      "text": "Prints `Reading(station='kew', celsius=12.5)`. The generated `__repr__` quotes the string exactly as `repr` would, which is what makes it look like code."
+     },
+     {
+      "line": 14,
+      "text": "`True`, from a generated `__eq__` comparing every field. Nine lines of hand-written dunder replaced by one declaration."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so `Sample` gets a generated `__init__`, `__repr__` and `__eq__`, and the program prints `True`.",
+     "template": "from dataclasses import ___\n\n\nclass Sample:\n    label: str\n    grams: int\n\n\nSample = ___(Sample)\n\nprint(Sample(\"tin\", 5) == Sample(\"tin\", 5))",
+     "blanks": [
+      "dataclass",
+      "dataclass"
+     ],
+     "concepts": [
+      "dataclasses"
+     ],
+     "tags": [
+      "dataclasses"
+     ],
+     "explain": "Without the second line the class is never handed to `dataclass` at all: the field declarations sit there as annotations, `Sample(\"tin\", 5)` raises a TypeError about arguments, and nothing is generated. The declaration alone does nothing."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-18-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "class Lantern:\n    def __init__(self, name):\n        self.name = name\n        self.lit = False\n\n    def light(self):\n        self.lit = True\n        return self.name\n\n\none = Lantern(\"north\")\ntwo = Lantern(\"south\")\nprint(one.light())\nprint(one.lit, two.lit)\nprint(two.name)",
+   "lang": "python",
+   "answer": "north\nTrue False\nsouth",
+   "hint": "Draw two boxes, one per instance, each with a `name` and a `lit`. Then run the three prints against your boxes.",
+   "concepts": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "Each `Lantern(...)` call runs `__init__` on a brand-new instance, so `one` and `two` have separate `lit` flags. Answering `True True` on the second line means reading `self.lit = True` as a change to the class rather than to one object.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This class should let `Flask(500)` make a flask holding 500 millilitres, and `f.pour(200)` should leave 300 in it. Fill the blanks.",
+   "template": "class Flask:\n    def __init__(self, millilitres):\n        ___.millilitres = millilitres\n\n    def pour(___, amount):\n        self.___ = self.millilitres - amount\n\n\nf = Flask(500)\nf.pour(200)\nprint(f.millilitres)",
+   "blanks": [
+    "self",
+    "self",
+    "millilitres"
+   ],
+   "hint": "Every method takes the instance as its first parameter, and every piece of instance state is reached through it.",
+   "concepts": [
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "The last blank is where the method actually does its work: `millilitres = millilitres - amount` without the `self.` would change a local name and leave the flask untouched, and the program would print 500 with no error to point at.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-gp-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Tally` that counts how often each word it is given has been seen. It needs a method `add(word)` which records one sighting, and a method `count(word)` which returns how many times that word has been recorded - `0` for a word never seen.\n\nThen write `tally_counts(words, wanted)`, which feeds every word in `words` to one `Tally` and returns a list holding the count of each word in `wanted`, in order.\n\n`tally_counts([\"a\", \"b\", \"a\"], [\"a\", \"b\", \"c\"])` gives `[2, 1, 0]`",
+   "fn": "tally_counts",
+   "starterCode": "class Tally:\n    def __init__(self):\n        self.seen = {}\n\n    def add(self, word):\n        pass\n\n    def count(self, word):\n        pass\n\n\ndef tally_counts(words, wanted):\n    pass\n",
+   "solution": "class Tally:\n    def __init__(self):\n        self.seen = {}\n\n    def add(self, word):\n        self.seen[word] = self.seen.get(word, 0) + 1\n\n    def count(self, word):\n        return self.seen.get(word, 0)\n\n\ndef tally_counts(words, wanted):\n    tally = Tally()\n    for word in words:\n        tally.add(word)\n    return [tally.count(w) for w in wanted]\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\", \"a\"], [\"a\", \"b\", \"c\"]",
+     "expected": [
+      2,
+      1,
+      0
+     ]
+    },
+    {
+     "input": "[], [\"x\"]",
+     "expected": [
+      0
+     ]
+    },
+    {
+     "input": "[\"z\", \"z\", \"z\"], [\"z\"]",
+     "expected": [
+      3
+     ]
+    },
+    {
+     "input": "[\"a\", \"A\"], [\"a\", \"A\"]",
+     "expected": [
+      1,
+      1
+     ]
+    }
+   ],
+   "hint": "`__init__` should give the instance an empty dictionary. `add` reads the current count, adds one and stores it back; `count` reads it with a default of 0.",
+   "concepts": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "The state lives on the instance and the two methods are the only things that touch it, which is the whole shape of a class in one exercise. Making `seen` a module-level dictionary instead appears to work until a second Tally exists and silently shares the first one's counts.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-gp-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a class `Point` holding an `x` and a `y`, with both dunders that control how it is shown: `__repr__` returning the form `Point(x=1, y=2)`, and `__str__` returning the form `(1, 2)`.\n\nThen write `show(x, y)`, which builds one point and returns a two-item list: its `str` first, its `repr` second.\n\n`show(1, 2)` gives `[\"(1, 2)\", \"Point(x=1, y=2)\"]`",
+   "fn": "show",
+   "starterCode": "class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __repr__(self):\n        pass\n\n    def __str__(self):\n        pass\n\n\ndef show(x, y):\n    pass\n",
+   "solution": "class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __repr__(self):\n        return f\"Point(x={self.x}, y={self.y})\"\n\n    def __str__(self):\n        return f\"({self.x}, {self.y})\"\n\n\ndef show(x, y):\n    p = Point(x, y)\n    return [str(p), repr(p)]\n",
+   "tests": [
+    {
+     "input": "1, 2",
+     "expected": [
+      "(1, 2)",
+      "Point(x=1, y=2)"
+     ]
+    },
+    {
+     "input": "0, 0",
+     "expected": [
+      "(0, 0)",
+      "Point(x=0, y=0)"
+     ]
+    },
+    {
+     "input": "-3, 4",
+     "expected": [
+      "(-3, 4)",
+      "Point(x=-3, y=4)"
+     ]
+    },
+    {
+     "input": "10, -10",
+     "expected": [
+      "(10, -10)",
+      "Point(x=10, y=-10)"
+     ]
+    }
+   ],
+   "hint": "An f-string builds both forms in one line each. `str(p)` and `repr(p)` are the two built-ins that call the two dunders.",
+   "concepts": [
+    "dunder-str-repr"
+   ],
+   "tags": [
+    "dunder-str-repr"
+   ],
+   "explain": "The two dunders answer different questions - what a person reading output wants to see, and what you want to see when the program has gone wrong at three in the morning. Writing only `__str__` is the tempting shortcut, and it leaves every list, dictionary and debugger view of your object showing a memory address.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-gp-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Two points at the same coordinates should count as equal, so give `Point` an `__eq__` that compares the coordinates rather than the objects.\n\nThen write `matches(target, candidates)`. `target` is a two-item list `[x, y]` and `candidates` is a list of such lists. Build a `Point` from each and return how many candidates equal the target.\n\n`matches([1, 2], [[1, 2], [2, 1], [1, 2]])` gives `2`",
+   "fn": "matches",
+   "starterCode": "class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __eq__(self, other):\n        pass\n\n\ndef matches(target, candidates):\n    pass\n",
+   "solution": "class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __eq__(self, other):\n        if not isinstance(other, Point):\n            return NotImplemented\n        return self.x == other.x and self.y == other.y\n\n\ndef matches(target, candidates):\n    wanted = Point(target[0], target[1])\n    found = 0\n    for pair in candidates:\n        if Point(pair[0], pair[1]) == wanted:\n            found = found + 1\n    return found\n",
+   "tests": [
+    {
+     "input": "[1, 2], [[1, 2], [2, 1], [1, 2]]",
+     "expected": 2
+    },
+    {
+     "input": "[0, 0], []",
+     "expected": 0
+    },
+    {
+     "input": "[5, 5], [[5, 5]]",
+     "expected": 1
+    },
+    {
+     "input": "[1, 2], [[1, 3], [3, 2]]",
+     "expected": 0
+    }
+   ],
+   "hint": "`__eq__` takes the other operand as its second parameter and returns a boolean. Compare both coordinates with `and`.",
+   "concepts": [
+    "dunder-eq"
+   ],
+   "tags": [
+    "dunder-eq"
+   ],
+   "explain": "Without `__eq__` this returns 0 for every input, because the default `==` asks whether two names refer to the same object and each `Point(...)` call makes a new one. That silent zero is the signature of missing equality, and it is why the empty-candidate test alone would not catch it.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-gp-06",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Declare a `Reading` with a `station` field of type `str` and a `celsius` field of type `float`, and hand the class to `dataclass` so that `__init__`, `__repr__` and `__eq__` are all generated for you. Write none of them yourself.\n\nThen write `reading_report(station, celsius)`, returning a two-item list: the `repr` of the reading, and whether it equals a second reading built from the same two values.\n\n`reading_report(\"kew\", 12.5)` gives `[\"Reading(station='kew', celsius=12.5)\", True]`",
+   "fn": "reading_report",
+   "starterCode": "from dataclasses import dataclass\n\n\nclass Reading:\n    pass\n\n\nReading = dataclass(Reading)\n\n\ndef reading_report(station, celsius):\n    pass\n",
+   "solution": "from dataclasses import dataclass\n\n\nclass Reading:\n    station: str\n    celsius: float\n\n\nReading = dataclass(Reading)\n\n\ndef reading_report(station, celsius):\n    r = Reading(station, celsius)\n    s = Reading(station, celsius)\n    return [repr(r), r == s]\n",
+   "tests": [
+    {
+     "input": "\"kew\", 12.5",
+     "expected": [
+      "Reading(station='kew', celsius=12.5)",
+      true
+     ]
+    },
+    {
+     "input": "\"orkney\", 3",
+     "expected": [
+      "Reading(station='orkney', celsius=3)",
+      true
+     ]
+    },
+    {
+     "input": "\"\", 0",
+     "expected": [
+      "Reading(station='', celsius=0)",
+      true
+     ]
+    },
+    {
+     "input": "\"kew west\", -0.5",
+     "expected": [
+      "Reading(station='kew west', celsius=-0.5)",
+      true
+     ]
+    }
+   ],
+   "hint": "Replace the `pass` in the class body with the two field declarations, in the order the arguments arrive. Then `repr(r)` and `r == s` do the rest.",
+   "concepts": [
+    "dataclasses",
+    "dunder-str-repr",
+    "dunder-eq"
+   ],
+   "tags": [
+    "dataclasses",
+    "dunder-str-repr",
+    "dunder-eq"
+   ],
+   "explain": "The generated `__repr__` uses `repr` on each field, which is why the station comes out quoted - that is deliberate, because the point of a repr is to look like the code that rebuilds the value. Hand-writing the dunders here would pass the tests too, and would be three more places to forget to update when a third field arrives.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-18-ip-01",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `run_vaults(commands)`. Each command is a three-item list `[action, name, amount]`:\n\n- `\"open\"` starts a new vault for `name` holding `amount`\n- `\"deposit\"` adds `amount` to that vault\n- `\"withdraw\"` takes `amount` out, but only if the vault holds at least that much; otherwise nothing leaves the vault and the vault records one refusal\n\nReturn a dictionary mapping each name to a two-item list `[balance, refusals]`.\n\n`run_vaults([[\"open\", \"ada\", 10], [\"withdraw\", \"ada\", 30]])` gives `{\"ada\": [10, 1]}`",
+   "fn": "run_vaults",
+   "solution": "class Vault:\n    def __init__(self, balance):\n        self.balance = balance\n        self.refusals = 0\n\n    def deposit(self, amount):\n        self.balance = self.balance + amount\n\n    def withdraw(self, amount):\n        if amount > self.balance:\n            self.refusals = self.refusals + 1\n        else:\n            self.balance = self.balance - amount\n\n\ndef run_vaults(commands):\n    vaults = {}\n    for action, name, amount in commands:\n        if action == \"open\":\n            vaults[name] = Vault(amount)\n        elif action == \"deposit\":\n            vaults[name].deposit(amount)\n        else:\n            vaults[name].withdraw(amount)\n    return {name: [v.balance, v.refusals] for name, v in vaults.items()}\n",
+   "tests": [
+    {
+     "input": "[[\"open\", \"ada\", 100], [\"deposit\", \"ada\", 50], [\"withdraw\", \"ada\", 30]]",
+     "expected": {
+      "ada": [
+       120,
+       0
+      ]
+     }
+    },
+    {
+     "input": "[[\"open\", \"ada\", 10], [\"withdraw\", \"ada\", 30]]",
+     "expected": {
+      "ada": [
+       10,
+       1
+      ]
+     }
+    },
+    {
+     "input": "[[\"open\", \"ada\", 0], [\"open\", \"bea\", 5], [\"withdraw\", \"bea\", 5], [\"withdraw\", \"bea\", 1]]",
+     "expected": {
+      "ada": [
+       0,
+       0
+      ],
+      "bea": [
+       0,
+       1
+      ]
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    }
+   ],
+   "concepts": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "There is an invariant here - a balance that may never go negative - and one place should be responsible for it. Spreading the check across the three branches of the command loop works for this exercise and stops working the moment a fourth kind of command arrives, which is the point: the rule belongs with the data it constrains, not with the caller who happens to be nearby.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-ip-02",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `busiest_room(bookings)`. Each booking is a two-item list `[room, hours]`, and a room may appear many times. Return the name of the room with the greatest total hours; if two rooms tie, return whichever name comes first alphabetically. For no bookings at all, return the empty string.\n\n`busiest_room([[\"blue\", 2], [\"red\", 3], [\"blue\", 2]])` gives `\"blue\"`",
+   "fn": "busiest_room",
+   "solution": "def busiest_room(bookings):\n    totals = {}\n    for room, hours in bookings:\n        totals[room] = totals.get(room, 0) + hours\n    best = None\n    for room in sorted(totals):\n        if best is None or totals[room] > totals[best]:\n            best = room\n    if best is None:\n        return \"\"\n    return best\n",
+   "tests": [
+    {
+     "input": "[[\"blue\", 2], [\"red\", 3], [\"blue\", 2]]",
+     "expected": "blue"
+    },
+    {
+     "input": "[[\"z\", 5], [\"y\", 5]]",
+     "expected": "y"
+    },
+    {
+     "input": "[[\"solo\", 0]]",
+     "expected": "solo"
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "when-not-to-use-a-class"
+   ],
+   "tags": [
+    "when-not-to-use-a-class"
+   ],
+   "explain": "Nothing here has behaviour attached to it. A room is a name and a running total, no rule can be violated, and nothing needs protecting - so a `Room` type with one field and a getter would be pure ceremony, and the shortest correct answer accumulates totals by key and takes the best. Recognising the problems a class does NOT improve is half of knowing how to use one.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-ip-03",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `describe_shipments(rows)`. Each row is a two-item list `[code, weight]`. Return a list of strings, one per row, each of exactly this form:\n\n`Shipment(code='AB1', weight=2.5)`\n\nThe code is quoted, the weight is not, and the two are separated by a comma and one space.\n\n`describe_shipments([[\"AB1\", 2.5]])` gives `[\"Shipment(code='AB1', weight=2.5)\"]`",
+   "fn": "describe_shipments",
+   "solution": "from dataclasses import dataclass\n\n\nclass Shipment:\n    code: str\n    weight: float\n\n\nShipment = dataclass(Shipment)\n\n\ndef describe_shipments(rows):\n    return [repr(Shipment(code, weight)) for code, weight in rows]\n",
+   "tests": [
+    {
+     "input": "[[\"AB1\", 2.5]]",
+     "expected": [
+      "Shipment(code='AB1', weight=2.5)"
+     ]
+    },
+    {
+     "input": "[[\"X\", 3], [\"Y\", 0.5]]",
+     "expected": [
+      "Shipment(code='X', weight=3)",
+      "Shipment(code='Y', weight=0.5)"
+     ]
+    },
+    {
+     "input": "[[\"Q7\", -1.25]]",
+     "expected": [
+      "Shipment(code='Q7', weight=-1.25)"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "dunder-str-repr",
+    "dataclasses"
+   ],
+   "tags": [
+    "dunder-str-repr",
+    "dataclasses"
+   ],
+   "explain": "That target string is not an arbitrary format - it is what Python itself produces for a well-behaved value, and getting it for nothing rather than by hand is the whole argument for declaring the shape and letting the language write the display. Building the strings with concatenation also passes, and quietly leaves you with a second place to edit when the row grows a third column.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-ip-04",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `duplicate_count(entries)`. Each entry is a two-item list `[first, last]`. An entry is a duplicate when some earlier entry has the same first name and the same last name. Return how many entries are duplicates.\n\n`duplicate_count([[\"a\", \"b\"], [\"a\", \"b\"], [\"a\", \"b\"]])` gives `2`",
+   "fn": "duplicate_count",
+   "solution": "class Name:\n    def __init__(self, first, last):\n        self.first = first\n        self.last = last\n\n    def __eq__(self, other):\n        if not isinstance(other, Name):\n            return NotImplemented\n        return self.first == other.first and self.last == other.last\n\n\ndef duplicate_count(entries):\n    seen = []\n    dupes = 0\n    for first, last in entries:\n        here = Name(first, last)\n        if here in seen:\n            dupes = dupes + 1\n        else:\n            seen.append(here)\n    return dupes\n",
+   "tests": [
+    {
+     "input": "[[\"a\", \"b\"], [\"a\", \"b\"], [\"a\", \"b\"]]",
+     "expected": 2
+    },
+    {
+     "input": "[[\"a\", \"b\"], [\"b\", \"a\"]]",
+     "expected": 0
+    },
+    {
+     "input": "[[\"x\", \"y\"], [\"x\", \"z\"], [\"x\", \"y\"]]",
+     "expected": 1
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "dunder-eq"
+   ],
+   "tags": [
+    "dunder-eq"
+   ],
+   "explain": "The question this exercise really asks is what sameness means, and the answer is not the one Python gives by default: two objects built from the same data are, out of the box, unequal, because the default comparison is about which object you are holding rather than what it holds. Deciding that both fields count - and that order within the pair does not - is a modelling decision, and `[[\"a\", \"b\"], [\"b\", \"a\"]]` is the test that pins it down.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-ip-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write `robot_position(commands)`. A robot starts at `x = 0`, `y = 0`, facing `\"N\"`. Each command is one of:\n\n- `\"F\"` - move one step in the direction it faces. North increases `y`, east increases `x`, south decreases `y`, west decreases `x`\n- `\"L\"` - turn a quarter turn anticlockwise\n- `\"R\"` - turn a quarter turn clockwise\n\nReturn a three-item list `[x, y, facing]`, where facing is one of `\"N\"`, `\"E\"`, `\"S\"`, `\"W\"`.\n\n`robot_position([\"R\", \"F\"])` gives `[1, 0, \"E\"]`",
+   "fn": "robot_position",
+   "solution": "class Robot:\n    def __init__(self):\n        self.x = 0\n        self.y = 0\n        self.facing = 0\n\n    def turn(self, step):\n        self.facing = (self.facing + step) % 4\n\n    def forward(self):\n        moves = [[0, 1], [1, 0], [0, -1], [-1, 0]]\n        dx, dy = moves[self.facing]\n        self.x = self.x + dx\n        self.y = self.y + dy\n\n    def report(self):\n        return [self.x, self.y, \"NESW\"[self.facing]]\n\n\ndef robot_position(commands):\n    robot = Robot()\n    for command in commands:\n        if command == \"F\":\n            robot.forward()\n        elif command == \"R\":\n            robot.turn(1)\n        else:\n            robot.turn(-1)\n    return robot.report()\n",
+   "tests": [
+    {
+     "input": "[\"F\", \"F\"]",
+     "expected": [
+      0,
+      2,
+      "N"
+     ]
+    },
+    {
+     "input": "[\"R\", \"F\"]",
+     "expected": [
+      1,
+      0,
+      "E"
+     ]
+    },
+    {
+     "input": "[\"L\", \"F\", \"L\", \"F\"]",
+     "expected": [
+      -1,
+      -1,
+      "S"
+     ]
+    },
+    {
+     "input": "[\"R\", \"R\", \"R\", \"R\"]",
+     "expected": [
+      0,
+      0,
+      "N"
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      0,
+      0,
+      "N"
+     ]
+    }
+   ],
+   "concepts": [
+    "class",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "methods"
+   ],
+   "explain": "Three values that must always agree with each other, and three operations that are the only legal ways to change them - that is the shape that a class fits, and holding the facing as an index into a fixed ring of directions is what turns turning into arithmetic instead of eight branches. The commonest defect is a turn table written out by hand with one entry wrong, which only shows up after two turns in the same direction.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague sends this for review. `Formatter` has an `__init__` whose body is `pass`, and one method, `format_row(self, row)`, which joins the values in `row` with commas and returns the string. Nothing else. Every caller writes `Formatter().format_row(row)`.\n\nSay what is wrong with this design, what it should be instead, and - precisely - what would have to become true about `Formatter` for a class to be the right answer here. Write at least forty words.",
+   "rubric": {
+    "required": [
+     "function",
+     "state",
+     "self"
+    ],
+    "optional": [
+     "instance",
+     "attribute",
+     "module",
+     "invariant",
+     "configuration"
+    ],
+    "forbidden": [],
+    "minWords": 40
+   },
+   "concepts": [
+    "when-not-to-use-a-class"
+   ],
+   "tags": [
+    "when-not-to-use-a-class"
+   ],
+   "explain": "The test is not whether something could be a class but whether any state needs protecting: `format_row` reads only its argument, never `self`, so the instance carries nothing and exists only to be thrown away one line later. A class becomes right the moment there is state the operations must keep consistent - a configured separator, a column width, a count of rows written - because then there is an invariant with an owner.",
+   "xp": 30
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-18-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Inside a method, what is `self`?",
+   "choices": [
+    "The particular instance the method was called on, passed in as the first argument.",
+    "A Python keyword that always refers to the class currently being defined.",
+    "A copy of the instance, so that changes inside the method do not escape it.",
+    "The name of the module the class was defined in."
+   ],
+   "answer": 0,
+   "concepts": [
+    "init-and-self"
+   ],
+   "tags": [
+    "init-and-self"
+   ],
+   "explain": "`self` is a perfectly ordinary parameter that Python fills in from whatever sat before the dot, which is why `c.bump(2)` and `Counter.bump(c, 2)` are the same call. Thinking of it as a keyword makes the argument-count TypeError from a forgotten `self` unreadable.",
+   "xp": 15
+  },
+  {
+   "id": "py-18-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "You add an `__eq__` to a class and change nothing else. Which of these becomes true?",
+   "choices": [
+    "Instances can no longer be used as dictionary keys or put in a set.",
+    "Instances gain a readable `repr` as well, since equality implies a display form.",
+    "`is` now compares field values rather than object identity.",
+    "The class can no longer be used with `==` against any other type without raising."
+   ],
+   "answer": 0,
+   "concepts": [
+    "dunder-eq"
+   ],
+   "tags": [
+    "dunder-eq"
+   ],
+   "explain": "Python refuses to keep a hash it can no longer trust: things that compare equal must hash equally, and it will not guess a hash consistent with your new definition. The tempting answer is the third one, which confuses equality with identity - `is` is not overridable and never changes.",
+   "xp": 15
+  },
+  {
+   "id": "py-18-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "class Card:\n    def __init__(self, rank):\n        self.rank = rank\n\n\na = Card(\"ace\")\nb = Card(\"ace\")\nprint(a == b)\nprint(a == a)\nprint(a.rank == b.rank)\nprint(type(a).__name__)",
+   "lang": "python",
+   "answer": "False\nTrue\nTrue\nCard",
+   "concepts": [
+    "dunder-eq"
+   ],
+   "tags": [
+    "dunder-eq"
+   ],
+   "explain": "Two objects built from the same value are not equal by default, because the default `==` is identity - and `a == a` proves it is identity rather than an outright refusal to compare. Answering `True` on the first line is the assumption that costs people an afternoon.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "class Tag:\n    def __init__(self, text):\n        self.text = text\n\n    def __repr__(self):\n        return \"Tag('\" + self.text + \"')\"\n\n    def __str__(self):\n        return self.text.upper()\n\n\nt = Tag(\"iron\")\nprint(t)\nprint(repr(t))\nprint([t])\nprint(str(t) == t.text.upper())",
+   "lang": "python",
+   "answer": "IRON\nTag('iron')\n[Tag('iron')]\nTrue",
+   "concepts": [
+    "dunder-str-repr"
+   ],
+   "tags": [
+    "dunder-str-repr"
+   ],
+   "explain": "`print` of the object itself uses `__str__`, but a list shows its items with `__repr__` - a container never asks for the friendly form, because it cannot know whether the result is being read by a person or by you at a debugger. Expecting `[IRON]` on the third line is the usual slip.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so that `Sample` gets a generated `__init__` and `__eq__`, and the program prints `True`.",
+   "template": "from dataclasses import ___\n\n\nclass Sample:\n    label: str\n    grams: int\n\n\nSample = ___(Sample)\n\nprint(Sample(\"tin\", 5) == Sample(\"tin\", 5))",
+   "blanks": [
+    "dataclass",
+    "dataclass"
+   ],
+   "concepts": [
+    "dataclasses"
+   ],
+   "tags": [
+    "dataclasses"
+   ],
+   "explain": "The import brings in a function; the second blank is where that function is actually applied to the class. Field declarations on their own generate nothing at all - they are annotations, and without the call they are inert.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these fragments in order to form a working class whose `pour` method reduces the flask's contents.",
+   "fragments": [
+    "class Flask:",
+    "    def __init__(self, millilitres):",
+    "        self.millilitres = millilitres",
+    "    def pour(self, amount):",
+    "        self.millilitres = self.millilitres - amount"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "`__init__` establishes the state before any method can use it, and both methods take the instance first. The ordering that tempts people puts `pour` before `__init__` because it is the interesting part - legal Python, but it reads backwards to everyone who meets the class later.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-x-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "`bag_size(items)` should return how many items the bag holds, but every call fails. Fix the class without changing what `bag_size` does.",
+   "fn": "bag_size",
+   "starterCode": "class Bag:\n    def __init__(self, items):\n        items = items\n\n    def total(self):\n        return len(items)\n\n\ndef bag_size(items):\n    return Bag(items).total()\n",
+   "solution": "class Bag:\n    def __init__(self, items):\n        self.items = items\n\n    def total(self):\n        return len(self.items)\n\n\ndef bag_size(items):\n    return Bag(items).total()\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\"]",
+     "expected": 2
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[\"x\"]",
+     "expected": 1
+    },
+    {
+     "input": "[\"a\", \"a\", \"a\"]",
+     "expected": 3
+    }
+   ],
+   "concepts": [
+    "init-and-self",
+    "methods"
+   ],
+   "tags": [
+    "init-and-self",
+    "methods"
+   ],
+   "explain": "Both faults are the same fault: a method body that forgot the instance. `items = items` binds a local name that dies when `__init__` returns, and `len(items)` in `total` then looks for a global that does not exist - which is why the error arrives in a method that looks innocent, one call away from the line that actually broke.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-x-08",
+   "type": "code",
+   "layer": "application",
+   "prompt": "A door register admits each name once. Write `register_report(names)`, which processes the names in order, admitting a name the first time it appears and rejecting it every time after. Return a two-item list: the admitted names in the order they were admitted, then how many rejections there were.\n\n`register_report([\"a\", \"b\", \"a\"])` gives `[[\"a\", \"b\"], 1]`",
+   "fn": "register_report",
+   "starterCode": "class Register:\n    def __init__(self):\n        pass\n\n    def offer(self, name):\n        pass\n\n\ndef register_report(names):\n    pass\n",
+   "solution": "class Register:\n    def __init__(self):\n        self.admitted = []\n        self.rejected = 0\n\n    def offer(self, name):\n        if name in self.admitted:\n            self.rejected = self.rejected + 1\n        else:\n            self.admitted.append(name)\n\n\ndef register_report(names):\n    register = Register()\n    for name in names:\n        register.offer(name)\n    return [register.admitted, register.rejected]\n",
+   "tests": [
+    {
+     "input": "[\"a\", \"b\", \"a\"]",
+     "expected": [
+      [
+       "a",
+       "b"
+      ],
+      1
+     ]
+    },
+    {
+     "input": "[\"a\", \"a\", \"a\"]",
+     "expected": [
+      [
+       "a"
+      ],
+      2
+     ]
+    },
+    {
+     "input": "[\"b\", \"a\"]",
+     "expected": [
+      [
+       "b",
+       "a"
+      ],
+      0
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      [],
+      0
+     ]
+    }
+   ],
+   "concepts": [
+    "class",
+    "methods"
+   ],
+   "tags": [
+    "class",
+    "methods"
+   ],
+   "explain": "Two pieces of state - the admitted list and the rejection count - that must always agree about what happened, which is the case a class is for, though a pair of local variables is defensible at this size. The edge that catches a careless answer is a name repeated three times: it must count as two rejections, not one.",
+   "xp": 75
+  },
+  {
+   "id": "py-18-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Two `Money` objects, each holding an amount of 5 and a currency of `\"GBP\"`, compare unequal. Explain what Python is comparing when a class has no `__eq__`, and set out what you must decide before writing one for `Money`. Write at least forty words.",
+   "rubric": {
+    "required": [
+     "identity",
+     "value",
+     "currency"
+    ],
+    "optional": [
+     "amount",
+     "field",
+     "hash",
+     "object",
+     "type"
+    ],
+    "forbidden": [],
+    "minWords": 40
+   },
+   "concepts": [
+    "dunder-eq"
+   ],
+   "tags": [
+    "dunder-eq"
+   ],
+   "explain": "Without `__eq__`, `==` falls back to identity - the question it answers is whether the two names point at the same object, not whether they describe the same value. Writing one means choosing which fields constitute sameness: an amount without its currency is meaningless, so both must count, and a mismatched currency should give an honest answer rather than an exception.",
+   "xp": 30
+  },
+  {
+   "id": "py-18-x-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Declare a `Sample` with a `label` field of type `str` and a `grams` field of type `int`, letting `dataclass` generate its methods. Then write `heaviest(rows)`, where each row is a two-item list `[label, grams]`. Return the `repr` of the sample with the most grams, keeping the earlier row on a tie, or the empty string when there are no rows.\n\n`heaviest([[\"tin\", 5], [\"lead\", 9]])` gives `\"Sample(label='lead', grams=9)\"`",
+   "fn": "heaviest",
+   "starterCode": "from dataclasses import dataclass\n\n\nclass Sample:\n    pass\n\n\nSample = dataclass(Sample)\n\n\ndef heaviest(rows):\n    pass\n",
+   "solution": "from dataclasses import dataclass\n\n\nclass Sample:\n    label: str\n    grams: int\n\n\nSample = dataclass(Sample)\n\n\ndef heaviest(rows):\n    best = None\n    for label, grams in rows:\n        if best is None or grams > best.grams:\n            best = Sample(label, grams)\n    if best is None:\n        return \"\"\n    return repr(best)\n",
+   "tests": [
+    {
+     "input": "[[\"tin\", 5], [\"lead\", 9]]",
+     "expected": "Sample(label='lead', grams=9)"
+    },
+    {
+     "input": "[[\"tin\", 5], [\"lead\", 5]]",
+     "expected": "Sample(label='tin', grams=5)"
+    },
+    {
+     "input": "[[\"only\", 0]]",
+     "expected": "Sample(label='only', grams=0)"
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    }
+   ],
+   "concepts": [
+    "dataclasses",
+    "dunder-str-repr"
+   ],
+   "tags": [
+    "dataclasses",
+    "dunder-str-repr"
+   ],
+   "explain": "The declaration buys the display, so the only real work left is the maximum - and the tie rule is why the comparison must be strictly greater than rather than greater-or-equal, which would silently prefer the later row. Writing `__repr__` by hand would pass too, and would be one more line to keep in step with the field list.",
+   "xp": 75
+  }
+ ]
+}

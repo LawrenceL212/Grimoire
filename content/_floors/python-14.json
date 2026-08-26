@@ -1,0 +1,896 @@
+{
+ "n": 14,
+ "name": "The Vault of Scrolls",
+ "goal": "Read and write files safely, handling paths and encodings.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 13
+  }
+ ],
+ "concepts": [
+  "open",
+  "context-manager",
+  "reading-modes",
+  "writing",
+  "pathlib",
+  "encodings",
+  "csv-and-json"
+ ],
+ "description": {
+  "what": "How a program reaches outside itself to a file: naming one with a path, opening a handle on it, choosing a mode that reads or writes or appends, deciding whether to take the whole file at once or a line at a time, saying which encoding the text is in, and handling the two formats real data actually arrives in.",
+  "why": "A file is the first thing you will make that outlives the program that made it, and every serious program you write from here on reads its input from one or writes its results to one - so the ways files go wrong, quietly and without an error, are worth knowing before you meet them on real data.",
+  "enables": "You will be able to store text and read it back, add to a record without destroying it, walk a large file without loading it into memory, take a path apart and put it back together, state an encoding so your program behaves the same on every machine, and pull numbers out of a CSV table or build a JSON document by hand.",
+  "assumes": "You can write a function with parameters and a return value, loop over things, build and index a list, split and join text, and read a traceback when something fails.",
+  "assessed": "You will predict what a sequence of opens does to a file, repair code that loses data or leaks a handle, and write functions that store and retrieve real content - with the later prompts naming only the result required, never the mode, the format or the tool."
+ },
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The Path, the Handle, and Why `with` Is Not Optional",
+    "body": "Every value you have made so far died with the program. A **file** is the first thing you will build that does not: a named run of bytes the operating system keeps on a disk, still there after your program has exited, after the machine has been turned off, and after you have forgotten you wrote it.\n\nYou name the file you want with a **path**. A path is text, and it is read left to right as a route: `spells/fire.txt` means the file `fire.txt` inside the folder `spells`. A path that starts with a separator or a drive letter is **absolute** - it says where the file is from the top of the filesystem. Anything else is **relative**, and relative to the folder the program was started in, not the folder the source file lives in. That single sentence explains most of the \"it worked when I ran it from the other directory\" bugs you will ever meet.\n\nA path has parts, and knowing their names makes the rest of this floor easier to talk about:\n\n- `spells/fire.txt` - the whole **path**\n- `spells` - the **parent**, the folder holding it\n- `fire.txt` - the **name**\n- `fire` - the **stem**\n- `.txt` - the **suffix**, or extension\n\nGluing those parts together with `+` and a slash works until it does not: a folder name that already ends in a separator gives you `spells//fire.txt`, a Windows machine uses a backslash between parts, and finding the suffix with `path.rfind(\".\")` picks the wrong dot the moment a folder name has one in it. Python's answer is a standard-library module called `pathlib`, whose `Path` object knows all five parts by name and joins them with `/` as an operator. You cannot reach for it yet - pulling another module into your program is what a later floor is about - so here you will handle paths as text and feel exactly the friction `Path` exists to remove.\n\n`open(path, mode, encoding=\"utf-8\")` does not hand you the file's contents. It hands you a **file object**: a handle on a live connection the operating system is holding open for you. Two things go wrong if that handle is never closed. What you write does not travel straight to the disk - it collects in a buffer and is flushed when the handle closes - so a program that ends without closing can leave a file that is empty or cut off halfway. And the operating system caps how many handles one process may hold at once, so a loop that opens files and leaks them eventually dies with `OSError: Too many open files`, on a line that has nothing wrong with it.\n\n`with open(...) as f:` fixes both. It binds the handle to `f` for the length of the indented block and closes it on the way out - at the last line, at a `return`, and when something fails halfway through. That last case is why `with` is not merely tidier than calling `f.close()` yourself: a failure skips your `close()` line, and it cannot skip `with`.",
+    "code": "folder = \"spells\"\nname = \"fire.txt\"\npath = folder + \"/\" + name\nprint(path)\n\nwith open(\"fire.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"ignis\\n\")\n\nwith open(\"fire.txt\", \"r\", encoding=\"utf-8\") as f:\n    print(f.read(), end=\"\")\n\nprint(f.closed)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Joining path parts as text. Readable, and wrong the moment `folder` already ends in a separator - which is why `pathlib` exists."
+     },
+     {
+      "line": 6,
+      "text": "`open` returns a handle, not the contents. `as f` gives that handle a name for the length of the block."
+     },
+     {
+      "line": 10,
+      "text": "`f.read()` gives back the whole file as one piece of text. `end=\"\"` stops `print` adding a second newline to the one already in the file."
+     },
+     {
+      "line": 12,
+      "text": "`f` still exists after the block, but the handle behind it is shut: `with` closed it on the way out. Reading from it now would fail."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the statement that creates `notes.txt`, writes one line into it, and is guaranteed to close the handle even if something fails inside the block.",
+     "template": "___ open(\"notes.txt\", \"w\", encoding=\"utf-8\") as ___:\n    f.write(\"done\\n\")",
+     "blanks": [
+      "with",
+      "f"
+     ],
+     "concepts": [
+      "open",
+      "context-manager"
+     ],
+     "tags": [
+      "context-manager"
+     ],
+     "explain": "The `with` statement is what ties closing the handle to leaving the block, and `as f` is what gives the handle a name to write through. Calling `open` on its own line and `close()` at the end looks equivalent and is not: a failure between the two skips the close entirely."
+    }
+   },
+   {
+    "title": "Modes: What Each Letter Does to a File That Already Exists",
+    "body": "The second argument to `open` is the **mode**, and it decides three separate things: whether the file has to exist already, what happens to what is in it, and where the read-write position starts.\n\n`r  file must exist   position at start   read only`\n`w  creates it, or EMPTIES an existing one   write only`\n`a  creates it, or keeps an existing one    position at the END   write only`\n`x  must NOT exist - fails loudly if it does   write only`\n\n`w` is the destructive one, and it is destructive **immediately**, at `open`, before you have written a single character. If you open a file with `w` and then work out that you had nothing to say, yesterday's contents are already gone. This is the commonest way beginners lose data, and it never announces itself: there is no error, just an empty file where the log used to be.\n\n`a` is what you want whenever the file is a record that grows - a log, a tally, an export you are adding to. It never truncates, and it always writes at the end whatever position you thought you were at. `x` is the paranoid one: it refuses to open a file that already exists, which is how you say \"create this, and tell me loudly if I am about to trample something\".\n\n`f.write(text)` writes exactly the text you gave it and **adds no newline** - if you want lines, you put the `\\n` there yourself. It returns the number of characters written, which is occasionally useful and mostly just surprising. Adding `b` to a mode - `rb`, `wb` - switches the handle from text to raw bytes, and then no encoding applies at all, which is the subject of the next section.",
+    "code": "with open(\"tally.txt\", \"w\", encoding=\"utf-8\") as f:\n    written = f.write(\"one\\n\")\nprint(written)\n\nwith open(\"tally.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"two\\n\")\n\nwith open(\"tally.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"three\\n\")\n\nwith open(\"tally.txt\", \"r\", encoding=\"utf-8\") as f:\n    print(f.read(), end=\"\")\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "`write` returns a count of characters, here 4: `o`, `n`, `e` and the newline you supplied yourself."
+     },
+     {
+      "line": 5,
+      "text": "Append mode. The file now holds two lines, and nothing was lost."
+     },
+     {
+      "line": 8,
+      "text": "The same file opened with `w`. Both earlier lines are gone at this instant, before `write` is even called."
+     },
+     {
+      "line": 11,
+      "text": "So the file holds only `three`. Change that `w` back to `a` and the output becomes all three lines - one letter is the whole difference."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "with open(\"runes.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"ansuz\\n\")\nwith open(\"runes.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"berkano\\n\")\nwith open(\"runes.txt\", \"r\", encoding=\"utf-8\") as f:\n    print(f.read(), end=\"\")\n",
+     "lang": "python",
+     "answer": "ansuz\nberkano",
+     "concepts": [
+      "reading-modes",
+      "writing"
+     ],
+     "tags": [
+      "reading-modes"
+     ],
+     "explain": "Append keeps what was there and writes after it, so both lines survive. The tempting wrong answer is `berkano` alone, which is what you get if you read `a` as though it were a second `w`."
+    }
+   },
+   {
+    "title": "Reading, and the Encoding the Text Is Written In",
+    "body": "There are two ways to read a file and the choice is about size, not taste. `f.read()` gives you the whole file as one piece of text, which is exactly right for a small configuration file, a short document, or anything you need to see as a whole. It is exactly wrong for a four-gigabyte log, because all four gigabytes have to fit in memory at once before you can look at the first line.\n\nLooping over the handle - `for line in f:` - hands you one line at a time and never holds more than one line in memory. Use it when the file is large, or simply when the unit of work is a line. Each line arrives with its trailing `\\n` still attached, except possibly the last one if the file does not end in a newline, so `line.rstrip(\"\\n\")` is the usual first move. `strip()` also works and also removes leading spaces, which is sometimes what you wanted and sometimes silently loses indentation you needed.\n\nA handle carries a **position**, and reading moves it. Call `f.read()` twice and the second call returns the empty string, because the first one consumed the file. This catches people who read a file once to count the lines and then read it again to process them, and it looks for all the world like the file went empty.\n\nNow the part that breaks on somebody else's machine. A file holds **bytes**; text is characters. An **encoding** is the rulebook that turns one into the other, and there is nothing inside the file saying which rulebook was used. UTF-8 is the modern default and can represent every character there is; older files are often `latin-1` or `cp1252`, which cover about 256. Read a latin-1 file as UTF-8 and you get `UnicodeDecodeError: invalid continuation byte` - not because your code is wrong, but because you guessed the rulebook wrong.\n\nSo: **always pass `encoding=` explicitly**. Leave it out and Python uses whatever the machine's locale says, which is UTF-8 on your laptop and something else on a colleague's, and that is precisely how a program that worked everywhere you tested it fails on the first real data it is handed. `text.encode(\"utf-8\")` shows you the bytes behind the characters, and it is worth doing once: `\"cafe\"` with an accent is four characters and five bytes.",
+    "code": "with open(\"log.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"start\\nmiddle\\nend\")\n\nwith open(\"log.txt\", \"r\", encoding=\"utf-8\") as f:\n    for line in f:\n        print(repr(line))\n\nwith open(\"log.txt\", \"r\", encoding=\"utf-8\") as f:\n    whole = f.read()\n    again = f.read()\nprint(len(whole), repr(again))\n\nword = \"café\"\nprint(len(word), len(word.encode(\"utf-8\")))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 6,
+      "text": "`repr` shows the newline instead of obeying it, so you can see the first two lines keep their `\\n` and the last one has none."
+     },
+     {
+      "line": 10,
+      "text": "The second read returns the empty string: the first one already moved the position to the end of the file."
+     },
+     {
+      "line": 14,
+      "text": "Four characters, five bytes - the accented letter needs two. That gap is the whole reason an encoding has to be agreed rather than assumed."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "with open(\"notes.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"alpha\\nbeta\\n\")\n\nwith open(\"notes.txt\", \"r\", encoding=\"utf-8\") as f:\n    first = f.read()\n    second = f.read()\n\nprint(len(first))\nprint(len(second))\n",
+     "lang": "python",
+     "answer": "11\n0",
+     "concepts": [
+      "reading-modes"
+     ],
+     "tags": [
+      "reading-modes"
+     ],
+     "explain": "The file holds `alpha`, a newline, `beta` and a newline: eleven characters. The second read finds the position already at the end and returns nothing. Answering `11` twice is the natural mistake, because it treats `f.read()` as a property of the file rather than as something that consumes it."
+    }
+   },
+   {
+    "title": "Text That Travels: CSV and JSON",
+    "body": "A file holds bytes; a **format** is the agreement about what those bytes mean. Two agreements account for most of the data you will ever be handed.\n\n**CSV** is one record per line, fields separated by commas, usually with a header line naming the columns. It is what spreadsheets export and what most data pipelines still speak. Writing it is a join, reading it is a split, and the header needs skipping before you touch the numbers:\n\n`item,count`\n`ash,3`\n`elm,12`\n\n**JSON** is nested: objects in braces holding `\"key\": value` pairs, arrays in square brackets. Its rules are narrower than Python's own literals - **double quotes only**, no trailing comma before a closing brace, `true` and `null` rather than `True` and `None`. Almost every web interface you will ever call answers in it.\n\n`{\"item\": \"ash\", \"count\": 3}`\n\nSplitting on commas is right until a field contains a comma. The real CSV rule is that such a field is wrapped in double quotes, and a double quote inside a quoted field is doubled - so `\"ash, white\",3` is two fields, and `line.split(\",\")` confidently reports three. JSON has the same class of problem with quotes and backslashes inside strings. The standard library ships a `csv` module and a `json` module that implement both rulebooks completely, and you will meet them on the standard-library floor. Writing the naive version once, here, is what makes it obvious what those modules are doing for you - and why reaching for them later is not laziness.\n\nOne more trap, and it is the one that bites hardest: every field that comes out of a file is **text**. `\"3\"` is not 3. Adding two fields with `+` joins them rather than summing them, and it does so without any error at all.",
+    "code": "rows = [[\"item\", \"count\"], [\"ash\", \"3\"], [\"elm\", \"12\"]]\n\nwith open(\"stock.csv\", \"w\", encoding=\"utf-8\") as f:\n    for row in rows:\n        f.write(\",\".join(row) + \"\\n\")\n\ntotal = 0\nwith open(\"stock.csv\", \"r\", encoding=\"utf-8\") as f:\n    header = f.readline()\n    for line in f:\n        fields = line.rstrip(\"\\n\").split(\",\")\n        total += int(fields[1])\nprint(total)\n\nawkward = '\"ash, white\",3'\nprint(len(awkward.split(\",\")))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`join` builds one CSV line; the newline is yours to add, because `write` never adds one."
+     },
+     {
+      "line": 9,
+      "text": "`readline` reads exactly one line and leaves the position after it, which is how you skip a header before looping over the rest."
+     },
+     {
+      "line": 12,
+      "text": "Fields come back as text, always. `int` is what turns `\"3\"` into a number that can be added."
+     },
+     {
+      "line": 16,
+      "text": "Two fields by the CSV rules, three by a naive split. This single line is the whole argument for the `csv` module."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "row = \"elm,12,green\"\nfields = row.split(\",\")\nprint(len(fields))\nprint(fields[1] + fields[1])\nprint(int(fields[1]) + int(fields[1]))\n",
+     "lang": "python",
+     "answer": "3\n1212\n24",
+     "concepts": [
+      "csv-and-json"
+     ],
+     "tags": [
+      "csv-and-json"
+     ],
+     "explain": "Every field that comes out of a split is text, so `+` joins it rather than adding it: `1212`, not `24`. Forgetting to convert is the commonest bug in code that reads CSV, and it produces a plausible-looking wrong answer instead of an error that would stop you."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-14-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Track what is in `spell.txt` after each block.",
+   "code": "with open(\"spell.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"fire\\n\")\n    f.write(\"ice\\n\")\n\nwith open(\"spell.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"wind\\n\")\n\nwith open(\"spell.txt\", \"r\", encoding=\"utf-8\") as f:\n    print(f.read().count(\"\\n\"))\n\nwith open(\"spell.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"earth\\n\")\n\nwith open(\"spell.txt\", \"r\", encoding=\"utf-8\") as f:\n    print(f.read(), end=\"\")\n",
+   "lang": "python",
+   "answer": "3\nearth",
+   "concepts": [
+    "reading-modes",
+    "writing",
+    "context-manager"
+   ],
+   "tags": [
+    "reading-modes",
+    "writing"
+   ],
+   "explain": "The first three writes leave three newlines in the file, so the count is 3. The fourth block reopens with `w`, which empties the file at `open` before writing anything, so everything before it is gone. Answering `earth` for the first print is the usual slip - it reads the whole program before answering rather than following it line by line.",
+   "hint": "`w` empties the file the instant it is opened. `a` keeps what is there and writes after it. Write down the file's contents after each of the four blocks before you answer.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill in the two modes so that `journal.txt` ends up holding exactly `first` then `second` on two lines, no matter what the file held before the program ran.",
+   "template": "with open(\"journal.txt\", \"___\", encoding=\"utf-8\") as f:\n    f.write(\"first\\n\")\n\nwith open(\"journal.txt\", \"___\", encoding=\"utf-8\") as f:\n    f.write(\"second\\n\")",
+   "blanks": [
+    "w",
+    "a"
+   ],
+   "concepts": [
+    "reading-modes",
+    "writing"
+   ],
+   "tags": [
+    "writing"
+   ],
+   "explain": "The first open must clear whatever a previous run left behind, which only `w` does; the second must not clear the line just written, which only `a` guarantees. Two `w` modes leaves only `second`, and two `a` modes grows the file by two lines on every run.",
+   "hint": "One of them has to throw away yesterday's file. The other must not throw away the line you wrote a moment ago.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "write_report",
+   "prompt": "Write `write_report(path, text)`. Using a `with` statement, write `text` into the file at `path`, replacing anything already there, then open the file again and return everything it now holds.\n\n`write_report(\"r.txt\", \"alpha\")` returns `\"alpha\"`.",
+   "starterCode": "def write_report(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        pass\n    # open it again to read, and return what you find\n    return \"\"\n",
+   "solution": "def write_report(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()\n",
+   "tests": [
+    {
+     "input": "'r1.txt', 'alpha'",
+     "expected": "alpha"
+    },
+    {
+     "input": "'r2.txt', ''",
+     "expected": ""
+    },
+    {
+     "input": "'r3.txt', 'a\\nb\\n'",
+     "expected": "a\nb\n"
+    },
+    {
+     "input": "'r4.txt', 'café'",
+     "expected": "café"
+    }
+   ],
+   "concepts": [
+    "open",
+    "context-manager",
+    "writing",
+    "encodings"
+   ],
+   "tags": [
+    "open",
+    "context-manager"
+   ],
+   "explain": "The write has to finish and the handle has to close before the read starts, which is exactly what leaving the first `with` block guarantees. Trying to read through the same handle you wrote with returns the empty string, because the handle is in write mode and its position is at the end of what you just wrote.",
+   "hint": "Two separate `with` blocks: one with mode `\"w\"` to write, then one with mode `\"r\"` to read. `return f.read()` inside the second block is fine - `with` still closes the handle on the way out of a `return`.",
+   "xp": 60
+  },
+  {
+   "id": "py-14-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "log_twice",
+   "prompt": "Write `log_twice(path, first, second)`. Start the file at `path` from empty and put `first` on its own line, then use append mode to add `second` on a line of its own, then return the whole file as one piece of text.\n\n`log_twice(\"l.txt\", \"one\", \"two\")` returns `\"one\\ntwo\\n\"`.",
+   "starterCode": "def log_twice(path, first, second):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        pass\n    with open(path, \"a\", encoding=\"utf-8\") as f:\n        pass\n    return \"\"\n",
+   "solution": "def log_twice(path, first, second):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(first + \"\\n\")\n    with open(path, \"a\", encoding=\"utf-8\") as f:\n        f.write(second + \"\\n\")\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()\n",
+   "tests": [
+    {
+     "input": "'l1.txt', 'one', 'two'",
+     "expected": "one\ntwo\n"
+    },
+    {
+     "input": "'l2.txt', '', ''",
+     "expected": "\n\n"
+    },
+    {
+     "input": "'l3.txt', 'ansuz', 'berkano'",
+     "expected": "ansuz\nberkano\n"
+    },
+    {
+     "input": "'l4.txt', 'x', 'y'",
+     "expected": "x\ny\n"
+    }
+   ],
+   "concepts": [
+    "writing",
+    "reading-modes",
+    "context-manager"
+   ],
+   "tags": [
+    "writing",
+    "reading-modes"
+   ],
+   "explain": "`write` adds no newline of its own, so both newlines have to be written by you - the empty-strings test is the one that proves it, because it must still produce two blank lines. Opening the second block with `w` instead of `a` would silently discard `first` and pass none of the tests.",
+   "hint": "`f.write(first + \"\\n\")` in the `w` block, `f.write(second + \"\\n\")` in the `a` block, then a third block with mode `\"r\"` to read it all back.",
+   "xp": 60
+  },
+  {
+   "id": "py-14-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "nonblank_lines",
+   "prompt": "Write `nonblank_lines(path, text)`. Write `text` into the file at `path`, then read the file back one line at a time and return a list of the lines that hold something, each with the surrounding whitespace removed. Lines that are empty or nothing but spaces are left out.\n\n`nonblank_lines(\"n.txt\", \"a\\n\\n b \\n\")` returns `[\"a\", \"b\"]`.",
+   "starterCode": "def nonblank_lines(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    kept = []\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            pass\n    return kept\n",
+   "solution": "def nonblank_lines(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    kept = []\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            tidy = line.strip()\n            if tidy != \"\":\n                kept.append(tidy)\n    return kept\n",
+   "tests": [
+    {
+     "input": "'n1.txt', 'a\\n\\n b \\n'",
+     "expected": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "input": "'n2.txt', ''",
+     "expected": []
+    },
+    {
+     "input": "'n3.txt', '  \\n \\n'",
+     "expected": []
+    },
+    {
+     "input": "'n4.txt', 'only'",
+     "expected": [
+      "only"
+     ]
+    }
+   ],
+   "concepts": [
+    "reading-modes",
+    "open"
+   ],
+   "tags": [
+    "reading-modes"
+   ],
+   "explain": "Looping over the handle gives one line at a time with its trailing newline still attached, so a line that looks empty is really `\"\\n\"` and is not equal to `\"\"` until it has been stripped. The last test has no trailing newline at all, which is the case that breaks any solution relying on every line ending the same way.",
+   "hint": "Inside the loop, `tidy = line.strip()` first, then test `tidy` rather than `line`. Append `tidy`, not `line`.",
+   "xp": 60
+  },
+  {
+   "id": "py-14-gp-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "save_and_read",
+   "prompt": "`save_and_read(path, text)` should write `text` into the file at `path` and return what the file then holds. It returns the empty string instead for every non-empty input. Repair it using a `with` statement for each handle.",
+   "starterCode": "def save_and_read(path, text):\n    f = open(path, \"w\", encoding=\"utf-8\")\n    f.write(text)\n    g = open(path, \"r\", encoding=\"utf-8\")\n    data = g.read()\n    return data\n",
+   "solution": "def save_and_read(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        data = f.read()\n    return data\n",
+   "tests": [
+    {
+     "input": "'s1.txt', 'alpha'",
+     "expected": "alpha"
+    },
+    {
+     "input": "'s2.txt', 'a\\nb'",
+     "expected": "a\nb"
+    },
+    {
+     "input": "'s3.txt', ''",
+     "expected": ""
+    },
+    {
+     "input": "'s4.txt', 'x' * 20",
+     "expected": "xxxxxxxxxxxxxxxxxxxx"
+    }
+   ],
+   "concepts": [
+    "context-manager",
+    "open",
+    "writing"
+   ],
+   "tags": [
+    "context-manager"
+   ],
+   "explain": "Nothing is wrong with the logic: the write never reached the disk. A small write sits in a buffer until the handle is closed, so the reader opens a file that is still empty, and both handles are then leaked as well. This is why `with` is not a style preference - the failure it prevents produces no error at all, just wrong data.",
+   "hint": "The writing handle is never closed, so its buffer is never flushed. Wrap each `open` in a `with` block and let the first block end before the second one starts.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-14-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "total_of_column",
+   "prompt": "Write `total_of_column(path, contents)`.\n\n`contents` is the text of a small stock table: a header line reading `item,count`, then one line per item holding a name and a whole number separated by a comma. Store `contents` at `path`, then report the sum of every count in the table. Blank lines may appear anywhere and mean nothing. A table with no items after the header totals 0.\n\n`total_of_column(\"t.csv\", \"item,count\\nash,3\\nelm,4\\n\")` returns `7`.",
+   "solution": "def total_of_column(path, contents):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(contents)\n    total = 0\n    seen_header = False\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            tidy = line.strip()\n            if tidy == \"\":\n                continue\n            if not seen_header:\n                seen_header = True\n                continue\n            fields = tidy.split(\",\")\n            total = total + int(fields[1])\n    return total\n",
+   "tests": [
+    {
+     "input": "'t1.csv', 'item,count\\nash,3\\nelm,4\\n'",
+     "expected": 7
+    },
+    {
+     "input": "'t2.csv', 'item,count\\n'",
+     "expected": 0
+    },
+    {
+     "input": "'t3.csv', 'item,count\\nash,0\\n\\nelm,12\\n'",
+     "expected": 12
+    },
+    {
+     "input": "'t4.csv', 'item,count\\nyew,5'",
+     "expected": 5
+    }
+   ],
+   "concepts": [
+    "csv-and-json",
+    "reading-modes",
+    "open"
+   ],
+   "tags": [
+    "csv-and-json",
+    "reading-modes"
+   ],
+   "explain": "The header carries the word `count`, so anything that adds every second field without skipping it fails on the very first line rather than on an edge case. The blank line and the missing final newline are the two shapes real exported data actually arrives in, and both have to survive.",
+   "xp": 85
+  },
+  {
+   "id": "py-14-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "latest_entry",
+   "prompt": "Write `latest_entry(path, text)`.\n\nA journal is stored as `text`, one entry per line. Save it at `path`, then report the most recent entry that actually says something, with no surrounding whitespace. If the journal holds nothing but blank lines, report the empty string.\n\n`latest_entry(\"j.txt\", \"one\\ntwo\\n\\n\")` returns `\"two\"`.",
+   "solution": "def latest_entry(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    found = \"\"\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            tidy = line.strip()\n            if tidy != \"\":\n                found = tidy\n    return found\n",
+   "tests": [
+    {
+     "input": "'j1.txt', 'one\\ntwo\\n\\n'",
+     "expected": "two"
+    },
+    {
+     "input": "'j2.txt', ''",
+     "expected": ""
+    },
+    {
+     "input": "'j3.txt', '   \\n\\n  \\n'",
+     "expected": ""
+    },
+    {
+     "input": "'j4.txt', 'alpha'",
+     "expected": "alpha"
+    },
+    {
+     "input": "'j5.txt', 'a\\nb\\nc\\n'",
+     "expected": "c"
+    }
+   ],
+   "concepts": [
+    "reading-modes",
+    "open",
+    "context-manager"
+   ],
+   "tags": [
+    "reading-modes",
+    "open"
+   ],
+   "explain": "A journal almost always ends with a trailing newline, so the last line the file yields is frequently blank - reaching for the final line rather than the final meaningful one is wrong on the commonest input there is. Keeping a running answer and overwriting it costs one variable and handles the all-blank file for free.",
+   "xp": 85
+  },
+  {
+   "id": "py-14-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "append_and_count",
+   "prompt": "Write `append_and_count(path, entries)`.\n\n`entries` is a list of pieces of text. The file at `path` must end up holding exactly those entries, one per line, in order, with nothing left over from any previous run - and each entry must be added without disturbing the ones already written. Report how many lines the finished file holds.\n\n`append_and_count(\"a.txt\", [\"a\", \"b\", \"c\"])` returns `3`.",
+   "solution": "def append_and_count(path, entries):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(\"\")\n    for entry in entries:\n        with open(path, \"a\", encoding=\"utf-8\") as f:\n            f.write(entry + \"\\n\")\n    count = 0\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            count = count + 1\n    return count\n",
+   "tests": [
+    {
+     "input": "'a1.txt', ['a', 'b', 'c']",
+     "expected": 3
+    },
+    {
+     "input": "'a2.txt', []",
+     "expected": 0
+    },
+    {
+     "input": "'a3.txt', ['only']",
+     "expected": 1
+    },
+    {
+     "input": "'a4.txt', ['', '']",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "writing",
+    "reading-modes",
+    "context-manager"
+   ],
+   "tags": [
+    "writing",
+    "context-manager"
+   ],
+   "explain": "Two requirements pull against each other: the file must be fresh, and every entry must be added to what is already there. That means one destructive open before the loop and a non-destructive one inside it. Doing it destructively inside the loop leaves only the last entry, and the empty list is what proves the file was truly cleared rather than merely left alone.",
+   "xp": 85
+  },
+  {
+   "id": "py-14-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "as_json_object",
+   "prompt": "Write `as_json_object(path, pairs)`.\n\n`pairs` is a list of two-item lists, each holding a name and a whole number. Store the whole collection at `path` in the interchange format that web interfaces speak: an opening brace, then each name wrapped in double quotes followed by a colon, a space and its number, pairs separated by a comma and a space, then a closing brace. No newline anywhere. Report the text you stored.\n\n`as_json_object(\"o.json\", [[\"a\", 1], [\"b\", 2]])` returns `{\"a\": 1, \"b\": 2}`, and an empty list gives `{}`.",
+   "solution": "def as_json_object(path, pairs):\n    parts = []\n    for pair in pairs:\n        parts.append('\"' + pair[0] + '\": ' + str(pair[1]))\n    text = \"{\" + \", \".join(parts) + \"}\"\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()\n",
+   "tests": [
+    {
+     "input": "'o1.json', [['a', 1], ['b', 2]]",
+     "expected": "{\"a\": 1, \"b\": 2}"
+    },
+    {
+     "input": "'o2.json', []",
+     "expected": "{}"
+    },
+    {
+     "input": "'o3.json', [['x', 0]]",
+     "expected": "{\"x\": 0}"
+    },
+    {
+     "input": "'o4.json', [['n', -3], ['m', 10]]",
+     "expected": "{\"n\": -3, \"m\": 10}"
+    }
+   ],
+   "concepts": [
+    "csv-and-json",
+    "writing",
+    "open"
+   ],
+   "tags": [
+    "csv-and-json",
+    "writing"
+   ],
+   "explain": "The empty case is where a separator-between-items job usually breaks: gluing a comma onto the end of every pair gives `{}` a stray comma and every other result a trailing one, which is invalid in this format. Joining the finished pieces with the separator gets both right at once, and the single quotes around the double-quote characters are what let the format's own quotes survive into the file.",
+   "xp": 85
+  },
+  {
+   "id": "py-14-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "byte_length",
+   "prompt": "Write `byte_length(path, text)`.\n\nStore `text` at `path` as UTF-8, then report how much room the file actually takes up on the disk, measured in bytes. For plain English letters this equals the number of characters; for accented letters, currency symbols and Greek it does not, and your answer must be right for those too.\n\n`byte_length(\"b.txt\", \"abc\")` returns `3`.",
+   "solution": "def byte_length(path, text):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    with open(path, \"rb\") as f:\n        return len(f.read())\n",
+   "tests": [
+    {
+     "input": "'b1.txt', 'abc'",
+     "expected": 3
+    },
+    {
+     "input": "'b2.txt', ''",
+     "expected": 0
+    },
+    {
+     "input": "'b3.txt', 'café'",
+     "expected": 5
+    },
+    {
+     "input": "'b4.txt', '€'",
+     "expected": 3
+    },
+    {
+     "input": "'b5.txt', 'δελτα'",
+     "expected": 10
+    }
+   ],
+   "concepts": [
+    "encodings",
+    "open",
+    "reading-modes"
+   ],
+   "tags": [
+    "encodings",
+    "open"
+   ],
+   "explain": "`len(text)` counts characters and is the tempting answer, because it is right for the first test and wrong for every other one. Characters outside the plain English range take two, three or four bytes each under UTF-8, and the only ways to see that are to reopen the file in binary mode or to ask the text for its encoded form - measuring the file rather than the string.",
+   "xp": 85
+  },
+  {
+   "id": "py-14-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "backup_name",
+   "prompt": "Write `backup_name(path)`.\n\nGiven where a file lives, work out where its backup should live: the same location, the same name, but ending `.bak` instead of whatever it ended with before. A file whose name carries no extension simply gains `.bak`. A name beginning with a dot - the convention for a hidden file - has no extension at all, so it gains `.bak` too. Folders in the path are separated by `/` and must come back untouched, even when a folder name contains a dot.\n\n`backup_name(\"data/runes/ansuz.txt\")` returns `\"data/runes/ansuz.bak\"`.",
+   "solution": "def backup_name(path):\n    cut = path.rfind(\"/\")\n    folder = path[:cut + 1]\n    name = path[cut + 1:]\n    dot = name.rfind(\".\")\n    if dot <= 0:\n        return folder + name + \".bak\"\n    return folder + name[:dot] + \".bak\"\n",
+   "tests": [
+    {
+     "input": "'data/runes/ansuz.txt'",
+     "expected": "data/runes/ansuz.bak"
+    },
+    {
+     "input": "'notes.txt'",
+     "expected": "notes.bak"
+    },
+    {
+     "input": "'README'",
+     "expected": "README.bak"
+    },
+    {
+     "input": "'my.data/notes'",
+     "expected": "my.data/notes.bak"
+    },
+    {
+     "input": "'.config'",
+     "expected": ".config.bak"
+    },
+    {
+     "input": "'a/b/c.tar.gz'",
+     "expected": "a/b/c.tar.bak"
+    }
+   ],
+   "concepts": [
+    "pathlib",
+    "open"
+   ],
+   "tags": [
+    "pathlib"
+   ],
+   "explain": "Searching the whole path for the last dot passes the first two tests and then turns `my.data/notes` into `my.bak`, destroying the folder - the dot has to be looked for only after the final separator. A leading dot at position 0 is part of the name rather than the start of an extension, which is why the test has to be for a dot found beyond the first character rather than merely for a dot found. This bookkeeping is exactly what `pathlib` was built to take off your hands.",
+   "xp": 85
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-14-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `with open(path, \"w\", encoding=\"utf-8\") as f:` guarantee that opening the file and calling `f.close()` at the end of the function does not?",
+   "choices": [
+    "That the handle is closed even when something fails part-way through the block.",
+    "That the file is created if it does not already exist.",
+    "That the text is written as UTF-8 rather than as the machine's default encoding.",
+    "That no other program can open the same file while the block is running."
+   ],
+   "answer": 0,
+   "concepts": [
+    "context-manager"
+   ],
+   "tags": [
+    "context-manager"
+   ],
+   "explain": "Creating the file is the mode's doing and the encoding is the argument's doing; both happen with or without `with`. What `with` adds is that leaving the block closes the handle by every route out of it, including the one that skips the rest of your code. The third option is the usual confusion, because the two things are written on the same line.",
+   "xp": 15
+  },
+  {
+   "id": "py-14-x-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "with open(\"tally.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"2\\n\")\nwith open(\"tally.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"3\\n\")\nwith open(\"tally.txt\", \"a\", encoding=\"utf-8\") as f:\n    f.write(\"4\\n\")\n\nwith open(\"tally.txt\", \"r\", encoding=\"utf-8\") as f:\n    lines = f.read().split(\"\\n\")\nprint(len(lines))\nprint(lines[0])\n",
+   "lang": "python",
+   "answer": "3\n3",
+   "concepts": [
+    "reading-modes",
+    "writing"
+   ],
+   "tags": [
+    "reading-modes"
+   ],
+   "explain": "The second `w` throws the `2` away, so the file holds `3` and `4` - two lines but three pieces after splitting, because the text ends in a newline and `split` produces an empty final piece. Answering `2` for the first print is the trap, and it is the reason line-counting by splitting on newlines is quietly wrong.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the program prints every line of `log.txt` with the trailing newline removed but any leading spaces kept exactly as they are.",
+   "template": "with open(\"log.txt\", \"r\", encoding=\"utf-8\") as f:\n    for line in ___:\n        print(line.___(\"\\n\"))",
+   "blanks": [
+    "f",
+    "rstrip"
+   ],
+   "concepts": [
+    "reading-modes"
+   ],
+   "tags": [
+    "reading-modes"
+   ],
+   "explain": "The handle itself is what yields lines - there is nothing else to loop over - and `rstrip` trims only the right-hand end. `strip` is the reflex answer and would also eat the leading spaces the prompt explicitly says to keep, which is how indentation quietly disappears from a file you were only meant to be printing.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "with open(\"runes.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"ansuz\\nberkano\\n\")\n\nwith open(\"runes.txt\", \"r\", encoding=\"utf-8\") as f:\n    whole = f.read()\n    again = f.read()\n\nprint(len(whole))\nprint(len(again))\nprint(len(\"café\"), len(\"café\".encode(\"utf-8\")))\n",
+   "lang": "python",
+   "answer": "14\n0\n4 5",
+   "concepts": [
+    "reading-modes",
+    "encodings"
+   ],
+   "tags": [
+    "reading-modes",
+    "encodings"
+   ],
+   "explain": "Five letters, a newline, seven letters and a newline make fourteen characters, and the second `read` finds the position already at the end of the file and returns nothing. The last line is the separate point: the same word is four characters and five bytes, so `len` on text never tells you how much room a file takes. Expecting `14` twice treats reading as inspecting the file rather than as consuming it.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-05",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement about text encodings that is true.",
+   "choices": [
+    "A file records its bytes but not which encoding produced them.",
+    "Leaving `encoding=` off makes Python use a default that depends on the machine.",
+    "Under UTF-8 a character may occupy more than one byte.",
+    "Opening a file with mode `rb` decodes it using UTF-8 before handing it to you.",
+    "Reading a latin-1 file as UTF-8 always succeeds and merely shows odd characters."
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "encodings"
+   ],
+   "tags": [
+    "encodings"
+   ],
+   "explain": "The first three are exactly why an encoding must be stated rather than assumed. `rb` is the opposite of decoding - it hands back raw bytes with no rulebook applied at all - and a mis-guessed encoding usually raises `UnicodeDecodeError` rather than degrading politely, because most byte sequences are not valid UTF-8.",
+   "xp": 15
+  },
+  {
+   "id": "py-14-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order to make a program that reads a whole number out of `counts.txt`, adds one to it, and writes the new value back.",
+   "fragments": [
+    "current = current + 1",
+    "    f.write(str(current) + \"\\n\")",
+    "with open(\"counts.txt\", \"r\", encoding=\"utf-8\") as f:",
+    "    current = int(f.read().strip())",
+    "with open(\"counts.txt\", \"w\", encoding=\"utf-8\") as f:"
+   ],
+   "answer": [
+    2,
+    3,
+    0,
+    4,
+    1
+   ],
+   "concepts": [
+    "reading-modes",
+    "writing",
+    "context-manager"
+   ],
+   "tags": [
+    "writing"
+   ],
+   "explain": "The read has to complete and its block has to end before the write begins, because the writing mode empties the file at the moment it is opened - open the `w` handle first and the number you were about to read is already gone. The `+ 1` can sit inside the reading block or between the two, but never after the write.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A tool you wrote reads a customer list and runs perfectly on every file on your laptop. A colleague runs the identical code on their own export and it stops with `UnicodeDecodeError: invalid continuation byte`. Explain what is actually different between the two situations, why the file itself cannot tell your program the answer, and what you should change in the code so that the failure becomes impossible rather than merely unlikely.",
+   "rubric": {
+    "required": [
+     "encoding",
+     "bytes"
+    ],
+    "optional": [
+     "utf",
+     "latin",
+     "locale",
+     "machine",
+     "explicit",
+     "characters",
+     "decode",
+     "default"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "encodings",
+    "open"
+   ],
+   "tags": [
+    "encodings"
+   ],
+   "explain": "The code is identical, so the difference is in the data and in the machine: a file is only bytes, it carries no record of the rulebook that produced them, and an `open` with no `encoding=` silently borrows whatever the local machine happens to prefer. Blaming the colleague's file is the tempting reading, but a program that only works on files that match your locale is the defect - naming the encoding at every `open` is what makes the behaviour the same everywhere.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "count_matching",
+   "prompt": "Write `count_matching(path, text, prefix)`. Store `text` at `path`, then return how many of its lines begin with `prefix`, ignoring any whitespace at the ends of a line. An empty file gives 0.\n\n`count_matching(\"c.txt\", \"WARN a\\nINFO b\\nWARN c\\n\", \"WARN\")` returns `2`.",
+   "starterCode": "def count_matching(path, text, prefix):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    found = 0\n    return found\n",
+   "solution": "def count_matching(path, text, prefix):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(text)\n    found = 0\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip().startswith(prefix):\n                found = found + 1\n    return found\n",
+   "tests": [
+    {
+     "input": "'c1.txt', 'WARN a\\nINFO b\\nWARN c\\n', 'WARN'",
+     "expected": 2
+    },
+    {
+     "input": "'c2.txt', '', 'WARN'",
+     "expected": 0
+    },
+    {
+     "input": "'c3.txt', '  WARN x\\n', 'WARN'",
+     "expected": 1
+    },
+    {
+     "input": "'c4.txt', 'INFO only', 'WARN'",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "reading-modes",
+    "open",
+    "context-manager"
+   ],
+   "tags": [
+    "reading-modes",
+    "open"
+   ],
+   "explain": "Testing `line.startswith(prefix)` without stripping fails the indented line, because the line really begins with two spaces - the prompt says to ignore whitespace at the ends and that is the test which proves you did. The file with no trailing newline is the other shape real logs come in and must still be counted.",
+   "hint": "Loop over the handle, `strip()` each line, then use `startswith`.",
+   "xp": 75
+  },
+  {
+   "id": "py-14-x-09",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "plain = \"ash,3\"\nquoted = '\"ash, white\",3'\nprint(len(plain.split(\",\")))\nprint(len(quoted.split(\",\")))\nprint(plain.split(\",\")[1] + plain.split(\",\")[1])\n",
+   "lang": "python",
+   "answer": "2\n3\n33",
+   "concepts": [
+    "csv-and-json"
+   ],
+   "tags": [
+    "csv-and-json"
+   ],
+   "explain": "By the CSV rules the quoted row is two fields, because the comma inside the double quotes belongs to the field; a plain split cannot see that and reports three. The last line is the other half of the same lesson: fields arrive as text, so `+` joins `3` to `3` and gives `33` rather than `6`, with no error to warn you.",
+   "xp": 30
+  },
+  {
+   "id": "py-14-x-10",
+   "type": "debug",
+   "layer": "application",
+   "fn": "add_entry",
+   "prompt": "`add_entry(path, existing, entry)` should store `existing` at `path`, then add `entry` as one more line while keeping everything already there, and return the whole file. It keeps returning only the new entry. Repair it.",
+   "starterCode": "def add_entry(path, existing, entry):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(existing)\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(entry + \"\\n\")\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()\n",
+   "solution": "def add_entry(path, existing, entry):\n    with open(path, \"w\", encoding=\"utf-8\") as f:\n        f.write(existing)\n    with open(path, \"a\", encoding=\"utf-8\") as f:\n        f.write(entry + \"\\n\")\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return f.read()\n",
+   "tests": [
+    {
+     "input": "'d1.txt', 'one\\n', 'two'",
+     "expected": "one\ntwo\n"
+    },
+    {
+     "input": "'d2.txt', '', 'first'",
+     "expected": "first\n"
+    },
+    {
+     "input": "'d3.txt', 'a\\nb\\n', 'c'",
+     "expected": "a\nb\nc\n"
+    },
+    {
+     "input": "'d4.txt', 'kept\\n', ''",
+     "expected": "kept\n\n"
+    }
+   ],
+   "concepts": [
+    "writing",
+    "reading-modes"
+   ],
+   "tags": [
+    "writing"
+   ],
+   "explain": "One letter is wrong: the second `open` uses the mode that empties the file at the moment it is opened, so `existing` is destroyed before `entry` is written. Nothing raises, and the return value looks entirely reasonable, which is exactly why this class of data loss survives review - the only way to notice is to ask what the file held a line earlier.",
+   "hint": "Look at the mode on the second `open` and ask what it does to a file that already has contents.",
+   "xp": 75
+  }
+ ]
+}

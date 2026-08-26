@@ -1,0 +1,973 @@
+{
+ "n": 17,
+ "name": "The Endless Library",
+ "goal": "Find and use a module you have never seen, from its documentation.",
+ "stage": 2,
+ "cognitiveLevel": "application",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 16
+  }
+ ],
+ "description": {
+  "what": "The modules that ship with Python already, the handful worth knowing by name, and - far more importantly - the procedure for using one you have never opened before by reading its documentation.",
+  "why": "The standard library is far too large to memorise and far too useful to ignore, so the skill that actually carries you is not recall of module names but the ability to suspect a thing already exists and confirm it in under a minute.",
+  "enables": "You will be able to count and group with `collections`, replace fiddly index arithmetic with `itertools`, do calendar arithmetic with `datetime` without inventing month lengths, describe text with a modest `re` pattern, lay out output with `textwrap`, give a program a real command line with `argparse`, and work out an unfamiliar module from its documentation alone.",
+  "assumes": "You can write functions, loops and conditions, build and read lists and dictionaries, handle errors, and import a module and call names out of it.",
+  "assessed": "You will predict what these modules return, write code that reaches for the right one without being told which, and answer two problems using nothing but a documentation extract for a module this floor never taught you."
+ },
+ "concepts": [
+  "collections",
+  "itertools",
+  "argparse",
+  "datetime",
+  "re",
+  "textwrap",
+  "reading-documentation"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "The Library Is Too Large to Learn",
+    "body": "Python arrives with roughly two hundred modules already installed, and nobody has read them all. That is not a gap in your education; it is the permanent condition of working in Python, and the capability that actually matters is not recall but **search**. An expert is not somebody who remembers that `textwrap.shorten` exists. They are somebody who suspected that trimming a piece of text to a width and ending it with an ellipsis was a common enough need that it would already be solved, and who knew how to check in under a minute.\n\nThe check has a shape, and it is worth learning as a procedure. State the question in one sentence - *I have a long paragraph and I want it split into lines no wider than forty characters*. Guess the area and open that module's page. Then read the **signature** before the prose: what does the function take, what is optional, and above all what does it hand back? The return type decides what the next line of your program can do. `textwrap.wrap` returns a **list of lines** and `textwrap.fill` returns **one string** with newlines inside it - they differ in almost nothing else, and picking the wrong one is the commonest first mistake with a new module.\n\nTwo tools do this from inside the interpreter, without a browser. `dir(module)` lists the names a module exposes, which is the fastest way to see whether the thing you want is even in there. `help(textwrap.shorten)` prints the signature and the docstring for one function. Both are worth reaching for reflexively, because they describe the version you actually have installed rather than the version on a web page you found.\n\nThe failure mode to resist is writing it yourself because looking felt slow. Hand-rolled word wrapping is twenty lines that nearly work: they mishandle a word longer than the width, a run of two spaces, an empty paragraph. `textwrap` handles all three and has been read by thousands of people. Reaching for the library first is not laziness - it is how you end up with less code to be wrong.",
+    "code": "import textwrap\n\nnotice = \"The library is far too large to hold in your head, which is exactly why finding beats remembering.\"\nprint([name for name in dir(textwrap) if not name.startswith(\"_\")])\nprint(textwrap.fill(notice, width=40))\nprint(textwrap.shorten(notice, width=40, placeholder=\" ...\"))\nprint(textwrap.indent(\"first\\nsecond\\n\", \"> \"), end=\"\")\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "`dir` lists what the module exposes. Note `re` in that list: it is a module `textwrap` imported for its own use, not a feature it offers you. Public names that matter are the ones the documentation describes."
+     },
+     {
+      "line": 5,
+      "text": "`fill` returns one string containing newline characters, which is why a single `print` lays it out over three lines."
+     },
+     {
+      "line": 6,
+      "text": "`shorten` collapses the whitespace, cuts on a word boundary, and counts the placeholder inside the width. Reading that from the docs takes ten seconds; discovering it by experiment takes ten minutes."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so that the first `print` shows a **list** of lines no wider than 30 characters, and the second shows a single line ending in an ellipsis. Both functions live in the same module.",
+     "template": "import textwrap\n\nlines = textwrap.___(paragraph, width=30)\nprint(len(lines))\nprint(textwrap.___(paragraph, width=30, placeholder=\" ...\"))",
+     "blanks": [
+      "wrap",
+      "shorten"
+     ],
+     "concepts": [
+      "textwrap",
+      "reading-documentation"
+     ],
+     "tags": [
+      "textwrap"
+     ],
+     "explain": "`wrap` gives you a list, which is why `len` on it is a sensible question at all; `fill` would have given one string and `len` would have counted characters. Choosing between two nearly identical functions on their return type is exactly the habit this floor is training."
+    }
+   },
+   {
+    "title": "Counter and defaultdict: the Two That Pay Back Today",
+    "body": "`collections` holds a handful of containers that are ordinary dictionaries with one annoyance removed, and two of them will change code you write this week. **`Counter`** takes anything you can loop over and hands back a mapping from each item to how many times it appeared. That is the count-then-increment dance you have already written by hand, done once and correctly, plus `most_common(n)` which gives the top `n` as pairs, biggest first.\n\nThe behaviour worth noticing is that a `Counter` returns `0` for a key it has never seen instead of raising `KeyError`. That is deliberate: a thing you have not counted has been counted zero times. It is still a `dict` underneath, so every method you know still works, and `dict(counts)` gives you an ordinary dictionary back when you want one.\n\n**`defaultdict`** removes the other annoyance: the **does this key exist yet** check before appending to a list you are building per key. You hand it a **function** that makes the missing value - `defaultdict(list)`, not `defaultdict([])` - and it calls that function the first time a key is touched. `list`, `int` and `set` are the three you will pass ninety per cent of the time.\n\nThere is a trap, and it is worth meeting now rather than in a debugging session. Merely **reading** a missing key from a `defaultdict` **creates** it. `groups[\"willow\"]` on a fresh `defaultdict(list)` leaves the dictionary one key larger than it was, so any later `len(groups)` or loop over its keys quietly disagrees with what you expected. That is also the reason not to reach for one everywhere: when a missing key means a bug in your program, `KeyError` is a gift, and a `defaultdict` throws it away.",
+    "code": "from collections import Counter, defaultdict\n\nrunes = [\"ansuz\", \"ur\", \"ansuz\", \"thurs\", \"ur\", \"ansuz\"]\ncounts = Counter(runes)\nprint(counts[\"ansuz\"], counts[\"eihwaz\"])\nprint(counts.most_common(2))\n\nby_length = defaultdict(list)\nfor rune in runes:\n    by_length[len(rune)].append(rune)\nprint(dict(by_length))\nprint(len(by_length))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "A key never counted gives `0`, not `KeyError`. Convenient here, and a real risk when a typo in a key name silently reads as zero."
+     },
+     {
+      "line": 6,
+      "text": "`most_common(2)` returns pairs, largest count first. Equal counts keep the order the items were first seen."
+     },
+     {
+      "line": 9,
+      "text": "The first time a length is touched, `list` is called to make the missing value, so `.append` always has something to append to."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? The last two lines are the ones to think about.",
+     "code": "from collections import Counter, defaultdict\n\nvotes = [\"elm\", \"ash\", \"elm\", \"oak\", \"ash\", \"elm\"]\ntally = Counter(votes)\nprint(tally.most_common(1))\nprint(tally[\"willow\"])\n\ngroups = defaultdict(list)\ngroups[\"ash\"].append(1)\nprint(len(groups))\nprint(groups[\"willow\"])\nprint(len(groups))",
+     "lang": "python",
+     "answer": "[('elm', 3)]\n0\n1\n[]\n2",
+     "concepts": [
+      "collections"
+     ],
+     "tags": [
+      "collections"
+     ],
+     "explain": "The final `2` is the whole point: reading `groups[\"willow\"]` did not just report an empty list, it inserted one. Expecting `1` there is the natural answer and the reason this bites people in code that counts keys after a lookup."
+    }
+   },
+   {
+    "title": "Arithmetic You Should Not Be Writing Yourself",
+    "body": "Two modules exist because two kinds of arithmetic are famously easy to get subtly wrong. **`itertools`** owns the arithmetic of positions: running totals, every adjacent pair, every combination of a certain size, chaining sequences end to end. Each of those is a loop with index bookkeeping, and index bookkeeping is where off-by-one lives. `accumulate` gives running totals, `pairwise` gives each item with the one after it, `combinations(items, 2)` gives every unordered pair exactly once, and `chain` walks several sequences as though they were one.\n\nThese return **iterators**, not lists. Printing one shows something like `<itertools.accumulate object>` rather than the values, and looping over it a second time yields nothing at all, because the first loop consumed it. Wrap it in `list(...)` when you want to look at it or use it twice. That single fact accounts for most of the confusion beginners have with the module.\n\n**`datetime`** owns the arithmetic of the calendar, which is worse. February has a length that depends on the year, months are not thirty days, and no amount of care makes multiplication correct. `date(2024, 2, 27)` is a value you can subtract from another date; the result is a `timedelta`, and `.days` pulls the number out. Adding `timedelta(days=3)` crosses the end of February without you knowing whether it had 28 days or 29. `date.fromisoformat(\"2024-03-01\")` parses the standard written form, and `.isoformat()` writes it back.\n\nThe trap in `datetime` has a name: a **naive** datetime is one with no timezone attached, which is what `datetime.now()` gives you. It does not know whether it means UTC or local time, so nothing can reliably compare it with a timestamp from anywhere else - and Python raises `TypeError` if you try to subtract an aware datetime from a naive one. Dates alone are safe. The moment your program handles **times** that came from elsewhere, attach the timezone or write down which one you meant.",
+    "code": "import itertools\nfrom datetime import date, timedelta\n\nreadings = [3, 1, 4, 1, 5]\nprint(list(itertools.accumulate(readings)))\nprint(list(itertools.pairwise(readings)))\nprint(list(itertools.combinations([\"ash\", \"birch\", \"elm\"], 2)))\n\nstart = date(2024, 2, 27)\nprint(start + timedelta(days=3))\nprint((date(2024, 3, 1) - start).days)\nprint((date(2023, 3, 1) - date(2023, 2, 27)).days)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`accumulate` yields running totals: 3, then 3+1, then 3+1+4. `list(...)` is needed to see them, because the iterator is not a list."
+     },
+     {
+      "line": 6,
+      "text": "`pairwise` gives every adjacent pair - four pairs from five readings, never five. Writing that loop by hand is where the off-by-one comes from."
+     },
+     {
+      "line": 12,
+      "text": "2023 is not a leap year, so the same two dates are 2 days apart rather than 3. No hand-written formula gets this right for free."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so the program prints the running totals `[2, 5, 10]` and then the number `29`, the length of February 2024.",
+     "template": "import itertools\nfrom datetime import date\n\nprint(list(itertools.___([2, 3, 5])))\nprint((date(2024, 3, 1) - date(2024, 2, 1)).___)",
+     "blanks": [
+      "accumulate",
+      "days"
+     ],
+     "concepts": [
+      "itertools",
+      "datetime"
+     ],
+     "tags": [
+      "itertools",
+      "datetime"
+     ],
+     "explain": "Subtracting two dates gives a `timedelta`, not a number, so the `.days` is not decoration - printing the `timedelta` itself would show `29 days, 0:00:00`. And 29 is the answer only because the calendar was consulted rather than assumed."
+    }
+   },
+   {
+    "title": "Describing a Shape Instead of Scanning for It",
+    "body": "The last two modules solve the same kind of problem from opposite ends: instead of scanning character by character for the thing you want, you **describe its shape** and let the module do the scanning. **`re`** describes the shape of text. `\\d` means a digit, `+` means one or more of the thing before it, `[A-Z]` means one character from that range, `{3}` means exactly three. So `r\"OR-\\d+\"` describes the literal letters `OR`, a hyphen, then at least one digit.\n\nThree functions cover most needs. `re.findall(pattern, text)` returns every match as a list. `re.search` returns the **first** match as an object, with `.group(0)` for the whole match and `.group(1)` for whatever the first pair of round brackets captured. `re.sub(pattern, replacement, text)` replaces. The one that catches everybody is `re.match`, which anchors at the **start** of the text and returns `None` otherwise - it is not the general search it sounds like. Always write patterns as raw strings, `r\"...\"`, so the backslashes reach the module rather than being eaten as escape sequences.\n\nKeep `re` modest. It is superb for a shape you can describe in a dozen characters and awful for anything with nesting or a real grammar - HTML, source code, arbitrary human names. If your pattern has grown past a line and you can no longer read it, that is the module telling you the job belongs to ordinary string methods or a proper parser.\n\n**`argparse`** describes the shape of a command line. You declare what your program accepts - a positional argument, an option with `--`, a type to convert it to, a default, a flag that is simply present or absent - and `parse_args` hands back an object with one attribute per argument, already converted. In return it generates `--help` for you and rejects a malformed command line with a real message. Hand-rolled `sys.argv` slicing does none of that and breaks the first time somebody passes the options in a different order.",
+    "code": "import argparse\nimport re\n\nline = \"order OR-119 shipped, order OR-7 pending\"\nprint(re.findall(r\"OR-\\d+\", line))\nprint(re.search(r\"OR-(\\d+)\", line).group(1))\nprint(re.match(r\"order\", line) is None, re.match(r\"OR\", line) is None)\n\nparser = argparse.ArgumentParser(prog=\"tally\")\nparser.add_argument(\"path\")\nparser.add_argument(\"--limit\", type=int, default=10)\nparser.add_argument(\"--verbose\", action=\"store_true\")\nargs = parser.parse_args([\"notes.txt\", \"--limit\", \"3\"])\nprint(args.path, args.limit, args.verbose)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "`findall` returns a list of the matched text, in order. An empty list means no match - it never returns `None`."
+     },
+     {
+      "line": 7,
+      "text": "`match` anchors at position zero, so searching for `order` succeeds and `OR` fails even though `OR-119` is plainly in the line. This prints `False True`."
+     },
+     {
+      "line": 13,
+      "text": "`type=int` converts for you, so `args.limit` is the integer 3 and not the text `\"3\"`. Forgetting this is why hand-parsed command lines compare a string with a number."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? Watch the character ranges carefully.",
+     "code": "import re\n\nlabel = \"Ash-9 birch-12 ELM-3\"\nprint(re.findall(r\"[a-z]+\", label))\nprint(re.findall(r\"[A-Za-z]+-\\d+\", label))\nprint(re.sub(r\"\\d+\", \"#\", label))",
+     "lang": "python",
+     "answer": "['sh', 'birch']\n['Ash-9', 'birch-12', 'ELM-3']\nAsh-# birch-# ELM-#",
+     "concepts": [
+      "re"
+     ],
+     "tags": [
+      "re"
+     ],
+     "explain": "`[a-z]` is lower case only, so `Ash` contributes `sh` and `ELM` contributes nothing at all - the pattern matched a fragment rather than failing, which is what makes case mistakes in patterns so quiet. The second line shows the same text described properly."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-17-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? It uses `Counter` and `defaultdict` from `collections`.",
+   "code": "from collections import Counter, defaultdict\n\nwords = [\"ink\", \"quill\", \"ink\", \"vellum\", \"quill\", \"ink\"]\nseen = Counter(words)\nprint(seen[\"ink\"], seen[\"chalk\"])\nprint(seen.most_common(2))\n\nfirst_letter = defaultdict(list)\nfor w in words:\n    first_letter[w[0]].append(w)\nprint(first_letter[\"i\"])\nprint(sorted(first_letter))",
+   "lang": "python",
+   "answer": "3 0\n[('ink', 3), ('quill', 2)]\n['ink', 'ink', 'ink']\n['i', 'q', 'v']",
+   "concepts": [
+    "collections"
+   ],
+   "tags": [
+    "collections"
+   ],
+   "hint": "A `Counter` gives `0` for a key it never saw. `most_common(2)` returns pairs of (item, count), largest first. `sorted` over a dictionary walks its keys.",
+   "explain": "`seen[\"chalk\"]` is the line that decides whether you have understood `Counter`: a missing key reads as zero rather than raising, so nothing warns you when the key was a typo. The third line prints three copies because every `ink` was appended, not one because the key exists once.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "wrap_notice",
+   "prompt": "Write `wrap_notice(text, width)`. It returns a **list** of lines, each no wider than `width` characters, with the words of `text` filled onto as few lines as possible.\n\nUse `textwrap`, and pick the function whose return type is already a list rather than converting one yourself.\n\n`wrap_notice(\"a bb ccc dddd\", 4)` gives `[\"a bb\", \"ccc\", \"dddd\"]`",
+   "starterCode": "import textwrap\n\n\ndef wrap_notice(text, width):\n    pass\n",
+   "solution": "import textwrap\n\n\ndef wrap_notice(text, width):\n    return textwrap.wrap(text, width=width)\n",
+   "tests": [
+    {
+     "input": "'the sigil is drawn in nine strokes', 12",
+     "expected": [
+      "the sigil is",
+      "drawn in",
+      "nine strokes"
+     ]
+    },
+    {
+     "input": "'short', 12",
+     "expected": [
+      "short"
+     ]
+    },
+    {
+     "input": "'a bb ccc dddd', 4",
+     "expected": [
+      "a bb",
+      "ccc",
+      "dddd"
+     ]
+    },
+    {
+     "input": "'', 10",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "textwrap",
+    "reading-documentation"
+   ],
+   "tags": [
+    "textwrap"
+   ],
+   "hint": "`textwrap.wrap(text, width=width)` returns the list. Its twin `textwrap.fill` returns one string with newlines in it, which would fail every test.",
+   "explain": "The empty text is the case that rewards reading the documentation instead of guessing: `wrap` returns an empty list rather than a list holding one empty string, because there are no words to place. A hand-written splitter almost always returns `[\"\"]` there.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "running_totals",
+   "prompt": "Write `running_totals(numbers)`. It returns a list where each entry is the sum of every number up to and including that position.\n\nUse `itertools.accumulate`, and remember it returns an iterator rather than a list.\n\n`running_totals([1, 2, 3, 4])` gives `[1, 3, 6, 10]`",
+   "starterCode": "import itertools\n\n\ndef running_totals(numbers):\n    pass\n",
+   "solution": "import itertools\n\n\ndef running_totals(numbers):\n    return list(itertools.accumulate(numbers))\n",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      1,
+      3,
+      6,
+      10
+     ]
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[3, -1, 2]",
+     "expected": [
+      3,
+      2,
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "itertools"
+   ],
+   "tags": [
+    "itertools"
+   ],
+   "hint": "`list(itertools.accumulate(numbers))`. Returning the accumulate object itself serialises as an object, not as the values.",
+   "explain": "The empty list is the edge that separates `accumulate` from a hand-written loop that seeds a total at zero: `accumulate([])` yields nothing, so the answer is `[]`, whereas the hand-written version often emits a stray leading `0`. Negative numbers are included to stop anyone assuming a running total only grows.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "days_between",
+   "prompt": "Write `days_between(start, end)`. Both arguments are dates written as `\"YYYY-MM-DD\"`. Return the whole number of days from `start` to `end`, negative when `end` is the earlier of the two.\n\nUse `datetime.date`: `date.fromisoformat` parses that written form, and subtracting two dates gives a `timedelta`.\n\n`days_between(\"2024-02-27\", \"2024-03-01\")` gives `3`",
+   "starterCode": "from datetime import date\n\n\ndef days_between(start, end):\n    pass\n",
+   "solution": "from datetime import date\n\n\ndef days_between(start, end):\n    return (date.fromisoformat(end) - date.fromisoformat(start)).days\n",
+   "tests": [
+    {
+     "input": "'2024-02-27', '2024-03-01'",
+     "expected": 3
+    },
+    {
+     "input": "'2023-02-27', '2023-03-01'",
+     "expected": 2
+    },
+    {
+     "input": "'2024-05-01', '2024-05-01'",
+     "expected": 0
+    },
+    {
+     "input": "'2024-05-10', '2024-05-01'",
+     "expected": -9
+    }
+   ],
+   "concepts": [
+    "datetime"
+   ],
+   "tags": [
+    "datetime"
+   ],
+   "hint": "`date.fromisoformat(end) - date.fromisoformat(start)` gives a `timedelta`; `.days` is the number. Subtracting the strings themselves is a TypeError.",
+   "explain": "The first two tests are the same two calendar dates in different years and deliberately give different answers, because 2024 is a leap year and 2023 is not. Any arithmetic on the day numbers alone gets one of them wrong, which is precisely why the module exists.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "find_codes",
+   "prompt": "Write `find_codes(text)`. A code is two upper-case letters, a hyphen, then exactly three digits. Return every code in the text, in order, as a list of strings, and an empty list when there are none.\n\nUse `re.findall` with a raw-string pattern.\n\n`find_codes(\"ship OR-119 and QP-007 today\")` gives `[\"OR-119\", \"QP-007\"]`",
+   "starterCode": "import re\n\n\ndef find_codes(text):\n    pass\n",
+   "solution": "import re\n\n\ndef find_codes(text):\n    return re.findall(r\"[A-Z]{2}-\\d{3}\", text)\n",
+   "tests": [
+    {
+     "input": "'ship OR-119 and QP-007 today'",
+     "expected": [
+      "OR-119",
+      "QP-007"
+     ]
+    },
+    {
+     "input": "'nothing here'",
+     "expected": []
+    },
+    {
+     "input": "'AB-12 AB-123'",
+     "expected": [
+      "AB-123"
+     ]
+    },
+    {
+     "input": "'zz-999 ZZ-999'",
+     "expected": [
+      "ZZ-999"
+     ]
+    }
+   ],
+   "concepts": [
+    "re"
+   ],
+   "tags": [
+    "re"
+   ],
+   "hint": "`r\"[A-Z]{2}-\\d{3}\"`. `{2}` and `{3}` mean exactly that many, and `[A-Z]` is upper case only.",
+   "explain": "`AB-12` must be rejected and `zz-999` must be rejected, so a loose pattern such as `\\w+-\\d+` passes the happy case and fails both edges. Describing exactly what you mean, rather than roughly what you mean, is the whole discipline of writing a pattern.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-gp-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "parse",
+   "prompt": "Write `parse(argv)`, where `argv` is a list of command-line words. The program accepts one required path, an optional `--limit` that is a whole number defaulting to `10`, and a `--verbose` flag that is simply present or absent.\n\nReturn a dictionary with the keys `\"path\"`, `\"limit\"` and `\"verbose\"`.\n\nUse `argparse`: build a parser, add the three arguments, and call `parser.parse_args(argv)` on the list you were given rather than on the real command line.\n\n`parse([\"--limit\", \"3\", \"notes.txt\"])` gives `{\"path\": \"notes.txt\", \"limit\": 3, \"verbose\": False}`",
+   "starterCode": "import argparse\n\n\ndef parse(argv):\n    parser = argparse.ArgumentParser(prog=\"tally\")\n    parser.add_argument(\"path\")\n    # add --limit and --verbose here\n    args = parser.parse_args(argv)\n    return {}\n",
+   "solution": "import argparse\n\n\ndef parse(argv):\n    parser = argparse.ArgumentParser(prog=\"tally\")\n    parser.add_argument(\"path\")\n    parser.add_argument(\"--limit\", type=int, default=10)\n    parser.add_argument(\"--verbose\", action=\"store_true\")\n    args = parser.parse_args(argv)\n    return {\"path\": args.path, \"limit\": args.limit, \"verbose\": args.verbose}\n",
+   "tests": [
+    {
+     "input": "['notes.txt']",
+     "expected": {
+      "path": "notes.txt",
+      "limit": 10,
+      "verbose": false
+     }
+    },
+    {
+     "input": "['--limit', '3', 'notes.txt']",
+     "expected": {
+      "path": "notes.txt",
+      "limit": 3,
+      "verbose": false
+     }
+    },
+    {
+     "input": "['notes.txt', '--verbose']",
+     "expected": {
+      "path": "notes.txt",
+      "limit": 10,
+      "verbose": true
+     }
+    },
+    {
+     "input": "['--verbose', '--limit', '0', 'x.txt']",
+     "expected": {
+      "path": "x.txt",
+      "limit": 0,
+      "verbose": true
+     }
+    }
+   ],
+   "concepts": [
+    "argparse"
+   ],
+   "tags": [
+    "argparse"
+   ],
+   "hint": "`parser.add_argument(\"--limit\", type=int, default=10)` and `parser.add_argument(\"--verbose\", action=\"store_true\")`. Read the attributes back off `args` by name.",
+   "explain": "`--limit 0` is the test that punishes a hand-rolled parser, because the natural `if limit:` check treats a real zero as a missing value; `argparse` distinguishes absent from present-and-zero for you. The last case also puts the options before the positional, which order-based slicing of `argv` cannot survive.",
+   "xp": 75
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-17-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "most_frequent",
+   "prompt": "Write `most_frequent(words)`. It is given a non-empty list of words and returns the word that appears the most times. If two words appear equally often, return whichever of them appeared first in the list.\n\n`most_frequent([\"ink\", \"quill\", \"ink\"])` gives `\"ink\"`",
+   "solution": "from collections import Counter\n\n\ndef most_frequent(words):\n    return Counter(words).most_common(1)[0][0]\n",
+   "tests": [
+    {
+     "input": "['ink', 'quill', 'ink']",
+     "expected": "ink"
+    },
+    {
+     "input": "['a', 'b', 'b', 'a']",
+     "expected": "a"
+    },
+    {
+     "input": "['solo']",
+     "expected": "solo"
+    },
+    {
+     "input": "['x', 'y', 'z']",
+     "expected": "x"
+    }
+   ],
+   "concepts": [
+    "collections"
+   ],
+   "tags": [
+    "collections"
+   ],
+   "explain": "The tie rule is the interesting half: counting into a plain dictionary and then taking the maximum works only because insertion order is preserved and `max` keeps the first of equal values - reverse-sorting by count instead quietly returns the wrong word on `['a', 'b', 'b', 'a']`. The all-distinct case is the same rule in disguise.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "all_pairs",
+   "prompt": "Write `all_pairs(names)`. Return every possible pairing of two different names, each pairing once only, as a list of two-item lists. Pair each name with every name that comes after it in the input, working left to right.\n\n`all_pairs([\"ash\", \"elm\", \"oak\"])` gives `[[\"ash\", \"elm\"], [\"ash\", \"oak\"], [\"elm\", \"oak\"]]`",
+   "solution": "import itertools\n\n\ndef all_pairs(names):\n    return [list(pair) for pair in itertools.combinations(names, 2)]\n",
+   "tests": [
+    {
+     "input": "['ash', 'elm', 'oak']",
+     "expected": [
+      [
+       "ash",
+       "elm"
+      ],
+      [
+       "ash",
+       "oak"
+      ],
+      [
+       "elm",
+       "oak"
+      ]
+     ]
+    },
+    {
+     "input": "['ash', 'elm']",
+     "expected": [
+      [
+       "ash",
+       "elm"
+      ]
+     ]
+    },
+    {
+     "input": "['ash']",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "itertools"
+   ],
+   "tags": [
+    "itertools"
+   ],
+   "explain": "A single name must give nothing back, which is where the hand-written double loop usually goes wrong by pairing an item with itself or by starting the inner loop at zero and producing each pair twice. The ordering asked for is exactly what `itertools.combinations` already guarantees, so recognising that is the shortest correct route.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "minutes_between",
+   "prompt": "Write `minutes_between(start, end)`. Each argument is a moment written as `\"YYYY-MM-DDTHH:MM:SS\"`, always on a whole minute. Return the number of whole minutes from `start` to `end`, negative when `start` is the later of the two. The two moments may fall on different days.\n\n`minutes_between(\"2026-03-01T14:05:00\", \"2026-03-01T15:00:00\")` gives `55`",
+   "solution": "from datetime import datetime\n\n\ndef minutes_between(start, end):\n    delta = datetime.fromisoformat(end) - datetime.fromisoformat(start)\n    return int(delta.total_seconds() // 60)\n",
+   "tests": [
+    {
+     "input": "'2026-03-01T14:05:00', '2026-03-01T15:00:00'",
+     "expected": 55
+    },
+    {
+     "input": "'2026-03-01T14:05:00', '2026-03-01T14:05:00'",
+     "expected": 0
+    },
+    {
+     "input": "'2026-03-01T23:50:00', '2026-03-02T00:10:00'",
+     "expected": 20
+    },
+    {
+     "input": "'2026-03-01T15:00:00', '2026-03-01T14:05:00'",
+     "expected": -55
+    }
+   ],
+   "concepts": [
+    "datetime"
+   ],
+   "tags": [
+    "datetime"
+   ],
+   "explain": "The midnight crossing is the case that kills arithmetic on the hour and minute fields alone: 23:50 to 00:10 comes out as minus 1420 minutes if the day is ignored. Note also that a `timedelta` has a `.days` and a `.seconds` but no `.minutes`, so the total has to come from `total_seconds`, and `.seconds` alone is wrong for anything negative.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "years_in",
+   "prompt": "Write `years_in(text)`. Return every four-digit number appearing in the text, in the order they appear, as a list of strings. A run of digits longer or shorter than four is not a year and must be ignored entirely, including the four-digit pieces inside it.\n\n`years_in(\"born 1815, died 1852\")` gives `[\"1815\", \"1852\"]`",
+   "solution": "import re\n\n\ndef years_in(text):\n    return re.findall(r\"\\b\\d{4}\\b\", text)\n",
+   "tests": [
+    {
+     "input": "'born 1815, died 1852'",
+     "expected": [
+      "1815",
+      "1852"
+     ]
+    },
+    {
+     "input": "'no digits at all'",
+     "expected": []
+    },
+    {
+     "input": "'the code 12345 is not a year'",
+     "expected": []
+    },
+    {
+     "input": "'1999 2001 2001'",
+     "expected": [
+      "1999",
+      "2001",
+      "2001"
+     ]
+    }
+   ],
+   "concepts": [
+    "re"
+   ],
+   "tags": [
+    "re"
+   ],
+   "explain": "`12345` is the edge that decides the answer: any approach that simply looks for four digits in a row happily reports `1234` from inside it, so the boundary on each side has to be stated rather than assumed. Repeats are kept because the question asked for every appearance, not every distinct value.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "rank",
+   "prompt": "Here is an extract from the documentation of a module this floor never mentioned.\n\n**bisect** - array bisection algorithm. This module supports maintaining a list in sorted order without having to sort the list after each insertion.\n\n**bisect.bisect_left(a, x)** - Locate the insertion point for `x` in `a` to maintain sorted order. The returned insertion point `i` partitions the array `a` into two halves so that `all(val < x for val in a[:i])` on the left side and `all(val >= x for val in a[i:])` on the right side.\n\n**bisect.bisect_right(a, x)** - Similar to `bisect_left`, but returns an insertion point which comes **after** any existing entries of `x` in `a`.\n\n**bisect.insort_left(a, x)** - Insert `x` in `a` in sorted order. This function first runs `bisect_left` to locate an insertion point, then runs `a.insert` to insert `x`.\n\nNow write `rank(scores, value)`. `scores` is already sorted from smallest to largest. Return how many scores are **strictly less than** `value`.\n\n`rank([10, 20, 30], 20)` gives `1`",
+   "solution": "import bisect\n\n\ndef rank(scores, value):\n    return bisect.bisect_left(scores, value)\n",
+   "tests": [
+    {
+     "input": "[10, 20, 30], 20",
+     "expected": 1
+    },
+    {
+     "input": "[10, 20, 30], 5",
+     "expected": 0
+    },
+    {
+     "input": "[10, 20, 30], 99",
+     "expected": 3
+    },
+    {
+     "input": "[10, 20, 20, 30], 20",
+     "expected": 1
+    },
+    {
+     "input": "[], 5",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "reading-documentation"
+   ],
+   "tags": [
+    "reading-documentation"
+   ],
+   "explain": "The extract answers the question without ever using the word `rank`: the left half of the partition is described as every value strictly less than `x`, which is exactly what was asked for, so the count is the insertion point itself. The duplicate `20` is what separates the two candidates - `bisect_right` would answer 2 there and pass every other test, which is how a plausible misreading survives a weak test suite.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "summary",
+   "prompt": "Here is an extract from the documentation of another module this floor never mentioned.\n\n**statistics** - mathematical statistics functions.\n\n**statistics.mean(data)** - Return the sample arithmetic mean of `data`, which may be a sequence or an iterable.\n\n**statistics.median(data)** - Return the median (middle value) of numeric data, using the common **mean of middle two** method. If `data` is empty, `StatisticsError` is raised.\n\n**statistics.mode(data)** - Return the single most common data point. If `data` is empty or there is not exactly one most common value, the **first** one encountered is returned.\n\n**statistics.pstdev(data)** - Return the population standard deviation.\n\nNow write `summary(readings)`. `readings` is a non-empty list of numbers. Return a two-item list: the middle value of the readings, then the reading that occurs most often.\n\n`summary([2, 2, 5, 5, 9])` gives `[5, 2]`",
+   "solution": "import statistics\n\n\ndef summary(readings):\n    return [statistics.median(readings), statistics.mode(readings)]\n",
+   "tests": [
+    {
+     "input": "[2, 2, 5, 5, 9]",
+     "expected": [
+      5,
+      2
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4]",
+     "expected": [
+      2.5,
+      1
+     ]
+    },
+    {
+     "input": "[3, 1, 2]",
+     "expected": [
+      2,
+      3
+     ]
+    },
+    {
+     "input": "[5]",
+     "expected": [
+      5,
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "reading-documentation"
+   ],
+   "tags": [
+    "reading-documentation"
+   ],
+   "explain": "Two details in the extract decide three of the four tests: the middle of an even-length list is the mean of the middle two, so `[1, 2, 3, 4]` gives 2.5 and not 2, and a tie for most common resolves to the first one met rather than raising. `[3, 1, 2]` also checks that the data is sorted before the middle is taken, since the middle **position** of the list as given is not the middle **value**.",
+   "xp": 75
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-17-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`groups` is a `defaultdict(list)` that currently holds no keys at all. What is true immediately after the line `value = groups[\"ash\"]` runs?",
+   "choices": [
+    "`value` is a new empty list, and `groups` now contains the key `\"ash\"`.",
+    "`value` is a new empty list, and `groups` still contains no keys.",
+    "`value` is `None`, because the key was never assigned.",
+    "A `KeyError` is raised, exactly as it would be for a plain dictionary."
+   ],
+   "answer": 0,
+   "concepts": [
+    "collections"
+   ],
+   "tags": [
+    "collections"
+   ],
+   "explain": "The default is not merely returned, it is stored, which is what makes `groups[k].append(x)` work at all - the list you append to has to be the one inside the dictionary. The second option is the intuitive reading and the source of the bug where a lookup silently changes the size of the dictionary.",
+   "xp": 15
+  },
+  {
+   "id": "py-17-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "`datetime.now()` returns what the documentation calls a **naive** datetime. What does that mean?",
+   "choices": [
+    "It carries no timezone information, so nothing can tell whether it means UTC or local time, and subtracting an aware datetime from it raises `TypeError`.",
+    "It is accurate only to the nearest second, so fractional seconds are discarded.",
+    "It cannot be compared with another datetime, only formatted as text.",
+    "It is fixed at the moment the module was imported rather than the moment it is called."
+   ],
+   "answer": 0,
+   "concepts": [
+    "datetime"
+   ],
+   "tags": [
+    "datetime"
+   ],
+   "explain": "Naive is about missing timezone information and nothing else - the value is perfectly precise, it simply does not say which clock it came from, and Python refuses to guess when you mix the two kinds. The precision option is the usual confusion, because `now()` looks like it is about resolution.",
+   "xp": 15
+  },
+  {
+   "id": "py-17-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "import itertools\n\nprint(list(itertools.chain([1, 2], [3])))\nprint(list(itertools.accumulate([2, 0, 5])))\nprint(len(list(itertools.combinations(\"abcd\", 2))))\nprint(list(itertools.islice(itertools.count(10), 3)))",
+   "lang": "python",
+   "answer": "[1, 2, 3]\n[2, 2, 7]\n6\n[10, 11, 12]",
+   "concepts": [
+    "itertools"
+   ],
+   "tags": [
+    "itertools"
+   ],
+   "explain": "`accumulate([2, 0, 5])` keeps a value for every input including the zero, so three numbers in give three out - dropping the repeated 2 is the tempting slip. The last line is the reason `count` is safe to use: it is endless, and `islice` is what stops it, so the `list` never has to be infinite.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? One of these four lines is the one people get wrong.",
+   "code": "import re\n\nline = \"ref A12, ref B7\"\nprint(re.findall(r\"[A-Z]\\d+\", line))\nprint(re.search(r\"([A-Z])(\\d+)\", line).groups())\nprint(re.match(r\"[A-Z]\\d+\", line))\nprint(re.sub(r\"ref\", \"REF\", line, count=1))",
+   "lang": "python",
+   "answer": "['A12', 'B7']\n('A', '12')\nNone\nREF A12, ref B7",
+   "concepts": [
+    "re"
+   ],
+   "tags": [
+    "re"
+   ],
+   "explain": "`re.match` anchors at position zero, so it fails even though `A12` is plainly in the line - expecting a match object there is the single commonest misunderstanding of the module. Note too that `.groups()` gives the captures as text, so `'12'` is a string and not the number 12.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks. The program must print the paragraph laid out as one string no wider than 50 characters, then the same paragraph cut to 50 characters ending in an ellipsis, then the paragraph with every line prefixed by `# `.",
+   "template": "import textwrap\n\nprint(textwrap.___(paragraph, width=50))\nprint(textwrap.___(paragraph, width=50, placeholder=\" ...\"))\nprint(textwrap.___(textwrap.fill(paragraph, width=50), \"# \"))",
+   "blanks": [
+    "fill",
+    "shorten",
+    "indent"
+   ],
+   "concepts": [
+    "textwrap"
+   ],
+   "tags": [
+    "textwrap"
+   ],
+   "explain": "`fill` is asked for rather than `wrap` because the requirement says one string - the two functions differ only in return type and choosing between them is the whole exercise. `indent` takes the prefix as its second argument, which is the kind of detail you check in the signature rather than remember.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into the order an experienced programmer follows when they suspect the standard library already solves the problem in front of them.",
+   "fragments": [
+    "State the need in one sentence: what do I have, and what do I want instead?",
+    "Guess which area of the library owns that need, and open the index of modules for it.",
+    "Read the signature of the most promising function: what it takes, what is optional, and what type it returns.",
+    "Try the smallest possible call in the interpreter and look at what actually comes back.",
+    "Write it into the program, with the return type deciding what the next line does."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "reading-documentation"
+   ],
+   "tags": [
+    "reading-documentation"
+   ],
+   "explain": "The sentence comes first because a need you cannot state in one line cannot be searched for, and the tiny experiment comes before the real code because the documentation tells you the contract while the interpreter tells you the shape of the actual value. Writing the call into the program first and running the whole thing to see what happened is the slow order, however natural it feels.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-x-07",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You have a list of log lines and you need to know which minute of the day had the most lines in it. You are fairly sure the standard library has most of the pieces. Describe, in your own words, how you would establish that in a few minutes without writing the whole thing first: what you would search for, what you would read on the page you found, and what you would run before committing to it.",
+   "rubric": {
+    "required": [
+     "signature",
+     "return",
+     "example",
+     "module"
+    ],
+    "optional": [
+     "documentation",
+     "interpreter",
+     "type",
+     "default",
+     "help",
+     "dir",
+     "smallest"
+    ],
+    "forbidden": [],
+    "minWords": 40
+   },
+   "concepts": [
+    "reading-documentation"
+   ],
+   "tags": [
+    "reading-documentation"
+   ],
+   "explain": "The answer that matters names a procedure rather than a module: state the need, find candidates, read the signature and especially the return type, then run one tiny example before the code depends on it. Naming `Counter` and `datetime` is a good sign, but somebody who can only name modules they already know has not gained the capability this floor is about.",
+   "xp": 30
+  },
+  {
+   "id": "py-17-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "joined",
+   "prompt": "Write `joined(argv)`, where `argv` is a list of command-line words. The program takes one or more words as positional arguments and an optional `--sep`, defaulting to a comma. Return the words joined by the separator.\n\n`joined([\"--sep\", \"|\", \"p\", \"q\"])` gives `\"p|q\"`\n\nThe words may appear before or after the option.",
+   "starterCode": "import argparse\n\n\ndef joined(argv):\n    parser = argparse.ArgumentParser(prog=\"join\")\n    # declare the arguments here\n    args = parser.parse_args(argv)\n    return \"\"\n",
+   "solution": "import argparse\n\n\ndef joined(argv):\n    parser = argparse.ArgumentParser(prog=\"join\")\n    parser.add_argument(\"words\", nargs=\"+\")\n    parser.add_argument(\"--sep\", default=\",\")\n    args = parser.parse_args(argv)\n    return args.sep.join(args.words)\n",
+   "tests": [
+    {
+     "input": "['a', 'b', 'c']",
+     "expected": "a,b,c"
+    },
+    {
+     "input": "['a', 'b', '--sep', ' ']",
+     "expected": "a b"
+    },
+    {
+     "input": "['only']",
+     "expected": "only"
+    },
+    {
+     "input": "['--sep', '|', 'p', 'q']",
+     "expected": "p|q"
+    }
+   ],
+   "concepts": [
+    "argparse"
+   ],
+   "tags": [
+    "argparse"
+   ],
+   "explain": "`nargs=\"+\"` is the piece that has to be looked up: it says one or more, gathers them into a list, and makes the argument required, whereas the default of one value per name would accept only `a` and then choke on `b`. The single-word case checks that one is still enough, which a `nargs=\"*\"` reading would also allow but a hand-written `argv[1:2]` slice would not.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-x-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "run_lengths",
+   "prompt": "Write `run_lengths(text)`. Walk the text once and return a list of two-item lists: each repeated run of the same character, in order, paired with how long that run was.\n\n`run_lengths(\"aaabbc\")` gives `[[\"a\", 3], [\"b\", 2], [\"c\", 1]]`",
+   "starterCode": "import itertools\n\n\ndef run_lengths(text):\n    pass\n",
+   "solution": "import itertools\n\n\ndef run_lengths(text):\n    return [[ch, len(list(group))] for ch, group in itertools.groupby(text)]\n",
+   "tests": [
+    {
+     "input": "'aaabbc'",
+     "expected": [
+      [
+       "a",
+       3
+      ],
+      [
+       "b",
+       2
+      ],
+      [
+       "c",
+       1
+      ]
+     ]
+    },
+    {
+     "input": "'abc'",
+     "expected": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       1
+      ],
+      [
+       "c",
+       1
+      ]
+     ]
+    },
+    {
+     "input": "'zzzz'",
+     "expected": [
+      [
+       "z",
+       4
+      ]
+     ]
+    },
+    {
+     "input": "''",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "itertools"
+   ],
+   "tags": [
+    "itertools"
+   ],
+   "explain": "`itertools.groupby` groups only **adjacent** equal items, which is exactly what a run is - reaching for `Counter` here gives totals across the whole text and gets `\"abcabc\"` wrong. The group it hands you is an iterator that is exhausted as soon as the next group is fetched, so the length has to be taken there and then.",
+   "xp": 75
+  },
+  {
+   "id": "py-17-x-10",
+   "type": "debug",
+   "layer": "application",
+   "fn": "age_in_days",
+   "prompt": "`age_in_days(born, on)` should return the number of days from `born` to `on`, both written as `\"YYYY-MM-DD\"`. It agrees with the calendar for short spans inside one month and drifts everywhere else. Fix it.",
+   "starterCode": "from datetime import date\n\n\ndef age_in_days(born, on):\n    b = date.fromisoformat(born)\n    o = date.fromisoformat(on)\n    return (o.year - b.year) * 365 + (o.month - b.month) * 30 + (o.day - b.day)\n",
+   "solution": "from datetime import date\n\n\ndef age_in_days(born, on):\n    return (date.fromisoformat(on) - date.fromisoformat(born)).days\n",
+   "tests": [
+    {
+     "input": "'2024-02-27', '2024-03-01'",
+     "expected": 3
+    },
+    {
+     "input": "'2000-01-01', '2001-01-01'",
+     "expected": 366
+    },
+    {
+     "input": "'2024-05-01', '2024-05-01'",
+     "expected": 0
+    },
+    {
+     "input": "'1999-12-31', '2000-03-01'",
+     "expected": 61
+    }
+   ],
+   "concepts": [
+    "datetime"
+   ],
+   "tags": [
+    "datetime"
+   ],
+   "explain": "The broken version is not slightly off, it is a different calculation: every month is thirty days and every year 365, so 2000 loses its leap day and February gains two. The repair is to stop doing calendar arithmetic at all and subtract the two dates, letting the module hold the rules about leap years and month lengths that no formula of this shape can encode.",
+   "xp": 75
+  }
+ ]
+}

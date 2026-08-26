@@ -4620,7 +4620,7 @@
      },
      {
       "title": "Equality and Length You Define",
-      "body": "Without help, `==` between two objects asks *are these the same object?*, so two identically built instances come out unequal. Defining **`__eq__`** replaces that with your own rule - usually comparing the attributes that matter - and defining **`__len__`** makes `len(obj)` work.\n\nOne bonus follows for free: an object with `__len__` and no `__bool__` is falsy exactly when its length is zero, so an empty bundle behaves like an empty list in an `if`.\n\nGuard `__eq__` with an `isinstance` check when the object might be compared against unrelated types.",
+      "body": "Without help, `==` between two objects asks **are these the same object?**, so two identically built instances come out unequal. Defining **`__eq__`** replaces that with your own rule - usually comparing the attributes that matter - and defining **`__len__`** makes `len(obj)` work.\n\nOne bonus follows for free: an object with `__len__` and no `__bool__` is falsy exactly when its length is zero, so an empty bundle behaves like an empty list in an `if`.\n\nGuard `__eq__` with an `isinstance` check when the object might be compared against unrelated types.",
       "code": "class Bundle:\n    def __init__(self, items):\n        self.items = list(items)\n\n    def __eq__(self, other):\n        return isinstance(other, Bundle) and self.items == other.items\n\n    def __len__(self):\n        return len(self.items)\n\n\na = Bundle([\"rope\", \"torch\"])\nb = Bundle([\"rope\", \"torch\"])\nprint(a == b)\nprint(a is b)\nprint(len(a))\nprint(bool(a), bool(Bundle([])))",
       "lang": "python",
       "annotations": [
@@ -4850,7 +4850,7 @@
      "code": "class Pair:\n    def __init__(self, a, b):\n        self.a = a\n        self.b = b\n\n\np = Pair(1, 2)\nq = Pair(1, 2)\nprint(p == q)\nprint(p == p)\nprint(p.a == q.a)",
      "lang": "python",
      "answer": "False\nTrue\nTrue",
-     "explain": "Without `__eq__`, `==` on objects means *the same object*, not *the same contents* - so two identically built pairs are unequal while the ints inside them are equal. Value equality is something you opt into.",
+     "explain": "Without `__eq__`, `==` on objects means **the same object**, not **the same contents** - so two identically built pairs are unequal while the ints inside them are equal. Value equality is something you opt into.",
      "concepts": [
       "dunder-eq-len"
      ],
