@@ -2586,7 +2586,31 @@ async function loadDungeonContent(id) {
   if (!res.ok) throw new Error(`content/${id}.json returned ${res.status}`);
   const j = await res.json();
   contentCache[id] = j;
+  backfillCleared(id, j);
   return j;
+}
+
+/* Nothing ever wrote `cleared` until it was fixed, so every floor anybody had
+   already finished still counted as unfinished - and the fix on its own only
+   helps from now on. The evidence was never lost, though: floors[n].solved
+   has been recorded all along. Re-decide each floor against it the first time
+   a dungeon's content is available, which is the first moment we know what
+   that floor even asked for.
+
+   This only ever ADDS floors whose own recorded work satisfies the rule; it
+   cannot clear a floor that was not actually done. */
+function backfillCleared(id, content) {
+  const dg = State.progress[id];
+  if (!dg || !dg.floors || dg.backfilledCleared) return;
+  dg.backfilledCleared = true;
+  const before = (dg.cleared || []).length;
+  (content.floors || []).forEach((f) => Progress.reviewFloor(id, f.n));
+  const gained = (dg.cleared || []).length - before;
+  if (gained) {
+    queueSave();
+    if (State.view === "map") renderMap();
+  }
+  return gained;
 }
 
 
@@ -4268,7 +4292,8 @@ window.__grimoire = { State, renderMap, showView, openModal, closeModal, setSide
                      loadDungeonContent, Progress, Reviews, Profile, Content,
                      bandFor, renderMath, TYPES, gradeRubric, sm2, rankFor,
                      progressOf, openDungeon, updateReadProgress,
-                     ARCHETYPES, Archetypes, renderIdentity, readableOn };
+                     ARCHETYPES, Archetypes, renderIdentity, readableOn,
+                     backfillCleared };
 
 boot();
 </script>
