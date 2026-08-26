@@ -54,6 +54,30 @@ MIN_SECTIONS, MAX_SECTIONS = 2, 4
 MIN_EXAM, MAX_EXAM = 8, 12
 MIN_TESTS = 3
 
+# --- Curriculum Standard (content/_CURRICULUM.md) ---------------------------
+# A floor is a capability checkpoint, so it must say which capability. These
+# are warnings during the retrofit and errors once a dungeon declares
+# "curriculum": 4 - so the corpus can be migrated dungeon by dungeon rather
+# than in one unreviewable sweep.
+STAGES = range(0, 7)
+DESCRIPTION_KEYS = ("what", "why", "enables", "assumes", "assessed")
+
+# A goal states what the learner can DO, so it begins with a verb. This is a
+# blunt check - a stop-list of the openings that mean a topic label was
+# written instead of a capability.
+GOAL_NOT_A_CAPABILITY = re.compile(
+    r"^\s*(?:the\b|a\b|an\b|introduction\b|intro\b|basics\b|overview\b|"
+    r"fundamentals\b|about\b|learn about\b|understanding\b)", re.I)
+
+# Independent practice and boss floors must not hand the learner the
+# technique: recognising that a tool applies is the skill being measured.
+TECHNIQUE_NAMED = re.compile(
+    r"\buse (?:a |an |the )?(?:recursion|recursive|dynamic programming|memoi|"
+    r"binary search|hash (?:map|table|set)|dictionar|stack|queue|heap|trie|"
+    r"union.find|greedy|two.pointer|sliding window|linked list|set\b|"
+    r"comprehension|generator|decorator|regex|regular expression)", re.I)
+NO_TECHNIQUE_STAGES = ("independent-practice", "independent", "trial")
+
 if sys.stdout.isatty() and os.name != "nt" and os.environ.get("TERM") not in (None, "dumb"):
     GREEN, RED, YELLOW, DIM, OFF = ("\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m")
 else:
@@ -203,7 +227,42 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
     return cid, ctype
 
 
-def check_floor(fl, i, total, dungeon_id, discipline, res):
+def check_curriculum(fl, where, res, level):
+    """Standard sections 3, 9, 13: a floor states its aim and its footing.
+
+    `level` is the dungeon's declared curriculum version. Below 4 these are
+    warnings, so an unmigrated dungeon still ships; at 4 they are errors.
+    """
+    say = res.err if level >= 4 else res.warn
+
+    goal = str(fl.get("goal", "")).strip()
+    if not goal:
+        say(where, "no `goal` - a floor must state the capability it confers")
+    elif GOAL_NOT_A_CAPABILITY.match(goal):
+        say(where, "`goal` reads as a topic label, not a capability: %r. "
+                   "Begin with a verb - what can the learner now DO?" % goal[:60])
+
+    stage = fl.get("stage")
+    if stage is None:
+        say(where, "no `stage` - see content/_CURRICULUM.md section 2")
+    elif stage not in STAGES:
+        res.err(where, "stage %r is not 0-6" % stage)
+
+    desc = fl.get("description")
+    if not isinstance(desc, dict):
+        say(where, "no `description` - the learner brief (what, why, enables, "
+                   "assumes, assessed)")
+    else:
+        missing = [k for k in DESCRIPTION_KEYS if not str(desc.get(k, "")).strip()]
+        if missing:
+            say(where, "`description` missing: %s" % ", ".join(missing))
+
+    # floor 1 of a dungeon rests on the dungeon's own prerequisites
+    if fl.get("n") != 1 and level >= 4 and not fl.get("requires"):
+        res.warn(where, "no `requires` - what must be true before this floor?")
+
+
+def check_floor(fl, i, total, dungeon_id, discipline, res, curriculum=3):
     n = fl.get("n")
     where = "%s floor %s" % (dungeon_id, n)
     is_last = (i == total - 1)
@@ -227,6 +286,8 @@ def check_floor(fl, i, total, dungeon_id, discipline, res):
     concepts = fl.get("concepts") or []
     if not concepts:
         res.err(where, "no `concepts` - coverage cannot be measured")
+
+    check_curriculum(fl, where, res, curriculum)
 
     lesson = fl.get("lesson") or {}
     sections = lesson.get("sections") or []
@@ -274,6 +335,15 @@ def check_floor(fl, i, total, dungeon_id, discipline, res):
         for ci, ch in enumerate(items):
             cid, ctype = check_challenge(ch, "%s %s[%d]" % (where, stage, ci),
                                          stage, res, discipline, level, is_last)
+            # Standard 4 and 12: naming the technique turns "recognise that
+            # this applies" into "apply this", which is a different and much
+            # weaker skill.
+            if stage in NO_TECHNIQUE_STAGES or is_last:
+                m = TECHNIQUE_NAMED.search(str(ch.get("prompt", "")))
+                if m:
+                    res.err("%s %s[%d]" % (where, stage, ci),
+                            "names the technique (%r) in a stage that must not - "
+                            "the learner has to recognise it themselves" % m.group(0))
             if cid in seen:
                 res.err("%s %s[%d]" % (where, stage, ci), "duplicate challenge id %r" % cid)
             seen.add(cid)
@@ -352,7 +422,8 @@ def check_dungeon(path, res):
         res.err(name, "no floors")
         return d
     total = d.get("totalFloors") or len(floors)
-    rows = [check_floor(fl, i, total, d.get("id", name), discipline, res)
+    curriculum = d.get("curriculum", 3)
+    rows = [check_floor(fl, i, total, d.get("id", name), discipline, res, curriculum)
             for i, fl in enumerate(floors)]
     # every concept must reach Application somewhere in the dungeon
     declared, applied = set(), set()
