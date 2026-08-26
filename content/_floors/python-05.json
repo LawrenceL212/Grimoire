@@ -1,21 +1,21 @@
 {
  "n": 5,
  "name": "The Turning Stair",
- "stage": 1,
- "cognitiveLevel": "recall",
  "goal": "Repeat work with loops, and choose between counting, accumulating and searching.",
+ "stage": 1,
  "requires": [
   {
    "dungeon": "python",
    "floor": 4
   }
  ],
+ "cognitiveLevel": "recall",
  "description": {
-  "what": "How to make a program do something more than once: the two loops Python gives you, and the three jobs loops are nearly always doing.",
-  "why": "Everything interesting is repetitive. Without a loop you could only write programs whose length grows with the amount of work they do, so processing a hundred readings would mean writing a hundred lines, and a million would be impossible.",
-  "enables": "Write a program that keeps going until a condition stops being true, that does the same thing to every item in a sequence, and that totals, counts or searches without you knowing in advance how many passes it takes.",
-  "assumes": "You can name a value, work out what an expression evaluates to, and write an `if` with a condition that is either True or False. Nothing else.",
-  "assessed": "You will write loops that run, predict the output of loops written by somebody else, repair a loop that stops one pass too early, and solve problems where nobody tells you which of the three patterns you need."
+  "what": "The two ways Python repeats work - `while`, which keeps going until a condition stops holding, and `for`, which visits each thing in turn - together with `range` and the three jobs that nearly every loop you will ever write is doing.",
+  "why": "Without repetition a program can only be as long as the work it does, so a hundred readings would mean a hundred lines and a million would be impossible; a loop is what lets four lines of source handle an amount of work you did not know in advance.",
+  "enables": "You will be able to keep a program going until something becomes true, visit every character of a piece of text or every number in a counted span, and build a running total, a running count or a first-match answer as you go.",
+  "assumes": "You can store a value under a name and change what it refers to, work out an expression by hand, and write an `if` whose condition is either True or False. Nothing about functions, lists or text methods is needed.",
+  "assessed": "You will predict what loops print, trace a running value pass by pass, repair a loop that stops one pass too early, and write whole programs for problems where nobody tells you which of the three patterns is wanted."
  },
  "concepts": [
   "while",
@@ -35,216 +35,159 @@
  "lesson": {
   "sections": [
    {
-    "title": "Keep going until: the while loop",
-    "body": "Every program so far has run each line once, top to bottom. A **loop** breaks that: it runs the same lines again and again. The first kind is `while`, and it reads exactly as it sounds - while this condition is True, do this again.\n\nA `while` loop has three parts, and leaving any of them out is the classic beginner failure. There is something set up **before** the loop, a **condition** checked before every pass, and something inside the body that **changes** what the condition looks at. The condition is checked first, so a loop whose condition is already False runs zero times - it is not guaranteed to run even once.\n\nIf nothing in the body ever makes the condition False, the loop never ends. That is an **infinite loop**, and it does not crash - the program simply sits there, apparently frozen, forever. You spot one by asking a single question of the body: which line moves me closer to the condition being False? If you cannot point at that line, you have written an infinite loop.\n\nReach for `while` when you do not know in advance how many passes it will take. Halving a number until it reaches 1, reading until somebody types `quit`, guessing until the guess is right: the count is not known when the loop starts, only the stopping condition is.",
-    "code": "count = 3\nwhile count > 0:\n    print(count)\n    count = count - 1\nprint(\"lift-off\")",
+    "title": "`while` - keep going until",
+    "body": "A **loop** is an instruction that runs the same block of lines more than once. The first kind, `while`, reads almost as plain English: while this condition holds, do the block again. Python checks the condition, runs the block if it is True, then goes back and checks again - and only when the check comes out False does it move on to the line after the loop.\n\nThe shape is the shape you already know from `if`: a header line ending in a colon, then an indented block. The indentation is what says which lines belong to the loop; the first line back at the outer level is the first line that runs after it.\n\nEverything hangs on one thing, and it is the thing beginners forget: **something inside the block must change what the condition asks about**. If the block never touches `count`, then `count > 0` is True on the first check and True on every check after it, and the program runs the block forever. That is an **infinite loop**, and the way you spot one is by asking, of every `while` you write, which line makes the condition eventually go False.\n\nUse `while` when you do not know in advance how many passes there will be - keep asking until the answer is right, keep reading until the word `stop` arrives, keep halving until the number reaches 1.",
+    "code": "count = 3\nwhile count > 0:\n    print(count)\n    count = count - 1\nprint(\"go\")",
     "lang": "python",
     "annotations": [
      {
-      "line": 1,
-      "text": "The set-up. The name the condition depends on has to exist, and hold a sensible starting value, before the loop is reached."
-     },
-     {
       "line": 2,
-      "text": "The condition is checked HERE, before every pass including the first. If `count` had started at 0 the body would never run at all."
+      "text": "The condition is checked BEFORE each pass. If `count` had started at 0 the block would never run even once."
      },
      {
       "line": 4,
-      "text": "The line that makes the loop finish. Delete it and `count` stays 3 for ever, the condition stays True for ever, and the program prints 3 until you kill it."
+      "text": "This is the line that makes the loop end. Delete it and the program prints 3 forever."
      },
      {
       "line": 5,
-      "text": "Reached only once the condition is False. Execution leaves the loop and carries on down the file as normal."
-     }
-    ],
-    "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "fn": "steps_to_zero",
-     "prompt": "Starting from a whole number `n`, you repeatedly subtract 3 until the value is 0 or less. Write `steps_to_zero(n)` returning how many subtractions that takes. `steps_to_zero(10)` is 4, because 10 goes to 7, then 4, then 1, then -2.",
-     "starterCode": "def steps_to_zero(n):\n    steps = 0\n    # keep subtracting while there is still something left\n    return steps\n",
-     "tests": [
-      {
-       "input": "10",
-       "expected": 4
-      },
-      {
-       "input": "3",
-       "expected": 1
-      },
-      {
-       "input": "0",
-       "expected": 0
-      }
-     ],
-     "solution": "def steps_to_zero(n):\n    steps = 0\n    while n > 0:\n        n = n - 3\n        steps = steps + 1\n    return steps\n",
-     "hint": "The condition is `n > 0`. Two things change on every pass: `n` gets smaller, and the count gets bigger.",
-     "concepts": [
-      "while"
-     ],
-     "tags": [
-      "while"
-     ],
-     "explain": "The 0 case is the one that catches people: because the condition is tested before the first pass, `steps_to_zero(0)` must give 0, not 1. A loop that always ran once before checking would give the wrong answer here, which is exactly why Python checks first.",
-     "xp": 25
-    }
-   },
-   {
-    "title": "Do this to each: for and range",
-    "body": "The other loop is `for`, and it answers a different question. `while` asks should I go round again?; `for` says here is a run of things, do this to each of them in turn. You do not write the condition and you do not write the update - the `for` handles both, which is why it is much harder to write an accidental infinite loop with one.\n\n`range(n)` produces the whole numbers from 0 up to **but not including** `n`. So `range(3)` gives 0, 1, 2 - three numbers, none of them 3. That is a **half-open** interval: the start is included, the end is not. `range(1, 4)` gives 1, 2, 3, starting where you say and still stopping short of the end.\n\nHalf-open looks like a trap and is really a kindness: `range(n)` always produces exactly `n` numbers, and `range(a, b)` always produces exactly `b - a` of them, with no arithmetic for you to get wrong. The cost is the single commonest bug in programming, the **off-by-one error** - you wanted the numbers 1 to 10 and wrote `range(1, 10)`, which stops at 9. To include 10, you write `range(1, 11)`.\n\nA `for` loop is not limited to numbers. `for letter in \"cat\"` hands you `\"c\"`, then `\"a\"`, then `\"t\"` - one character at a time, in order. Whenever the things you are working through already exist, use `for`; save `while` for when the stopping point is a condition rather than a run of items.",
-    "code": "for i in range(3):\n    print(\"pass\", i)\n\nfor i in range(1, 4):\n    print(\"counting\", i)\n\nfor letter in \"cat\":\n    print(letter)",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 1,
-      "text": "`i` is created by the loop itself and takes a new value on each pass: 0, then 1, then 2. You never assign to it and you never test it."
-     },
-     {
-      "line": 4,
-      "text": "Two numbers in the brackets means start and stop. This runs 3 times - 4 minus 1 - and the value 4 never appears."
-     },
-     {
-      "line": 7,
-      "text": "The same `for` over text instead of numbers: `letter` is a one-character piece of text on each pass. Anything Python can hand out one item at a time works here."
+      "text": "Back at the outer indentation, so this runs once, after the loop has finished - not once per pass."
      }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "Exactly what does this print, one value per line?\n\n`for i in range(2, 6):`\n`    print(i)`",
-     "answer": "2\n3\n4\n5",
+     "prompt": "What does this program print? Write every line.",
+     "code": "n = 1\nwhile n < 20:\n    print(n)\n    n = n * 3",
+     "lang": "python",
+     "answer": "1\n3\n9",
      "concepts": [
-      "range",
-      "for"
+      "while"
      ],
      "tags": [
-      "range",
-      "off-by-one",
-      "for"
+      "while"
      ],
-     "explain": "Four lines, not five: the start 2 is included and the stop 6 is not, so the count is 6 minus 2. Writing 6 on a last line is the off-by-one reflex - the number in the stop position is where the loop halts, never a value it hands you.",
-     "xp": 20
+     "explain": "The check happens before each pass, so 9 is printed and only then does 27 fail the test - 27 is never printed even though it is the value `n` ends up holding. Expecting a fourth line of 27 means you are picturing the condition being checked after the block rather than before it."
     }
    },
    {
-    "title": "The three jobs a loop is nearly always doing",
-    "body": "Almost every loop you will ever write is one of three shapes. Learning to name them is worth more than learning any syntax, because once you can name what a loop is doing you can write it without thinking about the mechanics.\n\n**Accumulate.** You want one value built out of many. Create the running result before the loop, add to it on every pass, and read it after. The starting value matters and is not always 0: for a running total it is 0, because adding 0 changes nothing; for a running product it must be 1, for exactly the same reason.\n\n**Count.** How many items satisfy some test? This is accumulating by 1 instead of by the item, guarded by an `if`. Start at 0, and add 1 each time the test passes. In the example, `ch in \"aeiou\"` is a test that asks whether that one character appears anywhere in that piece of text, which is a tidier way to write five `==` comparisons joined by `or`.\n\n**Search.** Which is the first item satisfying some test? Here you want to stop the moment you find it, because the answer cannot change afterwards and because the item you are looking for might be the first out of a million. You also need an answer prepared in advance for the case where nothing matches at all - a search that finds nothing must still hand back something honest, and deciding what that is before you write the loop saves a crash later.",
-    "code": "total = 0\nfor n in range(1, 6):\n    total = total + n\nprint(\"total\", total)\n\nvowels = 0\nfor ch in \"grimoire\":\n    if ch in \"aeiou\":\n        vowels = vowels + 1\nprint(\"vowels\", vowels)\n\nfound = 0\nfor d in range(2, 51):\n    if 51 % d == 0:\n        found = d\n        break\nprint(\"first divisor\", found)",
+    "title": "`for` and `range` - do this to each",
+    "body": "The second kind of loop, `for`, does not ask a question. It is handed a sequence of things and runs its block once for each of them, putting the current one under a name you choose. When it reaches the end of the sequence it stops, so a `for` loop over a finite sequence cannot run forever.\n\nThe commonest sequence to hand it is `range`, which produces a run of whole numbers. `range(3)` gives 0, 1, 2. `range(2, 5)` gives 2, 3, 4. A third argument is the step, and it may be negative: `range(10, 0, -4)` gives 10, 6, 2.\n\nNow the detail that causes more beginner bugs than any other single thing in Python: **the stop value is not included**. `range(2, 5)` stops before 5, and this is called a **half-open** interval. It is why `range(5)` gives you exactly five numbers, and why `range(1, n)` visits every number from 1 up to but not including `n` - so to visit 1 to `n` inclusive you must write `range(1, n + 1)`.\n\nA `for` loop also walks straight over a piece of text, one character at a time, in order. Use `for` when you know what you are visiting; use `while` when you know only when to stop.",
+    "code": "for i in range(3):\n    print(i)\nfor i in range(2, 5):\n    print(i)\nfor i in range(10, 0, -4):\n    print(i)\nfor letter in \"cat\":\n    print(letter)",
     "lang": "python",
     "annotations": [
      {
       "line": 1,
-      "text": "The accumulator, created before the loop. Written inside the loop it would be reset to 0 on every pass and the total would always come out as the last number alone."
+      "text": "One argument means start at 0. Three passes: `i` refers to 0, then 1, then 2."
      },
      {
       "line": 3,
-      "text": "The pattern in one line: the new total is the old total plus this item. Nothing here knows or cares how many passes there will be."
+      "text": "Two arguments are start and stop. 2, 3, 4 - the stop value 5 never appears."
      },
      {
-      "line": 9,
-      "text": "Counting is accumulating by 1, and the `if` is what makes it count only the ones you want."
+      "line": 5,
+      "text": "Three arguments add a step. Counting down: 10, 6, 2, and it stops before 0."
      },
      {
-      "line": 12,
-      "text": "The search answer prepared in advance. If no divisor is ever found, 0 comes out, and 0 is a value no real divisor could be - so the caller can tell the two cases apart."
-     },
-     {
-      "line": 16,
-      "text": "`break` abandons the loop the instant the answer is known. Without it the loop keeps going and `found` ends up holding the LAST divisor, 17, instead of the first."
+      "line": 7,
+      "text": "Text is a sequence of characters, so this runs three times with `letter` referring to `c`, then `a`, then `t`."
      }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "fn": "count_odds",
-     "prompt": "Write `count_odds(n)` returning how many of the whole numbers from 0 up to but not including `n` are odd. `count_odds(10)` is 5, counting 1, 3, 5, 7 and 9.",
-     "starterCode": "def count_odds(n):\n    count = 0\n    # a number is odd when the remainder of dividing it by 2 is 1\n    return count\n",
-     "tests": [
-      {
-       "input": "10",
-       "expected": 5
-      },
-      {
-       "input": "5",
-       "expected": 2
-      },
-      {
-       "input": "0",
-       "expected": 0
-      }
-     ],
-     "solution": "def count_odds(n):\n    count = 0\n    for i in range(n):\n        if i % 2 == 1:\n            count = count + 1\n    return count\n",
-     "hint": "Counting shape: start at 0 before the loop, look at every number `range(n)` gives you, and add 1 to the count when the test passes.",
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? Write every line.",
+     "code": "for i in range(1, 4):\n    print(i * i)",
+     "lang": "python",
+     "answer": "1\n4\n9",
      "concepts": [
-      "accumulator",
       "for",
       "range"
      ],
      "tags": [
-      "accumulator",
-      "range",
-      "for"
+      "for",
+      "range"
      ],
-     "explain": "`count_odds(5)` is 2, not 3, because `range(5)` stops at 4 - the odd numbers it contains are 1 and 3 only. Reading the prompt as 1 to n rather than 0 up to n is what produces the wrong answer here, and that misreading is the off-by-one error in its natural habitat.",
-     "xp": 25
+     "explain": "There are three passes, not four, because the stop value 4 is excluded - so 16 never appears. Writing a fourth line is the exact mistake the half-open interval is designed to catch you out on, and it is worth feeling it here rather than in a program that quietly reports one item too many."
     }
    },
    {
-    "title": "break, continue, and loops that hide their shape",
-    "body": "Two words change the flow inside a loop. `break` leaves the loop entirely, straight away, skipping the rest of the body and every remaining pass. `continue` abandons only the current pass and goes back to the top for the next one. `break` ends the loop; `continue` ends the pass.\n\n`break` earns its place in a search, where carrying on after the answer is known is at best waste and at worst wrong. `continue` earns its place as a guard at the top of a long body - skip the items that do not qualify, and everything below is written without an extra level of indentation. That is the whole argument for it, and it is a weak one when the body is three lines: `if n % 3 == 0:` around a short body says the same thing more directly than `if n % 3 != 0: continue` does.\n\nThe trap is a loop with several `break` and `continue` statements scattered through it. Every one of them is another way out, and to know what such a loop does you have to hold all of them in your head at once. When you find yourself writing the third one, the loop is usually telling you that it is doing two jobs and wants to be split into two.\n\n`while True:` deserves a special mention: a condition that is never False, made survivable only by a `break` inside it. It is honest when the real stopping test can only be made half-way through the body, and it is an infinite loop waiting to happen if that `break` is ever made unreachable. Write the `break` first, before anything else in the body.",
-    "code": "for n in range(1, 11):\n    if n % 3 != 0:\n        continue\n    print(n)\n\nn = 1\nwhile True:\n    n = n * 2\n    if n > 100:\n        break\nprint(\"passed 100 at\", n)",
+    "title": "The three jobs a loop is nearly always doing",
+    "body": "Almost every loop a working programmer writes is one of three shapes, and recognising which one a problem wants is more than half of solving it.\n\n**Accumulate.** Set a name to a starting value before the loop - usually 0 - and on each pass replace it with itself plus something. At the end it holds the total. The starting value matters: begin a total at 0, because 0 plus anything is that thing.\n\n**Count.** The same shape, but you add 1 only when a condition holds, so the name ends up holding how many times that condition was true. A count is an accumulator that adds 1 instead of a value.\n\n**Search.** Set a name to a value meaning *nothing found yet*, then on each pass check whether this is the thing you wanted, and if it is, record it. At the end the name either holds the answer or still holds the not-found value, and both are useful results.\n\nAll three share one rule that is easy to get wrong: **the name is set up before the loop, not inside it**. Put `total = 0` inside the block and it is reset to 0 on every pass, so at the end it holds only the last item rather than the sum of all of them.",
+    "code": "total = 0\nfor i in range(1, 5):\n    total = total + i\nprint(total)\nseen = 0\nfor letter in \"banana\":\n    if letter == \"a\":\n        seen = seen + 1\nprint(seen)",
     "lang": "python",
     "annotations": [
      {
-      "line": 2,
-      "text": "The guard. When the test passes, `continue` sends control back to the top and `print` is never reached on this pass - so only multiples of 3 are printed."
+      "line": 1,
+      "text": "Set up before the loop. Inside it, this line would wipe the total on every pass and the answer would be 4."
      },
      {
-      "line": 7,
-      "text": "A condition that can never be False. This loop depends entirely on the `break` below it; without one, nothing would ever stop it."
+      "line": 3,
+      "text": "The accumulator step: read the old value, add to it, put the label back on the answer. Total after the loop is 10."
      },
      {
-      "line": 10,
-      "text": "`break` leaves the loop immediately, so `n` keeps the value it had when the test passed - 128, the first power of 2 above 100."
+      "line": 5,
+      "text": "A counter starts at 0 too, and this one is asking a question of each character rather than adding it."
      },
      {
-      "line": 11,
-      "text": "Execution resumes here after the `break`, exactly as if the loop had finished naturally. A `break` leaves the loop, not the program."
+      "line": 8,
+      "text": "Add 1, not the item. `banana` holds three letter `a` characters, so this prints 3."
      }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "fn": "count_until_space",
-     "prompt": "Write `count_until_space(text)` returning how many characters appear before the first space. If there is no space at all, that is the length of the whole text. `count_until_space(\"hello world\")` is 5.",
-     "starterCode": "def count_until_space(text):\n    count = 0\n    for ch in text:\n        # stop as soon as this character is a space\n        count = count + 1\n    return count\n",
-     "tests": [
-      {
-       "input": "\"hello world\"",
-       "expected": 5
-      },
-      {
-       "input": "\"abc\"",
-       "expected": 3
-      },
-      {
-       "input": "\" x\"",
-       "expected": 0
-      }
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the two blanks so that this program prints `1` - the number of times the letter `o` appears in `storm`.",
+     "template": "count = ___\nfor letter in \"storm\":\n    if letter == \"o\":\n        count = count ___ 1\nprint(count)",
+     "lang": "python",
+     "blanks": [
+      "0",
+      "+"
      ],
-     "solution": "def count_until_space(text):\n    count = 0\n    for ch in text:\n        if ch == \" \":\n            break\n        count = count + 1\n    return count\n",
-     "hint": "Check for the space before you add to the count, and `break` when you find one. Order matters: adding first would count the space itself.",
+     "concepts": [
+      "accumulator"
+     ],
+     "tags": [
+      "accumulator",
+      "for"
+     ],
+     "explain": "A counter has to start at 0 because it must be correct for text containing no `o` at all, and it has to grow by 1 rather than by the letter, since you are counting occurrences and not adding up characters. Starting at 1 gives an answer that is one too high on every input, which is a bug that looks like an off-by-one but is really a set-up error."
+    }
+   },
+   {
+    "title": "`break`, `continue`, and loops that never end",
+    "body": "Two words change a loop's flow from inside its block. `break` abandons the loop entirely and the program carries on at the first line after it. `continue` abandons only the rest of this pass and goes straight to the next one.\n\n`break` is what makes the deliberate infinite loop useful. `while True` has a condition that never goes False, so on its own it would run forever - but with a `break` inside, it becomes the natural way to say *keep going until something happens that I cannot test in advance*, such as a particular line being typed.\n\nAn accidental infinite loop looks the same and is a bug. The two questions that find one: does anything in the block change what the condition asks about, and does that change move the value towards making the condition False? A loop counting up while it waits for its value to drop below zero satisfies the first question and fails the second.\n\nOne warning about `break`, because it is a common confusion in the exam ahead: `break` and `continue` look similar and behave completely differently. Using `break` where you wanted `continue` does not skip one item, it throws away every item that was still to come.",
+    "code": "for i in range(10):\n    if i == 3:\n        break\n    print(i)\nfor i in range(5):\n    if i == 2:\n        continue\n    print(i)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "Leaves the loop the instant `i` refers to 3, so this loop prints 0, 1, 2 and never sees 3 through 9."
+     },
+     {
+      "line": 7,
+      "text": "Skips the rest of this pass only. The loop keeps running, so 2 is missing from the output but 3 and 4 still appear."
+     },
+     {
+      "line": 8,
+      "text": "Not reached on the pass where `i` refers to 2, because `continue` jumped over it."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "n = 0\nwhile True:\n    n = n + 1\n    if n * n > 20:\n        break\nprint(n)",
+     "lang": "python",
+     "answer": "5",
      "concepts": [
       "break-continue",
-      "search"
+      "while"
      ],
      "tags": [
       "break-continue",
-      "search",
-      "for"
+      "while"
      ],
-     "explain": "The text starting with a space separates a correct answer from a nearly-correct one: the `break` has to come before the `count = count + 1`, or the space itself gets counted and every answer is one too high. Same two statements, different order, different program.",
-     "xp": 25
+     "explain": "`while True` never ends on its own, so the `break` is the only exit and the loop stops on the first `n` whose square passes 20 - that is 5, since 16 is not greater than 20 but 25 is. Answering 4 means you tested `n` itself against 20 rather than `n * n`."
     }
    }
   ]
@@ -252,31 +195,88 @@
  "guided-practice": [
   {
    "id": "py-5-g-01",
-   "type": "code",
-   "layer": "application",
-   "fn": "total_up_to",
-   "prompt": "Write `total_up_to(n)` returning the sum of every whole number from 1 to `n` inclusive. `total_up_to(5)` is 15. If `n` is 0, the sum is 0.",
-   "starterCode": "def total_up_to(n):\n    total = 0\n    for i in range(1, n + 1):\n        pass\n    return total\n",
-   "tests": [
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write every line.",
+   "code": "steps = 0\nwhile steps < 3:\n    print(\"step\", steps)\n    steps = steps + 1\nprint(\"done\", steps)",
+   "lang": "python",
+   "answer": "step 0\nstep 1\nstep 2\ndone 3",
+   "concepts": [
+    "while"
+   ],
+   "tags": [
+    "while"
+   ],
+   "explain": "The counter starts at 0 and the condition stops it at 3, so the loop runs three times and the numbers printed are 0, 1 and 2 - never 3. The final line is outside the loop and runs once, and it shows the value that failed the check, which is why `done 3` is right and `done 2` is the tempting wrong answer.",
+   "hint": "Write down what `steps` refers to before each check of the condition, then say whether the block runs.",
+   "xp": 24
+  },
+  {
+   "id": "py-5-g-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write every line.",
+   "code": "total = 0\nfor i in range(1, 6):\n    total = total + i\n    print(i, total)",
+   "lang": "python",
+   "answer": "1 1\n2 3\n3 6\n4 10\n5 15",
+   "concepts": [
+    "for",
+    "range",
+    "accumulator"
+   ],
+   "tags": [
+    "for",
+    "range",
+    "accumulator"
+   ],
+   "explain": "`range(1, 6)` gives five numbers because the stop value is excluded, and the running total is printed inside the loop, so there are five lines rather than one. Each line shows the total AFTER that number has been added, which is why the first line reads `1 1` and not `1 0`.",
+   "hint": "Keep two columns on paper: the value of `i` on this pass, and the value of `total` after the addition.",
+   "xp": 24
+  },
+  {
+   "id": "py-5-g-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the two blanks so this program prints `5`, `4`, `3`, `2`, `1` on five lines and then stops.",
+   "template": "n = 5\nwhile n ___ 0:\n    print(n)\n    n = n ___ 1",
+   "lang": "python",
+   "blanks": [
+    ">",
+    "-"
+   ],
+   "concepts": [
+    "while",
+    "off-by-one"
+   ],
+   "tags": [
+    "while",
+    "off-by-one"
+   ],
+   "explain": "The condition must exclude 0 or a sixth line appears, and the block must move `n` downwards or the condition never goes False and the program never stops. Writing `>=` is the off-by-one here, and writing `+` is the infinite loop - the two commonest ways a countdown goes wrong.",
+   "hint": "One blank decides where the countdown stops; the other decides whether it stops at all.",
+   "xp": 24
+  },
+  {
+   "id": "py-5-g-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "This loop builds a running total of square numbers. Give the value `total` refers to after each pass of the loop.",
+   "code": "total = 0\nfor i in range(1, 4):\n    total = total + i * i",
+   "lang": "python",
+   "steps": [
     {
-     "input": "5",
-     "expected": 15
+     "label": "after the pass where i is 1",
+     "expected": "1"
     },
     {
-     "input": "1",
-     "expected": 1
+     "label": "after the pass where i is 2",
+     "expected": "5"
     },
     {
-     "input": "0",
-     "expected": 0
-    },
-    {
-     "input": "100",
-     "expected": 5050
+     "label": "after the pass where i is 3",
+     "expected": "14"
     }
    ],
-   "solution": "def total_up_to(n):\n    total = 0\n    for i in range(1, n + 1):\n        total = total + i\n    return total\n",
-   "hint": "This is the accumulator pattern: `total` exists before the loop, grows by `i` on every pass, and is handed back after the loop has finished.",
    "concepts": [
     "accumulator",
     "for",
@@ -284,166 +284,87 @@
    ],
    "tags": [
     "accumulator",
-    "range",
-    "for"
+    "for",
+    "range"
    ],
-   "explain": "The `n + 1` in the range is what makes `n` itself part of the sum, and the 0 case proves the body never runs when `range(1, 1)` is empty - the answer then comes entirely from the accumulator's starting value, which is why that starting value has to be right.",
-   "xp": 60
-  },
-  {
-   "id": "py-5-g-02",
-   "type": "code",
-   "layer": "application",
-   "fn": "count_vowels",
-   "prompt": "Write `count_vowels(text)` returning how many characters of `text` are one of the lower-case vowels a, e, i, o, u. `count_vowels(\"grimoire\")` is 4. Empty text gives 0.",
-   "starterCode": "def count_vowels(text):\n    count = 0\n    for ch in text:\n        pass\n    return count\n",
-   "tests": [
-    {
-     "input": "\"grimoire\"",
-     "expected": 4
-    },
-    {
-     "input": "\"aeiou\"",
-     "expected": 5
-    },
-    {
-     "input": "\"xyz\"",
-     "expected": 0
-    },
-    {
-     "input": "\"\"",
-     "expected": 0
-    }
-   ],
-   "solution": "def count_vowels(text):\n    count = 0\n    for ch in text:\n        if ch in \"aeiou\":\n            count = count + 1\n    return count\n",
-   "hint": "Counting is accumulating by 1 behind an `if`. The test `ch in \"aeiou\"` is True when that one character appears anywhere in that piece of text.",
-   "concepts": [
-    "accumulator",
-    "for"
-   ],
-   "tags": [
-    "accumulator",
-    "for"
-   ],
-   "explain": "Counting differs from totalling only in what you add: 1 for each qualifying item rather than the item itself. The empty text shows why the count is created before the loop - with no passes at all there is still an answer to give.",
-   "xp": 60
-  },
-  {
-   "id": "py-5-g-03",
-   "type": "code",
-   "layer": "application",
-   "fn": "halvings",
-   "prompt": "Write `halvings(n)` returning how many times you can halve the whole number `n` before it reaches 1 or less. Halving throws away any fraction, so 5 halves to 2. `halvings(10)` is 3, because 10 goes to 5, then 2, then 1.",
-   "starterCode": "def halvings(n):\n    count = 0\n    while n > 1:\n        # `n // 2` divides and throws the fraction away\n        pass\n    return count\n",
-   "tests": [
-    {
-     "input": "10",
-     "expected": 3
-    },
-    {
-     "input": "8",
-     "expected": 3
-    },
-    {
-     "input": "1",
-     "expected": 0
-    },
-    {
-     "input": "1024",
-     "expected": 10
-    }
-   ],
-   "solution": "def halvings(n):\n    count = 0\n    while n > 1:\n        n = n // 2\n        count = count + 1\n    return count\n",
-   "hint": "Two things change on every pass: `n` shrinks with `n = n // 2`, and `count` grows by 1. If `n` never changes, the condition never becomes False.",
-   "concepts": [
-    "while",
-    "accumulator"
-   ],
-   "tags": [
-    "while",
-    "accumulator"
-   ],
-   "explain": "This is a `while` rather than a `for` because nothing knows in advance how many passes it takes - that is the whole reason the question is worth asking. The `n` of 1 case confirms the condition is checked before the first pass, giving 0 rather than 1.",
-   "xp": 60
-  },
-  {
-   "id": "py-5-g-04",
-   "type": "code",
-   "layer": "application",
-   "fn": "first_divisor",
-   "prompt": "Write `first_divisor(n)` returning the smallest whole number greater than 1 that divides `n` exactly. `first_divisor(15)` is 3. When nothing below `n` divides it, the answer is `n` itself, so `first_divisor(7)` is 7. You may assume `n` is 2 or more.",
-   "starterCode": "def first_divisor(n):\n    for d in range(2, n + 1):\n        # `n % d == 0` means d divides n exactly\n        pass\n    return n\n",
-   "tests": [
-    {
-     "input": "15",
-     "expected": 3
-    },
-    {
-     "input": "100",
-     "expected": 2
-    },
-    {
-     "input": "7",
-     "expected": 7
-    },
-    {
-     "input": "49",
-     "expected": 7
-    }
-   ],
-   "solution": "def first_divisor(n):\n    for d in range(2, n + 1):\n        if n % d == 0:\n            return d\n    return n\n",
-   "hint": "Search shape: walk the candidates in order and hand back the very first one that passes the test. Returning from inside the loop stops it as surely as `break` does.",
-   "concepts": [
-    "search",
-    "range",
-    "break-continue"
-   ],
-   "tags": [
-    "search",
-    "range",
-    "break-continue"
-   ],
-   "explain": "Stopping at the first match is what makes this a search rather than a scan: keep going and you end up holding `n` itself every time, since `n` always divides `n`. Including `n + 1` as the stop is what lets a prime answer with itself instead of falling off the end with nothing.",
-   "xp": 60
+   "explain": "Each pass reads the old total and writes a new one, so the values grow 1, 5, 14 rather than being replaced by 1, 4, 9. If you wrote the squares themselves you traced the expression on the right of the `+` instead of the name on the left, which is exactly the confusion the accumulator pattern exists to make visible.",
+   "hint": "On each pass work out `i * i` first, then add it to whatever `total` held a moment ago.",
+   "xp": 48
   },
   {
    "id": "py-5-g-05",
-   "type": "debug",
+   "type": "code",
    "layer": "application",
-   "fn": "sum_first",
-   "prompt": "`sum_first(n)` should return the sum of the first `n` whole numbers starting from 1, so `sum_first(5)` is 15. It returns 10 instead. Find and fix the fault.",
-   "starterCode": "def sum_first(n):\n    total = 0\n    for i in range(1, n):\n        total = total + i\n    return total\n",
+   "prompt": "Write a program that reads one typed line holding a whole number `n`, and prints the sum of every whole number from 1 to `n` inclusive. For the typed line `5` it prints `15`, because 1 + 2 + 3 + 4 + 5 is 15. If `n` is 0 there is nothing to add and it prints `0`.",
+   "starterCode": "n = int(input())\ntotal = 0\n# Loop over the numbers 1 to n, adding each one to total.\n# Then print total, once, after the loop has finished.\n",
    "tests": [
     {
      "input": "5",
-     "expected": 15
+     "expected": "15"
     },
     {
      "input": "1",
-     "expected": 1
+     "expected": "1"
     },
     {
      "input": "0",
-     "expected": 0
+     "expected": "0"
     },
     {
-     "input": "10",
-     "expected": 55
+     "input": "100",
+     "expected": "5050"
     }
    ],
-   "solution": "def sum_first(n):\n    total = 0\n    for i in range(1, n + 1):\n        total = total + i\n    return total\n",
-   "hint": "Count the numbers the loop actually visits when `n` is 5. There should be five of them.",
+   "solution": "n = int(input())\ntotal = 0\nfor i in range(1, n + 1):\n    total = total + i\nprint(total)\n",
+   "concepts": [
+    "accumulator",
+    "for",
+    "range",
+    "off-by-one"
+   ],
+   "tags": [
+    "accumulator",
+    "for",
+    "range",
+    "off-by-one"
+   ],
+   "explain": "This is the accumulator pattern with the half-open interval trap attached: `range(1, n)` would leave out `n` itself and every answer would be short by exactly `n`. The `0` test is the one that catches a `while` written with the check in the wrong place, because a loop that runs at least once before checking would print 1 there instead of 0.",
+   "hint": "`range(1, n + 1)` is the span from 1 to `n` inclusive. Set `total` up before the loop and print it after.",
+   "xp": 60
+  },
+  {
+   "id": "py-5-g-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program should read one typed line holding a whole number `n` and print every whole number from 1 to `n` inclusive, one per line - so for the typed line `3` it prints `1`, `2`, `3`. Instead it always stops one number early, and for the typed line `1` it prints nothing at all. Repair it.",
+   "starterCode": "n = int(input())\nfor i in range(1, n):\n    print(i)\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": "1\n2\n3"
+    },
+    {
+     "input": "1",
+     "expected": "1"
+    },
+    {
+     "input": "5",
+     "expected": "1\n2\n3\n4\n5"
+    }
+   ],
+   "solution": "n = int(input())\nfor i in range(1, n + 1):\n    print(i)\n",
    "concepts": [
     "off-by-one",
     "range",
-    "accumulator"
+    "for"
    ],
    "tags": [
     "off-by-one",
     "range",
-    "accumulator"
+    "for"
    ],
-   "explain": "`range(1, n)` stops one short, so the answer is always missing exactly the largest term - 15 minus 5 is the 10 you see. The tempting repair is `range(0, n)`, which visits n numbers again and so looks right, but visits the wrong ones: it adds a harmless 0 at the start and still misses `n` at the end.",
+   "explain": "`range` never produces its stop value, so `range(1, n)` covers 1 up to `n - 1` and the last number is silently lost. The `1` test is the one that makes the fault obvious rather than subtle: `range(1, 1)` is empty, so the whole program prints nothing, and a bug that produces no output at all is much easier to see than one that is quietly short by one.",
+   "hint": "The loop is right about where to start and wrong about where to stop. Compare `range(1, 3)` with the numbers you were asked for.",
    "xp": 60
   }
  ],
@@ -452,428 +373,466 @@
    "id": "py-5-i-01",
    "type": "code",
    "layer": "application",
-   "fn": "digit_sum",
-   "prompt": "Write `digit_sum(n)` returning the sum of the decimal digits of the whole number `n`. `digit_sum(472)` is 13. `digit_sum(0)` is 0. You may assume `n` is 0 or more.",
+   "prompt": "The first typed line holds a whole number saying how many readings follow, and that many typed lines follow it, each holding one whole number. Print the largest of the readings. For the typed lines `3`, `4`, `9` and `2` the program prints `9`. There is always at least one reading.",
    "tests": [
     {
-     "input": "472",
-     "expected": 13
+     "input": "3\n4\n9\n2",
+     "expected": "9"
     },
     {
-     "input": "9",
-     "expected": 9
+     "input": "1\n-7",
+     "expected": "-7"
     },
     {
-     "input": "0",
-     "expected": 0
+     "input": "4\n5\n5\n1\n5",
+     "expected": "5"
     },
     {
-     "input": "1000000",
-     "expected": 1
+     "input": "3\n-4\n-9\n-2",
+     "expected": "-2"
     }
    ],
-   "solution": "def digit_sum(n):\n    total = 0\n    while n > 0:\n        total = total + n % 10\n        n = n // 10\n    return total\n",
+   "solution": "count = int(input())\nbest = int(input())\nseen = 1\nwhile seen < count:\n    value = int(input())\n    if value > best:\n        best = value\n    seen = seen + 1\nprint(best)\n",
    "concepts": [
     "accumulator",
-    "while"
+    "while",
+    "search"
    ],
    "tags": [
     "accumulator",
-    "while"
+    "while",
+    "search"
    ],
-   "explain": "`n % 10` peels off the last digit and `n // 10` removes it, so the number shrinks by one digit per pass and the number of passes is not known in advance. Zero is the case worth checking: the condition fails immediately, no digit is ever peeled, and the answer has to come from the accumulator's starting value.",
+   "explain": "Starting the running best at 0 rather than at the first reading is the fault this problem is built to expose - the all-negative case then prints 0, a number that was never in the data at all. Reading the first value before the loop and comparing the rest against it is the only version that is right for every possible input.",
    "xp": 60
   },
   {
    "id": "py-5-i-02",
    "type": "code",
    "layer": "application",
-   "fn": "smallest_square_over",
-   "prompt": "Write `smallest_square_over(n)` returning the smallest whole number `k` of 1 or more whose square is strictly greater than `n`. `smallest_square_over(15)` is 4, because 4 times 4 is 16. `smallest_square_over(16)` is 5, because 16 is not strictly greater than 16.",
+   "prompt": "Read one typed line of text and print how many of its characters are the letter `e`. For the typed line `sequence` it prints `3`. Text containing no `e` at all prints `0`.",
    "tests": [
     {
-     "input": "15",
-     "expected": 4
+     "input": "sequence",
+     "expected": "3"
     },
     {
-     "input": "16",
-     "expected": 5
+     "input": "xyz",
+     "expected": "0"
     },
     {
-     "input": "0",
-     "expected": 1
+     "input": "eee",
+     "expected": "3"
     },
     {
-     "input": "100",
-     "expected": 11
+     "input": "Eel",
+     "expected": "1"
     }
    ],
-   "solution": "def smallest_square_over(n):\n    k = 1\n    while k * k <= n:\n        k = k + 1\n    return k\n",
+   "solution": "line = input()\ncount = 0\nfor letter in line:\n    if letter == \"e\":\n        count = count + 1\nprint(count)\n",
    "concepts": [
-    "search",
-    "while",
-    "off-by-one"
+    "for",
+    "accumulator"
    ],
    "tags": [
-    "search",
-    "while",
-    "off-by-one"
+    "for",
+    "accumulator"
    ],
-   "explain": "The word strictly is the whole difficulty: with `<` where the comparison needs `<=`, every perfect square gives an answer one too small, and 16 is the case that exposes it. Deciding what the comparison must be before writing the loop is cheaper than discovering it from a failing test.",
+   "explain": "Text is a sequence, so a program can visit it character by character without knowing how long it is - which is what makes one program work for `xyz` and for a thousand-character line alike. The `Eel` test matters because a capital `E` is a different character from a lower-case one, so an answer of 2 there means you assumed a comparison ignores case when it does not.",
    "xp": 60
   },
   {
    "id": "py-5-i-03",
    "type": "code",
    "layer": "application",
-   "fn": "count_words",
-   "prompt": "A sentence has single spaces between its words and no space at either end. Write `count_words(sentence)` returning how many words it contains. `count_words(\"the moon is low\")` is 4. Empty text contains no words at all.",
+   "prompt": "The first typed line holds a word. Exactly five more typed lines follow it. Print the position of the first of those five lines that is equal to the word, counting the first of the five as position 1. If none of the five is equal to the word, print `0`. For the word `cat` followed by `dog`, `cat`, `owl`, `cat` and `bat`, the program prints `2`.",
    "tests": [
     {
-     "input": "\"the moon is low\"",
-     "expected": 4
+     "input": "cat\ndog\ncat\nowl\ncat\nbat",
+     "expected": "2"
     },
     {
-     "input": "\"one\"",
-     "expected": 1
+     "input": "cat\na\nb\nc\nd\ne",
+     "expected": "0"
     },
     {
-     "input": "\"\"",
-     "expected": 0
+     "input": "cat\ncat\ncat\ncat\ncat\ncat",
+     "expected": "1"
     },
     {
-     "input": "\"a b\"",
-     "expected": 2
+     "input": "cat\nx\ny\nz\nw\ncat",
+     "expected": "5"
     }
    ],
-   "solution": "def count_words(sentence):\n    if sentence == \"\":\n        return 0\n    words = 1\n    for ch in sentence:\n        if ch == \" \":\n            words = words + 1\n    return words\n",
+   "solution": "word = input()\nfound = 0\nplace = 1\nwhile place <= 5:\n    line = input()\n    if line == word and found == 0:\n        found = place\n    place = place + 1\nprint(found)\n",
    "concepts": [
-    "accumulator",
-    "off-by-one",
-    "for"
+    "search",
+    "while",
+    "break-continue"
    ],
    "tags": [
-    "accumulator",
-    "off-by-one",
-    "for"
+    "search",
+    "while",
+    "break-continue"
    ],
-   "explain": "There is always one more word than there are separators between them - the fence-post problem, four posts and three gaps. Starting the count at 1 handles it, and the empty sentence is the one place that reasoning breaks, since there are no posts at all, so it needs its own answer before the loop begins.",
+   "explain": "The answer has to be the FIRST match, so a program that keeps overwriting its answer reports 4 instead of 2 on the worked example. Guarding the record with `found == 0`, or leaving the loop the moment a match appears, both fix it - and the not-found case is why the answer needs a starting value that could never be a real position.",
    "xp": 60
   },
   {
    "id": "py-5-i-04",
    "type": "code",
    "layer": "application",
-   "fn": "is_prime",
-   "prompt": "A prime is a whole number of 2 or more that nothing divides exactly except 1 and itself. Write `is_prime(n)` returning `True` when `n` is prime and `False` when it is not. `is_prime(97)` is `True`, and `is_prime(1)` is `False`.",
+   "prompt": "Read one typed line holding a whole number of 1 or more. Print the smallest multiple of that number which is strictly greater than 100. For the typed line `7` it prints `105`. For the typed line `101` it prints `101`, since 101 is itself a multiple of 101 and is already past 100.",
    "tests": [
     {
-     "input": "97",
-     "expected": true
-    },
-    {
-     "input": "9",
-     "expected": false
-    },
-    {
-     "input": "2",
-     "expected": true
+     "input": "7",
+     "expected": "105"
     },
     {
      "input": "1",
-     "expected": false
+     "expected": "101"
     },
     {
-     "input": "0",
-     "expected": false
+     "input": "100",
+     "expected": "200"
+    },
+    {
+     "input": "101",
+     "expected": "101"
     }
    ],
-   "solution": "def is_prime(n):\n    if n < 2:\n        return False\n    for d in range(2, n):\n        if n % d == 0:\n            return False\n    return True\n",
+   "solution": "n = int(input())\nvalue = n\nwhile value <= 100:\n    value = value + n\nprint(value)\n",
    "concepts": [
-    "search",
-    "break-continue",
-    "range"
+    "while",
+    "off-by-one"
    ],
    "tags": [
-    "search",
-    "break-continue",
-    "range"
+    "while",
+    "off-by-one"
    ],
-   "explain": "The answer is False the moment one divisor turns up, and True only once every candidate has been rejected - so the True belongs after the loop, never inside it. Deciding True on the first candidate that fails to divide is the usual wrong answer, and it calls 9 prime because 2 does not divide it.",
+   "explain": "Nobody can say in advance how many steps this takes - one for 101, a hundred for 1 - so the number of passes has to be decided by the condition rather than counted out beforehand. The `100` test is the boundary: strictly greater means 100 itself is not an acceptable answer, and a condition written with `<` instead of `<=` prints it and is wrong by exactly that one case.",
+   "xp": 60
+  },
+  {
+   "id": "py-5-i-05",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Typed lines arrive one at a time. Each line holds either a whole number or the word `stop`. Print the sum of the numbers that arrived before `stop`, and print it as soon as `stop` arrives - nothing after that line matters. For the typed lines `4`, `6` and `stop` the program prints `10`. If `stop` is the very first line it prints `0`.",
+   "tests": [
+    {
+     "input": "4\n6\nstop",
+     "expected": "10"
+    },
+    {
+     "input": "stop",
+     "expected": "0"
+    },
+    {
+     "input": "3\nstop\n99",
+     "expected": "3"
+    },
+    {
+     "input": "-5\n5\nstop",
+     "expected": "0"
+    }
+   ],
+   "solution": "total = 0\nwhile True:\n    line = input()\n    if line == \"stop\":\n        break\n    total = total + int(line)\nprint(total)\n",
+   "concepts": [
+    "break-continue",
+    "while",
+    "accumulator"
+   ],
+   "tags": [
+    "break-continue",
+    "while",
+    "accumulator"
+   ],
+   "explain": "The number of lines is not known before the program runs and is not stated anywhere in the input, so the only thing that can end this loop is the arrival of the sentinel word itself. Converting every line to a number before checking it is the trap: `stop` is not a number, so that order of operations fails on the very line that is supposed to end the program cleanly.",
    "xp": 60
   }
  ],
  "exam": [
   {
-   "id": "py-5-e-01",
-   "type": "output",
+   "id": "py-5-x-01",
+   "type": "mcq",
    "layer": "retrieval",
-   "prompt": "What does this print?\n\n`total = 0`\n`for n in range(4):`\n`    total = total + n`\n`print(total)`",
-   "answer": "6",
+   "prompt": "Which whole numbers does `range(2, 6)` produce, in order?",
+   "choices": [
+    "2, 3, 4, 5, 6",
+    "2, 3, 4, 5",
+    "3, 4, 5, 6",
+    "2, 4, 6"
+   ],
+   "answer": 1,
    "concepts": [
-    "accumulator",
     "range"
    ],
    "tags": [
-    "accumulator",
     "range"
    ],
-   "explain": "`range(4)` hands out 0, 1, 2, 3 and stops short of 4, so the total is 6 rather than the 10 you would get from 1 through 4. The 0 contributes nothing, which is what makes the mistake easy to miss until the numbers are actually added up.",
-   "xp": 24
+   "explain": "The first option is the tempting one because `2, 6` reads like from 2 to 6, and in ordinary English it would be. `range` is half-open: it starts at the first argument and stops BEFORE the second, which is what makes `range(0, 6)` hold exactly six numbers and is the source of nearly every off-by-one error on this floor.",
+   "xp": 12
   },
   {
-   "id": "py-5-e-02",
-   "type": "output",
+   "id": "py-5-x-02",
+   "type": "multi",
    "layer": "retrieval",
-   "prompt": "What does this print?\n\n`n = 10`\n`while n > 0:`\n`    n = n - 4`\n`print(n)`",
-   "answer": "-2",
+   "prompt": "Select every statement that correctly describes `break` or `continue`.",
+   "choices": [
+    "`break` ends the whole loop at once, and the program carries on at the first line after it",
+    "`continue` ends the whole loop at once, and the program carries on at the first line after it",
+    "`continue` abandons the rest of the current pass and goes straight on to the next pass",
+    "`break` abandons the rest of the current pass and goes straight on to the next pass",
+    "A `while True` loop needs a `break` inside it, because its condition never becomes False"
+   ],
+   "answer": [
+    0,
+    2,
+    4
+   ],
    "concepts": [
+    "break-continue",
     "while"
    ],
    "tags": [
+    "break-continue",
     "while"
    ],
-   "explain": "The condition is only checked between passes, never in the middle of one, so the loop overshoots: 10, then 6, then 2, then -2, and only then does the test fail. Answering 2 assumes the loop somehow stops the moment the value would go negative, which nothing in the code does.",
+   "explain": "The two wrong options are the definitions swapped over, which is exactly how this pair is misremembered: both words interrupt the block, and the difference is only whether the loop survives the interruption. Using `break` where `continue` was wanted does not skip one item, it discards every item still to come.",
+   "xp": 12
+  },
+  {
+   "id": "py-5-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? Write every line.",
+   "code": "for i in range(6):\n    if i == 2:\n        continue\n    if i == 4:\n        break\n    print(i)",
+   "lang": "python",
+   "answer": "0\n1\n3",
+   "concepts": [
+    "break-continue",
+    "for",
+    "range"
+   ],
+   "tags": [
+    "break-continue",
+    "for",
+    "range"
+   ],
+   "explain": "2 is skipped but the loop survives, so 3 still appears; 4 ends the loop outright, so 5 never gets a chance. Answering 0, 1, 3, 5 means you read `break` as another skip, and answering 0, 1 means you read `continue` as ending the loop - the output separates the two readings on purpose.",
    "xp": 24
   },
   {
-   "id": "py-5-e-03",
+   "id": "py-5-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "n = 20\nsteps = 0\nwhile n > 1:\n    n = n - 6\n    steps = steps + 1\nprint(n, steps)",
+   "lang": "python",
+   "answer": "-4 4",
+   "concepts": [
+    "while",
+    "accumulator"
+   ],
+   "tags": [
+    "while",
+    "accumulator"
+   ],
+   "explain": "The condition is only checked between passes, never in the middle of one, so the fourth pass runs in full and takes `n` past 1 and down to -4. Expecting `2 3` means you assumed the loop stops the instant the value becomes small enough, which no loop does - it stops at the next check.",
+   "xp": 24
+  },
+  {
+   "id": "py-5-x-05",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Complete this counter so it returns how many times the letter e appears in `word`.",
-   "template": "def count_e(word):\n    count = 0\n    for ch in ___:\n        if ch == \"e\":\n            count = count ___ 1\n    return ___",
+   "prompt": "This program should print the position of the first letter `n` in the word `sand`, counting the first letter as position 1, so it must print `3`. Fill the two blanks.",
+   "template": "position = 0\nplace = 1\nfor letter in \"sand\":\n    if letter == \"n\" and position == 0:\n        position = ___\n    place = place ___ 1\nprint(position)",
+   "lang": "python",
    "blanks": [
-    "word",
-    "+",
-    "count"
+    "place",
+    "+"
    ],
    "concepts": [
-    "accumulator",
-    "for"
+    "search"
    ],
    "tags": [
-    "accumulator",
+    "search",
     "for"
    ],
-   "explain": "The three blanks are the three fixed parts of the counting pattern: what you walk through, the increment, and reading the accumulator after the loop. Returning `ch` instead is the classic slip - `ch` exists only to be examined, and holds whatever the last pass happened to leave in it.",
+   "explain": "The recorded answer is the position counter, not the letter and not the loop variable, because what was asked for is where the match was rather than what it was. The counter has to advance on every pass including the matching one, which is why the second blank sits outside the `if`.",
    "xp": 24
   },
   {
-   "id": "py-5-e-04",
+   "id": "py-5-x-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Put these lines in order so the function gives back the first whole number from 2 upwards that divides `n` exactly, or 0 when there is none.",
+   "prompt": "Arrange these lines into a program that reads one typed word and prints how many of its letters are `a`.",
    "fragments": [
-    "def first_factor(n):",
-    "    for d in range(2, n + 1):",
-    "        if n % d == 0:",
-    "            return d",
-    "    return 0"
+    "word = input()",
+    "count = 0",
+    "for letter in word:",
+    "    if letter == \"a\":",
+    "        count = count + 1",
+    "print(count)"
    ],
    "answer": [
     0,
     1,
     2,
     3,
-    4
+    4,
+    5
    ],
    "concepts": [
-    "search",
-    "range"
+    "accumulator",
+    "for"
    ],
    "tags": [
-    "search",
-    "range"
+    "accumulator",
+    "for"
    ],
-   "explain": "The `return 0` has to sit outside the loop, at the function's own level of indentation: put it inside and the loop gives up after examining a single candidate, reporting nothing found when it has barely looked. The not-found answer belongs after every candidate has been rejected.",
+   "explain": "The counter has to be set up after the input is read but before the loop begins: put it inside the block and it is wiped on every pass, and put the `print` inside the block and you get one line of output per letter instead of one answer. Indentation is the visible record of which lines belong to the loop.",
    "xp": 24
   },
   {
-   "id": "py-5-e-05",
-   "type": "mcq",
-   "layer": "retrieval",
-   "prompt": "How many numbers does `range(3, 9)` produce?",
-   "choices": [
-    "5",
-    "6",
-    "7",
-    "9"
-   ],
-   "answer": 1,
-   "concepts": [
-    "range",
-    "off-by-one"
-   ],
-   "tags": [
-    "range",
-    "off-by-one"
-   ],
-   "explain": "The interval is half-open - 3 is included, 9 is not - so the count is simply 9 minus 3. Answering 7 counts both ends, which is the same reflex that produces off-by-one errors everywhere else.",
-   "xp": 12
-  },
-  {
-   "id": "py-5-e-06",
-   "type": "mcq",
-   "layer": "retrieval",
-   "prompt": "What does `continue` do when it runs inside a loop?",
-   "choices": [
-    "Leaves the loop entirely and carries on after it",
-    "Skips the rest of this pass and starts the next one",
-    "Repeats the current pass from the top with the same item",
-    "Restarts the loop from its very first item"
-   ],
-   "answer": 1,
-   "concepts": [
-    "break-continue"
-   ],
-   "tags": [
-    "break-continue"
-   ],
-   "explain": "`continue` ends the pass and `break` ends the loop, so the first option describes the other word. The third is what people fear `continue` means, and it would be an infinite loop, since nothing about the current item would have changed.",
-   "xp": 12
-  },
-  {
-   "id": "py-5-e-07",
+   "id": "py-5-x-07",
    "type": "trace",
    "layer": "retrieval",
-   "prompt": "Trace this loop. Give the value of `total` after each pass through the body.\n\n`total = 1`\n`for i in range(1, 5):`\n`    total = total * i`",
+   "prompt": "Give the value `value` refers to after each pass of this loop.",
+   "code": "value = 1\nwhile value < 40:\n    value = value * 3",
+   "lang": "python",
    "steps": [
     {
-     "label": "after the pass where i is 1",
-     "expected": "1"
+     "label": "after pass 1",
+     "expected": "3"
     },
     {
-     "label": "after the pass where i is 2",
-     "expected": "2"
+     "label": "after pass 2",
+     "expected": "9"
     },
     {
-     "label": "after the pass where i is 3",
-     "expected": "6"
+     "label": "after pass 3",
+     "expected": "27"
     },
     {
-     "label": "after the pass where i is 4",
-     "expected": "24"
+     "label": "after pass 4",
+     "expected": "81"
     }
    ],
    "concepts": [
-    "accumulator",
-    "range",
-    "for"
+    "while",
+    "off-by-one"
    ],
    "tags": [
-    "accumulator",
-    "range",
-    "for"
+    "while",
+    "off-by-one"
    ],
-   "explain": "This accumulator starts at 1, not 0, because it multiplies: from 0 every product would stay 0 for ever. Four passes and not five - `range(1, 5)` stops short of 5 - so the answer is 24 rather than the 120 you get by including it.",
+   "explain": "There is a fourth pass because 27 is still under 40, and that pass overshoots to 81 - a `while` never stops part-way through its block. Stopping your trace at 27 is the same misreading as expecting a loop to check its condition in the middle of a pass.",
    "xp": 48
   },
   {
-   "id": "py-5-e-08",
+   "id": "py-5-x-08",
    "type": "explain",
    "layer": "application",
-   "prompt": "A colleague's program freezes and prints nothing when they run it. It contains a `while` loop. Explain what has almost certainly happened, in terms of the loop's condition, and say what has to be true of the loop body for the loop to finish.",
+   "prompt": "A learner writes `for i in range(1, n)` meaning to visit every number from 1 to `n` inclusive, and every run comes out one item short. Explain what `range` really does with its second argument, why this mistake is so easy to make, and what the correct line is.",
    "rubric": {
     "required": [
-     "condition",
-     "false"
+     "stop",
+     "excluded",
+     "inclusive"
     ],
     "optional": [
-     "update",
-     "forever",
-     "infinite",
-     "body",
-     "value"
+     "half-open",
+     "boundary",
+     "off-by-one"
     ],
     "minWords": 30
    },
    "concepts": [
-    "while",
-    "break-continue"
+    "off-by-one",
+    "range"
    ],
    "tags": [
-    "while",
-    "break-continue"
+    "off-by-one",
+    "range"
    ],
-   "explain": "A frozen program is not a crash - the loop is running perfectly, it simply has no way to stop, because nothing in the body moves the condition towards being False. The instinct to hunt for a spelling mistake is wrong here: this code is entirely valid, and the fault is in what the body fails to change.",
+   "explain": "Naming the rule is not the same as being able to say why it exists: the stop value is excluded so that counting a span of `n` items from 0 needs no adjustment at all, and the price of that convenience is that an inclusive span needs `n + 1`. A learner who can only report the symptom will fix this bug once and then write it again next week.",
    "xp": 24
   },
   {
-   "id": "py-5-e-09",
+   "id": "py-5-x-09",
    "type": "code",
    "layer": "application",
-   "fn": "count_multiples",
-   "prompt": "Write `count_multiples(n, k)` returning how many of the whole numbers from 1 to `n` inclusive divide exactly by `k`. `count_multiples(10, 3)` is 3, counting 3, 6 and 9. You may assume `k` is 1 or more.",
-   "starterCode": "def count_multiples(n, k):\n    count = 0\n    for i in range(1, n + 1):\n        pass\n    return count\n",
+   "prompt": "Write a program that reads one typed line holding a whole number of 1 or more, and prints how many times that number can be halved, using whole-number division, before it reaches 1. For the typed line `8` it prints `3`, because 8 halves to 4, then 2, then 1. For the typed line `1` it prints `0`.",
+   "starterCode": "n = int(input())\n# Count the halvings here, then print the count.\n",
    "tests": [
     {
-     "input": "10, 3",
-     "expected": 3
+     "input": "8",
+     "expected": "3"
     },
     {
-     "input": "10, 1",
-     "expected": 10
+     "input": "1",
+     "expected": "0"
     },
     {
-     "input": "5, 7",
-     "expected": 0
+     "input": "10",
+     "expected": "3"
     },
     {
-     "input": "0, 2",
-     "expected": 0
+     "input": "1024",
+     "expected": "10"
     }
    ],
-   "solution": "def count_multiples(n, k):\n    count = 0\n    for i in range(1, n + 1):\n        if i % k == 0:\n            count = count + 1\n    return count\n",
-   "hint": "Counting shape, with `i % k == 0` as the test.",
+   "solution": "n = int(input())\nsteps = 0\nwhile n > 1:\n    n = n // 2\n    steps = steps + 1\nprint(steps)\n",
    "concepts": [
-    "accumulator",
-    "range",
-    "for"
+    "while",
+    "accumulator"
    ],
    "tags": [
-    "accumulator",
-    "range",
-    "for"
+    "while",
+    "accumulator"
    ],
-   "explain": "The `k` of 7 case matters because it never matches: a loop that runs and finds nothing must still give back the accumulator's starting value rather than crash or answer with nothing. The `n` of 0 case proves `range(1, 1)` is empty and the body simply never runs.",
+   "explain": "Nobody can say from the input how many passes this takes, so the count has to come out of the loop rather than being fixed before it - that is precisely the situation `while` exists for. The `1` test is the boundary that a loop checking its condition after the block would fail, printing 1 where the honest answer is 0 halvings.",
+   "hint": "A counter set up before the loop and increased once per pass is the whole answer.",
    "xp": 60
   },
   {
-   "id": "py-5-e-10",
+   "id": "py-5-x-10",
    "type": "debug",
    "layer": "application",
-   "fn": "first_divisor_over",
-   "prompt": "`first_divisor_over(n, m)` should give back the smallest divisor of `n` that is strictly greater than `m`, or 0 if there is none. `first_divisor_over(12, 3)` should be 4, but it answers 12. Find and fix the fault.",
-   "starterCode": "def first_divisor_over(n, m):\n    found = 0\n    for d in range(m + 1, n + 1):\n        if n % d == 0:\n            found = d\n    return found\n",
+   "prompt": "This program should read one typed line holding a whole number `n` and print how many of the numbers from 1 to `n` are not divisible by 3 - so for `7` it should print `5`, since 1, 2, 4, 5 and 7 qualify. Instead it prints `2`. Repair it.",
+   "starterCode": "n = int(input())\ncount = 0\nfor i in range(1, n + 1):\n    if i % 3 == 0:\n        break\n    count = count + 1\nprint(count)\n",
    "tests": [
     {
-     "input": "12, 3",
-     "expected": 4
+     "input": "7",
+     "expected": "5"
     },
     {
-     "input": "12, 1",
-     "expected": 2
+     "input": "2",
+     "expected": "2"
     },
     {
-     "input": "7, 1",
-     "expected": 7
+     "input": "9",
+     "expected": "6"
     },
     {
-     "input": "12, 12",
-     "expected": 0
+     "input": "3",
+     "expected": "2"
     }
    ],
-   "solution": "def first_divisor_over(n, m):\n    found = 0\n    for d in range(m + 1, n + 1):\n        if n % d == 0:\n            found = d\n            break\n    return found\n",
-   "hint": "The loop finds every match, and each one overwrites the last. Which one do you want to keep?",
+   "solution": "n = int(input())\ncount = 0\nfor i in range(1, n + 1):\n    if i % 3 == 0:\n        continue\n    count = count + 1\nprint(count)\n",
    "concepts": [
-    "search",
-    "break-continue"
+    "break-continue",
+    "for",
+    "range"
    ],
    "tags": [
-    "search",
-    "break-continue"
+    "break-continue",
+    "for",
+    "range"
    ],
-   "explain": "With nothing to stop it, an assignment inside a loop holds the LAST match rather than the first, which is why 12 comes out instead of 4 - and why the fault hides on any input whose only divisor above `m` happens to be the largest. Walking the candidates downwards instead would answer a different question entirely.",
+   "explain": "`break` throws away every remaining number the moment the first multiple of 3 turns up, so the program really counts how many numbers come before the first multiple of 3 - which is why it answers 2 for every `n` of 3 or more. The `2` test is the one that hides the bug entirely, because no multiple of 3 is ever reached, and a test suite made only of small inputs would have shipped this.",
+   "hint": "One number should be skipped, not every number after it. Compare what the two loop-control words actually abandon.",
    "xp": 60
   }
  ]

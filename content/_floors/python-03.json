@@ -3,15 +3,20 @@
  "name": "The Reckoning Table",
  "goal": "Evaluate an expression by hand and predict its type and value before running it.",
  "stage": 1,
- "requires": [{ "dungeon": "python", "floor": 2 }],
- "description": {
-  "what": "How Python works an expression out: which operator acts first, what value comes back, and what type that value has.",
-  "why": "A program is mostly expressions, and an expression that runs without complaining can still be quietly wrong - the wrong division, the wrong order, a number where a piece of text was needed.",
-  "enables": "You will be able to look at a line of arithmetic, say what it produces and what type it produces, and be right before you press Run.",
-  "assumes": "You can store a value under a name, print it, and ask what type a value has.",
-  "assessed": "You will predict the output of expressions you have not run, complete and repair small pieces of arithmetic, and write code whose correctness depends on choosing the right operator."
- },
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 2
+  }
+ ],
  "cognitiveLevel": "recall",
+ "description": {
+  "what": "How Python turns a piece of arithmetic into a single value: which operators exist, the order they are applied in, what the two division operators really do, how one type becomes another, and why `=` and `==` are different instructions.",
+  "why": "An expression that is merely misread does not crash - it produces a confident wrong number, and a program that prints the wrong answer without complaining is far harder to catch than one that stops.",
+  "enables": "You will be able to look at a line of arithmetic and say what value and what type it produces before you run it, choose between `/` and `//` on purpose, convert between text and numbers deliberately, and update a stored value without writing its name twice.",
+  "assumes": "Only the two floors below: that a program runs top to bottom, that `print` shows a value, that a name can be pointed at a value, and that a line typed by a person arrives as text.",
+  "assessed": "You will predict output and types before running anything, track a value through a run of updates, repair programs that are silently wrong rather than broken, and write short programs that read typed numbers and print exact answers."
+ },
  "concepts": [
   "arithmetic-operators",
   "precedence",
@@ -20,97 +25,182 @@
   "augmented-assignment",
   "assignment-vs-equality"
  ],
- "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
  "lesson": {
-  "title": "Working It Out Before It Is Run",
   "sections": [
    {
-    "title": "An expression is something that becomes a value",
-    "body": "An **expression** is any piece of Python that Python can work out into a single value. `7` is an expression - it is already a value. So is `7 + 2`, which becomes `9`. So is `price * 3`, which becomes whatever the name `price` is holding, multiplied by three. Working an expression out is called **evaluating** it, and what you are left with afterwards is one value and nothing else.\n\nThe symbols that do the working out are **operators**, and the values they act on are **operands**. Python gives you seven of them for numbers: `+` add, `-` subtract, `*` multiply, `/` divide, `//` divide and round down, `%` the remainder after dividing, and `**` raise to a power. Note that `*` is a star rather than the times sign of school arithmetic, and that `^` is not a power in Python - it means something else entirely, so using it gives you a wrong answer rather than an error.\n\nEvery value has a type, so every expression has a type as well as a value. `7 + 2` is an `int` with the value `9`. Predicting both is the habit this floor exists to build, because a program holding the right number of the wrong type breaks later, somewhere else, in a way that is much harder to trace back to the line that caused it.",
-    "code": "print(7 + 2)\nprint(7 - 2)\nprint(7 * 2)\nprint(7 ** 2)\nprint(7 % 2)\nprint(type(7 + 2))",
+    "title": "An expression is a recipe that becomes a value",
+    "body": "An **expression** is any piece of source code that Python works out into a single value. `7` is an expression, and so is `3 + 4`, and so is `price * 2 - discount`. Python does not keep the recipe: it evaluates it, gets one value, and that value is what the rest of the line sees.\n\nThe arithmetic operators are `+` for addition, `-` for subtraction, `*` for multiplication, `/` for division, `//` for whole-number division, `%` for the amount left over, and `**` for raising to a power. The last three are the ones nobody guesses correctly the first time, and they are the ones this floor drills.\n\n`%` deserves a sentence of its own, because it is not a percent sign here. `17 % 5` is `2` - the amount left after taking out as many whole fives as will fit. Together `//` and `%` answer the two halves of a sharing-out question: how many each, and how many over.\n\nThe habit this whole floor is built on is this: before you run anything, say what you expect the answer to be. Being wrong on paper costs nothing and shows you exactly where your model of the language is broken, which is the only thing that ever fixes it.",
+    "code": "print(3 + 4)\nprint(10 - 4 * 2)\nprint(17 // 5)\nprint(17 % 5)\nprint(2 ** 10)",
     "lang": "python",
     "annotations": [
-     { "line": 4, "text": "`**` is a power: 7 to the power of 2, which is 49. Two stars, not one - a single star here would give you 14." },
-     { "line": 5, "text": "`%` is the remainder: 2 goes into 7 three times with 1 left over, so this is 1. It is not a percent sign, whatever the shape of it suggests." },
-     { "line": 6, "text": "The expression is evaluated first, down to the single value 9, and only then is its type asked for. `type` never sees the `+` at all." }
+     {
+      "line": 1,
+      "text": "The simplest expression with an operator in it: two values and one operator become the single value 7."
+     },
+     {
+      "line": 3,
+      "text": "`//` asks how many whole fives fit inside seventeen. Three do, so it answers 3 rather than 3.4."
+     },
+     {
+      "line": 4,
+      "text": "`%` asks what is left once those three fives are taken out, which is 2. Seventeen is 5 * 3 + 2."
+     },
+     {
+      "line": 5,
+      "text": "`**` is a power, not a repeated star: two multiplied by itself ten times, which is 1024."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "print(2 ** 5, 17 % 5)",
+     "prompt": "Predict all three lines before you run it. What does this program print?",
+     "code": "print(7 - 2 - 1)\nprint(9 % 4)\nprint(3 ** 2)",
      "lang": "python",
-     "answer": "32 2",
-     "concepts": ["arithmetic-operators"],
-     "tags": ["arithmetic-operators"],
-     "explain": "`2 ** 5` is two multiplied by itself five times, which is 32 - reading it as 2 times 5 gives 10 and is the commonest slip. `17 % 5` is the remainder: 5 goes into 17 three times with 2 left over, so the answer is the leftover 2, not the three lots that fitted."
+     "answer": "4\n1\n9",
+     "concepts": [
+      "arithmetic-operators"
+     ],
+     "tags": [
+      "arithmetic-operators"
+     ],
+     "explain": "The first line catches anybody working right to left: `7 - 2 - 1` groups as `(7 - 2) - 1`, which is 4, rather than `7 - (2 - 1)`, which would be 6. The third is a power and not three times two, so it is 9 - `**` is the operator most often read as multiplication at a glance.",
+     "xp": 24
     }
    },
    {
-    "title": "Which operator goes first",
-    "body": "`2 + 3 * 4` is `14`, not `20`. Python does not simply read left to right: each operator has a **precedence**, a rank that decides which one acts first, and multiplication outranks addition. So `3 * 4` is worked out first and the `2` is added to what it produced.\n\nFrom strongest to weakest, the ranks you have so far are: anything inside brackets, then `**`, then a minus sign written in front of a single value, then `*` `/` `//` `%` sharing one rank, then `+` and `-` sharing a weaker one. Operators of the same rank are worked out left to right, so `10 - 4 - 3` means `(10 - 4) - 3`, which is `3` rather than `9`. The one exception is `**`, which groups right to left: `2 ** 3 ** 2` is `2 ** 9`, or `512`.\n\nBrackets beat every rank and cost nothing at all. When you know the order, brackets say so to the next reader; when you do not know it, brackets save you from guessing. `(2 + 3) * 4` cannot be misread by anybody, and neither can `2 + (3 * 4)`.\n\nThe trap worth memorising is `-2 ** 2`. The power binds tighter than the minus sign, so this is minus the value of two squared, which is `-4`. If you meant the square of minus two you have to write `(-2) ** 2`, and then you get `4`.",
-    "code": "print(2 + 3 * 4)\nprint((2 + 3) * 4)\nprint(10 - 4 - 3)\nprint(2 ** 3 ** 2)\nprint(-2 ** 2)",
+    "title": "Order of evaluation, and why 2 + 3 * 4 is not 20",
+    "body": "Python does not read an expression strictly left to right. It applies operators in a fixed order of **precedence**: powers first, then `*`, `/`, `//` and `%`, then `+` and `-` last. So `2 + 3 * 4` multiplies before it adds and gives `14`. Reading it as twenty is reading it as a person, not as Python.\n\nWhen two operators sit at the same level, Python works left to right, which is why `10 - 4 - 3` is 3. The single exception is `**`, which groups from the right, so `2 ** 3 ** 2` is `2 ** 9` and therefore 512.\n\nBrackets beat everything. `(2 + 3) * 4` is 20, because the bracketed expression is worked out first and becomes one value before the multiplication ever sees it. Brackets cost nothing at run time, so write them whenever the order is not instantly obvious to a reader, including you next week.\n\nThe practical rule: when an expression mixes `+` with `*` or a division, either bracket it or be certain. Wrong precedence is a silent bug - the program runs perfectly and prints the wrong number, which is far worse than a crash.",
+    "code": "print(2 + 3 * 4)\nprint((2 + 3) * 4)\nprint(10 - 4 - 3)\nprint(2 ** 3 ** 2)\nprint(20 - 6 // 2)",
     "lang": "python",
     "annotations": [
-     { "line": 2, "text": "The brackets are worked out first, so this is 5 * 4 = 20. Same symbols as the line above, different answer - the order is not a detail." },
-     { "line": 4, "text": "`**` groups right to left, so this is 2 ** (3 ** 2) = 2 ** 9 = 512. Left to right would have given 8 ** 2 = 64." },
-     { "line": 5, "text": "The power acts before the minus, so this is -(2 ** 2) = -4. Write (-2) ** 2 if you meant to square a negative number." }
+     {
+      "line": 1,
+      "text": "`3 * 4` is worked out first and becomes 12, then 2 is added, giving 14."
+     },
+     {
+      "line": 2,
+      "text": "The brackets force the addition to happen first, so the same four numbers give 20 instead."
+     },
+     {
+      "line": 4,
+      "text": "`**` is the one operator that groups from the right: this is 2 ** 9, not 8 ** 2. Those differ by 448."
+     },
+     {
+      "line": 5,
+      "text": "`//` binds tighter than `-`, so this is 20 - 3 and not 14 // 2. The answer is 17."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "print(1 + 2 * 3 ** 2)",
+     "prompt": "Work each line out by precedence, then say what the program prints.",
+     "code": "print(1 + 2 * 3)\nprint((1 + 2) * 3)\nprint(12 - 8 // 4)",
      "lang": "python",
-     "answer": "19",
-     "concepts": ["precedence"],
-     "tags": ["precedence"],
-     "explain": "Three ranks in one line: the power first giving 9, then the multiplication giving 18, then the addition giving 19. Reading strictly left to right gives 81, which is what a calculator without precedence would tell you and what Python will never do."
+     "answer": "7\n9\n10",
+     "concepts": [
+      "precedence",
+      "arithmetic-operators"
+     ],
+     "tags": [
+      "precedence",
+      "arithmetic-operators"
+     ],
+     "explain": "The same three numbers give 7 or 9 depending only on where the brackets are, which is the point: precedence is not a detail, it changes the answer. The third line is 12 - 2, because `//` sits at the multiplication level and runs before the subtraction - reading it left to right would give 1.",
+     "xp": 24
     }
    },
    {
-    "title": "Two divisions, and turning one type into another",
-    "body": "Python has two divisions and they answer different questions. `/` is **true division** and always hands back a `float`, even when the answer is exact: `6 / 3` is `2.0`, not `2`. `//` is **floor division**, which divides and then rounds down to a whole number, so `7 // 2` is `3`. Its partner `%` gives what was left over, so `7 % 2` is `1`. Together the pair answers \"how many whole lots, and how much remains\".\n\nRounding **down** is not the same as chopping the decimal part off, and negative numbers are where the difference shows: `-7 // 2` is `-4`, because -4 is below -3.5. If you want the chopping behaviour instead, `int(-3.5)` gives `-3`, because `int` always moves towards zero. Two reasonable-sounding rules, two different answers, and mixing them up produces results that are wrong by exactly one - the hardest size of error to notice.\n\n`int()`, `float()` and `str()` are **conversions**: each takes a value and produces a new value of that type. The original is untouched, because they hand back a new value rather than changing the old one. `int(\"12\")` is the number `12`, and `str(12)` is the two-character piece of text `\"12\"`.\n\nYou need conversion because Python refuses to guess. `\"3\" + 4` is a `TypeError` and stops the program, since `+` between text and a number could mean adding or joining and Python will not pick for you. But `\"ab\" * 3` is perfectly legal and gives `\"ababab\"` - repeating text a whole number of times has only one sensible meaning. So `\"3\" * 2` is `\"33\"`, not `6`, and that is not an error at all, which makes it far more dangerous than the one that crashes.",
-    "code": "print(6 / 3)\nprint(7 // 2, -7 // 2)\nprint(7 % 2)\nprint(int(-3.7), int(\"12\") + 1)\nprint(\"3\" * 2)\nprint(\"total: \" + str(12))",
+    "title": "Two kinds of division, and turning one type into another",
+    "body": "`/` always produces a float, even when it divides exactly: `6 / 3` is `2.0`, not `2`. `//` throws the fraction away and gives the whole part, so `7 // 2` is `3`. Choosing the wrong one is a genuine source of wrong answers - a count of people or pages or biscuits should almost always come from `//`, because 3.5 children is not an answer to anything.\n\nA float is catching. Mix one float into an expression and the result is a float too, so `10 // 4.0` is `2.0` rather than `2`. That is how a decimal point turns up in output nobody wanted one in.\n\nTypes never convert themselves, so you convert them on purpose: `int(x)` builds a whole number, `float(x)` builds a decimal number, `str(x)` builds text. `int(\"25\")` is the number 25, and `int(3.9)` is `3` - it chops towards zero rather than rounding, so it is not a rounding function.\n\nThis is also why `\"3\" + 4` stops the program with a TypeError while `\"3\" * 4` happily gives `3333`. `+` between text and a number has no single agreed meaning, so Python refuses rather than guessing; `*` between text and a whole number does have one, which is repetition. To build a message out of a number, convert it first with `str`.",
+    "code": "print(7 / 2)\nprint(7 // 2)\nprint(6 / 3)\nprint(10 // 4.0)\nprint(int(\"25\") + 1)\nprint(int(3.9))\nprint(\"3\" * 4)\nprint(\"total: \" + str(12))",
     "lang": "python",
     "annotations": [
-     { "line": 1, "text": "Exact, and still a float: 2.0. `/` never gives you an int, which is why a count of things should be built with `//`." },
-     { "line": 2, "text": "Rounding down, not chopping: -3.5 rounds down to -4. `int(-7 / 2)` would have given -3 instead." },
-     { "line": 4, "text": "`int(\"12\")` is the number twelve, so adding 1 gives 13. Without that conversion the line would be a TypeError." },
-     { "line": 6, "text": "`str(12)` makes the text \"12\", which `+` can join to other text. This is how a number gets into a printed message." }
+     {
+      "line": 1,
+      "text": "True division always hands back a float, so this is 3.5."
+     },
+     {
+      "line": 3,
+      "text": "Even a division that comes out exactly is a float: 2.0, with the point, and not 2."
+     },
+     {
+      "line": 4,
+      "text": "One float in the expression makes the result a float, so floor division here gives 2.0."
+     },
+     {
+      "line": 6,
+      "text": "`int` on a float chops the fraction off rather than rounding, so 3.9 becomes 3 and not 4."
+     },
+     {
+      "line": 8,
+      "text": "`str(12)` makes the text `12`, and text joins to text with `+`. Without the `str` this line would be a TypeError."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "print(9 / 3, 9 // 4, 9 % 4)",
+     "prompt": "Say exactly what each line prints, decimal points included.",
+     "code": "print(8 / 4)\nprint(8 // 3)\nprint(int(2.7))\nprint(\"ab\" * 3)",
      "lang": "python",
-     "answer": "3.0 2 1",
-     "concepts": ["true-vs-floor-division"],
-     "tags": ["true-vs-floor-division"],
-     "explain": "The first is a float even though the division came out exactly - writing `3` there is the natural guess and the wrong one. The other two split 9 into two whole fours with 1 left over, which is the pair of answers `//` and `%` always give you together."
+     "answer": "2.0\n2\n2\nababab",
+     "concepts": [
+      "true-vs-floor-division",
+      "type-conversion"
+     ],
+     "tags": [
+      "true-vs-floor-division",
+      "type-conversion"
+     ],
+     "explain": "The first line is the trap: eight divides by four exactly, and `/` still gives `2.0`, because the operator decides the type rather than the numbers. `int(2.7)` is 2 and not 3 because converting chops rather than rounds, which is a different job with its own function.",
+     "xp": 24
     }
    },
    {
-    "title": "Shorthand, and the difference one symbol makes",
-    "body": "`count = count + 1` reads the value under `count`, adds one, and stores the result back under the same name. It is so common that Python has a shorthand for it: `count += 1` means exactly that and nothing more. Every arithmetic operator has one - `-=`, `*=`, `/=`, `//=`, `%=`, `**=` - and each is called an **augmented assignment**.\n\nThe shorthand keeps the type rules of the operator underneath it. `count /= 4` uses true division, so `count` becomes a float even if it was a whole number and the division came out exactly. If you wanted it to stay a whole number you needed `//=`.\n\nNow the confusion that catches everybody, and it is worth naming out loud. A single `=` **stores**: it puts the value on the right under the name on the left, and asks nothing. A doubled `==` **compares**: it works out whether two values are equal and becomes `True` or `False`. `x = 3` changes `x`; `x == 3` leaves everything alone and merely answers a question. Writing one where you meant the other either destroys a value you needed or asks a question you never wanted asked.\n\nSo the habit this floor is really about: before you run anything, say what the value will be **and** what type it will be. Then run it. When you are right you have lost nothing; when you are wrong you have found a gap in exactly the place it would otherwise have cost you an hour. One note for the practice ahead - some tasks are shaped as a named box of work, a line beginning `def` and then a line beginning `return`, where the expression after `return` becomes the box's answer. Building those boxes is a later floor; here you only fill in the expression.",
-    "code": "count = 10\ncount += 5\ncount *= 2\nprint(count)\n\ncount /= 4\nprint(count, type(count))\n\nprint(count == 7.5, count == \"7.5\")",
+    "title": "Updating a value, and asking whether two values are equal",
+    "body": "Adding to what a name already holds is so common that it has a shorthand. `total = total + 5` can be written `total += 5`, and the same works for `-=`, `*=`, `/=`, `//=` and `%=`. These are **augmented assignments**: the old value is read, the operator is applied, and the name is pointed at the answer. The name must already refer to something, because the line reads before it writes.\n\nThe augmented form keeps the type rules of its own operator, so `//=` keeps a whole number whole while `/=` turns it into a float. `count = 7` followed by `count /= 2` leaves `3.5`; with `//=` it leaves `3`.\n\nNow the confusion that catches everybody. `=` is a command and `==` is a question. `x = 5` **makes** `x` refer to 5 and produces no value at all. `x == 5` **asks** whether `x` already refers to 5, and produces `True` or `False`.\n\nA reliable way to keep them apart is to read them aloud differently: say **becomes** for `=` and **is equal to** for `==`. `print(x == 5)` prints a yes-or-no answer, while `print(x = 5)` is not a question, is not valid, and Python refuses the line.",
+    "code": "total = 4\ntotal += 6\nprint(total)\ntotal //= 3\nprint(total)\ncount = 7\ncount /= 2\nprint(count)\nprint(total == 3)\nprint(total == 10)",
     "lang": "python",
     "annotations": [
-     { "line": 2, "text": "Identical to `count = count + 5`. The right-hand side is worked out with the old value, then stored back under the same name." },
-     { "line": 6, "text": "`/=` is true division, so count is now the float 7.5 - the shorthand does not protect the type." },
-     { "line": 9, "text": "`==` compares and produces True or False. 7.5 and the text \"7.5\" are different types with different values, so the second answer is False." }
+     {
+      "line": 2,
+      "text": "Exactly the same as `total = total + 6`: the old 4 is read, 6 is added, and the name moves onto 10."
+     },
+     {
+      "line": 4,
+      "text": "10 // 3 is 3, so `total` now refers to the whole number 3. Nothing here is a float."
+     },
+     {
+      "line": 7,
+      "text": "`/=` carries the float rule of `/` with it, so `count` becomes 3.5 rather than 3."
+     },
+     {
+      "line": 9,
+      "text": "Two equals signs, so this is a question. It prints True, and it does not change `total`."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this print?",
-     "code": "x = 4\nx += 6\nprint(x == 10, x)",
+     "prompt": "Track the value under `score` line by line, then give the three printed lines.",
+     "code": "score = 10\nscore += 5\nprint(score)\nprint(score == 15)\nprint(score == 10)",
      "lang": "python",
-     "answer": "True 10",
-     "concepts": ["augmented-assignment", "assignment-vs-equality"],
-     "tags": ["assignment-vs-equality"],
-     "explain": "`+=` changed x to 10, then `==` merely asked whether it was 10 and answered True without changing anything. Had the last line used a single `=` it would have overwritten x rather than asking about it, which is the whole distinction sitting in one line."
+     "answer": "15\nTrue\nFalse",
+     "concepts": [
+      "augmented-assignment",
+      "assignment-vs-equality"
+     ],
+     "tags": [
+      "augmented-assignment",
+      "assignment-vs-equality"
+     ],
+     "explain": "The last two lines ask questions and answer them; neither changes `score`, which is still 15 when the program ends. Expecting the final line to put `score` back to 10 means reading `==` as `=`, which is the commonest beginner bug there is and the reason this floor names it out loud.",
+     "xp": 24
     }
    }
   ]
@@ -120,102 +210,195 @@
    "id": "py-3-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "Work each expression out by precedence before you answer. What does this print?",
-   "code": "print(2 + 3 * 4, (2 + 3) * 4, 2 * 3 ** 2)",
+   "prompt": "Work each expression out by precedence before you answer. What does this program print? Give all four lines.",
+   "code": "print(2 + 3 * 4)\nprint((2 + 3) * 4)\nprint(7 // 2, 7 % 2)\nprint(2 ** 3 ** 2)",
    "lang": "python",
-   "answer": "14 20 18",
-   "concepts": ["precedence", "arithmetic-operators"],
-   "tags": ["precedence"],
-   "hint": "Brackets first, then `**`, then `*`, then `+`. The three expressions use the same digits and give three different answers.",
-   "explain": "The middle one is the only one that gives 20, and it gets there because brackets outrank everything else. Reading the first expression left to right also gives 20, which is exactly why that answer feels right and is wrong - the multiplication happens before the addition regardless of which was written first.",
+   "answer": "14\n20\n3 1\n512",
+   "concepts": [
+    "precedence",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "precedence",
+    "arithmetic-operators"
+   ],
+   "explain": "Line one is the headline case of the whole floor: multiplication runs before addition, so it is 14 and never 20. Line four is the exception to left-to-right - `**` groups from the right, so it is `2 ** 9`, and reading it as `8 ** 2` gives 64 instead of 512.",
+   "hint": "Powers first, then `*` `/` `//` `%`, then `+` and `-`. Brackets jump the queue, and `**` alone groups from the right.",
    "xp": 24
   },
   {
    "id": "py-3-g-02",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Complete this so it prints `5`. Use augmented assignment for both steps: add 5 to the score, then divide it down to a whole number by 3.",
-   "template": "score = 10\nscore ___ 5\nscore ___ 3\nprint(score)\n",
-   "blanks": ["+=", "//="],
-   "concepts": ["augmented-assignment", "true-vs-floor-division"],
-   "tags": ["augmented-assignment"],
-   "hint": "Each blank is an operator with `=` stuck on the end. The second one has to leave the value a whole number.",
-   "explain": "15 divided by 3 is exactly 5, so `/=` would also reach the right number - but it would print `5.0`, because true division produces a float even when nothing is left over. The prompt asked for `5`, and only `//=` gives you that.",
+   "prompt": "Complete this so that it prints `5`. Use the shorthand update form for both steps rather than writing `total` twice on a line.",
+   "template": "total = 4\ntotal ___ 6\ntotal ___ 2\nprint(total)",
+   "blanks": [
+    "+=",
+    "//="
+   ],
+   "lang": "python",
+   "concepts": [
+    "augmented-assignment",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "augmented-assignment",
+    "true-vs-floor-division"
+   ],
+   "explain": "The second blank must be `//=` and not `/=`, because `/=` would leave `5.0` while the prompt asks for `5`. That single character is the difference between a whole number and a float, and it is the same difference that puts an unwanted decimal point into real output.",
+   "hint": "Four plus six is ten, and ten has to become five without gaining a decimal point.",
    "xp": 24
   },
   {
    "id": "py-3-g-03",
    "type": "trace",
    "layer": "retrieval",
-   "prompt": "Track the value stored under `total` after each line runs.\n\n`total = 4`\n`total *= 3`\n`total -= 2`\n`total //= 4`\n`total /= 2`",
+   "prompt": "Give the value `total` refers to after each line of this program runs.\n\n`total = 40`\n`total += 5`\n`total //= 6`\n`total -= 1.0`",
+   "code": "total = 40\ntotal += 5\ntotal //= 6\ntotal -= 1.0",
+   "lang": "python",
    "steps": [
-    { "label": "after total *= 3", "expected": "12" },
-    { "label": "after total -= 2", "expected": "10" },
-    { "label": "after total //= 4", "expected": "2" },
-    { "label": "after total /= 2", "expected": "1.0" }
+    {
+     "label": "after total = 40",
+     "expected": "40"
+    },
+    {
+     "label": "after total += 5",
+     "expected": "45"
+    },
+    {
+     "label": "after total //= 6",
+     "expected": "7"
+    },
+    {
+     "label": "after total -= 1.0",
+     "expected": "6.0"
+    }
    ],
-   "concepts": ["augmented-assignment", "true-vs-floor-division"],
-   "tags": ["augmented-assignment"],
-   "hint": "Each line works on the value the line before it left behind. Watch the type on the last two lines, not only the number.",
-   "explain": "The third step drops 10 down to 2 because floor division rounds 2.5 down, and the last step turns a whole number into `1.0` because `/=` is true division. Writing `1` for that last answer is the natural response and misses the type change - which is precisely the change that would break a later line expecting a whole number.",
+   "concepts": [
+    "augmented-assignment",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "tags": [
+    "augmented-assignment",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "explain": "45 // 6 is 7 rather than 7.5, because floor division discards the fraction instead of rounding it. The last step is the one to watch: subtracting the float `1.0` makes the whole result a float, so the answer is `6.0` and not `6` - one float anywhere in an expression is enough to change the type that comes out.",
+   "hint": "Write the running value beside each line, and watch the type as closely as the number.",
    "xp": 48
   },
   {
    "id": "py-3-g-04",
    "type": "code",
    "layer": "application",
-   "fn": "whole_minutes",
-   "prompt": "Write `whole_minutes(seconds)` giving how many complete minutes fit into that many seconds. A partial minute does not count, so 130 seconds is 2 complete minutes. Use floor division so the answer is a whole number.",
-   "starterCode": "def whole_minutes(seconds):\n    return 0\n",
+   "prompt": "A stopwatch has been stopped and reports a whole number of seconds, typed on one line. Write a program that prints the number of complete minutes and the number of seconds left over, on one line, separated by a single space. For the typed line `90` it prints `1 30`.",
+   "starterCode": "seconds = int(input())\n# print the whole minutes, then the seconds left over,\n# on one line separated by a single space\n",
    "tests": [
-    { "input": "130", "expected": 2 },
-    { "input": "59", "expected": 0 },
-    { "input": "120", "expected": 2 },
-    { "input": "0", "expected": 0 }
+    {
+     "input": "90",
+     "expected": "1 30"
+    },
+    {
+     "input": "59",
+     "expected": "0 59"
+    },
+    {
+     "input": "600",
+     "expected": "10 0"
+    },
+    {
+     "input": "0",
+     "expected": "0 0"
+    }
    ],
-   "solution": "def whole_minutes(seconds):\n    return seconds // 60\n",
-   "hint": "One expression after `return`: divide by 60 with the operator that rounds down.",
-   "concepts": ["true-vs-floor-division", "arithmetic-operators"],
-   "tags": ["true-vs-floor-division"],
-   "explain": "The 59 case is the one that matters: true division would give 0.9833..., which is neither zero complete minutes nor anything a later line counting minutes could use. Floor division answers the question actually asked - how many whole lots fit - and the 120 case confirms it does not lose the exact one.",
+   "solution": "seconds = int(input())\nprint(seconds // 60, seconds % 60)\n",
+   "hint": "`//` gives how many whole sixties fit; `%` gives what is left over. One `print` with a comma between two values puts a single space between them.",
+   "concepts": [
+    "arithmetic-operators",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "tags": [
+    "arithmetic-operators",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "explain": "`//` and `%` are the two halves of one question, which is why they so often appear together on the same value. Using `/` here would print `1.5 30` for the first test - a number of minutes that is true and useless, because the thing being counted cannot be half of one.",
    "xp": 60
   },
   {
    "id": "py-3-g-05",
    "type": "debug",
    "layer": "application",
-   "fn": "label_total",
-   "prompt": "`label_total(count)` should hand back a message like `total: 5`. It stops with a `TypeError` on every call. Fix it, keeping the name `label_total`.",
-   "starterCode": "def label_total(count):\n    return \"total: \" + count\n",
+   "prompt": "This program reads a number of biscuits and then a number of children, and should print how many whole biscuits each child gets. For the typed lines `7` and `2` it should print `3`, but it prints `3.5`. Repair it.",
+   "starterCode": "biscuits = int(input())\nchildren = int(input())\nprint(biscuits / children)\n",
    "tests": [
-    { "input": "5", "expected": "total: 5" },
-    { "input": "0", "expected": "total: 0" },
-    { "input": "-2", "expected": "total: -2" }
+    {
+     "input": "7\n2",
+     "expected": "3"
+    },
+    {
+     "input": "6\n3",
+     "expected": "2"
+    },
+    {
+     "input": "1\n4",
+     "expected": "0"
+    },
+    {
+     "input": "100\n7",
+     "expected": "14"
+    }
    ],
-   "solution": "def label_total(count):\n    return \"total: \" + str(count)\n",
-   "hint": "`+` will not join text to a number. Convert the number to text first with `str()`.",
-   "concepts": ["type-conversion"],
-   "tags": ["type-conversion"],
-   "explain": "Python refuses `\"total: \" + 5` because `+` between text and a number has two plausible meanings and it will not choose one for you. The tempting fix is to swap the `+` for a comma, which works inside `print` but not here, because this has to produce a single piece of text rather than display two things side by side.",
+   "solution": "biscuits = int(input())\nchildren = int(input())\nprint(biscuits // children)\n",
+   "hint": "One character has to change. Ask which of the two division operators can never produce half a biscuit.",
+   "concepts": [
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "tags": [
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "explain": "`/` is not wrong arithmetic - it answers the wrong question, giving how much rather than how many whole ones. The third test is what proves the fix: one biscuit between four children is `0` each, and a program printing `0.25` there has understood neither the biscuits nor the children.",
    "xp": 60
   },
   {
    "id": "py-3-g-06",
    "type": "code",
    "layer": "application",
-   "fn": "stack_bonus",
-   "prompt": "Write `stack_bonus(base)` which takes the starting score, adds 12 to it, doubles what that gives, then takes away 5, and hands back the result. So `stack_bonus(0)` is 19. Build it with augmented assignment, one step per line.",
-   "starterCode": "def stack_bonus(base):\n    score = base\n    return score\n",
+   "prompt": "A banner is made by repeating a word. Write a program that reads a word on the first line and a whole number of repeats on the second, then prints the word repeated that many times with nothing between the copies, and on a second line prints `repeated N times`, where `N` is the number that was typed. For the typed lines `ab` and `3` it prints `ababab` and then `repeated 3 times`.",
+   "starterCode": "word = input()\ncount = int(input())\n# print the repeated word, then the sentence about it\n",
    "tests": [
-    { "input": "0", "expected": 19 },
-    { "input": "1", "expected": 21 },
-    { "input": "-6", "expected": 7 }
+    {
+     "input": "ab\n3",
+     "expected": "ababab\nrepeated 3 times"
+    },
+    {
+     "input": "z\n1",
+     "expected": "z\nrepeated 1 times"
+    },
+    {
+     "input": "no\n2",
+     "expected": "nono\nrepeated 2 times"
+    },
+    {
+     "input": "hi\n5",
+     "expected": "hihihihihi\nrepeated 5 times"
+    }
    ],
-   "solution": "def stack_bonus(base):\n    score = base\n    score += 12\n    score *= 2\n    score -= 5\n    return score\n",
-   "hint": "Three lines between the two you were given, each of the shape `score ?= n`, in the order the prompt describes.",
-   "concepts": ["augmented-assignment", "arithmetic-operators", "precedence"],
-   "tags": ["augmented-assignment"],
-   "explain": "Written as one expression this is `(base + 12) * 2 - 5`, and those brackets are compulsory - `base + 12 * 2 - 5` would multiply before adding and give a different answer for every input. Splitting it across augmented assignments removes the question entirely, because each line is one whole step, which is often the clearer way to write a calculation you had to stop and think about.",
+   "solution": "word = input()\ncount = int(input())\nprint(word * count)\nprint(\"repeated \" + str(count) + \" times\")\n",
+   "hint": "Text multiplied by a whole number repeats it. To glue a number into a piece of text with `+`, convert it with `str` first.",
+   "concepts": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "explain": "The same typed value is used two different ways in one program - as a number for the repetition and as text for the sentence - which is exactly why conversion is explicit in Python rather than automatic. Writing `\"repeated \" + count` raises a TypeError, because `+` will not guess whether you meant to add or to join.",
    "xp": 60
   }
  ],
@@ -224,77 +407,182 @@
    "id": "py-3-i-01",
    "type": "code",
    "layer": "application",
-   "fn": "sale_price",
-   "prompt": "A shop advertises a percentage off. Write `sale_price(price, percent_off)` giving the amount actually payable, so `sale_price(200, 25)` is 150.",
-   "starterCode": "def sale_price(price, percent_off):\n    return 0\n",
+   "prompt": "A shop applies a discount. The price in whole pence is typed on the first line and the discount as a whole percentage on the second. Print the price the customer actually pays, in whole pence, with any fraction of a penny dropped in the shop's favour. For the typed lines `1000` and `10` the program prints `900`.",
    "tests": [
-    { "input": "200, 25", "expected": 150.0 },
-    { "input": "100, 0", "expected": 100.0 },
-    { "input": "50, 100", "expected": 0.0 },
-    { "input": "7, 50", "expected": 3.5 }
+    {
+     "input": "1000\n10",
+     "expected": "900"
+    },
+    {
+     "input": "999\n33",
+     "expected": "670"
+    },
+    {
+     "input": "500\n0",
+     "expected": "500"
+    },
+    {
+     "input": "250\n100",
+     "expected": "0"
+    }
    ],
-   "solution": "def sale_price(price, percent_off):\n    return price - price * percent_off / 100\n",
-   "concepts": ["precedence", "arithmetic-operators"],
-   "tags": ["precedence"],
-   "explain": "The subtraction has to happen last, and it does so without any brackets because `*` and `/` both outrank `-` - but `(price - price * percent_off) / 100` is the same symbols grouped differently and gives a wildly different answer. The 7-at-half-off case shows why the result is a float: half of seven is not a whole number, and a price that could not be represented would be a real defect.",
+   "solution": "price = int(input())\npercent = int(input())\nprint(price - price * percent // 100)\n",
+   "concepts": [
+    "arithmetic-operators",
+    "precedence",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "tags": [
+    "arithmetic-operators",
+    "precedence",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "explain": "The second test is where a careless order of operations shows up: 33 percent of 999 is 329.67, and the answer must come out as the whole number 670. Anything printing `670.0` has let a float in, and anything dividing before it multiplies loses the pence entirely, because 33 // 100 is 0.",
    "xp": 60
   },
   {
    "id": "py-3-i-02",
    "type": "code",
    "layer": "application",
-   "fn": "pages_needed",
-   "prompt": "A photo album holds a fixed number of photos on each page, and a page that is only partly filled is still a page that had to be used. Write `pages_needed(photos, per_page)` giving how many pages are needed to hold them all. Ten photos at three to a page need 4 pages.",
-   "starterCode": "def pages_needed(photos, per_page):\n    return 0\n",
+   "prompt": "A whole number of seconds is typed on one line. Print one line reading `2 minutes and 5 seconds` for the typed line `125`, with the two numbers replaced by the right ones for whatever was typed. The wording and the spacing are always the same.",
    "tests": [
-    { "input": "10, 3", "expected": 4 },
-    { "input": "9, 3", "expected": 3 },
-    { "input": "0, 3", "expected": 0 },
-    { "input": "1, 10", "expected": 1 }
+    {
+     "input": "125",
+     "expected": "2 minutes and 5 seconds"
+    },
+    {
+     "input": "59",
+     "expected": "0 minutes and 59 seconds"
+    },
+    {
+     "input": "600",
+     "expected": "10 minutes and 0 seconds"
+    },
+    {
+     "input": "3661",
+     "expected": "61 minutes and 1 seconds"
+    }
    ],
-   "solution": "def pages_needed(photos, per_page):\n    return (photos + per_page - 1) // per_page\n",
-   "concepts": ["true-vs-floor-division", "arithmetic-operators"],
-   "tags": ["true-vs-floor-division"],
-   "explain": "Rounding down is the opposite of what this problem wants, so the standard answer pushes the total up by one page-worth minus one before dividing, which tips any leftover over the line without disturbing an exact fit. The 9-and-3 test fails if you simply add a page unconditionally, and the 0 test fails if you add a page whenever there is a remainder without checking there is one.",
+   "solution": "seconds = int(input())\nprint(str(seconds // 60) + \" minutes and \" + str(seconds % 60) + \" seconds\")\n",
+   "concepts": [
+    "type-conversion",
+    "true-vs-floor-division",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "true-vs-floor-division",
+    "arithmetic-operators"
+   ],
+   "explain": "Both numbers have to become text before they can sit inside a sentence, and both have to be whole for the sentence to read properly - `2.0833 minutes` is not what anybody asked for. The last test is a reminder that the program was never asked to stop at sixty minutes, and inventing that rule fails it.",
    "xp": 60
   },
   {
    "id": "py-3-i-03",
    "type": "code",
    "layer": "application",
-   "fn": "seconds_label",
-   "prompt": "Write `seconds_label(seconds)` giving a piece of text describing that duration in minutes and seconds, in the form `2m 10s` for 130 seconds. A duration under a minute still shows its zero, so 59 seconds is `0m 59s`.",
-   "starterCode": "def seconds_label(seconds):\n    return \"\"\n",
+   "prompt": "Two whole numbers are typed, one per line: the amount a customer paid and the amount they owed. Print `True` if the two amounts are the same and `False` if they are not.",
    "tests": [
-    { "input": "130", "expected": "2m 10s" },
-    { "input": "59", "expected": "0m 59s" },
-    { "input": "120", "expected": "2m 0s" },
-    { "input": "0", "expected": "0m 0s" }
+    {
+     "input": "5\n5",
+     "expected": "True"
+    },
+    {
+     "input": "5\n6",
+     "expected": "False"
+    },
+    {
+     "input": "0\n0",
+     "expected": "True"
+    },
+    {
+     "input": "-3\n3",
+     "expected": "False"
+    }
    ],
-   "solution": "def seconds_label(seconds):\n    return str(seconds // 60) + \"m \" + str(seconds % 60) + \"s\"\n",
-   "concepts": ["type-conversion", "true-vs-floor-division", "arithmetic-operators"],
-   "tags": ["type-conversion"],
-   "explain": "Two things have to be right at once: splitting 130 into whole lots and leftover, and getting numbers into a piece of text at all, which Python will not do on its own. The 120 case is the trap - its leftover is 0 and must still appear, so anything that drops a zero produces `2m s` and fails.",
+   "solution": "paid = int(input())\nowed = int(input())\nprint(paid == owed)\n",
+   "concepts": [
+    "assignment-vs-equality",
+    "type-conversion"
+   ],
+   "tags": [
+    "assignment-vs-equality",
+    "type-conversion"
+   ],
+   "explain": "The single-equals version of that line is not a slightly wrong answer, it is a syntax error, because assignment is a command and cannot sit inside a call where a value belongs. The last test matters because -3 and 3 are different amounts even though they are the same distance from nothing, and comparing numbers rather than typed text is what makes that come out right.",
    "xp": 60
   },
   {
    "id": "py-3-i-04",
-   "type": "debug",
+   "type": "code",
    "layer": "application",
-   "fn": "is_balanced",
-   "prompt": "`is_balanced(paid, owed)` should report whether the amount paid matches the amount owed. It reports `True` every single time, including when it should not. Fix it, keeping the name `is_balanced`.",
-   "starterCode": "def is_balanced(paid, owed):\n    paid = owed\n    return paid == owed\n",
+   "prompt": "Two whole numbers are typed, one per line. Print `True` if the second one divides into parts of the first size with nothing at all left over, and `False` otherwise. For the typed lines `3` and `12` the answer is `True`; for `5` and `12` it is `False`.",
    "tests": [
-    { "input": "5, 5", "expected": true },
-    { "input": "5, 6", "expected": false },
-    { "input": "0, 0", "expected": true },
-    { "input": "-1, 1", "expected": false }
+    {
+     "input": "3\n12",
+     "expected": "True"
+    },
+    {
+     "input": "5\n12",
+     "expected": "False"
+    },
+    {
+     "input": "7\n7",
+     "expected": "True"
+    },
+    {
+     "input": "4\n0",
+     "expected": "True"
+    }
    ],
-   "solution": "def is_balanced(paid, owed):\n    return paid == owed\n",
-   "concepts": ["assignment-vs-equality"],
-   "tags": ["assignment-vs-equality"],
-   "explain": "The second line stores rather than asks: it throws away what was paid and replaces it with what was owed, so by the time the comparison runs the two are guaranteed to match. Nothing crashes and no warning appears, which is what makes a stray single `=` worse than a mistake Python rejects outright - the program keeps going and tells you what you hoped to hear.",
+   "solution": "part = int(input())\ntotal = int(input())\nprint(total % part == 0)\n",
+   "concepts": [
+    "arithmetic-operators",
+    "assignment-vs-equality",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "arithmetic-operators",
+    "assignment-vs-equality",
+    "true-vs-floor-division"
+   ],
+   "explain": "The amount left over answers this in one step, and comparing it against zero turns a number into the yes-or-no the prompt asked for. The last test catches an over-thought answer: nothing at all splits into any number of equal parts with none over, so `True` is correct there even though it feels like a trick.",
    "xp": 60
+  },
+  {
+   "id": "py-3-i-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "In Python, `\"3\" + 4` stops the program with a TypeError, but `\"3\" * 4` runs happily and produces `3333`. Explain why one is refused and the other is not, say what value `\"3\" * 4` actually is, and describe what you would write instead if you wanted the number seven.",
+   "rubric": {
+    "required": [
+     "text",
+     "number",
+     "type",
+     "int"
+    ],
+    "optional": [
+     "repeat",
+     "convert",
+     "TypeError",
+     "guess",
+     "meaning",
+     "str"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "explain": "Python refuses `+` between text and a number because there are two plausible meanings - add them, or join them - and guessing wrong would give a silently wrong program instead of a loud one. `*` between text and a whole number has only one plausible meaning, repetition, so it is allowed, and the value it makes is the four-character text `3333` rather than a number in the thousands. Getting seven means converting first, with `int(\"3\") + 4`.",
+   "xp": 24
   }
  ],
  "exam": [
@@ -302,139 +590,265 @@
    "id": "py-3-x-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "What does the `//` operator do?",
+   "prompt": "What does `//` do?",
    "choices": [
-    "Divides and rounds the result down to a whole number",
-    "Divides and always gives a float",
-    "Marks the rest of the line as a comment",
-    "Gives the remainder left over after dividing"
+    "Divides and rounds the answer to the nearest whole number",
+    "Divides and discards any fraction, giving the whole part",
+    "Divides and always gives a float, exactly like `/`",
+    "Marks the rest of the line as a comment"
    ],
-   "answer": 0,
-   "concepts": ["true-vs-floor-division"],
-   "tags": ["true-vs-floor-division"],
-   "explain": "Rounding down is the definition; it is `/` that always gives a float and `%` that gives the leftover. The comment answer is worth knowing about, because `//` really does begin a comment in several other languages, which is why it looks wrong to anybody arriving from one of them.",
+   "answer": 1,
+   "concepts": [
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "true-vs-floor-division"
+   ],
+   "explain": "Discarding is not rounding, and the difference shows on `5 // 2`, which is 2 where rounding would give 3. The comment answer is the one carried over from other languages, where `//` starts a comment - in Python that job belongs to `#`.",
    "xp": 12
   },
   {
    "id": "py-3-x-02",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "What is the difference between `=` and `==` in Python?",
+   "prompt": "What is the difference between `=` and `==`?",
    "choices": [
-    "`=` stores a value under a name; `==` works out whether two values are equal",
-    "They mean the same thing, and `==` is just the clearer spelling",
-    "`=` compares numbers and `==` compares text",
-    "`=` works out whether two values are equal; `==` stores a value under a name"
+    "There is none; `==` is simply the older spelling",
+    "`=` compares two values, and `==` stores a value under a name",
+    "`=` stores a value under a name, and `==` asks whether two values are equal",
+    "`=` works on numbers and `==` works on text"
    ],
-   "answer": 0,
-   "concepts": ["assignment-vs-equality"],
-   "tags": ["assignment-vs-equality"],
-   "explain": "One changes the world and one asks a question about it, and no amount of context makes them interchangeable. The last choice is the same distinction written backwards, and that is exactly the mix-up that leaves a name quietly overwritten by the value it was supposed to be checked against.",
+   "answer": 2,
+   "concepts": [
+    "assignment-vs-equality"
+   ],
+   "tags": [
+    "assignment-vs-equality"
+   ],
+   "explain": "One is a command that changes the program's state and produces no value; the other is a question that produces `True` or `False` and changes nothing. The swapped answer is worth reading twice, because writing `=` where `==` was meant is precisely the mistake this distinction exists to prevent.",
    "xp": 12
   },
   {
    "id": "py-3-x-03",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "print(100 // 3 ** 2, -3 ** 2)",
+   "prompt": "What does this program print? Give all three lines.",
+   "code": "print(4 + 6 // 2)\nprint((4 + 6) // 2)\nprint(4 + 6 / 2)",
    "lang": "python",
-   "answer": "11 -9",
-   "concepts": ["precedence", "arithmetic-operators"],
-   "tags": ["precedence"],
-   "explain": "The power outranks both the division and the minus sign, so the first is 100 // 9 and the second is -(3 ** 2). Working the first left to right gives 1111 and reading the second as the square of minus three gives 9, and both wrong answers come from the same assumption that Python reads in writing order.",
+   "answer": "7\n5\n7.0",
+   "concepts": [
+    "precedence",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "precedence",
+    "true-vs-floor-division"
+   ],
+   "explain": "Three lines, the same numbers, three different answers - that is precedence and division type in one picture. The third is `7.0` rather than `7` because `/` produces a float and adding a whole number to a float leaves a float; the decimal point is not decoration, it is the type showing itself.",
    "xp": 24
   },
   {
    "id": "py-3-x-04",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "a = 7 / 2\nb = 7 // 2\nprint(a, b, a == b)",
+   "prompt": "What does this program print? Give both lines.",
+   "code": "n = 9\nn *= 2\nn //= 4\nprint(n)\nn /= 2\nprint(n)",
    "lang": "python",
-   "answer": "3.5 3 False",
-   "concepts": ["true-vs-floor-division", "assignment-vs-equality"],
-   "tags": ["true-vs-floor-division"],
-   "explain": "The two divisions genuinely disagree here because 7 does not split evenly, so the comparison is False - and this is the case where the difference is obvious. It is when a division comes out exactly, and `4 / 2 == 4 // 2` is True while the types still differ, that the distinction gets quietly lost.",
+   "answer": "4\n2.0",
+   "concepts": [
+    "augmented-assignment",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "augmented-assignment",
+    "true-vs-floor-division"
+   ],
+   "explain": "18 // 4 is 4, because floor division drops the half rather than rounding it up to 5. The second printed line is `2.0` and not `2`, because `/=` carries the float rule of `/` with it - the same value has changed type without changing much of its size.",
    "xp": 24
   },
   {
    "id": "py-3-x-05",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this print?",
-   "code": "print(\"3\" * 2)",
+   "prompt": "What does this program print? Give all three lines.",
+   "code": "print(\"7\" * 3)\nprint(int(\"7\") * 3)\nprint(\"seat \" + str(7 * 3))",
    "lang": "python",
-   "answer": "33",
-   "concepts": ["type-conversion", "arithmetic-operators"],
-   "tags": ["type-conversion"],
-   "explain": "Multiplying text by a whole number repeats it, so two copies of the character 3 sit side by side and print as `33`. The expected answer is 6, and this is worth drilling because no error is raised: the program carries on holding the wrong value, unlike `\"3\" + 2`, which stops the moment it runs.",
+   "answer": "777\n21\nseat 21",
+   "concepts": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "tags": [
+    "type-conversion",
+    "arithmetic-operators"
+   ],
+   "explain": "The first two lines look nearly identical and differ by a factor of thirty-seven, because one repeats a character while the other multiplies a number. The third shows the only way to put a number inside a message at this stage: work the number out, convert it with `str`, then join it.",
    "xp": 24
   },
   {
    "id": "py-3-x-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Python is evaluating `2 + 12 // 2 ** 2`. Put the three steps into the order they actually happen.",
+   "prompt": "Python is evaluating `2 + 12 // 2 ** 2`. Put the three steps into the order it actually performs them.",
    "fragments": [
-    "work out 12 // 4, giving 3",
-    "work out 2 ** 2, giving 4",
-    "work out 2 + 3, giving 5"
+    "12 // 4 becomes 3",
+    "2 ** 2 becomes 4",
+    "2 + 3 becomes 5"
    ],
-   "answer": [1, 0, 2],
-   "concepts": ["precedence"],
-   "tags": ["precedence"],
-   "explain": "The power is the strongest rank so it resolves first, then the floor division, and the addition last because `+` is the weakest of the three. Starting from the leftmost `+` is the natural reading and would give 14 // 4, which is 3 - a plausible-looking answer reached in entirely the wrong order.",
+   "answer": [
+    1,
+    0,
+    2
+   ],
+   "lang": "python",
+   "concepts": [
+    "precedence",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "precedence",
+    "true-vs-floor-division"
+   ],
+   "explain": "The power goes first, then the floor division, then the addition - the reverse of reading order, which is why this expression is 5 and not the 8 that working left to right would give. Every wrong ordering here matches a real arithmetic bug somebody has shipped.",
    "xp": 24
   },
   {
    "id": "py-3-x-07",
    "type": "trace",
    "layer": "retrieval",
-   "prompt": "Track the value stored under `n` after each line runs.\n\n`n = 20`\n`n //= 6`\n`n **= 2`\n`n %= 4`\n`n -= 1`",
+   "prompt": "Give the value `n` refers to after each line runs.\n\n`n = 20`\n`n //= 3`\n`n += 1`\n`n *= 2.0`",
+   "code": "n = 20\nn //= 3\nn += 1\nn *= 2.0",
+   "lang": "python",
    "steps": [
-    { "label": "after n //= 6", "expected": "3" },
-    { "label": "after n **= 2", "expected": "9" },
-    { "label": "after n %= 4", "expected": "1" },
-    { "label": "after n -= 1", "expected": "0" }
+    {
+     "label": "after n = 20",
+     "expected": "20"
+    },
+    {
+     "label": "after n //= 3",
+     "expected": "6"
+    },
+    {
+     "label": "after n += 1",
+     "expected": "7"
+    },
+    {
+     "label": "after n *= 2.0",
+     "expected": "14.0"
+    }
    ],
-   "concepts": ["augmented-assignment", "arithmetic-operators"],
-   "tags": ["augmented-assignment"],
-   "explain": "Each line replaces `n` with the result of its operator applied to whatever `n` held, so an error at the first step follows you all the way to the end. The first step is where it usually goes wrong: 6 goes into 20 three times with 2 left over, and floor division keeps the 3 and discards the leftover entirely.",
+   "concepts": [
+    "augmented-assignment",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "tags": [
+    "augmented-assignment",
+    "true-vs-floor-division",
+    "type-conversion"
+   ],
+   "explain": "20 // 3 is 6, discarding two thirds rather than rounding up to 7. The final step gives `14.0` and not `14`, because multiplying by a float gives a float even when the answer happens to land on a whole number - the type comes from the operands, not from how the result looks.",
    "xp": 48
   },
   {
    "id": "py-3-x-08",
-   "type": "explain",
-   "layer": "application",
-   "prompt": "`\"3\" + 4` stops the program with a TypeError, but `\"3\" * 4` runs happily and gives `\"3333\"`. Explain why Python treats these two differently, and say which of the two is more likely to cost you an afternoon.",
-   "rubric": {
-    "required": ["text", "number", "meaning", "error", "repeat"],
-    "optional": ["str", "int", "convert", "guess", "silent", "join", "add"],
-    "minWords": 50
-   },
-   "concepts": ["type-conversion", "arithmetic-operators"],
-   "tags": ["type-conversion"],
-   "explain": "`+` between text and a number has two plausible meanings - add the values, or join them into one piece of text - and Python refuses to guess, so it raises an error rather than picking. `*` by a whole number has only one sensible meaning, repeat the text that many times, so there is nothing to guess and it proceeds. The multiplication is the expensive one: it produces a wrong value in silence and the failure surfaces much later somewhere that looks unrelated, whereas the TypeError points at the exact line the instant it runs.",
-   "xp": 40
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "This program should read a whole number typed on one line and print `half: 6` when `13` is typed. Fill the three blanks.",
+   "template": "raw = input()\nvalue = ___(raw)\nhalf = value ___ 2\nprint(\"half: \" + ___(half))",
+   "blanks": [
+    "int",
+    "//",
+    "str"
+   ],
+   "lang": "python",
+   "concepts": [
+    "type-conversion",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "type-conversion",
+    "true-vs-floor-division"
+   ],
+   "explain": "A line typed by a person arrives as text, so it must be converted before it can be divided, and the answer must be converted back before it can be joined to a message - conversion runs in both directions within three lines. `/` in the middle blank would print `half: 6.5`, which the prompt did not ask for.",
+   "xp": 24
   },
   {
    "id": "py-3-x-09",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program reads three whole numbers, one per line, and should print their mean. For the typed lines `1`, `2` and `6` it should print `3.0`, but it prints `5.0` instead. Repair it.",
+   "starterCode": "a = int(input())\nb = int(input())\nc = int(input())\nprint(a + b + c / 3)\n",
+   "tests": [
+    {
+     "input": "1\n2\n6",
+     "expected": "3.0"
+    },
+    {
+     "input": "0\n0\n0",
+     "expected": "0.0"
+    },
+    {
+     "input": "-3\n0\n3",
+     "expected": "0.0"
+    },
+    {
+     "input": "2\n2\n2",
+     "expected": "2.0"
+    }
+   ],
+   "solution": "a = int(input())\nb = int(input())\nc = int(input())\nprint((a + b + c) / 3)\n",
+   "concepts": [
+    "precedence",
+    "arithmetic-operators",
+    "true-vs-floor-division"
+   ],
+   "tags": [
+    "precedence",
+    "arithmetic-operators",
+    "true-vs-floor-division"
+   ],
+   "explain": "Nothing here crashes - the program runs perfectly and prints a confident wrong number, which is what makes precedence bugs expensive to find. Only `c` is being divided, so the repair is brackets around the whole sum, and `/` rather than `//` is right this time because a mean genuinely can be a fraction.",
+   "xp": 60
+  },
+  {
+   "id": "py-3-x-10",
    "type": "code",
    "layer": "application",
-   "fn": "is_even_split",
-   "prompt": "Write `is_even_split(total, people)` giving `True` when the total divides among that many people with nothing left over, and `False` otherwise.",
-   "starterCode": "def is_even_split(total, people):\n    return False\n",
+   "prompt": "A shelf holds a fixed number of books. Write a program that reads the total number of books on the first line and the number that fit on one shelf on the second, then prints the number of shelves that end up completely full, then the number of books left over, then `True` if nothing is left over and `False` otherwise - each on its own line. For the typed lines `17` and `5` it prints `3`, then `2`, then `False`.",
+   "starterCode": "books = int(input())\nper_shelf = int(input())\n# three printed lines: full shelves, books left over,\n# and whether the books fit exactly\n",
    "tests": [
-    { "input": "10, 5", "expected": true },
-    { "input": "10, 3", "expected": false },
-    { "input": "0, 4", "expected": true },
-    { "input": "7, 7", "expected": true }
+    {
+     "input": "17\n5",
+     "expected": "3\n2\nFalse"
+    },
+    {
+     "input": "20\n5",
+     "expected": "4\n0\nTrue"
+    },
+    {
+     "input": "3\n5",
+     "expected": "0\n3\nFalse"
+    },
+    {
+     "input": "5\n5",
+     "expected": "1\n0\nTrue"
+    }
    ],
-   "solution": "def is_even_split(total, people):\n    return total % people == 0\n",
-   "concepts": ["arithmetic-operators", "assignment-vs-equality"],
-   "tags": ["arithmetic-operators"],
-   "explain": "The leftover is exactly what `%` produces, and comparing it with zero turns that number into the True or False the question asked for. Comparing the two divisions instead - checking that `total / people` equals `total // people` - happens to pass these tests, but it does the work twice and leans on a float comparison that stops being reliable for large values.",
+   "solution": "books = int(input())\nper_shelf = int(input())\nprint(books // per_shelf)\nprint(books % per_shelf)\nprint(books % per_shelf == 0)\n",
+   "concepts": [
+    "true-vs-floor-division",
+    "arithmetic-operators",
+    "assignment-vs-equality",
+    "type-conversion"
+   ],
+   "tags": [
+    "true-vs-floor-division",
+    "arithmetic-operators",
+    "assignment-vs-equality",
+    "type-conversion"
+   ],
+   "explain": "The third line has to be a question rather than a command, and asking it of the amount left over is cheaper than multiplying the shelves back out and comparing. The third test is the edge worth checking: fewer books than fit on one shelf gives zero full shelves rather than one, which is `//` behaving exactly as it should.",
    "xp": 60
   }
  ]

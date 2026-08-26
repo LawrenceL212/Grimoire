@@ -3,134 +3,216 @@
  "name": "The Hall of Forking Ways",
  "goal": "Direct a program down different paths using conditions, and predict which path runs.",
  "stage": 1,
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 3
+  }
+ ],
  "cognitiveLevel": "recall",
- "requires": [{ "dungeon": "python", "floor": 3 }],
  "description": {
-  "what": "How a program asks a yes-or-no question about a value and then does something different depending on the answer.",
-  "why": "Every program that is worth writing behaves differently in different situations - a price that depends on age, a message that depends on whether anything was found - and a condition is the only way to say so.",
-  "enables": "Write a program that chooses between several outcomes, combine several questions into one, and say in advance which branch a given value will take.",
-  "assumes": "You can write and run a small program, store a value under a name, and work out the value and type of an expression by hand.",
-  "assessed": "You will predict what branching programs print, repair ones that branch wrongly, and write programs that pick their own path from a stated set of rules."
+  "what": "How a program asks a yes-or-no question about a value, and then runs one piece of code rather than another depending on the answer.",
+  "why": "A program with no conditions can only ever do the same thing to everything it is given, and almost nothing worth writing behaves that way - a price depends on an age, a message depends on whether anything was found, a refund depends on a date.",
+  "enables": "You will be able to write a program that chooses between several outcomes, combine two or three questions into one condition, put a question inside another, and say in advance which branch a given value will take.",
+  "assumes": "Only the three floors below: that you can write and run a small program, store a value under a name, read a typed line and convert it, and work out the value and type of an arithmetic expression by hand.",
+  "assessed": "You will predict what branching programs print, repair programs that branch wrongly or refuse to run at all, and write programs that pick their own path from a stated set of rules."
  },
  "concepts": [
   "booleans",
-  "comparison-operators",
+  "comparison",
   "if-elif-else",
   "boolean-operators",
   "truthiness",
   "nested-conditions",
   "indentation"
  ],
- "sequence": ["lesson", "guided-practice", "independent-practice", "exam"],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
  "lesson": {
   "sections": [
    {
     "title": "A condition is an expression that answers yes or no",
-    "body": "Python has a type whose values are answers to questions. It is called **bool**, and it has exactly two values, written `True` and `False` - capital letter, no quotation marks. `True` is not the same thing as the piece of text `\"True\"`, and mixing the two up is the first mistake almost everybody makes.\n\nYou produce a bool by **comparing** two values. There are six comparison operators: `==` is equal to, `!=` is not equal to, `<` less than, `>` greater than, `<=` less than or equal to, `>=` greater than or equal to. Note the doubled `==`. A single `=` gives a name to a value, which is a completely different act, and Python will refuse the program rather than guess which you meant.\n\nThe important idea is that a comparison is an ordinary expression, exactly like `3 + 4`. It is worked out down to a single value before anything else happens to it, so you may print it, store it under a name, or hand it to the `if` you will meet in the next section. Python also lets you chain comparisons: `1 < x < 10` means what it looks like it means, and is worked out as both halves being true at once.\n\nOne warning that costs people real hours. Numbers with a decimal point are stored as approximations, so `0.1 + 0.2` is very slightly not `0.3` and `==` reports `False`. Comparing two such numbers for exact equality is nearly always the wrong test; ask instead whether the gap between them is small enough to ignore.",
-    "code": "temperature = 4\nfreezing = temperature < 0\nprint(freezing)\nprint(temperature == 4)\nprint(0.1 + 0.2 == 0.3)\nprint(1 < temperature < 10)",
+    "body": "A **condition** is nothing new and nothing special. It is an expression, exactly like the arithmetic of the floor below, and evaluating it leaves you with one value - except that the value is one of only two, `True` or `False`. Those two are the whole of the type `bool`, and they are written with a capital letter and no quotes.\n\nYou get a bool out of a **comparison**. There are six: `==` is equal to, `!=` is not equal to, `<` less than, `>` greater than, `<=` less than or equal to, `>=` greater than or equal to. Read `==` aloud as \"is equal to\" and `=` as \"gets\", and the pair stop looking alike: `age = 15` changes what a name refers to, while `age == 15` changes nothing at all and merely reports a fact.\n\nA condition is an ordinary value, so it can be stored under a name like any other. `old_enough = age >= 18` works the comparison out once and keeps the answer, and a well-chosen name for it is often the difference between a readable program and a wall of symbols. This is worth doing whenever the same question is asked twice.\n\nOne comparison is a trap, and it is worth meeting now rather than at midnight later: `==` between two **floats** asks whether two numbers-with-points are exactly identical, and numbers-with-points are stored as approximations. `0.1 + 0.2` is not quite `0.3`, so that comparison is `False` even though the arithmetic is right. With whole numbers `==` is perfectly safe; with floats, ask whether the difference is small instead.",
+    "code": "age = 15\nprint(age > 12)\nprint(age == 15)\nprint(age != 15)\nold_enough = age >= 18\nprint(old_enough)\nprint(type(old_enough))\nprint(0.1 + 0.2 == 0.3)",
     "lang": "python",
     "annotations": [
-     { "line": 2, "text": "The comparison is worked out first and produces a bool; `freezing` now refers to `False` in the same way a name could refer to `7` or to a piece of text. Nothing here is a question waiting to be asked later - it is an answer, already computed." },
-     { "line": 5, "text": "This prints `False`, and the program is not wrong. `0.1 + 0.2` is stored as 0.30000000000000004, so exact equality genuinely fails. This is the single commonest surprise with decimal numbers in every language, not a quirk of Python." },
-     { "line": 6, "text": "A chained comparison. Python reads it as `1 < temperature` and `temperature < 10` both holding, which is the mathematical reading. Most languages do not allow this and would give you nonsense instead." }
+     {
+      "line": 2,
+      "text": "A comparison is worked out into a single value, and that value is `True`. There is nothing else left of the expression afterwards."
+     },
+     {
+      "line": 5,
+      "text": "The comparison is evaluated first, exactly as the right-hand side of any assignment is, and the name is then attached to the `False` that comes out."
+     },
+     {
+      "line": 7,
+      "text": "`bool` is a type in its own right, alongside `int`, `float` and `str`. `True` is not the text `\"True\"`, and it is not the number one dressed up."
+     },
+     {
+      "line": 8,
+      "text": "This prints `False`, and Python is not wrong: a third of the numbers-with-points you can write down cannot be stored exactly, so the sum lands a hair away from `0.3`."
+     }
     ],
     "checkpoint": {
      "type": "output",
      "layer": "retrieval",
-     "prompt": "What does this program print?",
-     "code": "x = 5\nprint(x != 5)\nprint(x >= 5)",
+     "prompt": "What does this program print? Write all three lines.",
+     "code": "x = 4\ny = 7\nprint(x < y)\nprint(x * 2 == y + 1)\nprint(x != y)",
      "lang": "python",
-     "answer": "False\nTrue",
-     "concepts": ["booleans", "comparison-operators"],
-     "tags": ["comparison-operators"],
-     "explain": "`x != 5` asks whether they differ, and they do not, so it is `False`. `x >= 5` succeeds on the equal case, which is exactly the difference between `>` and `>=` - and the boundary where most off-by-one faults live.",
+     "answer": "True\nTrue\nTrue",
+     "concepts": [
+      "booleans",
+      "comparison"
+     ],
+     "tags": [
+      "booleans",
+      "comparison"
+     ],
+     "explain": "The middle line is the one worth pausing on: both sides are worked out completely before they are compared, so this asks whether 8 equals 8 rather than mixing the comparison in with the arithmetic. Comparison happens last, after every operator around it has had its turn.",
      "xp": 20
     }
    },
    {
-    "title": "if, elif, else - and the indentation that makes them real",
-    "body": "`if` takes a condition and a block of statements indented beneath it, and runs that block only when the condition is `True`. `else` takes a block that runs when it was `False`. `elif` - short for \"else if\" - lets you test a further condition only when every condition above it has already failed.\n\nA chain runs **at most one** branch. Python tests the conditions from the top and stops dead at the first one that is `True`, never looking at the rest. That is why `elif` is not the same as writing a second `if`: two separate `if` statements are two independent decisions and both blocks can run, while an `if`/`elif` chain is one decision with several possible outcomes. If your branches overlap, the order you write them in is part of the logic.\n\nIndentation is not tidiness in Python; it is the syntax that says what belongs to the branch. Four spaces is the convention. A line indented under the `if` runs only when the condition holds, and the same line moved back out to the left runs every time. Changing the indentation of a line changes the meaning of the program, silently and completely.\n\nFrom here on, some exercises ask you for a **function**: a named recipe, written `def price(age):`, that is handed a value - here called `age` - and uses `return` to hand an answer back to whoever asked. Floor 7 teaches functions properly. For now, read `def` as \"here is a recipe with a name\", and `return` as \"this is the answer, stop here\".",
-    "code": "def ticket(age):\n    if age < 5:\n        return \"free\"\n    elif age < 18:\n        return \"child\"\n    else:\n        return \"adult\"\n\nprint(ticket(3))\nprint(ticket(17))\nprint(ticket(18))",
+    "title": "if, elif, else, and the indentation that makes them real",
+    "body": "`if` takes a condition and a block of lines beneath it. When the condition evaluates to `True` the block runs; when it evaluates to `False` the block is skipped entirely, as though it were not in the file. The header line always ends in a colon, and the lines belonging to it are pushed in by four spaces.\n\nThat indentation is **syntax**, not decoration. In many languages the shape of the code is a courtesy to the reader and brackets tell the machine what belongs to what; in Python the shape is the only thing that says so. Move a line four spaces left and it stops being part of the block, which changes what the program does without changing a single character of it - and forgetting to indent at all is not a wrong answer but a refusal to run.\n\n`else` catches everything the `if` did not, and `elif` - short for \"else if\" - asks a further question only when the ones above it have already said no. A chain of `if`, any number of `elif`s and at most one `else` is a single decision: Python tries the conditions from the top, runs the block belonging to the first that is `True`, and skips the rest of the chain without even evaluating them.\n\nWriting a second `if` instead of an `elif` is therefore not a matter of taste. Two `if` statements are two separate decisions, and both blocks can run. This is the commonest branching bug there is, and it shows itself as a program that prints two answers where you expected one.",
+    "code": "score = 55\nif score >= 70:\n    print(\"distinction\")\nelif score >= 50:\n    print(\"pass\")\nelse:\n    print(\"fail\")\nprint(\"done\")\n\nn = 5\nif n > 0:\n    print(\"positive\")\nif n > 3:\n    print(\"big\")",
     "lang": "python",
     "annotations": [
-     { "line": 4, "text": "`age < 18` is only ever tested when `age < 5` has already failed, so this branch quietly means \"between 5 and 17\". Written as a separate `if`, it would also catch a 3-year-old and the order of the branches would stop protecting you." },
-     { "line": 6, "text": "`else` carries no condition because it cannot fail: it is everything the branches above did not catch. Every value of `age` therefore reaches exactly one `return`, which is what makes this recipe total rather than sometimes silent." },
-     { "line": 11, "text": "18 is not less than 18, so both conditions fail and the `else` runs. Boundary values like this one are where branching code is worth testing first, not last." }
+     {
+      "line": 4,
+      "text": "Reached only because the condition above was `False`. 55 is not at least 70, so Python asks the next question and finds 55 is at least 50."
+     },
+     {
+      "line": 8,
+      "text": "Level with the `if`, so it belongs to no branch and runs whatever the score was. Four spaces further in and it would print only on a fail."
+     },
+     {
+      "line": 11,
+      "text": "A new decision entirely, with no connection to the one above it. Every `if` in a file is asked."
+     },
+     {
+      "line": 13,
+      "text": "Not an `elif`, so this is asked even though the question above it already said yes - which is why this program prints two lines rather than one."
+     }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "fn": "sign_word",
-     "prompt": "Write `sign_word(n)`. It returns the text `\"positive\"` when `n` is greater than zero, `\"negative\"` when `n` is less than zero, and `\"zero\"` when it is neither.",
-     "starterCode": "def sign_word(n):\n    if n > 0:\n        return \"positive\"\n    # two more cases to go\n",
-     "tests": [
-      { "input": "5", "expected": "positive" },
-      { "input": "-3", "expected": "negative" },
-      { "input": "0", "expected": "zero" }
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? Write every line it prints.",
+     "code": "grade = 82\nif grade >= 90:\n    print(\"A\")\nif grade >= 80:\n    print(\"B\")\nif grade >= 70:\n    print(\"C\")",
+     "lang": "python",
+     "answer": "B\nC",
+     "concepts": [
+      "if-elif-else",
+      "indentation"
      ],
-     "solution": "def sign_word(n):\n    if n > 0:\n        return \"positive\"\n    elif n < 0:\n        return \"negative\"\n    else:\n        return \"zero\"\n",
-     "hint": "Three outcomes need three branches. The last one needs no condition at all, because anything that is neither above nor below zero is zero.",
-     "concepts": ["if-elif-else", "comparison-operators"],
-     "tags": ["if-elif-else"],
-     "explain": "Zero is the case people forget, because `> 0` and `< 0` between them look as though they cover the number line and they do not. Leaving it out does not raise an error - the recipe simply hands back nothing at all for zero, which is a far harder fault to notice.",
-     "xp": 25
+     "tags": [
+      "if-elif-else",
+      "indentation"
+     ],
+     "explain": "Answering `B` alone is the trap, and it is the right answer to a program that used `elif` - which this one does not. Three separate `if` statements are three separate decisions, so 82 is measured against all three thresholds and passes two of them.",
+     "xp": 20
     }
    },
    {
-    "title": "and, or, not - and the half Python never reads",
-    "body": "Three words combine conditions. `a and b` is `True` only when both are; `a or b` is `True` when at least one is; `not a` flips the answer over. They bind with different strengths - `not` tightest, then `and`, then `or` - so `not x and y` means `(not x) and y`. When a combination takes more than a moment to read, put brackets in and stop relying on the rule.\n\nThe part worth remembering is that these two operators are lazy, which is called **short-circuit** evaluation. `and` works out the left side first, and if it is `False` the whole thing is already `False`, so the right side is never worked out at all. `or` does the mirror image: a `True` on the left ends it. This is not an optimisation you can ignore - it is a tool. Putting the cheap or protective test on the left lets it guard the dangerous one on the right, which is how `count != 0 and total / count > 5` avoids dividing by zero.\n\nYou can also put an `if` inside another `if`, which is called **nesting**, and the indentation shows what sits inside what. When the outer branch contains nothing but the inner `if`, nesting and `and` say exactly the same thing, and the flat version with `and` is easier to read. Nest when the outer branch has its own work to do, or its own `else` for the case where the outer test fails - because a flat `and` cannot tell you which half failed.",
-    "code": "count = 0\ntotal = 0\nif count != 0 and total / count > 5:\n    print(\"high average\")\nelse:\n    print(\"no average to report\")\n\nis_member = True\nage = 70\nprint(age < 12 or age >= 65)\nprint(not is_member)",
+    "title": "and, or, not, and the half Python never reads",
+    "body": "Three words combine conditions into bigger conditions. `a and b` is `True` only when both halves are; `a or b` is `True` when at least one half is, including when both are; `not a` flips whichever answer `a` gave. They bind in that order of tightness - `not` first, then `and`, then `or` - so when a condition mixes them, brackets cost nothing and save arguments.\n\nPython stops as soon as the answer is settled. Reaching a `False` on the left of an `and` decides the whole thing, so the right-hand side is never evaluated at all; the same goes for a `True` on the left of an `or`. This is called **short-circuit** evaluation, and it is not a curiosity: it is how you write a condition whose second half would break if the first half were not already true.\n\nPython also allows a comparison to be **chained**. `0 < count < limit` means exactly what a mathematician would expect, and is a tidier spelling of `count > 0 and count < limit`. It is one of the few places where Python reads like the notation it is imitating.\n\nAnd then the trap, which catches everybody once. `count == 1 or 2` does not ask whether `count` is one or two. `or` joins two whole conditions, and the second one here is not a condition at all but the bare number `2` - so the line means \"is count equal to one, or failing that, is there a 2\", and there always is. The correct spelling repeats the name: `count == 1 or count == 2`.",
+    "code": "count = 3\nlimit = 10\nprint(count > 0 and count < limit)\nprint(0 < count < limit)\nprint(count > 5 or limit > 5)\nprint(not count > 5)\nprint(count == 3 or count == 7)\nprint(count == 1 or 2)\nprint(limit > 100 and 10 // 0 == 1)",
     "lang": "python",
     "annotations": [
-     { "line": 3, "text": "`count != 0` is `False`, so Python never works out the division and the program does not crash. Swap the two halves round and the same program dies with a ZeroDivisionError - the order of an `and` can be the difference between working and failing." },
-     { "line": 10, "text": "An `or` where both halves are ordinary comparisons: 70 is not under 12, but it is 65 or over, so one `True` is enough and the whole expression is `True`." },
-     { "line": 11, "text": "`not` takes the bool on its right and returns the other one. It does not modify `is_member`; like every operator so far it produces a new value and leaves its input alone." }
+     {
+      "line": 4,
+      "text": "The chained spelling of the line above it, and it means the same thing: both comparisons must hold."
+     },
+     {
+      "line": 6,
+      "text": "`not` binds tighter than `and` or `or` but looser than a comparison, so this is `not (count > 5)` and not the nonsense `(not count) > 5`."
+     },
+     {
+      "line": 8,
+      "text": "This prints `2`, not `True` and not `False`. The left half is `False`, so `or` hands back the right half untouched - and a bare `2` was never a question."
+     },
+     {
+      "line": 9,
+      "text": "Dividing by zero would stop the program, yet this prints `False` quite happily: the left half settled the answer, so the right half was never evaluated."
+     }
     ],
     "checkpoint": {
-     "type": "code",
-     "layer": "application",
-     "fn": "can_vote",
-     "prompt": "Write `can_vote(age, is_citizen)`. It returns `True` when the person is 18 or older **and** `is_citizen` is `True`, and `False` otherwise. `is_citizen` is already a bool.",
-     "starterCode": "def can_vote(age, is_citizen):\n    return False\n",
-     "tests": [
-      { "input": "18, True", "expected": true },
-      { "input": "17, True", "expected": false },
-      { "input": "30, False", "expected": false }
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print? Write all three lines.",
+     "code": "a = 5\nb = 0\nprint(a > 1 and b > 1)\nprint(a > 1 or b > 1)\nprint(not (a > 1 or b > 1))",
+     "lang": "python",
+     "answer": "False\nTrue\nFalse",
+     "concepts": [
+      "boolean-operators",
+      "booleans"
      ],
-     "solution": "def can_vote(age, is_citizen):\n    return age >= 18 and is_citizen\n",
-     "hint": "You do not need an `if` at all. The combined condition is already the answer, so it can be handed back directly.",
-     "concepts": ["boolean-operators", "booleans"],
-     "tags": ["boolean-operators"],
-     "explain": "Writing `if age >= 18 and is_citizen: return True else: return False` works, but it takes a bool, tests it, and then builds the same bool again. When the answer you want is the condition itself, hand the condition back - and note that `is_citizen == True` is the same redundancy in miniature.",
-     "xp": 25
+     "tags": [
+      "boolean-operators",
+      "booleans"
+     ],
+     "explain": "The same two comparisons give three different answers depending only on the word joining them, which is the point of the exercise. The last line is worth checking twice: `not` is applied to the whole bracket, so it flips the `True` the line above produced.",
+     "xp": 20
     }
    },
    {
-    "title": "Truthiness, and what an empty thing means",
-    "body": "`if` does not insist on a bool. It accepts any value at all and applies a fixed rule to decide whether that value counts as a yes. Values that count as no are called **falsy**, and the list is short: `False`, the number `0` (and `0.0`), empty text `\"\"`, and `None` - which is Python's word for the deliberate absence of any value. Every other value is **truthy**, including negative numbers, and including the piece of text `\"0\"`, which is not empty and therefore counts as a yes.\n\nThis is convenient. `if name:` reads as \"if there is a name\" and covers the empty case without a comparison. Groups of values that arrive on later floors follow exactly the same rule: an empty one is falsy, a non-empty one is truthy.\n\nIt is also a trap, and it is worth naming precisely. Truthiness collapses several very different situations into one answer. A stock count of `0` means sold out; a stock count of `None` means nobody has counted yet. Both are falsy, so `if count:` treats them identically and the difference you cared about disappears without any error being raised.\n\nThe rule of thumb: when the falsy values are genuinely all the same to you, lean on truthiness. When zero is a real, meaningful value, test for what you actually mean - `count is None` for absent, `count == 0` for sold out. `is None` is the standard way to test for `None`, and it is worth reading as one word.",
-    "code": "name = \"\"\nif name:\n    print(\"hello \" + name)\nelse:\n    print(\"hello stranger\")\n\ncount = 0\nprint(bool(count), bool(\"0\"), bool(None), bool(-1))\n\nif count is None:\n    print(\"unknown\")\nelif count == 0:\n    print(\"none left\")",
+    "title": "Truthiness, and a question inside a question",
+    "body": "An `if` will accept any value at all, not only a comparison, and it decides for itself whether that value counts as a yes. This is called **truthiness**, and the falsy values are a short list worth learning outright: the number `0`, the float `0.0`, the empty piece of text `\"\"`, the value `None`, and `False` itself. Everything else is truthy. `bool(value)` asks Python which it is, in the same way that `type(value)` asks what kind it is.\n\n`None` is Python's way of saying \"nothing here\", and it is a real value with a capital N and no quotes - not zero, not empty text, and not an error. You will meet it properly a few floors from now; for the moment it is enough to know that a name set to `None` is falsy, which is what makes it useful as a starting value for something not yet found.\n\nSo `if count:` reads as \"if count is not zero\" and `if name:` as \"if some text was given\". This is idiomatic and short, and it has one sharp edge: a count of `-1` is truthy, so if what you meant was \"more than none\" then write `count > 0` and say so. Note also that the text `\"no\"` is truthy, along with `\"0\"` and `\"False\"` - any text with a character in it is truthy, whatever those characters happen to spell.\n\nBlocks can hold anything, including further `if` statements, each indented one level deeper than the block it sits in. **Nesting** is the right shape when the inner question is only meaningful once the outer one has been answered - asking whether somebody is a member is worth doing only after you know they are an adult. When the two questions are independent, one condition joined by `and` is nearly always clearer than two levels of indentation.",
+    "code": "print(bool(0))\nprint(bool(7))\nprint(bool(\"\"))\nprint(bool(\"no\"))\nfound = None\nif not found:\n    print(\"nothing found yet\")\nage = 20\nmember = True\nif age >= 18:\n    if member:\n        print(\"member price\")\n    else:\n        print(\"full price\")\nelse:\n    print(\"child price\")",
     "lang": "python",
     "annotations": [
-     { "line": 2, "text": "`name` is not a bool, and Python does not complain. Empty text is falsy, so the `else` runs. This is the idiom for \"did I actually get anything?\" and it is why an empty name never reaches the greeting." },
-     { "line": 8, "text": "`bool(value)` reports the very answer `if` would use, which makes it the way to check your understanding of any value. `\"0\"` is text one character long, so it is truthy - the digit inside it is not consulted." },
-     { "line": 10, "text": "This chain distinguishes the two falsy cases that mattered, in the order that matters: absent first, then zero. Written as `if not count:` both would land in the same branch and the program would say the wrong thing without ever failing." }
+     {
+      "line": 3,
+      "text": "Empty text is falsy. It is a perfectly good `str` with a length of zero, and it is the reason `if answer:` is a common way to ask whether anything was typed."
+     },
+     {
+      "line": 4,
+      "text": "Two characters is not nothing, so this is `True`. Truthiness looks at whether there is anything there, never at what it says."
+     },
+     {
+      "line": 5,
+      "text": "`None` written straight into the source is the usual way to say a name has no useful value yet, and the `if` on the next line runs because `None` is falsy."
+     },
+     {
+      "line": 11,
+      "text": "One level deeper, so this question is asked only when the outer one said yes. A child never has their membership checked at all."
+     }
     ],
     "checkpoint": {
      "type": "code",
      "layer": "application",
-     "fn": "greeting",
-     "prompt": "Write `greeting(name)`. When `name` is a non-empty piece of text it returns `\"Hello, \"` followed by the name. When `name` is empty text it returns `\"Hello, stranger\"`.",
-     "starterCode": "def greeting(name):\n    return \"Hello, stranger\"\n",
+     "prompt": "Write a program that reads one line holding a whole number of items in a crate, and prints the number when there are some and the word `none` when there are not. For the typed line `5` it prints `5`; for the typed line `0` it prints `none`.",
+     "starterCode": "count = int(input())\n# print one line: the number itself, or the word none\n",
      "tests": [
-      { "input": "\"Ada\"", "expected": "Hello, Ada" },
-      { "input": "\"\"", "expected": "Hello, stranger" },
-      { "input": "\"Bo\"", "expected": "Hello, Bo" }
+      {
+       "input": "5",
+       "expected": "5"
+      },
+      {
+       "input": "0",
+       "expected": "none"
+      },
+      {
+       "input": "1",
+       "expected": "1"
+      }
      ],
-     "solution": "def greeting(name):\n    if name:\n        return \"Hello, \" + name\n    return \"Hello, stranger\"\n",
-     "hint": "Empty text is falsy, so the name itself can be the condition - no comparison with `\"\"` is needed, though one would work.",
-     "concepts": ["truthiness", "if-elif-else"],
-     "tags": ["truthiness"],
-     "explain": "`if name != \"\":` is correct here and reads fine, but it only covers empty text, while `if name:` also catches `None` if a missing name ever arrives that way. That breadth is the attraction of truthiness, and on the next floor of your own code it will also be the risk.",
+     "solution": "count = int(input())\nif count:\n    print(count)\nelse:\n    print(\"none\")\n",
+     "hint": "Zero is the only whole number Python treats as falsy, so the number itself can serve as the condition.",
+     "concepts": [
+      "truthiness",
+      "if-elif-else"
+     ],
+     "tags": [
+      "truthiness",
+      "if-elif-else"
+     ],
+     "explain": "The `1` test exists to catch a condition written the wrong way round, which the `0` and `5` tests would both let through if the two branches were swapped. Either `if count:` or `if count != 0:` is correct here, and the first is what a Python programmer would write.",
      "xp": 25
     }
    }
@@ -141,80 +223,165 @@
    "id": "py-4-g-01",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "print(0.1 + 0.2 == 0.3)\nprint(1 < 2 < 3)\nprint(not 5 > 3)",
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "a = 6\nb = 6.0\nprint(a == b)\nprint(type(a) == type(b))\nprint(str(a) == str(b))",
    "lang": "python",
-   "answer": "False\nTrue\nFalse",
-   "concepts": ["comparison-operators", "booleans"],
-   "tags": ["comparison-operators"],
-   "explain": "The first line is the decimal-approximation trap: the sum is 0.30000000000000004. The third line catches people because `not` looks as though it grabs the `5`; it does not - comparison binds tighter than `not`, so Python works out `5 > 3` first and then flips the `True` it produced.",
-   "xp": 25
+   "answer": "True\nFalse\nFalse",
+   "concepts": [
+    "comparison",
+    "booleans"
+   ],
+   "tags": [
+    "comparison",
+    "booleans"
+   ],
+   "explain": "`==` between numbers asks about the value, so a whole six and a six-with-a-point are equal even though they are different types - which is exactly what the second line goes on to prove. The third line is the surprise: turned into text they are `6` and `6.0`, and those are plainly different characters, so equality of numbers and equality of their written forms are two separate questions.",
+   "hint": "Ask each line what it is comparing: the values, the kinds, or the way the values are written down.",
+   "xp": 20
   },
   {
    "id": "py-4-g-02",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "x = 12\nif x > 10:\n    print(\"big\")\nif x > 5:\n    print(\"medium\")\nprint(\"..\")\nif x > 10:\n    print(\"big\")\nelif x > 5:\n    print(\"medium\")",
+   "prompt": "What does this program print? Write every line it prints.",
+   "code": "n = 12\nif n > 5:\n    print(\"over five\")\nelif n > 10:\n    print(\"over ten\")\nelse:\n    print(\"small\")\nprint(\"end\")",
    "lang": "python",
-   "answer": "big\nmedium\n..\nbig",
-   "concepts": ["if-elif-else"],
-   "tags": ["if-elif-else"],
-   "explain": "Two separate `if` statements are two separate decisions, so both run for a value that satisfies both. The `elif` version is one decision, and it stops at the first success - which is why swapping `elif` for a second `if` is never a cosmetic edit.",
-   "xp": 25
+   "answer": "over five\nend",
+   "concepts": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "Twelve is over ten as well as over five, so the tempting answer is that both branches report - but an `elif` is only ever reached when everything above it has said no, and the first condition said yes. The lesson for writing your own chains is that the most demanding test has to come first, or it can never be reached at all.",
+   "hint": "Work down the chain from the top and stop at the first condition that is `True`.",
+   "xp": 20
   },
   {
    "id": "py-4-g-03",
    "type": "fill",
    "layer": "retrieval",
-   "prompt": "Fill the blanks. The first message should appear only when there is something to average and that average is above 5. The second should appear when either number is zero.",
-   "template": "if count > 0 ___ total / count > 5:\n    print('high average')\nif count == 0 ___ total == 0:\n    print('nothing to report')",
-   "blanks": ["and", "or"],
+   "prompt": "Fill the two blanks so that a speed of exactly 30 prints `just right`, a speed of 60 prints `too fast`, and a speed of 20 prints `too slow` - with exactly one line printed each time.",
+   "template": "speed = 30\nif speed > 50:\n    print(\"too fast\")\n___ speed ___ 30:\n    print(\"just right\")\nelse:\n    print(\"too slow\")",
+   "blanks": [
+    "elif",
+    "=="
+   ],
    "lang": "python",
-   "concepts": ["boolean-operators"],
-   "tags": ["boolean-operators"],
-   "explain": "The first blank must be `and` for two reasons at once: both parts have to hold, and the left part has to protect the division on the right from a zero. The second blank is `or` because either zero on its own is enough to leave you with nothing worth reporting.",
-   "xp": 25
+   "concepts": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "A second `if` in the first blank would still print the right words, but it would ask both questions and so would print two lines for a speed of 60 - the requirement that exactly one line appears is what forces the chain. The second blank has to be `==` rather than `=`, because a condition reports a fact and never changes one.",
+   "hint": "The first blank continues the decision above it rather than starting a new one; the second asks a question rather than storing a value.",
+   "xp": 20
   },
   {
    "id": "py-4-g-04",
-   "type": "debug",
-   "layer": "application",
-   "fn": "ticket_price",
-   "prompt": "`ticket_price(age)` should charge 0 for anyone under 5, 5 for anyone under 18, 5 for anyone 65 or over, and 10 for everybody else. It is right for children and pensioners but hands back nothing at all for a 30-year-old. Repair it.",
-   "starterCode": "def ticket_price(age):\n    if age < 5:\n        return 0\n    if age < 18:\n        return 5\n    if age >= 65:\n        return 5\n        return 10\n",
-   "tests": [
-    { "input": "3", "expected": 0 },
-    { "input": "10", "expected": 5 },
-    { "input": "70", "expected": 5 },
-    { "input": "30", "expected": 10 },
-    { "input": "65", "expected": 5 }
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Give the value `ready` refers to after each of the last three lines of this program runs.\n\n`ready = False`\n`count = 4`\n`ready = count > 0`\n`ready = ready and count > 10`\n`ready = not ready`",
+   "code": "ready = False\ncount = 4\nready = count > 0\nready = ready and count > 10\nready = not ready",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "after ready = count > 0",
+     "expected": "True"
+    },
+    {
+     "label": "after ready = ready and count > 10",
+     "expected": "False"
+    },
+    {
+     "label": "after ready = not ready",
+     "expected": "True"
+    }
    ],
-   "solution": "def ticket_price(age):\n    if age < 5:\n        return 0\n    if age < 18:\n        return 5\n    if age >= 65:\n        return 5\n    return 10\n",
-   "hint": "Look at what the last line belongs to. Which values of `age` can ever reach it where it currently sits?",
-   "concepts": ["indentation", "if-elif-else"],
-   "tags": ["indentation"],
-   "explain": "`return 10` is indented under the `age >= 65` branch, so it sits after a `return` that has already left - it can never run, and a 30-year-old falls off the end of the recipe and gets nothing. Python raises no error, because the indentation is legal; it simply describes a different program from the one intended. That is what \"indentation is syntax\" costs when you get it wrong.",
-   "xp": 60
+   "concepts": [
+    "booleans",
+    "boolean-operators"
+   ],
+   "tags": [
+    "booleans",
+    "boolean-operators"
+   ],
+   "explain": "A bool is an ordinary value that can be stored, read back and replaced like any other, which is what makes the middle line legal at all - `ready and count > 10` joins the answer already held under `ready` to a fresh comparison. The last step catches anyone who has quietly decided that `ready` means what its name says rather than what the lines did to it.",
+   "hint": "Work out the right-hand side using the value from the line before, then write down what the name refers to afterwards.",
+   "xp": 40
   },
   {
    "id": "py-4-g-05",
    "type": "code",
    "layer": "application",
-   "fn": "describe_stock",
-   "prompt": "Write `describe_stock(count)`. `count` is `None` when nobody has counted the shelf yet, and otherwise a whole number. Return `\"unknown\"` for `None`, `\"out of stock\"` for 0, and `\"in stock\"` for anything higher.",
-   "starterCode": "def describe_stock(count):\n    # `None` and 0 are both falsy - tell them apart deliberately\n    return \"in stock\"\n",
+   "prompt": "Write a program that reads one line holding a whole number and prints exactly one of three words: `positive` when the number is above zero, `negative` when it is below zero, and `zero` when it is neither. For the typed line `5` it prints `positive`.",
+   "starterCode": "n = int(input())\n# print exactly one of the three words\n",
    "tests": [
-    { "input": "None", "expected": "unknown" },
-    { "input": "0", "expected": "out of stock" },
-    { "input": "7", "expected": "in stock" }
+    {
+     "input": "5",
+     "expected": "positive"
+    },
+    {
+     "input": "-3",
+     "expected": "negative"
+    },
+    {
+     "input": "0",
+     "expected": "zero"
+    }
    ],
-   "solution": "def describe_stock(count):\n    if count is None:\n        return \"unknown\"\n    elif count == 0:\n        return \"out of stock\"\n    else:\n        return \"in stock\"\n",
-   "hint": "Test for the absent case first and by name, then for zero, then let everything else fall through.",
-   "concepts": ["truthiness", "if-elif-else"],
-   "tags": ["truthiness"],
-   "explain": "The tempting first attempt is `if not count: return \"unknown\"`, which passes the `None` test and then quietly mislabels a sold-out shelf as uncounted. Both values are falsy, so truthiness cannot separate them; only `is None` and `== 0` can, and the order matters because `None == 0` is `False` but `None` would still be caught by any truthiness test placed first.",
-   "xp": 60
+   "solution": "n = int(input())\nif n > 0:\n    print(\"positive\")\nelif n < 0:\n    print(\"negative\")\nelse:\n    print(\"zero\")\n",
+   "hint": "Two questions are enough for three answers: ask about above and below, and let the final branch catch what is left.",
+   "concepts": [
+    "if-elif-else",
+    "comparison",
+    "booleans"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison",
+    "booleans"
+   ],
+   "explain": "Zero is the case that punishes a careless `>=`, because a threshold written one character out sends it down the wrong branch while the other two tests still pass. Three outcomes need only two conditions, since the last branch is by definition everything the others did not claim.",
+   "xp": 50
+  },
+  {
+   "id": "py-4-g-06",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program should read a whole-number age and print `adult` for 18 and over, `child` otherwise. It stops with an error before printing anything at all. Repair it.",
+   "starterCode": "age = int(input())\nif age >= 18:\nprint(\"adult\")\nelse:\n    print(\"child\")\n",
+   "tests": [
+    {
+     "input": "18",
+     "expected": "adult"
+    },
+    {
+     "input": "17",
+     "expected": "child"
+    },
+    {
+     "input": "0",
+     "expected": "child"
+    }
+   ],
+   "solution": "age = int(input())\nif age >= 18:\n    print(\"adult\")\nelse:\n    print(\"child\")\n",
+   "hint": "Compare the two branches character by character. One of them says which `if` it belongs to and the other does not.",
+   "concepts": [
+    "indentation",
+    "if-elif-else"
+   ],
+   "tags": [
+    "indentation",
+    "if-elif-else"
+   ],
+   "explain": "The line after a colon must be pushed in, because in Python the shape of the code is the only thing that says which lines belong to the branch - there are no brackets doing that job quietly in the background. It is worth noticing that this fault stops the program rather than producing a wrong answer, which is the kinder of the two ways to be wrong.",
+   "xp": 50
   }
  ],
  "independent-practice": [
@@ -222,99 +389,182 @@
    "id": "py-4-i-01",
    "type": "code",
    "layer": "application",
-   "fn": "bmi_category",
-   "prompt": "A clinic labels a body-mass index as follows: below 18.5 is `\"under\"`; from 18.5 up to but not including 25 is `\"normal\"`; from 25 up to but not including 30 is `\"over\"`; 30 and above is `\"obese\"`. Write `bmi_category(bmi)` returning the right label.",
-   "starterCode": "def bmi_category(bmi):\n    pass\n",
+   "prompt": "A cinema charges by age, in whole pounds. Anybody under 5 gets in free. From 5 up to and including 15 the ticket is 6. From 65 upwards it is also 6. Everybody else pays 11. Your program reads one line holding a whole-number age and prints the price alone, so for the typed line `3` it prints `0`.",
    "tests": [
-    { "input": "17", "expected": "under" },
-    { "input": "18.5", "expected": "normal" },
-    { "input": "25", "expected": "over" },
-    { "input": "29.9", "expected": "over" },
-    { "input": "31", "expected": "obese" }
+    {
+     "input": "3",
+     "expected": "0"
+    },
+    {
+     "input": "5",
+     "expected": "6"
+    },
+    {
+     "input": "15",
+     "expected": "6"
+    },
+    {
+     "input": "16",
+     "expected": "11"
+    },
+    {
+     "input": "65",
+     "expected": "6"
+    }
    ],
-   "solution": "def bmi_category(bmi):\n    if bmi < 18.5:\n        return \"under\"\n    elif bmi < 25:\n        return \"normal\"\n    elif bmi < 30:\n        return \"over\"\n    else:\n        return \"obese\"\n",
-   "concepts": ["if-elif-else", "comparison-operators"],
-   "tags": ["if-elif-else"],
-   "explain": "Every boundary here belongs to the band above it, so each test is a strict `<` and the value 25 lands in `\"over\"`. Testing from the bottom upwards means each later condition can assume the earlier ones failed, which is why none of them needs a lower bound written out.",
-   "xp": 60
+   "solution": "age = int(input())\nif age < 5:\n    print(0)\nelif age < 16:\n    print(6)\nelif age >= 65:\n    print(6)\nelse:\n    print(11)\n",
+   "concepts": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "Every boundary in this problem is stated inclusively in one direction and exclusively in the other, so `15` and `16` and `65` are the three ages that separate a correct answer from a nearly correct one. The two cheap bands are not adjacent, which is what stops the whole thing collapsing into one comparison and forces the ordering to be thought about.",
+   "xp": 50
   },
   {
    "id": "py-4-i-02",
    "type": "code",
    "layer": "application",
-   "fn": "shipping_cost",
-   "prompt": "A shop charges 5 to ship an order, plus 3 more when it weighs more than 10 kg. Members ship free, but only for orders of 2 kg or less; a heavier member order is charged like anyone else's. Write `shipping_cost(weight, is_member)` returning the amount charged. `is_member` is a bool.",
-   "starterCode": "def shipping_cost(weight, is_member):\n    pass\n",
+   "prompt": "Your program reads two lines, each holding a whole number. It prints the larger of the two on its own, or the word `equal` when neither is larger. For the typed lines `3` and `9` it prints `9`.",
    "tests": [
-    { "input": "1.5, True", "expected": 0 },
-    { "input": "1.5, False", "expected": 5 },
-    { "input": "12, True", "expected": 8 },
-    { "input": "10, False", "expected": 5 },
-    { "input": "10.5, True", "expected": 8 }
+    {
+     "input": "3\n9",
+     "expected": "9"
+    },
+    {
+     "input": "9\n3",
+     "expected": "9"
+    },
+    {
+     "input": "4\n4",
+     "expected": "equal"
+    },
+    {
+     "input": "-5\n-9",
+     "expected": "-5"
+    }
    ],
-   "solution": "def shipping_cost(weight, is_member):\n    if is_member and weight <= 2:\n        return 0\n    if weight > 10:\n        return 8\n    return 5\n",
-   "concepts": ["boolean-operators", "nested-conditions"],
-   "tags": ["boolean-operators"],
-   "explain": "The free case needs both facts to hold at once, and once it has been handled the rest of the recipe no longer has to think about membership at all. Charging 5 first and then adding 3 works equally well; what fails is treating membership as a discount applied everywhere, because a 12 kg member order pays full price.",
-   "xp": 60
+   "solution": "a = int(input())\nb = int(input())\nif a > b:\n    print(a)\nelif b > a:\n    print(b)\nelse:\n    print(\"equal\")\n",
+   "concepts": [
+    "comparison",
+    "if-elif-else"
+   ],
+   "tags": [
+    "comparison",
+    "if-elif-else"
+   ],
+   "explain": "The two negative numbers are there to catch anybody who reasons about size rather than about order: minus five is the larger even though nine is the bigger digit. The equal case is the other trap, since a program written with a single `if` and an `else` has to call one of two identical numbers the winner and will print a number where a word was asked for.",
+   "xp": 50
   },
   {
    "id": "py-4-i-03",
    "type": "code",
    "layer": "application",
-   "fn": "is_leap_year",
-   "prompt": "A year in the Gregorian calendar is a leap year when it divides exactly by 4, except that a year dividing exactly by 100 is not, unless it also divides exactly by 400 - so 1996 and 2000 are leap years and 1900 is not. Write `is_leap_year(year)` returning `True` or `False`.",
-   "starterCode": "def is_leap_year(year):\n    pass\n",
+   "prompt": "In the Gregorian calendar a year has an extra day when it divides exactly by 4, except that a year dividing exactly by 100 does not, unless it also divides exactly by 400. Your program reads one line holding a whole-number year and prints `leap` when that year has the extra day and `common` when it does not. For the typed line `2024` it prints `leap`.",
    "tests": [
-    { "input": "2024", "expected": true },
-    { "input": "1900", "expected": false },
-    { "input": "2000", "expected": true },
-    { "input": "2023", "expected": false }
+    {
+     "input": "2024",
+     "expected": "leap"
+    },
+    {
+     "input": "2023",
+     "expected": "common"
+    },
+    {
+     "input": "1900",
+     "expected": "common"
+    },
+    {
+     "input": "2000",
+     "expected": "leap"
+    }
    ],
-   "solution": "def is_leap_year(year):\n    if year % 400 == 0:\n        return True\n    if year % 100 == 0:\n        return False\n    return year % 4 == 0\n",
-   "concepts": ["boolean-operators", "comparison-operators", "nested-conditions"],
-   "tags": ["boolean-operators"],
-   "explain": "The rule has an exception to an exception, so the surest way through it is to answer the most specific case first and let the general case fall to the bottom. Written as one combined expression it is also correct - `year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)` - and the brackets there are not optional, because `and` binds tighter than `or` and dropping them changes the answer for 1900.",
-   "xp": 60
+   "solution": "year = int(input())\nif year % 400 == 0:\n    print(\"leap\")\nelif year % 100 == 0:\n    print(\"common\")\nelif year % 4 == 0:\n    print(\"leap\")\nelse:\n    print(\"common\")\n",
+   "concepts": [
+    "boolean-operators",
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "boolean-operators",
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "1900 and 2000 are the whole exercise: both divide by 100 and by 4, and they disagree, so any answer that gets them both right has handled the exception to the exception. The rule can be written as one combined condition or as a chain that asks the most specific question first, and the two spellings are equally correct - what is not correct is testing divisibility by 4 before the centuries have been dealt with.",
+   "xp": 50
   },
   {
    "id": "py-4-i-04",
    "type": "code",
    "layer": "application",
-   "fn": "display_name",
-   "prompt": "A profile page shows a person's nickname if they gave one, and their full name if they did not. A nickname that was never supplied arrives as `None`, and one that was submitted blank arrives as empty text; both mean \"they did not give one\". Write `display_name(nickname, full_name)` returning the text to show.",
-   "starterCode": "def display_name(nickname, full_name):\n    pass\n",
+   "prompt": "A shop screen reports its stock. Your program reads one line holding a whole-number stock level and prints `out of stock` when nothing is left. Otherwise it prints the level, a single space, and the words `in stock`, so for the typed line `12` it prints `12 in stock`.",
    "tests": [
-    { "input": "\"Ada\", \"Ada Lovelace\"", "expected": "Ada" },
-    { "input": "\"\", \"Ada Lovelace\"", "expected": "Ada Lovelace" },
-    { "input": "None, \"Grace Hopper\"", "expected": "Grace Hopper" },
-    { "input": "\"Amazing Grace\", \"Grace Hopper\"", "expected": "Amazing Grace" }
+    {
+     "input": "12",
+     "expected": "12 in stock"
+    },
+    {
+     "input": "0",
+     "expected": "out of stock"
+    },
+    {
+     "input": "1",
+     "expected": "1 in stock"
+    }
    ],
-   "solution": "def display_name(nickname, full_name):\n    if nickname:\n        return nickname\n    return full_name\n",
-   "concepts": ["truthiness", "if-elif-else"],
-   "tags": ["truthiness"],
-   "explain": "Here the two empty cases genuinely mean the same thing, so collapsing them is the right call rather than a shortcut - this is precisely the situation truthiness exists for. Writing `if nickname is not None:` would pass three tests and show a blank name for the fourth, because empty text is not `None`.",
-   "xp": 60
+   "solution": "level = int(input())\nif level:\n    print(level, \"in stock\")\nelse:\n    print(\"out of stock\")\n",
+   "concepts": [
+    "truthiness",
+    "if-elif-else",
+    "booleans"
+   ],
+   "tags": [
+    "truthiness",
+    "if-elif-else",
+    "booleans"
+   ],
+   "explain": "Zero is the only stock level that behaves differently here, and it is the only one Python itself already treats as a no - which is why the condition can be the number and nothing more. Printing the level and the words in a single `print` separated by a comma gets the single space for free, whereas gluing them together with `+` fails outright because a number and a piece of text cannot be joined.",
+   "xp": 50
   },
   {
    "id": "py-4-i-05",
    "type": "code",
    "layer": "application",
-   "fn": "classify_triangle",
-   "prompt": "Given three side lengths, report what triangle they make. Sides that are zero or negative, or where the two shorter sides do not add up to more than the longest, do not make a triangle at all and should give `\"not a triangle\"`. Otherwise return `\"equilateral\"` when all three match, `\"isosceles\"` when exactly two match, and `\"scalene\"` when none do. Write `classify_triangle(a, b, c)`.",
-   "starterCode": "def classify_triangle(a, b, c):\n    pass\n",
+   "prompt": "A shop delivers free on any order of 50 pounds or more. Below that, delivery costs 5 pounds, except for members, who pay 2. Your program reads two lines: the order total in whole pounds, then the word `yes` or `no` saying whether the customer is a member. It prints the delivery charge alone, so for the typed lines `20` and `yes` it prints `2`.",
    "tests": [
-    { "input": "3, 3, 3", "expected": "equilateral" },
-    { "input": "3, 4, 5", "expected": "scalene" },
-    { "input": "5, 5, 8", "expected": "isosceles" },
-    { "input": "1, 2, 3", "expected": "not a triangle" },
-    { "input": "0, 1, 1", "expected": "not a triangle" }
+    {
+     "input": "60\nno",
+     "expected": "0"
+    },
+    {
+     "input": "20\nyes",
+     "expected": "2"
+    },
+    {
+     "input": "20\nno",
+     "expected": "5"
+    },
+    {
+     "input": "50\nyes",
+     "expected": "0"
+    }
    ],
-   "solution": "def classify_triangle(a, b, c):\n    if a <= 0 or b <= 0 or c <= 0:\n        return \"not a triangle\"\n    if a + b <= c or a + c <= b or b + c <= a:\n        return \"not a triangle\"\n    if a == b and b == c:\n        return \"equilateral\"\n    if a == b or b == c or a == c:\n        return \"isosceles\"\n    return \"scalene\"\n",
-   "concepts": ["nested-conditions", "boolean-operators", "comparison-operators"],
-   "tags": ["nested-conditions"],
-   "explain": "Validity has to be settled before shape, because 1, 2 and 3 would otherwise be reported as a perfectly good scalene triangle - the flat case where the sides lie in a straight line is exactly why the test is `<=` and not `<`. Ordering equilateral before isosceles matters too: all three equal also satisfies \"two are equal\", so the more specific test has to come first.",
-   "xp": 60
+   "solution": "total = int(input())\nmember = input()\nif total >= 50:\n    print(0)\nelse:\n    if member == \"yes\":\n        print(2)\n    else:\n        print(5)\n",
+   "concepts": [
+    "nested-conditions",
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "nested-conditions",
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "Membership only matters once the order has failed to reach the threshold, so the second question belongs inside the first branch rather than beside it - the fourth test is a member whose order is large enough, and any program that asks about membership first will charge them 2. Note also that only the first line wants converting: the second is compared against a word and is already a word.",
+   "xp": 50
   }
  ],
  "exam": [
@@ -322,149 +572,260 @@
    "id": "py-4-x-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "In an `if` / `elif` / `elif` / `else` chain, three of the conditions happen to be `True`. How many branches run?",
+   "prompt": "In a chain of one `if`, several `elif`s and one `else`, how many of the blocks run?",
    "choices": [
-    "One - the first true one, and the rest are never tested",
-    "All three true ones, in order",
-    "The last true one",
-    "None; Python reports an ambiguous chain"
+    "Every block whose condition is `True`",
+    "Exactly one - the first whose condition is `True`, or the `else` if none is",
+    "Exactly one, always the `else` block, unless an earlier condition is `True`",
+    "As many as are indented at the same depth, in order"
    ],
-   "answer": 0,
-   "concepts": ["if-elif-else"],
-   "tags": ["if-elif-else"],
-   "explain": "A chain is one decision with several possible outcomes, so it stops at the first success. The tempting answer is \"all three\", which is what would happen with three separate `if` statements - and confusing the two is the reason overlapping branches have to be ordered from most specific to most general.",
-   "xp": 15
+   "answer": 1,
+   "concepts": [
+    "if-elif-else"
+   ],
+   "tags": [
+    "if-elif-else"
+   ],
+   "explain": "The first option is the tempting one because it is what a stack of separate `if` statements really does, and the two are easy to mistake for each other on the page. A chain is a single decision with one outcome: Python stops at the first condition that holds and never even evaluates the ones below it.",
+   "xp": 10
   },
   {
    "id": "py-4-x-02",
    "type": "multi",
    "layer": "retrieval",
-   "prompt": "Which of these values are falsy - that is, which would send an `if` to its `else`?",
+   "prompt": "Which of these values does Python treat as falsy? Select every one that is.",
    "choices": [
-    "0",
-    "empty text, written \"\"",
-    "None",
-    "the text \"0\"",
-    "-1"
+    "`0`",
+    "`\"0\"`",
+    "`\"\"`",
+    "`None`",
+    "`-1`"
    ],
-   "answer": [0, 1, 2],
-   "concepts": ["truthiness"],
-   "tags": ["truthiness"],
-   "explain": "Falsy means `False`, `None`, zero and empty. The two distractors are the ones that catch people: `\"0\"` is a piece of text one character long, so it is not empty and counts as a yes, and -1 is truthy because the rule is about being zero, not about being positive.",
-   "xp": 15
+   "answer": [
+    0,
+    2,
+    3
+   ],
+   "concepts": [
+    "truthiness",
+    "booleans"
+   ],
+   "tags": [
+    "truthiness",
+    "booleans"
+   ],
+   "explain": "The two traps sit either side of the real answer: `\"0\"` is a piece of text with a character in it and so is truthy however much it looks like zero, and `-1` is truthy because falsy means empty or nothing rather than negative. Only the number zero itself, empty text, `None` and `False` are falsy.",
+   "xp": 10
   },
   {
    "id": "py-4-x-03",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "def loud(value):\n    print(\"checked\")\n    return value\n\nif False and loud(True):\n    print(\"yes\")\nif True or loud(True):\n    print(\"also yes\")\nif True and loud(False):\n    print(\"third\")",
+   "prompt": "What does this program print? Write both lines.",
+   "code": "x = 0\nprint(x == 0 or 10 // x == 1)\nprint(x != 0 and 10 // x == 1)",
    "lang": "python",
-   "answer": "also yes\nchecked",
-   "concepts": ["boolean-operators"],
-   "tags": ["boolean-operators"],
-   "explain": "`loud` announces itself whenever it is worked out, so counting the word `checked` counts the halves Python actually read. The first two conditions are settled by their left side alone and never touch `loud`; only the third has to look right, and even then its answer is `False`, so nothing follows it.",
-   "xp": 25
+   "answer": "True\nFalse",
+   "concepts": [
+    "boolean-operators"
+   ],
+   "tags": [
+    "boolean-operators"
+   ],
+   "explain": "The tempting answer is that both lines stop the program, since dividing ten by zero certainly would. Neither half is ever evaluated: the left of the `or` is `True` and the left of the `and` is `False`, and in both cases the answer is already settled, so Python does not look at the rest.",
+   "xp": 20
   },
   {
    "id": "py-4-x-04",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "What does this program print?",
-   "code": "print(bool(\"0\"))\nprint(bool(0.0))\nif \"False\":\n    print(\"text is truthy\")",
+   "prompt": "What does this program print? Write both lines.",
+   "code": "name = \"no\"\nif name:\n    print(\"have a name\")\nelse:\n    print(\"no name\")\ncount = 0\nif count:\n    print(\"have a count\")\nelse:\n    print(\"no count\")",
    "lang": "python",
-   "answer": "True\nFalse\ntext is truthy",
-   "concepts": ["truthiness", "booleans"],
-   "tags": ["truthiness"],
-   "explain": "Text is judged on whether it is empty, never on what it says, so `\"0\"` and `\"False\"` are both yeses while the number `0.0` is a no. This is the exact fault behind text read from a keyboard or a file being treated as `True` when it plainly says `False`.",
-   "xp": 25
+   "answer": "have a name\nno count",
+   "concepts": [
+    "truthiness"
+   ],
+   "tags": [
+    "truthiness"
+   ],
+   "explain": "The word stored under `name` says no, and a reader who answers `no name` has read the value rather than the type. Truthiness asks only whether there is anything there, so any text at all is a yes, while the number zero is the one whole number that is a no.",
+   "xp": 20
   },
   {
    "id": "py-4-x-05",
-   "type": "fill",
+   "type": "output",
    "layer": "retrieval",
-   "prompt": "A person may drive if they are 18 or over, or if they hold a permit. Fill the blanks so the warning prints exactly when they may not.",
-   "template": "if ___ (age >= 18 ___ has_permit):\n    print('may not drive')",
-   "blanks": ["not", "or"],
+   "prompt": "What does this program print? Write all three lines.",
+   "code": "a = 0.1 + 0.2\nprint(a == 0.3)\nprint(a > 0.3)\nprint(a - 0.3 < 0.001)",
    "lang": "python",
-   "concepts": ["boolean-operators"],
-   "tags": ["boolean-operators"],
-   "explain": "The permission is an `or`, and the warning is its opposite, so the whole permission goes in brackets and `not` is applied to the result. Without the brackets `not age >= 18 or has_permit` reads as `(not (age >= 18)) or has_permit`, which prints the warning for any adult holding a permit.",
-   "xp": 25
+   "answer": "False\nTrue\nTrue",
+   "concepts": [
+    "comparison",
+    "booleans"
+   ],
+   "tags": [
+    "comparison",
+    "booleans"
+   ],
+   "explain": "The arithmetic is not wrong; the storage is approximate, so the sum lands a hair above three tenths rather than exactly on it. That is why the second line is `True` and it is why comparing floats with `==` is a bug waiting to happen - the third line shows the repair, which is to ask whether the difference is small rather than whether it is nothing.",
+   "xp": 20
   },
   {
    "id": "py-4-x-06",
-   "type": "order",
+   "type": "fill",
    "layer": "retrieval",
-   "prompt": "Arrange these lines into a working recipe that returns `'gold'` for 90 and above, `'silver'` for 70 and above, and `'bronze'` for anything lower.",
-   "fragments": [
-    "def band(score):",
-    "    if score >= 90:",
-    "        return 'gold'",
-    "    elif score >= 70:",
-    "        return 'silver'",
-    "    else:",
-    "        return 'bronze'"
+   "prompt": "Fill the two blanks so that this program prints `allowed` when the person is at least 18 and is not banned, and `refused` in every other case.",
+   "template": "age = 20\nbanned = False\nif age >= 18 ___ ___ banned:\n    print(\"allowed\")\nelse:\n    print(\"refused\")",
+   "blanks": [
+    "and",
+    "not"
    ],
-   "answer": [0, 1, 2, 3, 4, 5, 6],
-   "concepts": ["if-elif-else", "indentation"],
-   "tags": ["if-elif-else"],
-   "explain": "The higher threshold has to be tested first: with `score >= 70` at the top, a score of 95 satisfies it and never reaches the gold branch. The indentation carries the rest of the meaning - each `return` is indented one level deeper than the branch that owns it.",
-   "xp": 25
+   "lang": "python",
+   "concepts": [
+    "boolean-operators",
+    "booleans"
+   ],
+   "tags": [
+    "boolean-operators",
+    "booleans"
+   ],
+   "explain": "Both halves have to hold, which rules out `or` in the first blank - with `or` a banned adult would still be let in. The second blank flips a bool that is already a bool, so there is no comparison to write: `not banned` says what `banned == False` says, and says it in the way a Python programmer reads at a glance.",
+   "xp": 20
   },
   {
    "id": "py-4-x-07",
-   "type": "code",
-   "layer": "application",
-   "fn": "overlaps",
-   "prompt": "Two bookings each run from a start hour to an end hour, and both ends count as occupied. Write `overlaps(a_start, a_end, b_start, b_end)` returning `True` when the two share at least one hour and `False` when they do not.",
-   "starterCode": "def overlaps(a_start, a_end, b_start, b_end):\n    return False\n",
-   "tests": [
-    { "input": "1, 5, 4, 9", "expected": true },
-    { "input": "1, 5, 6, 9", "expected": false },
-    { "input": "1, 5, 5, 9", "expected": true },
-    { "input": "3, 4, 1, 10", "expected": true }
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these four lines into the order that prints `hot` for a temperature above 30 and `mild` otherwise.",
+   "fragments": [
+    "else:",
+    "if temperature > 30:",
+    "    print(\"hot\")",
+    "    print(\"mild\")"
    ],
-   "solution": "def overlaps(a_start, a_end, b_start, b_end):\n    return a_start <= b_end and b_start <= a_end\n",
-   "concepts": ["comparison-operators", "boolean-operators", "booleans"],
-   "tags": ["comparison-operators"],
-   "explain": "It is far easier to say when two ranges miss each other - one finishes before the other starts - and to deny it, than to enumerate the ways they can meet. The third test is the one that punishes `<` instead of `<=`: they touch at hour 5, and touching counts because both ends are occupied.",
-   "xp": 60
+   "answer": [
+    1,
+    2,
+    0,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "if-elif-else",
+    "indentation"
+   ],
+   "tags": [
+    "if-elif-else",
+    "indentation"
+   ],
+   "explain": "An `else` has no condition of its own and cannot begin a decision, so it must follow a complete `if` block rather than open one. The indentation of the two printing lines is doing real work here: each belongs to whichever header sits directly above it, and swapping them swaps the meaning of the program entirely.",
+   "xp": 20
   },
   {
    "id": "py-4-x-08",
    "type": "debug",
    "layer": "application",
-   "fn": "same_price",
-   "prompt": "`same_price(a, b)` should report `True` when two amounts of money differ by less than 0.01, and `False` otherwise. It reports `False` for two amounts that a shopper would call identical. Repair it.",
-   "starterCode": "def same_price(a, b):\n    return a == b\n",
+   "prompt": "This program should read a whole-number mark out of 100 and print exactly one description of it: `distinction` from 70, `merit` from 60, `pass` from 50, and `fail` below that. Instead, for the typed line `82` it prints three lines. Repair it.",
+   "starterCode": "mark = int(input())\nif mark >= 70:\n    print(\"distinction\")\nif mark >= 60:\n    print(\"merit\")\nif mark >= 50:\n    print(\"pass\")\nelse:\n    print(\"fail\")\n",
    "tests": [
-    { "input": "0.1 + 0.2, 0.3", "expected": true },
-    { "input": "1.0, 1.0", "expected": true },
-    { "input": "1.0, 1.02", "expected": false },
-    { "input": "2.5, 2.5001", "expected": true }
+    {
+     "input": "82",
+     "expected": "distinction"
+    },
+    {
+     "input": "65",
+     "expected": "merit"
+    },
+    {
+     "input": "50",
+     "expected": "pass"
+    },
+    {
+     "input": "20",
+     "expected": "fail"
+    }
    ],
-   "solution": "def same_price(a, b):\n    return abs(a - b) < 0.01\n",
-   "concepts": ["comparison-operators", "booleans"],
-   "tags": ["comparison-operators"],
-   "explain": "`0.1 + 0.2` is stored as 0.30000000000000004, so exact equality is `False` even though the two amounts are the same money. Comparing the size of the gap against a tolerance is the standard repair; `abs` gives the gap without caring which amount was larger, and comparing `a - b < 0.01` alone would call 5.00 and 100.00 the same price.",
-   "xp": 60
+   "solution": "mark = int(input())\nif mark >= 70:\n    print(\"distinction\")\nelif mark >= 60:\n    print(\"merit\")\nelif mark >= 50:\n    print(\"pass\")\nelse:\n    print(\"fail\")\n",
+   "hint": "Ask how many separate decisions this program contains, and how many it ought to contain.",
+   "concepts": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "The `else` at the bottom belongs only to the third `if`, which is why a mark of 82 currently earns a distinction, a merit and a pass while a mark of 65 also earns a `fail` it does not deserve. Joining the four branches into one chain fixes both symptoms at once, because a chain stops at its first success.",
+   "xp": 50
   },
   {
    "id": "py-4-x-09",
    "type": "explain",
    "layer": "application",
-   "prompt": "A shop's stock count is `0` when the shelf is empty and `None` when nobody has counted it yet. Explain why `if count:` cannot tell those two situations apart, and say what to write instead. Name both values in your answer.",
+   "prompt": "A program should print `special` only when `x` is 1 or 7, and print nothing otherwise. The author wrote:\n\n`if x == 1 or 7:`\n`    print(\"special\")`\n\nIt prints `special` whatever `x` is, including 0 and 99, and Python reports no error. Explain what Python is actually being asked on that line, and give the condition the author should have written.",
    "rubric": {
-    "required": ["none", "0"],
-    "optional": ["falsy", "empty", "zero", "is none", "truthiness"],
-    "forbidden": ["error"],
-    "minWords": 30
+    "required": [
+     "or",
+     "7",
+     "compar"
+    ],
+    "optional": [
+     "truthy",
+     "condition",
+     "always",
+     "zero",
+     "x == 7"
+    ],
+    "minWords": 35
    },
-   "concepts": ["truthiness"],
-   "tags": ["truthiness"],
-   "explain": "Both values are falsy, so `if count:` sends both down the same branch and no error is raised - which is what makes it dangerous rather than merely wrong. The repair is to test for the meaning you have in mind: `count is None` for never counted, `count == 0` for sold out, in that order.",
-   "xp": 30
+   "concepts": [
+    "boolean-operators",
+    "truthiness",
+    "comparison"
+   ],
+   "tags": [
+    "boolean-operators",
+    "truthiness",
+    "comparison"
+   ],
+   "explain": "The line reads as two separate questions joined by `or`, and the second one is not a question at all but a bare value - and 7, having something in it, counts as a yes, so the whole condition can never be false. The repair is to compare twice and say so, `x == 1 or x == 7`, which is longer to type and is the only spelling that means what was intended.",
+   "xp": 20
+  },
+  {
+   "id": "py-4-x-10",
+   "type": "code",
+   "layer": "application",
+   "prompt": "Write a program that reads one line holding a whole-number temperature in degrees Celsius and prints `freezing` when it is below 0, `boiling` when it is 100 or above, and `liquid` for anything in between. For the typed line `-5` it prints `freezing`.",
+   "starterCode": "# Write your program here.\n",
+   "tests": [
+    {
+     "input": "-5",
+     "expected": "freezing"
+    },
+    {
+     "input": "0",
+     "expected": "liquid"
+    },
+    {
+     "input": "99",
+     "expected": "liquid"
+    },
+    {
+     "input": "100",
+     "expected": "boiling"
+    }
+   ],
+   "solution": "c = int(input())\nif c < 0:\n    print(\"freezing\")\nelif c >= 100:\n    print(\"boiling\")\nelse:\n    print(\"liquid\")\n",
+   "concepts": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "tags": [
+    "if-elif-else",
+    "comparison"
+   ],
+   "explain": "Both boundaries are stated as inclusive on one side only, so `0` is liquid and `100` is boiling, and a program that reaches for `<=` or `>` at either end fails exactly one test while passing the rest. Three outcomes need two conditions and a final branch that claims whatever is left over.",
+   "xp": 50
   }
  ]
 }

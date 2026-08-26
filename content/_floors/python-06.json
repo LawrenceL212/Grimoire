@@ -1,29 +1,29 @@
 {
  "n": 6,
- "name": "Reading Failure",
+ "name": "The Hall of Honest Failure",
  "goal": "Read a traceback, locate the failing line, and isolate a fault without guessing.",
  "stage": 1,
- "cognitiveLevel": "recall",
  "requires": [
   {
    "dungeon": "python",
    "floor": 5
   }
  ],
+ "cognitiveLevel": "recall",
  "description": {
-  "what": "What Python prints when a program goes wrong, how to read it, and how to corner a fault that prints nothing at all.",
-  "why": "Every programmer's day contains failure, and a learner who cannot read an error message has to wait for somebody else to explain it - which is the whole difference between learning on your own and not.",
-  "enables": "You will be able to take an unfamiliar failing program, say what broke and where, and narrow a silent wrong answer down to the line that causes it.",
-  "assumes": "You can write and run a small program: names and values, whole numbers and text, `if` and `else`, and loops that count or build up a total.",
-  "assessed": "You will read real tracebacks and say what they mean, and you will repair broken programs whose faults you were not told the shape of."
+  "what": "What Python prints when a program fails, how to read it, how a failure found while the file is being read differs from one found while it is running, the handful of failures a beginner actually meets by name, and how to find a fault by probing a program rather than by staring at it.",
+  "why": "Most of a programmer's day is spent with a broken program, and the difference between somebody who can learn alone and somebody who cannot is whether the error message is information or noise; a learner who guesses at fixes is not debugging but shuffling, and they will still be shuffling in a year.",
+  "enables": "You will be able to read a traceback from the bottom upwards, say what kind of failure it was and which line stopped, tell a failure found before the program ran from one found partway through, name the commonest failures from their messages, and narrow a wrong answer down to the line that produced it by printing values as the program runs.",
+  "assumes": "The five floors before this one: that a program is a file of instructions run from top to bottom, that names refer to values and values have types, that arithmetic and conversion can be written out, that `if` chooses between paths, and that `while` and `for` repeat work.",
+  "assessed": "You will read tracebacks and say what they mean, predict what a probed program prints, repair broken whole programs whose fault is not on the line the message names, and explain in prose how you would corner a fault you cannot yet see."
  },
  "concepts": [
   "traceback",
-  "syntax-vs-runtime",
+  "syntax-vs-runtime-error",
   "common-exceptions",
   "print-debugging",
   "narrowing-a-fault",
-  "reproducing-reliably"
+  "reproducing"
  ],
  "sequence": [
   "lesson",
@@ -32,170 +32,173 @@
   "exam"
  ],
  "lesson": {
-  "title": "The Chamber of Honest Complaint",
   "sections": [
    {
-    "title": "Read It From The Bottom",
-    "body": "When Python meets something it cannot do, it stops the program and prints a **traceback**: a report of exactly where it was when it gave up. It looks alarming and it is not - it is the most useful thing Python ever prints, and the answer to most of the questions a beginner asks is inside one.\n\nRead it **from the bottom**. The last line is the **error type** and its message, and that tells you *what* went wrong. Above it sit the pieces of your program that were part-way through running, oldest at the top and newest at the bottom. Each of those pieces is a **frame**: a `File \"...\", line N` line saying where, and under it the line of code itself, with `^` marks beneath the part that failed.\n\nThe bottom frame is where Python stopped. The frame above it is the **caller** - the line that asked for that work. The mistake is often not in the bottom frame at all, but in the value a caller handed it, which is why you read the last line first and then walk upwards.",
-    "code": "def average(total, count):\n    return total / count\n\n\ndef report(total, count):\n    return \"Average: \" + str(average(total, count))\n\n\nprint(report(30, 3))\nprint(report(30, 0))",
+    "title": "Read it from the bottom",
+    "body": "When a program fails, Python does not sulk. It prints a **traceback**, which is a short report of what went wrong and where, and it is the most useful thing on the screen. Beginners scroll past it because it looks like wreckage. It is not wreckage; it is the answer.\n\nRead it **from the bottom upwards**. The last line always has the same shape: a name, a colon, and a message. The name is the **kind** of failure - `ZeroDivisionError` here - and the message is Python's one-sentence account of it. That single line tells you what happened, and only when you know what happened is it worth asking where.\n\nNow go up one line. The line beginning `File` gives the **number** of the line at which the program stopped, and under it Python reprints that line of your source with an arrow beneath the part that failed. So the bottom line says what, and the two lines above it say where. Everything further up is context you do not need yet.\n\nOne more thing is worth noticing, and it is easy to miss: `starting` was printed. The program really did run lines 1, 2 and 3 before it fell over on line 4. Output that appeared before the traceback is evidence of how far the program got, and it costs nothing to read.",
+    "code": "total = 30\ncount = 0\nprint(\"starting\")\naverage = total / count\nprint(\"average is\", average)",
     "lang": "python",
     "annotations": [
      {
       "line": 2,
-      "text": "Where the program stops, so this becomes the bottom frame of the traceback."
-     },
-     {
-      "line": 6,
-      "text": "The middle frame. It asked for the division, but it did not choose the 0."
-     },
-     {
-      "line": 9,
-      "text": "This call works and prints. Failure comes second, not first."
-     },
-     {
-      "line": 10,
-      "text": "The real mistake lives here - the 0 that eventually reached the division."
-     }
-    ],
-    "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "This program stops with an error. Type the **last line** of its traceback.",
-     "code": "runes = 4\nprint(\"Runes carved:\", runes)\nprint(\"Each rune costs:\", 12 / totl)",
-     "lang": "python",
-     "answer": "NameError: name 'totl' is not defined",
-     "tags": [
-      "traceback",
-      "common-exceptions"
-     ],
-     "concepts": [
-      "traceback"
-     ],
-     "explain": "The last line always carries the error type and the message, and this message quotes the unknown name straight back at you - a name nothing ever set is nearly always a typo. Reading downwards instead tempts you to stop at the `File` line, which says where Python was but never what it objected to."
-    }
-   },
-   {
-    "title": "Broken Before It Starts",
-    "body": "There are two kinds of failure, and telling them apart saves hours. A **syntax error** means Python could not make sense of the text of your program, so it refuses to run a single line of it. A **runtime error** means the text was understood and Python ran it, and something went wrong part-way through - so the output up to that point really happened.\n\nThe tell is the output. If nothing at all printed, not even a line you know comes first, it is a syntax error. If some output appeared and then a report of failure, the program ran and failed later. A syntax error also has no `Traceback (most recent call last):` heading and no frames, because there was no running program to report on.\n\nPython points at the first place where the text stopped making sense. That is never *before* your mistake, but it can be *after* it: a bracket you never closed only becomes impossible on a later line, and a missing comma is noticed at the item after it. So when the reported line looks perfectly innocent, suspect the end of the line above.",
-    "code": "print(\"Gathering reagents\")\n\nprices = [\n    10,\n    20\n    30,\n]\n\nprint(sum(prices))",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 1,
-      "text": "Run it: this never prints. Nothing runs at all when the text cannot be understood."
-     },
-     {
-      "line": 5,
-      "text": "The line Python reports. It is fine in itself - what is missing is the comma that should end it."
-     },
-     {
-      "line": 6,
-      "text": "The line it was reading when it decided the one above could not work."
-     },
-     {
-      "line": 9,
-      "text": "Never reached, and never even read properly."
-     }
-    ],
-    "checkpoint": {
-     "type": "output",
-     "layer": "retrieval",
-     "prompt": "This program is run. What appears before the report of failure? If nothing appears at all, type `nothing`.",
-     "code": "print(\"Opening the vault\")\nprint(\"Counting coins\"\nprint(\"Closing the vault\")",
-     "lang": "python",
-     "answer": "nothing",
-     "tags": [
-      "syntax-vs-runtime"
-     ],
-     "concepts": [
-      "syntax-vs-runtime"
-     ],
-     "explain": "The unclosed bracket on line 2 makes the whole file impossible to understand, and Python reads the whole file before running any of it - so line 1 never gets its turn. Expecting `Opening the vault` first is the natural guess, and noticing that it is missing is how you recognise a syntax error without reading a word of the message."
-    }
-   },
-   {
-    "title": "The Five You Will Actually Meet",
-    "body": "Error types are not trivia. Each one names a different kind of mistake, so the type alone usually tells you where to look.\n\n- **NameError** - you used a name Python has never been given. Nearly always a typo, or a line that sets the name sitting after the line that uses it.\n- **TypeError** - the values are the wrong *kind* for the operation, such as adding text to a number.\n- **ValueError** - the kind is right but the value itself is impossible. `int(\"seven\")` really is text, but it is not text that spells a number.\n- **IndexError** - you asked a **list** (a row of values written in square brackets) for a position it does not have. Positions start at 0, so a list of three items has 0, 1 and 2, and asking for 3 is one too far.\n- **ZeroDivisionError** - you divided by zero. The zero is almost never written down; it arrived in a name from somewhere else.\n\nThe message after the colon is worth reading in full, because it usually names the offending value.",
-    "code": "potions = [\"salve\", \"tonic\", \"elixir\"]\n\nprint(len(potions))\nprint(potions[0])\nprint(potions[2])\nprint(potions[3])",
-    "lang": "python",
-    "annotations": [
-     {
-      "line": 1,
-      "text": "Three items, so the only positions that exist are 0, 1 and 2."
+      "text": "Nothing is wrong with this line and Python will never complain about it. A count of zero only becomes a problem two lines later, when something tries to divide by it."
      },
      {
       "line": 3,
-      "text": "`len` gives the count, 3 - always one more than the largest valid position."
+      "text": "This runs, and `starting` appears on the screen. When you read the traceback afterwards, that word is proof that the program reached line 3."
      },
      {
-      "line": 6,
-      "text": "One too far. This raises IndexError: list index out of range."
+      "line": 4,
+      "text": "The line the traceback names. Python worked out `total / count`, found the divisor was zero, and stopped here."
+     },
+     {
+      "line": 5,
+      "text": "This line never runs at all. A traceback marks the end of the program: nothing below the failing line happens."
      }
     ],
     "checkpoint": {
      "type": "fill",
      "layer": "retrieval",
-     "prompt": "Name the error type each of these raises. Spell them exactly as Python does.",
-     "template": "int(\"twelve\")            -> ___\n\"coins: \" + 7            -> ___\nprint(totl)              -> ___\n[4, 5, 6][3]             -> ___",
+     "prompt": "Running the program above prints `starting` and then this:\n\n`Traceback (most recent call last):`\n`  File \"prog.py\", line 4, in <module>`\n`    average = total / count`\n`ZeroDivisionError: division by zero`\n\nFill in what the traceback tells you.",
+     "template": "kind of failure: ___\nline of the program that stopped: ___",
      "blanks": [
-      "ValueError",
-      "TypeError",
-      "NameError",
-      "IndexError"
-     ],
-     "tags": [
-      "common-exceptions"
+      "ZeroDivisionError",
+      "4"
      ],
      "concepts": [
-      "common-exceptions"
+      "traceback"
      ],
-     "explain": "`int(\"twelve\")` is given text, which is the right kind for `int`, so the complaint is about the value and not the kind - that is the pairing most often swapped. The list holds positions 0, 1 and 2 only, so 3 is out of range rather than the wrong kind of thing to ask for."
+     "tags": [
+      "traceback"
+     ],
+     "explain": "The last line names the kind of failure and the `File` line above it gives the number. People reach for the number first because a line number feels more concrete, but knowing that you stopped on line 4 without knowing why tells you nothing at all about what to change.",
+     "xp": 24
     }
    },
    {
-    "title": "Probing, Not Guessing",
-    "body": "Plenty of faults raise nothing at all: the program finishes and the answer is simply wrong. There is no traceback to read, so you have to make the program tell you what it is doing, and the plainest tool is `print`.\n\nA good probe prints a **label as well as a value**, so its output cannot be mistaken for anything else, and it goes where you hold an assumption - just before the suspicious line, or inside the loop you doubt. Then work in halves: check a value half way through, and whichever half disagrees with what you expected is the half worth opening. Change **one thing at a time**, run again, keep what worked. Two changes at once and a passing run tells you nothing about which of them mattered.\n\nBefore any of that, **reproduce**: find the exact input that fails, and fails every time. A fault you cannot summon on demand cannot be confirmed fixed, and \"it seems better now\" is not a fix. Take the probes out once you are done.",
-    "code": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night <= nights:\n        print(\"probe: night =\", night, \"total =\", total)\n        total = total + rate\n        night = night + 1\n    return total\n\n\nprint(cost(3, 20))",
+    "title": "Broken before it starts",
+    "body": "There are two quite different moments at which a program can fail, and telling them apart costs nothing and saves a great deal.\n\nBefore running anything, Python reads the whole file and checks that it is legal Python. If it is not, you get a **syntax error**, and here is the part that matters: **not one line of your program runs**. No output appears. A missing colon after `while`, a bracket you never closed, a quotation mark left open - all of these are found by reading, not by running.\n\nIf the file is legal, Python starts at line 1 and runs it. A failure discovered now is a **runtime error**, and by definition the program was already going: the lines above the failure ran, and whatever they printed is on the screen. So the presence or absence of output is a free diagnosis. Nothing printed at all, and a message with no `Traceback` line above it, means the file never ran. Some output and then `Traceback` means it ran and stumbled.\n\nThe arrow in a syntax error marks the point where Python got **stuck**, which is at or after your mistake and never before it. Below, the mistake is a missing `)` at the end of line 2, and Python reports line 2 - because it read on past the end of that line looking for the closing bracket and only then gave up. Older Pythons, and many other languages, report the line **after** instead, which is why the advice is always the same: start at the arrow and read upwards until you reach a line that makes sense on its own.",
+    "code": "print(\"one\")\ntotal = (2 + 3\nprint(\"two\")\nprint(\"three\")",
     "lang": "python",
     "annotations": [
      {
+      "line": 1,
+      "text": "Perfectly good, and it still never runs. `one` does not appear on the screen, because the file was rejected before line 1 was reached."
+     },
+     {
+      "line": 2,
+      "text": "The mistake. There is no `)` at the end, so the opening bracket is never closed, and Python reports `SyntaxError: '(' was never closed` against this line."
+     },
+     {
+      "line": 3,
+      "text": "Where your eye probably went first, because this is where the program stops looking sensible. There is nothing to fix here."
+     },
+     {
       "line": 4,
-      "text": "The suspicious line. Does the loop stop where you think it does?"
-     },
-     {
-      "line": 5,
-      "text": "A probe, labelled. One line, and it answers the question outright."
-     },
-     {
-      "line": 11,
-      "text": "Expected 60 for three nights at 20. The probe shows four passes, not three."
+      "text": "Unreachable for a reason that has nothing to do with itself. Every line of a file with a syntax error in it is unreachable."
      }
     ],
     "checkpoint": {
-     "type": "order",
+     "type": "fill",
      "layer": "retrieval",
-     "prompt": "Put these into the order that corners a fault soonest.",
-     "fragments": [
-      "find an input that fails every single time",
-      "print a labelled value half way through, to see which half is already wrong",
-      "change one thing in the half that disagreed with you",
-      "run the failing input again and confirm the answer is now right"
-     ],
-     "answer": [
-      0,
-      1,
-      2,
-      3
-     ],
-     "tags": [
-      "narrowing-a-fault",
-      "reproducing-reliably",
-      "print-debugging"
+     "prompt": "Fill in the names of the two moments at which a program can fail.",
+     "template": "A ___ error is found while Python is reading the file, so no line of the program runs and nothing is printed.\nA ___ error is found while Python is running the file, so the lines above it ran and their output is on the screen.",
+     "blanks": [
+      "syntax",
+      "runtime"
      ],
      "concepts": [
-      "narrowing-a-fault"
+      "syntax-vs-runtime-error"
      ],
-     "explain": "Reproducing comes first because every later step is measured against it: without a reliable failing input you cannot tell a repair from a coincidence. Probing before changing is what makes the change informed rather than a guess, and confirming last is what turns the guess into knowledge."
+     "tags": [
+      "syntax-vs-runtime-error"
+     ],
+     "explain": "The distinction halves your search before you have read a word of the message: output on the screen proves the file was legal Python, so no amount of hunting through the brackets and colons can help you there.",
+     "xp": 24
+    }
+   },
+   {
+    "title": "The failures you will actually meet",
+    "body": "Python has a great many kinds of failure, and you will meet about five of them for months. Learn these by their messages and most tracebacks stop being frightening.\n\n- `NameError` - you used a name that nothing was ever assigned to. Nearly always a typo, or a name assigned inside a branch that did not run.\n- `TypeError` - you asked for an operation the types do not support, such as adding a number to a piece of text. The message names both types, which is usually the whole diagnosis.\n- `ValueError` - the type was right but the value was not. `int(\"twelve\")` is the classic: text is exactly what `int` wants, and `twelve` is not a number it can read.\n- `ZeroDivisionError` - something divided by a value that turned out to be zero. The fault is almost never the division; it is whatever made the divisor zero.\n- `IndentationError` - the spaces at the start of a line do not line up with the block above.\n\nOne more arrives the moment you have somewhere to keep many values at once: `IndexError`, meaning you asked for the fifth thing out of three. That belongs to a later floor and is named here only so it is familiar when it turns up.\n\nTwo habits pay off immediately. First, **read the message, not just the name** - `invalid literal for int() with base 10: 'twelve'` hands you the offending value in quotes. Second, ask what the failure is **evidence** of. A `TypeError` on a line that looks perfectly correct is usually evidence that a name further up is holding something other than what you assumed.",
+    "code": "print(\"How many potions?\")\nraw = \"twelve\"\ncount = int(raw)\nprint(count * 2)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Runs, prints, and is entirely innocent. It is here so that you see output above the traceback and know from that alone that the file was legal."
+     },
+     {
+      "line": 2,
+      "text": "The real fault, about which Python says nothing. `raw` is holding a piece of text that spells a number in words."
+     },
+     {
+      "line": 3,
+      "text": "The line the traceback names: `ValueError: invalid literal for int() with base 10: 'twelve'`. The kind of thing handed to `int` was right; the value inside it was not, and the message quotes it back at you."
+     },
+     {
+      "line": 4,
+      "text": "Never runs. Had `raw` been `\"12\"`, this line would have printed 24."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Give the name of the failure Python reports in each of these four situations. Spell each one exactly as Python does.",
+     "template": "adding the number 1 to a piece of text: ___\nasking int for the number in the text \"seven\": ___\nreading a name that was never assigned: ___\ndividing by a count that turned out to be zero: ___",
+     "blanks": [
+      "TypeError",
+      "ValueError",
+      "NameError",
+      "ZeroDivisionError"
+     ],
+     "concepts": [
+      "common-exceptions"
+     ],
+     "tags": [
+      "common-exceptions"
+     ],
+     "explain": "The pair worth separating is the first two. One is about the kind of thing you handed over and the other is about what was inside it: `int` refuses text that spells a word, not because text is the wrong kind of thing - text is exactly what it expects - but because that particular text is not a number.",
+     "xp": 24
+    }
+   },
+   {
+    "title": "Probing, not guessing",
+    "body": "The harder failures do not crash. The program runs to the end, reports nothing, and prints the wrong answer - and there is no traceback to read, because as far as Python is concerned nothing went wrong. Now you have to find the fault yourself, and there is a method.\n\n**Reproduce it first.** Find an exact input that fails every time, and write it down. A fault you cannot make happen on demand is a fault you cannot tell you have fixed, and the commonest waste of an afternoon is repairing something that was never broken.\n\n**Then narrow it.** You know the answer is wrong at the end and right at the start, so the fault lies somewhere between. Put a `print` roughly halfway and look: if the values are already wrong there, the fault is above it; if they are still right, it is below. Each probe halves what is left, so a program of any size falls in a handful of steps. Probes that say which values they are showing - `print(\"probe: n is\", n)` - are worth the extra typing, because six bare numbers down the screen tell you nothing.\n\n**And change one thing at a time.** Change three, and a run that comes out right leaves you not knowing which one mattered, while a run that comes out wrong leaves you worse off than you started. Change one, run the same input, compare. Then take the probes out - they were scaffolding, not code.",
+    "code": "total = 0\nn = 1\nwhile n <= 5:\n    print(\"probe: n is\", n, \"and total is\", total)\n    total = total + n\n    n = n + 1\nprint(\"sum is\", total)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The line most likely to be wrong in a loop like this, and the reason for the probe. `<=` and `<` differ by exactly one pass, and so the answer differs by exactly the last number."
+     },
+     {
+      "line": 4,
+      "text": "The probe. It names both values it shows, so the output can be read without counting lines, and it sits at the top of the body so it reports the state the pass was given."
+     },
+     {
+      "line": 5,
+      "text": "Compare what this line does against the probe printed at the start of the next pass. That comparison is the whole technique."
+     },
+     {
+      "line": 7,
+      "text": "The real output. When the probes have done their job this should be the only line still printing."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "A probe has been put inside this loop. What does the program print? Write all four lines.",
+     "code": "n = 1\nwhile n < 4:\n    print(\"probe\", n)\n    n = n + 1\nprint(\"done\", n)",
+     "lang": "python",
+     "answer": "probe 1\nprobe 2\nprobe 3\ndone 4",
+     "concepts": [
+      "print-debugging"
+     ],
+     "tags": [
+      "print-debugging"
+     ],
+     "explain": "The last line is what a probe is for. The loop stops at 4 because the condition is tested before each pass, so the name is left holding the first value that failed the test rather than the last one that passed it. Printing after the loop as well as inside it shows you that instead of leaving it to be argued about.",
+     "xp": 24
     }
    }
   ]
@@ -203,220 +206,240 @@
  "guided-practice": [
   {
    "id": "py-6-g-01",
-   "type": "output",
+   "type": "fill",
    "layer": "retrieval",
-   "prompt": "This program stops with an error. Type the **last line** of its traceback.",
-   "code": "coins = \"12\"\nfound = 3\nprint(\"Total:\", coins + found)",
-   "lang": "python",
-   "answer": "TypeError: can only concatenate str (not \"int\") to str",
+   "prompt": "A learner runs this program:\n\n`gold = 40`\n`share = 0`\n`print(\"dividing\")`\n`each = gold / share`\n`print(each)`\n\nand Python answers:\n\n`dividing`\n`Traceback (most recent call last):`\n`  File \"prog.py\", line 4, in <module>`\n`    each = gold / share`\n`ZeroDivisionError: division by zero`\n\nRead the traceback from the bottom upwards and fill in the three blanks.",
+   "template": "kind of failure: ___\nline of the program that stopped: ___\nline of the program that actually needs changing: ___",
+   "blanks": [
+    "ZeroDivisionError",
+    "4",
+    "2"
+   ],
+   "concepts": [
+    "traceback",
+    "common-exceptions"
+   ],
    "tags": [
     "traceback",
     "common-exceptions"
    ],
-   "concepts": [
-    "common-exceptions",
-    "traceback"
-   ],
-   "explain": "`+` means join for text and add for numbers, and Python refuses to guess which you meant, so mixing the two is a TypeError rather than a quiet conversion. The tempting answer is ValueError, because `\"12\"` does look like a number - but nothing here was asked to interpret it, only to add it.",
-   "xp": 24,
-   "hint": "Read the message as a sentence. What kind of value is on the left of the `+`, and what kind is on the right?"
+   "hint": "The last line names the failure and the `File` line above it gives the number that stopped. Then ask which earlier line decided that `share` would be zero.",
+   "explain": "The third blank is what separates reading a traceback from using one. Line 4 is where Python stopped and it is written perfectly correctly; the reason it could not run is a decision made two lines earlier, and no amount of rewriting the division will help.",
+   "xp": 24
   },
   {
    "id": "py-6-g-02",
-   "type": "trace",
+   "type": "order",
    "layer": "retrieval",
-   "prompt": "Read this traceback and answer the three questions about it.\n\n`Traceback (most recent call last):`\n`File \"ledger.py\", line 14, in <module>`\n`print(summary(coins, holders))`\n`File \"ledger.py\", line 10, in summary`\n`return \"Each: \" + str(share(coins, holders))`\n`File \"ledger.py\", line 6, in share`\n`return coins / holders`\n`ZeroDivisionError: division by zero`",
-   "steps": [
-    {
-     "label": "the error type",
-     "expected": "ZeroDivisionError"
-    },
-    {
-     "label": "the line number where the program actually stopped",
-     "expected": "6"
-    },
-    {
-     "label": "the line number that began the whole chain",
-     "expected": "14"
-    }
+   "prompt": "A traceback has just appeared on your screen. Put these four questions into the order in which you should ask them.",
+   "fragments": [
+    "What kind of failure was it?",
+    "Which line of my program stopped?",
+    "What were the values on that line at that moment?",
+    "Which earlier line put a wrong value there?"
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "lang": "python",
+   "concepts": [
+    "traceback",
+    "narrowing-a-fault"
    ],
    "tags": [
-    "traceback"
+    "traceback",
+    "narrowing-a-fault"
    ],
-   "concepts": [
-    "traceback"
-   ],
-   "explain": "The bottom frame is the newest, so line 6 is where Python gave up, while line 14 at the top is the call that set everything in motion. Reading top-down invites you to name line 14 as the failure, and it is not - though it is very likely where the zero came from.",
-   "xp": 48,
-   "hint": "Most recent call last. Which frame, then, is the most recent one?"
+   "hint": "This is the traceback read from its bottom line upwards, and then one step further back into the program.",
+   "explain": "The tempting order starts with the line number, because that is the most concrete thing on the screen. It is also the least useful on its own: the kind of failure tells you what sort of wrong value to go looking for, and without it you are staring at a correct line wondering what is wrong with it.",
+   "xp": 24
   },
   {
    "id": "py-6-g-03",
-   "type": "output",
+   "type": "explain",
    "layer": "retrieval",
-   "prompt": "This program stops with an error. What does it print **before** the report of failure?",
-   "code": "print(\"Opening ledger\")\ntotals = [40, 30, 20]\nprint(\"Entries:\", len(totals))\nprint(\"Fourth entry:\", totals[3])\nprint(\"Closed\")",
-   "lang": "python",
-   "answer": "Opening ledger\nEntries: 3",
-   "tags": [
-    "syntax-vs-runtime",
-    "common-exceptions"
-   ],
+   "prompt": "Two programs are run. The first prints `loading` and then stops with an error message. The second prints nothing whatsoever and stops with an error message. Only one of them can possibly contain a missing bracket or a missing colon. Say which, and explain how the output alone tells you.",
+   "rubric": {
+    "required": [
+     "syntax",
+     "runtime",
+     "before"
+    ],
+    "optional": [
+     "read",
+     "printed",
+     "second",
+     "first",
+     "bracket",
+     "colon",
+     "line"
+    ],
+    "minWords": 35
+   },
    "concepts": [
-    "syntax-vs-runtime"
+    "syntax-vs-runtime-error",
+    "traceback"
    ],
-   "explain": "This file is understood, so it runs, and everything before the bad line really happened - that partial output is your evidence that the first lines were fine. `Closed` never appears, because a runtime error stops the program where it stands rather than skipping the offending line.",
-   "xp": 24,
-   "hint": "A runtime error stops the program at that point. What had already run by then?"
+   "tags": [
+    "syntax-vs-runtime-error",
+    "traceback"
+   ],
+   "hint": "Ask when each kind of failure is discovered: while Python is reading the file, or while it is running it.",
+   "explain": "It is the second, and the reasoning runs backwards from the output: a syntax error is found before line 1 runs, so a program that printed anything at all was legal Python and its brackets and colons are all present. The first program's fault is a runtime one, and hunting for it in the punctuation is time spent searching a room the fault cannot be in.",
+   "xp": 24
   },
   {
    "id": "py-6-g-04",
-   "type": "output",
-   "layer": "retrieval",
-   "prompt": "This program stops with an error. Type the **last line** of the message.",
-   "code": "brew_time = 12\nif brew_time > 10\n    print(\"Long brew\")",
-   "lang": "python",
-   "answer": "SyntaxError: expected ':'",
-   "tags": [
-    "syntax-vs-runtime"
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program reads two typed lines - a total, then a count - and prints `average is 7.5` for the typed lines `30` and `4`. When the count is `0` it should instead print `no items` and nothing else. At the moment that case stops the program with a traceback naming line 3. Repair it.",
+   "starterCode": "total = int(input())\ncount = int(input())\nprint(\"average is\", total / count)\n",
+   "solution": "total = int(input())\ncount = int(input())\nif count == 0:\n    print(\"no items\")\nelse:\n    print(\"average is\", total / count)\n",
+   "tests": [
+    {
+     "input": "30\n4",
+     "expected": "average is 7.5"
+    },
+    {
+     "input": "0\n5",
+     "expected": "average is 0.0"
+    },
+    {
+     "input": "7\n0",
+     "expected": "no items"
+    },
+    {
+     "input": "0\n0",
+     "expected": "no items"
+    }
    ],
+   "hint": "The traceback names the division, but the division itself is written correctly. Decide what should happen for the value that makes it impossible, and decide it before any dividing takes place.",
    "concepts": [
-    "syntax-vs-runtime"
+    "traceback",
+    "common-exceptions",
+    "reproducing"
    ],
-   "explain": "There is no `Traceback` heading and no frame here, because nothing ran - the text could not be turned into a program in the first place. Expecting a traceback is the usual mistake, and its absence is itself the clue that the fault is in the text rather than in any value.",
-   "xp": 24,
-   "hint": "What does every `if` line need at the end of it?"
+   "tags": [
+    "traceback",
+    "common-exceptions",
+    "reproducing"
+   ],
+   "explain": "The fourth test is the one that catches a half-repair. A guard written as `if total == 0` also passes the third test, because that case happens to have a zero in it as well, and only a case with a zero total and a count above zero separates the two. Guarding the divisor is the fix; guarding whatever else happened to be zero is a coincidence.",
+   "xp": 60
   },
   {
    "id": "py-6-g-05",
    "type": "debug",
    "layer": "application",
-   "prompt": "`greeting(name)` should give back the name with a title in front of it, so `greeting(\"Mara\")` gives `\"Adept Mara\"`. Running it raises `NameError: name 'nmae' is not defined`. Repair it.",
-   "fn": "greeting",
-   "starterCode": "def greeting(name):\n    title = \"Adept\"\n    return title + \" \" + nmae\n",
-   "solution": "def greeting(name):\n    title = \"Adept\"\n    return title + \" \" + name\n",
+   "prompt": "This program should read a whole number and count down from it, printing each number on its own line and then `launch`. For the typed line `3` it prints `3`, `2`, `1`, `launch`. At the moment it prints nothing at all - not even the first number - and reports a syntax error. Repair it.",
+   "starterCode": "count = int(input())\nwhile count > 0\n    print(count)\n    count = count - 1\nprint(\"launch\")\n",
+   "solution": "count = int(input())\nwhile count > 0:\n    print(count)\n    count = count - 1\nprint(\"launch\")\n",
    "tests": [
     {
-     "input": "\"Mara\"",
-     "expected": "Adept Mara"
+     "input": "3",
+     "expected": "3\n2\n1\nlaunch"
     },
     {
-     "input": "\"Ro\"",
-     "expected": "Adept Ro"
+     "input": "1",
+     "expected": "1\nlaunch"
     },
     {
-     "input": "\"\"",
-     "expected": "Adept "
+     "input": "0",
+     "expected": "launch"
+    },
+    {
+     "input": "-4",
+     "expected": "launch"
     }
    ],
-   "tags": [
-    "traceback",
-    "common-exceptions"
-   ],
+   "hint": "Nothing printed means the file never ran, so the fault is punctuation rather than arithmetic. Python's message is `expected ':'` and its arrow sits at the end of a line.",
    "concepts": [
-    "traceback",
-    "common-exceptions"
+    "syntax-vs-runtime-error",
+    "traceback"
    ],
-   "explain": "A NameError message quotes the exact name Python could not find, so it hands you the typo directly: `nmae` appears once and nothing ever set it. The tempting repair is to create a name called `nmae`, which silences the message and answers a question nobody asked.",
-   "xp": 60,
-   "hint": "The message names the unknown word. Compare it letter by letter with the name the function was given."
+   "tags": [
+    "syntax-vs-runtime-error",
+    "traceback"
+   ],
+   "explain": "The absence of output is the diagnosis here rather than an extra misfortune: had the countdown printed `3` and then failed, the fault could not have been a missing colon, because the file would already have been read and accepted. The negative test matters because a repair that turns the condition round would still print nothing for `-4` while failing everything else.",
+   "xp": 60
   },
   {
    "id": "py-6-g-06",
    "type": "debug",
    "layer": "application",
-   "prompt": "`label(count)` should give back a sentence such as `\"You carry 3 coins\"`. It raises `TypeError: can only concatenate str (not \"int\") to str`. Repair it so the sentence comes back for any whole number.",
-   "fn": "label",
-   "starterCode": "def label(count):\n    return \"You carry \" + count + \" coins\"\n",
-   "solution": "def label(count):\n    return \"You carry \" + str(count) + \" coins\"\n",
+   "prompt": "This program reads a whole number and should print the sum of every whole number from 1 up to and including it, so for the typed line `5` it prints `15`. It reports no error at all and prints `10`. Put a probe inside the loop, compare what it shows against what you expected, and repair the program.",
+   "starterCode": "n = int(input())\ntotal = 0\ncount = 1\nwhile count < n:\n    total = total + count\n    count = count + 1\nprint(total)\n",
+   "solution": "n = int(input())\ntotal = 0\ncount = 1\nwhile count <= n:\n    total = total + count\n    count = count + 1\nprint(total)\n",
    "tests": [
     {
-     "input": "3",
-     "expected": "You carry 3 coins"
+     "input": "5",
+     "expected": "15"
+    },
+    {
+     "input": "1",
+     "expected": "1"
     },
     {
      "input": "0",
-     "expected": "You carry 0 coins"
+     "expected": "0"
     },
     {
-     "input": "125",
-     "expected": "You carry 125 coins"
+     "input": "10",
+     "expected": "55"
     }
    ],
-   "tags": [
-    "common-exceptions"
-   ],
+   "hint": "Print `count` and `total` at the top of the loop body, run it for the typed line `5`, and ask which value of `count` never appears.",
    "concepts": [
-    "common-exceptions"
-   ],
-   "explain": "The message says which kind was unexpected and where: a number turned up on the right of a `+` whose left was text. Turning the text into a number instead would raise ValueError on `\"You carry \"`, which is the wrong end of the same problem.",
-   "xp": 60,
-   "hint": "One of the three pieces being joined is not text. Which conversion makes it text?"
-  },
-  {
-   "id": "py-6-g-07",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`cost(nights, rate)` should give back the price of a stay, so three nights at 20 is 60. It gives 80. A probe inside the loop printed `night = 0`, `night = 1`, `night = 2` and `night = 3` before it finished. Repair it.",
-   "fn": "cost",
-   "starterCode": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night <= nights:\n        total = total + rate\n        night = night + 1\n    return total\n",
-   "solution": "def cost(nights, rate):\n    total = 0\n    night = 0\n    while night < nights:\n        total = total + rate\n        night = night + 1\n    return total\n",
-   "tests": [
-    {
-     "input": "3, 20",
-     "expected": 60
-    },
-    {
-     "input": "1, 7",
-     "expected": 7
-    },
-    {
-     "input": "0, 20",
-     "expected": 0
-    }
+    "print-debugging",
+    "narrowing-a-fault"
    ],
    "tags": [
     "print-debugging",
     "narrowing-a-fault"
    ],
-   "concepts": [
-    "print-debugging"
-   ],
-   "explain": "The probe output is the whole diagnosis: four values printed where three nights were paid for, so the loop runs once too often, and the condition is the only thing that decides that. Taking a quarter off the total would also give 60 for this input and be wrong for every other one - the probe is what tells you which repair is the real one.",
-   "xp": 60,
-   "hint": "Count the probe lines. How many nights was it asked for, and how many did it charge for?"
+   "explain": "The gap between 15 and 10 is exactly 5, which is the loudest possible hint that the last pass never happened - and a probe makes that visible instead of merely inferred. The `1` test kills the wrong repair of starting `count` at 0, since that adds a harmless zero and still gives 15 for the first case.",
+   "xp": 60
   },
   {
-   "id": "py-6-g-08",
-   "type": "explain",
+   "id": "py-6-g-07",
+   "type": "code",
    "layer": "application",
-   "prompt": "Someone tells you: \"your program crashed yesterday, it was doing the totals wrong.\" Say what you need to establish before you change a single line, and why starting with a change is a mistake.",
-   "rubric": {
-    "required": [
-     "reproduce",
-     "input",
-     "same",
-     "error"
-    ],
-    "optional": [
-     "traceback",
-     "steps",
-     "confirm",
-     "message",
-     "expected"
-    ],
-    "minWords": 55
-   },
-   "tags": [
-    "reproducing-reliably",
-    "narrowing-a-fault"
+   "prompt": "Write a program that reads one typed line holding a whole number and prints one divided by that number. For the typed line `4` it prints `0.25`. There is exactly one whole number for which the division cannot be done at all; when that one is typed, print `cannot divide` and nothing else.",
+   "starterCode": "n = int(input())\n# Exactly one value of n makes the division impossible.\n# Send that one value down a different path first.\n",
+   "solution": "n = int(input())\nif n == 0:\n    print(\"cannot divide\")\nelse:\n    print(1 / n)\n",
+   "tests": [
+    {
+     "input": "4",
+     "expected": "0.25"
+    },
+    {
+     "input": "0",
+     "expected": "cannot divide"
+    },
+    {
+     "input": "1",
+     "expected": "1.0"
+    },
+    {
+     "input": "-2",
+     "expected": "-0.5"
+    }
    ],
+   "hint": "Work out for yourself which typed line would reproduce the failure, then send that case down a different path before the division is reached.",
    "concepts": [
-    "reproducing-reliably"
+    "reproducing",
+    "common-exceptions"
    ],
-   "explain": "Without a failing input you can summon at will, there is no way to tell a repair from a coincidence, and a good share of reported faults turn out to be a different input, a different program, or correct behaviour that surprised somebody. Changing code first also spends your evidence: if the failure stops appearing you will never know whether your change was the reason.",
-   "xp": 24,
-   "hint": "You want the exact input, the exact output they saw, the output they expected, and the message itself."
+   "tags": [
+    "reproducing",
+    "common-exceptions"
+   ],
+   "explain": "This is a fault found on purpose rather than by accident: you are asked which input breaks it, which is exactly the question you must ask of somebody else's bug report. The `1` test is worth a second look, because `1 / 1` prints `1.0` and not `1` - division always produces a number with a point, whatever it divides.",
+   "xp": 60
   }
  ],
  "independent-practice": [
@@ -424,173 +447,185 @@
    "id": "py-6-i-01",
    "type": "debug",
    "layer": "application",
-   "prompt": "`average_score(total, players)` should give back the average score per player, and should give back 0 when there are no players at all. At the moment it stops with an error in that case. Make it behave.",
-   "fn": "average_score",
-   "starterCode": "def average_score(total, players):\n    return total / players\n",
-   "solution": "def average_score(total, players):\n    if players == 0:\n        return 0\n    return total / players\n",
+   "prompt": "This program reads three typed lines - an item's name, its price in whole pence, and how many were bought - and should print `lantern costs 120` for the lines `lantern`, `40` and `3`. It stops with a traceback naming line 4, and line 4 is written correctly. Repair it.",
+   "starterCode": "item = input()\nprice = input()\ncount = input()\nprint(item, \"costs\", price * count)\n",
+   "solution": "item = input()\nprice = int(input())\ncount = int(input())\nprint(item, \"costs\", price * count)\n",
    "tests": [
     {
-     "input": "30, 3",
-     "expected": 10
+     "input": "lantern\n40\n3",
+     "expected": "lantern costs 120"
     },
     {
-     "input": "0, 4",
-     "expected": 0
+     "input": "candle\n0\n9",
+     "expected": "candle costs 0"
     },
     {
-     "input": "30, 0",
-     "expected": 0
+     "input": "torch\n7\n1",
+     "expected": "torch costs 7"
     },
     {
-     "input": "7, 2",
-     "expected": 3.5
+     "input": "rope\n25\n0",
+     "expected": "rope costs 0"
     }
    ],
-   "tags": [
+   "concepts": [
+    "traceback",
     "common-exceptions",
     "narrowing-a-fault"
    ],
-   "concepts": [
-    "common-exceptions"
+   "tags": [
+    "traceback",
+    "common-exceptions",
+    "narrowing-a-fault"
    ],
-   "explain": "Nothing is wrong with the division itself; the fault is that one particular value is allowed to reach it, so the repair belongs before the division rather than inside it. Note that no players and a total of zero are different cases - only one of them is a problem, which is why both are tested.",
+   "explain": "The message says that the two things being multiplied cannot be multiplied, and the line it names is the only line that could have said so - yet the values it complains about were decided two and three lines earlier. Repairing only one of those lines is worse than repairing neither, because a number multiplied by text quietly repeats the text instead of failing, and you get an answer with no warning at all.",
    "xp": 60
   },
   {
    "id": "py-6-i-02",
    "type": "debug",
    "layer": "application",
-   "prompt": "`third_item(values)` should give back the third item of `values`. It survives longer rows of values and fails on one of exactly three items, which is the case it exists for. Correct it.",
-   "fn": "third_item",
-   "starterCode": "def third_item(values):\n    return values[3]\n",
-   "solution": "def third_item(values):\n    return values[2]\n",
+   "prompt": "This program reads a whole number and should print `even` when the number divides by two exactly and `odd` when it does not. For the typed line `4` it prints `odd`. It reports no error. Repair it.",
+   "starterCode": "n = int(input())\nif n % 2 == 1:\n    print(\"even\")\nelse:\n    print(\"odd\")\n",
+   "solution": "n = int(input())\nif n % 2 == 0:\n    print(\"even\")\nelse:\n    print(\"odd\")\n",
    "tests": [
     {
-     "input": "[\"salve\", \"tonic\", \"elixir\"]",
-     "expected": "elixir"
+     "input": "4",
+     "expected": "even"
     },
     {
-     "input": "[10, 20, 30, 40]",
-     "expected": 30
+     "input": "7",
+     "expected": "odd"
     },
     {
-     "input": "[\"a\", \"b\", \"c\"]",
-     "expected": "c"
+     "input": "0",
+     "expected": "even"
+    },
+    {
+     "input": "-3",
+     "expected": "odd"
     }
    ],
-   "tags": [
-    "common-exceptions",
-    "traceback"
-   ],
    "concepts": [
-    "common-exceptions"
+    "narrowing-a-fault",
+    "print-debugging"
    ],
-   "explain": "Positions are counted from 0, so the third item sits at 2 and the code was quietly reading the fourth - which is why a longer row hid the fault and the shortest one exposed it. An IndexError that appears on some inputs and not others is nearly always this off-by-one rather than a damaged row of values.",
+   "tags": [
+    "narrowing-a-fault",
+    "print-debugging"
+   ],
+   "explain": "Every answer is exactly the wrong way round, and that shape is worth recognising: a fault that is wrong for every input lives in the decision itself rather than in some awkward case. Printing the remainder beside the answer settles in a single run whether the arithmetic or the labelling is at fault, and the negative case is here because the remainder of a negative number is not always what people assume.",
    "xp": 60
   },
   {
    "id": "py-6-i-03",
    "type": "debug",
    "layer": "application",
-   "prompt": "`is_ready(charge)` should give back `True` once the charge has reached 100 and `False` while it has not. Nothing runs at all at the moment - not one line of it. Get it working.",
-   "fn": "is_ready",
-   "starterCode": "def is_ready(charge)\n    if charge >= 100\n        return True\n    return False\n",
-   "solution": "def is_ready(charge):\n    if charge >= 100:\n        return True\n    return False\n",
+   "prompt": "This program reads a number of players and then a number of biscuits, and prints two lines: `each 3` and then `left 1` for the typed lines `4` and `13`. Its author tried it on a dozen deliveries and never saw it fail. One of the cases below stops it dead. Repair it so that case prints `no players` and nothing else.",
+   "starterCode": "players = int(input())\nbiscuits = int(input())\nprint(\"each\", biscuits // players)\nprint(\"left\", biscuits % players)\n",
+   "solution": "players = int(input())\nbiscuits = int(input())\nif players == 0:\n    print(\"no players\")\nelse:\n    print(\"each\", biscuits // players)\n    print(\"left\", biscuits % players)\n",
    "tests": [
     {
-     "input": "250",
-     "expected": true
+     "input": "4\n13",
+     "expected": "each 3\nleft 1"
     },
     {
-     "input": "100",
-     "expected": true
+     "input": "0\n5",
+     "expected": "no players"
     },
     {
-     "input": "99",
-     "expected": false
+     "input": "1\n0",
+     "expected": "each 0\nleft 0"
     },
     {
-     "input": "0",
-     "expected": false
+     "input": "3\n9",
+     "expected": "each 3\nleft 0"
     }
    ],
-   "tags": [
-    "syntax-vs-runtime",
+   "concepts": [
+    "reproducing",
+    "common-exceptions",
     "traceback"
    ],
-   "concepts": [
-    "syntax-vs-runtime"
+   "tags": [
+    "reproducing",
+    "common-exceptions",
+    "traceback"
    ],
-   "explain": "Nothing running at all, with no frames reported anywhere, places the fault in the text rather than in any value - so no amount of thinking about charges would have helped. Python reports only the first such fault it meets, so repairing one and running again is expected to reveal the next.",
+   "explain": "A fault nobody has seen is still a fault, and the reason this one hid for a dozen deliveries is that it needs one particular value rather than an unusual combination. Notice too that the broken version prints nothing at all before it stops, even though the failing line is the third: Python works out what to print before it prints anything, so the whole line is lost.",
    "xp": 60
   },
   {
    "id": "py-6-i-04",
-   "type": "debug",
+   "type": "code",
    "layer": "application",
-   "prompt": "`highest(values)` should give back the largest number in `values`. On some rows of numbers it is right and on others it is wrong, and it never reports anything. Find where it goes astray and correct it. You may assume `values` always holds at least one number.",
-   "fn": "highest",
-   "starterCode": "def highest(values):\n    best = 0\n    for value in values:\n        if value > best:\n            best = value\n    return best\n",
-   "solution": "def highest(values):\n    best = values[0]\n    for value in values:\n        if value > best:\n            best = value\n    return best\n",
+   "prompt": "A market stall closes for the day and adds up. Write a program that reads two typed lines - how many items were sold, then how much was taken in whole pence - and prints one line, `price 40`, giving what a single item cost in whole pence. On days when nothing at all was sold it prints `nothing sold` and nothing else.",
+   "solution": "items = int(input())\ntotal = int(input())\nif items == 0:\n    print(\"nothing sold\")\nelse:\n    print(\"price\", total // items)\n",
    "tests": [
     {
-     "input": "[3, 9, 4]",
-     "expected": 9
+     "input": "3\n120",
+     "expected": "price 40"
     },
     {
-     "input": "[-5, -2, -9]",
-     "expected": -2
+     "input": "0\n0",
+     "expected": "nothing sold"
     },
     {
-     "input": "[7]",
-     "expected": 7
+     "input": "1\n7",
+     "expected": "price 7"
     },
     {
-     "input": "[0, -1]",
-     "expected": 0
+     "input": "0\n50",
+     "expected": "nothing sold"
     }
    ],
-   "tags": [
-    "narrowing-a-fault",
-    "print-debugging"
-   ],
    "concepts": [
+    "reproducing",
+    "common-exceptions",
     "narrowing-a-fault"
    ],
-   "explain": "The starting value is an assumption in disguise: it claims the answer is at least 0, which is true of many rows of numbers and false of any row that lies entirely below zero. Printing `best` on each pass shows it never moving, which points at the start rather than at the comparison - and a fault that appears on some inputs and not others is nearly always an assumption like this one.",
+   "tags": [
+    "reproducing",
+    "common-exceptions",
+    "narrowing-a-fault"
+   ],
+   "explain": "The last case is the interesting one and it is not a misprint: a day with money taken and nothing sold is nonsense, and the program is told to report the count rather than to invent a price out of it. Deciding what an impossible case should do, before it ever happens, is the cheapest debugging there is - it is the fault you never have to reproduce.",
    "xp": 60
   },
   {
    "id": "py-6-i-05",
    "type": "explain",
    "layer": "application",
-   "prompt": "A forty-line program reports a total that is far too large. Nothing fails, and reading it through twice has told you nothing. Describe how you would corner the fault, and say why altering three suspicious lines at once and running it again would leave you no wiser.",
+   "prompt": "A friend messages you: `your program is broken, it crashed`. That is the whole message. Describe what you ask for and what you do before you change a single line, and explain why editing something straight away is the worse move.",
    "rubric": {
     "required": [
-     "half",
-     "print",
-     "one",
-     "value",
-     "expect"
+     "reproduce",
+     "input",
+     "error"
     ],
     "optional": [
-     "label",
-     "narrow",
-     "confirm",
-     "assumption",
-     "loop"
+     "traceback",
+     "exact",
+     "line",
+     "message",
+     "assume",
+     "guess",
+     "same",
+     "fixed"
     ],
-    "minWords": 60
+    "minWords": 45
    },
-   "tags": [
-    "narrowing-a-fault",
-    "print-debugging"
-   ],
    "concepts": [
+    "reproducing",
     "narrowing-a-fault",
-    "print-debugging"
+    "traceback"
    ],
-   "explain": "Checking a value half way through splits the search rather than scanning it, so each look rules out a whole stretch of the program instead of a single line. Three changes at once destroys that: a run that suddenly behaves tells you the fault is gone but not which change removed it, and two of the three may have introduced faults that have not shown themselves yet.",
+   "tags": [
+    "reproducing",
+    "narrowing-a-fault",
+    "traceback"
+   ],
+   "explain": "The half that people skip is the second one: without a case that fails every time, a change that appears to work has proved nothing, because you never saw it fail to begin with. Asking for the exact input and the exact message costs one reply and turns a rumour into something you can run, and the message alone often names the fault before you have opened the file.",
    "xp": 24
   }
  ],
@@ -599,221 +634,293 @@
    "id": "py-6-e-01",
    "type": "mcq",
    "layer": "retrieval",
-   "prompt": "In a traceback, which line carries the error type and its message?",
+   "prompt": "What does the last line of a Python traceback tell you?",
    "choices": [
-    "the first line, `Traceback (most recent call last):`",
-    "the last line",
-    "the line with the `^` marks under it",
-    "the first `File \"...\", line N` line"
+    "The first line of the program that ran",
+    "The kind of failure, and a short message describing it",
+    "The number of the line at which the program stopped",
+    "Which names still had values when the program stopped"
    ],
    "answer": 1,
-   "tags": [
-    "traceback"
-   ],
    "concepts": [
     "traceback"
    ],
-   "explain": "The heading only announces that a traceback follows, and the frames say where Python was - the verdict itself is always the final line. Reading from the top is the habit that makes tracebacks feel unreadable.",
+   "tags": [
+    "traceback"
+   ],
+   "explain": "The third choice is tempting because a line number really is in there - one line further up, on the line beginning `File`. Keeping the two apart matters, because the bottom line says what kind of wrong value was involved, and that is what tells you which sort of earlier line to suspect.",
    "xp": 12
   },
   {
    "id": "py-6-e-02",
-   "type": "mcq",
+   "type": "multi",
    "layer": "retrieval",
-   "prompt": "What is a syntax error?",
+   "prompt": "Which of these faults are found before any line of the program runs? Select every one.",
    "choices": [
-    "a fault found while the program is running, when a value turns out to be impossible",
-    "a fault in the text of the program, found before any line of it runs",
-    "any error serious enough to stop the program",
-    "a wrong answer produced by a program that ran to the end"
+    "a missing colon at the end of an `if` line",
+    "dividing by a count that turned out to be zero",
+    "an opening bracket that is never closed",
+    "reading a name that was never assigned",
+    "a keyword misspelt as `whlie`"
    ],
-   "answer": 1,
-   "tags": [
-    "syntax-vs-runtime"
+   "answer": [
+    0,
+    2,
+    4
    ],
    "concepts": [
-    "syntax-vs-runtime"
+    "syntax-vs-runtime-error"
    ],
-   "explain": "The distinction is when the fault is found, not how serious it is: the text is read in full before anything runs, so a syntax error costs you the whole program rather than only the line it sits on. The third choice conflates the two kinds, which is the confusion that leaves people hunting for values that never existed.",
+   "tags": [
+    "syntax-vs-runtime-error"
+   ],
+   "explain": "The fourth is the one that lands in the wrong pile, because a misspelt name looks like the same sort of slip as a misspelt keyword. It is not: `whlie` cannot be read as legal Python at all, whereas a misspelt name is a perfectly legal name that merely has nothing attached to it, so nobody finds out until that line runs.",
    "xp": 12
   },
   {
    "id": "py-6-e-03",
-   "type": "output",
+   "type": "fill",
    "layer": "retrieval",
-   "prompt": "This program stops with an error. Type the **last line** of its traceback.",
-   "code": "reading = \"seven\"\nprint(\"Converting\")\nprint(int(reading) * 2)",
-   "lang": "python",
-   "answer": "ValueError: invalid literal for int() with base 10: 'seven'",
-   "tags": [
-    "common-exceptions"
+   "prompt": "Give the name Python reports in each of these four situations. Spell each one exactly as Python does.",
+   "template": "joining a number to a piece of text with +: ___\nasking int for the number in the text \"nine\": ___\nusing a name that was never assigned: ___\ndividing by a count that turned out to be zero: ___",
+   "blanks": [
+    "TypeError",
+    "ValueError",
+    "NameError",
+    "ZeroDivisionError"
    ],
    "concepts": [
     "common-exceptions"
    ],
-   "explain": "`int` is perfectly happy to be handed text - that is its job - so the kind is right and the complaint is about this particular value, which makes it ValueError rather than TypeError. The message quotes the offending value back at you, which is often the fastest route to where it came from.",
+   "tags": [
+    "common-exceptions"
+   ],
+   "explain": "The second is the one that gets answered with the first. Text is exactly the kind of thing `int` is built to take, so nothing about the type is wrong; the complaint is about the characters inside it, and Python quotes them back at you in the message for precisely that reason.",
    "xp": 24
   },
   {
    "id": "py-6-e-04",
    "type": "output",
    "layer": "retrieval",
-   "prompt": "This program stops with an error. What does it print **before** the report of failure?",
-   "code": "print(\"Start\")\nshares = 4\nprint(\"Shares:\", shares)\nshares = shares - 4\nprint(100 / shares)\nprint(\"End\")",
+   "prompt": "A probe has been added to this loop. What does the program print? Write all four lines.",
+   "code": "total = 0\nn = 3\nwhile n > 0:\n    print(\"probe n\", n, \"total\", total)\n    total = total + n\n    n = n - 1\nprint(\"total\", total)",
    "lang": "python",
-   "answer": "Start\nShares: 4",
-   "tags": [
-    "syntax-vs-runtime",
-    "common-exceptions"
-   ],
+   "answer": "probe n 3 total 0\nprobe n 2 total 3\nprobe n 1 total 5\ntotal 6",
    "concepts": [
-    "syntax-vs-runtime"
+    "print-debugging"
    ],
-   "explain": "The zero is never written down anywhere - it arrives in `shares` one line before the division, which is the usual shape of a ZeroDivisionError. The partial output proves the first three lines behaved, so the search narrows to what happened between the last good print and the failure.",
+   "tags": [
+    "print-debugging"
+   ],
+   "explain": "The probe sits above the addition, so each line shows the running total as it was on entering the pass rather than after it - which is why the last probe says 5 while the answer is 6. A probe that reports the state before the work is usually the more useful of the two, because it shows you what the pass was given.",
    "xp": 24
   },
   {
    "id": "py-6-e-05",
-   "type": "fill",
-   "layer": "retrieval",
-   "prompt": "Name the error type each of these raises. Spell them exactly as Python does.",
-   "template": "12 / (4 - 4)             -> ___\nprint(len(potons))       -> ___\nint(\"3 coins\")           -> ___\n5 + \"5\"                  -> ___",
-   "blanks": [
-    "ZeroDivisionError",
-    "NameError",
-    "ValueError",
-    "TypeError"
-   ],
-   "tags": [
-    "common-exceptions"
-   ],
-   "concepts": [
-    "common-exceptions"
-   ],
-   "explain": "`int(\"3 coins\")` is the one people get wrong: it does begin with a digit, but `int` needs the whole of the text to spell a number, so the value is impossible rather than the wrong kind. `4 - 4` shows how a zero divisor usually arrives - computed, not typed.",
-   "xp": 24
-  },
-  {
-   "id": "py-6-e-06",
    "type": "order",
    "layer": "retrieval",
-   "prompt": "Put these into the order you read a traceback in.",
+   "prompt": "Somebody reports that a program gives a wrong answer. Put these five actions into the order that finds the fault soonest.",
    "fragments": [
-    "the last line, for the error type and its message",
-    "the bottom frame, for the line that was running when it stopped",
-    "the frames above it, for who asked for that work and with what",
-    "the top frame, for where the whole chain began"
+    "Run it on the exact input that was reported, and watch it come out wrong",
+    "Print the values roughly halfway through, and see whether they are wrong there already",
+    "Move the probe into whichever half still holds the fault",
+    "Change one line",
+    "Run the same input again and compare"
    ],
    "answer": [
     0,
     1,
     2,
-    3
+    3,
+    4
+   ],
+   "lang": "python",
+   "concepts": [
+    "narrowing-a-fault",
+    "print-debugging",
+    "reproducing"
    ],
    "tags": [
-    "traceback"
+    "narrowing-a-fault",
+    "print-debugging",
+    "reproducing"
    ],
-   "concepts": [
-    "traceback"
-   ],
-   "explain": "Bottom-up is not a preference: the verdict tells you what kind of thing to hunt for, and only then is it worth knowing where. Starting at the top means reading frames while you still do not know what you are looking for.",
+   "explain": "Every wrong order puts a change before a measurement, which is the habit this floor exists to break. Reproducing first is what makes the final comparison mean anything: if you never saw it fail, a run that succeeds afterwards is no evidence that you fixed it.",
    "xp": 24
   },
   {
-   "id": "py-6-e-07",
+   "id": "py-6-e-06",
    "type": "trace",
    "layer": "retrieval",
-   "prompt": "Read this traceback and answer the questions about it.\n\n`Traceback (most recent call last):`\n`File \"stock.py\", line 20, in <module>`\n`print(restock(\"crate\", boxes))`\n`File \"stock.py\", line 15, in restock`\n`return describe(shelf_for(kind))`\n`File \"stock.py\", line 9, in shelf_for`\n`return SHELVES[kind_number]`\n`IndexError: list index out of range`",
+   "prompt": "A probe has been placed at the end of each pass of this loop. Give the values it would report.",
+   "code": "n = 5\ncount = 0\nwhile n != 1:\n    if n % 2 == 0:\n        n = n // 2\n    else:\n        n = 3 * n + 1\n    count = count + 1",
+   "lang": "python",
    "steps": [
     {
-     "label": "the error type",
-     "expected": "IndexError"
+     "label": "n, at the end of pass 1",
+     "expected": "16"
     },
     {
-     "label": "the name of the function the program stopped inside",
-     "expected": "shelf_for"
+     "label": "n, at the end of pass 2",
+     "expected": "8"
     },
     {
-     "label": "the line number that called that function",
-     "expected": "15"
+     "label": "n, at the end of pass 3",
+     "expected": "4"
+    },
+    {
+     "label": "count, at the end of pass 3",
+     "expected": "3"
     }
-   ],
-   "tags": [
-    "traceback",
-    "common-exceptions"
    ],
    "concepts": [
-    "traceback"
-   ],
-   "explain": "The `in shelf_for` at the end of a `File` line names the function that frame belongs to, and the frame above it is its caller - so `kind_number` was decided at or above line 15. Naming line 9 as the caller is the usual slip: line 9 is the line that failed, not the line that asked.",
-   "xp": 48
-  },
-  {
-   "id": "py-6-e-08",
-   "type": "debug",
-   "layer": "application",
-   "prompt": "`sum_to(n)` should give back the total of every whole number from 1 to `n`, so `sum_to(4)` is 10. It gives 6. Repair it.",
-   "fn": "sum_to",
-   "starterCode": "def sum_to(n):\n    total = 0\n    step = 0\n    while step < n:\n        total = total + step\n        step = step + 1\n    return total\n",
-   "solution": "def sum_to(n):\n    total = 0\n    step = 1\n    while step <= n:\n        total = total + step\n        step = step + 1\n    return total\n",
-   "tests": [
-    {
-     "input": "4",
-     "expected": 10
-    },
-    {
-     "input": "1",
-     "expected": 1
-    },
-    {
-     "input": "5",
-     "expected": 15
-    },
-    {
-     "input": "0",
-     "expected": 0
-    }
+    "print-debugging",
+    "narrowing-a-fault"
    ],
    "tags": [
     "print-debugging",
     "narrowing-a-fault"
    ],
+   "explain": "Tracing by hand and probing with `print` are the same act performed by different machinery, and doing it by hand first is what lets you notice when the printed values disagree with you. The trap here is the very first pass: 5 is odd, so the number grows before it ever shrinks.",
+   "xp": 48
+  },
+  {
+   "id": "py-6-e-07",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program reads a whole number of coins and should print `you have 12 coins` for the typed line `12`. It stops with a traceback whose last line names something the program never assigned. Repair it.",
+   "starterCode": "coins = int(input())\nprint(\"you have\", coin, \"coins\")\n",
+   "solution": "coins = int(input())\nprint(\"you have\", coins, \"coins\")\n",
+   "tests": [
+    {
+     "input": "12",
+     "expected": "you have 12 coins"
+    },
+    {
+     "input": "0",
+     "expected": "you have 0 coins"
+    },
+    {
+     "input": "-3",
+     "expected": "you have -3 coins"
+    }
+   ],
    "concepts": [
+    "traceback",
+    "common-exceptions"
+   ],
+   "tags": [
+    "traceback",
+    "common-exceptions"
+   ],
+   "explain": "A `NameError` is the one failure whose message hands you the answer verbatim: it prints the name it could not find, and a name one letter away from a name you did assign is a typo nine times out of ten. Read the quoted name rather than the line, because the line itself looks perfectly reasonable.",
+   "xp": 60
+  },
+  {
+   "id": "py-6-e-08",
+   "type": "debug",
+   "layer": "application",
+   "prompt": "This program reads a whole number and should print how many of the numbers from 1 up to and including it divide it exactly, so for the typed line `6` it prints `4`, counting 1, 2, 3 and 6. It reports no error and prints `3`. Repair it.",
+   "starterCode": "n = int(input())\nfound = 0\nd = 1\nwhile d < n:\n    if n % d == 0:\n        found = found + 1\n    d = d + 1\nprint(found)\n",
+   "solution": "n = int(input())\nfound = 0\nd = 1\nwhile d <= n:\n    if n % d == 0:\n        found = found + 1\n    d = d + 1\nprint(found)\n",
+   "tests": [
+    {
+     "input": "6",
+     "expected": "4"
+    },
+    {
+     "input": "1",
+     "expected": "1"
+    },
+    {
+     "input": "7",
+     "expected": "2"
+    },
+    {
+     "input": "12",
+     "expected": "6"
+    }
+   ],
+   "concepts": [
+    "narrowing-a-fault",
     "print-debugging"
    ],
-   "explain": "Printing `step` on each pass shows the numbers actually added - 0, 1, 2, 3 - where the harmless 0 and the missing 4 together say the loop is one short at the top rather than wrong in the middle. Adding `n` to the answer at the end would also give 10 here and would be wrong for `sum_to(0)`, which is why that edge case is tested.",
-   "xp": 60,
-   "hint": "Which numbers does the loop actually add? Write them down for `n = 4`."
+   "tags": [
+    "narrowing-a-fault",
+    "print-debugging"
+   ],
+   "explain": "Being short by exactly one for every input points at the range rather than at the test inside it, and a probe printing `d` on each pass shows in a single run that the largest divisor is never even offered. The `1` case is the cruel one: the broken program prints 0 for it, so a repair that merely adds one to the answer passes for 6 and fails here.",
+   "xp": 60
   },
   {
    "id": "py-6-e-09",
-   "type": "explain",
+   "type": "code",
    "layer": "application",
-   "prompt": "A traceback ends with `ZeroDivisionError: division by zero`, and its bottom frame is a two-line function that does nothing but divide one number by another. Explain why the mistake is probably not in that function, and how the frames above the last line help you find it.",
-   "rubric": {
-    "required": [
-     "caller",
-     "value",
-     "above",
-     "frame"
-    ],
-    "optional": [
-     "zero",
-     "argument",
-     "top",
-     "chain",
-     "traceback"
-    ],
-    "minWords": 55
-   },
-   "tags": [
-    "traceback",
+   "prompt": "Write a program that reads one typed line holding a whole number and prints every whole number from it down to 1, each on its own line, followed by a final line reading `done`. For the typed line `3` it prints `3`, `2`, `1`, `done`. For the typed line `0` it prints only `done`.",
+   "starterCode": "n = int(input())\n# Count down to 1, then print done.\n",
+   "solution": "n = int(input())\nwhile n > 0:\n    print(n)\n    n = n - 1\nprint(\"done\")\n",
+   "tests": [
+    {
+     "input": "3",
+     "expected": "3\n2\n1\ndone"
+    },
+    {
+     "input": "0",
+     "expected": "done"
+    },
+    {
+     "input": "1",
+     "expected": "1\ndone"
+    },
+    {
+     "input": "-2",
+     "expected": "done"
+    }
+   ],
+   "hint": "Decide first what should happen when the typed number is already below 1, and check that case before you check the ordinary one.",
+   "concepts": [
+    "print-debugging",
     "narrowing-a-fault"
    ],
-   "concepts": [
-    "traceback"
+   "tags": [
+    "print-debugging",
+    "narrowing-a-fault"
    ],
-   "explain": "A function that only divides cannot be blamed for the numbers it was handed, so its frame is where the fault surfaced rather than where it was made. Every frame above names both a line and the call that line made, so walking upwards traces the offending value back to the place it was computed - and that is the line worth changing.",
+   "explain": "The boundaries are the whole exercise: a version that stops one pass too late prints a `0`, and one that stops a pass too early never prints the `1`, and both are a single character adrift in the condition. Running the `1` case is quicker than reasoning about it, and that habit is the thing worth carrying off this floor.",
+   "xp": 60
+  },
+  {
+   "id": "py-6-e-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A program gives a wrong answer and reports no error at all. Somebody edits four lines at once, runs it, and gets a different wrong answer. Explain what has been lost by working that way, and describe how you would corner the fault instead.",
+   "rubric": {
+    "required": [
+     "one",
+     "print",
+     "value"
+    ],
+    "optional": [
+     "narrow",
+     "half",
+     "probe",
+     "reproduce",
+     "undo",
+     "cause",
+     "compare",
+     "which"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "print-debugging",
+    "narrowing-a-fault"
+   ],
+   "tags": [
+    "print-debugging",
+    "narrowing-a-fault"
+   ],
+   "explain": "What is lost is not the four lines, which can be typed again, but the knowledge of which of them mattered - and worse, the program is now a different program, so the original evidence no longer describes it. Printing values and moving one line at a time is slower per step and far faster overall, because every step rules something out permanently.",
    "xp": 24
   }
  ]
