@@ -1,0 +1,983 @@
+{
+ "n": 22,
+ "name": "The Hall of Declared Forms",
+ "goal": "Express a contract in types and use a checker to enforce it.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 21
+  }
+ ],
+ "description": {
+  "what": "How to write down, in the signature itself, what a function takes and what it gives back - annotations on parameters and returns, generics such as `list[str]` and `dict[str, list[str]]` that name what is inside a container, the union with `None` that admits a value might be absent, and Protocols, which describe what an object can do rather than what it inherits from.",
+  "why": "Every function has a contract whether or not anybody wrote it down, and when it lives only in a docstring or in somebody's head it drifts, is misread, and is discovered by a crash in production - whereas a contract written in types is one a machine can hold every call in the codebase against, without running any of them.",
+  "enables": "You will be able to give a function a signature that states its real contract, choose between reporting absence with `None` and refusing with an exception, describe a requirement structurally so that code you do not own can satisfy it, and introduce annotations into an untyped codebase gradually rather than in one unreviewable sweep.",
+  "assumes": "You can write functions, build and nest lists and dictionaries, define a class with methods, raise and catch exceptions, and treat a function as a value - and you know that a function with no return statement returns None.",
+  "assessed": "You will predict what the interpreter does with an annotation and what a checker would say about the same line, write functions whose signatures are true rather than optimistic, repair code whose body contradicts its own contract, and argue for what a clean type check does and does not prove."
+ },
+ "concepts": [
+  "annotations",
+  "typing-generics",
+  "optional",
+  "protocols",
+  "gradual-typing",
+  "what-types-do-not-catch"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Promise the Interpreter Does Not Keep",
+    "body": "An **annotation** is a note attached to a parameter or to a return value saying what kind of thing belongs there. You write it with a colon after a parameter name, and with an arrow before the colon that ends a `def` line: `def repeat(item: str, times: int) -> str:` says that `repeat` expects a string and a whole number and hands back a string.\n\nHere is the fact that surprises everybody, and the one this whole floor turns on: **Python does not enforce any of it**. At run time an annotation is stored on the function object in its `__annotations__` dictionary and then completely ignored. Pass a list where the signature said `str` and the call proceeds cheerfully, because the interpreter never consulted the note in the first place.\n\nSo what is an annotation for? It is a contract written where a machine can read it. A separate program - a **type checker**, such as mypy or pyright - reads your source without running it, works out what flows into every call, and reports the places where the code contradicts its own signatures. The annotations are the evidence; the checker is the enforcement, and it is a different tool that you run yourself.\n\nThat separation is also what makes annotations **gradual**. You may annotate one function, one module or one edge of a package and leave the rest untouched; unannotated code is simply invisible to the checker rather than an error. Nothing here can run mypy for you - this environment has a Python interpreter and no checker - so when this floor asks what a checker would say, you are reasoning about it rather than watching it, and where the answer is observable at run time you will run the code and see it.",
+    "code": "def repeat(item: str, times: int) -> str:\n    return item * times\n\nprint(repeat(\"ab\", 3))\nprint(repeat([1, 2], 2))\nprint(type(repeat([1, 2], 2)).__name__)\nprint(repeat.__annotations__)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "Two parameter annotations and a return annotation. Together they are the function's stated contract."
+     },
+     {
+      "line": 5,
+      "text": "A list where the signature said `str`. It runs, and it returns a list - the annotation did not stop it and did not convert it."
+     },
+     {
+      "line": 7,
+      "text": "The annotations survive as data on the function object, which is exactly where a checker, and anything else that cares, goes to read them."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def halve(n: int) -> int:\n    return n / 2\n\nprint(halve(7))\nprint(halve.__annotations__[\"return\"] is int)",
+     "lang": "python",
+     "answer": "3.5\nTrue",
+     "concepts": [
+      "annotations"
+     ],
+     "tags": [
+      "annotations"
+     ],
+     "explain": "The body divides with `/`, which always produces a float, so the function returns 3.5 while its signature insists on `int` - and nothing complains, because nothing is checking. A checker would flag that line immediately, which is the entire argument for running one. The tempting answer of 3 comes from assuming the annotation coerces the result."
+    }
+   },
+   {
+    "title": "Naming the Shape Inside a Container",
+    "body": "`list` on its own is a weak promise: a list of what? Since Python 3.9 the built-in container types are **generic**, meaning you write the element type in square brackets after them. `list[str]` is a list of strings, `dict[str, int]` maps strings to whole numbers, `set[str]` holds strings, and `tuple[str, int]` is a pair whose first item is a string and whose second is a number.\n\nThese read from the outside in and nest as deeply as the data does. `dict[str, list[str]]` is a mapping from a string to a list of strings, which is exactly the shape of an index. Writing that down is worth more than a comment saying the same thing, because the checker can hold every use of the value against it, and a comment cannot be wrong in a way anything notices.\n\nA tuple is the one that catches people. `tuple[str, int]` means a pair of exactly two items of those two types, in that order, because that is how tuples are usually used - as a small fixed record. When you genuinely mean a tuple of unknown length all of one type, the notation for it is `tuple[str, ...]`, and the three dots there are literal.\n\nYou may annotate a variable too, not just a parameter: `counts: dict[str, int] = {}`. That line exists because an empty container tells a checker nothing about what will go into it, and this is how you say so.",
+    "code": "def tally(words: list[str]) -> dict[str, int]:\n    counts: dict[str, int] = {}\n    for word in words:\n        counts[word] = counts.get(word, 0) + 1\n    return counts\n\ndef busiest(counts: dict[str, int]) -> tuple[str, int]:\n    best = max(counts, key=lambda k: counts[k])\n    return best, counts[best]\n\ntrees = [\"ash\", \"elm\", \"ash\", \"oak\", \"ash\"]\nprint(tally(trees))\nprint(busiest(tally(trees)))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "In and out are both described: a list of strings goes in, a mapping from string to count comes back."
+     },
+     {
+      "line": 2,
+      "text": "The literal `{}` could hold anything, so the annotation on the variable is where the element types get stated."
+     },
+     {
+      "line": 7,
+      "text": "`tuple[str, int]` promises a pair in that order - the name first, the count second. Returning them the other way round is exactly what a checker catches."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Complete the signature. `index_words` takes a list of words and returns a mapping from each first letter to the words starting with it.",
+     "template": "def index_words(words: list[___]) -> dict[str, ___[str]]:\n    index = {}\n    for word in words:\n        index.setdefault(word[0], []).append(word)\n    return index",
+     "blanks": [
+      "str",
+      "list"
+     ],
+     "concepts": [
+      "typing-generics"
+     ],
+     "tags": [
+      "typing-generics"
+     ],
+     "explain": "The values of the mapping are lists of strings, so the inner annotation is a generic in its own right: `dict[str, list[str]]`. Writing `dict[str, str]` is the common slip, and it describes a completely different structure - one word per letter rather than many."
+    }
+   },
+   {
+    "title": "The Value That Might Not Be There",
+    "body": "A great many functions have an honest answer and a way of having no answer at all: a lookup that finds nothing, a search that reaches the end, a parser handed rubbish. The usual way to say no answer in Python is to return `None`, and the way to write that in a signature is `str | None` - this type or `None`. Older code writes `Optional[str]`, imported from `typing`, and the two mean precisely the same thing.\n\nThis is the single most valuable annotation you will write, because forgetting that a value may be `None` is the commonest crash in Python. `AttributeError: 'NoneType' object has no attribute 'upper'` is what it looks like from the outside, and what it means is that somebody used a result without asking whether there was one. A checker reading `str | None` refuses `result.upper()` until you have ruled the `None` out - with `if result is None:` or its mirror image - and that refusal is the point.\n\nThere is a trap in the other direction too. A function that falls off the end of its body without a `return` returns `None`, so a `-> str` that has a branch with no `return` is already lying. The checker finds those, and they are the ones hardest to find by reading, because the bug is in the line you did not write.\n\n`None` in a signature is not the only way to report absence, and it is not always the best one. Raising is better when the absence is a genuine fault the caller must not overlook, because an exception cannot be silently ignored the way a `None` can. `X | None` says the absence is ordinary and expected; a raise says something has gone wrong.",
+    "code": "def email_for(users: dict[str, str], name: str) -> str | None:\n    return users.get(name)\n\npeople = {\"ada\": \"ada@example.com\"}\n\nprint(email_for(people, \"ada\").upper())\n\nfound = email_for(people, \"bob\")\nif found is None:\n    print(\"no address on record\")\nelse:\n    print(found.upper())",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "`dict.get` returns `None` for a missing key, so `str | None` is the honest return type. Annotating it `-> str` would be a lie the checker could catch."
+     },
+     {
+      "line": 6,
+      "text": "This one works today only because 'ada' happens to be present. A checker rejects it anyway - it is right about the risk even when the run happens not to hit it."
+     },
+     {
+      "line": 9,
+      "text": "The guard. After this test the checker knows `found` is a `str` on the other branch, which is why the `.upper()` below it is accepted."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def middle(items: list[str]) -> str | None:\n    if len(items) < 3:\n        return None\n    return items[len(items) // 2]\n\nprint(middle([\"a\", \"b\", \"c\"]))\nprint(middle([\"a\", \"b\"]))",
+     "lang": "python",
+     "answer": "b\nNone",
+     "concepts": [
+      "optional"
+     ],
+     "tags": [
+      "optional"
+     ],
+     "explain": "`print` is happy to show `None`, which is why this kind of bug survives so long: nothing fails here, and the crash arrives later in whichever caller treats that `None` as a string. The tempting answer is a blank second line, from expecting `None` to print as nothing."
+    }
+   },
+   {
+    "title": "Protocols: Duck Typing, Written Down",
+    "body": "Python code rarely cares what class a thing is; it cares what the thing can do. A function that calls `.read()` works with a file, a network stream or a hand-made stub, and demanding a common base class would only get in the way. That habit is called duck typing, and for a long time it had no way of being written in a signature.\n\nA **Protocol** is that way. You declare a class inheriting from `typing.Protocol` whose methods have signatures and empty bodies, and it names a shape rather than a lineage. Any class with matching methods satisfies it, with no inheritance, no registration and no edit to the class at all - which is the only workable answer when the class belongs to a library you cannot change. This is **structural typing**: matching on structure, not on ancestry.\n\nAdd the `@runtime_checkable` decorator and `isinstance` will test a protocol at run time as well, though only by asking whether the named methods exist - it never checks their signatures, and it is the one part of typing that does anything at all while the program runs.\n\nEnd with the honest limit. Types describe **shape**, and a checker verifies that the shapes fit together. It cannot tell you that your average divides by the wrong count, that your discount is applied twice, or that a string reached you from a form and was never validated. A fully annotated, checker-clean program can be completely wrong, which is why annotations sit alongside tests and never in place of them.",
+    "code": "from typing import Protocol, runtime_checkable\n\n@runtime_checkable\nclass HasLength(Protocol):\n    def __len__(self) -> int: ...\n\ndef widths(values: list[object]) -> list[int]:\n    return [len(v) for v in values if isinstance(v, HasLength)]\n\nprint(widths([\"ash\", [1, 2], 7, {\"a\": 1, \"b\": 2, \"c\": 3}]))\nprint(isinstance(\"ash\", HasLength))\nprint(isinstance(7, HasLength))",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The body is a literal `...`. A protocol method describes a signature and nothing else - it is never called."
+     },
+     {
+      "line": 8,
+      "text": "Structural typing in action: strings, lists and dicts have never heard of `HasLength`, and all three satisfy it."
+     },
+     {
+      "line": 12,
+      "text": "An integer has no `__len__`, so it fails the test. Note this is a run-time check the decorator enables - without it, `isinstance` against a protocol raises."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "from typing import Protocol, runtime_checkable\n\n@runtime_checkable\nclass Speaker(Protocol):\n    def upper(self) -> str: ...\n\nprint(isinstance(\"ash\", Speaker))\nprint(isinstance([\"ash\"], Speaker))",
+     "lang": "python",
+     "answer": "True\nFalse",
+     "concepts": [
+      "protocols"
+     ],
+     "tags": [
+      "protocols"
+     ],
+     "explain": "`str` has an `upper` method, so it matches the protocol even though nobody ever declared a relationship between them; `list` does not, so it fails. The tempting answer is two `False` results, from expecting a protocol to need explicit inheritance the way a base class does."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-22-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "The signature of `repeat` says it takes a string and returns a string. The second call hands it a list. What does this program print?",
+   "code": "def repeat(item: str, times: int) -> str:\n    return item * times\n\nprint(repeat(\"ab\", 3))\nprint(repeat([1, 2], 2))\nprint(type(repeat([1, 2], 2)).__name__)\nprint(repeat.__annotations__)",
+   "lang": "python",
+   "answer": "ababab\n[1, 2, 1, 2]\nlist\n{'item': <class 'str'>, 'times': <class 'int'>, 'return': <class 'str'>}",
+   "concepts": [
+    "annotations"
+   ],
+   "tags": [
+    "annotations"
+   ],
+   "explain": "Every line here runs, because annotations are recorded and then ignored: `[1, 2] * 2` is a perfectly good list operation and the `-> str` had no vote. The last line shows where the notes actually went - a plain dictionary on the function object, which is precisely what a checker reads. Expecting a `TypeError` on the second call is the usual guess, and it comes from assuming Python behaves like a compiled, statically checked language.",
+   "hint": "Nothing raises. Work out what `*` does to a list, then remember that `__annotations__` is an ordinary dictionary printed in the order the parameters were written.",
+   "xp": 36
+  },
+  {
+   "id": "py-22-gp-02",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the generic annotations so the signature describes what this function really does: it counts how many times each word appears.",
+   "template": "def tally(words: list[___]) -> dict[str, ___]:\n    counts = {}\n    for word in words:\n        counts[word] = counts.get(word, 0) + 1\n    return counts",
+   "blanks": [
+    "str",
+    "int"
+   ],
+   "concepts": [
+    "typing-generics",
+    "annotations"
+   ],
+   "tags": [
+    "typing-generics",
+    "annotations"
+   ],
+   "explain": "A generic names what is inside the container, and the two blanks are different because the input elements and the output values are different things - words going in, counts coming out. Writing `dict[str, str]` is the slip to watch for; it would describe a mapping from a word to another word, which no line of this body produces.",
+   "hint": "The parameter holds words. The values of the returned mapping are produced by adding 1 to something.",
+   "xp": 36
+  },
+  {
+   "id": "py-22-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "average",
+   "prompt": "Write `average(values)`, which returns the arithmetic mean of a list of numbers. An empty list has no mean, so in that case return `None` rather than raising or inventing a zero. Annotate the parameter as a list of numbers and give the return an Optional type that admits the `None`.\n\n`average([1, 2, 3])` gives `2.0`, and `average([])` gives `None`.",
+   "starterCode": "def average(values: list[float]) -> float:\n    # the return annotation above is not yet telling the truth\n    pass\n",
+   "solution": "def average(values: list[float]) -> float | None:\n    if not values:\n        return None\n    return sum(values) / len(values)",
+   "tests": [
+    {
+     "input": "[1, 2, 3]",
+     "expected": 2.0
+    },
+    {
+     "input": "[]",
+     "expected": null
+    },
+    {
+     "input": "[5]",
+     "expected": 5.0
+    },
+    {
+     "input": "[-2, 2]",
+     "expected": 0.0
+    },
+    {
+     "input": "[1, 2]",
+     "expected": 1.5
+    }
+   ],
+   "concepts": [
+    "optional",
+    "annotations"
+   ],
+   "tags": [
+    "optional",
+    "annotations"
+   ],
+   "explain": "`float | None` is the whole contract in four characters of punctuation: there is usually a number, and sometimes there is not. Leaving the annotation as `-> float` would be a lie a checker catches, and it would let every caller write `average(xs) + 1` without a second thought - which is the crash waiting on the empty list. The empty list is the edge that separates a real Optional from a decorative one.",
+   "hint": "Guard the empty case first and return `None` from it. The return annotation is `float | None`, or equivalently `Optional[float]`.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-gp-04",
+   "type": "debug",
+   "layer": "application",
+   "fn": "loudest",
+   "prompt": "`loudest(words, minimum)` should return the first word at least `minimum` characters long, in upper case, and the empty string `\"\"` when no word qualifies. Its signature promises a `str`. Its body does not always deliver one: when nothing matches, the loop ends and the function falls off the end. Repair it so the signature is true.\n\n`loudest([\"ash\", \"cedar\"], 4)` gives `\"CEDAR\"`, and `loudest([\"ash\"], 4)` gives `\"\"`.",
+   "starterCode": "def loudest(words: list[str], minimum: int) -> str:\n    for word in words:\n        if len(word) >= minimum:\n            return word.upper()\n",
+   "solution": "def loudest(words: list[str], minimum: int) -> str:\n    for word in words:\n        if len(word) >= minimum:\n            return word.upper()\n    return \"\"",
+   "tests": [
+    {
+     "input": "[\"ash\", \"cedar\"], 4",
+     "expected": "CEDAR"
+    },
+    {
+     "input": "[\"ash\"], 4",
+     "expected": ""
+    },
+    {
+     "input": "[], 1",
+     "expected": ""
+    },
+    {
+     "input": "[\"oak\", \"elm\"], 3",
+     "expected": "OAK"
+    },
+    {
+     "input": "[\"a\", \"bb\", \"ccc\"], 2",
+     "expected": "BB"
+    }
+   ],
+   "concepts": [
+    "optional",
+    "what-types-do-not-catch"
+   ],
+   "tags": [
+    "optional",
+    "what-types-do-not-catch"
+   ],
+   "explain": "A function with no `return` on some path returns `None` on that path, so this signature was already claiming something false before anybody typed a wrong argument. Either fix is defensible - add the missing `return \"\"`, or change the annotation to `str | None` and make every caller cope - and the choice is a design decision, not a typing one: here the empty string is a real answer, so it belongs in the body. Reading the annotation as a guarantee that a `str` comes back is exactly the misplaced trust this floor is warning you about.",
+   "hint": "The bug is on the line that is not there. Ask what the function returns when the loop finishes without ever hitting the `return` inside it.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "total_area",
+   "prompt": "The starter defines a runtime-checkable Protocol `HasArea` and a `Square` class that satisfies it without inheriting from it. Complete `total_area(items)` so it adds up the areas of every item in the list that has an `area()` method and ignores everything else, returning `0.0` for a list with nothing measurable in it.\n\n`total_area([Square(2), Square(3)])` gives `13.0`; `total_area([Square(2), \"text\"])` gives `4.0`.",
+   "starterCode": "from typing import Protocol, runtime_checkable\n\n@runtime_checkable\nclass HasArea(Protocol):\n    def area(self) -> float: ...\n\nclass Square:\n    def __init__(self, side: float) -> None:\n        self.side = side\n\n    def area(self) -> float:\n        return self.side * self.side\n\ndef total_area(items: list[object]) -> float:\n    # add up the areas of the items that actually have one\n    pass\n",
+   "solution": "from typing import Protocol, runtime_checkable\n\n@runtime_checkable\nclass HasArea(Protocol):\n    def area(self) -> float: ...\n\nclass Square:\n    def __init__(self, side: float) -> None:\n        self.side = side\n\n    def area(self) -> float:\n        return self.side * self.side\n\ndef total_area(items: list[object]) -> float:\n    total = 0.0\n    for item in items:\n        if isinstance(item, HasArea):\n            total += item.area()\n    return total",
+   "tests": [
+    {
+     "input": "[Square(2), Square(3)]",
+     "expected": 13.0
+    },
+    {
+     "input": "[Square(2), \"text\", 5]",
+     "expected": 4.0
+    },
+    {
+     "input": "[]",
+     "expected": 0.0
+    },
+    {
+     "input": "[Square(0)]",
+     "expected": 0.0
+    },
+    {
+     "input": "[\"a\", None]",
+     "expected": 0.0
+    }
+   ],
+   "concepts": [
+    "protocols"
+   ],
+   "tags": [
+    "protocols"
+   ],
+   "explain": "`Square` never mentions `HasArea` and still satisfies it, because a protocol matches on the methods a class has rather than on what it inherits from - that is structural typing, and it is why a protocol can describe a class from a library you cannot edit. The `@runtime_checkable` decorator is what makes `isinstance` legal here; without it that call raises `TypeError`, and the protocol would be readable only by a checker. Note what `isinstance` does not do: it asks whether the name `area` exists and never whether it takes the right arguments or returns a number.",
+   "hint": "Start the total at `0.0` so the empty case returns a float, then use `isinstance(item, HasArea)` to decide whether to add.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You have inherited a four-thousand-line Python package with no annotations anywhere, and a team that cannot stop shipping for a fortnight to add them. Explain how you would introduce annotations gradually: which code you would annotate first, what you would deliberately leave alone for now, and what a type checker can and cannot tell you while most of the package is still bare.",
+   "rubric": {
+    "required": [
+     "checker",
+     "annotat",
+     "gradual",
+     "boundar"
+    ],
+    "optional": [
+     "public",
+     "signature",
+     "Any",
+     "test",
+     "noise",
+     "settings",
+     "module",
+     "silence"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "gradual-typing"
+   ],
+   "tags": [
+    "gradual-typing",
+    "annotations"
+   ],
+   "explain": "Gradual typing is the whole reason annotations are optional: unannotated code is invisible to the checker rather than an error, so a package can be half typed and still benefit. The leverage is at the boundaries - the functions other code calls into, and the values that cross between modules - because that is where a wrong assumption travels furthest before it explodes. The mistake is the fortnight-long sweep: it produces a mountain of unreviewed annotations, some of them wrong, and a wrong annotation is worse than none because the checker will now defend it.",
+   "hint": "Think about where a mistaken assumption crosses from one part of the code into another, and about what a checker does with a call whose target has no annotations at all.",
+   "xp": 40
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-22-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "ratios",
+   "prompt": "Each item of `pairs` is a two-item list holding a numerator and a denominator. Write `ratios(pairs)` returning one result per pair, in order. A pair whose denominator is zero has no answer at all: report the absence rather than inventing a number, and rather than raising - the caller expects some pairs to be unanswerable and wants the rest. The signature must describe both what goes in and what may come back.\n\n`ratios([[1, 2], [3, 0], [9, 3]])` gives `[0.5, None, 3.0]`.",
+   "solution": "def ratios(pairs: list[list[float]]) -> list[float | None]:\n    out: list[float | None] = []\n    for top, bottom in pairs:\n        if bottom == 0:\n            out.append(None)\n        else:\n            out.append(top / bottom)\n    return out",
+   "tests": [
+    {
+     "input": "[[1, 2], [3, 0], [9, 3]]",
+     "expected": [
+      0.5,
+      null,
+      3.0
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[0, 5]]",
+     "expected": [
+      0.0
+     ]
+    },
+    {
+     "input": "[[0, 0]]",
+     "expected": [
+      null
+     ]
+    },
+    {
+     "input": "[[-4, 2]]",
+     "expected": [
+      -2.0
+     ]
+    }
+   ],
+   "concepts": [
+    "optional",
+    "typing-generics"
+   ],
+   "tags": [
+    "optional",
+    "typing-generics"
+   ],
+   "explain": "The element type of the result is itself a union - `list[float | None]` - because absence is a property of each item rather than of the whole call, and that is the distinction the annotation is there to make. Annotating it `list[float]` and returning `None`s anyway is the failure that matters, since every caller would then be entitled to add the results up. The pair `[0, 0]` is the edge that separates a zero answer from no answer: `0 / 5` is a real result and `3 / 0` is not.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "group_by_initial",
+   "prompt": "Write `group_by_initial(words)`, which gathers words by the letter they start with. The key is that first letter in lower case; the value is every word that started with it, in the order they appeared, with their original spelling intact. Skip empty strings entirely. Annotate the function so that a reader learns the full shape of the result from the signature alone, without reading the body.\n\n`group_by_initial([\"Ash\", \"elm\", \"ash\"])` gives `{\"a\": [\"Ash\", \"ash\"], \"e\": [\"elm\"]}`.",
+   "solution": "def group_by_initial(words: list[str]) -> dict[str, list[str]]:\n    groups: dict[str, list[str]] = {}\n    for word in words:\n        if not word:\n            continue\n        letter = word[0].lower()\n        groups.setdefault(letter, []).append(word)\n    return groups",
+   "tests": [
+    {
+     "input": "[\"Ash\", \"elm\", \"ash\"]",
+     "expected": {
+      "a": [
+       "Ash",
+       "ash"
+      ],
+      "e": [
+       "elm"
+      ]
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[\"\", \"oak\"]",
+     "expected": {
+      "o": [
+       "oak"
+      ]
+     }
+    },
+    {
+     "input": "[\"fir\"]",
+     "expected": {
+      "f": [
+       "fir"
+      ]
+     }
+    },
+    {
+     "input": "[\"\"]",
+     "expected": {}
+    }
+   ],
+   "concepts": [
+    "typing-generics",
+    "annotations"
+   ],
+   "tags": [
+    "typing-generics",
+    "annotations"
+   ],
+   "explain": "`dict[str, list[str]]` is a nested generic, and nesting is the point: the outer annotation alone would leave a reader guessing whether each letter maps to one word or to many. The empty-string case is the edge, and it is also where the annotation earns its keep - `word[0]` on an empty string raises, and the signature saying `list[str]` is precisely what stops you assuming every element is usable. A common wrong shape is `dict[str, str]`, which describes a structure this body never builds.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-ip-03",
+   "type": "debug",
+   "layer": "application",
+   "fn": "word_lengths",
+   "prompt": "The signature below states what this function hands back. The body hands back something else entirely, and every caller written against the signature will break on it. Make the body honest without touching the signature.\n\n`word_lengths([\"ash\", \"cedar\"])` gives `{\"ash\": 3, \"cedar\": 5}`.",
+   "starterCode": "def word_lengths(words: list[str]) -> dict[str, int]:\n    pairs = []\n    for word in words:\n        pairs.append((word, len(word)))\n    return pairs\n",
+   "solution": "def word_lengths(words: list[str]) -> dict[str, int]:\n    lengths: dict[str, int] = {}\n    for word in words:\n        lengths[word] = len(word)\n    return lengths",
+   "tests": [
+    {
+     "input": "[\"ash\", \"cedar\"]",
+     "expected": {
+      "ash": 3,
+      "cedar": 5
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[\"ash\", \"ash\"]",
+     "expected": {
+      "ash": 3
+     }
+    },
+    {
+     "input": "[\"\"]",
+     "expected": {
+      "": 0
+     }
+    },
+    {
+     "input": "[\"a\", \"bb\", \"ccc\"]",
+     "expected": {
+      "a": 1,
+      "bb": 2,
+      "ccc": 3
+     }
+    }
+   ],
+   "concepts": [
+    "annotations",
+    "what-types-do-not-catch"
+   ],
+   "tags": [
+    "annotations",
+    "what-types-do-not-catch"
+   ],
+   "explain": "A list of pairs and a mapping are both perfectly reasonable structures and they are not interchangeable, so the caller doing `result[\"ash\"]` gets a `TypeError` about list indices - a failure that appears nowhere near the function that caused it. This is the everyday value of a signature: it is a claim somebody can check without running anything, and here the claim was simply false. The duplicated word is the edge that shows the two shapes are not even equivalent in content - a mapping collapses it, a list of pairs keeps both.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "parse_scores",
+   "prompt": "Rows have been read out of a text file, so every field in them is a string. Each row is a name followed by a score. Write `parse_scores(rows)` returning a mapping from name to whole-number score. A row whose score is not a whole number is bad data and must not reach the caller: raise a `ValueError` whose message contains the offending name. Annotate the function fully - and note carefully that the annotations alone will do none of this work for you.\n\n`parse_scores([[\"ada\", \"10\"]])` gives `{\"ada\": 10}`; `parse_scores([[\"ada\", \"x\"]])` raises.",
+   "solution": "def parse_scores(rows: list[list[str]]) -> dict[str, int]:\n    scores: dict[str, int] = {}\n    for name, text in rows:\n        try:\n            value = int(text)\n        except ValueError:\n            raise ValueError(\"bad score for \" + name + \": \" + text)\n        scores[name] = value\n    return scores",
+   "tests": [
+    {
+     "input": "[[\"ada\", \"10\"], [\"bob\", \"7\"]]",
+     "expected": {
+      "ada": 10,
+      "bob": 7
+     }
+    },
+    {
+     "input": "[]",
+     "expected": {}
+    },
+    {
+     "input": "[[\"ada\", \"x\"]]",
+     "throws": "ada"
+    },
+    {
+     "input": "[[\"bob\", \"3.5\"]]",
+     "throws": "bob"
+    },
+    {
+     "input": "[[\"cy\", \"-4\"]]",
+     "expected": {
+      "cy": -4
+     }
+    }
+   ],
+   "concepts": [
+    "what-types-do-not-catch",
+    "annotations",
+    "typing-generics"
+   ],
+   "tags": [
+    "what-types-do-not-catch",
+    "annotations",
+    "typing-generics"
+   ],
+   "explain": "This is the floor's technique failing on purpose. Writing `-> dict[str, int]` neither converts a string to an integer nor rejects the row that will not convert; the annotation is a claim about the code, and the code still has to be written. Data arriving from outside the program - a file, a form, a request - is exactly where types stop helping, because a checker reasons about your source and knows nothing about the bytes on disk. Note also that letting `int(\"x\")` raise on its own would give a `ValueError` that never mentions the name, which is why the conversion is caught and re-raised with the context the caller needs.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "sizeable",
+   "prompt": "Write `sizeable(values)`, which reports for each value in the list whether asking for its length would succeed - `True` or `False`, one per value, in order. Decide on what each value can do rather than by listing the concrete types you happen to expect, so that a class written next year gets the right answer without anybody revisiting this function.\n\n`sizeable([[1, 2], \"ab\", 5])` gives `[True, True, False]`.",
+   "solution": "from typing import Protocol, runtime_checkable\n\n@runtime_checkable\nclass Sizeable(Protocol):\n    def __len__(self) -> int: ...\n\ndef sizeable(values: list[object]) -> list[bool]:\n    return [isinstance(v, Sizeable) for v in values]",
+   "tests": [
+    {
+     "input": "[[1, 2], \"ab\", 5]",
+     "expected": [
+      true,
+      true,
+      false
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[None, (1,), 3.5]",
+     "expected": [
+      false,
+      true,
+      false
+     ]
+    },
+    {
+     "input": "[set(), \"\"]",
+     "expected": [
+      true,
+      true
+     ]
+    },
+    {
+     "input": "[{}, True, {\"a\": 1}]",
+     "expected": [
+      true,
+      false,
+      true
+     ]
+    }
+   ],
+   "concepts": [
+    "protocols"
+   ],
+   "tags": [
+    "protocols"
+   ],
+   "explain": "What makes a value measurable is that it has a `__len__`, and nothing else - so a runtime-checkable Protocol declaring that method, or a plain `hasattr` test, or a `try` around `len` all answer the real question. Enumerating `list`, `str`, `dict`, `set` and `tuple` by name passes these tests and is still the wrong answer: it is a closed list in an open world, and the first custom class with a `__len__` breaks it silently by being reported as unmeasurable. The empty string and the empty set are the edges - both are falsy and both certainly have a length, so any solution reaching for truthiness gets them wrong.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A module is annotated from top to bottom and the type checker reports no problems with it at all. State precisely what that clean result rules out, what it says nothing whatsoever about, and what still has to be checked when the program actually runs. Give one concrete defect that would survive the clean report untouched.",
+   "rubric": {
+    "required": [
+     "checker",
+     "logic",
+     "run",
+     "correct"
+    ],
+    "optional": [
+     "test",
+     "shape",
+     "off-by-one",
+     "validat",
+     "Any",
+     "input",
+     "assum",
+     "None"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "what-types-do-not-catch",
+    "gradual-typing"
+   ],
+   "tags": [
+    "what-types-do-not-catch",
+    "gradual-typing"
+   ],
+   "explain": "A clean report rules out a specific and valuable class of defect: values of the wrong shape flowing into places that cannot handle them, including the unhandled `None`. It says nothing at all about whether the code computes the right thing, and a program can be perfectly typed and perfectly wrong - an average dividing by the wrong count is `float` in and `float` out from beginning to end. Two further gaps are worth naming: data crossing into the program from outside is unchecked until you check it in code, and any region still annotated `Any`, or not annotated at all, is simply not being examined. The tempting conclusion, that a clean checker reduces the need for tests, has it backwards - it narrows what the tests must cover, and leaves the whole question of correctness to them.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-22-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "Every function in a module is annotated. A caller passes a `str` where the signature says `int`. What does the running interpreter do about it?",
+   "choices": [
+    "Nothing. It records annotations and never consults them, so the call proceeds and fails only if the body itself cannot cope.",
+    "Raises `TypeError` at the moment of the call, because the argument contradicts the signature.",
+    "Converts the argument to an `int` if it can, and raises if it cannot.",
+    "Refuses to import the module until the offending call is corrected."
+   ],
+   "answer": 0,
+   "concepts": [
+    "annotations"
+   ],
+   "tags": [
+    "annotations"
+   ],
+   "explain": "Annotations are data stored on the function object and nothing more; enforcement is the job of a separate checker you run over the source, not of the interpreter. The second option is the assumption carried over from languages where the compiler is the checker, and believing it is dangerous - it leads people to skip validation of data that annotations never validated.",
+   "xp": 18
+  },
+  {
+   "id": "py-22-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "A function is annotated `-> str | None`. Select every statement that is true.",
+   "choices": [
+    "The caller has to decide what to do about `None` before treating the result as a string.",
+    "A type checker will reject `result.upper()` unless the `None` case has been ruled out first.",
+    "The annotation makes Python raise if the function would have returned `None`.",
+    "`Optional[str]` means exactly the same thing to a checker.",
+    "A function whose body has no `return` statement at all is annotated `-> None` automatically by the interpreter."
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "optional",
+    "annotations"
+   ],
+   "tags": [
+    "optional",
+    "annotations"
+   ],
+   "explain": "The union says the result is sometimes absent, and everything useful follows from the caller being forced to acknowledge that - which the checker does and the interpreter does not. The third and fifth options both attribute run-time behaviour to annotations: nothing is raised, and nothing is filled in for you. A function with no `return` does return `None`, but its `__annotations__` stay empty unless you write them.",
+   "xp": 18
+  },
+  {
+   "id": "py-22-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def size(text: str) -> int:\n    return len(text)\n\nprint(size([1, 2, 3]))\nprint(size.__annotations__[\"return\"] is int)\nprint(size.__annotations__)",
+   "lang": "python",
+   "answer": "3\nTrue\n{'text': <class 'str'>, 'return': <class 'int'>}",
+   "concepts": [
+    "annotations"
+   ],
+   "tags": [
+    "annotations"
+   ],
+   "explain": "`len` is happy with a list, so the annotation saying `str` cost nothing at run time and the call returns 3. The second line shows the annotation is the actual class object rather than the string `\"int\"`, which is why `is int` is `True` - a detail that matters the moment you write code that reads annotations itself.",
+   "xp": 36
+  },
+  {
+   "id": "py-22-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete this signature using the older spelling of a possibly-absent value, imported from `typing`. `lookup` returns the stored number for a key, or nothing at all when the key is not there.",
+   "template": "from typing import ___\n\ndef lookup(rows: dict[str, int], key: str) -> ___[int]:\n    return rows.get(key)",
+   "blanks": [
+    "Optional",
+    "Optional"
+   ],
+   "concepts": [
+    "optional"
+   ],
+   "tags": [
+    "optional"
+   ],
+   "explain": "`Optional[int]` and `int | None` are the same type written two ways, and you will meet both because the second spelling only became available in Python 3.10. The trap in the name is that `Optional` does not mean the argument may be omitted - it means the value may be `None`.",
+   "xp": 36
+  },
+  {
+   "id": "py-22-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps into the order in which annotations are sensibly introduced into a large package that has none.",
+   "fragments": [
+    "Turn the checker on at its loosest settings, so it reports only what it is certain about.",
+    "Annotate the signatures at the edges of the package, where other code calls in.",
+    "Fix or deliberately silence everything the checker now reports, leaving no unexplained noise.",
+    "Tighten the settings one notch and annotate the next layer inwards."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "gradual-typing"
+   ],
+   "tags": [
+    "gradual-typing"
+   ],
+   "explain": "The checker comes first because it is what tells you whether an annotation is right, and annotating without one is guessing in a formal notation. Boundaries are annotated before internals because that is where a wrong assumption travels furthest, and the noise is cleared before the settings tighten - a report nobody reads is a report that is not doing anything.",
+   "xp": 36
+  },
+  {
+   "id": "py-22-x-06",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Given the annotated definitions below, say for each line whether a type checker would accept it. Write exactly `ok` if the checker accepts the line and exactly `error` if it rejects it. Every one of these lines runs without raising, so answer about the checker and not about the interpreter.",
+   "code": "def half(n: int) -> float:\n    return n / 2\n\ndef banner(name: str, count: int) -> str:\n    return name * count\n\nnames: list[str] = []",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "`half(4)`",
+     "expected": "ok"
+    },
+    {
+     "label": "`half(\"4\")`",
+     "expected": "error"
+    },
+    {
+     "label": "`banner(\"ab\", 3)`",
+     "expected": "ok"
+    },
+    {
+     "label": "`banner(3, \"ab\")`",
+     "expected": "error"
+    },
+    {
+     "label": "`names.append(7)`",
+     "expected": "error"
+    },
+    {
+     "label": "`half(4) + 1`",
+     "expected": "ok"
+    }
+   ],
+   "concepts": [
+    "annotations",
+    "typing-generics",
+    "what-types-do-not-catch"
+   ],
+   "tags": [
+    "annotations",
+    "typing-generics"
+   ],
+   "explain": "The fourth line is the interesting one: `3 * \"ab\"` is valid Python and produces `\"ababab\"`, so it runs perfectly, and the checker still rejects it because the arguments contradict the signature the author wrote. The list annotation is what makes the fifth line an error - without `names: list[str]` the checker would have no idea what belongs in an empty list and would say nothing at all.",
+   "xp": 72
+  },
+  {
+   "id": "py-22-x-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_missing",
+   "prompt": "Write `first_missing(required, provided)`. `required` is a list of key names that must be present; `provided` is a mapping of the keys that actually were. Return the first required key missing from the mapping, in the order given. When nothing is missing there is no key to report, and the signature must say so rather than pretending a string always comes back.\n\n`first_missing([\"host\", \"port\"], {\"host\": \"a\"})` gives `\"port\"`.",
+   "solution": "def first_missing(required: list[str], provided: dict[str, str]) -> str | None:\n    for key in required:\n        if key not in provided:\n            return key\n    return None",
+   "tests": [
+    {
+     "input": "[\"host\", \"port\"], {\"host\": \"a\"}",
+     "expected": "port"
+    },
+    {
+     "input": "[\"host\"], {\"host\": \"a\"}",
+     "expected": null
+    },
+    {
+     "input": "[], {}",
+     "expected": null
+    },
+    {
+     "input": "[\"x\", \"y\"], {}",
+     "expected": "x"
+    },
+    {
+     "input": "[\"a\", \"b\"], {\"b\": \"2\"}",
+     "expected": "a"
+    }
+   ],
+   "concepts": [
+    "optional",
+    "typing-generics",
+    "annotations"
+   ],
+   "tags": [
+    "optional",
+    "typing-generics",
+    "annotations"
+   ],
+   "explain": "Returning `None` for success and a key for failure is a common and reasonable shape, and `str | None` is what makes it survivable, because the caller is then obliged to test before using the result as a name. The empty `required` list is the edge that distinguishes nothing missing from nothing asked for, and both honestly return `None`. Returning the empty string instead would type-check and would be a worse design: `\"\"` is a value, and some day a key really will be empty.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-x-08",
+   "type": "debug",
+   "layer": "application",
+   "fn": "initials",
+   "prompt": "`initials(names)` joins the first letter of each name with full stops. Some records had no name at all, so the list can contain `None` among the strings, and the function crashes on them. Repair it so missing entries are skipped, and correct the signature so it tells the truth about what the function accepts.\n\n`initials([\"ada\", None, \"grace\"])` gives `\"A.G\"`.",
+   "starterCode": "def initials(names: list[str]) -> str:\n    letters = []\n    for name in names:\n        letters.append(name[0].upper())\n    return \".\".join(letters)\n",
+   "solution": "def initials(names: list[str | None]) -> str:\n    letters: list[str] = []\n    for name in names:\n        if name is None:\n            continue\n        letters.append(name[0].upper())\n    return \".\".join(letters)",
+   "tests": [
+    {
+     "input": "[\"ada\", \"grace\"]",
+     "expected": "A.G"
+    },
+    {
+     "input": "[\"ada\", None, \"grace\"]",
+     "expected": "A.G"
+    },
+    {
+     "input": "[None]",
+     "expected": ""
+    },
+    {
+     "input": "[]",
+     "expected": ""
+    },
+    {
+     "input": "[None, \"bob\"]",
+     "expected": "B"
+    }
+   ],
+   "concepts": [
+    "optional",
+    "annotations"
+   ],
+   "tags": [
+    "optional",
+    "annotations"
+   ],
+   "explain": "`TypeError: 'NoneType' object is not subscriptable` is what the run gives you, because the first thing done to each name is `name[0]` - and the annotation `list[str]` was actively hiding the possibility - it declared a situation the caller was already violating, so nobody was ever asked to handle the `None`. Widening the parameter to `list[str | None]` is not a defeat; it is the signature admitting what the data really is, and it is what forces the guard in the body. The list of nothing but `None` is the edge: the answer is the empty string, not a crash and not a stray full stop.",
+   "xp": 90
+  },
+  {
+   "id": "py-22-x-09",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are writing a function that should accept any object able to write text - your own classes, an open file, and a logger from a third-party library whose source you cannot edit. Explain why requiring a shared base class is not available to you here, and how you would instead state in the signature what the argument must be able to do.",
+   "rubric": {
+    "required": [
+     "Protocol",
+     "structural",
+     "inherit",
+     "method"
+    ],
+    "optional": [
+     "duck",
+     "runtime_checkable",
+     "base class",
+     "isinstance",
+     "third-party",
+     "write",
+     "edit"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "protocols"
+   ],
+   "tags": [
+    "protocols"
+   ],
+   "explain": "A base class is a claim made by the class itself, so it can only be imposed on code you own - the library's logger will never inherit from your abstraction, and asking it to is the requirement that cannot be met. A Protocol inverts the direction: it describes the methods required, and any class already having them satisfies it with no edit, no registration and no import in the other direction. That is structural typing, and it is Python's long-standing duck typing finally written somewhere a checker can read it.",
+   "xp": 40
+  },
+  {
+   "id": "py-22-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague argues that now the checker passes cleanly on the whole codebase, the test suite matters less and can be thinned out. Make the strongest case against that, naming two distinct kinds of defect that a fully annotated, checker-clean program can still contain, and say what the clean report genuinely did buy you.",
+   "rubric": {
+    "required": [
+     "logic",
+     "test",
+     "checker",
+     "wrong"
+    ],
+    "optional": [
+     "shape",
+     "off-by-one",
+     "validat",
+     "Any",
+     "run",
+     "value",
+     "input",
+     "requirement"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "what-types-do-not-catch",
+    "gradual-typing"
+   ],
+   "tags": [
+    "what-types-do-not-catch"
+   ],
+   "explain": "Types constrain shape, not meaning: a function that computes the wrong number is `float` in and `float` out, and every off-by-one, inverted condition and misread requirement in the codebase type-checks perfectly. The second kind is anything crossing in from outside - a file, a form, a request - which is only whatever the code actually validates, because a checker reasons about your source and never about the bytes it will be handed. What the clean report bought is real and worth keeping: an entire family of shape errors, including the unhandled `None`, no longer needs a test written for it, which frees the suite to spend its effort on behaviour instead.",
+   "xp": 40
+  }
+ ]
+}

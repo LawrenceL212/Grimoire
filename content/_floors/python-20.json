@@ -1,0 +1,1059 @@
+{
+ "n": 20,
+ "name": "The Hall of Unspooling",
+ "goal": "Produce values lazily, and process data larger than memory.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 19
+  }
+ ],
+ "description": {
+  "what": "What actually happens when a `for` loop walks over a list, a string, a dictionary or an open file - the iterator protocol that all four obey - and how to write your own source of values with `yield`, so that the values are produced one at a time, on demand, instead of all at once into a container you never needed.",
+  "why": "The commonest way a working program meets a limit it cannot argue with is memory: a list of every row in a file is fine at ten thousand rows and impossible at two hundred million, and the fix is almost never a bigger machine - it is to stop building the list at all.",
+  "enables": "You will be able to write a function that hands back values as they are asked for, run a pipeline over a source far larger than the memory you have, describe a sequence that never ends without hanging the program, and say out loud what a `for` loop is doing underneath.",
+  "assumes": "You can write functions and loops, you know what a list, a dictionary and a set cost to build and to search, you have written comprehensions, and you have read a file line by line.",
+  "assessed": "You will predict when a paused function resumes and what it prints, build lazy sources that survive an endless input, repair a program that walked the same one-shot source twice, and decide - in at least one place where the answer is no - whether laziness is the right tool at all."
+ },
+ "concepts": [
+  "iterator-protocol",
+  "yield",
+  "generator-expressions",
+  "laziness",
+  "infinite-sequences",
+  "memory-cost"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Why a For Loop Works On Everything",
+    "body": "You have written `for` loops over lists, over strings, over a dictionary's keys and over an open file, and it has probably felt like a coincidence that all four work. It is not a coincidence. It is a **protocol**: an agreement about which two methods an object must provide, and any object that provides them can be walked by a `for` loop, including one you write yourself.\n\nThe agreement has two halves. `iter(x)` asks an object for an **iterator** - a small object whose job is to remember where you are up to. `next(it)` asks that iterator for the next value. When there are no values left, `next` raises `StopIteration`, which is not a failure but the ordinary, expected way a walk ends. A `for` loop is exactly this written out: call `iter` once, call `next` repeatedly, and stop quietly when `StopIteration` arrives.\n\nThe distinction that catches people is between an **iterable** and an **iterator**. A list is iterable and is not an iterator: `iter(a_list)` hands back a fresh iterator every time, which is why you can loop over the same list all afternoon. An iterator is its own iterator - `iter(it) is it` - and it moves in one direction only. Once it has handed over its last value it is finished for good, and no amount of asking will restart it.\n\nThat is the whole mechanism. Everything else on this floor is a convenient way of writing an iterator without writing a class.",
+    "code": "letters = [\"a\", \"b\", \"c\"]\nwalker = iter(letters)\nprint(next(walker))\nprint(next(walker))\nprint(next(walker))\ntry:\n    next(walker)\nexcept StopIteration:\n    print(\"that is the end, and it is not a fault\")\nprint(iter(walker) is walker)\nprint(iter(letters) is letters)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "The list is asked for an iterator. The list itself does not move; the iterator is the thing that remembers a position."
+     },
+     {
+      "line": 3,
+      "text": "One value per call, in order. This is the only operation an iterator is obliged to support - no length, no indexing, no going back."
+     },
+     {
+      "line": 8,
+      "text": "`StopIteration` is the protocol's way of saying `finished`. A `for` loop catches this for you, which is why you have never had to."
+     },
+     {
+      "line": 11,
+      "text": "`False`: a list is iterable but is not an iterator, so it can be walked again and again. An iterator cannot."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "digits = \"42\"\nstep = iter(digits)\nprint(next(step))\nfor ch in step:\n    print(ch)\nprint(list(step))\n",
+     "lang": "python",
+     "answer": "4\n2\n[]",
+     "concepts": [
+      "iterator-protocol"
+     ],
+     "tags": [
+      "iterator-protocol"
+     ],
+     "explain": "The `for` loop does not restart the iterator, it picks up exactly where `next` left it, so only the second character reaches the loop - and by the time `list` asks, there is nothing left at all. Expecting `4` then `4` then `2` comes from thinking the loop calls `iter` on something fresh; it calls `iter` on an iterator, which hands back the same half-spent object."
+    }
+   },
+   {
+    "title": "A Function That Pauses",
+    "body": "Writing an iterator class by hand is tedious, so Python gives you a shortcut that is one keyword long. Put `yield` anywhere in a function body and the function stops being an ordinary function: calling it runs **none** of the body and instead hands you back a **generator**, which is an iterator.\n\nEach call to `next` on that generator runs the body until it reaches a `yield`, hands the yielded value out, and then **pauses** - with the local variables, the loop counters and the position in the body all still intact. The next call resumes on the line after the `yield`. When the body finally runs off the end, or hits a bare `return`, the generator raises `StopIteration` and is spent.\n\nThis is the part worth sitting with, because it inverts the ordinary rule that a function runs to completion and then hands back one answer. A generator hands back many answers over time, and between them it is simply suspended, holding its state, costing nothing but the memory of its own local variables.\n\nThe prints in the example below are there to show when the body is actually running. Notice that the first one does not appear until something asks for a value.",
+    "code": "def countdown(n):\n    print(\"starting\")\n    while n > 0:\n        yield n\n        n -= 1\n    print(\"done\")\n\ngen = countdown(3)\nprint(\"nothing has run yet\")\nprint(next(gen))\nprint(next(gen))\nprint(list(gen))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The pause point. The value goes out, and `n` and the position in the `while` loop stay exactly as they are until somebody asks again."
+     },
+     {
+      "line": 8,
+      "text": "This line does no work at all. It builds a generator object and returns it; the body has not started."
+     },
+     {
+      "line": 9,
+      "text": "Printed before `starting`, which is the proof: the call on the line above ran nothing."
+     },
+     {
+      "line": 12,
+      "text": "`list` drains what is left, so the tail of the body finally runs and `done` is printed while the list is being built."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so this hands out one squared value at a time and the program prints `[1, 4, 9]`.",
+     "template": "def squares(values):\n    for v in values:\n        ___ v * v\n\nprint(___(squares([1, 2, 3])))",
+     "blanks": [
+      "yield",
+      "list"
+     ],
+     "concepts": [
+      "yield"
+     ],
+     "tags": [
+      "yield"
+     ],
+     "explain": "One keyword changes the whole nature of the function: with `return` inside the loop it would hand back a single value and stop for ever, and with `yield` it hands back three and remembers its place between them. The second blank matters too - printing the generator itself shows you an object, not its contents, because nothing has asked it for anything yet."
+    }
+   },
+   {
+    "title": "The Comprehension That Builds Nothing",
+    "body": "A list comprehension does its work immediately and hands you a finished list. Change the square brackets to round ones and you get a **generator expression**: the same syntax, describing the same values, but computing none of them until they are asked for.\n\nThe difference is not stylistic. `[n * n for n in range(200000)]` reserves room for two hundred thousand results whether you look at them or not. `(n * n for n in range(200000))` is a few dozen bytes: a note of what to do and where it had got to. When a generator expression is the only argument to a function you can drop the extra brackets, which is why `sum(n * n for n in rows)` reads so cleanly - and why so much Python that looks like it builds a list does not.\n\nThe habit to build is to notice when a list you construct is only ever walked once, front to back, and then thrown away. That list was never needed. Every intermediate stage of a pipeline is a candidate: filter, then transform, then total, with nothing stored in between.\n\nBe honest about the trade, though. A generator has no length, cannot be indexed, cannot be sliced and cannot be sorted without first being poured into something that can. If you need any of those, a list is the right answer and reaching for laziness is a small act of vandalism.",
+    "code": "import sys\n\nsquares_list = [n * n for n in range(200000)]\nsquares_gen = (n * n for n in range(200000))\nprint(type(squares_gen).__name__)\nprint(sys.getsizeof(squares_list) > 1000000)\nprint(sys.getsizeof(squares_gen) < 1000)\nprint(sum(n * n for n in range(5)))\nprint(max((n % 7 for n in range(100)), default=0))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Round brackets instead of square. Nothing is multiplied on this line; the work is only described."
+     },
+     {
+      "line": 6,
+      "text": "The list is over a megabyte of pointers alone, before you count the integers they point at."
+     },
+     {
+      "line": 7,
+      "text": "The generator is a fixed handful of bytes and stays that size whether the range is two hundred thousand or two hundred million."
+     },
+     {
+      "line": 8,
+      "text": "The bracket-free form: when the expression is the only argument, the call's own brackets are enough."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "values = [1, 2, 3]\ndoubled = (v * 2 for v in values)\nvalues.append(4)\nprint(list(doubled))\n",
+     "lang": "python",
+     "answer": "[2, 4, 6, 8]",
+     "concepts": [
+      "generator-expressions",
+      "laziness"
+     ],
+     "tags": [
+      "generator-expressions"
+     ],
+     "explain": "Nothing was doubled on the second line, so the appended value is still there to be found when the walk finally happens on the fourth. `[2, 4, 6]` is the answer you would get from a list comprehension, and the gap between those two answers is precisely what laziness means: a generator expression describes the work, it does not perform it."
+    }
+   },
+   {
+    "title": "Endless, and Spent Only Once",
+    "body": "Because a generator computes on demand, it can describe a sequence with no end at all. A `while True` loop with a `yield` in it is not a hang: it produces one value each time it is asked and then goes back to sleep, so the consumer decides when to stop. That is how you write the natural numbers, a stream of retries with growing delays, or every line a log will ever contain, without owning any of it.\n\nWhat makes this safe is that the consumer must always impose the limit - a `break`, a `zip` against something finite, or `itertools.islice`. What makes it dangerous is doing anything that demands the whole sequence at once: `list`, `sum`, `sorted`, `len`, or the `in` operator against a value that is not there. Each of those will sit there for ever, and nothing will raise.\n\nThe other cost bites people even on finite data: a generator is spent once. Walk it, and it is empty. Two passes over the same generator do not fail, they silently give you the values the first time and nothing the second - the second `sum` is `0`, the second `list` is `[]`, the second report is blank. There is no rewind, and the language will not warn you.\n\nSo the decision is a real one, made twice. Do I need this data more than once, or in some order other than front to back? Then build the list and pay for it. Am I walking it once and throwing it away? Then do not build anything at all.",
+    "code": "def naturals(start):\n    n = start\n    while True:\n        yield n\n        n += 1\n\nevens = (n for n in naturals(1) if n % 2 == 0)\nsmall = []\nfor value in evens:\n    if value > 8:\n        break\n    small.append(value)\nprint(small)\nprint(next(evens))\n\nrows = (c for c in \"abc\")\nprint(list(rows))\nprint(list(rows))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "An endless loop that never hangs, because the `yield` inside it gives control back to whoever asked."
+     },
+     {
+      "line": 11,
+      "text": "The consumer imposes the limit. Remove this line and the program runs until you kill it."
+     },
+     {
+      "line": 14,
+      "text": "`12`, not `10`: the value that failed the test was already taken out of the generator and thrown away by the `break`."
+     },
+     {
+      "line": 18,
+      "text": "Empty. The generator was drained one line earlier and there is no way to wind it back."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "gen = (n for n in range(4))\nprint(sum(gen))\nprint(sum(gen))\nprint(len(list(gen)))\n",
+     "lang": "python",
+     "answer": "6\n0\n0",
+     "concepts": [
+      "laziness",
+      "memory-cost"
+     ],
+     "tags": [
+      "laziness"
+     ],
+     "explain": "The second total is `0` rather than `6` because the first `sum` walked the generator to exhaustion, and summing an exhausted iterator is summing nothing. This is the failure mode that costs real time in real code: it does not raise, it does not warn, it just quietly reports a total of zero and looks like a data problem."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-20-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? `next` takes an optional second argument: the value to hand back instead of raising when the iterator is spent.",
+   "code": "letters = iter([\"x\", \"y\"])\nprint(next(letters))\nprint(next(letters, \"none left\"))\nprint(next(letters, \"none left\"))\ntry:\n    next(letters)\nexcept StopIteration:\n    print(\"stop\")\n",
+   "lang": "python",
+   "answer": "x\ny\nnone left\nstop",
+   "concepts": [
+    "iterator-protocol"
+   ],
+   "tags": [
+    "iterator-protocol"
+   ],
+   "explain": "The default argument suppresses `StopIteration` for one call only - it does not refill the iterator, so the very next bare `next` still raises. Expecting `none left` twice misses that the third call had already consumed nothing and the fourth is asking an iterator that has been finished since line 3.",
+   "hint": "Two values come out in order, then the iterator is spent. After that, the two-argument form returns its default and the one-argument form raises.",
+   "xp": 30
+  },
+  {
+   "id": "py-20-gp-02",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? The prints inside the generator show you exactly when its body is running.",
+   "code": "def noisy():\n    print(\"body starts\")\n    yield 1\n    print(\"between\")\n    yield 2\n\ng = noisy()\nprint(\"created\")\nprint(next(g))\nprint(\"paused\")\nprint(next(g))\n",
+   "lang": "python",
+   "answer": "created\nbody starts\n1\npaused\nbetween\n2",
+   "concepts": [
+    "yield",
+    "laziness"
+   ],
+   "tags": [
+    "yield"
+   ],
+   "explain": "Calling `noisy()` runs none of the body, so `created` is printed first - the natural expectation, that `body starts` comes first because the call happened first, is exactly the intuition this floor has to break. Between the two `next` calls the function is suspended on the `yield`, which is why `paused` appears before `between`.",
+   "hint": "Building a generator runs nothing. Each `next` runs the body from where it stopped up to and including the next `yield`.",
+   "xp": 30
+  },
+  {
+   "id": "py-20-gp-03",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the total of the squares is computed with a generator expression, without ever building a list of half a million values.",
+   "template": "rows = range(500000)\ntotal = ___(n * n ___ n in rows)\nprint(total)",
+   "blanks": [
+    "sum",
+    "for"
+   ],
+   "concepts": [
+    "generator-expressions",
+    "memory-cost"
+   ],
+   "tags": [
+    "generator-expressions"
+   ],
+   "explain": "When the generator expression is the only argument, the call's own brackets serve as its brackets, so no extra pair is needed and no list is ever created. Writing `sum([n * n for n in rows])` gives the identical answer and reserves four megabytes on the way to it, which is the whole difference here.",
+   "hint": "The built-in that adds an iterable of numbers, and the keyword that drives every comprehension.",
+   "xp": 30
+  },
+  {
+   "id": "py-20-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Write `running_total(numbers)` as a generator: after each number it yields the total so far. `list(running_total([1, 2, 3, 4]))` gives `[1, 3, 6, 10]`.\n\nThe source may be a one-shot iterator and may never end, so nothing may be collected up front - each total must be handed out as its number arrives.",
+   "starterCode": "def running_total(numbers):\n    total = 0\n    # walk the numbers, adding each to total\n    # and yielding the total as you go\n",
+   "solution": "def running_total(numbers):\n    total = 0\n    for n in numbers:\n        total += n\n        yield total\n",
+   "tests": [
+    {
+     "input": "running_total([1, 2, 3, 4])",
+     "expected": [
+      1,
+      3,
+      6,
+      10
+     ]
+    },
+    {
+     "input": "running_total([])",
+     "expected": []
+    },
+    {
+     "input": "running_total(iter([5]))",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "running_total([2, -2, 2])",
+     "expected": [
+      2,
+      0,
+      2
+     ]
+    },
+    {
+     "input": "zip(range(3), running_total(__import__('itertools').count(1)))",
+     "expected": [
+      [
+       0,
+       1
+      ],
+      [
+       1,
+       3
+      ],
+      [
+       2,
+       6
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "yield",
+    "laziness"
+   ],
+   "tags": [
+    "yield",
+    "laziness"
+   ],
+   "explain": "The running total is state that survives between values, and a paused function is the cheapest place to keep it: `total` simply stays where it is while the generator sleeps. The last test is the one that separates a real generator from a function that builds a list and returns it - the source there has no end, so anything that collects first never returns at all.",
+   "hint": "Keep `total` outside the loop, add to it inside, and hand the new total out with `yield` before moving to the next number.",
+   "xp": 80
+  },
+  {
+   "id": "py-20-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Write `evens_from(start)`, an endless generator of even numbers beginning at the first even number that is at or after `start`, then rising by two for ever. `list(zip(range(4), evens_from(1)))` gives `[(0, 2), (1, 4), (2, 6), (3, 8)]`.\n\nAn endless generator is safe precisely because the caller decides when to stop asking.",
+   "starterCode": "def evens_from(start):\n    n = start\n    # move n up to the first even value at or after start,\n    # then hand out one even number at a time, for ever\n",
+   "solution": "def evens_from(start):\n    n = start\n    if n % 2 != 0:\n        n += 1\n    while True:\n        yield n\n        n += 2\n",
+   "tests": [
+    {
+     "input": "zip(range(4), evens_from(1))",
+     "expected": [
+      [
+       0,
+       2
+      ],
+      [
+       1,
+       4
+      ],
+      [
+       2,
+       6
+      ],
+      [
+       3,
+       8
+      ]
+     ]
+    },
+    {
+     "input": "zip(range(3), evens_from(10))",
+     "expected": [
+      [
+       0,
+       10
+      ],
+      [
+       1,
+       12
+      ],
+      [
+       2,
+       14
+      ]
+     ]
+    },
+    {
+     "input": "zip(range(2), evens_from(0))",
+     "expected": [
+      [
+       0,
+       0
+      ],
+      [
+       1,
+       2
+      ]
+     ]
+    },
+    {
+     "input": "zip(range(1), evens_from(-3))",
+     "expected": [
+      [
+       0,
+       -2
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "infinite-sequences",
+    "yield"
+   ],
+   "tags": [
+    "infinite-sequences",
+    "yield"
+   ],
+   "explain": "`while True` around a `yield` is not a hang, because the `yield` returns control to the caller on every pass and the loop only advances when asked again. The negative start is the edge worth having: `-3` is odd, so the first even value at or after it is `-2`, and a fix that subtracts instead of adds gets that one wrong while passing every other test.",
+   "hint": "First correct `n` if it is odd, then loop for ever: yield the current value, then step on by two.",
+   "xp": 80
+  },
+  {
+   "id": "py-20-gp-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "summarise",
+   "prompt": "`summarise(rows)` must return `[total, count]` for the numbers in `rows`. It passes every test the author wrote against lists, and in production - where `rows` arrives from a lazy file reader - it reports the right total and a count of zero.\n\nRepair it so it is right for any iterable, walking the source only once.",
+   "starterCode": "def summarise(rows):\n    total = sum(rows)\n    count = sum(1 for _ in rows)\n    return [total, count]\n",
+   "solution": "def summarise(rows):\n    total = 0\n    count = 0\n    for value in rows:\n        total += value\n        count += 1\n    return [total, count]\n",
+   "tests": [
+    {
+     "input": "iter([1, 2, 3])",
+     "expected": [
+      6,
+      3
+     ]
+    },
+    {
+     "input": "(n for n in range(5))",
+     "expected": [
+      10,
+      5
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "iter([])",
+     "expected": [
+      0,
+      0
+     ]
+    },
+    {
+     "input": "[4]",
+     "expected": [
+      4,
+      1
+     ]
+    }
+   ],
+   "concepts": [
+    "iterator-protocol",
+    "laziness"
+   ],
+   "tags": [
+    "iterator-protocol",
+    "laziness"
+   ],
+   "explain": "The first `sum` drains the iterator, so the second walk starts at the end and counts nothing - a list survives this because `iter` gives each `sum` a fresh iterator, which is why the bug hides in testing and appears in production. Calling `list(rows)` once at the top also fixes it and quietly gives up the memory saving that made the reader lazy in the first place; a single loop keeps both.",
+   "hint": "Two passes over a one-shot source is the fault. Everything you need can be accumulated in one loop.",
+   "xp": 80
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-20-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "first_error_line",
+   "prompt": "A log reader hands your function one line at a time and cannot be rewound. The file behind it may be enormous, and it may still be being written to, so it may not end at all.\n\nWrite `first_error_line(lines)`, returning the position - counting from zero - of the first line containing `ERROR`, or `-1` if the source runs out without one. Reading past the answer is a fault here, not merely waste.",
+   "solution": "def first_error_line(lines):\n    position = 0\n    for line in lines:\n        if \"ERROR\" in line:\n            return position\n        position += 1\n    return -1\n",
+   "tests": [
+    {
+     "input": "iter(['ok', 'ok', 'ERROR: disk full', 'ok'])",
+     "expected": 2
+    },
+    {
+     "input": "iter([])",
+     "expected": -1
+    },
+    {
+     "input": "['ERROR']",
+     "expected": 0
+    },
+    {
+     "input": "iter(['fine', 'still fine'])",
+     "expected": -1
+    },
+    {
+     "input": "('ERROR at 4' if i == 4 else 'row %d' % i for i in __import__('itertools').count())",
+     "expected": 4
+    }
+   ],
+   "concepts": [
+    "iterator-protocol",
+    "laziness"
+   ],
+   "tags": [
+    "iterator-protocol",
+    "laziness"
+   ],
+   "explain": "Returning from inside the walk stops the source dead, which is the whole point: the last test never ends, so any solution that collects the lines before searching them - `list(lines)`, `lines.index(...)`, even `enumerate(list(lines))` - runs until it is killed. Counting with your own variable, or with `enumerate`, costs one integer no matter how long the file is.",
+   "xp": 95
+  },
+  {
+   "id": "py-20-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "A shipping job wants its work in groups. Write `chunked(values, size)`, which produces successive groups of `size` values as lists, the final group being shorter when the values run out. `list(chunked([1, 2, 3, 4, 5], 2))` gives `[[1, 2], [3, 4], [5]]`, and no values at all produce no groups.\n\nThe source may be one-shot, may be far larger than memory, and may never end - and the caller may stop taking groups whenever it likes.",
+   "solution": "def chunked(values, size):\n    batch = []\n    for value in values:\n        batch.append(value)\n        if len(batch) == size:\n            yield batch\n            batch = []\n    if batch:\n        yield batch\n",
+   "tests": [
+    {
+     "input": "chunked([1, 2, 3, 4, 5], 2)",
+     "expected": [
+      [
+       1,
+       2
+      ],
+      [
+       3,
+       4
+      ],
+      [
+       5
+      ]
+     ]
+    },
+    {
+     "input": "chunked(iter([1, 2, 3]), 5)",
+     "expected": [
+      [
+       1,
+       2,
+       3
+      ]
+     ]
+    },
+    {
+     "input": "chunked([], 3)",
+     "expected": []
+    },
+    {
+     "input": "chunked(iter([1, 2]), 1)",
+     "expected": [
+      [
+       1
+      ],
+      [
+       2
+      ]
+     ]
+    },
+    {
+     "input": "zip(range(2), chunked(__import__('itertools').count(), 3))",
+     "expected": [
+      [
+       0,
+       [
+        0,
+        1,
+        2
+       ]
+      ],
+      [
+       1,
+       [
+        3,
+        4,
+        5
+       ]
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "yield",
+    "memory-cost"
+   ],
+   "tags": [
+    "yield",
+    "memory-cost"
+   ],
+   "explain": "Slicing is the obvious approach and it needs the whole thing in memory first, which the endless test forbids; holding one group at a time costs `size` values rather than all of them. The trailing partial group is the edge everybody drops - forgetting the final check silently loses up to `size - 1` records at the end of every run, which is the kind of fault that is noticed months later in a total.",
+   "xp": 95
+  },
+  {
+   "id": "py-20-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "above_average",
+   "prompt": "A sensor hands over a day's readings from a source that can only be walked once. Write `above_average(readings)`, returning a list of the readings strictly greater than the mean of all of them, in the order they arrived. No readings at all gives an empty list.\n\n`above_average(iter([1, 2, 3, 4]))` gives `[3, 4]`.",
+   "solution": "def above_average(readings):\n    values = list(readings)\n    if not values:\n        return []\n    mean = sum(values) / len(values)\n    return [v for v in values if v > mean]\n",
+   "tests": [
+    {
+     "input": "iter([1, 2, 3, 4])",
+     "expected": [
+      3,
+      4
+     ]
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "iter([5, 5, 5])",
+     "expected": []
+    },
+    {
+     "input": "(n for n in [2, 4, 6])",
+     "expected": [
+      6
+     ]
+    },
+    {
+     "input": "iter([-5, 5])",
+     "expected": [
+      5
+     ]
+    },
+    {
+     "input": "[1]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "laziness",
+    "memory-cost"
+   ],
+   "tags": [
+    "laziness",
+    "memory-cost"
+   ],
+   "explain": "This is the case where laziness is the wrong answer and recognising that is the point: the mean cannot be known until the last reading has arrived, and the comparison has to see every reading again afterwards, so two passes are unavoidable and the data must be held. Trying to stay lazy over a one-shot source gives the silent empty result from the lesson - the mean drains it and the comparison then finds nothing.",
+   "xp": 95
+  },
+  {
+   "id": "py-20-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "A monitoring feed repeats itself endlessly and you want each distinct value the first time it appears. Write `unique(values)`, producing every value the first time it is seen and never again, in order of first appearance. `list(unique([3, 1, 3, 2, 1]))` gives `[3, 1, 2]`.\n\nThe feed may have no end and the caller may stop at any moment, so nothing may be produced before it is asked for.",
+   "solution": "def unique(values):\n    seen = set()\n    for value in values:\n        if value not in seen:\n            seen.add(value)\n            yield value\n",
+   "tests": [
+    {
+     "input": "unique([3, 1, 3, 2, 1])",
+     "expected": [
+      3,
+      1,
+      2
+     ]
+    },
+    {
+     "input": "unique(iter([]))",
+     "expected": []
+    },
+    {
+     "input": "unique('aabbc')",
+     "expected": [
+      "a",
+      "b",
+      "c"
+     ]
+    },
+    {
+     "input": "unique([1, 1, 1])",
+     "expected": [
+      1
+     ]
+    },
+    {
+     "input": "zip(range(3), unique(__import__('itertools').cycle([9, 8, 7, 9])))",
+     "expected": [
+      [
+       0,
+       9
+      ],
+      [
+       1,
+       8
+      ],
+      [
+       2,
+       7
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "infinite-sequences",
+    "yield"
+   ],
+   "tags": [
+    "infinite-sequences",
+    "yield"
+   ],
+   "explain": "The memory here is genuinely unbounded - every distinct value seen must be remembered for ever - but that is a different and much smaller cost than remembering every value that arrives, which is what a collected answer would do on an endless feed. The last test is the discriminator: the source repeats for ever, so a solution that gathers before filtering never returns, while a paused one hands out three values and goes back to sleep.",
+   "xp": 95
+  },
+  {
+   "id": "py-20-ip-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A nightly job reads a large export and writes two figures. Its author reports that the total is always right and the largest is always zero, that nothing is logged and nothing raises, and that the same code works perfectly on the small sample file when run line by line in a shell.\n\n`rows = (parse(line) for line in open('export.csv'))`\n`total = sum(r.amount for r in rows)`\n`biggest = max((r.amount for r in rows), default=0)`\n\nExplain what is actually happening, why nothing raises, and what you would change - including what the change costs and when you would refuse to pay it.",
+   "rubric": {
+    "required": [
+     "once",
+     "exhausted",
+     "memory"
+    ],
+    "optional": [
+     "list",
+     "lazy",
+     "rewind",
+     "default",
+     "second",
+     "empty"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "laziness",
+    "memory-cost",
+    "iterator-protocol"
+   ],
+   "tags": [
+    "laziness",
+    "memory-cost"
+   ],
+   "explain": "The `default=0` is doing the damage by design: it exists so that `max` of an empty source returns something instead of raising, and here it converts a drained generator into a plausible-looking zero. The honest repair is to hold the rows in a list, or to compute both figures in one pass, and the reason to hesitate is exactly the reason the code was lazy in the first place - the export may not fit in memory, in which case the single pass is the only answer left.",
+   "xp": 50
+  },
+  {
+   "id": "py-20-ip-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Readings arrive one at a time from a source that cannot be rewound and may be far larger than the memory on the machine. Write `deltas(readings)`, producing the change from each reading to the next: `list(deltas([3, 7, 2]))` gives `[4, -5]`. Fewer than two readings produce nothing.\n\nAt no point may more than a couple of readings be held at once, however long the source runs.",
+   "solution": "def deltas(readings):\n    previous = None\n    started = False\n    for value in readings:\n        if started:\n            yield value - previous\n        previous = value\n        started = True\n",
+   "tests": [
+    {
+     "input": "deltas([3, 7, 2])",
+     "expected": [
+      4,
+      -5
+     ]
+    },
+    {
+     "input": "deltas([])",
+     "expected": []
+    },
+    {
+     "input": "deltas([5])",
+     "expected": []
+    },
+    {
+     "input": "deltas(iter([1, 2, 3, 4]))",
+     "expected": [
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "input": "zip(range(3), deltas(__import__('itertools').count(5)))",
+     "expected": [
+      [
+       0,
+       1
+      ],
+      [
+       1,
+       1
+      ],
+      [
+       2,
+       1
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "laziness",
+    "memory-cost"
+   ],
+   "tags": [
+    "laziness",
+    "memory-cost"
+   ],
+   "explain": "Comparing neighbours tempts you into indexing - `readings[i + 1] - readings[i]` - which needs the whole sequence at once and fails outright on a source that cannot be indexed. Carrying the previous value in a variable costs one reading of memory for any length of input, and the single-reading case is the edge that catches a solution which yields before it has anything to compare against.",
+   "xp": 95
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-20-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does `StopIteration` mean?",
+   "choices": [
+    "The iterator has no more values; a `for` loop catches it and ends the loop normally.",
+    "The iterator has encountered a bad value and the loop must be abandoned.",
+    "The program has run out of memory while iterating and must stop.",
+    "A `break` statement was executed inside the loop body."
+   ],
+   "answer": 0,
+   "concepts": [
+    "iterator-protocol"
+   ],
+   "tags": [
+    "iterator-protocol"
+   ],
+   "explain": "It is a signal, not a fault: exhaustion is the expected end of every finite walk, and the `for` loop's job includes catching it silently. Reading it as an error is natural because it is an exception, and it is the reason people wrap loops in `try` blocks that can never fire.",
+   "xp": 18
+  },
+  {
+   "id": "py-20-x-02",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "How much memory does `squares = (n * n for n in range(10000000))` occupy immediately after that line runs?",
+   "choices": [
+    "A fixed handful of bytes, because no value has been computed yet.",
+    "Ten million integers, because the range has that many values.",
+    "One integer, which is overwritten each time the next value is requested.",
+    "It depends on how much memory is free when the line runs."
+   ],
+   "answer": 0,
+   "concepts": [
+    "generator-expressions",
+    "memory-cost"
+   ],
+   "tags": [
+    "memory-cost"
+   ],
+   "explain": "The object holds a description of the work and a position, and its size does not change with the size of the range - that is the whole reason to write one. The second option is what the same line in square brackets would cost, and the gap between those two answers is the difference between a program that runs and one that is killed by the operating system.",
+   "xp": 18
+  },
+  {
+   "id": "py-20-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def steps():\n    print(\"a\")\n    yield 1\n    print(\"b\")\n    yield 2\n    print(\"c\")\n\ng = steps()\nprint(\"made\")\nfor v in g:\n    print(v)\n",
+   "lang": "python",
+   "answer": "made\na\n1\nb\n2\nc",
+   "concepts": [
+    "yield",
+    "laziness"
+   ],
+   "tags": [
+    "yield"
+   ],
+   "explain": "The tail after the last `yield` still runs: the loop asks a third time, the body resumes, prints `c` and only then reaches the end and raises `StopIteration`. Leaving `c` out is the usual mistake, and it matters in real code because that tail is where files get closed and totals get logged.",
+   "xp": 36
+  },
+  {
+   "id": "py-20-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "gen = (c.upper() for c in \"hi\")\nprint(list(gen))\nprint(list(gen))\nprint(sum(1 for _ in gen))\n",
+   "lang": "python",
+   "answer": "['H', 'I']\n[]\n0",
+   "concepts": [
+    "laziness",
+    "generator-expressions"
+   ],
+   "tags": [
+    "generator-expressions"
+   ],
+   "explain": "A generator is spent once and there is no rewind, so every later walk sees an empty sequence rather than raising anything. Expecting the two lists to match comes from treating `gen` as if it held the values; it holds only a position, and after the first line that position is the end.",
+   "xp": 36
+  },
+  {
+   "id": "py-20-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so the longest word length is found without building any intermediate list of lengths. The program prints `5`.",
+   "template": "words = ['ash', 'birch', 'cedar']\nlongest = ___(len(w) ___ w in words)\nprint(longest)",
+   "blanks": [
+    "max",
+    "for"
+   ],
+   "concepts": [
+    "generator-expressions"
+   ],
+   "tags": [
+    "generator-expressions"
+   ],
+   "explain": "`max` consumes an iterable one value at a time, so it never needs them all present at once, and the bracket-free generator expression gives it exactly that. The square-bracket version returns the same `5` and builds a throwaway list first, which is invisible on three words and is the difference between finishing and not on three hundred million.",
+   "xp": 36
+  },
+  {
+   "id": "py-20-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these lines in order so that `batches` hands out groups of `size` items from `source`, with a final shorter group when the items run out.",
+   "fragments": [
+    "        if len(batch) == size:",
+    "def batches(source, size):",
+    "            batch = []",
+    "    if batch:",
+    "    batch = []",
+    "        batch.append(item)",
+    "            yield batch",
+    "    for item in source:",
+    "        yield batch"
+   ],
+   "answer": [
+    1,
+    4,
+    7,
+    5,
+    0,
+    6,
+    2,
+    3,
+    8
+   ],
+   "concepts": [
+    "yield",
+    "memory-cost"
+   ],
+   "tags": [
+    "yield"
+   ],
+   "explain": "The accumulator has to be created before the loop and reset immediately after each group is handed out, or the second group keeps the first group's items. The two `yield` lines are at different indents on purpose: one is inside the loop and fires whenever a group fills, and the last one is outside it and fires at most once, for the remainder.",
+   "xp": 36
+  },
+  {
+   "id": "py-20-x-07",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? `itertools.islice(source, stop)` takes values up to `stop`, and `islice(source, start, stop)` takes the ones in that half-open range.",
+   "code": "import itertools\n\ndef powers(base):\n    value = 1\n    while True:\n        yield value\n        value *= base\n\nprint(list(itertools.islice(powers(2), 5)))\nprint(list(itertools.islice(powers(3), 2, 4)))\n",
+   "lang": "python",
+   "answer": "[1, 2, 4, 8, 16]\n[9, 27]",
+   "concepts": [
+    "infinite-sequences"
+   ],
+   "tags": [
+    "infinite-sequences"
+   ],
+   "explain": "`list` over an endless generator would never return, and `islice` is what makes it safe by imposing the limit from the consumer's side. The second line starts at index 2, so the first two powers are produced and discarded rather than skipped for free - laziness saves the values you never ask for, not the ones you step over.",
+   "xp": 36
+  },
+  {
+   "id": "py-20-x-08",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague has decided that `readings_for(day)` should hand back a lazy sequence rather than a list, everywhere, on principle. Three callers exist: one adds the readings up, one wants the last five, and one walks them twice to compare each against the mean.\n\nSay what each caller does with a lazy sequence, what you would actually return, and what evidence would change your mind.",
+   "rubric": {
+    "required": [
+     "memory",
+     "twice",
+     "list"
+    ],
+    "optional": [
+     "index",
+     "rewind",
+     "once",
+     "sum",
+     "mean",
+     "large",
+     "lazy"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "laziness",
+    "memory-cost"
+   ],
+   "tags": [
+    "laziness",
+    "memory-cost"
+   ],
+   "explain": "Only the first caller is served well by laziness; the second needs to reach the end before it knows what the last five are, and the third needs a second pass it cannot have. The evidence that decides it is the size of a day's readings against the memory available - a rule applied on principle is the thing being marked here, because the right answer changes with the data and not with taste.",
+   "xp": 50
+  },
+  {
+   "id": "py-20-x-09",
+   "type": "code",
+   "layer": "application",
+   "fn": "long_line_count",
+   "prompt": "A one-shot reader hands you the lines of a file far too large to hold in memory. Write `long_line_count(lines)`, returning how many lines are strictly longer than 80 characters.\n\n`long_line_count(iter(['short', 'x' * 100]))` gives `1`.",
+   "starterCode": "def long_line_count(lines):\n    pass\n",
+   "solution": "def long_line_count(lines):\n    return sum(1 for line in lines if len(line) > 80)\n",
+   "tests": [
+    {
+     "input": "iter(['a' * 100, 'short', 'b' * 81])",
+     "expected": 2
+    },
+    {
+     "input": "iter([])",
+     "expected": 0
+    },
+    {
+     "input": "['x' * 80]",
+     "expected": 0
+    },
+    {
+     "input": "(('y' * n) for n in [79, 80, 81, 200])",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "generator-expressions",
+    "memory-cost"
+   ],
+   "tags": [
+    "generator-expressions",
+    "memory-cost"
+   ],
+   "explain": "Counting is an accumulation over a walk, so nothing needs to be stored: one line is in memory at a time and the answer is a single integer. The boundary is the trap - a line of exactly 80 characters is not longer than 80, and a solution that collects the long lines into a list to take its length is correct and holds the whole file whenever most of the lines are long.",
+   "xp": 90
+  },
+  {
+   "id": "py-20-x-10",
+   "type": "code",
+   "layer": "application",
+   "fn": "day_total",
+   "prompt": "A meter streams readings and marks the end of the day with a negative value. The stream itself never ends. Write `day_total(readings)`, returning the sum of the values before the first negative one, or `0` if the first value is already negative.\n\n`day_total(iter([3, 4, -1, 100]))` gives `7`.",
+   "starterCode": "def day_total(readings):\n    pass\n",
+   "solution": "def day_total(readings):\n    total = 0\n    for value in readings:\n        if value < 0:\n            break\n        total += value\n    return total\n",
+   "tests": [
+    {
+     "input": "iter([3, 4, -1, 100])",
+     "expected": 7
+    },
+    {
+     "input": "iter([])",
+     "expected": 0
+    },
+    {
+     "input": "iter([-5, 5])",
+     "expected": 0
+    },
+    {
+     "input": "[1, 2, 3]",
+     "expected": 6
+    },
+    {
+     "input": "(n if n < 5 else -1 for n in __import__('itertools').count())",
+     "expected": 10
+    }
+   ],
+   "concepts": [
+    "laziness",
+    "infinite-sequences"
+   ],
+   "tags": [
+    "laziness",
+    "infinite-sequences"
+   ],
+   "explain": "Stopping is the consumer's job: the stream has no end, so the only thing that can terminate this is your own decision to stop asking. Any solution that sums first and trims afterwards - `sum(readings)` then correcting, or `list(readings)` then slicing - hangs for ever on the last test, and the finite tests would never have shown it.",
+   "xp": 90
+  }
+ ]
+}

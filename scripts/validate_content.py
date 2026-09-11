@@ -194,7 +194,10 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
             # Independent practice is DEFINED by the absence of scaffolding, so
             # warning that it has none is the validator arguing with the
             # curriculum rather than checking it.
-            if level not in ("design", "boss") and stage not in NO_TECHNIQUE_STAGES:
+            # _CURRICULUM.md section 5 gives the exam no scaffolding either:
+            # it is a check of what the learner can do unaided.
+            if (level not in ("design", "boss")
+                    and stage not in NO_TECHNIQUE_STAGES and stage != "exam"):
                 res.warn(where, "no starterCode outside a design/boss floor")
         if ctype in ("design", "project") and ch.get("starterCode", "").strip():
             res.err(where, "%r on a %s floor must have no starter code" % (ctype, level))
