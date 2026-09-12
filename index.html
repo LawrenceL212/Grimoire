@@ -999,13 +999,49 @@ function boot(){
   }
   return ready;
 }
+/* A repository is a map of path -> text. It is written into a fresh directory
+   of Pyodide's virtual filesystem, which becomes the working directory and
+   the head of sys.path for the run, so its modules import each other exactly
+   as they would on disk.
+
+   Pyodide keeps ONE interpreter alive across runs. Without purging, the
+   second run of a repository would import the first run's cached modules and
+   silently test the wrong code - so every module loaded from under /repo/ is
+   forgotten before the next run begins. */
+function repoPreamble(root) {
+  return [
+    "import sys as _gs, os as _go, importlib as _gil",
+    "for _gm in [k for k, v in list(_gs.modules.items())",
+    "            if str(getattr(v, '__file__', '') or '').startswith('/repo/')]:",
+    "    del _gs.modules[_gm]",
+    "_gs.path[:] = [p for p in _gs.path if not str(p).startswith('/repo/')]",
+    "_gs.path.insert(0, " + JSON.stringify(root) + ")",
+    "_go.chdir(" + JSON.stringify(root) + ")",
+    "_gil.invalidate_caches()",
+  ].join("\n");
+}
+function writeRepo(py, root, files) {
+  Object.keys(files).forEach(function (p) {
+    var clean = String(p).replace(/^\/+/, "");
+    if (clean.indexOf("..") !== -1) throw new Error("repository path escapes its root: " + p);
+    var full = root + "/" + clean;
+    py.FS.mkdirTree(full.slice(0, full.lastIndexOf("/")));
+    py.FS.writeFile(full, String(files[p]));
+  });
+}
 self.onmessage = function (e) {
-  var id = e.data.id, code = e.data.code, out = "";
+  var id = e.data.id, code = e.data.code, files = e.data.files || null, out = "";
   self.postMessage({ boot: ready ? "warm" : "loading" });
   boot().then(function (py) {
     py.setStdout({ batched: function (t) { out += t + "\n"; } });
     py.setStderr({ batched: function (t) { out += t + "\n"; } });
-    return py.runPythonAsync(code).then(function () {
+    var setup = Promise.resolve();
+    if (files) {
+      var root = "/repo/" + id;
+      writeRepo(py, root, files);
+      setup = py.runPythonAsync(repoPreamble(root));
+    }
+    return setup.then(function () { return py.runPythonAsync(code); }).then(function () {
       self.postMessage({ id: id, ok: true, stdout: out, stderr: "" });
     });
   }).catch(function (err) {
@@ -1690,7 +1726,146 @@ async function runOneTest(dungeon, ch, userCode, test, carry) {
   return { ok: want === got, label, expected: want, actual: got, isOutput: true };
 }
 
+/* ---- repository challenges ---------------------------------------------
+   The Stage 4 boss is "here is a codebase you did not write; fix it and prove
+   it". Flattening a repository into one string would fake exactly the thing
+   being assessed, so a repository challenge carries real files:
+
+     repo.files       what the learner receives, path -> text
+     repo.editable    which of those they may change (default: all)
+     repo.hidden      grader-only tests, added at grading time and never shown
+     repo.requireRegressionTest
+                      the learner must add or change a test that FAILS on the
+                      original code - proof it would have caught the bug
+
+   A submission (and a reference solution) is the JSON of the files the
+   learner changed or added. That keeps it a single string, so every existing
+   path - the runner, the verifier, the reference-solution checks - carries it
+   unchanged. There is no pytest in Pyodide, so tests are plain functions
+   named test_* in files named test_*.py, and the harness discovers them. */
+const isTestPath = (p) => /(^|\/)test_[^/]*\.py$/.test(p);
+const repoTestFiles = (files) => Object.keys(files).filter(isTestPath).sort();
+
+function pyRepoHarness(testFiles) {
+  return [
+    "import json as _gj, importlib as _gil, types as _gty",
+    "_g_results = []",
+    "for _g_path in " + JSON.stringify(testFiles) + ":",
+    "    _g_name = _g_path[:-3].replace('/', '.')",
+    "    try:",
+    "        _g_mod = _gil.import_module(_g_name)",
+    "    except Exception as _g_e:",
+    "        _g_results.append({'name': _g_path, 'ok': False, 'imported': False,",
+    "            'error': 'could not import: ' + type(_g_e).__name__ + ': ' + str(_g_e)})",
+    "        continue",
+    "    for _g_n in sorted(vars(_g_mod)):",
+    "        _g_f = getattr(_g_mod, _g_n)",
+    // only functions DEFINED in this file - not a test_ helper it imported
+    "        if not (_g_n.startswith('test_') and isinstance(_g_f, _gty.FunctionType)",
+    "                and _g_f.__module__ == _g_mod.__name__):",
+    "            continue",
+    "        try:",
+    "            _g_f()",
+    "            _g_results.append({'name': _g_path + '::' + _g_n, 'ok': True, 'imported': True})",
+    "        except Exception as _g_e:",
+    "            _g_msg = str(_g_e)",
+    "            _g_results.append({'name': _g_path + '::' + _g_n, 'ok': False, 'imported': True,",
+    "                'error': type(_g_e).__name__ + (': ' + _g_msg if _g_msg else '')})",
+    "print(" + JSON.stringify(SENTINEL) + " + _gj.dumps(_g_results))",
+  ].join("\n");
+}
+
+async function runRepoOnce(dungeon, files, testFiles) {
+  if (!testFiles.length) return { results: [], error: "the repository has no test files" };
+  const r = await Exec.run(dungeon, pyRepoHarness(testFiles), "", { files });
+  if (r.unavailable) return { unavailable: true, results: [], error: r.stderr };
+  if (r.timedOut) return { results: [], error: r.stderr };
+  const out = r.stdout || "";
+  const at = out.lastIndexOf(SENTINEL);
+  if (at < 0) {
+    return { results: [], error: ((r.stderr || out) || "the test run produced no result").slice(-700) };
+  }
+  try {
+    return { results: JSON.parse(out.slice(at + SENTINEL.length).split("\n")[0]) };
+  } catch (e) {
+    return { results: [], error: "could not read the test results" };
+  }
+}
+
+async function runRepoTests(dungeon, ch, userCode) {
+  const repo = ch.repo || {};
+  const original = repo.files || {};
+  const hidden = repo.hidden || {};
+  const verdict = (results, extra = {}) => ({
+    passed: results.length > 0 && results.every((r) => r.ok),
+    score: results.length ? results.filter((r) => r.ok).length / results.length : 0,
+    unavailable: false, results, ...extra,
+  });
+
+  let edits;
+  try { edits = JSON.parse(userCode || "{}"); } catch (e) { edits = null; }
+  if (!edits || typeof edits !== "object" || Array.isArray(edits)) {
+    return verdict([{ ok: false, label: "submission", error: "Could not read the submitted files." }]);
+  }
+
+  // Only the files the task opens may change. A new test file is always
+  // allowed - writing one is part of the job.
+  const allowed = new Set(repo.editable || Object.keys(original));
+  const changed = {};
+  const refused = [];
+  for (const [p, text] of Object.entries(edits)) {
+    if (original[p] === text) continue;
+    const newTest = !(p in original) && isTestPath(p);
+    if (!allowed.has(p) && !newTest) { refused.push(p); continue; }
+    changed[p] = String(text);
+  }
+  if (refused.length) {
+    return verdict([{ ok: false, label: "scope of the change",
+      error: `This task does not let you change ${refused.join(", ")}. Part of working ` +
+             `safely in someone else's code is changing only what the task needs.` }]);
+  }
+
+  const results = [];
+  const hiddenNames = new Set(Object.keys(hidden));
+
+  // 1. The change works, and nothing that used to work has broken: every
+  //    test in the repository, the learner's own and the hidden ones.
+  const fixed = { ...original, ...changed };
+  const graded = { ...fixed, ...hidden };
+  const all = await runRepoOnce(dungeon, graded, repoTestFiles(graded));
+  if (all.unavailable) return { passed: false, unavailable: true, score: 0, results: [
+    { ok: false, label: "runtime", unavailable: true, error: all.error }] };
+  if (all.error) results.push({ ok: false, label: "running the repository's tests", error: all.error });
+  for (const t of all.results) {
+    const file = t.name.split("::")[0];
+    results.push({ ok: t.ok, error: t.error || null,
+      label: (hiddenNames.has(file) ? "hidden check - " : "") + t.name });
+  }
+
+  // 2. The regression test has to catch the bug it was written for. Run the
+  //    learner's tests against the ORIGINAL code: a test that passes there
+  //    would not have caught anything. An import failure does not count as a
+  //    catch - the test must run against the old code and fail on it.
+  if (repo.requireRegressionTest) {
+    const theirs = Object.keys(changed).filter(isTestPath);
+    if (!theirs.length) {
+      results.push({ ok: false, label: "regression test",
+        error: "No new or changed test. A fix is not finished until a test would have caught the bug." });
+    } else {
+      const onOriginal = { ...original };
+      for (const p of theirs) onOriginal[p] = changed[p];
+      const before = await runRepoOnce(dungeon, onOriginal, theirs);
+      const caught = before.results.some((t) => !t.ok && t.imported);
+      results.push({ ok: caught, label: "your regression test fails on the original code",
+        error: caught ? null
+          : "Your test passes against the original, broken code, so it would not have caught this bug." });
+    }
+  }
+  return verdict(results);
+}
+
 async function runTests(dungeon, ch, userCode, carry) {
+  if (ch.repo) return runRepoTests(dungeon, ch, userCode);
   const tests = ch.tests || [];
   const results = [];
   for (const t of tests) results.push(await runOneTest(dungeon, ch, userCode, t, carry));
@@ -2219,7 +2394,7 @@ const Exec = {
     if (kind === "python") { Exec.pyReady = false; Exec.onBootChange?.(false); }
   },
 
-  runWorker(kind, code, timeoutMs) {
+  runWorker(kind, code, timeoutMs, files) {
     return new Promise((resolve) => {
       let w;
       try { w = Exec.workers[kind] || Exec.spawn(kind); }
@@ -2254,7 +2429,7 @@ const Exec = {
         resolve({ ok: false, stdout: "", unavailable: true,
                   stderr: "Runtime failed to load: " + (e.message || "unknown error") });
       };
-      w.postMessage({ id, code });
+      w.postMessage(files ? { id, code, files } : { id, code });
     });
   },
 
@@ -2347,8 +2522,10 @@ const Exec = {
   run(dungeon, code, stdin, opts = {}) {
     const rt = runtimeFor(dungeon);
     if (rt === "pyodide") {
-      // the first run downloads the interpreter, so allow it far longer
-      return Exec.runWorker("python", code, Exec.pyReady ? 10000 : 90000);
+      // the first run downloads the interpreter, so allow it far longer;
+      // a repository run imports several modules, so give it more headroom
+      const budget = Exec.pyReady ? (opts.files ? 20000 : 10000) : 90000;
+      return Exec.runWorker("python", code, budget, opts.files);
     }
     if (rt === "worker") return Exec.runWorker("js", code, 2000);
     if (rt === "ruby") return Exec.runWorker("ruby", code, 8000);
