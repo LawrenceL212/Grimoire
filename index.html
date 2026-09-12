@@ -1646,9 +1646,16 @@ function pyHarness(userCode, callExpr, stdinLines) {
     "_gb.input = _g_input\ndel _g_input\n";
   let body = pre + "\n" + userCode + "\n";
   if (!callExpr) return body;
+  // An `async def` returns a coroutine when called, and serialising that
+  // gives the repr of an unawaited coroutine - so async code could never be
+  // graded on what it produces. runPythonAsync allows top-level await, so
+  // await anything awaitable before comparing it.
   return body +
-    "\ndef _g_ser(v):\n    try: return _gj.dumps(v)\n    except Exception: return _gj.dumps(repr(v))\n" +
-    "try:\n    _g_out = {'ok': True, 'v': _g_ser(" + callExpr + ")}\n" +
+    "\nimport inspect as _ginsp\n" +
+    "def _g_ser(v):\n    try: return _gj.dumps(v)\n    except Exception: return _gj.dumps(repr(v))\n" +
+    "try:\n    _g_v = " + callExpr + "\n" +
+    "    if _ginsp.isawaitable(_g_v):\n        _g_v = await _g_v\n" +
+    "    _g_out = {'ok': True, 'v': _g_ser(_g_v)}\n" +
     "except Exception as _g_e:\n    _g_out = {'ok': False, 'v': type(_g_e).__name__ + ': ' + str(_g_e)}\n" +
     "print(" + JSON.stringify(SENTINEL) + " + _gj.dumps(_g_out))\n";
 }

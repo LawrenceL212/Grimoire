@@ -1,0 +1,1074 @@
+{
+ "n": 24,
+ "name": "Voices Beyond the Wall",
+ "goal": "Consume an HTTP/JSON interface and survive its failures.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 23
+  }
+ ],
+ "description": {
+  "what": "How a program talks to a service over HTTP - a request made of a method, a path, headers and a body, and a response made of a status code, headers and a body - how JSON carries data across that gap and what it loses on the way, what each class of status code is telling you, and how to write a client that survives timeouts, dropped connections and overloaded servers without making matters worse.",
+  "why": "Almost every useful program eventually depends on something it does not control - a payment service, a weather feed, another team's API - and the network between them fails in ways local code never does: slowly, silently, or halfway through, so a program written as if every call succeeds is broken before it ships.",
+  "enables": "You will be able to call a JSON interface through a client that a test can replace, turn its responses into Python values without being caught by what JSON cannot carry, treat each status code as the answer it is, and retry only what is safe to retry - with a timeout, a limit and a growing wait.",
+  "assumes": "You can write functions and classes, pass a function as a value, raise, catch and design exceptions, read and write JSON with the `json` module, and you have written tests that check a function through its inputs and outputs.",
+  "assessed": "You will predict what survives a JSON round trip, write client code against stubs that answer with every status and failure a real service can produce, repair retry logic that hides the failures it should report, and argue when retrying is the wrong response altogether. This environment cannot reach a real server, so every service here is a stub, and you will be asked what that does and does not prove."
+ },
+ "concepts": [
+  "http-basics",
+  "json-round-trip",
+  "status-codes",
+  "timeouts-and-retries",
+  "designing-for-failure",
+  "stubbing"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Request, a Response, and No Network",
+    "body": "An HTTP exchange is two messages and nothing more: a **request** your program sends, and a **response** the other machine sends back. The request names a **method** - the verb, such as `GET` to read something or `POST` to create something - and a **path** saying which thing, such as `/users/42`. It carries **headers**, which are name-and-value pairs of text such as `Accept: application/json`, and it may carry a **body**, the data being sent. The response comes back with a three-digit **status code** saying how it went, headers of its own, and a body.\n\nTwo facts about that response matter more than any others. The body is text - or bytes, which you decode to text - and never a Python dictionary, however much it looks like one; turning it into Python objects is a separate step that you perform, and it can fail. And header names are compared without regard to case, so `Content-Type` and `content-type` are the same header - which is why code that finds a header with a plain dictionary lookup breaks on the first server that spells it differently.\n\nNow the limit of this room, stated plainly. **Nothing on this floor sends a real request.** The Python here runs inside your browser, in Pyodide, and it cannot open a connection to an arbitrary host on the internet. Every server you meet on this floor is a **stub**: a small object written into the challenge itself, with the same shape as a real client, handing back responses that somebody typed in. The code below builds a genuine `urllib.request.Request` from the standard library and stops at exactly the line where a real program would call `urlopen` and wait for the network; the response after that line was written by hand, and nothing pretends otherwise.\n\nThat is not only a limitation of the room. It is how networked code is tested everywhere: a test that depends on a real server is slow, fails whenever the server or the network is having a bad day, and fails for reasons that have nothing to do with your code. So professionals replace the server with a stub and test the logic that reads its answers - and that is what you will do on every challenge here.",
+    "code": "from urllib.request import Request\n\nreq = Request(\"https://api.example.com/users/42\", method=\"GET\",\n              headers={\"Accept\": \"application/json\"})\nprint(req.get_method(), req.full_url)\nprint(req.header_items())\n\n# A real program would now call urllib.request.urlopen(req, timeout=5).\n# This environment cannot reach the network, so the reply is written by hand.\nresponse = {\"status\": 200,\n            \"headers\": {\"Content-Type\": \"application/json\"},\n            \"body\": '{\"id\": 42, \"name\": \"Ada\"}'}\nprint(response[\"status\"], response[\"headers\"][\"Content-Type\"])\nprint(type(response[\"body\"]).__name__)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A genuine request object from the standard library: a method, a URL and a header. Building one needs no network at all."
+     },
+     {
+      "line": 6,
+      "text": "Headers are plain text pairs, stored by name and value."
+     },
+     {
+      "line": 8,
+      "text": "The honest line. Here a real program would send the request and wait; this one cannot, so everything after it is a response typed in by hand."
+     },
+     {
+      "line": 14,
+      "text": "The body is a `str`. It looks like a dictionary and is not one until you decode it."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "A response body has arrived. What does this program print?",
+     "code": "response = {\"status\": 200, \"body\": '{\"count\": 3}'}\nprint(response[\"body\"][0])\nprint(len(response[\"body\"]))",
+     "lang": "python",
+     "answer": "{\n12",
+     "concepts": [
+      "http-basics"
+     ],
+     "tags": [
+      "http-basics"
+     ],
+     "explain": "The body is a string of twelve characters whose first character is an opening brace, not a dictionary with a `count` key - indexing it gives you characters, and `response[\"body\"][\"count\"]` would raise `TypeError`. The tempting answers treat the body as already decoded, which is exactly the assumption that turns into a crash when real responses arrive."
+    }
+   },
+   {
+    "title": "JSON: the Wire Format and the Way Back",
+    "body": "**JSON** is the text format most web interfaces use for their bodies. It has objects written in braces, like a dictionary; arrays in square brackets, like a list; strings in double quotes; numbers; and the words `true`, `false` and `null`. The `json` module converts in both directions: `json.dumps(value)` turns Python objects into JSON text for sending, and `json.loads(text)` turns text you received back into Python - a dict, a list, a str, an int or float, `True`, `False` or `None`.\n\nThe round trip is not perfect, and the ways it is imperfect are where the bugs live. JSON has no tuples, so a tuple goes out as an array and comes back as a list. JSON object keys are always strings, so `{1: 5}` goes out as `{\"1\": 5}` and comes back with the string `\"1\"` as its key - after which a lookup with the integer 1 finds nothing. Sets, dates and your own classes have no JSON form at all, and `json.dumps` refuses them with a `TypeError` rather than guessing; you decide how to represent them before sending, usually as a sorted list or an ISO date string.\n\nReceiving is the riskier half. `json.loads` raises `json.JSONDecodeError` - a subclass of `ValueError` - on anything that is not valid JSON, and the body you are handed is not always the body you expected. An empty body from a `204`, or an HTML error page from a proxy that fell over in front of the real server, both arrive as text and neither decodes. Decide at the point of decoding what a malformed body means, and raise an error that says so, rather than letting a message about char 0 surface three calls later.\n\nOne check on your understanding: data that has made one round trip is stable. Send it again and it comes back unchanged, because it is now built only of things JSON can express - all the loss happens on the first trip.",
+    "code": "import json\n\nrecord = {\"id\": 7, \"tags\": (\"new\", \"sale\"), \"ratings\": {1: 5, 2: 4},\n          \"active\": True, \"notes\": None}\ntext = json.dumps(record)\nprint(text)\nback = json.loads(text)\nprint(back)\nprint(back == record)\n\ntry:\n    json.dumps({\"seen\": {\"ada\", \"bob\"}})\nexcept TypeError as err:\n    print(\"refused:\", err)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Python objects out, JSON text in. `True` becomes `true`, `None` becomes `null`, and the tuple becomes an array."
+     },
+     {
+      "line": 7,
+      "text": "Text in, Python objects out - but not the objects that were sent. Look at the tags, and at the keys of ratings."
+     },
+     {
+      "line": 9,
+      "text": "`False`. The round trip changed the data, and code that relied on equality with the original has just broken."
+     },
+     {
+      "line": 12,
+      "text": "A set has no JSON form, and `json.dumps` refuses rather than guess what you meant."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "A dictionary is sent as JSON and decoded at the other end. What does this program print?",
+     "code": "import json\n\nwire = json.dumps({\"point\": (3, 4), 10: \"ten\"})\nback = json.loads(wire)\nprint(back[\"point\"])\nprint(list(back.keys()))",
+     "lang": "python",
+     "answer": "[3, 4]\n['point', '10']",
+     "concepts": [
+      "json-round-trip"
+     ],
+     "tags": [
+      "json-round-trip"
+     ],
+     "explain": "JSON has no tuple, so `(3, 4)` travels as an array and is rebuilt as a list; and an object key in JSON is always a string, so the integer key `10` comes back as `'10'`. The tempting answer is `(3, 4)` and `['point', 10]`, from assuming the round trip hands back exactly what was sent - it hands back what JSON could express."
+    }
+   },
+   {
+    "title": "Status Codes Are Answers",
+    "body": "The **status code** is the server's one-number summary, and its first digit is its class: `2xx` means success, `3xx` means look elsewhere, `4xx` means the request was wrong, and `5xx` means the server failed. Branch on the class first, and on the exact number only where it matters. The standard library's `http.HTTPStatus` knows every code's name, which is handy in error messages.\n\n**200 is not the only success.** `201 Created` answers a `POST` that made something, often with a `Location` header saying where it now lives, and `204 No Content` means success with an empty body - so code that calls `json.loads` on every successful body crashes on a perfectly good 204.\n\n**404 is not an error in your code.** It says the thing you asked for does not exist, and that is very often a perfectly good answer - no such user, no such order - which your function should hand back as an answer, commonly `None`, rather than letting it escape as a crash. The rest of the 4xx class is different: `400 Bad Request`, `401 Unauthorized`, `403 Forbidden` and `409 Conflict` all say this request, as written, will never succeed, so sending it again is pointless. The odd one out is `429 Too Many Requests`, which means slow down, not go away. The 5xx codes, especially `502`, `503` and `504`, usually describe a passing condition: an overloaded server, a restart, a gateway that lost its upstream.\n\nThe code below also shows the stub you will meet all through this floor. `find_user` never builds its own client; it is handed one. That single decision - receiving the client as a parameter instead of creating it inside - is what makes the function testable, because a test can hand it anything with a `get` method. The stub records every request, so a test can ask what was sent as well as what came back. And a stub need not be a class at all: `iter([...]).__next__` is a function that hands back the listed responses one per call, which is all some tests need.",
+    "code": "import json\nfrom http import HTTPStatus\n\nclass StubClient:\n    \"\"\"Stands in for an HTTP client. No network is touched.\"\"\"\n\n    def __init__(self, routes):\n        self.routes = routes\n        self.requests = []\n\n    def get(self, path):\n        self.requests.append((\"GET\", path))\n        return self.routes.get(path, (404, \"\"))\n\ndef find_user(client, user_id):\n    status, body = client.get(\"/users/\" + str(user_id))\n    if status == 200:\n        return json.loads(body)\n    if status == 404:\n        return None\n    raise RuntimeError(\"unexpected \" + str(status) + \" \" + HTTPStatus(status).phrase)\n\nclient = StubClient({\"/users/1\": (200, '{\"name\": \"Ada\"}'), \"/users/2\": (503, \"\")})\nprint(find_user(client, 1))\nprint(find_user(client, 9))\ntry:\n    find_user(client, 2)\nexcept RuntimeError as err:\n    print(err)\nprint(client.requests)\n\nscript = iter([(503, \"\"), (200, \"{}\")]).__next__\nprint(script(), script())",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The stub: the same shape as a client, a `get` that takes a path and returns a status and a body, and no network anywhere."
+     },
+     {
+      "line": 13,
+      "text": "An unknown path answers 404, as a real server would. A stub is only useful if its behaviour is realistic."
+     },
+     {
+      "line": 15,
+      "text": "The client is a parameter. This is the seam that lets a test substitute a stub for the real thing."
+     },
+     {
+      "line": 19,
+      "text": "404 is handled as an answer: the user does not exist, so the function says so with `None`."
+     },
+     {
+      "line": 21,
+      "text": "Everything else is a surprise the caller must hear about. `HTTPStatus` turns 503 into a readable name."
+     },
+     {
+      "line": 32,
+      "text": "The smallest stub there is: a function that returns the next scripted response each time it is called."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "from http import HTTPStatus\n\nfor code in (201, 204, 404, 503):\n    print(code // 100, HTTPStatus(code).phrase)",
+     "lang": "python",
+     "answer": "2 Created\n2 No Content\n4 Not Found\n5 Service Unavailable",
+     "concepts": [
+      "status-codes"
+     ],
+     "tags": [
+      "status-codes"
+     ],
+     "explain": "Integer division by 100 extracts the class, which is the first thing a client should branch on: two of these four are successes even though neither is 200, and one of them, 204, has no body to decode. The tempting slip is to read 204 as a failure because it is not 200, or 404 as a network fault when it is an ordinary answer from a server that was working perfectly."
+    }
+   },
+   {
+    "title": "The Network Will Fail",
+    "body": "A call to a function in your own program returns or raises, and does so promptly. A call across a network has a third outcome: **nothing happens**. The connection hangs, the server is slow, a packet is lost - and without a limit your program waits for ever. A **timeout** is that limit: `urlopen(request, timeout=5)` in the standard library, and the same keyword in the popular `requests` package. An expired timeout arrives as an exception, `TimeoutError` (the older name `socket.timeout` has been the same class since Python 3.10). Every network call you write should have one. And note what a timeout does not tell you: it means no answer arrived, not that nothing happened, because the server may have done the work and lost the reply.\n\nMany failures are **transient**, so the natural response is a **retry** - and it must be done well or not at all. Retry only failures that might go away: timeouts, dropped connections, 429 and the 5xx codes; a 400 or a 404 will say the same thing for ever. Limit the attempts, and when they run out, raise the last failure rather than returning something that looks like an answer. Wait between attempts, longer each time - **exponential backoff**, doubling from a small base up to a cap - because a struggling server hammered by every client at once never recovers. Real systems also add random **jitter** to each wait so that thousands of clients do not retry in lock-step; it is left out here only so that the tests are deterministic.\n\nThe hardest question is whether a request is safe to repeat at all. An operation is **idempotent** when doing it twice has the same effect as doing it once: `GET`, `PUT` and `DELETE` are defined that way, and `POST` is not. Retrying a timed-out `GET` is harmless; retrying a timed-out `POST` to a payment service can charge somebody twice, because the first attempt may well have succeeded. Services that must survive retries accept an **idempotency key** - a unique value sent in a header, so the server recognises a repeat and does the work only once.\n\nTwo honest notes about this environment. `FlakyClient` below does not really wait for anything: it raises `TimeoutError` because that is what a real client raises when its timer runs out, and that is as close to a real timeout as a browser sandbox can come. And `get_with_retry` takes `sleep` as a parameter instead of calling `time.sleep` itself. Real code passes `time.sleep`; a test passes something that merely records the delay, so a test of five retries takes no time at all. The clock is stubbed exactly as the network is.",
+    "code": "class FlakyClient:\n    \"\"\"Times out `failures` times, then answers. A stand-in for a bad network.\"\"\"\n\n    def __init__(self, failures, answer):\n        self.failures = failures\n        self.answer = answer\n        self.calls = 0\n\n    def get(self, path, timeout):\n        self.calls += 1\n        if self.calls <= self.failures:\n            raise TimeoutError(\"no reply within \" + str(timeout) + \"s\")\n        return self.answer\n\ndef get_with_retry(client, path, attempts, sleep):\n    for attempt in range(1, attempts + 1):\n        try:\n            return client.get(path, timeout=5)\n        except (TimeoutError, ConnectionError):\n            if attempt == attempts:\n                raise\n            sleep(min(8, 0.5 * 2 ** (attempt - 1)))\n\nwaits = []\nclient = FlakyClient(2, (200, '{\"ok\": true}'))\nprint(get_with_retry(client, \"/health\", 4, waits.append))\nprint(client.calls, waits)\n\ntry:\n    get_with_retry(FlakyClient(9, (200, \"\")), \"/health\", 3, waits.append)\nexcept TimeoutError as err:\n    print(\"gave up:\", err)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 12,
+      "text": "The stub simulates an expired timer by raising exactly what a real client raises. No time passes; this sandbox cannot make a real connection time out."
+     },
+     {
+      "line": 19,
+      "text": "Only failures that might go away are caught. A `KeyError` from a bug would pass straight through, as it should."
+     },
+     {
+      "line": 21,
+      "text": "Out of attempts: re-raise the last failure. Returning `None` here would disguise an outage as an empty answer."
+     },
+     {
+      "line": 22,
+      "text": "Exponential backoff with a cap, through an injected `sleep`. The caller passes `waits.append`, which records the delay instead of waiting."
+     },
+     {
+      "line": 27,
+      "text": "Three calls and two waits: two timeouts, then success."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "An operation times out on every attempt. What does this program print?",
+     "code": "waits = []\n\ndef always_slow():\n    raise TimeoutError(\"slow\")\n\ndef attempt(operation, attempts, sleep):\n    for n in range(1, attempts + 1):\n        try:\n            return operation()\n        except TimeoutError:\n            if n == attempts:\n                raise\n            sleep(min(3, 1 * 2 ** (n - 1)))\n\ntry:\n    attempt(always_slow, 4, waits.append)\nexcept TimeoutError:\n    print(\"raised after\", len(waits) + 1, \"attempts\")\nprint(waits)",
+     "lang": "python",
+     "answer": "raised after 4 attempts\n[1, 2, 3]",
+     "concepts": [
+      "timeouts-and-retries"
+     ],
+     "tags": [
+      "timeouts-and-retries"
+     ],
+     "explain": "Four attempts need only three waits, because nobody waits after the last one - the failure is re-raised instead. The doubling would give 1, 2 and 4, but the cap of 3 clips the last. The tempting answers are four waits, from sleeping after every failure including the final one, and `[1, 2, 4]`, from forgetting the cap that stops a long outage producing absurd waits."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-24-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "An order is encoded for sending and decoded again, exactly as the far end of a connection would decode it. Predict all three lines. The third compares the decoded order with a second round trip of itself.",
+   "code": "import json\n\norder = {\"id\": 3, \"items\": (\"tea\", \"jam\"), \"paid\": False, \"coupon\": None}\nwire = json.dumps(order)\nprint(wire)\nagain = json.loads(wire)\nprint(again[\"items\"] == order[\"items\"])\nprint(again == json.loads(json.dumps(again)))",
+   "lang": "python",
+   "answer": "{\"id\": 3, \"items\": [\"tea\", \"jam\"], \"paid\": false, \"coupon\": null}\nFalse\nTrue",
+   "concepts": [
+    "json-round-trip"
+   ],
+   "tags": [
+    "json-round-trip"
+   ],
+   "explain": "On the wire, `False` and `None` are spelled `false` and `null` and the tuple is an array. Decoding builds a list, and a list never equals a tuple in Python even with the same items, so the second line is `False`. The third is `True` because a second trip loses nothing: after one round trip the data is made only of things JSON can express. Expecting `True` on the second line comes from treating JSON as a perfect copy, which is the assumption behind most round-trip bugs.",
+   "hint": "Spell each Python value the way JSON spells it. Then ask what type `json.loads` builds from a JSON array, and whether a list can ever equal a tuple.",
+   "xp": 36
+  },
+  {
+   "id": "py-24-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "load_user",
+   "prompt": "The starter holds `StubClient`, a stand-in for an HTTP client: its `get(path)` returns a pair `(status, body)` from the routes it was built with, and answers `(404, \"\")` for any path it does not know. Branching on the status code as the lesson did, write `load_user(client, user_id)`. It requests the path `/users/<user_id>` and returns the decoded JSON body on a 200; returns `None` on a 404, because a missing user is an answer and not a fault; and raises `RuntimeError` with the status number in its message for anything else.\n\n`load_user(StubClient({\"/users/1\": (200, '{\"name\": \"Ada\"}')}), 1)` gives `{\"name\": \"Ada\"}`.",
+   "starterCode": "import json\n\nclass StubClient:\n    \"\"\"A stand-in for an HTTP client. It never touches the network.\"\"\"\n\n    def __init__(self, routes):\n        self.routes = routes\n        self.requests = []\n\n    def get(self, path):\n        self.requests.append(path)\n        return self.routes.get(path, (404, \"\"))\n\ndef load_user(client, user_id):\n    # build the path, send it through the client, then branch on the status\n    pass\n",
+   "solution": "import json\n\nclass StubClient:\n    \"\"\"A stand-in for an HTTP client. It never touches the network.\"\"\"\n\n    def __init__(self, routes):\n        self.routes = routes\n        self.requests = []\n\n    def get(self, path):\n        self.requests.append(path)\n        return self.routes.get(path, (404, \"\"))\n\ndef load_user(client, user_id):\n    status, body = client.get(\"/users/\" + str(user_id))\n    if status == 200:\n        return json.loads(body)\n    if status == 404:\n        return None\n    raise RuntimeError(\"GET /users/\" + str(user_id) + \" returned \" + str(status))\n",
+   "tests": [
+    {
+     "input": "StubClient({\"/users/1\": (200, '{\"name\": \"Ada\"}')}), 1",
+     "expected": {
+      "name": "Ada"
+     }
+    },
+    {
+     "input": "StubClient({}), 7",
+     "expected": null
+    },
+    {
+     "input": "StubClient({\"/users/2\": (500, \"\")}), 2",
+     "throws": "500"
+    },
+    {
+     "input": "StubClient({\"/users/3\": (200, '{\"name\": \"Lin\", \"admin\": false}')}), 3",
+     "expected": {
+      "name": "Lin",
+      "admin": false
+     }
+    },
+    {
+     "input": "StubClient({\"/users/4\": (403, \"\")}), 4",
+     "throws": "403"
+    }
+   ],
+   "concepts": [
+    "status-codes",
+    "http-basics",
+    "stubbing"
+   ],
+   "tags": [
+    "status-codes",
+    "http-basics",
+    "stubbing"
+   ],
+   "explain": "The three branches are three different kinds of answer: data, a definite absence, and a surprise the caller must hear about. Treating 404 as an exception would force every caller to wrap a perfectly ordinary lookup in `try`, and treating 403 or 500 as `None` would tell the caller that a user does not exist when in truth nobody knows. Notice too that the test never needed a server: because the client arrives as a parameter, a dictionary of canned answers is enough to drive every branch.",
+   "hint": "Unpack `status, body = client.get(\"/users/\" + str(user_id))`, test `status == 200` first and `status == 404` second, and let everything else fall through to a `raise`.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "backoff_delays",
+   "prompt": "A client makes up to `attempts` tries at a request and waits between each try and the next, so there are `attempts - 1` waits in all. Using exponential backoff, write `backoff_delays(attempts, base, cap)` returning the list of waits in seconds: the first wait is `base`, each later wait is double the one before, and no wait exceeds `cap`.\n\n`backoff_delays(4, 1, 60)` gives `[1, 2, 4]`, and `backoff_delays(6, 0.5, 3)` gives `[0.5, 1.0, 2.0, 3, 3]`.",
+   "starterCode": "def backoff_delays(attempts, base, cap):\n    delays = []\n    # one wait between each try and the next - attempts - 1 of them\n    return delays\n",
+   "solution": "def backoff_delays(attempts, base, cap):\n    delays = []\n    for k in range(attempts - 1):\n        delays.append(min(cap, base * 2 ** k))\n    return delays\n",
+   "tests": [
+    {
+     "input": "4, 1, 60",
+     "expected": [
+      1,
+      2,
+      4
+     ]
+    },
+    {
+     "input": "1, 1, 60",
+     "expected": []
+    },
+    {
+     "input": "6, 0.5, 3",
+     "expected": [
+      0.5,
+      1.0,
+      2.0,
+      3,
+      3
+     ]
+    },
+    {
+     "input": "0, 1, 10",
+     "expected": []
+    },
+    {
+     "input": "3, 2, 5",
+     "expected": [
+      2,
+      4
+     ]
+    }
+   ],
+   "concepts": [
+    "timeouts-and-retries"
+   ],
+   "tags": [
+    "timeouts-and-retries"
+   ],
+   "explain": "Doubling spreads the load away from a struggling server quickly - one second, two, four, eight - and the cap stops a long outage producing a wait of half an hour. The count is the part people get wrong: there is no wait after the final attempt, because after it the client gives up, so `attempts` tries produce `attempts - 1` waits and a single attempt produces none. Writing `range(attempts)` makes every client sleep once more than it should, right before reporting failure.",
+   "hint": "Loop `k` over `range(attempts - 1)` and append `min(cap, base * 2 ** k)`. A range with nothing in it simply never runs, which handles one attempt and none at all.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "get_with_retry",
+   "prompt": "The starter's `FlakyClient` fails its first `failures` calls by raising the exception class it was given - `TimeoutError` unless told otherwise - and then returns its answer. Write `get_with_retry(client, path, attempts, sleep)`, which calls `client.get(path, timeout=5)` up to `attempts` times and returns the first response it gets. Retry after a `TimeoutError` or a `ConnectionError`, calling `sleep` with a doubling wait of 1, 2, 4 and so on before each retry. If the last attempt fails, re-raise that failure. Any other exception is a bug rather than a bad network, and must escape at once without a retry.\n\nThe tests pass a `sleep` that does nothing, so no test really waits.",
+   "starterCode": "class FlakyClient:\n    \"\"\"Fails its first `failures` calls, then answers. No network is involved.\"\"\"\n\n    def __init__(self, failures, answer, error=TimeoutError):\n        self.failures = failures\n        self.answer = answer\n        self.error = error\n        self.calls = 0\n\n    def get(self, path, timeout):\n        self.calls += 1\n        if self.calls <= self.failures:\n            raise self.error(\"no reply within \" + str(timeout) + \"s\")\n        return self.answer\n\ndef get_with_retry(client, path, attempts, sleep):\n    for attempt in range(1, attempts + 1):\n        # try the call; on a timeout or a dropped connection, wait and go round again\n        pass\n",
+   "solution": "class FlakyClient:\n    \"\"\"Fails its first `failures` calls, then answers. No network is involved.\"\"\"\n\n    def __init__(self, failures, answer, error=TimeoutError):\n        self.failures = failures\n        self.answer = answer\n        self.error = error\n        self.calls = 0\n\n    def get(self, path, timeout):\n        self.calls += 1\n        if self.calls <= self.failures:\n            raise self.error(\"no reply within \" + str(timeout) + \"s\")\n        return self.answer\n\ndef get_with_retry(client, path, attempts, sleep):\n    for attempt in range(1, attempts + 1):\n        try:\n            return client.get(path, timeout=5)\n        except (TimeoutError, ConnectionError):\n            if attempt == attempts:\n                raise\n            sleep(2 ** (attempt - 1))\n",
+   "tests": [
+    {
+     "input": "FlakyClient(0, (200, \"ok\")), \"/h\", 3, lambda seconds: None",
+     "expected": [
+      200,
+      "ok"
+     ]
+    },
+    {
+     "input": "FlakyClient(2, (200, \"ok\")), \"/h\", 3, lambda seconds: None",
+     "expected": [
+      200,
+      "ok"
+     ]
+    },
+    {
+     "input": "FlakyClient(3, (200, \"ok\")), \"/h\", 3, lambda seconds: None",
+     "throws": "no reply"
+    },
+    {
+     "input": "FlakyClient(1, (503, \"\"), ConnectionError), \"/h\", 2, lambda seconds: None",
+     "expected": [
+      503,
+      ""
+     ]
+    },
+    {
+     "input": "FlakyClient(1, (200, \"ok\"), KeyError), \"/h\", 3, lambda seconds: None",
+     "throws": true
+    },
+    {
+     "input": "FlakyClient(1, (200, \"ok\")), \"/h\", 1, lambda seconds: None",
+     "throws": "no reply"
+    }
+   ],
+   "concepts": [
+    "timeouts-and-retries",
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "timeouts-and-retries",
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "explain": "Naming the two exception classes in the `except` is the design decision: a timeout or a dropped connection might go away, but a `KeyError` is a mistake in somebody's code and will happen identically on every attempt, so retrying it only delays the report and hides the real traceback. The bare `raise` on the final attempt re-raises the original exception with its original message, which is what the caller needs in order to know an outage occurred. Notice what this function does not decide: the 503 it returns is a response, and whether to retry on a status is the caller's policy - mixing the two in one loop is where retry code usually becomes unreadable.",
+   "hint": "Inside the loop: `try: return client.get(path, timeout=5)`, then `except (TimeoutError, ConnectionError):` - in that handler, `raise` when `attempt == attempts`, and otherwise `sleep(2 ** (attempt - 1))`.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-gp-05",
+   "type": "debug",
+   "layer": "application",
+   "fn": "score_for",
+   "prompt": "A service stores scores keyed by numeric user id. On their way over the wire they were encoded with `json.dumps`, and `score_for(wire, user_id)` receives that text and an integer id. It should return that user's score, or `None` when the user has no score - but it returns `None` for everybody. Find out why the round trip broke the lookup, and repair it.\n\n`score_for('{\"1\": 90, \"2\": 75}', 1)` gives `90`.",
+   "starterCode": "import json\n\ndef score_for(wire, user_id):\n    scores = json.loads(wire)\n    if user_id in scores:\n        return scores[user_id]\n    return None\n",
+   "solution": "import json\n\ndef score_for(wire, user_id):\n    scores = json.loads(wire)\n    key = str(user_id)\n    if key in scores:\n        return scores[key]\n    return None\n",
+   "tests": [
+    {
+     "input": "'{\"1\": 90, \"2\": 75}', 1",
+     "expected": 90
+    },
+    {
+     "input": "'{\"1\": 90}', 2",
+     "expected": null
+    },
+    {
+     "input": "'{}', 5",
+     "expected": null
+    },
+    {
+     "input": "'{\"10\": 40, \"1\": 7}', 10",
+     "expected": 40
+    },
+    {
+     "input": "json.dumps({3: 12}), 3",
+     "expected": 12
+    }
+   ],
+   "concepts": [
+    "json-round-trip"
+   ],
+   "tags": [
+    "json-round-trip"
+   ],
+   "explain": "JSON object keys can only be strings, so `json.dumps({3: 12})` writes `{\"3\": 12}` and `json.loads` rebuilds the key as the string `\"3\"`. The integer 3 and the string `\"3\"` are different keys, so the membership test quietly fails and the function reports every user as absent - a bug with no traceback at all, which is what makes it expensive. Converting the key at the boundary where the data is read is the fix; the last test shows the whole round trip in one line.",
+   "hint": "Print `list(json.loads(wire).keys())` and look at the type of each key. What did JSON do to the integer keys on the way out?",
+   "xp": 90
+  },
+  {
+   "id": "py-24-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Your code sends `POST /payments` to charge a customer 40 pounds, and the call raises `TimeoutError` after five seconds. Using the idea of idempotency, explain whether it is safe to send the same request again automatically, what the timeout does and does not tell you about what happened on the server, and what the payment service and your client would need to agree on before an automatic retry became safe.",
+   "rubric": {
+    "required": [
+     "idempot",
+     "retr",
+     "key",
+     "server"
+    ],
+    "optional": [
+     "POST",
+     "charge",
+     "twice",
+     "double",
+     "header",
+     "GET",
+     "unknown",
+     "reply",
+     "succeeded",
+     "unique"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "designing-for-failure",
+    "timeouts-and-retries"
+   ],
+   "tags": [
+    "designing-for-failure",
+    "timeouts-and-retries"
+   ],
+   "explain": "A timeout reports that no reply arrived within five seconds, and that is all it reports: the charge may have failed, may be in progress, or may have succeeded with the reply lost on the way back. `POST` is not idempotent, so sending it again risks charging the customer twice, and guessing wrong in either direction is costly. The standard answer is an idempotency key - a unique value the client generates once and sends in a header with every attempt of the same payment, which lets the server recognise the repeat and return the original result instead of doing the work again. Without that agreement the safe response is to report the uncertainty, not to retry.",
+   "hint": "Ask what you actually know about the first attempt. Did it fail, or did only its reply fail to arrive?",
+   "xp": 40
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-24-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "fetch_json",
+   "prompt": "`request` is a function taking no arguments; each call makes one attempt at the same `GET` and returns a pair `(status, body)`, where the body is text. Write `fetch_json(request, attempts)`, which calls `request` at most `attempts` times. A 200 returns the decoded JSON body. A 404 means the thing does not exist: return `None`. A status saying the server is overloaded or failing is worth another attempt; a status saying the request itself is wrong will get the same answer however often it is sent, so raise `ValueError` with the status number in the message. If every attempt ends in a status worth trying again, raise `RuntimeError` with `gave up` in the message.\n\nThe tests build `request` from a list of scripted responses, returned one per call.",
+   "solution": "import json\n\ndef fetch_json(request, attempts):\n    for attempt in range(attempts):\n        status, body = request()\n        if status == 200:\n            return json.loads(body)\n        if status == 404:\n            return None\n        if status == 429 or 500 <= status <= 599:\n            continue\n        raise ValueError(\"request refused with status \" + str(status))\n    raise RuntimeError(\"gave up after \" + str(attempts) + \" attempts\")\n",
+   "tests": [
+    {
+     "input": "iter([(200, '{\"id\": 7}')]).__next__, 3",
+     "expected": {
+      "id": 7
+     }
+    },
+    {
+     "input": "iter([(503, \"\"), (502, \"\"), (200, \"[1, 2]\")]).__next__, 3",
+     "expected": [
+      1,
+      2
+     ]
+    },
+    {
+     "input": "iter([(404, \"\"), (200, '{\"id\": 1}')]).__next__, 3",
+     "expected": null
+    },
+    {
+     "input": "iter([(400, \"\"), (200, \"{}\")]).__next__, 3",
+     "throws": "400"
+    },
+    {
+     "input": "iter([(429, \"\"), (503, \"\"), (504, \"\"), (200, \"{}\")]).__next__, 3",
+     "throws": "gave up"
+    },
+    {
+     "input": "iter([(504, \"\"), (200, \"{}\")]).__next__, 1",
+     "throws": "gave up"
+    }
+   ],
+   "concepts": [
+    "status-codes",
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "status-codes",
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "explain": "The whole exercise is deciding which statuses deserve another attempt. 429 and the 5xx class describe the server's condition, which can change in a second; 400 and the rest of the 4xx class describe the request, which will not change because nothing about it has changed. The third test is the trap: a loop that retries everything except 200 treats 404 as a failure, asks again, and returns a record that the first answer said did not exist. The last test is the boundary where the only attempt is also the last, and it must still end in `gave up` rather than in a scripted response nobody asked for. A real client would also wait between attempts; that part is left to the next challenge.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "wait_before",
+   "prompt": "Before retrying a failed request a client waits. Write `wait_before(retry, base, cap, retry_after)` returning the number of seconds to wait before retry number `retry`, where 1 is the first retry. If the failed response carried a `Retry-After` header, `retry_after` holds its raw text, a whole number of seconds, and the server's instruction is followed exactly; if there was no such header it is `None`. Without an instruction, the first wait is `base`, each retry waits twice as long as the one before, and no wait exceeds `cap`. A header is text from another machine and may be nonsense: one that is not a whole number of seconds is ignored.\n\n`wait_before(3, 1, 30, None)` gives `4`, and `wait_before(1, 1, 30, \"12\")` gives `12`.",
+   "solution": "def wait_before(retry, base, cap, retry_after):\n    if retry_after is not None and retry_after.isdigit():\n        return int(retry_after)\n    return min(cap, base * 2 ** (retry - 1))\n",
+   "tests": [
+    {
+     "input": "1, 1, 30, None",
+     "expected": 1
+    },
+    {
+     "input": "4, 1, 30, None",
+     "expected": 8
+    },
+    {
+     "input": "6, 1, 30, None",
+     "expected": 30
+    },
+    {
+     "input": "2, 1, 30, \"12\"",
+     "expected": 12
+    },
+    {
+     "input": "1, 0.5, 30, \"soon\"",
+     "expected": 0.5
+    },
+    {
+     "input": "2, 1, 30, \"\"",
+     "expected": 2
+    },
+    {
+     "input": "3, 2, 5, None",
+     "expected": 5
+    }
+   ],
+   "concepts": [
+    "timeouts-and-retries",
+    "http-basics"
+   ],
+   "tags": [
+    "timeouts-and-retries",
+    "http-basics"
+   ],
+   "explain": "A server that sends `Retry-After` knows its own recovery better than your formula does, so honouring it is both politer and more effective than guessing. But headers are strings from a machine you do not control, so `int(retry_after)` on its own would crash the retry logic on the very response it exists to handle - the empty string and `soon` are the edges that catch it. Real `Retry-After` values may also be an HTTP date rather than a number of seconds; this challenge simplifies that away, and a production client would parse both. The cap case, where doubling would give 32 but the answer is 30, is the one that separates doubling from doubling with a limit.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "worth_retrying",
+   "prompt": "An automatic retry policy decides, for each failed call, whether to send it again without asking anybody. Write `worth_retrying(method, status, has_key)`. `method` is the HTTP method in capitals; `status` is the status code that came back, or `None` if no response arrived at all; `has_key` says whether the request carried an idempotency key. Return `True` only when sending the same request again might produce a different outcome and also cannot do harm if the first attempt in fact reached the server. Otherwise return `False`.\n\n`worth_retrying(\"GET\", None, False)` gives `True`.",
+   "solution": "def worth_retrying(method, status, has_key):\n    transient = status is None or status == 429 or status in (500, 502, 503, 504)\n    if not transient:\n        return False\n    repeatable = method in (\"GET\", \"HEAD\", \"PUT\", \"DELETE\", \"OPTIONS\")\n    return repeatable or has_key\n",
+   "tests": [
+    {
+     "input": "\"GET\", None, False",
+     "expected": true
+    },
+    {
+     "input": "\"POST\", None, False",
+     "expected": false
+    },
+    {
+     "input": "\"POST\", 503, True",
+     "expected": true
+    },
+    {
+     "input": "\"GET\", 404, False",
+     "expected": false
+    },
+    {
+     "input": "\"PUT\", 502, False",
+     "expected": true
+    },
+    {
+     "input": "\"DELETE\", 400, True",
+     "expected": false
+    },
+    {
+     "input": "\"GET\", 200, False",
+     "expected": false
+    }
+   ],
+   "concepts": [
+    "designing-for-failure",
+    "timeouts-and-retries",
+    "status-codes"
+   ],
+   "tags": [
+    "designing-for-failure",
+    "timeouts-and-retries",
+    "status-codes"
+   ],
+   "explain": "Two independent questions must both be answered yes: might it help, and can it hurt. A timeout on a `POST` with no key is the case where retrying is simply the wrong tool - the first attempt may have succeeded, and a second could create the order or take the payment twice - so the right answer is to stop and report, however tempting another try looks. A key turns that same `POST` into something the server can deduplicate, which is why it flips the answer. On the other side, 400 and 404 fail the first question whatever the method, and a 200 is not a failure at all.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "names_for",
+   "prompt": "`get(path)` sends a `GET` and returns `(status, body)`. Write `names_for(get, ids)`, which looks up each numeric id at `/users/<id>` and returns the `name` field of every user that exists, in the order the ids were given. A user who does not exist is simply left out. Anything else the service says - a refusal, a failure - must stop the function with a `RuntimeError` whose message includes the status, because a list with holes in it that nobody knows about is worse than no list.\n\nThe tests pass a dictionary's own lookup as `get`, so every path answers with a response that was typed in: `names_for(get, [1, 2])`, where user 1 is Ada and user 2 does not exist, gives `[\"Ada\"]`.",
+   "solution": "import json\n\ndef names_for(get, ids):\n    names = []\n    for user_id in ids:\n        status, body = get(\"/users/\" + str(user_id))\n        if status == 404:\n            continue\n        if status != 200:\n            raise RuntimeError(\"user \" + str(user_id) + \": status \" + str(status))\n        names.append(json.loads(body)[\"name\"])\n    return names\n",
+   "tests": [
+    {
+     "input": "{\"/users/1\": (200, '{\"name\": \"Ada\"}'), \"/users/2\": (404, \"\"), \"/users/3\": (200, '{\"name\": \"Lin\"}')}.__getitem__, [1, 2, 3]",
+     "expected": [
+      "Ada",
+      "Lin"
+     ]
+    },
+    {
+     "input": "{}.__getitem__, []",
+     "expected": []
+    },
+    {
+     "input": "{\"/users/5\": (404, \"\")}.__getitem__, [5]",
+     "expected": []
+    },
+    {
+     "input": "{\"/users/1\": (200, '{\"name\": \"Ada\"}'), \"/users/2\": (500, \"\")}.__getitem__, [1, 2]",
+     "throws": "500"
+    },
+    {
+     "input": "{\"/users/9\": (200, '{\"name\": \"Bo\", \"id\": 9}')}.__getitem__, [9, 9]",
+     "expected": [
+      "Bo",
+      "Bo"
+     ]
+    },
+    {
+     "input": "{\"/users/4\": (401, \"\")}.__getitem__, [4]",
+     "throws": "401"
+    }
+   ],
+   "concepts": [
+    "stubbing",
+    "http-basics",
+    "status-codes",
+    "json-round-trip"
+   ],
+   "tags": [
+    "stubbing",
+    "http-basics",
+    "status-codes",
+    "json-round-trip"
+   ],
+   "explain": "Because the function receives `get` instead of creating a connection, a dictionary's `__getitem__` is a complete fake server - each path answers exactly what the test typed, and a path nobody typed raises `KeyError`, which would expose a function asking for the wrong path. The status handling is the judgement: 404 is an answer and is skipped, while 500 and 401 mean the list cannot be trusted, and silently skipping them as well is the tempting simplification that turns an outage into missing customers. The empty list of ids is the edge that must make no requests at all.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "parse_body",
+   "prompt": "Write `parse_body(headers, body)`, which turns a response body into something useful according to what the response says it is. `headers` is a dictionary of response headers, with names spelled however the server spelled them, and `body` is the text. A body the server labels as JSON - its content type begins `application/json`, possibly followed by details such as `; charset=utf-8` - is decoded. An empty body is `None` whatever its label. Anything else is returned as the text it already is. A body labelled as JSON that will not decode must raise `ValueError` with `malformed` in its message.\n\n`parse_body({\"content-type\": \"application/json\"}, '[1, 2]')` gives `[1, 2]`.",
+   "solution": "import json\n\ndef parse_body(headers, body):\n    if body == \"\":\n        return None\n    content_type = \"\"\n    for name, value in headers.items():\n        if name.lower() == \"content-type\":\n            content_type = value\n    if not content_type.startswith(\"application/json\"):\n        return body\n    try:\n        return json.loads(body)\n    except json.JSONDecodeError as err:\n        raise ValueError(\"malformed JSON body: \" + str(err))\n",
+   "tests": [
+    {
+     "input": "{\"Content-Type\": \"application/json\"}, '{\"a\": 1}'",
+     "expected": {
+      "a": 1
+     }
+    },
+    {
+     "input": "{\"content-type\": \"application/json; charset=utf-8\"}, '[true, null]'",
+     "expected": [
+      true,
+      null
+     ]
+    },
+    {
+     "input": "{\"Content-Type\": \"text/plain\"}, '{\"a\": 1}'",
+     "expected": "{\"a\": 1}"
+    },
+    {
+     "input": "{\"Content-Type\": \"application/json\"}, ''",
+     "expected": null
+    },
+    {
+     "input": "{\"CONTENT-TYPE\": \"application/json\"}, '<html>Bad Gateway</html>'",
+     "throws": "malformed"
+    },
+    {
+     "input": "{}, 'hello'",
+     "expected": "hello"
+    }
+   ],
+   "concepts": [
+    "json-round-trip",
+    "http-basics",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "json-round-trip",
+    "http-basics",
+    "designing-for-failure"
+   ],
+   "explain": "Three facts from the wire meet here. Header names are case-insensitive, so `headers[\"Content-Type\"]` fails on the server that sends `content-type`; a successful response can have an empty body; and a response can claim to be JSON and be an HTML error page from a proxy in front of the service. Letting `json.loads` raise on its own would give a `JSONDecodeError` about char 0 that says nothing about which response or why - re-raising with `malformed` in the message puts the diagnosis where the reader of the traceback will look. The plain-text case is the reminder that JSON is a choice the server makes, not a property of every body.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A colleague proposes making the service client robust by wrapping every call in a loop that catches any exception and immediately tries again, up to ten times, with no timeout on the calls because the retries will cover it. Explain everything wrong with this design, describe what you would build instead, and say which failures you would not send again at all.",
+   "rubric": {
+    "required": [
+     "timeout",
+     "idempot",
+     "retr",
+     "back"
+    ],
+    "optional": [
+     "exponential",
+     "jitter",
+     "404",
+     "400",
+     "4xx",
+     "5xx",
+     "429",
+     "transient",
+     "hang",
+     "limit",
+     "POST",
+     "raise",
+     "bug",
+     "wait",
+     "delay",
+     "overload"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "designing-for-failure",
+    "timeouts-and-retries"
+   ],
+   "tags": [
+    "designing-for-failure",
+    "timeouts-and-retries"
+   ],
+   "explain": "Without a timeout the first hung call waits for ever, so the ten retries never get their turn - retries only work on failures that end. Catching any exception retries bugs, which fail identically ten times and bury the real traceback, and it retries 400s and 404s, whose answers cannot change. Immediate retries multiply the load on a service at exactly the moment it is struggling, which is why waits grow with backoff and carry jitter. And retrying a non-idempotent call such as a `POST` can repeat its effect. The replacement is a timeout on every call, retries only for transient failures, a small bounded number of attempts with growing waits, and a clear raise when they run out.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-24-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does it mean for an HTTP operation to be idempotent?",
+   "choices": [
+    "Performing it twice has the same effect on the server as performing it once.",
+    "It changes nothing on the server, so it can be sent as often as you like.",
+    "It returns exactly the same response body every time it is sent.",
+    "It is guaranteed to succeed, so it never needs a retry."
+   ],
+   "answer": 0,
+   "concepts": [
+    "designing-for-failure"
+   ],
+   "tags": [
+    "designing-for-failure"
+   ],
+   "explain": "Idempotency is about effect, not about output or safety: `DELETE /orders/7` changes the server, yet deleting it a second time leaves the same state as deleting it once, so it is idempotent. The second option describes a safe method such as `GET`, which is a stronger property, and confusing the two leads people to think `DELETE` and `PUT` cannot be retried. The third fails because a `GET` of a changing resource legitimately returns different bodies over time.",
+   "xp": 18
+  },
+  {
+   "id": "py-24-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true of an HTTP response.",
+   "choices": [
+    "It carries a three-digit status code.",
+    "Its headers are name-and-value pairs of text, and header names are compared without regard to case.",
+    "Its body is text or bytes, and it is JSON only if the server chose to send JSON.",
+    "It repeats the request's method, so a client can tell which request it answers.",
+    "A 404 status means the network connection failed."
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "http-basics",
+    "status-codes"
+   ],
+   "tags": [
+    "http-basics",
+    "status-codes"
+   ],
+   "explain": "A response is a status, headers and a body, and nothing more; the method belongs to the request, and a client knows which request a response answers because it sent that request on that connection. The last option is the costly misreading: a 404 is a complete, successful exchange with a working server that says the thing you asked for does not exist - if the connection had failed there would be no status at all.",
+   "xp": 18
+  },
+  {
+   "id": "py-24-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "import json\n\nsent = {\"ids\": {3, 1, 2}}\ntry:\n    wire = json.dumps(sent)\nexcept TypeError:\n    wire = json.dumps({\"ids\": sorted(sent[\"ids\"])})\nprint(wire)\ngot = json.loads(wire)\nprint(type(got[\"ids\"]).__name__, 2 in got[\"ids\"])\nprint(json.loads(\"[1.0, 1, true]\"))",
+   "lang": "python",
+   "answer": "{\"ids\": [1, 2, 3]}\nlist True\n[1.0, 1, True]",
+   "concepts": [
+    "json-round-trip"
+   ],
+   "tags": [
+    "json-round-trip"
+   ],
+   "explain": "`json.dumps` refuses a set outright, so the `except` branch sends a sorted list, and the far end rebuilds a list - membership still works, but the set's guarantee of no duplicates did not travel. JSON keeps the difference between `1.0` and `1`, and `true` becomes `True`. The tempting first line is a set printed in braces, from assuming `dumps` converts whatever it is handed; it refuses instead, and deciding the representation is your job.",
+   "xp": 36
+  },
+  {
+   "id": "py-24-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def outcome(status):\n    if 200 <= status < 300:\n        return \"success\"\n    if status == 404:\n        return \"absent\"\n    if status == 429 or status >= 500:\n        return \"try later\"\n    return \"fix the request\"\n\nfor status in (204, 404, 409, 429, 503):\n    print(status, outcome(status))",
+   "lang": "python",
+   "answer": "204 success\n404 absent\n409 fix the request\n429 try later\n503 try later",
+   "concepts": [
+    "status-codes"
+   ],
+   "tags": [
+    "status-codes"
+   ],
+   "explain": "204 falls in the 2xx class and is a success with no body; 404 is caught before the general case and treated as an answer; 409 is a client error about this request and belongs with the ones to fix; 429 is the one 4xx code that means slow down, which is why it is tested explicitly before the fallthrough. Reading 429 as fix the request is the common slip - it comes from classifying by first digit alone.",
+   "xp": 36
+  },
+  {
+   "id": "py-24-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the decoder. It turns a response body into Python objects and, when the body is not valid JSON, raises a `ValueError` saying so instead of letting the decoder's own exception escape.",
+   "template": "import json\n\ndef decode(body):\n    try:\n        return json.___(body)\n    except json.___ as err:\n        raise ValueError(\"malformed body: \" + str(err))",
+   "blanks": [
+    "loads",
+    "JSONDecodeError"
+   ],
+   "concepts": [
+    "json-round-trip"
+   ],
+   "tags": [
+    "json-round-trip"
+   ],
+   "explain": "`loads` reads a string and `load` reads a file object, and a response body in hand is a string. `json.JSONDecodeError` is the precise exception to catch - it is a subclass of `ValueError`, so catching `ValueError` would also work but says less, and catching `Exception` would swallow real bugs along with bad bodies.",
+   "xp": 36
+  },
+  {
+   "id": "py-24-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps of a single well-behaved call to a remote service into the order they happen.",
+   "fragments": [
+    "Send the request with a timeout, so that a silent server cannot hold the program for ever.",
+    "If a response arrived, look at its status: return on success, and raise at once if the request itself is at fault.",
+    "If the failure was transient, the request is safe to repeat and attempts remain, wait - longer each time - and try again.",
+    "When the attempts run out, raise the last failure instead of returning something that looks like an answer."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "concepts": [
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "explain": "The timeout comes first because every later step assumes the call ends; without it, the program can stall on step one for ever. Status is judged before any retry decision, because a 400 or a 404 must never reach the retry step. The final raise is last and matters most: the commonest failure of retry code is to fall out of the loop and return `None`, which the caller then mistakes for a real answer.",
+   "xp": 36
+  },
+  {
+   "id": "py-24-x-07",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "For each failed call below, decide whether an automatic retry policy should send it again. Write exactly `retry` or `stop`. Assume attempts remain in every case.",
+   "steps": [
+    {
+     "label": "GET /users/7 timed out with no response",
+     "expected": "retry"
+    },
+    {
+     "label": "GET /users/7 returned 404",
+     "expected": "stop"
+    },
+    {
+     "label": "POST /payments timed out, no idempotency key",
+     "expected": "stop"
+    },
+    {
+     "label": "POST /payments returned 503, sent with an idempotency key",
+     "expected": "retry"
+    },
+    {
+     "label": "PUT /users/7 returned 502",
+     "expected": "retry"
+    },
+    {
+     "label": "GET /reports returned 401",
+     "expected": "stop"
+    }
+   ],
+   "concepts": [
+    "designing-for-failure",
+    "status-codes"
+   ],
+   "tags": [
+    "designing-for-failure",
+    "status-codes"
+   ],
+   "explain": "Each line asks two questions: might another attempt give a different answer, and is it harmless if the first attempt got through. The timed-out `POST` without a key fails the second - the payment may already have gone through - so stopping is right even though a timeout is the classic transient failure. The key is what makes the other `POST` safe. The 404 and 401 fail the first question: nothing about the request will change between attempts.",
+   "xp": 72
+  },
+  {
+   "id": "py-24-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "collect_all",
+   "prompt": "A service returns a long list one page at a time. `get(path)` performs a `GET` and returns `(status, body)`; each successful page's body is a JSON object with an `items` array and a `next` field holding the path of the following page, or `null` on the last page. Write `collect_all(get, first_path)` returning every item from every page, in order. A page that does not come back with a 200 must stop the whole collection with a `RuntimeError` naming the status - partial results presented as complete are worse than none. And do not trust the server to be correct: if a `next` ever points at a page already fetched, raise `RuntimeError` with `loop` in the message rather than fetching for ever.\n\nThe tests pass a dictionary's own lookup as `get`, so each path answers with a response that was typed in.",
+   "solution": "import json\n\ndef collect_all(get, first_path):\n    items = []\n    seen = set()\n    path = first_path\n    while path is not None:\n        if path in seen:\n            raise RuntimeError(\"loop: \" + path + \" was already fetched\")\n        seen.add(path)\n        status, body = get(path)\n        if status != 200:\n            raise RuntimeError(\"page \" + path + \" returned \" + str(status))\n        page = json.loads(body)\n        items.extend(page[\"items\"])\n        path = page[\"next\"]\n    return items\n",
+   "tests": [
+    {
+     "input": "{\"/p1\": (200, '{\"items\": [1, 2], \"next\": \"/p2\"}'), \"/p2\": (200, '{\"items\": [3], \"next\": null}')}.__getitem__, \"/p1\"",
+     "expected": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "input": "{\"/p1\": (200, '{\"items\": [], \"next\": null}')}.__getitem__, \"/p1\"",
+     "expected": []
+    },
+    {
+     "input": "{\"/p1\": (200, '{\"items\": [\"a\"], \"next\": \"/p2\"}'), \"/p2\": (503, \"\")}.__getitem__, \"/p1\"",
+     "throws": "503"
+    },
+    {
+     "input": "{\"/p1\": (200, '{\"items\": [1], \"next\": \"/p2\"}'), \"/p2\": (200, '{\"items\": [2], \"next\": \"/p1\"}')}.__getitem__, \"/p1\"",
+     "throws": "loop"
+    },
+    {
+     "input": "{\"/a\": (200, '{\"items\": [\"x\"], \"next\": \"/b\"}'), \"/b\": (200, '{\"items\": [], \"next\": \"/c\"}'), \"/c\": (200, '{\"items\": [\"y\", \"z\"], \"next\": null}')}.__getitem__, \"/a\"",
+     "expected": [
+      "x",
+      "y",
+      "z"
+     ]
+    }
+   ],
+   "concepts": [
+    "http-basics",
+    "json-round-trip",
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "http-basics",
+    "json-round-trip",
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "explain": "JSON's `null` arrives as `None`, so the loop's stopping condition is a round-trip fact as much as a pagination one. The loop guard is designing for a server that is wrong rather than merely down: a pagination bug that points page two back at page one would otherwise make this function request for ever and grow `items` without limit. The empty middle page is the edge that shows an empty `items` does not mean the end - only `next` says that. And the whole thing is tested with a dictionary, because the function was written to receive its client instead of building one.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-x-09",
+   "type": "debug",
+   "layer": "application",
+   "fn": "get_json",
+   "prompt": "`get_json` is meant to call `client.get(path, timeout=5)` up to `attempts` times, retry only a timeout or a dropped connection, call `sleep` between attempts, raise the last failure if every attempt fails, and let any other error out at once. With a healthy client it seems fine. Under real failures it hides almost everything. Repair it. The starter's `FlakyClient` behaves as it did in guided practice, and every response it returns in these tests has status 200, so only the body needs decoding.",
+   "starterCode": "import json\n\nclass FlakyClient:\n    \"\"\"Fails its first `failures` calls, then answers. No network is involved.\"\"\"\n\n    def __init__(self, failures, answer, error=TimeoutError):\n        self.failures = failures\n        self.answer = answer\n        self.error = error\n        self.calls = 0\n\n    def get(self, path, timeout):\n        self.calls += 1\n        if self.calls <= self.failures:\n            raise self.error(\"no reply within \" + str(timeout) + \"s\")\n        return self.answer\n\ndef get_json(client, path, attempts, sleep):\n    for attempt in range(attempts):\n        try:\n            status, body = client.get(path, timeout=5)\n            return json.loads(body)\n        except Exception:\n            sleep(2 ** attempt)\n    return None\n",
+   "solution": "import json\n\nclass FlakyClient:\n    \"\"\"Fails its first `failures` calls, then answers. No network is involved.\"\"\"\n\n    def __init__(self, failures, answer, error=TimeoutError):\n        self.failures = failures\n        self.answer = answer\n        self.error = error\n        self.calls = 0\n\n    def get(self, path, timeout):\n        self.calls += 1\n        if self.calls <= self.failures:\n            raise self.error(\"no reply within \" + str(timeout) + \"s\")\n        return self.answer\n\ndef get_json(client, path, attempts, sleep):\n    for attempt in range(1, attempts + 1):\n        try:\n            status, body = client.get(path, timeout=5)\n        except (TimeoutError, ConnectionError):\n            if attempt == attempts:\n                raise\n            sleep(2 ** (attempt - 1))\n            continue\n        return json.loads(body)\n",
+   "tests": [
+    {
+     "input": "FlakyClient(2, (200, '{\"ok\": true}')), \"/h\", 3, lambda seconds: None",
+     "expected": {
+      "ok": true
+     }
+    },
+    {
+     "input": "FlakyClient(5, (200, \"{}\")), \"/h\", 3, lambda seconds: None",
+     "throws": "no reply"
+    },
+    {
+     "input": "FlakyClient(1, (200, '{\"n\": 1}'), ConnectionError), \"/h\", 2, lambda seconds: None",
+     "expected": {
+      "n": 1
+     }
+    },
+    {
+     "input": "FlakyClient(1, (200, '{\"n\": 1}'), KeyError), \"/h\", 3, lambda seconds: None",
+     "throws": true
+    },
+    {
+     "input": "FlakyClient(0, (200, \"not json\")), \"/h\", 3, lambda seconds: None",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "timeouts-and-retries",
+    "designing-for-failure"
+   ],
+   "explain": "`except Exception` is the root of three bugs at once: it retries a `KeyError` that is a defect in code, it retries a body that is not JSON - which will be exactly as malformed on every attempt - and together with the final `return None` it converts a total outage into an answer that looks like an empty result. The repair narrows the `try` to the network call alone, names the two exceptions that might pass, and re-raises on the last attempt. Keeping `json.loads` outside the `try` matters as much as the narrower `except`: code inside a `try` is code whose failures you have promised to handle.",
+   "xp": 90
+  },
+  {
+   "id": "py-24-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Every test of your weather-service client passes, and every one runs against a stub. A colleague says this proves the client works. Explain what these tests do prove, name at least two things about the real service that they cannot tell you, and describe what you would add to cover those gaps - bearing in mind that this environment itself can only ever run the stub.",
+   "rubric": {
+    "required": [
+     "stub",
+     "real",
+     "respon"
+    ],
+    "optional": [
+     "contract",
+     "assum",
+     "latency",
+     "timeout",
+     "shape",
+     "format",
+     "integration",
+     "record",
+     "sample",
+     "status",
+     "change",
+     "drift",
+     "network",
+     "logic",
+     "authent"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "tags": [
+    "stubbing",
+    "designing-for-failure"
+   ],
+   "explain": "Stub tests prove that your logic does the right thing with the responses you imagined: each status, each malformed body, each timeout, quickly and deterministically. They cannot prove that the real service sends what you imagined - the stub encodes your assumptions about field names, status codes and error bodies, and if those are wrong, or change next month, every test keeps passing. Nor can they show real latency, real authentication, rate limits or how the service actually fails. The usual answer is a small number of separate tests against the real service, or against responses recorded from it, run where a network exists; this browser sandbox cannot run those, which is exactly why the floor told you so rather than pretending.",
+   "xp": 40
+  }
+ ]
+}

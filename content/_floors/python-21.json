@@ -1,0 +1,1125 @@
+{
+ "n": 21,
+ "name": "The Hall of Borrowed Hands",
+ "goal": "Treat functions as values, and wrap behaviour without editing it.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 20
+  }
+ ],
+ "description": {
+  "what": "How Python treats a function as an ordinary value that can be named, stored, passed and returned; how an inner function keeps hold of the variables around it after its outer function has finished, and exactly what it captures; and how a decorator, built from nothing but those two ideas, wraps new behaviour around a function without touching its body.",
+  "why": "Serious Python code is full of functions handed to other functions and of `@` lines above definitions - for logging, caching, retries and access checks, and throughout the frameworks you will meet later - and code you cannot read at that level is code you cannot safely change, while the one closure bug nearly everybody writes hides inside a loop that looks perfectly correct.",
+  "enables": "You will be able to pass behaviour into a function instead of copying it, build small functions that carry their own state, write a decorator that keeps the name and documentation of whatever it wraps, give a decorator settings of its own, and find and fix the loop that made every function share one variable.",
+  "assumes": "You can write functions with parameters and return values, you know that a name created inside a function belongs to that call, you have used lists, dictionaries, iterators and exceptions, and you have imported a module from the standard library.",
+  "assessed": "You will predict what programs full of passed, returned and decorated functions print and when each part runs, write wrappers that pass every argument through and keep the original's identity, repair the late-binding bug in more than one disguise, and decide - in at least one place where the answer is no - whether wrapping a function is the right tool at all."
+ },
+ "concepts": [
+  "first-class-functions",
+  "closures",
+  "decorators",
+  "functools-wraps",
+  "higher-order-functions",
+  "late-binding-trap"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Function Is a Value",
+    "body": "When Python runs a `def` statement it does two things: it builds a **function object**, and it binds a name to that object - exactly as `x = 5` builds an integer and binds `x` to it. The name is not the function; it is a label stuck on it. So everything you can do with any other value, you can do with a function. You can give it a second name, put it in a list or a dictionary, pass it to another function as an argument, and hand it back from a function as a result. A language that allows all four is said to have **first-class functions**, and Python has them.\n\nThe one thing that sets a function apart from other values is that it can be called, and the brackets are the call. `shout` is the function; `shout(\"hi\")` runs it, and the whole expression is whatever it returned. Leaving the brackets off by accident is a classic slip - `if account.is_locked:` without them is always true, because a function object is truthy whatever it would have returned - and adding them where they do not belong is the other: `apply_twice(shout(), \"hi\")` calls `shout` on the spot, with no argument, instead of handing it over to be called later.\n\nA function that takes another function as an argument, or returns one, is a **higher-order function**. You have met them without the name. `max(words, key=len)` hands `len` itself to `max`, which calls it on each word and compares the answers instead of the words. `sorted`, `min` and `max` all accept a `key` function, and `map(func, items)` and `filter(func, items)` apply a function across an iterable lazily - they hand back iterators, exactly like the generators of the last floor.\n\nWhen the function you need is one short expression used in one place, `lambda` writes it inline: `lambda w: w[-1]` is a function of one parameter, `w`, that returns its last character. It is an expression rather than a statement, so it has no name of its own, no docstring and room for only one expression. Use it for a short `key` and nothing longer. `double = lambda n: n * 2` is simply a worse `def`, and `[n * 2 for n in rows]` is almost always clearer than `list(map(lambda n: n * 2, rows))`.",
+    "code": "def shout(text):\n    return text.upper() + \"!\"\n\nspeak = shout\nprint(speak(\"hello\"))\nprint(speak is shout, speak.__name__)\n\ndef apply_twice(func, value):\n    return func(func(value))\n\nprint(apply_twice(shout, \"hi\"))\n\nactions = {\"loud\": shout, \"quiet\": str.lower}\nprint(actions[\"quiet\"](\"HUSH\"))\n\nwords = [\"fig\", \"apple\", \"kiwi\"]\nprint(max(words, key=len))\nprint(sorted(words, key=lambda w: w[-1]))\nprint(list(map(len, words)))\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "No brackets, so nothing is called. `speak` becomes a second label on the very same function object."
+     },
+     {
+      "line": 9,
+      "text": "`func` is an ordinary parameter that happens to hold a function, so it can be called like one - twice, here."
+     },
+     {
+      "line": 13,
+      "text": "A dictionary of functions is a dispatch table: look the behaviour up by key, then call it. `str.lower` is a function too, reached through the class."
+     },
+     {
+      "line": 17,
+      "text": "`len` is handed over, not called. `max` calls it once per word and compares the lengths, then gives back the word, not the length."
+     },
+     {
+      "line": 18,
+      "text": "A `lambda` for a key used once. Sorting by last letter puts `apple` (e) before `fig` (g) before `kiwi` (i)."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def greet(name):\n    return \"hello \" + name\n\nsay = greet\ngreet = None\nprint(say(\"ada\"))\nprint(say.__name__)\n",
+     "lang": "python",
+     "answer": "hello ada\ngreet",
+     "concepts": [
+      "first-class-functions"
+     ],
+     "tags": [
+      "first-class-functions"
+     ],
+     "explain": "Rebinding `greet` to `None` moves one label; it does nothing to the function object, which `say` still refers to. The object still reports `greet` as its name because `__name__` was fixed when the `def` ran, not looked up from whichever label you happen to be holding. Expecting an error here comes from thinking the name is the function."
+    }
+   },
+   {
+    "title": "The Inner Function That Remembers",
+    "body": "A `def` can sit inside another function's body. The inner function is built afresh every time the outer one runs, and it can read the outer function's local names. None of that is surprising until the outer function **returns** the inner one. By the rule you learnt with functions, a call's local names disappear when the call ends. These do not, because something still needs them: the inner function carries them along. A function bundled together with the variables it uses from the scope around it is a **closure**, and `make_multiplier(3)` below hands back a function that still knows `factor` is 3 long after `make_multiplier` has returned.\n\nWhat a closure captures can be stated exactly: **the variable, not the value**. Python keeps each shared variable in a small box called a cell, and the inner function looks inside the box every time it runs. If code in the outer function changes that variable after the inner one was defined, the inner one sees the change. Reading an enclosing variable needs nothing special. Assigning to one does: `count += 1` inside the inner function makes `count` local to it, Python then reads a local that has no value yet, and you get `UnboundLocalError`. Writing `nonlocal count` first says that this name belongs to the enclosing function and must be rebound there. With it, each call to `make_counter()` builds an independent counter with its own private cell.\n\nNow the classic bug, which follows directly from that rule. Define functions inside a loop and every one of them captures **the same** loop variable - one variable, reassigned on every pass. By the time you call them the loop has finished and the variable holds its last value, so every function gives the last answer. This is **late binding**: the name is looked up when the function runs, not when it was defined. Nothing raises, and the code looks correct.\n\nThe fix is to give each function a variable of its own. Call a small factory once per pass, as `make_multiplier` does, and every call makes a fresh cell. You will also meet `lambda n=n: n * 10`, which works for a different reason: a **default parameter value** is evaluated once, when the function is defined, and stored on the function - so each lambda keeps its own copy of the value at that moment. A closure is the right shape for one operation over one piece of private state. When other code needs to read that state, reset it, or do several different things to it, a class says so honestly and a pile of closures does not.",
+    "code": "def make_multiplier(factor):\n    def multiply(n):\n        return n * factor\n    return multiply\n\ntriple = make_multiplier(3)\nprint(triple(5), make_multiplier(10)(5))\n\ndef make_counter():\n    count = 0\n    def step():\n        nonlocal count\n        count += 1\n        return count\n    return step\n\ntick = make_counter()\ntock = make_counter()\nprint(tick(), tick(), tock())\n\nlate = []\nfor n in [1, 2, 3]:\n    late.append(lambda: n * 10)\nprint([f() for f in late])\n\nfixed = [make_multiplier(n) for n in [1, 2, 3]]\nprint([f(10) for f in fixed])\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`factor` is not local to `multiply`. It is found in the enclosing call, and that call's variable is kept alive for as long as `multiply` exists."
+     },
+     {
+      "line": 12,
+      "text": "Without this line, `count += 1` makes `count` local to `step` and the first call raises `UnboundLocalError`."
+     },
+     {
+      "line": 19,
+      "text": "`1 2 1`: two separate calls to `make_counter` made two separate cells, so `tock` starts again from nothing."
+     },
+     {
+      "line": 23,
+      "text": "Three lambdas, one variable `n`. None of them reads it until they are called, by which time the loop has left it at 3."
+     },
+     {
+      "line": 26,
+      "text": "The fix: each call to `make_multiplier` has its own `factor`, so each function keeps the value it was built with."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "makers = []\nfor n in [1, 2, 3]:\n    def show():\n        return n\n    makers.append(show)\nprint([m() for m in makers])\nn = 10\nprint(makers[0]())\n",
+     "lang": "python",
+     "answer": "[3, 3, 3]\n10",
+     "concepts": [
+      "late-binding-trap",
+      "closures"
+     ],
+     "tags": [
+      "late-binding-trap",
+      "closures"
+     ],
+     "explain": "All three functions read the same variable `n`, and they read it when they are called, not when they were defined - so the first line shows the loop's final value three times, and after `n = 10` the very first function reports `10`, a value that never appeared in the list at all. The tempting `[1, 2, 3]` comes from imagining each `def` photographed `n` as it went past."
+    }
+   },
+   {
+    "title": "A Decorator Is Just a Function",
+    "body": "Suppose twenty functions all need the same extra behaviour - a log line on every call, a check on their arguments, a count of how often they run. Pasting the same lines into twenty bodies means twenty copies to keep in step, and the next change has to find all of them. Everything so far gives a better answer: write one function that **takes a function and returns a replacement**, where the replacement does the extra work and calls the original in the middle. That is the whole of a **decorator**. There is no other machinery hiding behind the word.\n\nThe replacement - by convention called `wrapper` - has to accept whatever arguments the original took, and it cannot know them in advance. Two pieces of syntax deal with that. In a `def`, `*args` collects any positional arguments into a tuple and `**kwargs` collects any keyword arguments into a dictionary; in a call, `func(*args, **kwargs)` spreads them back out exactly as they arrived. Between them, the wrapper passes everything through untouched. It must also **return** what the original returned, or every decorated function quietly starts returning `None` and nothing tells you why.\n\nThen the syntax. Writing `@logged` on the line above `def add` means precisely `add = logged(add)`, run once, straight after the function is defined: the original is handed to `logged`, and the name `add` is rebound to whatever comes back. So the decorator itself runs **at definition time**, when the module is imported, and only the wrapper runs at call time. Stack two decorators and they apply from the bottom up, nearest the `def` first: `@a` above `@b` means `f = a(b(f))`.\n\nA decorator is the right tool when the extra behaviour is genuinely separate from what the function is for, and applies unchanged to many functions. It is the wrong tool for something only one function needs, which belongs in that function's body where a reader will find it. It is also wrong for anything that should happen at only some call sites, because decorating a definition changes that function for every caller in the program. When you want the extra behaviour at one call, wrap it there - `logged(add)(2, 3)` - and leave the definition alone.",
+    "code": "def logged(func):\n    print(\"decorating\", func.__name__)\n    def wrapper(*args, **kwargs):\n        print(\"calling\", func.__name__, args, kwargs)\n        result = func(*args, **kwargs)\n        print(\"returned\", result)\n        return result\n    return wrapper\n\n@logged\ndef add(a, b):\n    return a + b\n\nprint(\"defined\")\ntotal = add(2, b=3)\nprint(total, add.__name__)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "This runs once, when `add` is defined - before `defined` is printed and before anybody calls anything."
+     },
+     {
+      "line": 3,
+      "text": "`args` arrives as the tuple `(2,)` and `kwargs` as the dictionary `{'b': 3}`, whatever shape the call took."
+     },
+     {
+      "line": 5,
+      "text": "The stars in a call spread the tuple and dictionary back out, so the original sees exactly the arguments the caller wrote."
+     },
+     {
+      "line": 7,
+      "text": "Forget this line and the program still runs - and `total` is `None`."
+     },
+     {
+      "line": 10,
+      "text": "Nothing more than `add = logged(add)`, written where the reader will see it."
+     },
+     {
+      "line": 16,
+      "text": "`wrapper`, not `add`. The name now belongs to the replacement, and the next section is about why that matters."
+     }
+    ],
+    "checkpoint": {
+     "type": "fill",
+     "layer": "retrieval",
+     "prompt": "Fill the blanks so that `tidy` strips the spaces from whatever the function it wraps returns, is applied to `label`, and the program prints `ok`.",
+     "template": "def tidy(func):\n    def wrapper(*args, **kwargs):\n        return func(*args, **kwargs).strip()\n    return ___\n\n___\ndef label(text):\n    return '   ' + text + '   '\n\nprint(label('ok'))",
+     "blanks": [
+      "wrapper",
+      "@tidy"
+     ],
+     "concepts": [
+      "decorators"
+     ],
+     "tags": [
+      "decorators"
+     ],
+     "explain": "The decorator returns the wrapper itself - the function, without brackets - and `@tidy` rebinds `label` to that wrapper. Writing `return wrapper()` is the tempting slip: it would call the wrapper at definition time with no arguments and hand back a string, and the next call to `label` would fail because a string cannot be called."
+    }
+   },
+   {
+    "title": "Keeping the Name, and Taking Arguments",
+    "body": "The last example printed `wrapper` as the name of `add`. After decoration the name `add` refers to the wrapper, so it reports the wrapper's name, the wrapper's missing docstring and the wrapper's parameters. That is not cosmetic. Tracebacks, logging, `help()`, test reports and any other decorator stacked on top all read those attributes, and a codebase in which half the functions call themselves `wrapper` is miserable to debug.\n\n`functools.wraps(func)` repairs it. Placed as a decorator on the wrapper, it copies `__name__`, `__doc__`, `__qualname__` and `__module__` from the original onto the wrapper, merges in any attributes the original carried, and stores the original itself as `__wrapped__`, so tools - and you - can still reach the undecorated function. It changes nothing about behaviour. Put it on every wrapper you write; there is no situation in which losing the name was what you wanted.\n\nLook at the brackets in `@functools.wraps(func)`. `wraps` is not applied to the wrapper directly: it is called with `func`, and what it **returns** is the decorator. That is how any decorator takes arguments. `@retry(3)` first calls `retry(3)`, which returns a decorator that remembers `3` in a closure, and that decorator is then applied to the function below. So a decorator with arguments is three functions deep - the outer takes the settings, the middle takes the function, the inner is the wrapper - and each is a closure over the one outside it. Stop there: a fourth level is a sign that a class, or a plain function call, would say it more clearly.\n\nTwo more facts complete the picture. Functions are objects, so you can hang attributes on them: `wrapper.calls = 0` gives a wrapper a counter that any caller can read. And the standard library's decorators are built exactly like yours. `functools.cache` remembers each result against its arguments and hands it straight back on a repeat call, which is only correct for a function whose answer depends on nothing but those arguments - wrap one that reads a clock, a file or a dictionary somebody edits and it will cheerfully go on returning the old answer. Its arguments must also be hashable, because they become a dictionary key.",
+    "code": "import functools\n\ndef retry(times):\n    def decorate(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(1, times + 1):\n                try:\n                    return func(*args, **kwargs)\n                except ValueError:\n                    print(\"attempt\", attempt, \"failed\")\n                    if attempt == times:\n                        raise\n        return wrapper\n    return decorate\n\nreadings = iter([\"n/a\", \"\", \"42\"])\n\n@retry(3)\ndef next_reading():\n    \"\"\"Read the next value from the sensor as a whole number.\"\"\"\n    return int(next(readings))\n\nprint(next_reading())\nprint(next_reading.__name__, \"-\", next_reading.__doc__)\n",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "The outer function takes only the settings. `times` is captured by the two functions inside it."
+     },
+     {
+      "line": 4,
+      "text": "This is the actual decorator - the thing `@retry(3)` hands the function to."
+     },
+     {
+      "line": 5,
+      "text": "Copies the name and docstring across. Delete it and line 25 prints `wrapper - None`."
+     },
+     {
+      "line": 13,
+      "text": "A bare `raise` re-raises the error being handled, so the caller sees the real failure after the last attempt, not a vague one of your own."
+     },
+     {
+      "line": 17,
+      "text": "A stand-in for something unreliable. Real retries wrap network calls, and this environment has no network at all, so an iterator that fails twice plays the part."
+     },
+     {
+      "line": 19,
+      "text": "`retry(3)` runs first and returns `decorate`; then `next_reading = decorate(next_reading)`."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "import functools\n\ndef plain(func):\n    def wrapper(*args, **kwargs):\n        return func(*args, **kwargs)\n    return wrapper\n\ndef kept(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        return func(*args, **kwargs)\n    return wrapper\n\n@plain\ndef area(w, h):\n    \"\"\"Rectangle area.\"\"\"\n    return w * h\n\n@kept\ndef volume(w, h, d):\n    \"\"\"Box volume.\"\"\"\n    return w * h * d\n\nprint(area.__name__, area.__doc__)\nprint(volume.__name__, volume.__doc__)\nprint(area(2, 3), volume(1, 2, 3))\n",
+     "lang": "python",
+     "answer": "wrapper None\nvolume Box volume.\n6 6",
+     "concepts": [
+      "functools-wraps"
+     ],
+     "tags": [
+      "functools-wraps"
+     ],
+     "explain": "Both decorators behave identically when called, which is the last line; the only difference is what the decorated function says about itself. Without `wraps`, `area` is simply the wrapper, and the wrapper has its own name and no docstring. Expecting `area Rectangle area.` comes from assuming decoration keeps the original's identity automatically - it never does."
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-21-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? The functions are stored in a list and a dictionary and called from there - the brackets that call them come after the lookup.",
+   "code": "def double(n):\n    return n * 2\n\ndef square(n):\n    return n * n\n\nsteps = [double, square, double]\nvalue = 3\nfor step in steps:\n    value = step(value)\nprint(value)\nprint(double.__name__, steps[1].__name__)\n\nops = {\"d\": double, \"s\": square}\nprint(ops[\"s\"](ops[\"d\"](2)))\n",
+   "lang": "python",
+   "answer": "72\ndouble square\n16",
+   "concepts": [
+    "first-class-functions",
+    "higher-order-functions"
+   ],
+   "tags": [
+    "first-class-functions"
+   ],
+   "explain": "The list holds the functions themselves, so the loop applies them in order: 3 doubles to 6, squares to 36, doubles to 72. The last line works from the inside out - `double(2)` is 4 and `square(4)` is 16 - and reading it left to right, squaring first, is where the tempting 8 comes from.",
+   "hint": "Walk the loop by hand: `value` is replaced by each function's result in turn. For the last line, the innermost call happens first.",
+   "xp": 30
+  },
+  {
+   "id": "py-21-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "best_by",
+   "prompt": "Write the higher-order function `best_by(items, score)`. `score` is a function; the result is the item for which `score(item)` is largest. When two items tie, the earlier one wins, and an empty list gives `None`.\n\n`best_by(['fig', 'apple', 'kiwi'], len)` gives `'apple'`, and `best_by([3, -7, 5], abs)` gives `-7`.",
+   "starterCode": "def best_by(items, score):\n    best = None\n    best_score = None\n    found = False\n    for item in items:\n        # call score on the item, and keep the item if it is the\n        # first one or strictly beats the best score so far\n        pass\n    return best\n",
+   "solution": "def best_by(items, score):\n    best = None\n    best_score = None\n    found = False\n    for item in items:\n        s = score(item)\n        if not found or s > best_score:\n            best = item\n            best_score = s\n            found = True\n    return best\n",
+   "tests": [
+    {
+     "input": "['fig', 'apple', 'kiwi'], len",
+     "expected": "apple"
+    },
+    {
+     "input": "[], len",
+     "expected": null
+    },
+    {
+     "input": "[3, -7, 5], abs",
+     "expected": -7
+    },
+    {
+     "input": "['bb', 'aa'], len",
+     "expected": "bb"
+    },
+    {
+     "input": "['ash', 'Elm', 'birch'], str.lower",
+     "expected": "Elm"
+    }
+   ],
+   "concepts": [
+    "higher-order-functions",
+    "first-class-functions"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "first-class-functions"
+   ],
+   "explain": "The function never needs to know what `score` measures - length, size, alphabetical order - which is the entire value of taking behaviour as an argument: one loop serves every ranking anybody will ever want. The tie rule is the edge: `>=` instead of `>` quietly lets the later item win. In real code, `max(items, key=score, default=None)` is this function, already written.",
+   "hint": "Compute `s = score(item)` once per item. Replace the best when nothing has been found yet, or when `s > best_score` - strictly greater, so an earlier item keeps a tie.",
+   "xp": 80
+  },
+  {
+   "id": "py-21-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Write `make_accumulator(start)`. It returns a function `add(amount)` which adds `amount` to a running total that begins at `start`, and returns the new total. Each accumulator keeps its own total, entirely separate from any other.\n\n`acc = make_accumulator(100)`, then `acc(5)` gives `105` and `acc(10)` gives `115`.",
+   "starterCode": "def make_accumulator(start):\n    total = start\n    def add(amount):\n        # total belongs to the enclosing function -\n        # declare that before you change it\n        pass\n    return add\n",
+   "solution": "def make_accumulator(start):\n    total = start\n    def add(amount):\n        nonlocal total\n        total += amount\n        return total\n    return add\n",
+   "tests": [
+    {
+     "input": "[acc(n) for acc in [make_accumulator(100)] for n in [5, 10, -3]]",
+     "expected": [
+      105,
+      115,
+      112
+     ]
+    },
+    {
+     "input": "[(a(1), b(1), a(1)) for a in [make_accumulator(0)] for b in [make_accumulator(10)]]",
+     "expected": [
+      [
+       1,
+       11,
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[acc(0) for acc in [make_accumulator(7)]]",
+     "expected": [
+      7
+     ]
+    },
+    {
+     "input": "[acc(0.5) for acc in [make_accumulator(-1)] for _ in range(3)]",
+     "expected": [
+      -0.5,
+      0.0,
+      0.5
+     ]
+    }
+   ],
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures"
+   ],
+   "explain": "The total has to survive between calls, and the enclosing call's variable is where it lives - kept alive by the closure long after `make_accumulator` returned. Leaving out `nonlocal` gives `UnboundLocalError` on the first call, because `total += amount` makes `total` local to `add`. The second test is the one that catches a module-level total: two accumulators must not share one number.",
+   "hint": "Write `nonlocal total` as the first line of `add`, then add to `total` and return it.",
+   "xp": 80
+  },
+  {
+   "id": "py-21-gp-04",
+   "type": "debug",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "`make_checks(limits)` returns one function per limit; each takes a value and reports whether the value is at most its own limit. With limits `[10, 20, 30]`, checking `15` should give `False, True, True` - instead every check answers as if its limit were `30`.\n\nThis is the late-binding trap. Repair it so each check keeps its own limit.",
+   "starterCode": "def make_checks(limits):\n    checks = []\n    for limit in limits:\n        def check(value):\n            return value <= limit\n        checks.append(check)\n    return checks\n",
+   "solution": "def make_check(limit):\n    def check(value):\n        return value <= limit\n    return check\n\ndef make_checks(limits):\n    checks = []\n    for limit in limits:\n        checks.append(make_check(limit))\n    return checks\n",
+   "tests": [
+    {
+     "input": "[check(15) for check in make_checks([10, 20, 30])]",
+     "expected": [
+      false,
+      true,
+      true
+     ]
+    },
+    {
+     "input": "[check(25) for check in make_checks([30, 20])]",
+     "expected": [
+      true,
+      false
+     ]
+    },
+    {
+     "input": "[check(5) for check in make_checks([])]",
+     "expected": []
+    },
+    {
+     "input": "[check(9) for check in make_checks([9])]",
+     "expected": [
+      true
+     ]
+    },
+    {
+     "input": "[check(10) for check in make_checks([10, 5, 10])]",
+     "expected": [
+      true,
+      false,
+      true
+     ]
+    }
+   ],
+   "concepts": [
+    "late-binding-trap",
+    "closures"
+   ],
+   "tags": [
+    "late-binding-trap",
+    "closures"
+   ],
+   "explain": "Every `check` closes over the one variable `limit`, which the loop reassigns and leaves at its last value, so the checks are only told their limit when they run - after the loop is over. A factory called once per pass gives each function its own `limit`. The single-limit test is why this bug survives code review: with one limit there is nothing to share, and everything passes.",
+   "hint": "Move the inner `def` into a separate function `make_check(limit)` that returns it, and call that once per limit - each call makes a fresh `limit` for its function to keep.",
+   "xp": 80
+  },
+  {
+   "id": "py-21-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Write the decorator `shout(func)`. It returns a replacement that calls `func` with exactly the arguments it was given - positional and keyword alike - and returns the result in capitals. Once it works, this is legal:\n\n`@shout` above `def greet(name): return 'hi ' + name`, after which `greet('ada')` gives `'HI ADA'`. Applied by hand, `shout(str.strip)('  hi  ')` gives `'HI'`.",
+   "starterCode": "def shout(func):\n    def wrapper(*args, **kwargs):\n        # call the original with the arguments you were given,\n        # then hand its result back in capitals\n        pass\n    return wrapper\n",
+   "solution": "def shout(func):\n    def wrapper(*args, **kwargs):\n        return func(*args, **kwargs).upper()\n    return wrapper\n",
+   "tests": [
+    {
+     "input": "[shout(str.strip)('  hi  ')]",
+     "expected": [
+      "HI"
+     ]
+    },
+    {
+     "input": "[shout(str.join)('-', ['a', 'b'])]",
+     "expected": [
+      "A-B"
+     ]
+    },
+    {
+     "input": "[shout('{} {n}'.format)('a', n='b')]",
+     "expected": [
+      "A B"
+     ]
+    },
+    {
+     "input": "[shout(str.strip)('   ')]",
+     "expected": [
+      ""
+     ]
+    },
+    {
+     "input": "[(f('x'), f('yz')) for f in [shout(str.title)]]",
+     "expected": [
+      [
+       "X",
+       "YZ"
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "decorators"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "`*args` and `**kwargs` let one wrapper stand in for a function of any shape: it neither knows nor cares that `str.join` takes two arguments and `format` takes a keyword. The keyword test is the one that fails a wrapper written as `wrapper(*args)`, and the empty-string test catches a wrapper that returns early on a falsy result instead of passing everything through.",
+   "hint": "One line in the wrapper: `return func(*args, **kwargs).upper()`.",
+   "xp": 80
+  },
+  {
+   "id": "py-21-gp-06",
+   "type": "debug",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "`count_calls(func)` wraps a function and counts how many times it is called, in the wrapper's `calls` attribute. The counting is right. The trouble is everything else: every function it decorates now reports its name as `wrapper`, its docstring as `None`, and the error reports and the documentation tool list forty functions all called `wrapper`.\n\nUse `functools.wraps` so each decorated function keeps its identity - and keep the counting working.",
+   "starterCode": "def count_calls(func):\n    def wrapper(*args, **kwargs):\n        wrapper.calls += 1\n        return func(*args, **kwargs)\n    wrapper.calls = 0\n    return wrapper\n",
+   "solution": "import functools\n\ndef count_calls(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        wrapper.calls += 1\n        return func(*args, **kwargs)\n    wrapper.calls = 0\n    return wrapper\n",
+   "tests": [
+    {
+     "input": "[count_calls(len).__name__]",
+     "expected": [
+      "len"
+     ]
+    },
+    {
+     "input": "[count_calls(abs).__doc__ == abs.__doc__]",
+     "expected": [
+      true
+     ]
+    },
+    {
+     "input": "[(w(-2), w(3), w.calls) for w in [count_calls(abs)]]",
+     "expected": [
+      [
+       2,
+       3,
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[count_calls(len).__wrapped__ is len]",
+     "expected": [
+      true
+     ]
+    },
+    {
+     "input": "[w.calls for w in [count_calls(len)]]",
+     "expected": [
+      0
+     ]
+    }
+   ],
+   "concepts": [
+    "functools-wraps",
+    "decorators"
+   ],
+   "tags": [
+    "functools-wraps",
+    "decorators"
+   ],
+   "explain": "`wraps` is itself applied to the wrapper, with the original as its argument, and it copies the identity across while leaving the behaviour alone - which is why the counting tests pass before and after. Order matters in one quiet way: `wraps` copies the original's attributes onto the wrapper at the moment the wrapper is defined, so `calls = 0` must be set after that line, where nothing can overwrite it.",
+   "hint": "`import functools`, then put `@functools.wraps(func)` on the line directly above `def wrapper`.",
+   "xp": 80
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-21-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "A toolbar is built from a list of labels, and each button needs something to call when it is pressed. Write `make_handlers(labels)`, returning a dictionary from each label to a function that takes no arguments and returns the text `clicked ` followed by that label.\n\nThe handlers are called long after the toolbar has been built, never while it is being built. `make_handlers(['open', 'save'])['open']()` gives `'clicked open'`.",
+   "solution": "def make_handler(label):\n    def handler():\n        return \"clicked \" + label\n    return handler\n\ndef make_handlers(labels):\n    handlers = {}\n    for label in labels:\n        handlers[label] = make_handler(label)\n    return handlers\n",
+   "tests": [
+    {
+     "input": "[h() for h in make_handlers(['open', 'save']).values()]",
+     "expected": [
+      "clicked open",
+      "clicked save"
+     ]
+    },
+    {
+     "input": "[make_handlers(['a', 'b', 'c'])['a']()]",
+     "expected": [
+      "clicked a"
+     ]
+    },
+    {
+     "input": "make_handlers([])",
+     "expected": []
+    },
+    {
+     "input": "[make_handlers(['x'])['x'](), make_handlers(['x', 'y'])['x']()]",
+     "expected": [
+      "clicked x",
+      "clicked x"
+     ]
+    },
+    {
+     "input": "sorted(make_handlers(['b', 'a']))",
+     "expected": [
+      "a",
+      "b"
+     ]
+    }
+   ],
+   "concepts": [
+    "late-binding-trap",
+    "closures"
+   ],
+   "tags": [
+    "late-binding-trap",
+    "closures"
+   ],
+   "explain": "Defining the handler inside the loop is the natural first draft, and every button then says `clicked` followed by the last label, because all the handlers share one loop variable and read it only when pressed. The one-label test passes either way, which is exactly how this ships: the fault appears only when there is more than one button. A factory per label, or a default parameter value, gives each handler a label of its own.",
+   "xp": 95
+  },
+  {
+   "id": "py-21-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Several functions that read from an unreliable source sometimes raise `ValueError`, and succeed if simply asked again. None of them may be edited. Write `retry(times)` so that `retry(3)(func)` produces a function that behaves exactly like `func` - same arguments, including keyword arguments, same result - except that a call which raises `ValueError` is attempted again, up to `times` attempts in all. If the last attempt fails, that error must reach the caller unchanged. Any other kind of exception is not retried. The result must still report the original's `__name__` and docstring.\n\n`retry(3)(int)('42')` gives `42`.",
+   "solution": "import functools\n\ndef retry(times):\n    def decorate(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(1, times + 1):\n                try:\n                    return func(*args, **kwargs)\n                except ValueError:\n                    if attempt == times:\n                        raise\n        return wrapper\n    return decorate\n",
+   "tests": [
+    {
+     "input": "[retry(3)(int)('42')]",
+     "expected": [
+      42
+     ]
+    },
+    {
+     "input": "[retry(3)(lambda it=iter(['x', '', '7']): int(next(it)))()]",
+     "expected": [
+      7
+     ]
+    },
+    {
+     "input": "retry(2)(lambda it=iter(['x', '', '7']): int(next(it)))()",
+     "throws": "invalid literal"
+    },
+    {
+     "input": "[retry(1)(int)('ff', base=16)]",
+     "expected": [
+      255
+     ]
+    },
+    {
+     "input": "retry(3)(lambda it=iter([None, '5']): int(next(it)))()",
+     "throws": "NoneType"
+    },
+    {
+     "input": "[retry(3)(len).__name__, retry(3)(len).__doc__ == len.__doc__]",
+     "expected": [
+      "len",
+      true
+     ]
+    }
+   ],
+   "concepts": [
+    "decorators",
+    "functools-wraps",
+    "closures"
+   ],
+   "tags": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "explain": "The shape `retry(3)(func)` is three layers: a function taking the setting, returning one taking the function, returning the replacement - each a closure over the layer outside it. The two failure tests pull in opposite directions: a wrapper that catches everything retries the `TypeError` and hides a real bug behind a lucky second attempt, while one that swallows the last `ValueError` returns `None` and turns a loud failure into a silent wrong answer.",
+   "xp": 95
+  },
+  {
+   "id": "py-21-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "`quote(prices, item, quantity)` returns the cost of `quantity` of `item` at the price currently listed in the dictionary `prices`, and raises `KeyError` for an item that is not listed. The shop calls it thousands of times a minute, nearly always with the same few items and quantities, and a colleague suggests remembering each answer the first time it is worked out so that repeat calls cost nothing.\n\nThe price table is the live one: staff edit it while the program runs, and a customer must always be quoted the price listed at that moment. Write `quote`. `quote({'tea': 3}, 'tea', 2)` gives `6`.",
+   "solution": "def quote(prices, item, quantity):\n    return prices[item] * quantity\n",
+   "tests": [
+    {
+     "input": "[quote({'tea': 3}, 'tea', 2)]",
+     "expected": [
+      6
+     ]
+    },
+    {
+     "input": "[quote(p, 'tea', 2) for p in [{'tea': 3}, {'tea': 5}]]",
+     "expected": [
+      6,
+      10
+     ]
+    },
+    {
+     "input": "[(quote(p, 'tea', 1), p.update(tea=4), quote(p, 'tea', 1)) for p in [{'tea': 3}]]",
+     "expected": [
+      [
+       3,
+       null,
+       4
+      ]
+     ]
+    },
+    {
+     "input": "[quote({'jam': 2.5}, 'jam', 0)]",
+     "expected": [
+      0.0
+     ]
+    },
+    {
+     "input": "quote({'tea': 3}, 'coffee', 1)",
+     "throws": "coffee"
+    }
+   ],
+   "concepts": [
+    "decorators",
+    "higher-order-functions"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "Remembering answers is only correct when the answer depends on nothing but the arguments, and this one depends on a table that changes underneath it - a cache keyed on item and quantity quotes yesterday's price, which the second and third tests catch. `functools.cache` would fail sooner and more honestly, because a dictionary is unhashable and cannot be part of a key. The right answer is to not cache at all: one dictionary lookup and one multiplication is already cheap, and nobody measured that it was the slow part.",
+   "xp": 95
+  },
+  {
+   "id": "py-21-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "A data-cleaning job is configured as a list of steps, each a function that takes one value and returns one value. Write `pipeline(steps)`, which returns a single function of one value: it feeds the value through every step in order, first to last, and returns whatever the final step produces. An empty list of steps passes the value through unchanged.\n\nThe configuration list may be edited after a pipeline has been built from it, and a pipeline already built must not change when that happens. `pipeline([str.strip, str.lower])('  HeLLo ')` gives `'hello'`.",
+   "solution": "def pipeline(steps):\n    frozen = list(steps)\n    def run(value):\n        for step in frozen:\n            value = step(value)\n        return value\n    return run\n",
+   "tests": [
+    {
+     "input": "[pipeline([str.strip, str.lower])('  HeLLo ')]",
+     "expected": [
+      "hello"
+     ]
+    },
+    {
+     "input": "[pipeline([])(42)]",
+     "expected": [
+      42
+     ]
+    },
+    {
+     "input": "[pipeline([abs, str, len])(-120)]",
+     "expected": [
+      3
+     ]
+    },
+    {
+     "input": "[(p(2), p(3)) for p in [pipeline([lambda n: n + 1, lambda n: n * 10])]]",
+     "expected": [
+      [
+       30,
+       40
+      ]
+     ]
+    },
+    {
+     "input": "[(p(' A '), s.append(len), p(' A ')) for s in [[str.strip, str.lower]] for p in [pipeline(s)]]",
+     "expected": [
+      [
+       "a",
+       null,
+       "a"
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "higher-order-functions",
+    "closures",
+    "first-class-functions"
+   ],
+   "tags": [
+    "higher-order-functions",
+    "closures"
+   ],
+   "explain": "The returned function closes over the list of steps, and a closure captures the variable - here, a reference to a list somebody else still holds - so appending to the configuration silently changes a pipeline that has already been built. The last test catches exactly that: copying the list once, when the pipeline is made, gives it a list nobody else can reach. The order test catches the other slip, running the steps last to first.",
+   "xp": 95
+  },
+  {
+   "id": "py-21-ip-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "In one part of a program, several library functions that you are not allowed to edit must refuse negative numbers. Write `non_negative(func)`, which produces a function that behaves exactly like `func` - any positional and keyword arguments, the same result - except that if any positional argument is an `int` or a `float` below zero it raises `ValueError` with that argument in the message, without calling `func` at all. Arguments that are not numbers are passed through uninspected, and the result must still report the original's name.\n\n`non_negative(pow)(2, 3)` gives `8`; `non_negative(pow)(2, -1)` raises.",
+   "solution": "import functools\n\ndef non_negative(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        for arg in args:\n            if isinstance(arg, (int, float)) and arg < 0:\n                raise ValueError(\"negative argument: \" + str(arg))\n        return func(*args, **kwargs)\n    return wrapper\n",
+   "tests": [
+    {
+     "input": "[non_negative(pow)(2, 3)]",
+     "expected": [
+      8
+     ]
+    },
+    {
+     "input": "non_negative(pow)(2, -1)",
+     "throws": "-1"
+    },
+    {
+     "input": "[non_negative(sorted)([3, -1, 2], reverse=True)]",
+     "expected": [
+      [
+       3,
+       2,
+       -1
+      ]
+     ]
+    },
+    {
+     "input": "non_negative(divmod)(-7.5, 2)",
+     "throws": "-7.5"
+    },
+    {
+     "input": "[non_negative(max).__name__, non_negative(abs)(0)]",
+     "expected": [
+      "max",
+      0
+     ]
+    },
+    {
+     "input": "[non_negative(round)(2.567, ndigits=1)]",
+     "expected": [
+      2.6
+     ]
+    }
+   ],
+   "concepts": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "explain": "The check lives in one wrapper that any function can be given without its body being touched, which is precisely the case the technique exists for. The list argument is the trap: comparing `[3, -1, 2] < 0` raises `TypeError`, so a wrapper that inspects every argument blindly breaks `sorted`; only numbers are inspected. Zero is not negative, and the keyword test fails any wrapper that forgot `**kwargs`.",
+   "xp": 95
+  },
+  {
+   "id": "py-21-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "One report in a large program has become slow, and you want to record how long `compute_totals(rows)` takes and what it was given. The function is called from forty places, and only one of them is the slow report. A colleague has written a timing-and-logging wrapper and proposes applying it with `@` on the line above `def compute_totals`, merged today.\n\nExplain what that change does to all forty callers, what the wrapper must get right so that none of them breaks, where you would apply it instead, and why.",
+   "rubric": {
+    "required": [
+     "every",
+     "call",
+     "return"
+    ],
+    "optional": [
+     "kwargs",
+     "args",
+     "wraps",
+     "name",
+     "one",
+     "site",
+     "remove",
+     "log",
+     "overhead",
+     "report",
+     "definition"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "Decorating the definition rebinds the name, so all forty callers now go through the wrapper: forty call sites logging, forty paying the overhead, and a flood of lines in which the one interesting report is buried. The wrapper must pass `*args` and `**kwargs` through, return the original's result and keep its name with `functools.wraps`, or some caller breaks. The better move for an investigation is to wrap at the one call site - `timed(compute_totals)(rows)` - which changes nothing for anybody else and is removed in one line when the question is answered.",
+   "xp": 50
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-21-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What is a closure?",
+   "choices": [
+    "A function together with the variables it uses from the scope it was defined in, kept alive after that scope's function has returned.",
+    "A function that has finished running and can no longer be called.",
+    "A copy of the enclosing function's local values, taken at the moment the inner function is defined.",
+    "Any function that takes another function as an argument."
+   ],
+   "answer": 0,
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures"
+   ],
+   "explain": "The third option is the tempting one and it is precisely wrong: a closure keeps the variables, not a snapshot of their values, which is the whole reason functions made in a loop all see the loop's final value. The fourth describes a higher-order function, a different idea that often travels with closures.",
+   "xp": 18
+  },
+  {
+   "id": "py-21-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "`@functools.wraps(func)` is placed on the wrapper inside a decorator. Select every statement that is true.",
+   "choices": [
+    "The decorated function reports the original's `__name__` rather than `wrapper`.",
+    "The original's docstring is copied onto the wrapper.",
+    "The original function remains reachable as the wrapper's `__wrapped__` attribute.",
+    "The wrapper no longer needs to call `func` itself, because `wraps` arranges the call.",
+    "The decorated function runs faster, because `wraps` removes the extra layer of calling."
+   ],
+   "answer": [
+    0,
+    1,
+    2
+   ],
+   "concepts": [
+    "functools-wraps"
+   ],
+   "tags": [
+    "functools-wraps"
+   ],
+   "explain": "`wraps` copies identity - name, docstring, qualified name, module - and leaves a pointer back to the original. It changes nothing about behaviour: the wrapper still has to call `func` and return its result, and the extra call layer is still there. The last two options both credit it with running code, which is the misunderstanding worth losing.",
+   "xp": 18
+  },
+  {
+   "id": "py-21-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def register(func):\n    print(\"registering\", func.__name__)\n    return func\n\nprint(\"start\")\n\n@register\ndef ping():\n    print(\"ping ran\")\n    return \"pong\"\n\n@register\ndef echo(text):\n    return text\n\nprint(\"defined\")\nprint(ping())\n",
+   "lang": "python",
+   "answer": "start\nregistering ping\nregistering echo\ndefined\nping ran\npong",
+   "concepts": [
+    "decorators"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "A decorator runs when the `def` beneath it runs - at definition time, in the middle of the module - so both registrations print before `defined`, and `echo` is registered despite never being called. This decorator returns the function unchanged, which is legal and common: a decorator does not have to wrap anything. Expecting `registering ping` just before `ping ran` comes from thinking the decorator runs at call time.",
+   "xp": 36
+  },
+  {
+   "id": "py-21-x-04",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print?",
+   "code": "def bracket(func):\n    def wrapper(text):\n        return \"[\" + func(text) + \"]\"\n    return wrapper\n\ndef shout(func):\n    def wrapper(text):\n        return func(text).upper()\n    return wrapper\n\n@bracket\n@shout\ndef greet(name):\n    return \"hi \" + name\n\nprint(greet(\"ada\"))\nprint(greet.__name__)\n",
+   "lang": "python",
+   "answer": "[HI ADA]\nwrapper",
+   "concepts": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "decorators"
+   ],
+   "explain": "Stacked decorators apply bottom up, so `greet = bracket(shout(greet))`: shouting happens inside, bracketing outside - and here the order would not change the letters, which is exactly why order bugs hide until a decorator that does care is added. The name is `wrapper` because neither decorator used `functools.wraps`, so the outermost wrapper's own name is all that is left.",
+   "xp": 36
+  },
+  {
+   "id": "py-21-x-05",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "What does this program print? A comprehension has its own scope, just as a function call does.",
+   "code": "scales = [lambda x: x * k for k in range(1, 4)]\nprint([f(10) for f in scales])\n\nfixed = [lambda x, k=k: x * k for k in range(1, 4)]\nprint([f(10) for f in fixed])\n\nk = 100\nprint(scales[0](1), fixed[0](1))\n",
+   "lang": "python",
+   "answer": "[30, 30, 30]\n[10, 20, 30]\n3 1",
+   "concepts": [
+    "late-binding-trap",
+    "closures"
+   ],
+   "tags": [
+    "late-binding-trap"
+   ],
+   "explain": "Every lambda in `scales` closes over the comprehension's one `k`, which finished at 3; the default value in `fixed` is evaluated as each lambda is made, so each keeps its own. The last line is the subtle one: the module's `k = 100` is a different variable from the comprehension's `k`, so it changes nothing - expecting `100` comes from forgetting that the comprehension has its own scope.",
+   "xp": 36
+  },
+  {
+   "id": "py-21-x-06",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Fill the blanks so `repeat(times)` is a decorator with an argument that calls the wrapped function `times` times and returns the list of results, keeping the original's name. The program prints `['go!', 'go!'] roll`.",
+   "template": "import functools\n\ndef repeat(times):\n    def decorate(func):\n        @functools.___(func)\n        def wrapper(*args, **kwargs):\n            results = []\n            for _ in range(times):\n                results.append(func(*args, ___))\n            return results\n        return wrapper\n    return ___\n\n@repeat(2)\ndef roll(label):\n    return label + '!'\n\nprint(roll('go'), roll.__name__)",
+   "blanks": [
+    "wraps",
+    "**kwargs",
+    "decorate"
+   ],
+   "concepts": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "explain": "`repeat(2)` must return the decorator, not the wrapper: the outer function takes the setting, the middle one takes the function, and `@repeat(2)` needs the middle one back so it can apply it to `roll`. Returning `wrapper` from the outer level is the usual slip, and it fails with a confusing error because `wrapper` does not exist at that level at all.",
+   "xp": 36
+  },
+  {
+   "id": "py-21-x-07",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "Given the definitions below, the calls in the steps run in order, one after another, each seeing the effects of those before it. Give the value each call returns.",
+   "code": "def make_tally(start):\n    total = start\n    def add(amount):\n        nonlocal total\n        total += amount\n        return total\n    return add\n\na = make_tally(10)\nb = make_tally(0)\n",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "`a(5)`",
+     "expected": "15"
+    },
+    {
+     "label": "`b(5)`",
+     "expected": "5"
+    },
+    {
+     "label": "`a(1)`",
+     "expected": "16"
+    },
+    {
+     "label": "`make_tally(10)(1)`",
+     "expected": "11"
+    },
+    {
+     "label": "`b(b(2))`",
+     "expected": "14"
+    }
+   ],
+   "concepts": [
+    "closures"
+   ],
+   "tags": [
+    "closures"
+   ],
+   "explain": "Each call to `make_tally` makes a new cell, so `a` and `b` never see each other's totals, and the fresh tally in the fourth step leaves `a` untouched at 16. The last step runs the inner call first - `b(2)` takes the total from 5 to 7 and returns 7 - and then `b(7)` takes it to 14; answering 9 comes from forgetting that the inner call has already changed the total.",
+   "xp": 72
+  },
+  {
+   "id": "py-21-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "Write `once(func)`. It returns a function that, the first time it is called, calls `func` with whatever arguments it was given and returns that result; on every later call it returns the same first result again without calling `func` at all, whatever arguments it is given. The result must still report the original's `__name__`. Take care: the first result may itself be `None`.\n\n`f = once(abs)`, then `f(-3)` gives `3` and `f(-4)` also gives `3`.",
+   "starterCode": "def once(func):\n    pass\n",
+   "solution": "import functools\n\ndef once(func):\n    called = False\n    result = None\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        nonlocal called, result\n        if not called:\n            result = func(*args, **kwargs)\n            called = True\n        return result\n    return wrapper\n",
+   "tests": [
+    {
+     "input": "[(f(-3), f(-4)) for f in [once(abs)]]",
+     "expected": [
+      [
+       3,
+       3
+      ]
+     ]
+    },
+    {
+     "input": "[(f(), f(), f()) for f in [once(iter([1, 2, 3]).__next__)]]",
+     "expected": [
+      [
+       1,
+       1,
+       1
+      ]
+     ]
+    },
+    {
+     "input": "[(f(), f()) for f in [once(iter([None, 5]).__next__)]]",
+     "expected": [
+      [
+       null,
+       null
+      ]
+     ]
+    },
+    {
+     "input": "[once(len).__name__]",
+     "expected": [
+      "len"
+     ]
+    },
+    {
+     "input": "[(f('ab'), g('abc')) for f in [once(len)] for g in [once(len)]]",
+     "expected": [
+      [
+       2,
+       3
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "closures",
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "closures",
+    "decorators",
+    "functools-wraps"
+   ],
+   "explain": "Whether the function has run is state that must outlive each call, so it lives in the enclosing scope and is rebound with `nonlocal`. Using `result is None` as the has-it-run test is the natural shortcut and it is wrong: when the first answer really is `None`, the function runs again - the third test hands `once` a source that would reveal a second call with a 5. A separate flag says what you mean.",
+   "xp": 90
+  },
+  {
+   "id": "py-21-x-09",
+   "type": "debug",
+   "layer": "application",
+   "fn": "list",
+   "prompt": "`round_result(func)` should produce a version of `func` whose numeric result is rounded to two decimal places. Since it was added, every decorated function returns `None`, every call that uses a keyword argument fails, and every error report names the function `wrapper`. Repair all three faults.\n\n`round_result(pow)(2, 0.5)` gives `1.41`.",
+   "starterCode": "def round_result(func):\n    def wrapper(*args):\n        round(func(*args), 2)\n    return wrapper\n",
+   "solution": "import functools\n\ndef round_result(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        return round(func(*args, **kwargs), 2)\n    return wrapper\n",
+   "tests": [
+    {
+     "input": "[round_result(pow)(2, 0.5)]",
+     "expected": [
+      1.41
+     ]
+    },
+    {
+     "input": "[round_result(sum)([1.234], start=1)]",
+     "expected": [
+      2.23
+     ]
+    },
+    {
+     "input": "[round_result(abs)(-2)]",
+     "expected": [
+      2
+     ]
+    },
+    {
+     "input": "[round_result(max).__name__]",
+     "expected": [
+      "max"
+     ]
+    },
+    {
+     "input": "[round_result(min)(0.333, 1)]",
+     "expected": [
+      0.33
+     ]
+    }
+   ],
+   "concepts": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "tags": [
+    "decorators",
+    "functools-wraps"
+   ],
+   "explain": "Three different faults with three different symptoms: the missing `return` makes the wrapper compute the rounded value and throw it away, the missing `**kwargs` means the wrapper cannot even accept a keyword, and the missing `wraps` means it cannot say who it is. The first is the most dangerous because it raises nothing - a `None` travels on until something much later tries to add it up.",
+   "xp": 90
+  },
+  {
+   "id": "py-21-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A request counter was written as `make_counter()`, which keeps its count in an enclosing variable and hands back one function that adds one and returns the new total. The requirements have grown: a dashboard must read the current count without adding to it, an operator must be able to reset it to zero at midnight, and the count must be written to a file on shutdown. A colleague proposes three more inner functions sharing the same variable, returned together in a tuple.\n\nArgue which shape you would choose now and why, and say what the original shape was right for.",
+   "rubric": {
+    "required": [
+     "class",
+     "state",
+     "method"
+    ],
+    "optional": [
+     "closure",
+     "nonlocal",
+     "one",
+     "attribute",
+     "inspect",
+     "reset",
+     "simple",
+     "tuple",
+     "read",
+     "name"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "closures",
+    "first-class-functions"
+   ],
+   "tags": [
+    "closures"
+   ],
+   "explain": "A closure is the lightest way to give one operation some private state, and for a single `next number` function it was exactly right. Four operations over one shared piece of state is the definition of an object: a class names the state as an attribute that can be inspected, gives each operation a method with a name, and can be read by the next person without decoding which position in a tuple does what. The tuple of closures works, and that is the trap - it is a class written in a way nobody expects to read.",
+   "xp": 50
+  }
+ ]
+}

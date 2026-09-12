@@ -1,0 +1,1045 @@
+{
+ "n": 23,
+ "name": "The Proving Grounds",
+ "goal": "Write a failing test first, then the code that satisfies it.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 22
+  }
+ ],
+ "description": {
+  "what": "How to turn a claim about your code into code that checks it - the `assert` statement and the arrange, act, assert shape of a test, a failing test written before the code it tests, fixtures that give every test fresh setup, parametrised tables that hold one law over many inputs, and the regression test that pins a reported bug so it cannot come back.",
+  "why": "Tests do not prove a program correct - they sample a handful of inputs from millions - but they make change safe: a suite you trust lets you edit, tidy and extend code and learn within seconds whether you broke a promise somebody depends on, which is the difference between changing code and gambling with it.",
+  "enables": "You will be able to write a test that fails for the right reason before any code exists, judge whether a suite would actually notice a broken implementation, keep tests independent of each other and of the order they run in, and turn a bug report into a failing test before you touch the fix.",
+  "assumes": "You can write functions, raise and catch exceptions, loop over a list of tuples, pass a function to another function as a value, and read a traceback - and you know that catching `Exception` catches almost everything.",
+  "assessed": "You will predict which tests pass and which fail, write checks that are graded by running them against correct and deliberately broken implementations, write code to satisfy tests written before it, and argue what a coverage figure and a green suite do and do not prove."
+ },
+ "concepts": [
+  "assertions",
+  "test-first",
+  "fixtures",
+  "parametrisation",
+  "coverage",
+  "what-a-test-is-worth",
+  "regression-test"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "A Test Is a Claim That Runs",
+    "body": "Start with the uncomfortable truth: **tests do not prove that a program is correct**. A test checks a handful of inputs out of the millions a function could receive, and a program can pass every test anybody wrote and still be wrong on the next input. So why does every serious codebase carry thousands of them? Because tests make **change safe**. Without them every edit is a gamble that nothing relied on the old behaviour; with them you edit, run the suite, and know within seconds whether you broke a promise somebody depends on.\n\nA **test** is a claim about your code, written as code, so that a machine can check it again every time anything changes. Python's instrument for the claim is the `assert` statement. `assert condition, message` does nothing at all when the condition is true, and raises `AssertionError` carrying the message when it is false. Most tests share a three-part shape called **arrange, act, assert**: build the inputs, call the thing under test once, then state what must now be true.\n\nA **test runner** is the program that finds your tests, calls each one, and reports which of them raised. In real projects that runner is almost always pytest, which collects every function whose name begins `test_` and, when an assertion fails, prints the values involved. **pytest is not installed in this environment, and the runner cannot fetch it**, so on this floor you will read and write runners of a dozen lines instead. That costs you pytest's reports and nothing else: a pytest test is a plain function holding plain `assert` statements, exactly like the ones below.\n\nOne warning belongs here. Python started with the `-O` flag deletes every `assert` before running, which is why `assert` is for tests and never for checking user input in real code - that job belongs to an `if` and a `raise`.",
+    "code": "def fahrenheit(celsius):\n    return celsius * 9 / 5 + 32\n\ndef test_freezing():\n    temperature = 0                      # arrange\n    result = fahrenheit(temperature)     # act\n    assert result == 32, f\"got {result}\" # assert\n\ndef test_boiling():\n    assert fahrenheit(100) == 212\n\ndef test_fever():\n    assert fahrenheit(36.6) == 97.88, f\"got {fahrenheit(36.6)}\"\n\ndef run(tests):\n    failures = 0\n    for test in tests:\n        try:\n            test()\n            print(\"pass\", test.__name__)\n        except AssertionError as error:\n            failures += 1\n            print(\"FAIL\", test.__name__, \"-\", error)\n    print(failures, \"failed\")\n\nrun([test_freezing, test_boiling, test_fever])",
+    "annotations": [
+     {
+      "line": 5,
+      "text": "Arrange, act, assert: build the input, call the function once, then state the claim. Most tests you ever write will have this shape, even when the three parts share a line."
+     },
+     {
+      "line": 7,
+      "text": "The message after the comma is only evaluated when the assertion fails, and it is what the runner shows you. Make it say what actually happened."
+     },
+     {
+      "line": 13,
+      "text": "This test fails, and the code is not what is wrong - the claim is. 36.6 times 9 over 5 plus 32 is 97.88000000000001 in floating point, and the right claim compares within a tolerance, for instance with `math.isclose`."
+     },
+     {
+      "line": 21,
+      "text": "The whole of a test runner: call each test, and count the ones that raised. Everything else pytest does is reporting and convenience built on this."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def area(width, height):\n    return width * height\n\ndef test_square():\n    assert area(3, 3) == 9\n\ndef test_zero():\n    assert area(0, 5) == 0\n\ndef test_wide():\n    assert area(4, 2) == 6, \"expected 6\"\n\nfor test in [test_square, test_zero, test_wide]:\n    try:\n        test()\n        print(\"pass\", test.__name__)\n    except AssertionError as error:\n        print(\"FAIL\", test.__name__, error)",
+     "lang": "python",
+     "answer": "pass test_square\npass test_zero\nFAIL test_wide expected 6",
+     "concepts": [
+      "assertions"
+     ],
+     "tags": [
+      "assertions"
+     ],
+     "explain": "`area(4, 2)` is 8, so the third claim is false and its assertion raises with the message `expected 6`, which is what `print` shows for the caught error. Notice that here the test is wrong, not the code: a failing test only tells you that the code and the claim disagree, and deciding which of them to believe is your job. The tempting answer prints `AssertionError` in the last line, from expecting the error's type name rather than its message."
+    },
+    "lang": "python"
+   },
+   {
+    "title": "Red First: The Test Before the Code",
+    "body": "**Test-first** means writing the test for a piece of behaviour before the code that provides it - and then running it, and watching it fail. The rhythm has a name, red, green, refactor: red is the failing test, green is the least code that makes it pass, and refactor is tidying that code while the test stands guard over what it does.\n\nWhy run a test you already know will fail? Because **a test that has never failed proves nothing**. Until you have seen it go red, you cannot tell a test that checks from a test that cannot fail, and those are depressingly easy to write. A comparison on a line of its own, with no `assert` in front of it, is computed and thrown away. A test that wraps its assertion in `try` and `except Exception` swallows its own failure. A test that works out its expected value by calling the very function it is testing agrees with itself whatever that function does. Every one of these is green on the first run and stays green for ever, including after the code breaks.\n\nWatch the reason as well as the colour. A test should fail because its claim is false, which shows up as an `AssertionError` that says so. If it fails with a `NameError` from a typo in the test itself, it is red for the wrong reason and has told you nothing about the code.\n\nWriting the test first has a second benefit that people underrate: you use the function before it exists. You choose its name, its arguments and what it returns from the caller's side of the call, which is the side that has to live with the choice.\n\nTest-first is not always the right tool. It needs you to know what the behaviour should be, and when you are still finding out - poking at an unfamiliar file or library to learn what it even does - there is no claim to write yet. Explore first, throw the exploration away, and write the tests the moment you can say what you want.",
+    "code": "def plural(word):\n    return word\n\ndef test_plural():\n    assert plural(\"cat\") == \"cats\", \"cat\"\n    assert plural(\"box\") == \"boxes\", \"box\"\n    assert plural(\"berry\") == \"berries\", \"berry\"\n\ndef attempt(test):\n    try:\n        test()\n        return \"green\"\n    except AssertionError as error:\n        return \"red, failing on \" + str(error)\n\nprint(attempt(test_plural))\n\ndef plural(word):\n    if word.endswith(\"y\"):\n        return word[:-1] + \"ies\"\n    if word.endswith(\"s\") or word.endswith(\"x\"):\n        return word + \"es\"\n    return word + \"s\"\n\nprint(attempt(test_plural))\n\ndef test_that_cannot_fail():\n    plural(\"cat\") == \"dogs\"\n\nprint(attempt(test_that_cannot_fail))",
+    "annotations": [
+     {
+      "line": 2,
+      "text": "A deliberately wrong placeholder. The test exists before the real function does, and running it now is the whole point."
+     },
+     {
+      "line": 16,
+      "text": "Red, and red for the right reason: an `AssertionError` naming the case that failed. This is the evidence that the test can tell a wrong `plural` from a right one."
+     },
+     {
+      "line": 19,
+      "text": "The least code that satisfies the three claims. Redefining the function under the same name is what an edit to the file does between two runs."
+     },
+     {
+      "line": 28,
+      "text": "No `assert`. The comparison is evaluated, found false, and discarded - so this test passes against every `plural` ever written, and the only way to find that out is to have seen it fail, which it never can."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "What does this program print?",
+     "code": "def double(n):\n    return n + n\n\ndef test_a():\n    assert double(3) == 6\n\ndef test_b():\n    double(3) == 7\n\ndef test_c():\n    assert double(0) == 1\n\nfor test in [test_a, test_b, test_c]:\n    try:\n        test()\n        print(test.__name__, \"passed\")\n    except AssertionError:\n        print(test.__name__, \"failed\")",
+     "lang": "python",
+     "answer": "test_a passed\ntest_b passed\ntest_c failed",
+     "concepts": [
+      "test-first",
+      "assertions"
+     ],
+     "tags": [
+      "test-first",
+      "assertions"
+     ],
+     "explain": "`test_b` makes a false claim and passes anyway, because without `assert` the comparison is computed and thrown away and nothing ever raises. It is the reason you watch a new test fail before trusting it: this one would have gone green on its very first run, which is the tell. The tempting answer has `test_b failed`, from reading the claim rather than what the code does with it."
+    },
+    "lang": "python"
+   },
+   {
+    "title": "Fixtures and Parametrised Cases",
+    "body": "Most tests need something to exist before they start - a basket with items in it, a small table of users, a temporary file. That setup is called a **fixture**, and the rule for it is short: **every test gets its own fresh copy**. The tempting shortcut is one object at module level that every test shares, and it produces the most maddening failure in testing. Test A adds an item, test B expects the basket to be empty, and now B passes when run alone and fails when run after A. The failure moves whenever the order changes, and it has nothing to do with the code under test.\n\nThe cure is a function that builds the setup and returns it, called at the start of every test that needs it, so no test can see another's leftovers. That is the whole idea; frameworks only add convenience. In pytest you mark such a function `@pytest.fixture` and name it as a parameter of the test, and pytest calls it for you. In the standard library's `unittest`, which does run here, a `setUp` method is called before every test. A fixture that must clean up afterwards - close a file, delete a directory - is written in pytest as a generator: the code before its `yield` is the setup, and the code after it is the teardown.\n\nThe other duplication in test code is one claim repeated with different numbers. A **parametrised** test holds a single law over many rows: a table of inputs, each with the result it should give, and one loop that checks every row. Collect the failing rows rather than stopping at the first, so that one bad case cannot hide the rest, and put enough of each row in the report to see which one failed. pytest spells this `@pytest.mark.parametrize` and reports each row as a separate test.\n\nA table is the wrong tool when its rows are not really the same test. If you find yourself adding an `if` inside the loop to give some rows different setup or a different assertion, they want to be separate tests with honest names.",
+    "code": "def make_basket():\n    return {\"apples\": 2, \"pears\": 0}\n\ndef add(basket, item, count):\n    basket[item] = basket.get(item, 0) + count\n\ndef test_add_new_item():\n    basket = make_basket()\n    add(basket, \"figs\", 3)\n    assert basket[\"figs\"] == 3\n\ndef test_starts_without_figs():\n    basket = make_basket()\n    assert \"figs\" not in basket\n\nCASES = [\n    (\"apples\", 1, 3),\n    (\"pears\", 5, 5),\n    (\"figs\", 0, 0),\n]\n\ndef test_add_cases():\n    failures = []\n    for item, count, expected in CASES:\n        basket = make_basket()\n        add(basket, item, count)\n        if basket[item] != expected:\n            failures.append((item, count, basket[item]))\n    assert not failures, failures\n\nfor test in [test_add_new_item, test_starts_without_figs, test_add_cases]:\n    test()\n    print(test.__name__, \"passed\")",
+    "annotations": [
+     {
+      "line": 1,
+      "text": "The fixture. It returns a brand-new dictionary every time it is called, so whatever one test does to its basket, the next test never sees."
+     },
+     {
+      "line": 8,
+      "text": "Each test builds its own, first thing. `test_starts_without_figs` passes whether it runs before or after the test that adds figs."
+     },
+     {
+      "line": 16,
+      "text": "The parametrised table: item, count to add, and the count that must result. Adding a case is one line, and the law being tested is written only once."
+     },
+     {
+      "line": 28,
+      "text": "Collect, do not stop. A plain `assert` inside the loop would halt at the first bad row and hide every row after it. Note the fresh basket built for every row, two lines above."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "The same two tests are run in the same order, twice. What does this program print?",
+     "code": "STOCK = {\"ink\": 1}\n\ndef test_restock():\n    STOCK[\"ink\"] += 4\n    assert STOCK[\"ink\"] == 5\n\ndef test_initial():\n    assert STOCK[\"ink\"] == 1\n\ndef run(order):\n    results = []\n    for test in order:\n        try:\n            test()\n            results.append(\"ok\")\n        except AssertionError:\n            results.append(\"FAIL\")\n    print(results)\n\nrun([test_initial, test_restock])\nrun([test_initial, test_restock])",
+     "lang": "python",
+     "answer": "['ok', 'ok']\n['FAIL', 'FAIL']",
+     "concepts": [
+      "fixtures"
+     ],
+     "tags": [
+      "fixtures"
+     ],
+     "explain": "Both tests share one module-level dictionary, so the first `test_restock` leaves the ink at 5, `test_initial` then finds 5 instead of 1, and the second restock adds 4 more to make 9. Nothing in the code under test changed between the runs - only the leftovers did, which is exactly what a fixture returning a fresh dictionary per test prevents. The tempting answer is two identical lines, from assuming each test starts from what the file says rather than from what the previous test left behind."
+    },
+    "lang": "python"
+   },
+   {
+    "title": "What a Test Is Worth",
+    "body": "**Coverage** is the fraction of your code's lines that ran while the tests were running. It is informative in exactly one direction. A line that never ran is certainly untested, so low coverage tells you something true and specific. A line that did run may still be untested, because running is not checking: a test that calls every function and asserts nothing reaches 100 per cent coverage and passes against code that returns rubbish. Treat coverage as **a floor, not a target** - once a number becomes the goal, people write whatever raises the number.\n\nThe better question is one coverage cannot ask: **if this code were wrong, would a test fail?** Answer it by breaking the code on purpose - flip a `>=` to `>`, change a constant, delete a line - and running the suite. A suite is worth exactly the bugs it would catch. A deliberate break that no test notices is a surviving **mutant**, and it points at a claim nobody made. The exercises on this floor are graded that way: you write a check that receives the implementation as an argument, and the grader hands it one or two correct versions and several broken ones. A good check returns `True` for the correct ones and fails on every other.\n\nLast, the habit the rest of this dungeon leans on: the **regression test**. When a bug is reported you do not start by fixing it. You first write a test that reproduces it - the exact input from the report, asserting what should have happened - and watch it fail for the reported reason. Only then do you change the code and watch the test pass. The test stays in the suite for good, so that bug can never quietly return, and the red run before the fix is your evidence that you fixed the thing that was reported and not something next to it.\n\nIn a real project coverage is measured by coverage.py, and mutation testing has tools of its own such as mutmut; neither is available here. The code below measures line coverage by hand with `sys.settrace`, the hook the interpreter provides and coverage.py is built on. You do not need to learn that function - only to read what it reports, and what it cannot.",
+    "code": "import sys\n\ndef grade(score):\n    if score >= 70:\n        return \"distinction\"\n    if score >= 40:\n        return \"pass\"\n    return \"fail\"\n\ndef lines_run(func, argument):\n    seen = set()\n    first = func.__code__.co_firstlineno\n    def tracer(frame, event, arg):\n        if frame.f_code is func.__code__ and event == \"line\":\n            seen.add(frame.f_lineno - first)\n        return tracer\n    sys.settrace(tracer)\n    try:\n        func(argument)\n    finally:\n        sys.settrace(None)\n    return seen\n\ndef test_grade_runs():\n    grade(90)\n    grade(50)\n    grade(10)\n\ncovered = set()\nfor score in [90, 50, 10]:\n    covered = covered | lines_run(grade, score)\nprint(\"body lines of grade that ran:\", sorted(covered), \"of 5\")\n\ndef grade(score):\n    return \"pass\"\n\ntest_grade_runs()\nprint(\"grade is now broken, and the test still passes\")",
+    "annotations": [
+     {
+      "line": 10,
+      "text": "A tiny coverage tool: it records which lines of `func` executed during one call. Real tools do the same thing across a whole test run."
+     },
+     {
+      "line": 25,
+      "text": "The test calls `grade` three times, one per branch, and asserts nothing. It reaches every line."
+     },
+     {
+      "line": 32,
+      "text": "All five body lines ran - full coverage of `grade`, by the only measure coverage has."
+     },
+     {
+      "line": 37,
+      "text": "And the same test passes against a `grade` that returns `\"pass\"` for everybody. Full coverage, no checking: the test was worth nothing."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "`check_is_adult` is run against three deliberately broken versions of `is_adult`, whose correct rule is `age >= 18`. What does this program print?",
+     "code": "def check_is_adult(is_adult):\n    assert is_adult(30)\n    assert not is_adult(5)\n    return True\n\ndef verdict(version):\n    try:\n        check_is_adult(version)\n        return \"survived\"\n    except AssertionError:\n        return \"killed\"\n\nprint(verdict(lambda age: age > 18))\nprint(verdict(lambda age: age >= 21))\nprint(verdict(lambda age: age <= 18))",
+     "lang": "python",
+     "answer": "survived\nsurvived\nkilled",
+     "concepts": [
+      "what-a-test-is-worth"
+     ],
+     "tags": [
+      "what-a-test-is-worth",
+      "coverage"
+     ],
+     "explain": "The check only asks about 30 and 5, both far from the boundary, so a version that is wrong at exactly 18, and one that is wrong for everybody from 18 to 20, both sail through. Only the version that inverts the rule contradicts the two claims the check makes. The tempting answer is three kills, from assuming a check that passes a correct function will fail an incorrect one - the fix is to test at 17, 18 and 19, where the behaviour changes."
+    },
+    "lang": "python"
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-23-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "Three tests of `total`, run by a small runner. Predict every line before you run it - which tests pass, and exactly what the failing one reports.",
+   "code": "def total(prices, discount):\n    return sum(prices) - discount\n\ndef test_no_discount():\n    assert total([3, 4], 0) == 7\n\ndef test_discount():\n    result = total([10, 10], 5)\n    assert result == 15, \"discount applied once\"\n\ndef test_never_negative():\n    result = total([2], 5)\n    assert result >= 0, f\"total went negative: {result}\"\n\nfor test in [test_no_discount, test_discount, test_never_negative]:\n    try:\n        test()\n        print(\"ok\", test.__name__)\n    except AssertionError as error:\n        print(\"FAIL\", test.__name__, error)",
+   "lang": "python",
+   "answer": "ok test_no_discount\nok test_discount\nFAIL test_never_negative total went negative: -3",
+   "concepts": [
+    "assertions"
+   ],
+   "tags": [
+    "assertions"
+   ],
+   "explain": "The first two claims are true, so their assertions do nothing and the runner prints `ok`. The third claims the total is never negative, and a discount larger than the basket makes it -3; the message is an f-string evaluated only at the moment of failure, which is why it can report the actual value. The usual slip is to expect the message `discount applied once` to appear, but a message is shown only when its own assertion fails.",
+   "hint": "An assertion whose condition is true is silent. Work out `sum([2]) - 5` for the third test, then build the message the f-string produces.",
+   "xp": 36
+  },
+  {
+   "id": "py-23-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_clamp",
+   "prompt": "`clamp(x, lo, hi)` returns `x` limited to the range from `lo` to `hi`: below the range it gives `lo`, above it gives `hi`, and inside it - including exactly on either edge - it gives `x` unchanged.\n\nWrite the test. `check_clamp(clamp)` receives an implementation, makes claims about it with `assert`, and returns `True` if every claim holds. The grader will call it with correct implementations, which must get `True`, and with broken ones, which must make it raise. One broken version is wrong only when `x` is exactly `hi`.",
+   "starterCode": "def check_clamp(clamp):\n    # arrange and act are one call each; the assert is the claim\n    assert clamp(5, 0, 10) == 5\n    # add claims for below the range, above it, and exactly on each edge\n    return True\n",
+   "solution": "def check_clamp(clamp):\n    assert clamp(5, 0, 10) == 5\n    assert clamp(-3, 0, 10) == 0\n    assert clamp(15, 0, 10) == 10\n    assert clamp(0, 0, 10) == 0\n    assert clamp(10, 0, 10) == 10\n    return True",
+   "tests": [
+    {
+     "input": "lambda x, lo, hi: max(lo, min(x, hi))",
+     "expected": true
+    },
+    {
+     "input": "lambda x, lo, hi: sorted([lo, x, hi])[1]",
+     "expected": true
+    },
+    {
+     "input": "lambda x, lo, hi: max(lo, x)",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda x, lo, hi: min(x, hi)",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda x, lo, hi: lo if x < lo or x == hi else min(x, hi)",
+     "throws": "AssertionError"
+    }
+   ],
+   "concepts": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "tags": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "explain": "A test is worth the wrong implementations it rejects, and here the grader hands you three: one that forgets the upper bound, one that forgets the lower, and one that is wrong at a single point. Only a claim made exactly at `x == hi` catches the last, which is why edges get their own assertions - bugs cluster where behaviour changes. The second correct version is there to stop a check that tests how `clamp` is written rather than what it does.",
+   "hint": "Five claims are enough: one inside the range, one below, one above, and one on each edge. Each is `assert clamp(...) == expected`.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "initials",
+   "prompt": "Test-first. The test in the starter was written before the function, and against the placeholder it goes red. Run it and watch it fail, then write `initials(name)` so it goes green: the first letter of each word, upper case, each followed by a full stop, with any amount of surrounding or repeated space ignored.\n\n`initials(\"grace brewster hopper\")` gives `\"G.B.H.\"`, and `initials(\"\")` gives `\"\"`.",
+   "starterCode": "def test_initials():\n    assert initials(\"Ada Lovelace\") == \"A.L.\"\n    assert initials(\"grace brewster hopper\") == \"G.B.H.\"\n    assert initials(\"  Alan   Turing \") == \"A.T.\"\n    assert initials(\"\") == \"\"\n\ndef initials(name):\n    return None   # the placeholder: run test_initials() now and see it fail\n\ntest_initials()\n",
+   "solution": "def test_initials():\n    assert initials(\"Ada Lovelace\") == \"A.L.\"\n    assert initials(\"grace brewster hopper\") == \"G.B.H.\"\n    assert initials(\"  Alan   Turing \") == \"A.T.\"\n    assert initials(\"\") == \"\"\n\ndef initials(name):\n    letters = \"\"\n    for word in name.split():\n        letters += word[0].upper() + \".\"\n    return letters\n\ntest_initials()",
+   "tests": [
+    {
+     "input": "\"Ada Lovelace\"",
+     "expected": "A.L."
+    },
+    {
+     "input": "\"grace brewster hopper\"",
+     "expected": "G.B.H."
+    },
+    {
+     "input": "\"  Alan   Turing \"",
+     "expected": "A.T."
+    },
+    {
+     "input": "\"\"",
+     "expected": ""
+    },
+    {
+     "input": "\"x\"",
+     "expected": "X."
+    }
+   ],
+   "concepts": [
+    "test-first"
+   ],
+   "tags": [
+    "test-first"
+   ],
+   "explain": "The starter calls `test_initials()` at the bottom, so while the placeholder is in place your run ends in an `AssertionError` - red for the right reason, because the claim is false rather than the test broken. Once the real function is in, the same line runs silently, and that silence is the green. Splitting with `split()` and no argument is what makes the third claim pass; `split(\" \")` produces empty strings for the doubled spaces and crashes on `word[0]`, which is the failure the test was written to catch.",
+   "hint": "`name.split()` with no argument discards all the extra spaces. For each word take `word[0].upper()` and add a full stop.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-gp-04",
+   "type": "debug",
+   "layer": "application",
+   "fn": "run_suite",
+   "prompt": "This suite has a fixture problem. All three tests share one module-level list, so each passes alone and some fail depending on what ran before them. `run_suite(order)` runs the named tests in that order and returns the names of those that failed.\n\nGive every test its own fresh shelf, built by a fixture function, so that any order passes. Do not weaken any assertion and do not change `run_suite`. `run_suite([\"test_add\", \"test_empty\"])` must give `[]`.",
+   "starterCode": "SHELF = []\n\ndef test_add():\n    SHELF.append(\"atlas\")\n    assert SHELF == [\"atlas\"]\n\ndef test_empty():\n    assert len(SHELF) == 0\n\ndef test_two():\n    SHELF.append(\"bible\")\n    SHELF.append(\"codex\")\n    assert len(SHELF) == 2\n\nTESTS = {\"test_add\": test_add, \"test_empty\": test_empty, \"test_two\": test_two}\n\ndef run_suite(order):\n    failed = []\n    for name in order:\n        try:\n            TESTS[name]()\n        except AssertionError:\n            failed.append(name)\n    return failed\n",
+   "solution": "def fresh_shelf():\n    return []\n\ndef test_add():\n    shelf = fresh_shelf()\n    shelf.append(\"atlas\")\n    assert shelf == [\"atlas\"]\n\ndef test_empty():\n    shelf = fresh_shelf()\n    assert len(shelf) == 0\n\ndef test_two():\n    shelf = fresh_shelf()\n    shelf.append(\"bible\")\n    shelf.append(\"codex\")\n    assert len(shelf) == 2\n\nTESTS = {\"test_add\": test_add, \"test_empty\": test_empty, \"test_two\": test_two}\n\ndef run_suite(order):\n    failed = []\n    for name in order:\n        try:\n            TESTS[name]()\n        except AssertionError:\n            failed.append(name)\n    return failed",
+   "tests": [
+    {
+     "input": "[\"test_add\"]",
+     "expected": []
+    },
+    {
+     "input": "[\"test_add\", \"test_empty\"]",
+     "expected": []
+    },
+    {
+     "input": "[\"test_two\", \"test_add\", \"test_two\"]",
+     "expected": []
+    },
+    {
+     "input": "[\"test_empty\", \"test_two\", \"test_empty\", \"test_add\"]",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    }
+   ],
+   "concepts": [
+    "fixtures"
+   ],
+   "tags": [
+    "fixtures"
+   ],
+   "explain": "Every failure in the original came from leftovers: `test_empty` only fails after something has appended, and `test_two` only fails the second time it runs. A fixture function returns a new list per call, so each test starts from exactly the state it describes and the order stops mattering. Clearing the shared list at the top of each test also passes here, but it is the fragile version - it relies on every future test remembering to do it, where a fixture makes the clean start the only start there is.",
+   "hint": "Write `def fresh_shelf(): return []`, then begin each test with `shelf = fresh_shelf()` and use `shelf` wherever it used `SHELF`.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_leap",
+   "prompt": "A year is a leap year if it divides by 4, except that century years are not - unless they also divide by 400. So 2024 is a leap year, 2023 is not, 1900 is not and 2000 is.\n\nComplete the parametrised test `check_leap(is_leap)`: a table of years with the answer each should give, and one loop asserting every row. It returns `True` for a correct `is_leap`. The grader also hands it versions that each forget one of the three rules, and every one of those must make it raise.",
+   "starterCode": "def check_leap(is_leap):\n    cases = [\n        (2023, False),\n        (2024, True),\n        # add the rows that pin down the century rules\n    ]\n    for year, expected in cases:\n        got = is_leap(year)\n        assert got == expected, f\"is_leap({year}) gave {got}, expected {expected}\"\n    return True\n",
+   "solution": "def check_leap(is_leap):\n    cases = [\n        (2023, False),\n        (2024, True),\n        (1900, False),\n        (2100, False),\n        (2000, True),\n        (2400, True),\n    ]\n    for year, expected in cases:\n        got = is_leap(year)\n        assert got == expected, f\"is_leap({year}) gave {got}, expected {expected}\"\n    return True",
+   "tests": [
+    {
+     "input": "lambda y: y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)",
+     "expected": true
+    },
+    {
+     "input": "lambda y: y % 400 == 0 or (y % 4 == 0 and y % 100 != 0)",
+     "expected": true
+    },
+    {
+     "input": "lambda y: y % 4 == 0",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda y: y % 4 == 0 and y % 100 != 0",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda y: y % 400 == 0",
+     "throws": "AssertionError"
+    }
+   ],
+   "concepts": [
+    "parametrisation"
+   ],
+   "tags": [
+    "parametrisation",
+    "assertions"
+   ],
+   "explain": "Each rule of the law needs a row that only a correct implementation gets right: 1900 catches the version that forgets centuries, 2000 catches the one that forgets the 400 exception, and 2024 catches the one that only knows about 400. The table makes the law visible at a glance, and adding a row costs one line rather than a new test. The two ordinary years in the starter catch one broken version and let the other two through, which is how a suite looks thorough while leaving the interesting rules unclaimed.",
+   "hint": "Add `(1900, False)` and `(2000, True)` at the least. `2100` and `2400` are good company for them.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-gp-06",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_mean",
+   "prompt": "A regression test. The shipped `mean` was `return sum(values) // len(values)`, and a user reported: `mean([1, 2])` shows 1, and it should be 1.5.\n\nWrite `check_mean(mean)`, which must fail against the shipped version by reproducing the report, pass against a correct `mean`, and still pin the behaviour that already worked. It returns `True` when every claim holds. The grader will also try a careless fix that rounds the answer, and one that divides by 2 whatever the length.",
+   "starterCode": "def check_mean(mean):\n    assert mean([2, 4, 6]) == 4     # behaviour that already worked - keep it pinned\n    # add the claim that reproduces the report\n    return True\n",
+   "solution": "def check_mean(mean):\n    assert mean([2, 4, 6]) == 4\n    assert mean([1, 2]) == 1.5\n    assert mean([5]) == 5\n    return True",
+   "tests": [
+    {
+     "input": "lambda values: sum(values) // len(values)",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda values: sum(values) / len(values)",
+     "expected": true
+    },
+    {
+     "input": "lambda values: sum(values) / max(len(values), 1)",
+     "expected": true
+    },
+    {
+     "input": "lambda values: round(sum(values) / len(values))",
+     "throws": "AssertionError"
+    },
+    {
+     "input": "lambda values: sum(values) / 2",
+     "throws": "AssertionError"
+    }
+   ],
+   "concepts": [
+    "regression-test"
+   ],
+   "tags": [
+    "regression-test",
+    "assertions"
+   ],
+   "explain": "The regression claim is the report turned into code: `mean([1, 2]) == 1.5`. It is red against the shipped version, which is the proof you reproduced the actual bug, and it also rejects the rounding fix, which silences the symptom for other inputs while getting this one wrong. The divide-by-2 version passes the new claim by coincidence and is caught only by the old one, which is why a regression test is added to the suite and never replaces what was already there.",
+   "hint": "The claim that reproduces the report is `assert mean([1, 2]) == 1.5`. Leave the first assertion where it is.",
+   "xp": 90
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-23-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_slugify",
+   "prompt": "`slugify(title)` turns a title into a web address fragment: all lower case, words separated by exactly one hyphen, and no hyphen at either end. Any run of whitespace between words counts as one separator, and whitespace at the ends is ignored. A title that is empty or entirely whitespace gives the empty string.\n\nWrite `check_slugify(slugify)`, which returns `True` when the implementation it is given meets that specification and raises when it does not. It will be tried against two correct implementations and four incorrect ones, each wrong in a different way.\n\n`slugify(\"  The Old  Oak \")` gives `\"the-old-oak\"`.",
+   "solution": "def check_slugify(slugify):\n    assert slugify(\"Oak\") == \"oak\"\n    assert slugify(\"the old oak\") == \"the-old-oak\"\n    assert slugify(\"  The Old  Oak \") == \"the-old-oak\"\n    assert slugify(\"ash\\telm\") == \"ash-elm\"\n    assert slugify(\"\") == \"\"\n    assert slugify(\"   \") == \"\"\n    return True",
+   "tests": [
+    {
+     "input": "lambda t: \"-\".join(t.lower().split())",
+     "expected": true
+    },
+    {
+     "input": "lambda t: \"-\".join(w.lower() for w in t.split())",
+     "expected": true
+    },
+    {
+     "input": "lambda t: \"-\".join(t.split())",
+     "throws": true
+    },
+    {
+     "input": "lambda t: t.strip().lower().replace(\" \", \"-\")",
+     "throws": true
+    },
+    {
+     "input": "lambda t: \"-\".join(t.lower().split(\" \"))",
+     "throws": true
+    },
+    {
+     "input": "lambda t: \"-\".join(t.lower().split()) or \"untitled\"",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "tags": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "explain": "Every sentence of the specification is a claim, and a claim you do not assert is one an implementation can break for free: the four wrong versions forget the lower-casing, collapse only single spaces, keep the ends and the doubles, and invent a default for the empty title. A check built from one tidy example - `\"The Old Oak\"` - passes three of them, because the bugs live in the awkward inputs rather than the normal one. Reading a specification sentence by sentence and asking what input would break each is most of the craft of writing tests.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-ip-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "to_minutes",
+   "prompt": "A colleague wrote these tests yesterday, before any code existed, and every one of them currently fails with a `NameError`. Write `to_minutes(text)` so that they all pass.\n\n`to_minutes(\"1h30m\") == 90`\n\n`to_minutes(\"45m\") == 45`\n\n`to_minutes(\"2h\") == 120`\n\n`to_minutes(\"0m\") == 0`\n\n`to_minutes(\"10h5m\") == 605`\n\nand each of `to_minutes(\"\")`, `to_minutes(\"90\")`, `to_minutes(\"h\")` and `to_minutes(\"1x\")` must raise `ValueError` - a duration is one or more numbers, each immediately followed by `h` or `m`, and nothing else.",
+   "solution": "def to_minutes(text):\n    if not text:\n        raise ValueError(\"empty duration\")\n    total = 0\n    digits = \"\"\n    for ch in text:\n        if ch.isdigit():\n            digits += ch\n        elif ch in \"hm\" and digits:\n            total += int(digits) * (60 if ch == \"h\" else 1)\n            digits = \"\"\n        else:\n            raise ValueError(\"unexpected \" + repr(ch) + \" in \" + repr(text))\n    if digits:\n        raise ValueError(\"number with no unit in \" + repr(text))\n    return total",
+   "tests": [
+    {
+     "input": "\"1h30m\"",
+     "expected": 90
+    },
+    {
+     "input": "\"45m\"",
+     "expected": 45
+    },
+    {
+     "input": "\"2h\"",
+     "expected": 120
+    },
+    {
+     "input": "\"0m\"",
+     "expected": 0
+    },
+    {
+     "input": "\"10h5m\"",
+     "expected": 605
+    },
+    {
+     "input": "\"\"",
+     "throws": "ValueError"
+    },
+    {
+     "input": "\"90\"",
+     "throws": "ValueError"
+    },
+    {
+     "input": "\"h\"",
+     "throws": "ValueError"
+    },
+    {
+     "input": "\"1x\"",
+     "throws": "ValueError"
+    }
+   ],
+   "concepts": [
+    "test-first"
+   ],
+   "tags": [
+    "test-first"
+   ],
+   "explain": "Tests written first are a specification you can execute, and this one says more than its examples: the four rejections define what a duration is not, and they are the claims a hurried implementation misses. `\"90\"` is the edge that catches most attempts - digits left over at the end with no unit - and `\"h\"` catches the one that forgets a unit needs a number before it. The `NameError` your colleague saw was red for a legitimate reason; the moment your first draft exists, check that each remaining failure is an `AssertionError` about behaviour rather than a crash inside the test.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_reverse_words",
+   "prompt": "`reverse_words(sentence)` returns the words of a sentence in the opposite order, joined by single spaces. Words are separated by any run of whitespace, and an empty sentence gives `\"\"`. So `reverse_words(\"the cat sat\")` gives `\"sat cat the\"`.\n\nA teammate proposes testing it with one law over many sentences: reversing twice must give back the original. Decide whether that is enough, then write `check_reverse_words(reverse_words)`, which returns `True` for a correct implementation and raises for an incorrect one. It will be tried against two correct implementations and four incorrect ones.",
+   "solution": "def check_reverse_words(reverse_words):\n    assert reverse_words(\"the cat sat\") == \"sat cat the\"\n    assert reverse_words(\"oak\") == \"oak\"\n    assert reverse_words(\"\") == \"\"\n    assert reverse_words(\"  ash   elm \") == \"elm ash\"\n    for sentence in [\"a b c\", \"one two\", \"the quick brown fox\"]:\n        assert reverse_words(reverse_words(sentence)) == sentence\n    return True",
+   "tests": [
+    {
+     "input": "lambda t: \" \".join(reversed(t.split()))",
+     "expected": true
+    },
+    {
+     "input": "lambda t: \" \".join(t.split()[::-1])",
+     "expected": true
+    },
+    {
+     "input": "lambda t: \" \".join(t.split())",
+     "throws": true
+    },
+    {
+     "input": "lambda t: t[::-1]",
+     "throws": true
+    },
+    {
+     "input": "lambda t: \" \".join(sorted(t.split()))",
+     "throws": true
+    },
+    {
+     "input": "lambda t: \" \".join(reversed(t.split()[1:]))",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "what-a-test-is-worth",
+    "parametrisation"
+   ],
+   "tags": [
+    "what-a-test-is-worth",
+    "parametrisation"
+   ],
+   "explain": "The round-trip law is true of every correct implementation, and it is also true of a function that does nothing and of one that reverses the characters - so on its own it cannot tell them from the real thing. A law over many rows is only as strong as the law; this one needs at least one example pinning what the answer actually is. Keeping the round trip alongside the examples is reasonable, but the teammate's proposal as the whole check is the wrong answer, and seeing that before writing a hundred rows of it is the judgement this challenge is about.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-ip-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_word_count",
+   "prompt": "The shipped `word_count(text)` is `return len(text.split(\" \"))`. A user has reported: a comment made of nothing but spaces is counted as several words. Correctly, a comment's word count is the number of whitespace-separated words in it, so an all-space comment has none.\n\nWrite `check_word_count(word_count)`, which returns `True` for a correct implementation and raises otherwise. It must fail on the shipped version for the reason the user reported, and it will also be tried against two plausible but incomplete fixes and against a function that always answers 0.",
+   "solution": "def check_word_count(word_count):\n    assert word_count(\"   \") == 0\n    assert word_count(\"\") == 0\n    assert word_count(\"one two three\") == 3\n    assert word_count(\"  one  two \") == 2\n    return True",
+   "tests": [
+    {
+     "input": "lambda text: len(text.split(\" \"))",
+     "throws": true
+    },
+    {
+     "input": "lambda text: len(text.split())",
+     "expected": true
+    },
+    {
+     "input": "lambda text: sum(1 for word in text.split())",
+     "expected": true
+    },
+    {
+     "input": "lambda text: len(text.strip().split(\" \"))",
+     "throws": true
+    },
+    {
+     "input": "lambda text: 0 if text == \"\" else len(text.split(\" \"))",
+     "throws": true
+    },
+    {
+     "input": "lambda text: 0",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "regression-test"
+   ],
+   "tags": [
+    "regression-test",
+    "what-a-test-is-worth"
+   ],
+   "explain": "A regression test starts from the exact symptom in the report - an all-space comment - and asserts what should have happened. The fix that special-cases the empty string is the classic wrong move: it handles a neighbouring input nobody reported and leaves the reported one broken, and only a test built from the report's own input exposes it. The always-zero function passes every claim about empty input, which is why the ordinary behaviour stays pinned beside the new claim.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-ip-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Your suite passes on your machine whenever you run a test file on its own. On the build server, which runs every file together in a different order, three tests fail - and on some days a different three. Nobody has changed the code those tests exercise. Explain the most likely cause, how you would confirm it, and how you would restructure the tests so that the order in which they run can no longer matter.",
+   "rubric": {
+    "required": [
+     "shared",
+     "order",
+     "fresh",
+     "state"
+    ],
+    "optional": [
+     "fixture",
+     "setup",
+     "mutable",
+     "isolat",
+     "global",
+     "module",
+     "alone",
+     "leftover",
+     "teardown",
+     "reverse"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "fixtures"
+   ],
+   "tags": [
+    "fixtures"
+   ],
+   "explain": "Tests that pass alone and fail together are almost always sharing state - a module-level list or dictionary, a file, a class attribute - that one test changes and another assumes untouched. You confirm it by running a failing test alone, then after each of the others, until you find the one that leaves something behind. The cure is structural rather than a patch: each test gets its setup from a fixture that builds it fresh, so no test can see another's leftovers. Blaming the build server is the tempting wrong answer, because the failure appears only there - but the server merely ran the tests in an order your machine never did.",
+   "xp": 40
+  },
+  {
+   "id": "py-23-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You have been handed a CSV export from a supplier's system and asked to find out what its columns mean, whether any of its rows are malformed, and whether an importer for it is worth writing at all. A colleague says the rule is tests first, always, and wants your failing test before you open the file. Argue whether writing the failing test first is the right move at this moment, what you would do instead, and at what point writing tests first becomes the right discipline again.",
+   "rubric": {
+    "required": [
+     "explor",
+     "test",
+     "first",
+     "know"
+    ],
+    "optional": [
+     "spike",
+     "throw",
+     "discard",
+     "claim",
+     "behaviour",
+     "importer",
+     "delete",
+     "specification",
+     "regression",
+     "malformed"
+    ],
+    "minWords": 60
+   },
+   "concepts": [
+    "test-first"
+   ],
+   "tags": [
+    "test-first",
+    "what-a-test-is-worth"
+   ],
+   "explain": "A test is a claim about what code should do, and right now nobody knows what the importer should do - that is the question being investigated. Exploration comes first: read the file, try things, find the malformed rows, and treat that code as disposable. Once you can state the behaviour you want, throw the exploration away and write the importer test-first, turning each malformed row you found into a claim. Obeying the rule mechanically produces tests that encode guesses, which is worse than no tests, because they will defend the guesses later.",
+   "xp": 40
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-23-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "A test run reports 100 per cent line coverage for a module. What, exactly, has been established?",
+   "choices": [
+    "Every line of the module was executed at least once while the tests ran.",
+    "Every line of the module behaves correctly for the inputs the tests used.",
+    "Every line of the module was checked by at least one assertion.",
+    "No further test could find a bug in the module."
+   ],
+   "answer": 0,
+   "concepts": [
+    "coverage"
+   ],
+   "tags": [
+    "coverage"
+   ],
+   "explain": "Coverage records what ran and nothing else; whether anything was checked while it ran is invisible to it. The second and third options are the misreading that makes coverage dangerous as a target - a test that calls every function and asserts nothing reaches the same 100 per cent as a thorough one.",
+   "xp": 18
+  },
+  {
+   "id": "py-23-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true.",
+   "choices": [
+    "A fixture builds the setup a test needs, so that each test gets a fresh copy of it.",
+    "A parametrised test holds one law over many rows of inputs and expected results.",
+    "A regression test is written after the fix, to record what was changed.",
+    "Tests that share one mutable object can pass one at a time and fail when run together.",
+    "An `assert` statement still runs when Python is started with the `-O` flag."
+   ],
+   "answer": [
+    0,
+    1,
+    3
+   ],
+   "concepts": [
+    "fixtures",
+    "parametrisation",
+    "regression-test"
+   ],
+   "tags": [
+    "fixtures",
+    "parametrisation",
+    "regression-test"
+   ],
+   "explain": "A regression test is written before the fix and must be seen to fail, because the red run is the evidence that it reproduces the reported bug; written afterwards, it may pass for reasons unrelated to the fix. And `-O` strips assertions entirely, which is precisely why they belong in tests and never in production input checks.",
+   "xp": 18
+  },
+  {
+   "id": "py-23-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "A parametrised check that collects its failures instead of stopping at the first. What does this program print?",
+   "code": "def shout(text):\n    return text.upper() + \"!\"\n\nCASES = [(\"hi\", \"HI!\"), (\"\", \"\"), (\"ok!\", \"OK!\")]\n\nfailures = []\nfor given, expected in CASES:\n    got = shout(given)\n    if got != expected:\n        failures.append(repr(given) + \" gave \" + repr(got))\n\nprint(len(failures), \"of\", len(CASES), \"failed\")\nfor line in failures:\n    print(line)",
+   "lang": "python",
+   "answer": "2 of 3 failed\n'' gave '!'\n'ok!' gave 'OK!!'",
+   "concepts": [
+    "parametrisation"
+   ],
+   "tags": [
+    "parametrisation"
+   ],
+   "explain": "Two rows fail and both are reported, which is the reason to collect rather than assert inside the loop: a bare `assert` would have stopped at the empty string and hidden the doubled exclamation mark. `repr` is what makes the empty string visible as `''` in the report. The tempting answer counts only one failure, missing that `shout` adds a second `!` to text that already has one.",
+   "xp": 36
+  },
+  {
+   "id": "py-23-x-04",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete this parametrised test so that every row is checked and a failure names the row it came from.",
+   "template": "CASES = [(\"3\", 3), (\"-4\", -4), (\"007\", 7)]\n\ndef test_parse():\n    for text, ___ in CASES:\n        got = int(text)\n        ___ got == ___, f\"{text} gave {got}\"",
+   "blanks": [
+    "expected",
+    "assert",
+    "expected"
+   ],
+   "concepts": [
+    "parametrisation",
+    "assertions"
+   ],
+   "tags": [
+    "parametrisation",
+    "assertions"
+   ],
+   "explain": "The loop unpacks each row into the input and the result it should give, and the assertion compares against that result, with the input in the message so a failure is traceable to its row. Writing the comparison without `assert` is the slip to watch - it is evaluated, discarded, and the test can then never fail.",
+   "xp": 36
+  },
+  {
+   "id": "py-23-x-05",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "A bug has been reported. Put these steps into the order in which they should happen.",
+   "fragments": [
+    "Reproduce the symptom by hand, with the exact input from the report.",
+    "Write a test asserting what should have happened for that input.",
+    "Run it, watch it fail, and confirm the failure is the reported one.",
+    "Change the code until that test passes.",
+    "Run the whole suite, to show the fix broke nothing already pinned.",
+    "Keep the test in the suite permanently."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "concepts": [
+    "regression-test",
+    "test-first"
+   ],
+   "tags": [
+    "regression-test",
+    "test-first"
+   ],
+   "explain": "The test comes before the fix because its failure is the only evidence it reproduces the bug - a test first seen passing after the fix might pass for any reason at all. The whole suite runs after the fix because the commonest way to fix one bug is to create another, and the test is kept because a bug that happened once is a bug the code is capable of again.",
+   "xp": 36
+  },
+  {
+   "id": "py-23-x-06",
+   "type": "trace",
+   "layer": "application",
+   "prompt": "Each row describes one deliberate change to `discount`. For each, say whether `test_discount` would notice. Write exactly `caught` if the test would fail against the changed code, and exactly `survives` if it would still pass.",
+   "code": "def discount(price):\n    if price >= 100:\n        return price * 0.9\n    return price\n\ndef test_discount():\n    assert discount(50) == 50\n    assert discount(200) == 180",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "`price >= 100` becomes `price > 100`",
+     "expected": "survives"
+    },
+    {
+     "label": "`0.9` becomes `0.8`",
+     "expected": "caught"
+    },
+    {
+     "label": "the final `return price` becomes `return price * 0.9`",
+     "expected": "caught"
+    },
+    {
+     "label": "`price >= 100` becomes `price >= 250`",
+     "expected": "caught"
+    },
+    {
+     "label": "`price >= 100` becomes `price >= 150`",
+     "expected": "survives"
+    },
+    {
+     "label": "`return price * 0.9` becomes `return round(price * 0.9)`",
+     "expected": "survives"
+    }
+   ],
+   "concepts": [
+    "what-a-test-is-worth",
+    "coverage"
+   ],
+   "tags": [
+    "what-a-test-is-worth",
+    "coverage"
+   ],
+   "explain": "The test covers every line of `discount` and still lets three of six mutants through, because it only asks about 50 and 200 and the threshold could be anywhere between them. The fix is a claim at exactly 100 and one just below it, where the behaviour changes, plus a price whose discount is not a whole number to catch the rounding. Predicting survivors like this is what a mutation tool does mechanically, and it is the honest measure of what a suite is worth.",
+   "xp": 72
+  },
+  {
+   "id": "py-23-x-07",
+   "type": "code",
+   "layer": "application",
+   "fn": "encode",
+   "prompt": "These tests were written before the function. Write `encode(text)` so that every one of them passes.\n\n`encode(\"aaab\") == \"a3b1\"`\n\n`encode(\"abc\") == \"a1b1c1\"`\n\n`encode(\"aabaa\") == \"a2b1a2\"`\n\n`encode(\"zzzzzzzzzzzz\") == \"z12\"`\n\n`encode(\"\") == \"\"`",
+   "solution": "def encode(text):\n    if not text:\n        return \"\"\n    parts = []\n    current = text[0]\n    count = 0\n    for ch in text:\n        if ch == current:\n            count += 1\n        else:\n            parts.append(current + str(count))\n            current = ch\n            count = 1\n    parts.append(current + str(count))\n    return \"\".join(parts)",
+   "tests": [
+    {
+     "input": "\"aaab\"",
+     "expected": "a3b1"
+    },
+    {
+     "input": "\"abc\"",
+     "expected": "a1b1c1"
+    },
+    {
+     "input": "\"aabaa\"",
+     "expected": "a2b1a2"
+    },
+    {
+     "input": "\"zzzzzzzzzzzz\"",
+     "expected": "z12"
+    },
+    {
+     "input": "\"\"",
+     "expected": ""
+    },
+    {
+     "input": "\"x\"",
+     "expected": "x1"
+    }
+   ],
+   "concepts": [
+    "test-first"
+   ],
+   "tags": [
+    "test-first"
+   ],
+   "explain": "Each claim was chosen to rule out a particular wrong idea: `\"aabaa\"` rejects counting letters in total rather than in runs, twelve `z`s reject writing the count as a single character, and the empty string rejects code that reads `text[0]` unguarded. That is what tests written first are for - they force the awkward cases to be decided before there is any code with an opinion about them. Forgetting to write out the final run after the loop ends is the commonest bug here, and every one of these claims catches it.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "check_median",
+   "prompt": "`median(values)` takes a non-empty list of numbers in any order and returns the middle value once they are sorted; for an even count it returns the mean of the two middle values. So `median([3, 1, 2])` is 2 and `median([4, 1, 3, 2])` is 2.5.\n\nWrite `check_median(median)`, which returns `True` for a correct implementation and raises for an incorrect one. It will be tried against two correct versions and three incorrect ones.",
+   "solution": "def check_median(median):\n    assert median([7]) == 7\n    assert median([1, 2, 3]) == 2\n    assert median([3, 1, 2]) == 2\n    assert median([4, 1, 3, 2]) == 2.5\n    assert median([1, 2]) == 1.5\n    return True",
+   "tests": [
+    {
+     "input": "lambda xs: sorted(xs)[len(xs) // 2] if len(xs) % 2 else (sorted(xs)[len(xs) // 2 - 1] + sorted(xs)[len(xs) // 2]) / 2",
+     "expected": true
+    },
+    {
+     "input": "lambda xs: (sorted(xs)[(len(xs) - 1) // 2] + sorted(xs)[len(xs) // 2]) / 2",
+     "expected": true
+    },
+    {
+     "input": "lambda xs: xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2",
+     "throws": true
+    },
+    {
+     "input": "lambda xs: sorted(xs)[len(xs) // 2]",
+     "throws": true
+    },
+    {
+     "input": "lambda xs: sorted(xs)[len(xs) // 2] if len(xs) % 2 else (sorted(xs)[len(xs) // 2 - 1] + sorted(xs)[len(xs) // 2]) // 2",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "what-a-test-is-worth",
+    "assertions"
+   ],
+   "tags": [
+    "what-a-test-is-worth",
+    "assertions"
+   ],
+   "explain": "The three broken versions forget to sort, forget the even case, and average with integer division - and each survives a check that only uses sorted, odd-length input. The claim that kills the last one needs an even-length list whose two middle values sum to an odd number, which is a very specific input to think of and the reason a good check is built by asking how the code could be wrong. A check made only of `[1, 2, 3]` passes all three broken versions, and a correct one too - it cannot tell them apart at all.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-x-09",
+   "type": "debug",
+   "layer": "application",
+   "fn": "check_title",
+   "prompt": "`check_title(title)` is meant to verify a function that puts each word of a phrase into title case: `\"the old ash\"` becomes `\"The Old Ash\"`, `\"OAK\"` becomes `\"Oak\"`, and `\"\"` stays `\"\"`. It has been green for months. It is also green against every broken implementation anybody has tried. Repair it so that it returns `True` for a correct implementation and raises for a wrong one, keeping its three cases.",
+   "starterCode": "def check_title(title):\n    cases = [(\"the old ash\", \"The Old Ash\"), (\"OAK\", \"Oak\"), (\"\", \"\")]\n    for text, expected in cases:\n        try:\n            assert title(text) == expected\n        except Exception:\n            print(\"problem with\", repr(text))\n    return True\n",
+   "solution": "def check_title(title):\n    cases = [(\"the old ash\", \"The Old Ash\"), (\"OAK\", \"Oak\"), (\"\", \"\")]\n    for text, expected in cases:\n        got = title(text)\n        assert got == expected, repr(text) + \" gave \" + repr(got)\n    return True",
+   "tests": [
+    {
+     "input": "lambda t: t.title()",
+     "expected": true
+    },
+    {
+     "input": "lambda t: \" \".join(w.capitalize() for w in t.split(\" \"))",
+     "expected": true
+    },
+    {
+     "input": "lambda t: t.upper()",
+     "throws": true
+    },
+    {
+     "input": "lambda t: t.capitalize()",
+     "throws": true
+    },
+    {
+     "input": "lambda t: t",
+     "throws": true
+    }
+   ],
+   "concepts": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "tags": [
+    "assertions",
+    "what-a-test-is-worth"
+   ],
+   "explain": "`except Exception` catches `AssertionError` too, so every failure was turned into a printed line that nobody reads and the check carried on to `return True`. It is floor 15's rule about never swallowing exceptions, arriving in test code where it is hardest to notice, because a test that cannot fail looks exactly like a test that passes. Months of green were never evidence of anything; watching this check fail against one broken implementation, once, would have exposed it on the first day.",
+   "xp": 90
+  },
+  {
+   "id": "py-23-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "Your team adopts a rule that no change may be merged unless line coverage stays at 100 per cent. Six months later coverage is 100 per cent and the rate of bugs reaching users has not moved. Explain how both of those can be true at once, and propose what the team should look at instead of, or alongside, the coverage figure.",
+   "rubric": {
+    "required": [
+     "coverage",
+     "assert",
+     "fail"
+    ],
+    "optional": [
+     "mutant",
+     "mutation",
+     "executed",
+     "target",
+     "floor",
+     "ran",
+     "regression",
+     "wrong",
+     "measure",
+     "edge",
+     "boundar"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "coverage",
+    "what-a-test-is-worth"
+   ],
+   "tags": [
+    "coverage",
+    "what-a-test-is-worth"
+   ],
+   "explain": "Coverage measures which lines ran, not whether anything was checked while they ran, so a rule demanding the number rewards tests that call code and assert little or nothing - the figure rises and the protection does not. The useful question is whether a test would fail if the code were wrong, which is what breaking the code deliberately measures, and whether every reported bug arrived with a regression test. Keeping coverage as a floor still has value: an unexecuted line is certainly unprotected, and that is worth knowing.",
+   "xp": 40
+  },
+  {
+   "id": "py-23-x-11",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A user reports that exporting a report with an ampersand in its title produces a corrupt file. Within a minute you can see the line that is obviously responsible. Explain why you should still write a test before you change that line, what that test must be seen to do before you are allowed to fix anything, and what the test is worth after the fix has shipped.",
+   "rubric": {
+    "required": [
+     "reproduc",
+     "fail",
+     "before",
+     "fix"
+    ],
+    "optional": [
+     "regression",
+     "return",
+     "suite",
+     "symptom",
+     "reason",
+     "permanent",
+     "again",
+     "ampersand",
+     "watch",
+     "evidence"
+    ],
+    "minWords": 55
+   },
+   "concepts": [
+    "regression-test",
+    "test-first"
+   ],
+   "tags": [
+    "regression-test",
+    "test-first"
+   ],
+   "explain": "The line that is obviously responsible is a hypothesis, and a test that reproduces the report - an ampersand in the title, asserting a valid file - is how you check it: if the test does not fail, you have not reproduced the bug and the obvious line may be innocent. Seen red and then green, the test is evidence that your change fixed the reported fault rather than something next to it. After shipping it stays in the suite so the same bug cannot return unnoticed, which is the habit every later floor, and the final trial, depends on.",
+   "xp": 40
+  }
+ ]
+}

@@ -1,0 +1,1132 @@
+{
+ "n": 25,
+ "name": "The Hall of Many Hands",
+ "goal": "Choose between threads, processes and async for a stated workload.",
+ "stage": 3,
+ "cognitiveLevel": "transfer",
+ "requires": [
+  {
+   "dungeon": "python",
+   "floor": 24
+  }
+ ],
+ "description": {
+  "what": "This floor covers what concurrency is for, and the two different reasons to want it: overlapping time spent waiting on I/O, and using more than one core for computation. It teaches threads and what CPython's global interpreter lock really prevents, processes and what they cost to start and to feed, async and await as cooperative turn-taking on one thread, and race conditions, where a correct-looking update loses data depending on timing.",
+  "why": "Every concurrency tool fixes one kind of slowness and does nothing for the other, and some make things worse. Threads added to a computation gain nothing, a process pool around a quadratic loop only divides a cost that should never have been paid, and a single blocking call inside async code freezes everything, so choosing well matters more than knowing any one API.",
+  "enables": "You will be able to look at a stated workload, work out whether it is waiting or computing, choose threads, processes, async or none of them, and defend that choice against the alternatives on cost, on scale and on the risk of races.",
+  "assumes": "You can write functions and classes, handle exceptions, split code into modules guarded by `if __name__ == \"__main__\":`, and measure running time. You can write generators and know that calling a generator function runs nothing, and on the previous floor you met blocking network calls and timeouts.",
+  "assessed": "You will trace async programs and simulated thread interleavings to predict exactly what they print, and write simulations of an event loop, a race and the cost of each model. You will also repair an estimate that believes threads compute in parallel, and argue in plain prose for a model, or for no concurrency at all. This runtime cannot start threads or processes, so those two are assessed through reasoning and simulation rather than by running them."
+ },
+ "concepts": [
+  "the-gil",
+  "threads",
+  "processes",
+  "async-await",
+  "io-vs-cpu-bound",
+  "race-conditions"
+ ],
+ "sequence": [
+  "lesson",
+  "guided-practice",
+  "independent-practice",
+  "exam"
+ ],
+ "lesson": {
+  "sections": [
+   {
+    "title": "Waiting and Computing: Two Different Problems",
+    "body": "**Concurrency** means arranging a program so that several tasks are in progress at the same time. **Parallelism** is the narrower thing where several of them are literally executing at the same instant, on different processor cores. A program can be concurrent without being parallel. Think of a cook with three pans on the hob: all three dishes are under way, but there is still only one pair of hands.\n\nThere are two completely different reasons to want concurrency, and this floor comes down to telling them apart. A program is **I/O-bound** when its time goes on waiting: for a web server to answer, a disk to deliver a file, a database to reply. Meanwhile the processor sits idle. Ten downloads that each wait one second take ten seconds one after another, even though the computer did almost nothing, and they take about one second if the waits overlap. Nothing needs to compute faster. The waiting just has to stop happening in single file. A program is **CPU-bound** when its time goes on computation: resizing images, parsing, simulating. That work can only finish sooner if more processors do it at once, or if there is less of it. A tool that fixes one of these problems does nothing for the other.\n\nMeasure which one you have rather than guessing. `time.perf_counter()` measures wall-clock time, the time a person with a stopwatch would see. `time.process_time()` counts only the time the processor actually spent running your program. If the two are close, the job is computing. If the wall time is far larger, the difference was spent waiting. Also ask the floor 19 question first: a program that is slow because its algorithm is quadratic is not helped by any concurrency at all, and fixing the algorithm is usually worth more than every technique on this floor.\n\nThis environment has real limits, and here they are plainly. The page runs genuine CPython, compiled to WebAssembly, inside a single browser worker. It **cannot start a thread** (it raises `RuntimeError: can't start new thread`) and **cannot start a process**, because the multiprocessing machinery is missing altogether. Its `process_time()` never advances either, so the example prints a CPU time of 0.0 on both lines. On your own machine the computing line would show CPU time close to wall time. Where this floor discusses threads and processes, you are reasoning about them rather than watching them. Where it runs something, such as `async` code or a simulated interleaving, what you see is real.",
+    "code": "import time\n\ndef measure(label, work):\n    wall_start, cpu_start = time.perf_counter(), time.process_time()\n    work()\n    wall = time.perf_counter() - wall_start\n    cpu = time.process_time() - cpu_start\n    print(label, \"wall\", round(wall, 1), \"cpu\", round(cpu, 1))\n\ndef wait():\n    time.sleep(0.5)\n\ndef compute():\n    total = 0\n    for n in range(3_000_000):\n        total += n * n\n\nmeasure(\"waiting  \", wait)\nmeasure(\"computing\", compute)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "Two clocks read side by side: wall-clock time, and the processor time charged to this program alone."
+     },
+     {
+      "line": 11,
+      "text": "Sleeping stands in for waiting on a network or a disk. The wall clock runs and the processor does nothing."
+     },
+     {
+      "line": 16,
+      "text": "Pure Python arithmetic: on a real machine, every second of wall time here is a second of CPU time."
+     },
+     {
+      "line": 19,
+      "text": "Here both CPU readings are 0.0, because this runtime does not report processor time. That is a limit of the environment, and it is not what you would see on your own machine."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "Three jobs were measured with the two clocks from the example. Each row is the job's name, its wall time and its CPU time, in seconds. What does this program print?",
+     "code": "jobs = [(\"thumbnails\", 12.0, 11.8), (\"downloads\", 12.0, 0.3), (\"report\", 9.0, 4.5)]\n\nfor name, wall, cpu in jobs:\n    share = cpu / wall\n    if share > 0.9:\n        kind = \"computing\"\n    elif share < 0.1:\n        kind = \"waiting\"\n    else:\n        kind = \"mixed\"\n    print(name, kind)",
+     "lang": "python",
+     "answer": "thumbnails computing\ndownloads waiting\nreport mixed",
+     "concepts": [
+      "io-vs-cpu-bound"
+     ],
+     "explain": "The share of wall time that was spent computing is the whole diagnosis: 11.8 of 12 seconds is nearly all computation, while 0.3 of 12 means the downloads spent more than 97 per cent of their time waiting. The report is the case people misjudge. Half its time is computing and half is waiting, so no single tool fixes all of it. Guessing from the job's name ('a report sounds like computation') instead of from the two measurements is exactly the habit this example exists to break.",
+     "tags": [
+      "io-vs-cpu-bound"
+     ]
+    }
+   },
+   {
+    "title": "Threads, and What the GIL Actually Prevents",
+    "body": "A **thread** is a separate line of execution inside the same running program. Each thread has its own position in the code and its own stack of function calls. What makes threads distinctive is that they **share every object**: the same lists, the same dictionaries, the same module-level names. The operating system decides when each thread runs, and it can switch from one to another at any moment without asking. `threading.Thread(target=work)` creates a thread, `.start()` sets it running and `.join()` waits for it to finish. In practice you will more often hand a function and a list of inputs to `concurrent.futures.ThreadPoolExecutor`, which spreads the calls across a fixed number of threads for you.\n\nHere is the **GIL** stated precisely. CPython has a **global interpreter lock**, one per running interpreter, and a thread must hold it to execute Python bytecode. So at most one thread in a process runs Python code at any instant, however many cores the machine has. The interpreter makes the running thread hand the lock over every few milliseconds (`sys.getswitchinterval()` is 0.005 seconds by default) so that the others get turns. The part that makes threads useful is this: a thread **releases the lock whenever it blocks waiting for I/O**, such as reading a socket, reading a file or sleeping. Waiting does not need the lock. That is why threads help with waiting: ten threads can all be waiting on the network at once. It is also why threads **do not help with computing**: ten threads doing arithmetic take turns on one lock, so they are no faster than one thread and often a little slower, because of the switching.\n\nNow for what the GIL does **not** prevent. It protects the interpreter's own internals, so a list's machinery is never corrupted, but it does not make your operations indivisible. `counter += 1` compiles to several bytecode instructions: load the value, add one, store it back. A switch can fall between the load and the store. Two threads can both load 41, both store 42, and one increment simply vanishes. This is a **race condition**: the result depends on the timing of the interleaving, so the code is correct on most runs and wrong on some. The fix is a `threading.Lock`. Put `with lock:` around the whole read-modify-write, and only one thread can be inside it at a time. Races are among the worst bugs to have, because they pass a test a thousand times and then fail under real load.\n\nTwo caveats keep this honest. Some C code releases the GIL while it computes, including NumPy on large arrays, `hashlib` on large inputs and compression libraries, and threads then really do run in parallel. So the rule that threads never help with computing is true of pure Python, which is not quite the same as always. Python 3.13 also introduced an optional free-threaded build with no GIL at all. It is not the interpreter most people install, and everything on this floor describes the default one. This runtime cannot start a thread, so the example catches that failure and says so. On your own machine the thread would print its greeting.",
+    "code": "import dis\nimport threading\n\ndis.dis(\"counter += 1\")\n\ndef work():\n    print(\"hello from a second thread\")\n\nt = threading.Thread(target=work)\ntry:\n    t.start()\n    t.join()\nexcept RuntimeError as err:\n    print(\"this runtime cannot start a thread:\", err)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 4,
+      "text": "The disassembly shows `counter += 1` as separate instructions: a LOAD, a BINARY_OP and a STORE. A thread switch can fall between any two of them."
+     },
+     {
+      "line": 9,
+      "text": "The thread object exists now, but nothing runs until `start` is called."
+     },
+     {
+      "line": 12,
+      "text": "`join` makes the main thread wait until the second one has finished. Forgetting it lets the program race ahead of work that has not finished."
+     },
+     {
+      "line": 14,
+      "text": "This line is what you see here. The runtime has no threads, and it says so rather than pretending."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "Two threads each run `counter += 1` once. This program performs their load and store steps by hand, in the order a thread switch might produce. What does it print?",
+     "code": "counter = 41\n\na_seen = counter      # thread A loads the value\nb_seen = counter      # a switch lands here, and thread B loads it too\ncounter = a_seen + 1  # A stores its result\ncounter = b_seen + 1  # B stores its result over the top of A's\n\nprint(counter)",
+     "lang": "python",
+     "answer": "42",
+     "concepts": [
+      "race-conditions",
+      "threads"
+     ],
+     "explain": "Two increments ran and the counter went up by one. B computed its answer from a value that was already out of date by the time it stored it, so its store erased A's work. The tempting answer of 43 comes from picturing each `+= 1` as one indivisible step. The GIL does not make it one: it stops two threads running bytecode at the same instant, not a switch landing between the load and the store.",
+     "tags": [
+      "race-conditions",
+      "threads"
+     ]
+    }
+   },
+   {
+    "title": "Processes: Paying for Real Parallelism",
+    "body": "A **process** is a separate running program, with its own memory and its own interpreter, and so with **its own GIL**. Four processes on four cores genuinely run Python at the same instant. That makes processes the answer for CPU-bound work written in pure Python. `concurrent.futures.ProcessPoolExecutor` looks almost identical to the thread pool: you `map` a function over inputs and collect the results. The difference is where the work runs, and what it costs to get it there.\n\nEvery cost follows from one fact: **nothing is shared**. The arguments you send to a worker, and the results that come back, are serialised with `pickle`. They are turned into bytes, sent across, and rebuilt on the other side, so the worker holds a copy. A worker that appends to a list changes its own copy and nobody else's. Anything you send must be picklable. A function defined at the top level of a module travels by name, but a lambda or a function nested inside another cannot be sent at all. Starting a process costs time and memory for a whole new interpreter. On Windows and macOS the new process begins by importing your main module afresh, which is why pool code must sit under `if __name__ == \"__main__\":` (floor 16). Without that guard, each child would reach the line that creates the pool and try to create its own.\n\nSo processes win when each task is a large piece of computation compared with the data it has to ship. Squaring a million numbers, one number per task, spends nearly all its time pickling small integers and passing messages. Split the same work into eight chunks and each message carries real work. `map` takes a `chunksize` argument for exactly this reason. If the whole job is a tenth of a second of computing, the start-up cost alone can exceed it, and the plain loop wins. The same is true when the data is huge and the work on each item is tiny, because you pay to copy all of it and gain almost nothing.\n\nThis environment cannot start a process at all: the part of the standard library that does it is missing here, so the import fails. The example therefore demonstrates the part you can see, which is the copying. It uses `pickle` directly, which is what a pool does to every argument on its way to a worker. On your own machine the last line would print the sum, computed in two processes at once.",
+    "code": "import pickle\n\ndef square_sum(numbers):\n    return sum(n * n for n in numbers)\n\ndef show_the_copy():\n    items = [1, 2, 3]\n    received = pickle.loads(pickle.dumps(items))\n    received.append(4)\n    print(items, received, received is items)\n    try:\n        pickle.dumps(lambda n: n * n)\n    except (pickle.PicklingError, AttributeError):\n        print(\"a lambda cannot be sent to another process\")\n\nif __name__ == \"__main__\":\n    show_the_copy()\n    chunks = [range(0, 500_000), range(500_000, 1_000_000)]\n    try:\n        from concurrent.futures import ProcessPoolExecutor\n        with ProcessPoolExecutor() as pool:\n            print(sum(pool.map(square_sum, chunks)))\n    except ImportError as err:\n        print(\"this runtime cannot start processes:\", type(err).__name__)",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "A worker function defined at the top level of the module. That is what lets a pool send it to another process by name."
+     },
+     {
+      "line": 8,
+      "text": "Pickling and unpickling in one line, which is the journey every argument makes to a worker. The result is a new object, not a view of the old one."
+     },
+     {
+      "line": 12,
+      "text": "A lambda has no importable name, so it cannot be pickled, and so it can never be the function a process pool runs."
+     },
+     {
+      "line": 13,
+      "text": "Python reports this failure as one of two exceptions, depending on where the lambda was defined and which version is running, so the example catches both."
+     },
+     {
+      "line": 16,
+      "text": "The guard. A child process that imports this module skips everything below, instead of starting a pool of its own."
+     },
+     {
+      "line": 18,
+      "text": "Two large chunks rather than a million tiny tasks, so each trip to a worker carries enough work to be worth the copying."
+     },
+     {
+      "line": 24,
+      "text": "What you see here. This runtime has no process support, and the example reports it rather than hiding it."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "This is the round trip every argument makes on its way to a worker process, done by hand. What does the program print?",
+     "code": "import pickle\n\nscores = {\"ada\": 3}\nsent = pickle.dumps(scores)\nreceived = pickle.loads(sent)\nreceived[\"ada\"] += 10\nreceived[\"bob\"] = 1\n\nprint(scores)\nprint(received)\nprint(type(sent).__name__)",
+     "lang": "python",
+     "answer": "{'ada': 3}\n{'ada': 13, 'bob': 1}\nbytes",
+     "concepts": [
+      "processes"
+     ],
+     "explain": "`pickle.dumps` turns the dictionary into bytes and `pickle.loads` builds a completely new dictionary from them, so changing the received copy leaves the original alone. That is exactly why a worker process cannot update your data in place: it only ever held a copy. The tempting answer shows both dictionaries changed, which comes from carrying floor 10's aliasing intuition across a boundary where nothing is shared.",
+     "tags": [
+      "processes"
+     ]
+    }
+   },
+   {
+    "title": "async and await: Taking Turns on Purpose",
+    "body": "`async` is a third answer to waiting, and it uses no threads at all. `async def` defines a **coroutine function**. Calling one runs nothing: it hands back a coroutine object, a paused computation, exactly as calling a generator function did on floor 20. Inside another coroutine, `await` runs a coroutine, and when that coroutine has to wait, the current one is suspended and control goes back to the **event loop**. The event loop holds every paused task and resumes whichever one has finished waiting. `asyncio.gather(a(), b(), c())` runs several coroutines concurrently and returns their results **in the order you passed them**, not the order in which they finished.\n\nThe model is **cooperative**. A task gives up control only at an `await`, and between two awaits it has the thread entirely to itself. That has a good consequence and a bad one. The good one is that every switch point is visible in the source, so a race can only happen across an `await`. The bad one is that **one blocking call stalls everything**. `time.sleep(1)`, an ordinary blocking HTTP request of the kind floor 24 made, or a long computation inside a coroutine never awaits anything, so no other task runs until it returns. Async needs async-aware libraries all the way down. For a blocking call you cannot avoid, `await asyncio.to_thread(func, arg)` hands the call to a thread on an ordinary interpreter. Here, with no threads, `to_thread` runs the call in place and blocks the loop anyway.\n\nWhy use async rather than threads for many waits? A paused task is a small object, so ten thousand simultaneous connections are routine. Ten thousand operating-system threads are not, because each one reserves its own call stack, commonly a megabyte or more of address space. The price is that every function that awaits must itself be `async`, and that requirement spreads up through every caller. Races have not gone away either. Read a value, `await`, then write back a result computed from the old value, and another task may have changed it in between. `asyncio.Lock` with `async with lock:` fixes that, exactly as `threading.Lock` does for threads. Entering an `async with` block is itself a point where a task may wait, because the lock may already be held by another task. The checkpoint shows the race happening for real.\n\nChoosing is the goal of this floor, so here is the whole of it. If the work is mostly **waiting on a modest number of things** using ordinary blocking libraries, use threads. If it is **waiting on a very large number of things**, or the libraries are already async, use async. If it is **computing in pure Python**, use processes, provided each task is big enough to outweigh the copying. And if the steps depend on each other in sequence, or the job is small, or the real problem is a slow algorithm, use **none of them**: concurrency cannot help, and it always adds risk.\n\nOne last honest note about this page. In an ordinary script you start the event loop with `asyncio.run(main())`. This page already runs inside an event loop, and `asyncio.run` refuses to start a second one, so the examples here end with a bare `await main()` at the top level. That works here and in the interactive `python -m asyncio` shell, but it is a `SyntaxError` in a normal `.py` file.",
+    "code": "import asyncio\n\nasync def fetch(name, seconds):\n    print(\"start\", name)\n    await asyncio.sleep(seconds)\n    print(\"done \", name)\n    return name.upper()\n\nasync def main():\n    results = await asyncio.gather(fetch(\"a\", 0.3), fetch(\"b\", 0.1), fetch(\"c\", 0.2))\n    print(results)\n\nawait main()",
+    "lang": "python",
+    "annotations": [
+     {
+      "line": 3,
+      "text": "`async def` makes a coroutine function. Calling `fetch(...)` builds a paused coroutine and runs none of this body yet."
+     },
+     {
+      "line": 5,
+      "text": "The one place this task gives up control. `asyncio.sleep` stands in for waiting on a network reply."
+     },
+     {
+      "line": 10,
+      "text": "All three start before any finishes, and the results come back in argument order: a, b, c, whatever order they finished in."
+     },
+     {
+      "line": 13,
+      "text": "Top-level `await` works only because this page already runs an event loop. In a script file, write `asyncio.run(main())` instead."
+     }
+    ],
+    "checkpoint": {
+     "type": "output",
+     "layer": "retrieval",
+     "prompt": "Two withdrawals run concurrently against one account, which starts at 100. What does this program print?",
+     "code": "import asyncio\n\naccount = {\"balance\": 100}\n\nasync def withdraw(amount):\n    seen = account[\"balance\"]\n    await asyncio.sleep(0)\n    account[\"balance\"] = seen - amount\n\nasync def main():\n    await asyncio.gather(withdraw(30), withdraw(50))\n    print(account[\"balance\"])\n\nawait main()",
+     "lang": "python",
+     "answer": "50",
+     "concepts": [
+      "race-conditions",
+      "async-await"
+     ],
+     "explain": "Both tasks read 100 before either writes, because the `await` between the read and the write is a switch point. The first task writes 70, then the second writes 100 minus 50 over the top of it, so the 30 withdrawal is lost. The tempting answer of 20 assumes one thread means no races. What one thread really guarantees is only that nothing interrupts the code between two awaits, and here an await sits right in the middle of the update.",
+     "tags": [
+      "race-conditions",
+      "async-await"
+     ]
+    }
+   }
+  ]
+ },
+ "guided-practice": [
+  {
+   "id": "py-25-gp-01",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "`main` awaits two coroutines one after the other, and then two more together with `gather`. Each `step` waits for `ticks` tenths of a second. What does this program print?",
+   "code": "import asyncio\n\nasync def step(name, ticks):\n    print(name, \"waits\")\n    await asyncio.sleep(ticks / 10)\n    print(name, \"resumes\")\n    return ticks\n\nasync def main():\n    await step(\"p\", 2)\n    await step(\"q\", 1)\n    done = await asyncio.gather(step(\"x\", 2), step(\"y\", 1))\n    print(done)\n\nawait main()",
+   "lang": "python",
+   "answer": "p waits\np resumes\nq waits\nq resumes\nx waits\ny waits\ny resumes\nx resumes\n[2, 1]",
+   "concepts": [
+    "async-await"
+   ],
+   "explain": "`await step(\"p\", 2)` means start p and do not continue this function until it has finished, so p and q run strictly one after another, with nothing overlapping. `async def` alone buys no concurrency, and awaiting in sequence is the commonest reason an async program is no faster than a plain one. `gather` starts x and y together, so y's shorter wait ends first. The result list is still in argument order, `[2, 1]`, which is the second trap: results come back in the order you asked, not the order things finished.",
+   "hint": "Read `await` as: run this, and do not move on until it is finished. Only `gather` lets two waits overlap, and its result list follows argument order.",
+   "xp": 36,
+   "tags": [
+    "async-await"
+   ]
+  },
+  {
+   "id": "py-25-gp-02",
+   "type": "code",
+   "layer": "application",
+   "fn": "interleave",
+   "prompt": "Simulate a race condition. Two threads, `A` and `B`, each keep running `counter += 1`, which really happens in two steps: a **load** copies the shared counter into the thread's own private register, and a **store** writes that register plus one back to the counter. Every thread alternates load, store, load, store, and so on.\n\nWrite `interleave(schedule)`. `schedule` is a string of `A` and `B` characters, and each character lets that thread perform its next step. The counter starts at 0. Return the counter's final value.\n\n`interleave(\"AABB\")` gives `2`, and `interleave(\"ABAB\")` gives `1`.",
+   "starterCode": "def interleave(schedule):\n    counter = 0\n    register = {\"A\": 0, \"B\": 0}          # each thread's private copy\n    next_is_load = {\"A\": True, \"B\": True}\n    for thread in schedule:\n        pass  # perform this thread's next step, then flip next_is_load\n    return counter\n",
+   "solution": "def interleave(schedule):\n    counter = 0\n    register = {\"A\": 0, \"B\": 0}\n    next_is_load = {\"A\": True, \"B\": True}\n    for thread in schedule:\n        if next_is_load[thread]:\n            register[thread] = counter\n        else:\n            counter = register[thread] + 1\n        next_is_load[thread] = not next_is_load[thread]\n    return counter",
+   "tests": [
+    {
+     "input": "\"AABB\"",
+     "expected": 2
+    },
+    {
+     "input": "\"ABAB\"",
+     "expected": 1
+    },
+    {
+     "input": "\"ABBA\"",
+     "expected": 1
+    },
+    {
+     "input": "\"\"",
+     "expected": 0
+    },
+    {
+     "input": "\"AAAA\"",
+     "expected": 2
+    },
+    {
+     "input": "\"AABABB\"",
+     "expected": 2
+    }
+   ],
+   "concepts": [
+    "race-conditions",
+    "threads"
+   ],
+   "explain": "The lost update happens whenever both threads load before either one stores. Then both compute the same answer and the second store overwrites the first. `AABB` is the lucky, serial order. `ABAB` and `ABBA` both lose an increment, and the thread scheduler chooses which of these orders you get, differently on every run. `AABABB` is the edge case: it ends with B holding a loaded value it never stored, and a load alone changes nothing. Writing the steps out like this is the most reliable way to reason about a race, because a real one cannot be reproduced on demand.",
+   "hint": "On a load, copy `counter` into `register[thread]`. On a store, set `counter` to `register[thread] + 1`. Either way, flip that thread's `next_is_load` afterwards.",
+   "xp": 90,
+   "tags": [
+    "race-conditions",
+    "threads"
+   ]
+  },
+  {
+   "id": "py-25-gp-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "estimate",
+   "prompt": "Build a rough estimate of how long a batch of jobs takes under each model. Each job is a pair `[cpu, wait]`: seconds of Python computation, and seconds spent waiting on I/O. Use the rule that **a run takes as long as its busiest resource**, together with these facts from the lesson:\n\n- `\"serial\"`: one job after another, so every second counts, cpu and wait alike.\n- In every concurrent model, waits overlap freely, and no job can finish sooner than its own `cpu + wait`.\n- `\"threads\"` and `\"async\"`: all Python computation shares one core, because of the GIL for threads and because there is only one thread for async.\n- `\"processes\"`: the total computation is shared evenly across `cores`.\n\nWrite `estimate(jobs, model, cores)` returning the estimated seconds, rounded to 2 decimal places. An empty batch takes 0.\n\n`estimate([[1, 4], [1, 4], [1, 4]], \"threads\", 4)` gives `5`, because the waits overlap and 3 seconds of computing fits inside them.",
+   "starterCode": "def estimate(jobs, model, cores):\n    total_cpu = sum(cpu for cpu, wait in jobs)\n    longest_job = max((cpu + wait for cpu, wait in jobs), default=0)\n    if model == \"serial\":\n        pass\n    if model in (\"threads\", \"async\"):\n        pass\n    if model == \"processes\":\n        pass\n",
+   "solution": "def estimate(jobs, model, cores):\n    total_cpu = sum(cpu for cpu, wait in jobs)\n    longest_job = max((cpu + wait for cpu, wait in jobs), default=0)\n    if model == \"serial\":\n        return round(sum(cpu + wait for cpu, wait in jobs), 2)\n    if model in (\"threads\", \"async\"):\n        return round(max(total_cpu, longest_job), 2)\n    if model == \"processes\":\n        return round(max(total_cpu / cores, longest_job), 2)",
+   "tests": [
+    {
+     "input": "[[1, 4], [1, 4], [1, 4]], \"serial\", 4",
+     "expected": 15
+    },
+    {
+     "input": "[[1, 4], [1, 4], [1, 4]], \"threads\", 4",
+     "expected": 5
+    },
+    {
+     "input": "[[4, 0], [4, 0], [4, 0], [4, 0]], \"threads\", 4",
+     "expected": 16
+    },
+    {
+     "input": "[[4, 0], [4, 0], [4, 0], [4, 0]], \"processes\", 4",
+     "expected": 4
+    },
+    {
+     "input": "[[4, 0], [4, 0], [4, 0], [4, 0]], \"async\", 4",
+     "expected": 16
+    },
+    {
+     "input": "[[3, 1], [1, 0]], \"processes\", 8",
+     "expected": 4
+    },
+    {
+     "input": "[], \"threads\", 4",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "the-gil",
+    "io-vs-cpu-bound",
+    "processes",
+    "threads",
+    "async-await"
+   ],
+   "explain": "The whole floor is inside these three lines. For waiting jobs, threads collapse fifteen seconds to five, because the waits overlap and waiting does not need the GIL. For computing jobs, threads and async leave sixteen seconds as sixteen, because all that Python bytecode still queues for one lock or one thread. Only processes turn it into four. The last process case shows the other limit: one job with three seconds of computing and one of waiting cannot finish in less than four, however many cores are free. The model is deliberately idealised, since it ignores the cost of starting processes and of switching. Its real use is showing where each model's ceiling is.",
+   "hint": "Serial is `sum(cpu + wait)`. Threads and async are limited by `max(total_cpu, longest_job)`. Processes divide `total_cpu` by `cores` first, and then the same `max` applies.",
+   "xp": 90,
+   "tags": [
+    "the-gil",
+    "io-vs-cpu-bound",
+    "processes",
+    "threads",
+    "async-await"
+   ]
+  },
+  {
+   "id": "py-25-gp-04",
+   "type": "code",
+   "layer": "application",
+   "fn": "make_chunks",
+   "prompt": "A process pool pays for every message it sends, so work goes to workers in chunks rather than one item at a time. Write `make_chunks(items, workers)`, which splits `items` into `workers` consecutive chunks whose sizes differ by at most one, with the larger chunks first. Never produce an empty chunk: if there are fewer items than workers, return one chunk per item.\n\n`make_chunks([1, 2, 3, 4, 5, 6, 7], 3)` gives `[[1, 2, 3], [4, 5], [6, 7]]`.",
+   "starterCode": "def make_chunks(items, workers):\n    count = min(workers, len(items))\n    if count == 0:\n        return []\n    size, extra = divmod(len(items), count)\n    chunks = []\n    start = 0\n    # the first `extra` chunks get one item more than `size`\n    return chunks\n",
+   "solution": "def make_chunks(items, workers):\n    count = min(workers, len(items))\n    if count == 0:\n        return []\n    size, extra = divmod(len(items), count)\n    chunks = []\n    start = 0\n    for index in range(count):\n        length = size + 1 if index < extra else size\n        chunks.append(items[start:start + length])\n        start += length\n    return chunks",
+   "tests": [
+    {
+     "input": "[1, 2, 3, 4, 5, 6, 7], 3",
+     "expected": [
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       4,
+       5
+      ],
+      [
+       6,
+       7
+      ]
+     ]
+    },
+    {
+     "input": "[1, 2, 3, 4, 5, 6], 3",
+     "expected": [
+      [
+       1,
+       2
+      ],
+      [
+       3,
+       4
+      ],
+      [
+       5,
+       6
+      ]
+     ]
+    },
+    {
+     "input": "[1, 2], 5",
+     "expected": [
+      [
+       1
+      ],
+      [
+       2
+      ]
+     ]
+    },
+    {
+     "input": "[], 4",
+     "expected": []
+    },
+    {
+     "input": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4",
+     "expected": [
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       4,
+       5,
+       6
+      ],
+      [
+       7,
+       8
+      ],
+      [
+       9,
+       10
+      ]
+     ]
+    },
+    {
+     "input": "[5, 6, 7], 1",
+     "expected": [
+      [
+       5,
+       6,
+       7
+      ]
+     ]
+    }
+   ],
+   "concepts": [
+    "processes"
+   ],
+   "explain": "Each chunk becomes one message to a worker process, pickled on the way out and rebuilt on the way in. One large message per worker spends almost nothing on overhead, while one message per item can spend more on copying than on work. Balancing matters just as much, because the batch finishes when the last worker does. Split ten items into chunks of 3, 3, 3 and 1 and three workers sit idle while one straggler finishes, whereas 3, 3, 2, 2 keeps them all busy together. Empty chunks are refused because each one would still cost a message for no work at all.",
+   "hint": "`divmod(len(items), count)` gives the basic size and how many chunks get one extra. Walk `start` forward by each chunk's length and slice.",
+   "xp": 90,
+   "tags": [
+    "processes"
+   ]
+  },
+  {
+   "id": "py-25-gp-05",
+   "type": "code",
+   "layer": "application",
+   "fn": "run_loop",
+   "prompt": "Simulate a cooperative event loop, the machinery underneath `asyncio`, with a clock that counts in ticks. `tasks` maps each task's name to a list of steps. A step `[\"cpu\", n]` computes for `n` ticks and **keeps control**, so the clock moves on by `n`. A step `[\"io\", n]` starts a wait and **hands control back**, and the task becomes ready again at the current clock plus `n`.\n\nThe loop repeatedly picks the ready task that became ready earliest (ties go to the task listed first in `tasks`), and runs it until it reaches an io step or runs out of steps. If no task is ready yet, the clock jumps forward to the next task that will be. Every task is ready at tick 0.\n\nWrite `run_loop(tasks)`, returning a dictionary of each task's finishing time: the clock when its last step is done.\n\n`run_loop({\"a\": [[\"io\", 5]], \"b\": [[\"io\", 5]]})` gives `{\"a\": 5, \"b\": 5}`.",
+   "starterCode": "def run_loop(tasks):\n    clock = 0\n    # each entry: [ready_at, position_in_tasks, name, index_of_next_step]\n    ready = [[0, position, name, 0] for position, name in enumerate(tasks)]\n    finished = {}\n    while ready:\n        ready.sort()\n        ready_at, position, name, index = ready.pop(0)\n        clock = max(clock, ready_at)\n        # run this task's steps from `index` until an io step or the end\n    return finished\n",
+   "solution": "def run_loop(tasks):\n    clock = 0\n    ready = [[0, position, name, 0] for position, name in enumerate(tasks)]\n    finished = {}\n    while ready:\n        ready.sort()\n        ready_at, position, name, index = ready.pop(0)\n        clock = max(clock, ready_at)\n        steps = tasks[name]\n        suspended = False\n        while index < len(steps) and not suspended:\n            kind, ticks = steps[index]\n            index += 1\n            if kind == \"cpu\":\n                clock += ticks\n            else:\n                ready.append([clock + ticks, position, name, index])\n                suspended = True\n        if not suspended:\n            finished[name] = clock\n    return finished",
+   "tests": [
+    {
+     "input": "{\"a\": [[\"io\", 5]], \"b\": [[\"io\", 5]]}",
+     "expected": {
+      "a": 5,
+      "b": 5
+     }
+    },
+    {
+     "input": "{\"a\": [[\"cpu\", 4], [\"io\", 1]], \"b\": [[\"io\", 1]]}",
+     "expected": {
+      "a": 5,
+      "b": 5
+     }
+    },
+    {
+     "input": "{\"solo\": [[\"cpu\", 2], [\"io\", 3], [\"cpu\", 1]]}",
+     "expected": {
+      "solo": 6
+     }
+    },
+    {
+     "input": "{}",
+     "expected": {}
+    },
+    {
+     "input": "{\"fast\": [[\"io\", 1]], \"hog\": [[\"cpu\", 10]], \"slow\": [[\"io\", 2], [\"cpu\", 1]]}",
+     "expected": {
+      "fast": 10,
+      "hog": 10,
+      "slow": 13
+     }
+    },
+    {
+     "input": "{\"a\": [[\"io\", 3], [\"io\", 3]], \"b\": [[\"cpu\", 1], [\"io\", 1], [\"cpu\", 1]]}",
+     "expected": {
+      "a": 6,
+      "b": 3
+     }
+    }
+   ],
+   "concepts": [
+    "async-await",
+    "io-vs-cpu-bound"
+   ],
+   "explain": "This is cooperative multitasking with the syntax taken away. The io step is an `await`, the only moment a task lets anyone else run, and the cpu step is code that never awaits. The fifth test is the lesson's warning made concrete. `fast` needed a one-tick wait and finished at tick 10, because `hog` held the only thread for ten ticks and nobody could even notice that fast's wait had ended. Two waits overlap perfectly (the first test), but a computation inside the loop stalls every task on it. That is why CPU work belongs in a process and blocking calls belong behind `to_thread`, never inline in a coroutine.",
+   "hint": "Inside the loop, read a step, advance `index`, and either add `ticks` to `clock` (cpu) or push `[clock + ticks, position, name, index]` back onto `ready` and stop (io). If the task ran out of steps without suspending, record `finished[name] = clock`.",
+   "xp": 90,
+   "tags": [
+    "async-await",
+    "io-vs-cpu-bound"
+   ]
+  },
+  {
+   "id": "py-25-gp-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A script checks whether each of 800 URLs on your organisation's website still responds, one at a time, using an ordinary blocking HTTP client like the one from floor 24. It takes seven minutes, and the CPU monitor sits near zero the whole time. Say which concurrency model you would reach for and why the GIL does not get in its way, then explain why processes would be the wrong choice here.",
+   "rubric": {
+    "required": [
+     "thread",
+     "wait",
+     "gil"
+    ],
+    "optional": [
+     "release",
+     "block",
+     "cpu",
+     "idle",
+     "pool",
+     "overhead",
+     "copy",
+     "async",
+     "library"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "threads",
+    "the-gil",
+    "io-vs-cpu-bound"
+   ],
+   "explain": "The CPU monitor has already made the diagnosis: this job is almost all waiting. A thread pool of twenty or so overlaps the waits and leaves the blocking client unchanged, and the GIL is no obstacle, because a thread releases it while it blocks on the network. Processes would work too, but they buy the one thing this job does not need, which is more cores for computation, and they charge for it in start-up time, memory and pickling. Async would also fit well, but only after replacing the HTTP client with an async one, which is why threads are the smaller change for 800 URLs.",
+   "hint": "Start from the measurement: near-zero CPU with a long wall time. Then recall what a thread does with the GIL while it is blocked on a network read.",
+   "xp": 50,
+   "tags": [
+    "threads",
+    "the-gil",
+    "io-vs-cpu-bound"
+   ]
+  }
+ ],
+ "independent-practice": [
+  {
+   "id": "py-25-ip-01",
+   "type": "code",
+   "layer": "application",
+   "fn": "stale_writes",
+   "prompt": "Several workers share one stored value. The log records, in order, every time a worker reads the value or writes a new one: each entry is `[worker, \"read\"]` or `[worker, \"write\"]`. A worker always computes what it writes from the value it most recently read, and every write in the log comes after at least one read by the same worker.\n\nA write is **stale** if another worker wrote the value after this worker's most recent read, because that change is then overwritten by a worker that never saw it. Write `stale_writes(log)`, returning the positions (counting from 0) of every stale write, in order.\n\n`stale_writes([[\"A\", \"read\"], [\"B\", \"read\"], [\"A\", \"write\"], [\"B\", \"write\"]])` gives `[3]`.",
+   "solution": "def stale_writes(log):\n    last_read = {}\n    writes = []\n    stale = []\n    for position, (worker, op) in enumerate(log):\n        if op == \"read\":\n            last_read[worker] = position\n        else:\n            seen_at = last_read.get(worker, -1)\n            for written_at, writer in writes:\n                if written_at > seen_at and writer != worker:\n                    stale.append(position)\n                    break\n            writes.append((position, worker))\n    return stale",
+   "tests": [
+    {
+     "input": "[[\"A\", \"read\"], [\"B\", \"read\"], [\"A\", \"write\"], [\"B\", \"write\"]]",
+     "expected": [
+      3
+     ]
+    },
+    {
+     "input": "[[\"A\", \"read\"], [\"A\", \"write\"], [\"B\", \"read\"], [\"B\", \"write\"]]",
+     "expected": []
+    },
+    {
+     "input": "[]",
+     "expected": []
+    },
+    {
+     "input": "[[\"A\", \"read\"], [\"B\", \"read\"], [\"B\", \"write\"], [\"A\", \"read\"], [\"A\", \"write\"]]",
+     "expected": []
+    },
+    {
+     "input": "[[\"A\", \"read\"], [\"B\", \"read\"], [\"C\", \"read\"], [\"A\", \"write\"], [\"B\", \"write\"], [\"C\", \"write\"]]",
+     "expected": [
+      4,
+      5
+     ]
+    },
+    {
+     "input": "[[\"A\", \"read\"], [\"B\", \"read\"], [\"B\", \"write\"], [\"B\", \"read\"], [\"B\", \"write\"], [\"A\", \"write\"]]",
+     "expected": [
+      5
+     ]
+    }
+   ],
+   "concepts": [
+    "race-conditions"
+   ],
+   "explain": "A lost update is not two writes close together. It is a write computed from a read that another worker's write has since made out of date. So the question for each write is what changed between this worker's last read and now, and a worker's own earlier writes never count, because it knew about them. The fourth test is the fix in miniature: A reads again after B's write, so its write is built on fresh information and nothing is lost. That is all a lock achieves, making read and write one step that nobody can get between. The third worker in the fifth test shows the damage compounding, with two of three updates overwritten.",
+   "xp": 90,
+   "tags": [
+    "race-conditions"
+   ]
+  },
+  {
+   "id": "py-25-ip-02",
+   "type": "debug",
+   "layer": "application",
+   "fn": "repeated",
+   "prompt": "`repeated(ids)` counts how many distinct customer ids appear more than once. It gives the right answers, but on the nightly file of two million ids it has started taking most of the night. A colleague proposes spreading the work across the eight cores of the batch server with a pool of worker processes.\n\nDecide what the real fix is, and make `repeated` fit for purpose. It must return the same answers, and one of the tests hands it 120,000 ids, which must finish well inside the runner's ten-second limit.\n\n`repeated([3, 1, 3, 2, 1, 3])` gives `2`.",
+   "starterCode": "def repeated(ids):\n    seen = []\n    counted = []\n    for i in ids:\n        if i in seen and i not in counted:\n            counted.append(i)\n        seen.append(i)\n    return len(counted)\n",
+   "solution": "def repeated(ids):\n    seen = set()\n    counted = set()\n    for i in ids:\n        if i in seen:\n            counted.add(i)\n        seen.add(i)\n    return len(counted)",
+   "tests": [
+    {
+     "input": "[3, 1, 3, 2, 1, 3]",
+     "expected": 2
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[7]",
+     "expected": 0
+    },
+    {
+     "input": "[\"a\", \"b\", \"a\"]",
+     "expected": 1
+    },
+    {
+     "input": "[n % 60000 for n in range(120000)]",
+     "expected": 60000
+    },
+    {
+     "input": "list(range(100000))",
+     "expected": 0
+    }
+   ],
+   "concepts": [
+    "io-vs-cpu-bound",
+    "processes"
+   ],
+   "explain": "This job is CPU-bound, so processes are at least the right kind of tool, but they are aimed at the wrong problem. Each `in` on a list scans it, which makes the function quadratic, and eight processes would divide a quadratic cost by eight at best, after paying to pickle two million ids across to them. Membership in a set costs the same however large the set grows, so the whole run becomes one linear pass: well under a second, on one core, with no pool at all. Always ask whether the work is necessary before asking how to spread it out. Changing only `seen` is not enough, because `counted` is then the list being scanned and the large test still runs out of time.",
+   "xp": 90,
+   "tags": [
+    "io-vs-cpu-bound",
+    "processes"
+   ]
+  },
+  {
+   "id": "py-25-ip-03",
+   "type": "code",
+   "layer": "application",
+   "fn": "best_workers",
+   "prompt": "You must decide how many worker processes to use for a batch of `items`, each needing `item_ms` milliseconds of computation, on a machine with `cores` cores. Use this cost model:\n\n- With 1 worker, no processes are started: the parent does all the work itself, taking `items * item_ms`.\n- With `k` workers, where `k` is at least 2, the processes are started one after another at `startup_ms` each, and the items are then shared as evenly as possible, so the batch takes `k * startup_ms` plus the time for the largest share, which is `ceil(items / k) * item_ms`.\n\nWrite `best_workers(items, item_ms, startup_ms, cores)`, returning the number of workers, from 1 to `cores`, that gives the shortest time. On a tie, return the smaller number.\n\n`best_workers(4, 1, 50, 8)` gives `1`.",
+   "solution": "def best_workers(items, item_ms, startup_ms, cores):\n    best, best_time = 1, items * item_ms\n    for k in range(2, cores + 1):\n        largest_share = -(-items // k)\n        time_taken = k * startup_ms + largest_share * item_ms\n        if time_taken < best_time:\n            best, best_time = k, time_taken\n    return best",
+   "tests": [
+    {
+     "input": "4, 1, 50, 8",
+     "expected": 1
+    },
+    {
+     "input": "1000, 10, 50, 8",
+     "expected": 8
+    },
+    {
+     "input": "100, 10, 200, 8",
+     "expected": 2
+    },
+    {
+     "input": "100, 10, 250, 4",
+     "expected": 1
+    },
+    {
+     "input": "0, 5, 10, 4",
+     "expected": 1
+    },
+    {
+     "input": "10, 100, 1, 1",
+     "expected": 1
+    }
+   ],
+   "concepts": [
+    "processes",
+    "io-vs-cpu-bound"
+   ],
+   "explain": "The first test is the one to remember. Four milliseconds of work does not justify fifty milliseconds of start-up, so the right number of processes is none, and the plain loop wins. When the work is large, as in the second test, every extra core pays for itself. In the middle, costs pull both ways: in the third test two workers win, but three already spend more on start-up than they save. The tie in the fourth test goes to the simpler program, because an extra process that buys nothing still adds pickling and a new way to fail. Treating the core count as the answer is the mistake this challenge exists to catch.",
+   "xp": 90,
+   "tags": [
+    "processes",
+    "io-vs-cpu-bound"
+   ]
+  },
+  {
+   "id": "py-25-ip-04",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A photo service generates thumbnails for 5,000 uploads with a resizing routine written in pure Python. It takes 40 minutes on an eight-core server. A colleague wrapped it in a pool of eight threads, and it still takes 40 minutes, slightly longer in fact. Explain exactly why the threads changed nothing, what you would use instead, and what that alternative will cost you.",
+   "rubric": {
+    "required": [
+     "gil",
+     "process",
+     "core"
+    ],
+    "optional": [
+     "bytecode",
+     "cpu",
+     "parallel",
+     "pickle",
+     "copy",
+     "chunk",
+     "start",
+     "memory",
+     "main"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "the-gil",
+    "processes",
+    "threads"
+   ],
+   "explain": "Resizing in pure Python is bytecode from start to finish, and a thread must hold the GIL to run bytecode, so eight threads took turns on one lock while seven cores sat idle. Switching between them explains the slight slowdown. A process pool gives each worker its own interpreter and its own GIL, so all eight cores run at once. The cost is real: start-up, a full interpreter's memory per worker, and every image pickled on the way to a worker and every thumbnail pickled on the way back, which is why the work should go out in chunks. Answering 'add more threads' repeats the mistake, because the lock stays the limit however many threads queue for it.",
+   "xp": 50,
+   "tags": [
+    "the-gil",
+    "processes",
+    "threads"
+   ]
+  },
+  {
+   "id": "py-25-ip-05",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "You are building a chat server that must hold 20,000 connections open at once. Most of them are idle at any moment, and each message needs almost no computation. Say which model fits this workload and why, what goes wrong with each of the other two at this scale, and the one rule every line of code on the server must then obey.",
+   "rubric": {
+    "required": [
+     "async",
+     "thread",
+     "block"
+    ],
+    "optional": [
+     "memory",
+     "stack",
+     "await",
+     "process",
+     "wait",
+     "idle",
+     "loop",
+     "library",
+     "cooperative"
+    ],
+    "minWords": 45
+   },
+   "concepts": [
+    "async-await",
+    "threads",
+    "io-vs-cpu-bound"
+   ],
+   "explain": "Twenty thousand connections that are mostly waiting is exactly what async was built for, because a paused task is a small object and the event loop can hold tens of thousands of them. A thread per connection means 20,000 operating-system threads, each reserving its own stack, and processes are worse still, with an interpreter each and nothing shared for the messages that must pass between users. The rule is the price of async: nothing may block. One stray blocking call, a synchronous database driver or a `time.sleep`, freezes all 20,000 connections at once, because the model is cooperative and no other task can run until that call returns.",
+   "xp": 50,
+   "tags": [
+    "async-await",
+    "threads",
+    "io-vs-cpu-bound"
+   ]
+  },
+  {
+   "id": "py-25-ip-06",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A deployment script applies 40 database migrations. Each one alters the schema that the next one assumes. It takes twelve minutes, and almost all of that is waiting for the database to reply. A colleague notices the waiting and proposes starting all 40 at once with `asyncio.gather`. Say whether that is a good idea, and why. What would you look at instead?",
+   "rubric": {
+    "required": [
+     "depend",
+     "order",
+     "previous"
+    ],
+    "optional": [
+     "independent",
+     "sequential",
+     "wait",
+     "race",
+     "gather",
+     "schema",
+     "fail",
+     "slow",
+     "measure"
+    ],
+    "minWords": 40
+   },
+   "concepts": [
+    "io-vs-cpu-bound",
+    "async-await",
+    "race-conditions"
+   ],
+   "explain": "The job really is I/O-bound, which is what makes the proposal tempting, but concurrency only helps with waits that are independent. Every migration depends on the previous one having finished, so starting them together leaves them to race against each other on the schema, and the order they happen to run in decides whether the database is corrupted. The honest answer is that no concurrency model applies to a chain. You shorten a chain by making each link faster, for example by finding the slowest migrations or grouping steps into fewer round trips, never by overlapping links that must happen in order.",
+   "xp": 50,
+   "tags": [
+    "io-vs-cpu-bound",
+    "async-await",
+    "race-conditions"
+   ]
+  }
+ ],
+ "exam": [
+  {
+   "id": "py-25-x-01",
+   "type": "mcq",
+   "layer": "retrieval",
+   "prompt": "What does CPython's global interpreter lock guarantee?",
+   "choices": [
+    "At most one thread in a process executes Python bytecode at any instant.",
+    "Read-modify-write operations such as `counter += 1` cannot be interrupted by another thread.",
+    "Only one Python process on the whole machine can run at a time.",
+    "A thread that is waiting on I/O keeps every other thread from running."
+   ],
+   "answer": 0,
+   "concepts": [
+    "the-gil"
+   ],
+   "explain": "The GIL is one lock per interpreter, and running bytecode requires holding it. That single fact explains both halves of the floor: computing threads queue for it, and waiting threads let go of it. The second option is the dangerous misreading, because a switch can still fall between the load and the store of `counter += 1`, which is why the lock does not replace your own locks. The fourth option has it backwards, since a blocked thread releases the GIL.",
+   "xp": 18,
+   "tags": [
+    "the-gil"
+   ]
+  },
+  {
+   "id": "py-25-x-02",
+   "type": "multi",
+   "layer": "retrieval",
+   "prompt": "Select every statement that is true of `async` code running on an asyncio event loop.",
+   "choices": [
+    "Calling an `async def` function runs its body immediately, up to its first `await`.",
+    "A task can only lose control at a point where it awaits.",
+    "`asyncio.gather` returns results in the order its arguments were given, not the order they finished.",
+    "Running CPU-bound code in several tasks spreads it across several cores.",
+    "A `time.sleep(1)` inside one coroutine pauses every other task on the same loop for that second."
+   ],
+   "answer": [
+    1,
+    2,
+    4
+   ],
+   "concepts": [
+    "async-await"
+   ],
+   "explain": "Calling a coroutine function only builds a paused coroutine object, as calling a generator function does, and nothing in the body runs until it is awaited or scheduled. Everything else follows from the model being cooperative, with one thread taking turns at `await` points: that is why switches are visible, why a blocking sleep freezes the whole loop, and why no number of tasks will ever use a second core. The first option is the generator lesson forgotten, and the fourth confuses concurrency with parallelism.",
+   "xp": 18,
+   "tags": [
+    "async-await"
+   ]
+  },
+  {
+   "id": "py-25-x-03",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "Three coroutines are gathered, and one of them calls `time.sleep` instead of awaiting `asyncio.sleep`. What does this program print?",
+   "code": "import asyncio\nimport time\n\nasync def polite(name):\n    print(name, \"starts\")\n    await asyncio.sleep(0.1)\n    print(name, \"ends\")\n\nasync def rude(name):\n    print(name, \"starts\")\n    time.sleep(0.3)\n    print(name, \"ends\")\n\nasync def main():\n    await asyncio.gather(polite(\"p\"), rude(\"r\"), polite(\"q\"))\n\nawait main()",
+   "lang": "python",
+   "answer": "p starts\nr starts\nr ends\nq starts\np ends\nq ends",
+   "concepts": [
+    "async-await",
+    "io-vs-cpu-bound"
+   ],
+   "explain": "p reaches its `await` and yields, so r starts. r then blocks the only thread for 0.3 seconds without ever yielding. q does not even start until r has finished, and p's 0.1-second wait, which ended long before, is only noticed afterwards. The tempting answer has q starting straight after r starts and the two polite tasks ending early, which is how it would go if `time.sleep` gave up control. It does not: only an `await` does.",
+   "xp": 36,
+   "tags": [
+    "async-await",
+    "io-vs-cpu-bound"
+   ]
+  },
+  {
+   "id": "py-25-x-04",
+   "type": "trace",
+   "layer": "retrieval",
+   "prompt": "The stock level starts at 5. Two threads, A and B, each sell one item by running the two lines in the code: a load into their own `local`, then a store. For each order of steps below, give the final value of `stock` as a whole number.",
+   "code": "local = stock        # load\nstock = local - 1    # store",
+   "lang": "python",
+   "steps": [
+    {
+     "label": "A load, A store, B load, B store",
+     "expected": "3"
+    },
+    {
+     "label": "A load, B load, A store, B store",
+     "expected": "4"
+    },
+    {
+     "label": "A load, B load, B store, A store",
+     "expected": "4"
+    },
+    {
+     "label": "B load, B store, A load, A store",
+     "expected": "3"
+    },
+    {
+     "label": "any order, with one lock held from each thread's load until its store",
+     "expected": "3"
+    }
+   ],
+   "concepts": [
+    "race-conditions",
+    "threads"
+   ],
+   "explain": "Whenever both loads happen before either store, both threads compute 4 and one sale disappears, whichever of them stores last. The lock does not choose an order. It makes each load-and-store pair indivisible, so the only possible outcomes are the two serial ones, and both give 3. The tempting mistake is to answer 3 for every line on the reasoning that two sales always remove two items, which is precisely the assumption a race breaks.",
+   "xp": 72,
+   "tags": [
+    "race-conditions",
+    "threads"
+   ]
+  },
+  {
+   "id": "py-25-x-05",
+   "type": "fill",
+   "layer": "retrieval",
+   "prompt": "Complete the fix for the lost withdrawal from the lesson, so that no other task can run between the read and the write.",
+   "template": "import asyncio\n\nlock = asyncio.___()\n\nasync def withdraw(account, amount):\n    ___ with lock:\n        seen = account[\"balance\"]\n        await asyncio.sleep(0)\n        account[\"balance\"] = seen - amount",
+   "blanks": [
+    "Lock",
+    "async"
+   ],
+   "concepts": [
+    "race-conditions",
+    "async-await"
+   ],
+   "explain": "`asyncio.Lock` is the async counterpart of `threading.Lock`, and it is entered with `async with` because acquiring it may itself mean waiting for another task to let go. The `await` inside the block still yields, but any other task that tries to enter now waits at the lock instead of reading a balance that is about to go stale. Writing a plain `with` is the natural slip. An asyncio lock refuses it, because waiting for the lock has to be an await point of its own.",
+   "xp": 36,
+   "tags": [
+    "race-conditions",
+    "async-await"
+   ]
+  },
+  {
+   "id": "py-25-x-06",
+   "type": "order",
+   "layer": "retrieval",
+   "prompt": "Put these steps in the order they happen when a process pool runs one chunk of work.",
+   "fragments": [
+    "The parent pickles the function's name and the chunk of arguments into bytes.",
+    "The bytes are sent to a worker process.",
+    "The worker unpickles them, building its own copy of the arguments.",
+    "The worker runs the function in its own interpreter, holding its own GIL.",
+    "The worker pickles the result and sends it back, and the parent rebuilds it."
+   ],
+   "answer": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "concepts": [
+    "processes"
+   ],
+   "explain": "Every step except the fourth is overhead, and that is the whole cost model of processes. The work has to be big enough to pay for two rounds of pickling and a trip in each direction. The third step is also why a worker can never change the parent's data: it only ever held a copy. People tend to picture the worker reaching into the parent's memory, which is how threads behave and precisely what processes do not do.",
+   "xp": 36,
+   "tags": [
+    "processes"
+   ]
+  },
+  {
+   "id": "py-25-x-07",
+   "type": "output",
+   "layer": "retrieval",
+   "prompt": "Each call to `square` waits for a different length of time before it finishes. What does this program print?",
+   "code": "import asyncio\n\nasync def square(n):\n    await asyncio.sleep((4 - n) / 10)\n    print(\"finished\", n)\n    return n * n\n\nasync def main():\n    print(await asyncio.gather(square(1), square(2), square(3)))\n\nawait main()",
+   "lang": "python",
+   "answer": "finished 3\nfinished 2\nfinished 1\n[1, 4, 9]",
+   "concepts": [
+    "async-await"
+   ],
+   "explain": "The waits are 0.3, 0.2 and 0.1 seconds, so the calls finish in the reverse of the order they were given. Even so, `gather` returns its results in argument order, and that is what lets you match each answer to its input without labelling them. Expecting `[9, 4, 1]` comes from assuming the list is filled as tasks complete. That is what `asyncio.as_completed` does, and it is a different tool.",
+   "xp": 36,
+   "tags": [
+    "async-await"
+   ]
+  },
+  {
+   "id": "py-25-x-08",
+   "type": "code",
+   "layer": "application",
+   "fn": "plan",
+   "prompt": "Choose a model for a batch of jobs. Each job is `[cpu, wait]` in seconds. Estimate each option as follows:\n\n- `\"serial\"`: the sum of every job's cpu plus wait.\n- `\"threads\"`: the larger of the total cpu and the longest single job's cpu plus wait.\n- `\"processes\"`: the larger of the total cpu divided by `cores` and the longest single job's cpu plus wait, plus `startup` seconds to create the pool.\n\nWrite `plan(jobs, cores, startup)`, returning the name of the fastest option. On a tie, prefer the simpler one, in the order serial, then threads, then processes.\n\n`plan([[3, 0]], 8, 0.5)` gives `\"serial\"`.",
+   "starterCode": "def plan(jobs, cores, startup):\n    pass\n",
+   "solution": "def plan(jobs, cores, startup):\n    total_cpu = sum(cpu for cpu, wait in jobs)\n    longest_job = max((cpu + wait for cpu, wait in jobs), default=0)\n    options = [\n        (\"serial\", sum(cpu + wait for cpu, wait in jobs)),\n        (\"threads\", max(total_cpu, longest_job)),\n        (\"processes\", max(total_cpu / cores, longest_job) + startup),\n    ]\n    best_name, best_time = options[0]\n    for name, seconds in options[1:]:\n        if seconds < best_time:\n            best_name, best_time = name, seconds\n    return best_name",
+   "tests": [
+    {
+     "input": "[[0.1, 2]] * 10, 4, 0.5",
+     "expected": "threads"
+    },
+    {
+     "input": "[[3, 0]] * 8, 8, 0.5",
+     "expected": "processes"
+    },
+    {
+     "input": "[[3, 0]], 8, 0.5",
+     "expected": "serial"
+    },
+    {
+     "input": "[], 4, 0.5",
+     "expected": "serial"
+    },
+    {
+     "input": "[[1, 0], [1, 0]], 2, 1.5",
+     "expected": "serial"
+    },
+    {
+     "input": "[[2, 1], [2, 1], [2, 1], [2, 1]], 4, 0.2",
+     "expected": "processes"
+    }
+   ],
+   "concepts": [
+    "io-vs-cpu-bound",
+    "processes",
+    "threads",
+    "the-gil"
+   ],
+   "explain": "The cases track the floor's decision rule. Waiting jobs go to threads, because waits overlap and the GIL is released while waiting. Big computations go to processes, because only they multiply cores. A single job gets nothing, because one task cannot overlap with anything. The fifth case is the one people get wrong: two seconds of work across two cores would take one second, but a pool that costs one and a half seconds to start is slower than just doing it. Ties go to the simpler program on purpose, since concurrency that saves nothing still adds risk.",
+   "xp": 90,
+   "tags": [
+    "io-vs-cpu-bound",
+    "processes",
+    "threads",
+    "the-gil"
+   ]
+  },
+  {
+   "id": "py-25-x-09",
+   "type": "debug",
+   "layer": "application",
+   "fn": "threaded_time",
+   "prompt": "`threaded_time(jobs)` is meant to estimate how long a batch of `[cpu, wait]` jobs takes when every job gets its own thread on a standard CPython interpreter. It assumes every job can run completely alongside every other, so it reports that eight jobs of four seconds of pure computation finish in four seconds. Correct its model of what threads can overlap.\n\n`threaded_time([[1, 4], [1, 4], [1, 4]])` gives `5`, and `threaded_time([[4, 0], [4, 0]])` gives `8`.",
+   "starterCode": "def threaded_time(jobs):\n    longest = 0\n    for cpu, wait in jobs:\n        longest = max(longest, cpu + wait)\n    return longest\n",
+   "solution": "def threaded_time(jobs):\n    longest = 0\n    total_cpu = 0\n    for cpu, wait in jobs:\n        longest = max(longest, cpu + wait)\n        total_cpu += cpu\n    return max(longest, total_cpu)",
+   "tests": [
+    {
+     "input": "[[1, 4], [1, 4], [1, 4]]",
+     "expected": 5
+    },
+    {
+     "input": "[[4, 0], [4, 0]]",
+     "expected": 8
+    },
+    {
+     "input": "[[4, 0]] * 8",
+     "expected": 32
+    },
+    {
+     "input": "[]",
+     "expected": 0
+    },
+    {
+     "input": "[[0, 3], [0, 3]]",
+     "expected": 3
+    },
+    {
+     "input": "[[5, 1], [1, 0]]",
+     "expected": 6
+    }
+   ],
+   "concepts": [
+    "the-gil",
+    "threads"
+   ],
+   "explain": "The bug is the belief that the GIL exists to fix: that threads run Python in parallel. Waits overlap, because a waiting thread releases the lock, but computation does not, because every second of bytecode has to be run by whichever single thread holds the lock. So the answer can never be less than the total CPU. The original code is right only for jobs that are nearly all waiting, which is exactly why the misconception survives. It gives the right answer on the I/O-bound case it was tested against, and a wildly optimistic one for computation.",
+   "xp": 90,
+   "tags": [
+    "the-gil",
+    "threads"
+   ]
+  },
+  {
+   "id": "py-25-x-10",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "A service downloads 5,000 web pages and then parses each one, which takes about 200 milliseconds of pure-Python computation per page. Design how you would make it concurrent. Say which model handles which half and why, and why no single model is the right answer for the whole job.",
+   "rubric": {
+    "required": [
+     "process",
+     "wait",
+     "pars"
+    ],
+    "optional": [
+     "async",
+     "thread",
+     "gil",
+     "cpu",
+     "core",
+     "pickle",
+     "chunk",
+     "pool",
+     "queue",
+     "block"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "io-vs-cpu-bound",
+    "processes",
+    "async-await",
+    "threads"
+   ],
+   "explain": "The job has both of the floor's problems, and each tool fixes only one of them. The downloads are waiting, so threads or async overlap them cheaply, and parsing inside that same event loop would stall every pending download for 200 milliseconds a page. The parsing is 1,000 seconds of pure-Python computation, which only processes can spread across cores, while downloading in processes would pay for interpreters that sit idle waiting. The usual shape is a thread pool or an event loop feeding pages to a process pool in chunks, so that the part that waits and the part that computes each get the tool that fits.",
+   "xp": 50,
+   "tags": [
+    "io-vs-cpu-bound",
+    "processes",
+    "async-await",
+    "threads"
+   ]
+  },
+  {
+   "id": "py-25-x-11",
+   "type": "explain",
+   "layer": "application",
+   "prompt": "In a code review, a colleague removes the `threading.Lock` around the line that updates a shared account balance, with the comment: 'Python has the GIL, so only one thread runs at a time and this lock is dead weight.' Reply to the review. Explain what the GIL does and does not guarantee, describe the failure the removal allows, and say whether the same update in `async` code would need a lock.",
+   "rubric": {
+    "required": [
+     "gil",
+     "lock",
+     "read"
+    ],
+    "optional": [
+     "write",
+     "store",
+     "bytecode",
+     "atomic",
+     "switch",
+     "await",
+     "lost",
+     "interleav",
+     "stale"
+    ],
+    "minWords": 50
+   },
+   "concepts": [
+    "race-conditions",
+    "the-gil",
+    "threads",
+    "async-await"
+   ],
+   "explain": "The colleague is right that only one thread runs bytecode at a time, and wrong about what follows from it. The GIL can move between the read of the balance and the write of the new one, so two threads can both read 100 and both write back their own result, and one update is silently lost. It protects the interpreter, not your invariants. In async code the answer depends on the code itself: an update with no `await` between its read and its write cannot be interrupted and needs no lock, while one with an `await` in the middle is exactly the lesson's lost withdrawal, and needs `asyncio.Lock`.",
+   "xp": 50,
+   "tags": [
+    "race-conditions",
+    "the-gil",
+    "threads",
+    "async-await"
+   ]
+  }
+ ]
+}
