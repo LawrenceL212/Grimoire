@@ -71,7 +71,7 @@ const report = await page.evaluate(async (dungeon) => {
     for (const st of fl.sequence || []) {
       if (st === 'lesson') continue;
       for (const ch of fl[st] || []) {
-        if (['code', 'debug', 'design', 'project'].includes(ch.type) && ch.tests) {
+        if (['code', 'debug', 'design', 'project'].includes(ch.type) && (ch.tests || ch.repo)) {
           items.push({ floor: fl.n, stage: st, ch });
         }
       }
@@ -84,7 +84,27 @@ const report = await page.evaluate(async (dungeon) => {
       continue;
     }
     out.executed++;
-    if (ch.fn) out.fnBased++; else out.wholeProgram++;
+    if (ch.repo) {
+      // A repository task is only a task if the ORIGINAL code is broken. A
+      // boss whose "bug" already passes every check would reward a learner
+      // for changing nothing, so prove the bug first, then the fix.
+      out.repos = (out.repos || 0) + 1;
+      // Ask it with the regression-test requirement switched OFF. With it on,
+      // submitting nothing always fails the regression check, so this would
+      // report "broken" for every repository whether or not the code is.
+      const asShipped = { ...ch, repo: { ...ch.repo, requireRegressionTest: false } };
+      const before = await runTests(dungeon, asShipped, '{}', '');
+      out.cases += before.results.length;
+      if (before.unavailable) {
+        out.failures.push({ floor: it.floor, id: ch.id, stage: it.stage, why: 'runtime unavailable' });
+        continue;
+      }
+      if (before.passed) {
+        out.failures.push({ floor: it.floor, id: ch.id, stage: it.stage, mode: 'repository',
+          why: 'the ORIGINAL repository already passes every check - there is no bug to fix' });
+        continue;
+      }
+    } else if (ch.fn) out.fnBased++; else out.wholeProgram++;
     let res;
     try {
       res = await runTests(dungeon, ch, ch.solution, '');
@@ -97,7 +117,8 @@ const report = await page.evaluate(async (dungeon) => {
       out.failures.push({ floor: it.floor, id: ch.id, stage: it.stage, why: 'runtime unavailable' });
     } else if (!res.passed) {
       out.failures.push({
-        floor: it.floor, id: ch.id, stage: it.stage, mode: ch.fn ? 'fn' : 'whole-program',
+        floor: it.floor, id: ch.id, stage: it.stage,
+        mode: ch.repo ? 'repository' : ch.fn ? 'fn' : 'whole-program',
         detail: res.results.filter((r) => !r.ok).slice(0, 2).map((r) =>
           `${r.label}: got ${JSON.stringify(r.actual)} want ${JSON.stringify(r.expected)}` +
           (r.error ? ` err=${String(r.error).slice(0, 160)}` : '')),
@@ -113,7 +134,7 @@ if (report.fatal) {
   process.exit(2);
 }
 console.log(`floors             : ${floors.map((f) => f.n).join(', ')}`);
-console.log(`solutions executed : ${report.executed}  (${report.wholeProgram} whole-program, ${report.fnBased} fn-based)`);
+console.log(`solutions executed : ${report.executed}  (${report.wholeProgram} whole-program, ${report.fnBased} fn-based, ${report.repos || 0} repository)`);
 console.log(`test cases         : ${report.cases}`);
 console.log(`failures           : ${report.failures.length}`);
 for (const f of report.failures.slice(0, 15)) {

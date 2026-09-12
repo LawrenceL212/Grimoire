@@ -373,6 +373,57 @@ Three harness modes:
 a challenge using them reports honestly that the mode is not yet available
 rather than passing the learner.
 
+### Repository challenges — the Stage 4 shape
+
+A Stage 4 floor puts the learner inside a codebase they did not write. That
+cannot be honestly flattened into one string, so a `project` (or `code`)
+challenge may carry a real repository instead of a `tests` array. Python only,
+for now: the files are written into Pyodide's virtual filesystem and import
+each other as they would on disk.
+
+```jsonc
+{
+  "id": "py-31-t-01", "type": "project", "layer": "application",
+  "capstone": true,
+  "repo": {
+    "files": {                                // what the learner receives
+      "shop/__init__.py": "",
+      "shop/pricing.py": "...",
+      "tests/test_cart.py": "...",
+      "README.md": "..."
+    },
+    "editable": ["shop/pricing.py"],          // default: every file
+    "hidden": {                               // grader-only, never shown
+      "tests/test_hidden_pricing.py": "..."
+    },
+    "requireRegressionTest": true
+  },
+  "solution": "{\"shop/pricing.py\": \"...\", \"tests/test_boundary.py\": \"...\"}"
+}
+```
+
+**Tests** are plain functions named `test_*` in files named `test_*.py`.
+There is no pytest in Pyodide, so the runner discovers and calls them; an
+assertion error or any exception is a failure.
+
+**Grading** asks what a reviewer would ask:
+
+1. Does every test pass — the repository's own, the learner's, and the hidden
+   ones? That is "the change works and nothing that worked has broken".
+2. If `requireRegressionTest`: did the learner add or change a test, and does
+   it **fail when run against the original code**? A test that passes on the
+   broken code would not have caught the bug. An import failure does not
+   count as a catch.
+3. Did the change stay within `editable`? A new test file is always allowed;
+   touching anything else is refused.
+
+**`solution`** is the JSON of the files the reference fix changes or adds.
+
+**Two things only running it can prove**, so `verify_fragments.mjs` checks
+them and the structural validator cannot: that the ORIGINAL repository fails
+its checks (otherwise there is no bug, and a learner who changes nothing
+passes), and that the reference solution passes.
+
 ---
 
 ## 8. XP

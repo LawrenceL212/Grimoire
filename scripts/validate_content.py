@@ -132,6 +132,72 @@ def band_for(n, total, stage=None):
     return "transfer"
 
 
+TEST_FILE = re.compile(r"(^|/)test_[^/]*\.py$")
+
+
+def check_repo(ch, where, res):
+    """A repository challenge: the Stage 4 shape, graded by its own tests.
+
+    Shape only. Whether the bug is real and the reference fix really fixes it
+    can only be established by running it - scripts/browser/verify_fragments.mjs
+    does that, and refuses a repository whose original code already passes.
+    """
+    repo = ch.get("repo")
+    if not isinstance(repo, dict):
+        res.err(where, "`repo` must be an object")
+        return
+    files = repo.get("files")
+    if not isinstance(files, dict) or not files:
+        res.err(where, "`repo.files` must map paths to file contents")
+        return
+    for p in list(files) + list((repo.get("hidden") or {}).keys()):
+        if p.startswith("/") or ".." in p:
+            res.err(where, "repository path %r must be relative and stay inside the repo" % p)
+    if not any(p.endswith(".py") and not TEST_FILE.search(p) for p in files):
+        res.err(where, "the repository has no source module to work on")
+    visible_tests = [p for p in files if TEST_FILE.search(p)]
+    if not visible_tests:
+        res.warn(where, "the repository has no visible tests - a real codebase "
+                        "the learner inherits usually does")
+    hidden = repo.get("hidden") or {}
+    if not isinstance(hidden, dict):
+        res.err(where, "`repo.hidden` must map paths to file contents")
+    else:
+        for p in hidden:
+            if not TEST_FILE.search(p):
+                res.err(where, "hidden file %r must be a test_*.py file" % p)
+            if p in files:
+                res.err(where, "hidden file %r shadows a visible file" % p)
+        if not hidden and not visible_tests:
+            res.err(where, "nothing would test the change: add visible or hidden tests")
+    editable = repo.get("editable")
+    if editable is not None:
+        if not isinstance(editable, list) or not editable:
+            res.err(where, "`repo.editable` must be a non-empty list of paths")
+        else:
+            for p in editable:
+                if p not in files:
+                    res.err(where, "editable path %r is not in repo.files" % p)
+    sol = ch.get("solution")
+    if not sol:
+        res.err(where, "a repository challenge needs a reference `solution`: "
+                       "the JSON of the files the fix changes or adds")
+    else:
+        try:
+            parsed = json.loads(sol)
+            if not isinstance(parsed, dict) or not parsed:
+                raise ValueError
+        except ValueError:
+            res.err(where, "`solution` must be a JSON object of path -> contents")
+            parsed = {}
+        if repo.get("requireRegressionTest") and not any(
+                TEST_FILE.search(p) and parsed.get(p) != files.get(p) for p in parsed):
+            res.err(where, "requireRegressionTest is set, but the reference "
+                           "solution adds or changes no test file")
+    if ch.get("starterCode"):
+        res.err(where, "a repository challenge starts from its files, not starterCode")
+
+
 def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
     cid = ch.get("id")
     ctype = ch.get("type")
@@ -174,7 +240,12 @@ def check_challenge(ch, where, stage, res, discipline, level, is_last_floor):
             ctype in ("design", "project")
             and not tests
             and isinstance(rubric, dict) and rubric.get("required"))
-        if graded_by_rubric:
+        if ch.get("repo") is not None:
+            # a repository is graded by running its own test suite, not by a
+            # `tests` array - check its shape instead
+            check_repo(ch, where, res)
+            tests = None
+        elif graded_by_rubric:
             tests = None
         elif not isinstance(tests, list) or not tests:
             res.err(where, "type %r needs a non-empty `tests` array, or - for a "

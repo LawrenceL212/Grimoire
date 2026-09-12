@@ -706,6 +706,32 @@ body.archmage .arch-primary{
 @keyframes arch-glow{0%,100%{filter:drop-shadow(0 0 2px rgba(196,154,60,.5))}
   50%{filter:drop-shadow(0 0 10px rgba(196,154,60,.9))}}
 
+/* ============================ REPOSITORY ============================ */
+.repo{border:1px solid var(--trim);border-radius:var(--radius);background:var(--code);
+  margin:var(--s3) 0;overflow:hidden}
+.repo-bar{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);
+  padding:var(--s2) var(--s3);border-bottom:1px solid var(--trim);flex-wrap:wrap}
+.repo-note{font-size:var(--text-sm);color:var(--faint)}
+.repo-files{display:flex;flex-wrap:wrap;gap:var(--s1);padding:var(--s2) var(--s3);
+  border-bottom:1px solid var(--trim)}
+.repo-files button{font-family:var(--mono);font-size:var(--text-xs);padding:4px 8px;
+  border:1px solid var(--trim);border-radius:var(--radius-sm);color:var(--dim);min-height:32px}
+.repo-files button.ro{opacity:.75}
+.repo-files button[aria-selected="true"]{color:var(--gold);border-color:var(--gold)}
+.repo-files .dot{color:var(--gold)}
+.repo-meta{font-size:var(--text-sm);color:var(--faint);padding:var(--s2) var(--s3) 0}
+.repo-ta{display:block;width:100%;min-height:160px;resize:vertical;border:0;
+  background:transparent;color:var(--text);font-family:var(--mono);font-size:var(--text-sm);
+  line-height:1.6;padding:var(--s2) var(--s3);tab-size:4;white-space:pre;overflow-x:auto}
+.repo-ta[readonly]{color:var(--dim)}
+.repo-actions{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;
+  padding:var(--s2) var(--s3);border-top:1px solid var(--trim)}
+/* .btn is full-width by default; these are toolbar actions, so size to text */
+.repo-actions .btn{width:auto;flex:none;min-height:40px;padding:var(--s2) var(--s3);
+  font-size:var(--text-sm)}
+.repo-new{display:flex;gap:var(--s2);flex:1 1 100%;min-width:0}
+.repo-new .input{flex:1;min-width:0;font-family:var(--mono);font-size:var(--text-sm)}
+
 /* ============================ FLOOR RUNNER ============================ */
 #runner{position:fixed;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column}
 #runner[hidden]{display:none}
@@ -1926,8 +1952,162 @@ const editorBlock = (id, code, lang, opts = {}) => {
   </div>`;
 };
 
+/* ---- the repository view ---------------------------------------------
+   What a learner sees for a repository challenge: the files, one at a time,
+   editable only where the task opens them; a way to add a test file; and a
+   way to run the repository's own tests while they work. Hidden checks are
+   never shown - they run only when the work is submitted. */
+function repoSorted(paths) {
+  // source first, then tests, then everything else - the order people read in
+  const rank = (p) => (isTestPath(p) ? 1 : /\.py$/.test(p) ? 0 : 2);
+  return [...paths].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+function repoBlock(id, ch) {
+  const hidden = Object.keys(ch.repo.hidden || {}).length;
+  return `<div class="repo" data-repo="${id}">
+    <div class="repo-bar">
+      <span class="label">Repository</span>
+      <span class="repo-note">${hidden
+        ? `${hidden} hidden check${hidden === 1 ? "" : "s"} also run${hidden === 1 ? "s" : ""} when you submit.`
+        : ""}</span>
+    </div>
+    <div class="repo-files" role="tablist" aria-label="Files in this repository" data-files></div>
+    <div class="repo-meta" data-filemeta></div>
+    <textarea class="repo-ta" data-repota spellcheck="false" autocomplete="off"
+              aria-label="File contents"></textarea>
+    <div class="repo-actions">
+      <span class="repo-new" data-newwrap hidden>
+        <input class="input" type="text" data-newname value="tests/test_regression.py"
+               aria-label="Name of the new test file" spellcheck="false">
+        <button type="button" class="btn ghost" data-newok>Create</button>
+      </span>
+      <button type="button" class="btn ghost" data-newtest>New test file</button>
+      <button type="button" class="btn ghost" data-runtests>Run the tests</button>
+    </div>
+    <div class="ed-out" data-repoout hidden></div>
+  </div>`;
+}
+
+function wireRepo(ch, root, ctx) {
+  const box = root.querySelector("[data-repo]");
+  if (!box) return;
+  const original = ch.repo.files || {};
+  const work = { ...original };
+  const editable = new Set(ch.repo.editable || Object.keys(original));
+  const added = new Set();
+  root._repoWork = work;
+  root._repoWritable = (p) => editable.has(p) || added.has(p);
+
+  const tabs = box.querySelector("[data-files]");
+  const meta = box.querySelector("[data-filemeta]");
+  const ta = box.querySelector("[data-repota]");
+  const out = box.querySelector("[data-repoout]");
+  let current = repoSorted(Object.keys(work)).find((p) => editable.has(p)) || Object.keys(work)[0];
+
+  const drawTabs = () => {
+    tabs.innerHTML = repoSorted(Object.keys(work)).map((p) => {
+      const w = editable.has(p) || added.has(p);
+      const dirty = work[p] !== original[p];
+      return `<button type="button" role="tab" data-path="${esc(p)}"
+                aria-selected="${p === current}" class="${w ? "w" : "ro"}">
+                ${esc(p)}${dirty ? ' <span class="dot" aria-label="changed">●</span>' : ""}
+              </button>`;
+    }).join("");
+    tabs.querySelectorAll("[data-path]").forEach((b) =>
+      b.addEventListener("click", () => { current = b.dataset.path; show(); }));
+  };
+  const show = () => {
+    const w = editable.has(current) || added.has(current);
+    ta.value = work[current] ?? "";
+    ta.readOnly = !w;
+    meta.textContent = w
+      ? (added.has(current) ? "A test file you added." : "You may change this file.")
+      : "Read-only for this task. Read it; you do not need to change it.";
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, 160) + "px";
+    drawTabs();
+  };
+  ta.addEventListener("input", () => {
+    if (ta.readOnly) return;
+    work[current] = ta.value;
+    ta.style.height = "auto";
+    ta.style.height = Math.max(ta.scrollHeight, 160) + "px";
+    drawTabs();
+  });
+  ta.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || ta.readOnly) return;
+    e.preventDefault();
+    const a = ta.selectionStart, b = ta.selectionEnd;
+    ta.value = ta.value.slice(0, a) + "    " + ta.value.slice(b);
+    ta.selectionStart = ta.selectionEnd = a + 4;
+    work[current] = ta.value;
+  });
+
+  const newWrap = box.querySelector("[data-newwrap]");
+  const newName = box.querySelector("[data-newname]");
+  box.querySelector("[data-newtest]").addEventListener("click", () => {
+    newWrap.hidden = !newWrap.hidden;
+    if (!newWrap.hidden) newName.focus();
+  });
+  box.querySelector("[data-newok]").addEventListener("click", () => {
+    const p = newName.value.trim().replace(/^\/+/, "");
+    if (!isTestPath(p) || p.includes("..")) {
+      meta.textContent = "A test file must be named test_something.py - that is how the tests are found.";
+      return;
+    }
+    if (p in work) { current = p; show(); newWrap.hidden = true; return; }
+    const src = repoSorted(Object.keys(original)).find((x) => /\.py$/.test(x) && !isTestPath(x)) || "";
+    const mod = src.replace(/\.py$/, "").replace(/\//g, ".").replace(/\.__init__$/, "");
+    work[p] = `${mod ? `# import what you need to test, for example:\n# from ${mod} import ...\n\n` : ""}` +
+              `def test_it():\n    assert True\n`;
+    added.add(p);
+    current = p;
+    newWrap.hidden = true;
+    show();
+  });
+
+  const runBtn = box.querySelector("[data-runtests]");
+  const dungeon = ctx?.dungeon || Lesson.dungeon || {};
+  if (!canExecute(dungeon)) {
+    runBtn.disabled = true;
+    runBtn.title = backendNotice(dungeon);
+  } else {
+    runBtn.addEventListener("click", async () => {
+      runBtn.disabled = true;
+      out.hidden = false;
+      out.className = "ed-out";
+      out.innerHTML = '<span class="muted">Running the repository’s tests…</span>';
+      // only the tests the learner can see; hidden checks are for submission
+      const res = await runRepoOnce(dungeon, work, repoTestFiles(work));
+      runBtn.disabled = false;
+      if (res.unavailable || res.error) {
+        out.className = "ed-out err";
+        out.innerHTML = `<div class="olabel">Error</div>${esc(res.error || "")}`;
+        return;
+      }
+      const passed = res.results.filter((r) => r.ok).length;
+      out.innerHTML = `<div class="olabel">${passed} of ${res.results.length} passing</div>` +
+        testResultsHTML({ results: res.results.map((r) =>
+          ({ ok: r.ok, label: r.name, error: r.error || null })) });
+    });
+  }
+  show();
+}
+
+/* The submission is the JSON of every file the learner could write to. The
+   grader ignores the ones left unchanged. */
+function repoSubmission(root) {
+  const work = root._repoWork || {};
+  const writable = root._repoWritable || (() => false);
+  const sub = {};
+  for (const [p, text] of Object.entries(work)) if (writable(p)) sub[p] = text;
+  return JSON.stringify(sub);
+}
+
 const codeLike = (allowStarter) => ({
   render(ch, id, ctx) {
+    if (ch.repo) return repoBlock(id, ch);
     // A design or boss floor gives nothing to start from, whatever the type.
     // Elsewhere, design and project types still start empty by definition.
     const bare = ctx.level === "design" || ctx.level === "boss" || !allowStarter;
@@ -1935,10 +2115,10 @@ const codeLike = (allowStarter) => ({
     return editorBlock(id, starter, ch.lang || ctx.dungeon.lang) +
       (ch.type === "html-preview" ? `<div class="preview-mount" data-preview="${id}"></div>` : "");
   },
-  wire(ch, root, ctx) { wireCodeEditor(ch, root, ctx); },
+  wire(ch, root, ctx) { if (ch.repo) wireRepo(ch, root, ctx); else wireCodeEditor(ch, root, ctx); },
   async grade(ch, root, ctx) {
     const ta = root.querySelector("[data-ta]");
-    const text = ta ? ta.value : "";
+    const text = ch.repo ? repoSubmission(root) : (ta ? ta.value : "");
     // A capstone in a dungeon we cannot execute - Rust, C, the maths wings -
     // is still a capstone. It carries a rubric instead of tests and is graded
     // against that, with the same caveat the free-text types carry.
