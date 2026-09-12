@@ -417,7 +417,21 @@ assertion error or any exception is a failure.
 3. Did the change stay within `editable`? A new test file is always allowed;
    touching anything else is refused.
 
-**`solution`** is the JSON of the files the reference fix changes or adds.
+4. If `explanation` is set: did the learner write their reasoning in the
+   named file? A professional change arrives with its why. The runner grades
+   code, so the reasoning lives in a file the repository carries - usually a
+   `CHANGES.md` template - and is read against a keyword rubric, the same
+   thin-but-honest check every free-text answer gets, and labelled as such.
+
+```jsonc
+"explanation": {
+  "file": "CHANGES.md",                       // must be in files and editable
+  "rubric": { "required": ["root cause", "regression"], "minWords": 60 }
+}
+```
+
+**`solution`** is the JSON of the files the reference fix changes or adds -
+including the explanation file, when one is required.
 
 **Two things only running it can prove**, so `verify_fragments.mjs` checks
 them and the structural validator cannot: that the ORIGINAL repository fails

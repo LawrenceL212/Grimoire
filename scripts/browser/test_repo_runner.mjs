@@ -194,6 +194,37 @@ for (const c of cases) {
     (failures.length ? `  first failure: ${failures[0].slice(0, 110)}` : ''));
 }
 
+// the explanation: a professional change arrives with its reasoning
+const explained = { ...challenge, repo: { ...challenge.repo,
+  files: { ...challenge.repo.files, 'CHANGES.md': '# What changed and why\n\n' },
+  editable: [...challenge.repo.editable, 'CHANGES.md'],
+  explanation: { file: 'CHANGES.md',
+    rubric: { required: ['boundary', 'regression', 'threshold'], minWords: 25 } } } };
+const WHY = '# What changed and why\n\nThe bulk discount used a strict comparison, so an ' +
+  'order of exactly the threshold quantity missed it - an off-by-one at the boundary. ' +
+  'I changed it to include the threshold and added a regression test for ten units.\n';
+const fixAndTest = { 'shop/pricing.py': FIXED, 'tests/test_bulk_boundary.py': GOOD_TEST };
+const explainCases = [
+  { name: 'a fix with no written explanation is refused',
+    sub: fixAndTest, expectPass: false, requireFailOn: 'explanation' },
+  { name: 'an explanation that misses the point is refused',
+    sub: { ...fixAndTest, 'CHANGES.md': '# Changes\n\nFixed the pricing bug. It works now and ' +
+           'the tests pass. I tidied a little while I was there as well, nothing major.\n' },
+    expectPass: false, requireFailOn: 'does not address' },
+  { name: 'a fix with a real explanation passes',
+    sub: { ...fixAndTest, 'CHANGES.md': WHY }, expectPass: true },
+];
+for (const c of explainCases) {
+  const res = await page.evaluate(async ({ dungeon, ch, sub }) =>
+    window.__runTests(dungeon, ch, JSON.stringify(sub), ''), { dungeon, ch: explained, sub: c.sub });
+  const failures = res.results.filter((r) => !r.ok).map((r) => `${r.label}: ${r.error || ''}`);
+  let ok = res.passed === c.expectPass;
+  if (ok && c.requireFailOn) ok = failures.some((f) => f.includes(c.requireFailOn));
+  if (!ok) bad++;
+  console.log(`${ok ? 'ok ' : 'XX '} ${c.name}`);
+  console.log(`      passed=${res.passed}` + (failures.length ? `  ${failures[0].slice(0, 120)}` : ''));
+}
+
 // isolation: the same interpreter, two different versions of one module
 const iso = await page.evaluate(async ({ dungeon }) => {
   const mk = (v) => ({ id: 'iso', type: 'project', repo: {

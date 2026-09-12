@@ -194,6 +194,24 @@ def check_repo(ch, where, res):
                 TEST_FILE.search(p) and parsed.get(p) != files.get(p) for p in parsed):
             res.err(where, "requireRegressionTest is set, but the reference "
                            "solution adds or changes no test file")
+    expl = repo.get("explanation")
+    if expl is not None:
+        f = (expl or {}).get("file", "CHANGES.md")
+        if f not in files:
+            res.err(where, "explanation file %r must be in repo.files, as a template "
+                           "for the learner to fill in" % f)
+        elif editable is not None and f not in editable:
+            res.err(where, "explanation file %r must be editable" % f)
+        rub = (expl or {}).get("rubric") or {}
+        if not rub.get("required"):
+            res.err(where, "`repo.explanation` needs a rubric with a non-empty "
+                           "`required` list")
+        try:
+            if f not in json.loads(sol or "{}"):
+                res.err(where, "the reference solution must include a written "
+                               "explanation in %r" % f)
+        except ValueError:
+            pass
     if ch.get("starterCode"):
         res.err(where, "a repository challenge starts from its files, not starterCode")
 

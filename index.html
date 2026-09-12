@@ -1887,6 +1887,22 @@ async function runRepoTests(dungeon, ch, userCode) {
           : "Your test passes against the original, broken code, so it would not have caught this bug." });
     }
   }
+
+  // 3. The explanation. A professional change arrives with its reasoning -
+  //    what was wrong, why this fix, what was deliberately left alone. The
+  //    runner grades code, so the reasoning lives in a file the repository
+  //    carries (CHANGES.md by default) and is read against a keyword rubric:
+  //    the same thin-but-honest check every free-text answer here gets, and
+  //    labelled as such.
+  if (repo.explanation) {
+    const file = repo.explanation.file || "CHANGES.md";
+    const text = (file in changed) ? changed[file] : "";
+    const r = gradeRubric(text, repo.explanation.rubric || {});
+    const why = r.detail.short ? `is too short - ${r.detail.words} words, needs ${r.detail.minWords}`
+      : r.detail.missing.length ? `does not address: ${r.detail.missing.join(", ")}` : "";
+    results.push({ ok: r.correct, label: `your explanation in ${file} (read against a keyword rubric)`,
+      error: r.correct ? null : `Your explanation ${why || "was not written"}.` });
+  }
   return verdict(results);
 }
 
