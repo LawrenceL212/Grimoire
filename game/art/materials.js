@@ -7,12 +7,13 @@
 //   tileMaterial(kind)                  the shared material for 'wood' | 'carpet' | ...
 //   tileField(kind, cells, { seed })    one InstancedMesh: cells = [[x, z], ...] tile centres
 // Patterns are drawn to read at the game's default camera (a tile is roughly 35-40 px on screen):
-// the features that carry them (planks, ribs, sub-tiles, mottling) are a tenth of a tile or larger;
+// the features that carry them (planks, heather, sub-tiles, mottling) are a tenth of a tile or larger;
 // the fine detail (grain, fibre, grit) is for close-ups.
 //
 // Contact shadows: contactShadow(object3d, { opacity = 1, spread, footprint }) adds one soft,
 // multiply-blended blob under an object (a prop or a person), sized to its measured footprint and
-// kept inside its registered tiles. Its darkness is opacity x theme light.contact (live).
+// kept inside its registered tiles. Its darkness is opacity x theme light.contact (live), and it
+// fades out with the scene's fog like everything else in it.
 import * as THREE from 'three';
 import { register, measure, get as assetMeta } from './registry.js';
 import { gradientMap, canvasTex } from '../engine/kit.js';
@@ -133,23 +134,29 @@ const PATTERNS = {
       if (row > 0) { g.fillStyle = grey(0.24); g.fillRect(0, y0 - 2, S, 4); g.fillStyle = grey(1, 0.25); g.fillRect(0, y0 + 2, S, 1.5); }
     }
   },
-  // a directional carpet tile: bold ribs (they turn a quarter per tile in a field) and fibre
+  // a loop-pile carpet tile: heathered clouds (what reads at game distance), staggered soft loops
+  // and fine fibre (close-ups). No direction, so a field can turn its tiles at random.
   carpet(g) {
     const R = rng(23);
-    g.fillStyle = grey(0.84); g.fillRect(0, 0, S, S);
-    const ribs = 8, w = S / ribs;
-    for (let i = 0; i < ribs; i++) {
-      const y = i * w;
-      const gr = g.createLinearGradient(0, y, 0, y + w);
-      gr.addColorStop(0, grey(0.62)); gr.addColorStop(0.2, grey(0.9)); gr.addColorStop(0.78, grey(0.94)); gr.addColorStop(1, grey(0.68));
-      g.fillStyle = gr; g.fillRect(0, y, S, w);
+    g.fillStyle = grey(0.8); g.fillRect(0, 0, S, S);
+    mottle(g, R, 34, 24, 80, 0.25);
+    // the loops: staggered rows of small soft ovals, each lit on top and shaded underneath
+    const step = 8;
+    for (let row = 0, y = step / 2; y < S; row++, y += step) {
+      for (let x = (row % 2) * step / 2; x < S + step; x += step) {
+        const cx = x + (R() - 0.5) * 1.5, cy = y + (R() - 0.5) * 1.5;
+        g.fillStyle = grey(0.45, 0.16); g.beginPath(); g.ellipse(cx, cy + 1.2, 3, 2.3, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = grey(0.86 + R() * 0.12, 0.35); g.beginPath(); g.ellipse(cx, cy, 2.6, 2, 0, 0, Math.PI * 2); g.fill();
+      }
     }
-    // loops of the weave: short dashes across each rib
-    for (let i = 0; i < ribs; i++) for (let x = 0; x < S; x += 4) {
-      g.fillStyle = grey(0.6, 0.18 + R() * 0.2); g.fillRect(x + R(), i * w + 3 + R() * (w - 6), 1.4, 2 + R() * 3);
+    // fibre: short strokes in every direction
+    g.lineCap = 'round';
+    for (let i = 0; i < 4200; i++) {
+      const x = R() * S, y = R() * S, a = R() * Math.PI * 2, l = 1.5 + R() * 3;
+      g.strokeStyle = grey(R() < 0.55 ? 0.45 : 1, 0.12 + R() * 0.14); g.lineWidth = 0.6 + R() * 0.6;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
     }
-    specks(g, R, 2600, [1, 1.8], (r) => grey(r() < 0.5 ? 0.45 : 1, 0.28));
-    mottle(g, R, 10, 30, 80, 0.07);
+    specks(g, R, 500, [1, 1.8], (r) => grey(r() < 0.5 ? 0.5 : 1, 0.25));
   },
   // sheet lino: pale clouds and a scatter of chips
   lino(g) {
@@ -228,19 +235,18 @@ export function tileMaterial(kind) {
   return mats.get(kind);
 }
 
-// How the tiles of a field turn: carpet in a quarter-turn checker (the pile shows it), wood only
-// end for end, the rest at random, so a big floor does not show one tile stamped over and over.
-const TURNS = { wood: [0, 2], lino: [0, 1, 2, 3], concrete: [0, 1, 2, 3], rubber: [0, 1, 2, 3], ceramic: [0, 1, 2, 3] };
+// How the tiles of a field turn: wood only end for end, the rest (carpet included: its loop pile
+// has no direction) at random, so a big floor does not show one tile stamped over and over.
+const TURNS = { wood: [0, 2], carpet: [0, 1, 2, 3], lino: [0, 1, 2, 3], concrete: [0, 1, 2, 3], rubber: [0, 1, 2, 3], ceramic: [0, 1, 2, 3] };
 export function tileField(kind, cells, { seed = 1 } = {}) {
   const mesh = new THREE.InstancedMesh(tileGeometry(), tileMaterial(kind), cells.length);
   const R = rng(seed * 7919 + kind.length);
   const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3(), M = new THREE.Matrix4(), c = new THREE.Color();
   cells.forEach(([x, z], i) => {
-    const odd = (Math.floor(x) + Math.floor(z)) & 1;
-    const turn = kind === 'carpet' ? odd : TURNS[kind][Math.floor(R() * TURNS[kind].length)];
+    const turn = TURNS[kind][Math.floor(R() * TURNS[kind].length)];
     q.setFromAxisAngle(up, turn * Math.PI / 2);
     mesh.setMatrixAt(i, M.compose(p.set(x, 0, z), q, one));
-    const v = 1 + (R() - 0.5) * 0.07 - (kind === 'carpet' && odd ? 0.05 : 0);
+    const v = 1 + (R() - 0.5) * (kind === 'carpet' ? 0.04 : 0.07);
     mesh.setColorAt(i, c.setRGB(v, v, v));
   });
   mesh.instanceMatrix.needsUpdate = true;
@@ -270,18 +276,39 @@ const blobMats = new Map();
 function blobMaterial(opacity) {
   const k = Math.round(clamp01(opacity) * 100) / 100;
   if (!blobMats.has(k)) {
+    // fog: true gives the shader the scene's fog uniforms; the blob multiplies, so instead of
+    // mixing toward the fog colour it fades toward white (no darkening) as the fog thickens
+    const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { opacity: { value: k } }]);
+    uniforms.strength = strength; // shared, so light.contact reaches every blob
     blobMats.set(k, new THREE.ShaderMaterial({
       name: 'contact-shadow',
-      uniforms: { opacity: { value: k }, strength },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      uniforms,
+      fog: true,
+      vertexShader: `varying vec2 vUv;
+        #include <fog_pars_vertex>
+        void main(){
+          vUv = uv;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          #include <fog_vertex>
+        }`,
       // a rounded-rectangle falloff in the plane's own UVs, so a long bench gets a long shadow
       fragmentShader: `uniform float opacity; uniform float strength; varying vec2 vUv;
+        #include <fog_pars_fragment>
         void main(){
           vec2 p = abs(vUv * 2.0 - 1.0);
           float d = pow(pow(p.x, 3.0) + pow(p.y, 3.0), 1.0 / 3.0);
           // full strength out to the object's own edge (1 / spread = 0.77), fading to nothing at the rim
           float s = 1.0 - smoothstep(0.74, 1.0, d);
           float k = clamp(opacity * strength * s, 0.0, 0.95);
+          #ifdef USE_FOG
+            #ifdef FOG_EXP2
+              float fogFactor = 1.0 - exp(- fogDensity * fogDensity * vFogDepth * vFogDepth);
+            #else
+              float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+            #endif
+            k *= 1.0 - fogFactor;
+          #endif
           gl_FragColor = vec4(vec3(1.0 - k), 1.0);
         }`,
       transparent: true, depthWrite: false, blending: THREE.MultiplyBlending, premultipliedAlpha: true,

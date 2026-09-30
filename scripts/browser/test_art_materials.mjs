@@ -83,6 +83,31 @@ const r = await page.evaluate(async ({ KINDS, KEYS }) => {
     return { k, sd: Math.sqrt(L.reduce((a, b) => a + (b - mean) ** 2, 0) / L.length), mean };
   });
 
+  // ---- carpet reads as carpet, not ribbed plastic: no dominant stripe direction, no parity checker ----
+  {
+    const src = mat.tileMaterial('carpet').map.userData.canvas;
+    const n = src.width, d = src.getContext('2d').getImageData(0, 0, n, n).data;
+    const rows = new Array(n).fill(0), cols = new Array(n).fill(0);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const v = d[(y * n + x) * 4] / 255; rows[y] += v / n; cols[x] += v / n; }
+    const sd = (a) => { const m = a.reduce((s, v) => s + v, 0) / a.length; return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); };
+    out.carpetProfile = { rows: sd(rows), cols: sd(cols) };
+    const cells = []; for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) cells.push([i - 2.5, j - 2.5]);
+    const f = mat.tileField('carpet', cells, { seed: 3 });
+    const M = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), c = new THREE.Color(), e = new THREE.Euler();
+    const turnByParity = [[], []], shadeByParity = [[], []];
+    cells.forEach(([x, z], i) => {
+      f.getMatrixAt(i, M); M.decompose(p, q, s); e.setFromQuaternion(q);
+      const odd = (Math.floor(x) + Math.floor(z)) & 1;
+      turnByParity[odd].push(Math.round(((e.y % Math.PI) + Math.PI) % Math.PI / (Math.PI / 2)) % 2);
+      f.getColorAt(i, c); shadeByParity[odd].push(c.r);
+    });
+    const mean = (a) => a.reduce((s2, v) => s2 + v, 0) / a.length;
+    out.carpetChecker = {
+      turnsFollowParity: turnByParity[0].every((v) => v === 0) && turnByParity[1].every((v) => v === 1),
+      shadeGap: Math.abs(mean(shadeByParity[0]) - mean(shadeByParity[1])),
+    };
+  }
+
   // ---- contact shadows ----
   const isBlob = (c) => c.userData && c.userData.contactShadow === true;
   const blobRow = (id, opts) => {
@@ -118,6 +143,25 @@ const r = await page.evaluate(async ({ KINDS, KEYS }) => {
   th.set('light.contact', 0.9);
   out.strength = { before: s0, after: u.strength.value, opacity: u.opacity.value };
   th.resetTheme();
+
+  // ---- the blob fades with the scene fog: render a blob on white, with and without thick fog ----
+  {
+    out.blobFogFlag = pb.material.fog === true;
+    const rt = new THREE.WebGLRenderTarget(32, 32);
+    const ren = new THREE.WebGLRenderer();
+    ren.setClearColor(0xffffff, 1);
+    const scene = new THREE.Scene();
+    const o = new THREE.Group(); scene.add(o);
+    // a 3x3 invisible body to size the blob from, removed once the blob is made
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 3), new THREE.MeshBasicMaterial({ visible: false }));
+    o.add(body); mat.contactShadow(o, { footprint: [4, 4], spread: 1 }); o.remove(body);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100); cam.position.set(0, 6, 0.001); cam.lookAt(0, 0, 0);
+    const px = () => { ren.setRenderTarget(rt); ren.render(scene, cam); const b = new Uint8Array(4); ren.readRenderTargetPixels(rt, 16, 16, 1, 1, b); ren.setRenderTarget(null); return b[0]; };
+    out.blobClear = px();
+    scene.fog = new THREE.Fog(0xffffff, 0.5, 1.0); // everything past 1 unit is fully fogged
+    out.blobFogged = px();
+    ren.dispose(); rt.dispose();
+  }
   return out;
 }, { KINDS, KEYS });
 
@@ -155,6 +199,10 @@ for (const b of [r.blobCrate, r.blobBench]) {
 t.check('the bench blob is long and thin like the bench', r.blobBench.w > r.blobBench.d * 2);
 t.check('a person with no asset id gets a blob sized from its own bounds', r.person.count === 1 && r.person.w > 0.44 && r.person.w < 0.8 && r.person.d > 0.44 && r.person.d < 0.8, JSON.stringify(r.person));
 t.check('contact shadow strength follows light.contact live', r.strength.after > r.strength.before && Math.abs(r.strength.after - 0.9) < 1e-6, JSON.stringify(r.strength));
+t.check('the carpet pattern has no dominant stripe (row and column profiles within 1.6x)', r.carpetProfile.rows < r.carpetProfile.cols * 1.6 && r.carpetProfile.cols < r.carpetProfile.rows * 1.6, JSON.stringify(r.carpetProfile));
+t.check('a carpet field is not a quarter-turn checker, and odd tiles are not shaded darker', !r.carpetChecker.turnsFollowParity && r.carpetChecker.shadeGap < 0.02, JSON.stringify(r.carpetChecker));
+t.check('the contact-shadow material takes part in fog', r.blobFogFlag === true);
+t.check('a blob darkens the floor without fog, and fades out inside thick fog', r.blobClear < 200 && r.blobFogged > 245, JSON.stringify({ clear: r.blobClear, fogged: r.blobFogged }));
 
 // ---- the catalogue's 6x6 floor patch ----
 const p = await page.evaluate(async () => {
