@@ -14,7 +14,9 @@ const CSS = `
 .gm-tweak .tw{display:grid;grid-template-columns:1fr 110px 36px;gap:6px;align-items:center;margin:3px 0}
 `;
 
+let mounted = null;
 export function mountTweakPanel(root = document.body) {
+  if (mounted && mounted.button.isConnected) return mounted;
   if (!document.getElementById('gm-tweak-css')) {
     const st = document.createElement('style'); st.id = 'gm-tweak-css'; st.textContent = CSS; document.head.appendChild(st);
   }
@@ -75,9 +77,14 @@ export function mountTweakPanel(root = document.body) {
   const toggle = (force) => { const show = force ?? panel.hidden; panel.hidden = !show; if (show) sync(); };
   btn.addEventListener('click', () => toggle());
   const onKey = (e) => {
-    if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) toggle();
+    if (e.key !== 't' && e.key !== 'T') return;
+    if (e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.target instanceof Element ? e.target : document.activeElement;
+    if (el && (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.isContentEditable || el.closest('[contenteditable]:not([contenteditable="false"])'))) return;
+    toggle();
   };
   addEventListener('keydown', onKey);
   sync();
-  return { toggle, sync, panel, button: btn, unmount() { off(); removeEventListener('keydown', onKey); btn.remove(); panel.remove(); } };
+  mounted = { toggle, sync, panel, button: btn, unmount() { mounted = null; off(); removeEventListener('keydown', onKey); btn.remove(); panel.remove(); } };
+  return mounted;
 }
