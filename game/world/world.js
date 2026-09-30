@@ -1,5 +1,14 @@
-import { PGlite } from 'https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.5.8/dist/index.js';
 import { SCHEMA, seedSql } from './schema.js';
+
+/* Loaded on demand, not by a static import: if the CDN cannot be reached, the
+   failure surfaces from World.create() where the game can report it, instead
+   of stopping the whole page's module graph from loading. */
+const PGLITE = 'https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.5.8/dist/index.js';
+// The browser remembers a failed import of a URL, so a retry asks for a new one.
+let pglite = null;
+let failures = 0;
+const loadPGlite = () => (pglite ??= import(failures ? `${PGLITE}?retry=${failures}` : PGLITE)
+  .catch((e) => { pglite = null; failures++; throw e; }));
 
 /* One long-lived PostgreSQL per world. Unlike the app's grader, which builds a
    fresh database per run, the world persists across a learner's runs and can be
@@ -8,6 +17,7 @@ export class World {
   constructor(db) { this.db = db; }
 
   static async create(counts = {}, { loadDataDir } = {}) {
+    const { PGlite } = await loadPGlite();
     const db = new PGlite(loadDataDir ? { loadDataDir } : {});
     await db.waitReady;
     await db.exec("SET TIME ZONE 'UTC'");

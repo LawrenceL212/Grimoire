@@ -22,6 +22,7 @@ export async function openGame(path = 'game/index.html', opts = {}) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  if (opts.beforeGoto) await opts.beforeGoto(page); // e.g. page.route() to block or slow the CDN
   await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   return { browser, page, errors, close: () => browser.close() };
 }

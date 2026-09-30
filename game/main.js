@@ -12,6 +12,8 @@ const STARTERS = {
   js: '// `world.bookings` is an array. Change it, then run.\n',
   php: '// `$pdo` is connected to a SQLite copy of the world.\n',
 };
+const DEMO_NOTE = 'Demo values: the real skill log arrives in a later phase.';
+const NOT_READY = 'The game is not ready yet.';
 const PHP_NOTE = 'PHP works on a SQLite copy of the world, and your changes are written back. An endless loop in PHP freezes this page for now, so reload if that happens.';
 
 const $ = (id) => document.getElementById(id);
@@ -44,13 +46,18 @@ actions.append(
 const result = el('div', { id: 'result' });
 result.setAttribute('role', 'status');
 result.setAttribute('aria-live', 'polite');
-app.append(header, el('p', { id: 'goal', className: 'goal' }, problem.goal), el('div', { id: 'timetable' }),
-  tabs, editor, actions, result, el('div', { id: 'meter' }));
+// Shown over the empty timetable until the first world is drawn.
+const loading = el('p', { id: 'loading', className: 'loading' }, 'Opening the office…');
+loading.setAttribute('role', 'status');
+// Replaces the static "Loading the game..." text from index.html.
+app.replaceChildren(header, el('p', { id: 'goal', className: 'goal' }, problem.goal), loading, el('div', { id: 'timetable' }),
+  tabs, editor, actions, result, el('div', { id: 'meter' }), el('p', { className: 'meter-caption' }, DEMO_NOTE));
 
 const tt = createTimetable($('timetable'));
 let lang = 'sql';
 let world = null;
 let busy = false;
+window.__game = { ready: false, phase: 1, world: null };
 
 function setBusy(on) {
   busy = on;
@@ -70,14 +77,32 @@ function setLang(next) {
   $('note').textContent = next === 'php' ? PHP_NOTE : '';
 }
 
-async function resetWorld() {
-  world = await startProblem(problem);
-  tt.render(await toObjects(world));
-  if (window.__game) window.__game.world = world;
+const errorText = (e) => String(e?.message ?? e);
+
+/* Boot and Reset share this. The new world is drawn before the old one is
+   closed, and a failure leaves the controls working, so Reset is the retry. */
+async function loadWorld() {
+  const old = world;
+  try {
+    world = await startProblem(problem);
+    tt.render(await toObjects(world));
+    Object.assign(window.__game, { ready: true, world });
+    show('', '');
+    await old?.close().catch(() => {});
+  } catch (e) {
+    show('is-error', (old ? 'Reset failed: ' : 'The game could not start: ') + errorText(e) +
+      '. Check your connection, then press Reset to try again (or reload the page).');
+  } finally {
+    loading.hidden = true;
+  }
 }
 
 async function onRun() {
   if (busy) return;
+  if (!world) {
+    show('is-miss', NOT_READY);
+    return;
+  }
   const code = editor.value;
   if (!code.trim() || code === STARTERS[lang]) {
     show('is-miss', 'Write some code first.');
@@ -97,7 +122,7 @@ async function onRun() {
         : 'Not yet: ' + grade.results.filter((x) => !x.ok).map((x) => x.name).join(' · '));
     }
   } catch (e) {
-    show('is-error', String((e && e.message) || e));
+    show('is-error', errorText(e));
   } finally {
     setBusy(false);
   }
@@ -107,25 +132,18 @@ async function onReset() {
   if (busy) return;
   setBusy(true);
   try {
-    await resetWorld();
-    show('', '');
-  } catch (e) {
-    show('is-error', String((e && e.message) || e));
+    await loadWorld();
   } finally {
     setBusy(false);
   }
 }
 
-async function boot() {
-  await resetWorld();
-  // Demonstration values only: the real skill log arrives in a later phase.
-  renderMeter($('meter'), describeSkill(
-    { name: 'Overlap detection', lang: 'sql', lastMs: Date.now() - 2 * 86400000, stability: INITIAL_STABILITY * 3 }, Date.now()));
-  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
-  $('run').addEventListener('click', onRun);
-  $('reset').addEventListener('click', onReset);
-  setLang('sql');
-  window.__game = { ready: true, phase: 1, world };
-}
-
-boot().catch((e) => show('is-error', 'The game could not start: ' + e.message));
+// Controls are wired before the world opens, so they never sit there dead.
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+$('run').addEventListener('click', onRun);
+$('reset').addEventListener('click', onReset);
+setLang('sql');
+// Demonstration values only (see DEMO_NOTE).
+renderMeter($('meter'), describeSkill(
+  { name: 'Overlap detection', lang: 'sql', lastMs: Date.now() - 2 * 86400000, stability: INITIAL_STABILITY * 3 }, Date.now()));
+onReset();

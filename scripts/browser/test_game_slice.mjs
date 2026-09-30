@@ -15,6 +15,8 @@ await ready(page);
 t.check('the goal is shown', /double-booked/i.test(await page.locator('#goal').innerText()));
 t.check('the clash is visible before any code runs', await page.locator('.tt-booking.is-clash').count() === 1);
 t.check('a memory meter is shown', await page.locator('.meter').count() === 1);
+t.check('the demo meter is labelled as demo values',
+  /Demo values: the real skill log arrives in a later phase\./.test(await page.locator('#app').innerText()));
 
 // Empty code (the starter text on first load) runs nothing.
 const before = await page.locator('.tt-booking').count();
@@ -36,9 +38,28 @@ await page.waitForFunction(() => document.querySelectorAll('.tt-booking.is-clash
 t.check('Reset restores the clash', await page.locator('.tt-booking.is-clash').count() === 1);
 t.check('Reset clears the result', (await page.locator('#result').innerText()).trim() === '');
 
+// Reset three times: each Reset closes the world it replaces, and the game still works.
+const resetAndWait = async () => {
+  await page.evaluate(() => { window.__oldWorlds = [...(window.__oldWorlds || []), window.__game.world]; });
+  await page.locator('#reset').click();
+  await page.waitForFunction(() => window.__game.world !== window.__oldWorlds.at(-1) && !document.querySelector('#reset').disabled,
+    null, { timeout: 15000 });
+};
+for (let i = 0; i < 3; i++) await resetAndWait();
+t.check('Reset closes the worlds it replaces',
+  await page.evaluate(() => window.__oldWorlds.every((w) => w.db.closed === true)),
+  await page.evaluate(() => JSON.stringify(window.__oldWorlds.map((w) => w.db.closed))));
+t.check('after three Resets the clash is still there', await page.locator('.tt-booking.is-clash').count() === 1);
+
 await run(page, 'sql', 'DELETE FROM bookings WHERE id = 21;');
 await settled(page);
 t.check('a real fix is accepted', await page.locator('#result.is-win').count() === 1, await page.locator('#result').innerText());
+
+await page.locator('#reset').click();
+await page.waitForFunction(() => document.querySelectorAll('.tt-booking.is-clash').length === 1, null, { timeout: 15000 });
+await run(page, 'php', "$pdo->exec('DELETE FROM bookings WHERE id = 21');");
+await page.waitForSelector('#result.is-win, #result.is-miss, #result.is-error', { timeout: 90000 });
+t.check('the same problem is solved in PHP after a Reset', await page.locator('#result.is-win').count() === 1, await page.locator('#result').innerText());
 
 await close();
 {
