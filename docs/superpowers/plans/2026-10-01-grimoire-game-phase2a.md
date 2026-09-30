@@ -184,3 +184,17 @@ Each asset carries `sector` and reads as that sector at thumbnail size:
 - [ ] Keep `game/scene-spike/` for comparison but add a line at the top of its page linking to the new game.
 - [ ] Update the Library button in `index.html` to point at `game/play/index.html` (one attribute change).
 - [ ] Suite green, commit `docs: Phase 2a results`, and publish to `main` (Lawrence's standing instruction: publish finished code to main).
+
+### Task 11: Player look settings and Night lab candles (runs after Task 8, before Task 9)
+
+Requested by Lawrence on 2026-10-01: players choose whatever preset they like in the game, and under the Night lab preset characters carry candles that light a path around them when they enter.
+
+**Files:** create `game/play/settings-menu.js`, `game/art/candle.js`; modify `game/engine/theme.js` (user presets), `game/art/people.js` (or `people/*`) (carry a light), `game/play/main.js` (mount the menu); tests `scripts/browser/test_play_settings.mjs`, `scripts/browser/test_art_candles.mjs`.
+
+**Interfaces:**
+- `theme.js`: `listPresets() -> [{ name, builtIn }]`, `saveUserPreset(name) -> void` (captures the current theme), `deleteUserPreset(name)`, `applyPreset(name)` works for built-in and user presets; user presets persist under `grimoire.theme.userPresets.v1` (try/catch); the active preset name persists and is restored on load.
+- `settings-menu.js`: `mountSettingsMenu(root, { onChange })`: a player-facing Settings button in the HUD opening a small menu: a preset picker with a live preview swatch per preset, "Save current look as...", delete for user presets, a reduced-motion toggle and a sound toggle (placeholder, off). It is separate from the developer tweak panel (T key), which stays available.
+- `candle.js`: `register('candle', ...)` (a candle in a small brass holder, emissive flickering flame) and `lantern` (a hand lantern); `attachLight(person, { kind })` puts it in the person's hand (the `carry` pose with one hand) and adds a glow; `setCandleMode(on)` on the scene.
+- Night lab behaviour: when the active preset is Night lab (or any preset with `toggles.candles` true; add `toggles.candles` to the SCHEMA so a user preset can turn it on), every person who enters carries a candle: a flickering flame sprite, a warm additive floor light pool (radius about 1.6 tiles) and wall glow that move with them; when they sit, the candle goes on the desk beside them and keeps glowing; when they leave, they take it. At most 4 real `PointLight`s are pooled and assigned to the people nearest the camera (so furniture near them is lit); everyone else uses the cheap pool and glow only (no shader recompiles as people come and go: fixed light count, intensity 0 when unused). Reduced motion stops flicker.
+- Tests: switching presets from the menu changes `palette.bg` and persists across reload; a saved user preset appears in the list, applies and deletes; with Night lab active, a person who enters has a candle child and a floor pool that follows them within 0.2 units; at most 4 PointLights exist regardless of the number of people (spawn 12); the light count never changes while people spawn and leave (no recompiles: `renderer.info.programs.length` stable); switching away from Night lab removes candles.
+- Visual: screenshots of the office under Night lab with several people walking in with candles and seated with candles on desks.
