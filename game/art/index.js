@@ -2,5 +2,6 @@
 // Add a pack by importing it here.
 import './samples.js';
 import './materials.js';
+import './furniture.js';
 
 export * from './registry.js';

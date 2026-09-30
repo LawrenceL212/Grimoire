@@ -405,7 +405,16 @@ function showSections(mode) {
 // theme's field of view (the scene spike's framing), divided by the theme zoom.
 const gameDistance = () => 8.5 / (Math.tan(THREE.MathUtils.degToRad(tget('camera.fov') / 2)) * 0.8);
 const PATCH_KINDS = [...Object.keys(FLOOR_KINDS), 'mixed'];
-const PATCH_PROPS = [['sample-crate', -1.5, -1.5, 0.35], ['sample-crate', -0.5, 1.5, -0.2], ['sample-bench', 1, -0.5, 0]];
+// a furnished office corner: [id, x, z, turn, height] (height for things standing on the desk)
+const PATCH_PROPS = [
+  ...[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((x) => [x === 0.5 || x === 1.5 ? 'wall-window' : 'wall-segment', x, -2.9, 0]),
+  ...[-1.5, -0.5, 0.5, 1.5, 2.5].map((z) => ['wall-segment', -2.9, z, Math.PI / 2]),
+  ['bookshelf', -1.2, -2.35, 0], ['plant-tall', -2.3, -2.25, 0.4], ['filing-cabinet', 2.4, -2.3, 0],
+  ['rug', -1.05, 0.4, Math.PI / 2],
+  ['desk', 0.8, -1.35, 0], ['office-chair', 0.75, -0.55, Math.PI + 0.25],
+  ['monitor', 0.75, -1.58, 0, 0.62], ['desk-lamp', 1.5, -1.55, -0.6, 0.62], ['mug', 0.1, -1.2, 0.4, 0.62], ['paper-stack', 1.25, -1.15, 0.2, 0.62],
+  ['plant-small', -2.3, 1.7, 0], ['sofa', -1.9, 0.3, Math.PI / 2], ['coffee-table', -0.7, 0.35, Math.PI / 2],
+];
 function buildPatch(kind, shadows) {
   const g = new THREE.Group();
   g.name = 'floor-patch';
@@ -413,9 +422,9 @@ function buildPatch(kind, shadows) {
   for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) cells.push([i - 2.5, j - 2.5]);
   if (kind === 'mixed') Object.keys(FLOOR_KINDS).forEach((k, row) => g.add(tileField(k, cells.filter(([, z]) => z === row - 2.5), { seed: row + 1 })));
   else g.add(tileField(kind, cells));
-  for (const [id, x, z, ry] of PATCH_PROPS) {
+  for (const [id, x, z, ry, y = 0] of PATCH_PROPS) {
     const o = make(id, {});
-    o.position.set(x, 0, z); o.rotation.y = ry;
+    o.position.set(x, y, z); o.rotation.y = ry;
     if (shadows) contactShadow(o);
     g.add(o);
   }

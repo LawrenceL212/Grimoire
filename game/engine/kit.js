@@ -80,7 +80,9 @@ export function setToon(scene, on) {
   });
 }
 
-// part(): one mesh, positioned, shadowed, optionally outlined, optionally static
+// part(): one mesh, positioned, shadowed, optionally outlined, optionally static.
+// A flat-shaded geometry may carry geo.userData.hull: the same surface with shared, smoothed
+// normals, used for its outline so the hull does not split open along the facets.
 export function part(geo, material, o = {}) {
   const m = new THREE.Mesh(geo, material);
   m.position.set(o.x ?? 0, o.y ?? 0, o.z ?? 0);
@@ -90,7 +92,7 @@ export function part(geo, material, o = {}) {
   m.receiveShadow = o.receive ?? true;
   if (o.outline !== 0 && o.outline !== false) {
     const th = o.outline ?? 0.018;
-    const ol = new THREE.Mesh(geo, outlineMat(th));
+    const ol = new THREE.Mesh(geo.userData.hull || geo, outlineMat(th));
     ol.userData.outlineChild = true;
     ol.raycast = () => {};
     m.add(ol);
@@ -110,21 +112,27 @@ export function bakeStatic(root) {
   root.traverse((o) => {
     if (!o.isMesh || !o.userData.static) return;
     victims.push(o);
-    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
-    g.applyMatrix4(o.matrixWorld);
+    // uv survives only for a textured material (so a wood-grain top keeps its grain)
+    const flat = (src, keepUv = false) => {
+      const g = src.index ? src.toNonIndexed() : src.clone();
+      for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && !(keepUv && name === 'uv')) g.deleteAttribute(name);
+      g.applyMatrix4(o.matrixWorld);
+      return g;
+    };
+    const g = flat(o.geometry, !!o.material.map);
     if (!byMat.has(o.material)) byMat.set(o.material, { geos: [], cast: o.castShadow });
     byMat.get(o.material).geos.push(g);
     if (o.userData.outline) {
       const th = o.userData.outline;
       if (!byOutline.has(th)) byOutline.set(th, []);
-      byOutline.get(th).push(g);
+      byOutline.get(th).push(o.geometry.userData.hull ? flat(o.geometry.userData.hull) : g);
     }
   });
   for (const v of victims) v.parent && v.parent.remove(v);
   const out = new THREE.Group();
   out.name = 'static-batch';
   for (const [mat, { geos, cast }] of byMat) {
+    if (!geos.every((g) => g.attributes.uv)) for (const g of geos) if (g.attributes.uv) g.deleteAttribute('uv');
     const m = new THREE.Mesh(mergeGeometries(geos), mat);
     m.castShadow = cast; m.receiveShadow = true;
     out.add(m);
