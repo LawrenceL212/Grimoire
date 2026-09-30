@@ -31,4 +31,4 @@ for (const f of ['boot', 'world', 'js_view', 'php_sync', 'grading', 'timetable',
   if (existsSync(file)) run([file]);
 }
 
-for (const f of ['engine']) run([join(here, `test_${f}.mjs`)]);
+for (const f of ['engine', 'art_catalogue']) run([join(here, `test_${f}.mjs`)]);
