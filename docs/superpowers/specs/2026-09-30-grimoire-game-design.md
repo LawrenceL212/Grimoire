@@ -146,3 +146,51 @@ problems, full memory system, and finally migration of old dungeons.
   tasks, Grimoire-branded presentation. Warm dark "living ledger", ink and gold
   accents, Codex tools as arcane instruments that dull with forgetting. Spring
   easing, optional sound, reduced-motion mode. Refine during the vertical slice.
+
+## 11. Direction update (2026-09-30, after Phase 1)
+
+Lawrence reviewed the Phase 1 slice ("janky, not really a game") and a 3D scene
+spike ("i love what the scene spike is showing me"). These decisions supersede the
+front-of-house parts of sections 3, 4 and 8 where they conflict.
+
+**Look and feel.** The front-of-house is a real 3D game world in the manner of
+*The Farmer Was Replaced*: a floating tile-grid diorama seen from above at a steep
+angle; low-poly characters and a drone avatar; several draggable floating windows
+over the scene (a code window per task, a ticket window per ticket); a top HUD of
+icon-and-number counters with a warning icon that pulses when a ticket arrives;
+warm low-poly lighting with soft shadows; particles, trails and confetti. Built
+zero-build with Three.js pinned from a CDN and procedural geometry (no downloaded
+art unless a CC0 pack is chosen later). Every visual constant lives in one
+settings object edited by a live tweak panel (press T), and that object becomes the
+game's theme. The flat timetable is retired as the main view; the world, runners,
+grading and tests from Phase 1 stay and feed the 3D scene.
+
+**Purpose and role.** The company is a booking platform (in the spirit of Siso's
+Smarthub and Smartlab) whose purpose is to win clients from different sectors and
+grow the business in users and features. The player is the main developer: the job
+is to add the features clients want and to solve every issue that arises from being
+the main developer.
+
+**Problems arrive as tickets and conversations.** A client or colleague sends a
+ticket or tells the player about an issue (a symptom, not instructions). Two kinds:
+bugs (investigate with read-only queries and code, find the root cause, fix it,
+reply to the client) and feature requests (design and build). Any valid fix passes
+(outcome-graded). A weak fix can come back as a reopened ticket, which doubles as
+the spaced-review mechanism.
+
+**Growth by sector.** Each new client sector is a new district of the diorama with
+its own needs, for example laboratories (equipment, maintenance, safety, audit),
+gyms (classes, capacity, memberships), schools (timetables, term dates), clinics
+(staff rotas, privacy), councils (public halls, payments), co-working (desks,
+invoicing). Clients, users and features are the progress bar; scale makes problems
+harder (data volume, roles, concurrency, security, performance). The data model
+becomes multi-tenant (clients, sites, resources, users, bookings) so sector
+requirements exercise real schema design, constraints, roles, APIs and security in
+PostgreSQL, PHP and JavaScript.
+
+**Consequences for the plan.** Phase 2 becomes "the real world inside the 3D
+scene": drone actions driven by real runner results, tickets as windows, HUD
+counters driven by real outcomes, the multi-tenant world model, the director
+choosing tickets by growth and by fading skills. The Phase 1 results doc lists the
+required infrastructure items (world in a PGliteWorker, PHP in a terminable Worker,
+sandboxed runners) that remain prerequisites.
