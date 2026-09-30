@@ -10,5 +10,7 @@ import './sectors/school.js';
 import './sectors/clinic.js';
 import './sectors/hall.js';
 import './sectors/coworking.js';
+// the people
+import './people.js';
 
 export * from './registry.js';

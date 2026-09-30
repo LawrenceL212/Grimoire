@@ -53,6 +53,31 @@ export const DEFAULTS = {
     velvet: '#8f2a3c',    // hall: stage curtains
     felt: '#7f9c83',      // coworking: acoustic felt (booths, pod screens)
     coral: '#e27a5c',     // coworking: accent (bean bag, coffee bar)
+    // people (game/art/people.js): skin tones, hair, and the outfits of each role
+    skin1: '#f7d9bf', skin2: '#eab893', skin3: '#c98e63', skin4: '#9c6545', skin5: '#6a4230',
+    hair1: '#2b1f19', hair2: '#5c3823', hair3: '#b0612d', hair4: '#e0b866', hair5: '#bdb6ad', hair6: '#7c3f86',
+    shirt: '#eef0f2',     // office: shirts under the jacket
+    shirtAlt: '#8fb8dc',  // office: a blue shirt
+    jacket: '#3d4b63',    // office: jackets
+    jacketAlt: '#a0764e', // office: a tan jacket
+    labCoat: '#f4f2ec',   // lab: coats
+    goggles: '#7fd0e6',   // lab: goggle lenses
+    sportTop: '#35a7a0',  // gym: tops
+    sportAlt: '#e45b8f',  // gym: a second top colour
+    cardigan: '#b24c42',  // school: cardigans
+    cardiganAlt: '#6b8a52', // school: a green cardigan
+    lanyard: '#3b6fc4',   // school: lanyards
+    scrubs: '#4da3ab',    // clinic: scrubs
+    scrubsAlt: '#6b7fcc', // clinic: a second scrubs colour
+    blazer: '#2e3a4c',    // council: blazers
+    blazerAlt: '#6b2f3c', // council: a burgundy blazer
+    trousers: '#2f2d35',  // dark trousers and skirts
+    chinos: '#b49b73',    // light trousers
+    jeans: '#46608a',
+    shoes: '#2b211c',
+    trainers: '#f2eee6',
+    blush: '#f08c7c',     // cheeks
+    mouth: '#7e2c2e',     // an open mouth
   },
   shirts: {
     ada: '#d9a441',
@@ -157,6 +182,22 @@ export const SCHEMA = [
     ['palette.chalkboard', 'color', 'School: chalkboard'], ['palette.locker', 'color', 'School: lockers'],
     ['palette.mint', 'color', 'Clinic: curtains and couch'], ['palette.medical', 'color', 'Clinic: red cross'],
     ['palette.velvet', 'color', 'Hall: stage curtains'], ['palette.felt', 'color', 'Coworking: felt'], ['palette.coral', 'color', 'Coworking: accent'],
+  ]],
+  ['People', [
+    ['palette.skin1', 'color', 'Skin tone 1'], ['palette.skin2', 'color', 'Skin tone 2'], ['palette.skin3', 'color', 'Skin tone 3'],
+    ['palette.skin4', 'color', 'Skin tone 4'], ['palette.skin5', 'color', 'Skin tone 5'],
+    ['palette.hair1', 'color', 'Hair: black'], ['palette.hair2', 'color', 'Hair: brown'], ['palette.hair3', 'color', 'Hair: auburn'],
+    ['palette.hair4', 'color', 'Hair: blonde'], ['palette.hair5', 'color', 'Hair: grey'], ['palette.hair6', 'color', 'Hair: dyed'],
+    ['palette.shirt', 'color', 'Office: shirt'], ['palette.shirtAlt', 'color', 'Office: blue shirt'],
+    ['palette.jacket', 'color', 'Office: jacket'], ['palette.jacketAlt', 'color', 'Office: tan jacket'],
+    ['palette.labCoat', 'color', 'Lab: coat'], ['palette.goggles', 'color', 'Lab: goggles'],
+    ['palette.sportTop', 'color', 'Gym: top'], ['palette.sportAlt', 'color', 'Gym: second top'],
+    ['palette.cardigan', 'color', 'School: cardigan'], ['palette.cardiganAlt', 'color', 'School: green cardigan'], ['palette.lanyard', 'color', 'School: lanyard'],
+    ['palette.scrubs', 'color', 'Clinic: scrubs'], ['palette.scrubsAlt', 'color', 'Clinic: second scrubs'],
+    ['palette.blazer', 'color', 'Council: blazer'], ['palette.blazerAlt', 'color', 'Council: burgundy blazer'],
+    ['palette.trousers', 'color', 'Dark trousers'], ['palette.chinos', 'color', 'Light trousers'], ['palette.jeans', 'color', 'Jeans'],
+    ['palette.shoes', 'color', 'Shoes'], ['palette.trainers', 'color', 'Trainers'],
+    ['palette.blush', 'color', 'Cheeks'], ['palette.mouth', 'color', 'Open mouth'],
   ]],
   ['Characters', [
     ['shirts.ada', 'color', 'Ada shirt'], ['shirts.bea', 'color', 'Bea shirt'], ['shirts.cy', 'color', 'Cy shirt'], ['shirts.dev', 'color', 'Dev shirt'], ['shirts.mo', 'color', 'Mo shirt (desk)'],

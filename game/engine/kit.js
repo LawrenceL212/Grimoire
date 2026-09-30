@@ -68,6 +68,30 @@ export function outlineMat(th = 0.02) {
   return outlineMats.get(th);
 }
 
+// The same outline for a SkinnedMesh: the hull is pushed out along the skinned normal.
+export function skinnedOutlineMat(th = 0.02) {
+  const key = `skin|${th}`;
+  if (!outlineMats.has(key)) {
+    outlineMats.set(key, new THREE.ShaderMaterial({
+      uniforms: { th: { value: th }, color: { value: new THREE.Color(0x0a0807) } },
+      vertexShader: `uniform float th;
+        #include <common>
+        #include <skinning_pars_vertex>
+        void main(){
+          #include <beginnormal_vertex>
+          #include <skinbase_vertex>
+          #include <skinnormal_vertex>
+          #include <begin_vertex>
+          #include <skinning_vertex>
+          vec3 p = transformed + normalize(objectNormal) * th;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `uniform vec3 color; void main(){ gl_FragColor = vec4(color, 1.0); }`,
+      side: THREE.BackSide,
+    }));
+  }
+  return outlineMats.get(key);
+}
+
 export function setOutlines(on) { outlineMats.forEach((m) => { m.visible = on; }); }
 const smooth = new Uint8Array(64).map((_, i) => 60 + Math.round((i / 63) * 195));
 export const smoothRamp = new THREE.DataTexture(smooth, smooth.length, 1, THREE.RedFormat);

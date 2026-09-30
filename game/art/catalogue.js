@@ -12,6 +12,7 @@ import { mountTweakPanel } from '../engine/tweak-panel.js';
 import { setOutlines, setToon, toonOwn } from '../engine/kit.js';
 import { FLOOR_KINDS, tileField, contactShadow } from './materials.js';
 import { CORNERS } from './sectors/common.js';
+import { buildPeopleScene } from './people/sheet.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const WORK_BUDGET_MS = 6;     // grid rendering per animation frame
@@ -319,6 +320,7 @@ function teardown() {
   if (!cu) return;
   cu.ro.disconnect();
   cu.obj?.traverse?.((o) => { if (o.isInstancedMesh) o.dispose(); });
+  cu.people?.dispose();
   cu.stage.dispose();
   cu.canvas.remove();
   const gone = [cu.obj, cu.plate];
@@ -397,6 +399,8 @@ function showSections(mode) {
   $('cu-asset').hidden = mode !== 'asset';
   $('cu-nav').hidden = mode !== 'asset';
   $('cu-patch').hidden = mode !== 'patch';
+  $('cu-people').hidden = mode !== 'people';
+  $('people').setAttribute('aria-pressed', String(mode === 'people'));
   if (mode !== 'asset') $('cu-anims-wrap').hidden = true;
   $('patch').setAttribute('aria-pressed', String(mode === 'patch'));
 }
@@ -484,6 +488,57 @@ function openPatch(kind = 'wood') {
   setPatchDistance('game');
 }
 
+// ---------- people: the character sheet and the office corner at work (people/sheet.js) ----------
+function setPeopleDistance(which) {
+  if (!cu || cu.mode !== 'people') return;
+  cu.dist = which;
+  cu.stage.resetView();
+  const p = cu.people;
+  const d = p.kind === 'sheet' ? p.radius * 3.4 : gameDistance();
+  cu.stage.setDistance(d * (which === 'close' ? 0.42 : 1), p.center);
+  for (const b of $('cu-people').querySelectorAll('[data-pdist]')) b.setAttribute('aria-pressed', String(b.dataset.pdist === which));
+}
+function setPeople(kind) {
+  if (!cu || cu.mode !== 'people') return;
+  const old = cu.obj;
+  if (old) { cu.people.dispose(); cu.pivot.remove(old); }
+  cu.people = buildPeopleScene(kind);
+  cu.people.kind = kind;
+  cu.obj = cu.people.group;
+  setToon(cu.obj, tget('toggles.toon'));
+  cu.pivot.add(cu.obj);
+  cu.lights.fit(cu.people.center, cu.people.radius);
+  if (old) disposeUnused([old]);
+  $('people-kind').value = kind;
+  $('cu-title').textContent = kind === 'sheet' ? 'People: character sheet' : 'People: the office corner at work';
+  setPeopleDistance(cu.dist || 'game');
+}
+function openPeople(kind = 'sheet') {
+  teardown();
+  if (!dlg.open) dlg.showModal();
+  const canvas = document.createElement('canvas');
+  $('cu-stage').prepend(canvas);
+  const stage = createStage(canvas, { reducedMotion });
+  const lights = makeLights();
+  const pivot = new THREE.Group();
+  stage.scene.add(lights.group, pivot);
+  let seen = `${canvas.clientWidth}x${canvas.clientHeight}`;
+  const ro = new ResizeObserver(() => {
+    const now = `${canvas.clientWidth}x${canvas.clientHeight}`;
+    if (now === seen || !canvas.clientWidth) return;
+    seen = now;
+    dispatchEvent(new Event('resize'));
+  });
+  ro.observe(canvas);
+  cu = { mode: 'people', id: null, canvas, stage, ro, plate: null, camera: stage.camera, frames: 0, lights, pivot, obj: null, meta: null, spin: false, anim: null, people: null, dist: 'game' };
+  window.__catalogue.closeup = cu;
+  stage.frame((dt, t) => { cu.frames++; if (cu.spin) pivot.rotation.y += dt * SPIN; cu.people?.update(dt, t); });
+  showSections('people');
+  $('cu-chips').innerHTML = '';
+  $('cu-spin').setAttribute('aria-pressed', 'false');
+  setPeople(kind);
+}
+
 function step(dir) {
   if (!cu || cu.mode !== 'asset') return;
   const vis = cells.filter((c) => !c.card.hidden);
@@ -569,6 +624,7 @@ function boot() {
     thumbs?.lights.sync();
     cu?.lights.sync();
     if (cu?.mode === 'patch' && (!path || path.startsWith('camera'))) setPatchDistance(cu.dist);
+    if (cu?.mode === 'people' && (!path || path.startsWith('camera'))) setPeopleDistance(cu.dist);
     if (thumbs) thumbs.renderer.toneMappingExposure = tget('light.exposure');
     if (!path || path.startsWith('toggles')) {
       setOutlines(tget('toggles.outlines'));
@@ -584,7 +640,7 @@ function boot() {
   dlg.addEventListener('close', () => { if (!dlg.open) teardown(); });
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   $('cu-close').addEventListener('click', () => dlg.close());
-  $('cu-reset').addEventListener('click', () => { if (!cu) return; cu.pivot.rotation.y = 0; if (cu.mode === 'patch') setPatchDistance(cu.dist); else cu.stage.resetView(); });
+  $('cu-reset').addEventListener('click', () => { if (!cu) return; cu.pivot.rotation.y = 0; if (cu.mode === 'patch') setPatchDistance(cu.dist); else if (cu.mode === 'people') setPeopleDistance(cu.dist); else cu.stage.resetView(); });
   fillSelect($('patch-kind'), PATCH_KINDS);
   for (const o of $('patch-kind').options) {
     if (o.value === 'mixed') o.textContent = 'all six (one per row)';
@@ -594,8 +650,11 @@ function boot() {
   $('patch-kind').addEventListener('change', (e) => setPatch(e.target.value));
   $('patch-shadows').addEventListener('click', () => { if (cu?.mode === 'patch') setPatch(cu.kind, !cu.shadows); });
   $('cu-patch').addEventListener('click', (e) => { const b = e.target.closest('[data-dist]'); if (b) setPatchDistance(b.dataset.dist); });
-  $('patch').addEventListener('click', () => openPatch(cu?.kind || 'wood'));
-  dlg.addEventListener('close', () => { if (!dlg.open) $('patch').setAttribute('aria-pressed', 'false'); });
+  $('patch').addEventListener('click', () => openPatch(cu?.mode === 'patch' ? cu.kind : 'wood'));
+  $('people').addEventListener('click', () => openPeople(cu?.mode === 'people' ? cu.people.kind : 'sheet'));
+  $('people-kind').addEventListener('change', (e) => setPeople(e.target.value));
+  $('cu-people').addEventListener('click', (e) => { const b = e.target.closest('[data-pdist]'); if (b) setPeopleDistance(b.dataset.pdist); });
+  dlg.addEventListener('close', () => { if (!dlg.open) { $('patch').setAttribute('aria-pressed', 'false'); $('people').setAttribute('aria-pressed', 'false'); } });
   $('cu-spin').addEventListener('click', (e) => { if (!cu) return; cu.spin = !cu.spin; e.target.setAttribute('aria-pressed', String(cu.spin)); });
   $('cu-anims').addEventListener('click', (e) => {
     const b = e.target.closest('[data-anim]');
@@ -617,7 +676,7 @@ function boot() {
   window.__catalogue.ready = true;
 }
 
-window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), patch: (kind) => openPatch(kind), close: () => dlg.close(),
+window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), patch: (kind) => openPatch(kind), people: (kind) => openPeople(kind), close: () => dlg.close(),
   gpuMemory: () => thumbs && { ...thumbs.renderer.info.memory } };
 
 // Test-only fixtures, loaded only when the URL asks: ?test-bad=1 (three broken assets), ?stress=N (N clones).
