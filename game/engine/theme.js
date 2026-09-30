@@ -106,9 +106,10 @@ export const DEFAULTS = {
   world: { tileFill: 0.92, tileHeight: 0.22 },
   chars: { scale: 1.25 },
   people: { costumeSet: 'none' }, // a costume layer over every person (game/art/people/outfits.js registerCostume)
-  drone: { scale: 1.4, speed: 1.0, trail: 56 },
+  drone: { scale: 1.4, speed: 1.0, trail: 56, playScale: 1.5 }, // playScale: extra size on the play page (it reads small at game distance)
   anim: { speed: 1.0 },
-  ui: { hudScale: 1.0, codeOpacity: 0.94 },
+  ui: { hudScale: 1.0, codeOpacity: 0.94, codeFont: '"Cascadia Mono", Consolas, ui-monospace, "SF Mono", Menlo, "Liberation Mono", monospace', codeSize: 14 },
+  play: { lampColor: '#ffc98a', clash: '#ff4a3a', calm: '#6fdf8b' }, // play page: room lamps, room glow colours
   toggles: { outlines: true, toon: true, fog: false, glow: true },
 };
 
@@ -247,9 +248,14 @@ export const SCHEMA = [
   ]],
   ['Drone', [
     ['drone.scale', 'range', 'Drone size', 0.5, 2, 0.01], ['drone.speed', 'range', 'Drone speed', 0.4, 3, 0.05], ['drone.trail', 'range', 'Trail length', 0, 120, 1],
+    ['drone.playScale', 'range', 'Drone size in the office', 0.6, 2.5, 0.01],
   ]],
   ['Motion & UI', [
     ['anim.speed', 'range', 'Animation speed', 0.2, 3, 0.05], ['ui.hudScale', 'range', 'HUD scale', 0.7, 1.5, 0.01], ['ui.codeOpacity', 'range', 'Code window opacity', 0.4, 1, 0.01],
+    ['ui.codeSize', 'range', 'Code text size', 11, 22, 0.5],
+  ]],
+  ['Office', [
+    ['play.lampColor', 'color', 'Room lamps'], ['play.clash', 'color', 'Room glow: clash'], ['play.calm', 'color', 'Room glow: sorted'],
   ]],
   ['Look', [
     ['toggles.outlines', 'bool', 'Outlines'], ['toggles.toon', 'bool', 'Toon shading'], ['toggles.fog', 'bool', 'Fog'], ['toggles.glow', 'bool', 'Glow (fake bloom)'],

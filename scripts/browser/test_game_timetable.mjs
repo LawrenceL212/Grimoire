@@ -57,7 +57,7 @@ const scenario = async (page) => page.evaluate(async () => {
   await close();
 }
 {
-  const { page, close } = await openGame('game/index.html', { context: { reducedMotion: 'reduce' } });
+  const { page, close } = await openGame('game/classic.html', { context: { reducedMotion: 'reduce' } });
   const r = await page.evaluate(async () => {
     const { createTimetable } = await import('/game/ui/timetable.js');
     const root = document.createElement('div');

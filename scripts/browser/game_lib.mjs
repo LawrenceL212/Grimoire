@@ -16,7 +16,7 @@ export function findChromium() {
     : undefined;
 }
 
-export async function openGame(path = 'game/index.html', opts = {}) {
+export async function openGame(path = 'game/classic.html', opts = {}) {
   const browser = await chromium.launch({ executablePath: findChromium() });
   const context = await browser.newContext(opts.context || {});
   const page = await context.newPage();

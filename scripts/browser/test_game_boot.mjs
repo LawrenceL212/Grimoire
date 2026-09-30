@@ -10,7 +10,7 @@ const animation = (page) => page.locator('#loading')
 const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue(); });
 
 {
-  const { page, errors, close } = await openGame();
+  const { page, errors, close } = await openGame('game/classic.html');
   t.check('game shell boots and sets window.__game.ready', await isReady(page, 15000));
   t.check('the shell has an #app mount point', await page.locator('#app').count() === 1);
   t.check('no page errors on load', errors.length === 0, errors.join(' | '));
@@ -19,7 +19,7 @@ const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new P
 
 // Loading state: while the world opens, say so and keep Run disabled.
 {
-  const { page, errors, close } = await openGame(undefined, { beforeGoto: slowCdn(2000) });
+  const { page, errors, close } = await openGame('game/classic.html', { beforeGoto: slowCdn(2000) });
   const loading = page.locator('#loading');
   const shown = await loading.isVisible();
   t.check('while the world opens, "Opening the office" is shown', shown && /Opening the office/.test(await loading.innerText()));
@@ -34,7 +34,7 @@ const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new P
   await close();
 }
 {
-  const { page, close } = await openGame(undefined, { context: { reducedMotion: 'reduce' }, beforeGoto: slowCdn(1500) });
+  const { page, close } = await openGame('game/classic.html', { context: { reducedMotion: 'reduce' }, beforeGoto: slowCdn(1500) });
   t.check('the loading state is still under reduced motion',
     (await animation(page)) === 'none');
   await close();
@@ -43,7 +43,7 @@ const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new P
 // The CDN is blocked: the page says so plainly, and Reset retries.
 {
   let blocked = true;
-  const { page, close } = await openGame(undefined, {
+  const { page, close } = await openGame('game/classic.html', {
     beforeGoto: (p) => p.route(CDN, (route) => (blocked ? route.abort() : route.continue())),
   });
   const failed = await page.waitForSelector('#result.is-error', { timeout: 15000 }).then(() => true, () => false);
@@ -64,7 +64,7 @@ const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new P
 
 // A failure that is not an Error still reads as something, never "undefined".
 {
-  const { page, close } = await openGame(undefined, {
+  const { page, close } = await openGame('game/classic.html', {
     beforeGoto: (p) => p.route('**/pglite@*/dist/index.js', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: 'throw "the database would not open";' })),
   });
@@ -76,7 +76,7 @@ const slowCdn = (ms) => (page) => page.route(CDN, async (route) => { await new P
 
 // main.js itself never arrives: the page is still not blank.
 {
-  const { page, close } = await openGame(undefined, { beforeGoto: (p) => p.route('**/game/main.js', (route) => route.abort()) });
+  const { page, close } = await openGame('game/classic.html', { beforeGoto: (p) => p.route('**/game/main.js', (route) => route.abort()) });
   const text = await page.locator('#app').innerText();
   t.check('without the game script, #app still says what is happening', /Loading the game/.test(text) && /connection/.test(text), text);
   await close();

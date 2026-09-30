@@ -10,7 +10,7 @@ const run = async (page, lang, code) => {
 const settled = (page, extra = '') =>
   page.waitForSelector(`#result.is-win, #result.is-miss${extra}`, { timeout: 15000 });
 
-const { page, errors, close } = await openGame();
+const { page, errors, close } = await openGame('game/classic.html');
 await ready(page);
 t.check('the goal is shown', /double-booked/i.test(await page.locator('#goal').innerText()));
 t.check('the clash is visible before any code runs', await page.locator('.tt-booking.is-clash').count() === 1);
@@ -63,7 +63,7 @@ t.check('the same problem is solved in PHP after a Reset', await page.locator('#
 
 await close();
 {
-  const g = await openGame();
+  const g = await openGame('game/classic.html');
   await ready(g.page);
   await run(g.page, 'js', 'world.bookings = world.bookings.filter((b) => b.id !== 21);');
   await settled(g.page, ', #result.is-error');
