@@ -220,3 +220,12 @@ Requested by Lawrence on 2026-10-01: "game needs sound effects too" and "backgro
 - The settings menu (Task 11) gets the sliders later; until then the HUD has a speaker button (mute/unmute) and the tweak panel has the volumes.
 - Tests: no AudioContext before a gesture; after a click the context is running; every effect name plays without throwing and ends; music starts, ducks when an effect plays (gain dips), thins while typing and stops when muted; settings persist across reload; a hidden tab fades music.
 - Visual/aural check: record a short clip of the ticket story with sound (Playwright video plus an OfflineAudioContext render of the same event timeline muxed with ffmpeg) and listen-check the levels by measuring loudness (effects never clip; music at least 12 dB under effects).
+
+### Task 13: The personal office (revenue you can spend) (runs with Task 11, after the functional release)
+
+Requested by Lawrence on 2026-10-01: "when it comes to revenue I can use it to build up my personal office."
+
+- A personal office area in the building (a room on the office map, starting bare: folding table, laptop, a sad plant). Its layout persists (try/catch storage; later synced with progress).
+- Revenue is a spendable balance: it comes only from real business outcomes (tickets solved, clients won, features shipped), weighted as the learning design says (unaided and spaced recall earns more; same-session repeats earn little), so a better office honestly reflects real progress. The HUD shows balance and income; every transaction is recorded (a small ledger the player can open).
+- An office shop sells art-pack items with prices by size and rarity (desk and chair upgrades, second monitor, bookshelves, rugs, lamps, plants, sofa, coffee machine, an office cat, window views; later the fantasy skin items). Items are placed on the tile grid in an edit mode: drag, rotate, move, sell back at half price, recolour from the palette. Placement respects footprints and walkways (no blocking the door or desk access).
+- Tests: purchases deduct correctly and cannot overdraw; a placed item persists across reload; invalid placements are refused with a reason; revenue cannot be earned by repeating a solved ticket in the same session beyond the learning design's cap.
