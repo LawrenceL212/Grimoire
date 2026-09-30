@@ -85,11 +85,15 @@ const o = await page.evaluate(async () => {
   const canvas = document.createElement('canvas'); canvas.style.cssText = 'width:640px;height:400px';
   document.getElementById('root').appendChild(canvas);
   const stage = rd.createStage(canvas, { reducedMotion: true });
-  stage.frameAll();
+  const out = {};
+  // floors and contact shadows are spaced for a near plane of 0.5 (closer planes z-fight at game distance)
+  out.near = [stage.camera.near];
+  stage.frameAll(); out.near.push(stage.camera.near);
+  stage.setDistance(80); out.near.push(stage.camera.near);
   const pos = () => stage.camera.position.clone();
   const dist = () => stage.camera.position.length();
   const ev = (type, id, x, y) => canvas.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true }));
-  const out = {};
+  stage.frameAll();
   const p0 = pos(), d0 = dist();
   ev('pointerdown', 1, 100, 100); ev('pointermove', 1, 160, 130); ev('pointerup', 1, 160, 130);
   out.dragMoved = pos().distanceTo(p0) > 0.01;
@@ -122,6 +126,7 @@ const o = await page.evaluate(async () => {
   th.set('palette.gold', '#ff0000');
   return out;
 });
+t.check('the stage camera keeps its near plane at 0.5 (floors and contact shadows rely on it)', o.near.every((n) => n === 0.5), JSON.stringify(o.near));
 t.check('dragging the canvas orbits the camera', o.dragMoved === true);
 t.check('pitch stays within 15..75 degrees', o.pitchMin >= 14.9 && o.pitchMax <= 75.1 && o.pitchMin < 16 && o.pitchMax > 74, `${o.pitchMin} ${o.pitchMax}`);
 t.check('the wheel zooms, bounded', o.wheelIn === true && o.zoomRatio <= o.maxZoomRatio + 0.01, `${o.zoomRatio} <= ${o.maxZoomRatio}`);

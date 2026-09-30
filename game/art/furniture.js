@@ -58,7 +58,6 @@ function strut(add, a, b, r, mat, o = {}) {
 function card(g, w, h, mat, o = {}) {
   return part(new THREE.PlaneGeometry(w, h), mat, { outline: 0, cast: false, ...o, parent: o.parent || g });
 }
-const ink = (k) => tget(`palette.${k}`);
 
 // ======================================================================= desk
 const keysTex = liveTex('keyboard-keys', 256, 80, (g, w, h) => {
