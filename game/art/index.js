@@ -12,5 +12,8 @@ import './sectors/hall.js';
 import './sectors/coworking.js';
 // the people
 import './people.js';
+// the player's drone and the effects
+import './fx.js';
+import './drone.js';
 
 export * from './registry.js';

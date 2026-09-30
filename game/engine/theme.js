@@ -78,6 +78,21 @@ export const DEFAULTS = {
     trainers: '#f2eee6',
     blush: '#f08c7c',     // cheeks
     mouth: '#7e2c2e',     // an open mouth
+    // the drone (game/art/drone.js): the player's avatar
+    droneShell: '#f3e9d6', // body
+    droneShade: '#cdb994', // underside, arms
+    droneScreen: '#161a24', // the face screen
+    droneEye: '#8ff0ff',  // eyes and mouth on the screen
+    droneRing: '#f2b640', // the ring light (idle; a scan turns it red or green)
+    droneRotor: '#2f2a27', // arms' motors, rotor blades
+    droneBeam: '#ffe0a0', // the scan beam before a verdict
+    // effects (game/art/fx.js)
+    fxSpark: '#ffd27a',
+    fxCoin: '#f0bc4c',
+    fxConfettiA: '#f07a5a', fxConfettiB: '#6fb8e8', fxConfettiC: '#f2d05a',
+    fxTicket: '#f5e6c4',  // ticket card paper
+    fxTicketInk: '#2a1f17',
+    fxMoved: '#4f86c6',   // the MOVED stamp (BOOKED is gold, RESOLVED ok, OPEN danger)
   },
   shirts: {
     ada: '#d9a441',
@@ -104,7 +119,8 @@ export const PRESETS = {
       floorWood: '#b8864f', floorCarpet: '#5f7f9a', floorLino: '#d6c6a0', floorConcrete: '#aaa49a', floorRubber: '#5c636c', floorCeramic: '#e8eeea',
       woodLight: '#c79563', woodDark: '#7a5233', metal: '#434a52', chrome: '#c9ccd0', fabric: '#3f7ba6', fabricAlt: '#d0663f', plastic: '#f2efe8',
       leaf: '#4d9a48', leafLight: '#8fca5c', pot: '#c46e45', sheet: '#fbf8f0', cork: '#c49a66', glass: '#96d2ec', bulb: '#fff0c0', plaster: '#e3d6c0',
-      labTop: '#46545e', fluid: '#3fcfae', hazard: '#f7cf3a', rubber: '#303036', gymAccent: '#f0702e', yogaMat: '#9a6fd0', chalkboard: '#2f6a4e', locker: '#4a8ac0', mint: '#a6e0cf', medical: '#e0443c', velvet: '#a02c40', felt: '#88ac8c', coral: '#f0845e' },
+      labTop: '#46545e', fluid: '#3fcfae', hazard: '#f7cf3a', rubber: '#303036', gymAccent: '#f0702e', yogaMat: '#9a6fd0', chalkboard: '#2f6a4e', locker: '#4a8ac0', mint: '#a6e0cf', medical: '#e0443c', velvet: '#a02c40', felt: '#88ac8c', coral: '#f0845e',
+      droneShell: '#fbf6ea', droneShade: '#d8c7a4', droneScreen: '#1b2030', droneEye: '#7ce8ff', droneRing: '#f5b62e', droneRotor: '#353a40', droneBeam: '#fff0c0', fxSpark: '#ffe08a', fxCoin: '#f5c24e', fxConfettiA: '#f26a4f', fxConfettiB: '#4fb0f0', fxConfettiC: '#f7d443', fxTicket: '#fbf2da', fxTicketInk: '#2a2118', fxMoved: '#3f7fd0' },
     light: { sun: 3.4, sunColor: '#fff2dc', hemi: 1.7, lamps: 0.35, dusk: 0.0, shadowSoft: 2 },
     toggles: { fog: false },
   },
@@ -113,7 +129,8 @@ export const PRESETS = {
       floorWood: '#5e4633', floorCarpet: '#343c5c', floorLino: '#6a6452', floorConcrete: '#55555a', floorRubber: '#34383f', floorCeramic: '#7f8c8e',
       woodLight: '#8a6a4e', woodDark: '#4a3528', metal: '#2a2d33', chrome: '#8e96a3', fabric: '#3c4f73', fabricAlt: '#7d3b4a', plastic: '#b9bcc4',
       leaf: '#3a7050', leafLight: '#5fa07a', pot: '#8a5a48', sheet: '#cfd3dc', cork: '#8a7058', glass: '#6fb4d8', bulb: '#b8d8ff', plaster: '#5c5f6b',
-      labTop: '#262d34', fluid: '#3fe0c0', hazard: '#c9a434', rubber: '#1d1d22', gymAccent: '#b5552e', yogaMat: '#6a4f94', chalkboard: '#23443a', locker: '#3a5a7a', mint: '#6fa89e', medical: '#b8403e', velvet: '#6a2334', felt: '#56705c', coral: '#b8604c' },
+      labTop: '#262d34', fluid: '#3fe0c0', hazard: '#c9a434', rubber: '#1d1d22', gymAccent: '#b5552e', yogaMat: '#6a4f94', chalkboard: '#23443a', locker: '#3a5a7a', mint: '#6fa89e', medical: '#b8403e', velvet: '#6a2334', felt: '#56705c', coral: '#b8604c',
+      droneShell: '#d9dce6', droneShade: '#9aa0b4', droneScreen: '#0c0f18', droneEye: '#9fe8ff', droneRing: '#e3b456', droneRotor: '#22252c', droneBeam: '#b8d8ff', fxSpark: '#cfe4ff', fxCoin: '#e3b456', fxConfettiA: '#e0705e', fxConfettiB: '#6fa8ff', fxConfettiC: '#e8cf6a', fxTicket: '#dfe2ea', fxTicketInk: '#1a1d26', fxMoved: '#5a8ae0' },
     light: { sun: 0.7, sunColor: '#8ea6ff', hemi: 0.55, lamps: 1.8, dusk: 1.0, shadowSoft: 4 },
     toggles: { fog: true },
   },
@@ -122,7 +139,8 @@ export const PRESETS = {
       floorWood: '#c29260', floorCarpet: '#a27266', floorLino: '#e2d1a8', floorConcrete: '#b8ae9c', floorRubber: '#6a645c', floorCeramic: '#f1e9d8',
       woodLight: '#c99a6a', woodDark: '#8a5f3e', metal: '#5a4f45', chrome: '#cfc3b0', fabric: '#7a8f6a', fabricAlt: '#c0705a', plastic: '#f4ead6',
       leaf: '#6b9a52', leafLight: '#a3c46e', pot: '#c27a52', sheet: '#fbf3e2', cork: '#c9a270', glass: '#9fd0d8', bulb: '#ffe4b0', plaster: '#eadbc0',
-      labTop: '#5a6660', fluid: '#6cc4a4', hazard: '#e8c050', rubber: '#4a4540', gymAccent: '#d0784a', yogaMat: '#a07cb8', chalkboard: '#3e6650', locker: '#6f94a8', mint: '#b4dcc8', medical: '#c8524a', velvet: '#9a3c46', felt: '#96ae8e', coral: '#e2906e' },
+      labTop: '#5a6660', fluid: '#6cc4a4', hazard: '#e8c050', rubber: '#4a4540', gymAccent: '#d0784a', yogaMat: '#a07cb8', chalkboard: '#3e6650', locker: '#6f94a8', mint: '#b4dcc8', medical: '#c8524a', velvet: '#9a3c46', felt: '#96ae8e', coral: '#e2906e',
+      droneShell: '#fbf1dc', droneShade: '#d6bf98', droneScreen: '#2a2420', droneEye: '#ffe6a8', droneRing: '#e0a24a', droneRotor: '#5a4a3e', droneBeam: '#fff0c8', fxSpark: '#ffd99a', fxCoin: '#e8b457', fxConfettiA: '#e2805e', fxConfettiB: '#7fb4c8', fxConfettiC: '#ecc66a', fxTicket: '#fbf3e2', fxTicketInk: '#3a2c20', fxMoved: '#5f86a8' },
     light: { sun: 2.7, sunColor: '#ffe6c0', hemi: 1.6, lamps: 0.6, dusk: 0.15, shadowSoft: 5 },
     toggles: { fog: false },
   },
@@ -199,6 +217,14 @@ export const SCHEMA = [
     ['palette.trousers', 'color', 'Dark trousers'], ['palette.chinos', 'color', 'Light trousers'], ['palette.jeans', 'color', 'Jeans'],
     ['palette.shoes', 'color', 'Shoes'], ['palette.trainers', 'color', 'Trainers'],
     ['palette.blush', 'color', 'Cheeks'], ['palette.mouth', 'color', 'Open mouth'],
+  ]],
+  ['Drone and effects', [
+    ['palette.droneShell', 'color', 'Drone: body'], ['palette.droneShade', 'color', 'Drone: underside'],
+    ['palette.droneScreen', 'color', 'Drone: face screen'], ['palette.droneEye', 'color', 'Drone: eyes'],
+    ['palette.droneRing', 'color', 'Drone: ring light'], ['palette.droneRotor', 'color', 'Drone: rotors'], ['palette.droneBeam', 'color', 'Drone: scan beam'],
+    ['palette.fxSpark', 'color', 'Sparks'], ['palette.fxCoin', 'color', 'Coins'],
+    ['palette.fxConfettiA', 'color', 'Confetti 1'], ['palette.fxConfettiB', 'color', 'Confetti 2'], ['palette.fxConfettiC', 'color', 'Confetti 3'],
+    ['palette.fxTicket', 'color', 'Ticket card'], ['palette.fxTicketInk', 'color', 'Ticket ink'], ['palette.fxMoved', 'color', 'Stamp: MOVED'],
   ]],
   ['Characters', [
     ['shirts.ada', 'color', 'Ada shirt'], ['shirts.bea', 'color', 'Bea shirt'], ['shirts.cy', 'color', 'Cy shirt'], ['shirts.dev', 'color', 'Dev shirt'], ['shirts.mo', 'color', 'Mo shirt (desk)'],

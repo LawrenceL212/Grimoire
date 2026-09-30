@@ -13,6 +13,7 @@ import { setOutlines, setToon, toonOwn } from '../engine/kit.js';
 import { FLOOR_KINDS, tileField, contactShadow } from './materials.js';
 import { CORNERS } from './sectors/common.js';
 import { buildPeopleScene } from './people/sheet.js';
+import { buildDroneScene } from './drone-scene.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const WORK_BUDGET_MS = 6;     // grid rendering per animation frame
@@ -494,7 +495,7 @@ function setPeopleDistance(which) {
   cu.dist = which;
   cu.stage.resetView();
   const p = cu.people;
-  const d = p.kind === 'sheet' ? p.radius * 3.4 : gameDistance();
+  const d = p.distance ?? (p.kind === 'sheet' ? p.radius * 3.4 : gameDistance());
   cu.stage.setDistance(d * (which === 'close' ? 0.42 : 1), p.center);
   for (const b of $('cu-people').querySelectorAll('[data-pdist]')) b.setAttribute('aria-pressed', String(b.dataset.pdist === which));
 }
@@ -502,15 +503,16 @@ function setPeople(kind) {
   if (!cu || cu.mode !== 'people') return;
   const old = cu.obj;
   if (old) { cu.people.dispose(); cu.pivot.remove(old); }
-  cu.people = buildPeopleScene(kind);
+  cu.people = kind.startsWith('drone') ? buildDroneScene(kind) : buildPeopleScene(kind);
   cu.people.kind = kind;
+  cu.people.camera?.(cu.stage.camera);
   cu.obj = cu.people.group;
   setToon(cu.obj, tget('toggles.toon'));
   cu.pivot.add(cu.obj);
   cu.lights.fit(cu.people.center, cu.people.radius);
   if (old) disposeUnused([old]);
   $('people-kind').value = kind;
-  $('cu-title').textContent = kind === 'sheet' ? 'People: character sheet' : 'People: the office corner at work';
+  $('cu-title').textContent = { sheet: 'People: character sheet', office: 'People: the office corner at work', 'drone-rooms': 'Drone: escort and scan three rooms', 'drone-faces': 'Drone: faces and ticket states' }[kind] || kind;
   setPeopleDistance(cu.dist || 'game');
 }
 function openPeople(kind = 'sheet') {
@@ -652,6 +654,7 @@ function boot() {
   $('cu-patch').addEventListener('click', (e) => { const b = e.target.closest('[data-dist]'); if (b) setPatchDistance(b.dataset.dist); });
   $('patch').addEventListener('click', () => openPatch(cu?.mode === 'patch' ? cu.kind : 'wood'));
   $('people').addEventListener('click', () => openPeople(cu?.mode === 'people' ? cu.people.kind : 'sheet'));
+  $('drone').addEventListener('click', () => openPeople('drone-rooms'));
   $('people-kind').addEventListener('change', (e) => setPeople(e.target.value));
   $('cu-people').addEventListener('click', (e) => { const b = e.target.closest('[data-pdist]'); if (b) setPeopleDistance(b.dataset.pdist); });
   dlg.addEventListener('close', () => { if (!dlg.open) { $('patch').setAttribute('aria-pressed', 'false'); $('people').setAttribute('aria-pressed', 'false'); } });
@@ -676,7 +679,7 @@ function boot() {
   window.__catalogue.ready = true;
 }
 
-window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), patch: (kind) => openPatch(kind), people: (kind) => openPeople(kind), close: () => dlg.close(),
+window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), patch: (kind) => openPatch(kind), people: (kind) => openPeople(kind), drone: (kind = 'drone-rooms') => openPeople(kind), close: () => dlg.close(),
   gpuMemory: () => thumbs && { ...thumbs.renderer.info.memory } };
 
 // Test-only fixtures, loaded only when the URL asks: ?test-bad=1 (three broken assets), ?stress=N (N clones).
