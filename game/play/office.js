@@ -190,7 +190,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   function focus(roomName) {
     const r = map.rooms.find((x) => x.name === roomName || x.id === roomName) || map.rooms[0];
     focused = r.center.clone().add(new THREE.Vector3(0, 0, 0.6));
-    return stage.focus(focused, { zoom: tget('camera.zoom') * 2.1 });
+    return stage.focus(focused, { zoom: tget('camera.zoom') * 1.75 });
   }
   const onResize = () => applyOffset();
   addEventListener('resize', onResize);

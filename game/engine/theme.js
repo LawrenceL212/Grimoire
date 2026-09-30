@@ -106,7 +106,7 @@ export const DEFAULTS = {
   world: { tileFill: 0.92, tileHeight: 0.22 },
   chars: { scale: 1.25 },
   people: { costumeSet: 'none' }, // a costume layer over every person (game/art/people/outfits.js registerCostume)
-  drone: { scale: 1.4, speed: 1.0, trail: 56, playScale: 1.5 }, // playScale: extra size on the play page (it reads small at game distance)
+  drone: { scale: 1.4, speed: 1.0, trail: 56, playScale: 1.35 }, // playScale: extra size on the play page (it reads small at game distance)
   anim: { speed: 1.0 },
   ui: { hudScale: 1.0, codeOpacity: 0.94, codeFont: '"Cascadia Mono", Consolas, ui-monospace, "SF Mono", Menlo, "Liberation Mono", monospace', codeSize: 14 },
   play: { lampColor: '#ffc98a', clash: '#ff4a3a', calm: '#6fdf8b' }, // play page: room lamps, room glow colours

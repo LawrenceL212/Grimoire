@@ -91,8 +91,9 @@ export const STARTER_OFFICE = {
     { id: 'office-chair', x: -5.3, z: 1.3, rot: 0, name: 'reception-chair', nested: true },
     { id: 'monitor', x: -4.95, z: 2.0, rot: Math.PI + 0.35, on: 'reception', name: 'reception-monitor' },
     { id: 'coat-rack', x: -7.45, z: 0.45, rot: 0 },
-    { id: 'water-cooler', x: -7.5, z: 4.5, rot: HALF_PI, name: 'water-cooler' },
-    { id: 'plant-tall', x: -7.45, z: 5.45, rot: 2.2 },
+    { id: 'sofa', x: -7.45, z: 4.0, rot: HALF_PI, name: 'waiting-sofa' },
+    { id: 'water-cooler', x: -7.5, z: 5.5, rot: HALF_PI, name: 'water-cooler' },
+    { id: 'plant-tall', x: -6.45, z: 5.5, rot: 2.2 },
     // the waiting area on a rug
     { id: 'rug', x: -0.6, z: 3.4, rot: 0, walk: true },
     { id: 'sofa', x: -0.6, z: 2.55, rot: 0, name: 'sofa' },
@@ -107,7 +108,7 @@ export const STARTER_OFFICE = {
     { id: 'mug', x: 5.2, z: 2.45, rot: 0.3, on: 'my-desk' },
     { id: 'filing-cabinet', x: 6.5, z: 2.1, rot: -HALF_PI + Math.PI },
     { id: 'plant-tall', x: 7.45, z: 0.5, rot: 1.2 },
-    { id: 'vending-machine', x: 7.45, z: 4.6, rot: -HALF_PI, name: 'vending' },
+    { id: 'vending-machine', x: 7.5, z: 4.3, rot: 0, name: 'vending' },
     { id: 'plant-small', x: 7.45, z: 5.5, rot: 2.1 },
     { id: 'plant-small', x: 2.5, z: 5.5, rot: 1.1 },
   ],
@@ -133,7 +134,7 @@ function footprint(p) {
 }
 const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
 
-function floorLabel(text, w = 1.7) {
+function floorLabel(text, w = 2.0) {
   const tex = canvasTex(512, 128, (g) => {
     g.fillStyle = 'rgba(20,16,13,0.72)'; g.beginPath(); g.roundRect(8, 14, 496, 100, 30); g.fill();
     g.strokeStyle = tget('palette.gold'); g.lineWidth = 5; g.stroke();
