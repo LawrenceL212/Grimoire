@@ -2,42 +2,21 @@
 // tickets, XP and level), the office clock, a warning lamp that pulses while a ticket is open, and the
 // Reset, Tweak and Focus buttons.
 //
-//   summarise(objects, { openTickets, xp, day }) -> { bookings, revenue, reputation, clashes, openTickets, xp, level }
-//       pure: bookings on the timetable day, £40 each; reputation 4.8 less 0.3 per clash (the same overlap
+//   summarise(objects, { openTickets, xp }) -> { bookings, revenue, reputation, clashes, openTickets, xp, level }
+//       pure: bookings on the timetable day, £40 each; reputation 4.8 less 0.3 per clashing pair (the same overlap
 //       rule as NO_OVERLAP_SQL: same room, a.start < b.end and b.start < a.end); level = 1 + xp / 100.
-//       (Task 9's state.js takes this over as deriveState.)
+//       (state.js deriveState is the source; this wraps it.)
 //   clashingRooms(objects) -> Set of room ids with an overlap (pure)
 //   createHud(el, { onReset, onTweak, onFocus }) -> { set(counters), setClock(text), setBusy(on), setFocus(on) }
 import { get as tget, onThemeChange } from '../engine/theme.js';
+import { clashPairs } from './bridge.js';
+import { deriveState, PRICE } from './state.js';
 
-export const PRICE = 40, BASE_REPUTATION = 4.8, CLASH_COST = 0.3, XP_PER_LEVEL = 100;
-const t = (iso) => Date.parse(iso);
+export function clashingRooms(objects) { return new Set(clashPairs(objects.bookings || []).map((p) => p.roomId)); }
 
-function clashPairs(bookings) {
-  const out = [];
-  for (let i = 0; i < bookings.length; i++) {
-    for (let j = i + 1; j < bookings.length; j++) {
-      const a = bookings[i], b = bookings[j];
-      if (a.room_id === b.room_id && t(a.start_at) < t(b.end_at) && t(b.start_at) < t(a.end_at)) out.push([a, b]);
-    }
-  }
-  return out;
-}
-export function clashingRooms(objects) { return new Set(clashPairs(objects.bookings || []).map(([a]) => a.room_id)); }
-
-export function summarise(objects, { openTickets = 0, xp = 0, day = '2026-01-01' } = {}) {
-  const all = objects.bookings || [];
-  const bookings = all.filter((b) => String(b.start_at).slice(0, 10) === day).length;
-  const clashes = clashPairs(all).length;
-  return {
-    bookings,
-    revenue: bookings * PRICE,
-    reputation: Math.max(0, Math.round((BASE_REPUTATION - CLASH_COST * clashes) * 10) / 10),
-    clashes,
-    openTickets,
-    xp,
-    level: 1 + Math.floor(xp / XP_PER_LEVEL),
-  };
+// the Phase 2a counters, kept for callers that pass the open tickets and XP themselves (state.js derives them)
+export function summarise(objects, { openTickets = 0, xp = 0 } = {}) {
+  return { ...deriveState(objects, null, null), openTickets, xp, level: 1 + Math.floor(xp / 100) };
 }
 
 const money = (n) => `£${Math.round(n).toLocaleString('en-GB')}`;
@@ -82,7 +61,7 @@ export function createHud(el, { onReset, onTweak, onFocus } = {}) {
     set(s) {
       put('bookings', String(s.bookings), `${s.bookings} bookings today`);
       put('revenue', money(s.revenue), `£${PRICE} a booking`);
-      put('reputation', `★ ${s.reputation.toFixed(1)}`, s.clashes ? `${s.clashes} double booking${s.clashes > 1 ? 's' : ''} hurting your reputation` : 'No double bookings');
+      put('reputation', `★ ${s.reputation.toFixed(1)}`, s.clashes ? `${s.clashes} double booking${s.clashes > 1 ? 's' : ''} (a pair of overlapping bookings in one room) costing 0.3 each` : 'No double bookings');
       put('tickets', String(s.openTickets), `${s.openTickets} open ticket${s.openTickets === 1 ? '' : 's'}`);
       put('xp', String(s.xp), `Level ${s.level}`);
       q('.lvl').textContent = `Lv ${s.level}`;
