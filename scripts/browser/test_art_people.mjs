@@ -162,6 +162,56 @@ const r = await page.evaluate(async () => {
     calm.dispose(); lively.dispose();
   }
 
+  // ---- costumes: a layer over any role, switched live from the theme, keeping rig, pose and state
+  {
+    th.resetTheme();
+    const w = world();
+    const p = new P.Person({ role: 'office', seed: 2 }); w.add(p.root);
+    const other = new P.Person({ role: 'lab', seed: 1, costume: 'none' }); w.add(other.root); other.root.position.x = 5;
+    p.play('carry'); p.walkTo([[6, 0], [6, 4]]); run([p], 0.6);
+    const tris = (q) => Object.values(q.meshes).reduce((a, m) => a + m.geometry.attributes.position.count / 3, 0);
+    const before = { slots: Object.keys(p.meshes).sort(), tris: tris(p), skin: p.meshes.skin.geometry.uuid, x: p.root.position.x, path: p.path.length, phase: p.phase, state: p.state, skeleton: p.rig.skeleton, bone: p.bones.elL, elbow: p.bones.elL.rotation.x };
+    th.set('people.costumeSet', 'party-hat');
+    const on = { slots: Object.keys(p.meshes).sort(), tris: tris(p), x: p.root.position.x, path: p.path.length, phase: p.phase, state: p.state,
+      sameSkeleton: p.rig.skeleton === before.skeleton && p.bones.elL === before.bone && p.meshes.hat?.skeleton === before.skeleton, elbow: p.bones.elL.rotation.x, pinnedOther: !other.meshes.hat };
+    run([p], 0.3);
+    const moving = p.root.position.x > on.x;
+    th.set('people.costumeSet', 'none');
+    const off = { slots: Object.keys(p.meshes).sort(), tris: tris(p), skin: p.meshes.skin.geometry.uuid, state: p.state, path: p.path.length };
+    th.set('people.costumeSet', 'no-such-set'); const unknown = Object.keys(p.meshes).includes('hat');
+    th.resetTheme();
+    const own = new P.Person({ role: 'gym', seed: 1, costume: 'party-hat' });
+    let badDef = false; try { P.registerCostume('broken', {}); } catch { badDef = true; }
+    let badName = false; try { P.registerCostume('none', { forRole: () => ({}) }); } catch { badName = true; }
+    out.costume = { before: { slots: before.slots, tris: before.tris }, on, off, moving, unknown, own: !!own.meshes.hat, badDef, badName, names: P.costumeNames(),
+      restored: off.skin === before.skin && JSON.stringify(off.slots) === JSON.stringify(before.slots) && off.tris === before.tris,
+      kept: on.x === before.x && on.path === before.path && on.phase === before.phase && on.state === 'carry' && on.elbow === before.elbow && off.state === 'carry' };
+    p.dispose(); other.dispose(); own.dispose();
+  }
+  // ---- hold: a thing in the hand, kept upright, arm forward, while walking
+  {
+    const w = world();
+    const p = new P.Person({ role: 'lab', seed: 4 }); w.add(p.root);
+    const idleElbow = []; run([p], 0.8, () => idleElbow.push(Math.abs(p.bones.elR.rotation.x)));
+    const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12), new THREE.MeshBasicMaterial());
+    p.hold(candle, 'R');
+    p.walkTo([[3, 0], [3, 3]]);
+    const ups = [], elbows = [], dists = [];
+    run([p], 2, (i) => {
+      if (i < 30) return;
+      w.updateMatrixWorld(true);
+      ups.push(new THREE.Vector3(0, 1, 0).applyQuaternion(candle.getWorldQuaternion(new THREE.Quaternion())).y);
+      elbows.push(Math.abs(p.bones.elR.rotation.x));
+      dists.push(candle.getWorldPosition(new THREE.Vector3()).distanceTo(p.bones.handR.getWorldPosition(new THREE.Vector3())));
+    });
+    const parentOk = candle.parent === p.bones.handR;
+    const released = p.release('R');
+    out.hold = { parentOk, minUp: Math.min(...ups), minElbow: Math.min(...elbows), idleElbow: Math.max(...idleElbow), maxDist: Math.max(...dists), released: released === candle && candle.parent === null, walked: p.root.position.x > 1 };
+    let badHand = false; try { p.hold(candle, 'X'); } catch { badHand = true; }
+    out.hold.badHand = badHand;
+    p.dispose();
+  }
+
   // ---- the seat convention on every seat asset, and a person can sit on each
   out.seats = [];
   for (const [id, n] of [['office-chair', 1], ['sofa', 2], ['folding-chair-row', 4], ['student-desk', 1], ['bean-bag', 1], ['hot-desk-pod', 4], ['exam-bed', 1], ['wheelchair', 1], ['bench-press', 1]]) {
@@ -207,6 +257,15 @@ t.check('emote textures are shared: one texture per kind across six people, five
 t.check('an unknown emote throws', r.badEmoteThrows === true);
 t.check('faces follow emotes: ✓ closes the eyes happily, ! opens the mouth, ✗ frowns with brows down', r.faces.happy > 0.8 && r.faces.eyes < 0.2 && r.faces.o > 0.8 && r.faces.frown > 0.8, JSON.stringify(r.faces));
 t.check('reduced motion: no celebration jump, no frustrated head shake', r.rm.calmJump < 0.01 && r.rm.calmShake < 0.02 && r.rm.livelyJump > 0.06 && r.rm.livelyShake > 0.15, JSON.stringify(r.rm));
+const c = r.costume;
+t.check('a costume set switched in the theme changes the parts live (party hat added)', c.on.slots.includes('hat') && c.on.tris > c.before.tris && c.moving, JSON.stringify({ before: c.before, on: c.on.slots, tris: c.on.tris }));
+t.check('switching the costume set back restores the same parts', c.restored, JSON.stringify({ before: c.before, off: c.off }));
+t.check('a costume switch keeps the skeleton, pose, state and path', c.on.sameSkeleton && c.kept, JSON.stringify(c.on));
+t.check('a person given its own costume ignores the theme; an unknown set falls back to none', c.on.pinnedOther && c.own && c.unknown === false, JSON.stringify({ pinned: c.on.pinnedOther, own: c.own, unknown: c.unknown }));
+t.check('registerCostume rejects a costume without forRole and the reserved name none', c.badDef && c.badName && c.names.includes('party-hat'), JSON.stringify(c.names));
+const h = r.hold;
+t.check('hold(): the thing is in the hand, kept upright while walking, the forearm forward', h.parentOk && h.minUp > 0.97 && h.minElbow > 0.9 && h.idleElbow < 0.35 && h.maxDist < 0.1 && h.walked, JSON.stringify(h));
+t.check('release() hands the thing back; a bad hand throws', h.released && h.badHand, JSON.stringify(h));
 for (const s of r.seats) {
   const dangles = s.height > 0.7;
   t.check(`${s.id}: ${s.count} seat(s) in the convention; a person sits${dangles ? ' (legs over the edge)' : ' with feet on the floor'}`, s.shaped && !s.err && (dangles || s.soles.every((y) => Math.abs(y) <= 0.03)), JSON.stringify(s));
@@ -215,7 +274,7 @@ for (const s of r.seats) {
 // ---- the catalogue's character sheet and office corner
 const sheet = await page.evaluate(async () => {
   window.__catalogue.people('sheet');
-  await new Promise((res) => setTimeout(res, 1500));
+  for (let i = 0; i < 100 && window.__catalogue.closeup.frames <= 5; i++) await new Promise((res) => setTimeout(res, 100));
   const cu = window.__catalogue.closeup;
   const s = { mode: cu.mode, people: cu.people.people.length, states: new Set(cu.people.people.map((p) => p.state)).size, roles: new Set(cu.people.people.map((p) => p.role)).size, frames: cu.frames, title: document.getElementById('cu-title').textContent, seated: cu.people.people.filter((p) => p.seat && !p.seat.virtual).length };
   document.getElementById('people-kind').value = 'office'; document.getElementById('people-kind').dispatchEvent(new Event('change'));

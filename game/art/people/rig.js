@@ -9,8 +9,10 @@
 //   DIM                    the body's measurements (world units: 1 tile = 1 unit, a chair seat is 0.5)
 //   FACE                   the face features: [elevation, azimuth] on the head sphere
 //   facePoint(el, az, out) a position and orientation on the head sphere (in the head bone's frame)
-//   buildRig(sig, parts, slotPaths) -> { group, bones, meshes, skeleton, soles }
+//   buildRig(sig, parts, slotPaths) -> { group, bones, meshes, skeleton, soles, rest }
 //     sig: a cache key for the geometry (the same sig must give the same parts), parts: see outfits.js
+//   dressRig(rig, sig, parts, slotPaths)   replaces the skinned meshes (clothes, hair, costume) on the SAME
+//     skeleton: the pose, the bones and anything held in the hands stay as they are
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { themed, skinnedOutlineMat } from '../../engine/kit.js';
@@ -100,15 +102,14 @@ function piece(geo, matrix, boneIndex) {
 }
 
 const geoCache = new Map(); // sig -> { slots: [[slot, geometry]], outlines: [[thickness, geometry]] }
-function bakeGeometry(sig, parts, bones, order) {
+function bakeGeometry(sig, parts, rest, order) {
   if (geoCache.has(sig)) return geoCache.get(sig);
   const bySlot = new Map(), byOutline = new Map();
   const M = new THREE.Matrix4();
   for (const p of parts) {
-    const bone = bones[p.bone];
-    if (!bone) throw new Error(`person part on unknown bone "${p.bone}"`);
-    const frame = bones[p.at || p.bone];
-    M.multiplyMatrices(frame.matrixWorld, p.m || new THREE.Matrix4());
+    if (!rest[p.bone]) throw new Error(`person part on unknown bone "${p.bone}"`);
+    const frame = rest[p.at || p.bone]; // the bone's rest (bind) pose, whatever pose it is in now
+    M.multiplyMatrices(frame, p.m || new THREE.Matrix4());
     const idx = order.indexOf(p.bone);
     if (!bySlot.has(p.slot)) bySlot.set(p.slot, []);
     bySlot.get(p.slot).push(piece(p.geo, M, idx));
@@ -132,9 +133,29 @@ export function buildRig(sig, parts, slotPaths) {
   group.add(bones.root);
   group.updateMatrixWorld(true);
   const order = Object.keys(bones);
+  const rest = Object.fromEntries(order.map((n) => [n, bones[n].matrixWorld.clone()]));
   const skeleton = new THREE.Skeleton(order.map((n) => bones[n]));
-  const baked = bakeGeometry(sig, parts, bones, order);
-  const meshes = {};
+  // the soles, for checks and for planting feet
+  const soles = {};
+  for (const s of ['L', 'R']) {
+    const o = new THREE.Object3D();
+    o.name = `sole${s}`;
+    o.position.set(0, -DIM.sole, 0.03);
+    bones[`ankle${s}`].add(o);
+    soles[s] = o;
+  }
+  const rig = { group, bones, meshes: {}, skeleton, soles, rest, order, skinned: [] };
+  dressRig(rig, sig, parts, slotPaths);
+  return rig;
+}
+
+const IDENTITY = new THREE.Matrix4();
+export function dressRig(rig, sig, parts, slotPaths) {
+  const { group, skeleton } = rig;
+  for (const m of rig.skinned) group.remove(m);
+  rig.skinned = [];
+  const baked = bakeGeometry(sig, parts, rig.rest, rig.order);
+  const meshes = rig.meshes = {};
   for (const [slot, geo] of baked.slots) {
     const path = slotPaths[slot];
     if (!path) throw new Error(`person slot "${slot}" has no colour`);
@@ -145,8 +166,9 @@ export function buildRig(sig, parts, slotPaths) {
     m.frustumCulled = false; // the bind-pose bounds do not follow a jump or a sit
     m.userData.slot = slot;
     group.add(m);
-    m.bind(skeleton);
+    m.bind(skeleton, IDENTITY); // the geometry is in the rest pose, in the person's own frame
     meshes[slot] = m;
+    rig.skinned.push(m);
   }
   for (const [th, geo] of baked.outlines) {
     const o = new THREE.SkinnedMesh(geo, skinnedOutlineMat(th));
@@ -155,16 +177,8 @@ export function buildRig(sig, parts, slotPaths) {
     o.frustumCulled = false;
     o.raycast = () => {};
     group.add(o);
-    o.bind(skeleton);
+    o.bind(skeleton, IDENTITY);
+    rig.skinned.push(o);
   }
-  // the soles, for checks and for planting feet
-  const soles = {};
-  for (const s of ['L', 'R']) {
-    const o = new THREE.Object3D();
-    o.name = `sole${s}`;
-    o.position.set(0, -DIM.sole, 0.03);
-    bones[`ankle${s}`].add(o);
-    soles[s] = o;
-  }
-  return { group, bones, meshes, skeleton, soles };
+  return rig;
 }

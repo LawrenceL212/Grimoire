@@ -11,6 +11,11 @@
 //     .emote(kind, { hold }) -> Promise   a bubble: '!' '?' '…' '✓' '✗' (or bang q dots ok no); sets the face
 //     .express(name, hold?)       neutral happy worried frustrated surprised thinking focused
 //     .lookAt(vector | null), .face(yaw), .update(dt, t?), .dispose()
+//     .hold(object3d, hand = 'R') -> object3d   carried in that hand (kept upright, arm held forward, walking
+//                                 or not); .release(hand) -> the object
+//     .setCostume(name | null)    a costume layer (outfits.js registerCostume) over this person; null follows the
+//                                 theme's people.costumeSet (the default). Only the clothes are rebuilt: the
+//                                 skeleton, pose, state, path and anything held are kept
 //   seatOf(target, i, frame) -> { x, z, floor, height, facing }
 //   emoteMaterial(kind)          one shared SpriteMaterial (and texture) per emote kind
 //   PEOPLE                       the people updated recently (for separation)
@@ -18,17 +23,25 @@ import * as THREE from 'three';
 import { register } from './registry.js';
 import { liveTex } from './shapes.js';
 import { part, damp, dampAngle, lerp } from '../engine/kit.js';
+import { get as tget, onThemeChange } from '../engine/theme.js';
 import { C } from './parts.js';
 import { chamfer } from './shapes.js';
 import { contactShadow } from './materials.js';
-import { DIM, PELVIS_Y, FACE, facePoint, buildRig } from './people/rig.js';
-import { dress, pieces, ROLES, HAIR_STYLES } from './people/outfits.js';
+import { DIM, facePoint, buildRig, dressRig } from './people/rig.js';
+import { dress, costumed, registerCostume, costumeNames, ROLES, HAIR_STYLES } from './people/outfits.js';
 import {
   STATES, EXPRESSIONS, STATE_FACE, EMOTES, EMOTE_ALIAS, EMOTE_FACE,
   seatedLegs, walkLegs, legExtent, upper, base, mix,
 } from './people/anims.js';
 
-export { STATES, ROLES, HAIR_STYLES, EMOTES, EXPRESSIONS };
+export { STATES, ROLES, HAIR_STYLES, EMOTES, EXPRESSIONS, registerCostume, costumeNames };
+// every person that follows the theme's costume set (weakly held: a dropped person is simply forgotten)
+const FOLLOWERS = new Set();
+onThemeChange((path) => {
+  if (path && path !== 'people.costumeSet') return;
+  for (const ref of [...FOLLOWERS]) { const p = ref.deref(); if (!p) FOLLOWERS.delete(ref); else p._redress(); }
+});
+const themeCostume = () => tget('people.costumeSet') || 'none';
 export const PEOPLE = new Set();
 const RM_QUERY = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 let clock = 0;          // advanced by every update (for "recently updated")
@@ -123,7 +136,13 @@ export class Person {
     this.root = new THREE.Group();
     this.root.name = this.name;
     this.root.userData.person = this;
-    const rig = buildRig(this.spec.sig, pieces(this.spec), this.spec.slots);
+    this.costume = opts.costume ?? null; // null: follow the theme
+    const d = costumed(this.spec, this.costume ?? themeCostume());
+    this.costumeNow = d.name;
+    const rig = buildRig(d.sig, d.parts, d.slots);
+    this._ref = new WeakRef(this);
+    FOLLOWERS.add(this._ref);
+    this.held = { L: null, R: null }; this.holdW = { L: 0, R: 0 };
     this.rig = rig; this.bones = rig.bones; this.meshes = rig.meshes; this.soles = rig.soles;
     this.root.add(rig.group);
     for (const n of ['spine', 'head']) this.bones[n].rotation.order = 'YXZ';
@@ -220,7 +239,31 @@ export class Person {
   }
   hideEmote() { this.bubbleHold = 0; return Promise.resolve(); }
   bounce() { this.sqV = 4; }
-  dispose() { PEOPLE.delete(this); this.root.removeFromParent(); }
+  dispose() { PEOPLE.delete(this); FOLLOWERS.delete(this._ref); this.root.removeFromParent(); }
+
+  // ------------------------------------------------ costumes and held things
+  setCostume(name) { this.costume = name; this._redress(); return this; }
+  _redress() {
+    const d = costumed(this.spec, this.costume ?? themeCostume());
+    if (d.name === this.costumeNow) return;
+    this.costumeNow = d.name;
+    dressRig(this.rig, d.sig, d.parts, d.slots);
+    this.meshes = this.rig.meshes;
+  }
+  hold(obj, hand = 'R') {
+    if (hand !== 'L' && hand !== 'R') throw new Error(`hand must be 'L' or 'R', not "${hand}"`);
+    this.release(hand);
+    obj.position.set(0, -0.06, 0.035);
+    this.bones[`hand${hand}`].add(obj);
+    this.held[hand] = obj;
+    return obj;
+  }
+  release(hand = 'R') {
+    const o = this.held[hand];
+    if (o) o.removeFromParent();
+    this.held[hand] = null;
+    return o;
+  }
 
   // ------------------------------------------------ transitions (driven by update, so no global tweens)
   _transition(dur, fn, done) {
@@ -251,7 +294,7 @@ export class Person {
     this.phase += dt * (2 * Math.PI / 1.3) * Math.max(speed, walkInPlace ? this.speed * 0.8 : 0);
     for (const s of STATES) this.w[s] = damp(this.w[s], s === this.state ? 1 : 0, 9, dt);
     this.box.visible = this.w.carry > 0.4;
-    if (this.handProp) this.handProp.visible = HOLD_PROP_IN.has(this.state) && this.w.carry < 0.3;
+    if (this.handProp) this.handProp.visible = HOLD_PROP_IN.has(this.state) && this.w.carry < 0.3 && !this.held.L;
 
     // ---- legs and hips
     const c = { t, sit: this.sitB, walk: this.walkW, phase: this.phase, rm, seed: this.seed };
@@ -285,6 +328,12 @@ export class Person {
     // ---- upper body: the base pose, blended toward each playing state by its weight
     let U = base(c);
     for (const s of STATES) if (this.w[s] > 0.002 && s !== 'idle' && s !== 'walk' && s !== 'sit') U = mix(U, { ...U, ...upper(s, c) }, this.w[s]);
+    // a held thing: that forearm comes forward (unless the state needs the arm: carry, type, wave, celebrate)
+    for (const [k, s] of [['L', 1], ['R', -1]]) {
+      const busy = ['carry', 'type', 'celebrate', 'frustrated'].includes(this.state) || (this.state === 'wave' && k === 'R');
+      this.holdW[k] = damp(this.holdW[k], this.held[k] && !busy ? 1 : 0, 8, dt);
+      if (this.holdW[k] > 0.002) U = mix(U, { ...U, [`sh${k}.x`]: -0.3 + (U[`sh${k}.x`] ?? 0) * 0.15, [`sh${k}.z`]: s * 0.14, [`el${k}.x`]: -1.2, [`hand${k}.x`]: 0.1, [`hand${k}.z`]: 0 }, this.holdW[k]);
+    }
     // look-at
     this._look(dt, U);
     for (const key of UPPER_KEYS) {
@@ -302,6 +351,7 @@ export class Person {
 
     this._face(dt, t);
     this._bubble(dt, t, pelvisY);
+    this._upright();
     return this;
   }
 
@@ -313,7 +363,7 @@ export class Person {
     const d = Math.hypot(dx, dz);
     const others = neighbours(this);
     // arrive: close enough, or the spot is taken and we are near it
-    const taken = last && d < 0.7 && others.some((o) => Math.hypot(o.root.position.x - tg.x, o.root.position.z - tg.z) < 0.45);
+    const taken = last && d < 0.7 && others.some((o) => Math.hypot(o.root.position.x - tg.x, o.root.position.z - tg.z) < 0.55);
     if (d < (last ? 0.03 : 0.3) || taken) {
       this.path.shift();
       if (!this.path.length) { this.vel.set(0, 0); if (this._arrive) { const r = this._arrive; this._arrive = null; r(true); } }
@@ -322,7 +372,7 @@ export class Person {
     dx /= d; dz /= d;
     let slow = last ? Math.min(1, 0.25 + d / 0.6) : 1;
     let px = 0, pz = 0;
-    const R = 0.8;
+    const R = 0.9;
     for (const o of others) {
       let ox = p.x - o.root.position.x, oz = p.z - o.root.position.z;
       let od = Math.hypot(ox, oz);
@@ -335,7 +385,7 @@ export class Person {
       if (oncoming) { // coming towards me: both keep to their right and pass
         if (ahead > 0) { px += -dz * push * 1.6; pz += dx * push * 1.6; }
       } else if (ahead > 0.35 && (o.path.length === 0 || ahead > 0.9 || this.id > o.id)) { // queue behind
-        slow = Math.min(slow, THREE.MathUtils.clamp((od - 0.5) / 0.35, 0, 1));
+        slow = Math.min(slow, THREE.MathUtils.clamp((od - 0.58) / 0.35, 0, 1));
       }
       px += ox * push * 1.2; pz += oz * push * 1.2;
     }
@@ -343,7 +393,7 @@ export class Person {
     this.vel.x = damp(this.vel.x, tvx, 9, dt); this.vel.y = damp(this.vel.y, tvz, 9, dt);
     p.x += this.vel.x * dt; p.z += this.vel.y * dt;
     // never closer than MIN to anyone (the mover gives way)
-    const MIN = 0.42;
+    const MIN = 0.5;
     for (const o of others) {
       const ox = p.x - o.root.position.x, oz = p.z - o.root.position.z, od = Math.hypot(ox, oz);
       if (od < MIN && od > 1e-6) { p.x += ox / od * (MIN - od); p.z += oz / od * (MIN - od); }
@@ -351,6 +401,19 @@ export class Person {
     const sp = this.vel.length();
     if (sp > 0.05) this.targetYaw = Math.atan2(this.vel.x, this.vel.y);
     return sp;
+  }
+
+  // held things stay upright in the person's frame (a candle does not tip as the arm swings)
+  _upright() {
+    if (!this.held.L && !this.held.R) return;
+    this.root.updateMatrixWorld(true);
+    const rq = this.root.getWorldQuaternion(new THREE.Quaternion());
+    for (const k of ['L', 'R']) {
+      const o = this.held[k];
+      if (!o || o.userData.upright === false) continue;
+      const hq = this.bones[`hand${k}`].getWorldQuaternion(new THREE.Quaternion());
+      o.quaternion.copy(hq.invert().multiply(rq));
+    }
   }
 
   _look(dt, U) {

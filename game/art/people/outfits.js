@@ -3,11 +3,16 @@
 //   ROLES, HAIR_STYLES, SKINS, HAIRS
 //   dress({ role, seed, ...overrides }) -> spec: { role, seed, skin, hair, hairStyle, glasses, beard, prop,
 //        flags (what shapes the body is built from), slots (colour slot -> theme path), sig (geometry cache key) }
-//   pieces(spec) -> [{ bone, at?, slot, geo, m, outline }]   (rig.js bakes them)
+//   pieces(spec) -> [{ bone, at?, slot, geo, m, outline, tag }]   (rig.js bakes them); tag is one of
+//        body, clothes, accessory, face, hair, beard (a costume can hide tags)
+//   registerCostume(name, { forRole(role, seed, spec) -> { parts?, slots?, hide? } })   a costume layer over any role:
+//        parts are added (same shape as pieces(), tag 'costume'), slots recolour or add colour slots
+//        (slot -> theme path), hide drops base pieces by tag (e.g. ['hair'] under a big hat)
+//   COSTUMES, costumeNames(), costumed(spec, name) -> { name, sig, parts, slots }   ('none' = no costume)
 //
 // Every colour is a theme path (palette.*, the "People" group in the tweak panel), so people recolour live.
 import * as THREE from 'three';
-import { lathe, ball, drum, chamfer, tube, withHull, rng } from '../shapes.js';
+import { lathe as shapeLathe, ball, drum, chamfer, tube, withHull, rng } from '../shapes.js';
 import { torus } from '../../engine/kit.js';
 import { DIM, FACE, facePoint } from './rig.js';
 
@@ -19,10 +24,10 @@ export const PROPS = Object.freeze(['clipboard', 'laptop']);
 
 // per role: the colour choices and the chances of each piece (seeded, so a seed is always the same person)
 const ROLE = {
-  office: { top: ['shirt', 'shirtAlt'], outer: ['jacket', 'jacketAlt'], outerKind: 'jacket', outerChance: 0.7, bottoms: ['trousers', 'chinos', 'jeans'], skirt: 0.3, shoes: 'shoes', glasses: 0.35, props: [['laptop', 0.3], ['clipboard', 0.15]] },
-  lab: { top: ['shirtAlt', 'shirt'], outer: ['labCoat'], outerKind: 'coat', outerChance: 1, bottoms: ['trousers', 'jeans'], skirt: 0, shoes: 'shoes', glasses: 0.25, goggles: 0.7, props: [['clipboard', 0.5]] },
+  office: { top: ['shirt', 'shirtAlt'], outer: ['jacket', 'jacketAlt'], outerKind: 'jacket', outerChance: 0.7, bottoms: ['trousers', 'chinos', 'jeans', 'jeans'], skirt: 0.3, shoes: 'shoes', glasses: 0.35, props: [['laptop', 0.3], ['clipboard', 0.15]] },
+  lab: { top: ['shirtAlt', 'shirt'], outer: ['labCoat'], outerKind: 'coat', outerChance: 1, bottoms: ['jeans', 'chinos', 'trousers'], skirt: 0, shoes: 'shoes', glasses: 0.25, goggles: 0.7, props: [['clipboard', 0.5]] },
   gym: { top: ['sportTop', 'sportAlt'], outer: [], outerChance: 0, bottoms: ['trousers'], skirt: 0, shorts: true, shoes: 'trainers', glasses: 0.1, headband: 0.5, shortSleeves: true, props: [] },
-  school: { top: ['shirt', 'shirtAlt'], outer: ['cardigan', 'cardiganAlt'], outerKind: 'cardigan', outerChance: 0.85, bottoms: ['trousers', 'chinos'], skirt: 0.4, shoes: 'shoes', glasses: 0.4, lanyard: 1, props: [['clipboard', 0.3]] },
+  school: { top: ['shirt', 'shirtAlt'], outer: ['cardigan', 'cardiganAlt'], outerKind: 'cardigan', outerChance: 0.85, bottoms: ['chinos', 'jeans', 'trousers'], skirt: 0.4, shoes: 'shoes', glasses: 0.4, lanyard: 1, props: [['clipboard', 0.3]] },
   clinic: { top: ['scrubs', 'scrubsAlt'], outer: [], outerChance: 0, bottoms: ['=top'], skirt: 0, shoes: 'trainers', glasses: 0.25, stethoscope: 0.65, shortSleeves: true, props: [['clipboard', 0.4]] },
   council: { top: ['shirt'], outer: ['blazer', 'blazerAlt'], outerKind: 'jacket', outerChance: 1, bottoms: ['trousers'], skirt: 0.35, shoes: 'shoes', glasses: 0.45, badge: 1, props: [['clipboard', 0.4]] },
 };
@@ -73,14 +78,17 @@ export function dress({ role = 'office', seed = 1, ...o } = {}) {
 
 // ---------------------------------------------------------------- geometry helpers
 const cache = new Map();
+// A lathe faces outward only when its profile runs bottom to top; profiles here may be written either way.
+const up = (profile) => (profile[0][1] > profile[profile.length - 1][1] ? [...profile].reverse() : profile);
+const lathe = (key, profile, seg, o) => shapeLathe(key, up(profile), seg, o);
 const once = (key, make) => { if (!cache.has(key)) cache.set(key, make()); return cache.get(key); };
 // a lathe open at the front: gap is the half-angle of the opening, centred on +Z
 function openLathe(key, profile, seg, gap) {
-  return once(`ol|${key}|${seg}|${gap}`, () => withHull(new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), seg, gap, Math.PI * 2 - gap * 2)));
+  return once(`ol|${key}|${seg}|${gap}`, () => withHull(new THREE.LatheGeometry(up(profile).map(([r, y]) => new THREE.Vector2(r, y)), seg, gap, Math.PI * 2 - gap * 2)));
 }
 // a lathe covering only an arc [from, from + len] (0 = +Z, PI/2 = +X)
 function arcLathe(key, profile, seg, from, len) {
-  return once(`al|${key}|${seg}|${from}|${len}`, () => withHull(new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), seg, from, len)));
+  return once(`al|${key}|${seg}|${from}|${len}`, () => withHull(new THREE.LatheGeometry(up(profile).map(([r, y]) => new THREE.Vector2(r, y)), seg, from, len)));
 }
 function hairCap(r, theta) {
   return once(`cap|${r}|${theta}`, () => withHull(new THREE.SphereGeometry(r, 16, 7, 0, Math.PI * 2, 0, theta)));
@@ -125,11 +133,14 @@ const G = {
 // ---------------------------------------------------------------- pieces
 export function pieces(spec) {
   const f = spec.flags, out = [];
-  const add = (bone, slot, geo, m, outline = 0.01, at) => out.push({ bone, slot, geo, m, outline, at });
+  let tag = 'body';
+  const add = (bone, slot, geo, m, outline = 0.01, at) => out.push({ bone, slot, geo, m, outline, at, tag });
   const sleeveSlot = f.outer ? 'outer' : 'top';
   // hips and legs
   add('pelvis', 'bottoms', G.pelvis(), M(0, 0, 0, 0, 0, 0, [1, 1, 0.8]));
+  tag = 'clothes';
   if (f.skirt) add('pelvis', 'bottoms', G.skirt(), M(0, 0, 0, 0, 0, 0, [1, 1, 0.85]));
+  tag = 'body';
   for (const s of ['L', 'R']) {
     const x = s === 'L' ? 1 : -1;
     add(`hip${s}`, f.skirt || f.shorts ? 'legs' : 'bottoms', G.thigh(), M());
@@ -146,6 +157,7 @@ export function pieces(spec) {
   }
   // torso and outer layer
   add('spine', 'top', G.torso(), M(0, 0, 0, 0, 0, 0, [1, 1, 0.74]));
+  tag = 'clothes';
   if (f.outer === 'jacket') add('spine', 'outer', G.jacket(0.42), M(0, 0, 0, 0, 0, 0, [1, 1, 0.76]));
   if (f.outer === 'cardigan') {
     add('spine', 'outer', G.jacket(0.3), M(0, 0, 0, 0, 0, 0, [1, 1, 0.76]));
@@ -158,6 +170,7 @@ export function pieces(spec) {
     add('spine', 'outer', chamfer(0.06, 0.05, 0.012, 0.004), M(-0.09, 0.16, 0.128, 0, -0.35, 0), 0);
     add('spine', 'ink', drum(0.006, 0.05, 5), M(-0.08, 0.19, 0.13), 0);
   }
+  tag = 'accessory';
   if (f.lanyard) {
     for (const x of [-1, 1]) add('spine', 'lanyard', tube(`lanyard${x}`, [[x * 0.075, 0.3, 0.02], [x * 0.07, 0.24, 0.11], [x * 0.03, 0.15, 0.137], [0, 0.12, 0.138]], 0.007, { seg: 6, radial: 4 }), M(), 0);
     add('spine', 'card', chamfer(0.06, 0.08, 0.008, 0.003), M(0, 0.075, 0.142), 0.004);
@@ -171,6 +184,7 @@ export function pieces(spec) {
     add('spine', 'chrome', drum(0.022, 0.012, 10), M(0.07, 0.105, 0.145, Math.PI / 2, 0, 0), 0.004);
   }
   // head and face
+  tag = 'face';
   add('head', 'skin', G.head(), M(0, DIM.headY, 0, 0, 0, 0, [1.02, 0.98, 1]), 0.012);
   add('head', 'skin', ball(0.03, 8), onFace(FACE.nose[0], 0, -0.004, [1, 0.8, 1]), 0);
   for (const [s, az] of [['L', 1], ['R', -1]]) {
@@ -187,20 +201,23 @@ export function pieces(spec) {
   add('mO', 'ink', torus(0.034, 0.008, 3, 12), M(0, 0, 0, 0, 0, 0, [0.85, 1, 1]), 0);
   add('mFrown', 'ink', torus(0.036, 0.011, 4, 10, Math.PI), M(0, -0.018, 0), 0);
   add('mFlat', 'ink', chamfer(0.07, 0.016, 0.012, 0.006), M(), 0);
+  tag = 'accessory';
   if (f.glasses) {
     for (const az of [1, -1]) add('head', 'ink', torus(0.056, 0.009, 4, 14), onFace(FACE.eye[0] - 0.02, az * FACE.eye[1], 0.035), 0.004);
     add('head', 'ink', chamfer(0.06, 0.014, 0.012, 0.004), onFace(FACE.eye[0] + 0.02, 0, 0.04), 0);
   }
-  hairPieces(spec, add);
+  tag = 'hair';
+  hairPieces(spec, add, (t) => { tag = t; });
+  tag = 'accessory';
   if (f.goggles) {
-    add('head', 'strap', lathe('goggle-strap', [[0.3, 0.2], [0.305, 0.17], [0.3, 0.14]], 16), M(0, DIM.headY, 0, -0.35, 0, 0), 0.006);
+    add('head', 'strap', lathe('goggle-strap', [[0.284, 0.2], [0.293, 0.17], [0.288, 0.14]], 16), M(0, DIM.headY, 0, -0.35, 0, 0), 0.005);
     for (const az of [1, -1]) add('head', 'lens', drum(0.05, 0.04, 12), onFace(0.78, az * 0.3, 0.035), 0.006);
   }
   if (f.headband) add('head', 'accent', lathe('headband', [[0.29, 0.1], [0.3, 0.06], [0.292, 0.02]], 16), M(0, DIM.headY + 0.05, 0, -0.4, 0, 0), 0.006);
   return out;
 }
 
-function hairPieces(spec, add) {
+function hairPieces(spec, add, setTag) {
   const st = spec.flags.hairStyle, Y = DIM.headY;
   const cap = (theta = 1.5, tilt = -0.62, r = 0.288) => add('head', 'hair', hairCap(r, theta), M(0, Y, 0, tilt, 0, 0), 0.012);
   if (st === 'short') {
@@ -231,7 +248,45 @@ function hairPieces(spec, add) {
   } else if (st === 'bald') {
     add('head', 'hair', arcLathe('bald-ring', [[0.272, 0.04], [0.29, -0.02], [0.28, -0.09], [0.26, -0.1]], 14, 1.5, Math.PI * 2 - 3.0), M(0, Y, 0), 0.008);
   }
+  setTag('beard');
   if (spec.flags.beard) {
     add('head', 'hair', arcLathe('beard', [[0.1, -0.265], [0.19, -0.225], [0.245, -0.16], [0.268, -0.1], [0.262, -0.08]], 14, -1.35, 2.7), M(0, Y, 0.012), 0.008);
   }
 }
+
+// ---------------------------------------------------------------- costumes (a layer over any role)
+export const COSTUMES = new Map();
+export function registerCostume(name, def) {
+  if (typeof name !== 'string' || !name || name === 'none') throw new Error(`costume name "${name}" is not allowed`);
+  if (!def || typeof def.forRole !== 'function') throw new Error(`costume "${name}" needs forRole(role, seed, spec)`);
+  COSTUMES.set(name, def);
+}
+export const costumeNames = () => ['none', ...COSTUMES.keys()];
+export function costumed(spec, name = 'none') {
+  const base = pieces(spec);
+  const def = name && name !== 'none' ? COSTUMES.get(name) : null;
+  if (!def) return { name: 'none', sig: spec.sig, parts: base, slots: spec.slots };
+  const c = def.forRole(spec.role, spec.seed, spec) || {};
+  const hide = new Set(c.hide || []);
+  return {
+    name,
+    sig: `${spec.sig}|costume:${name}|${spec.role}|${spec.seed}`,
+    parts: [...base.filter((p) => !hide.has(p.tag)), ...(c.parts || []).map((p) => ({ outline: 0.01, ...p, tag: 'costume' }))],
+    slots: { ...spec.slots, ...(c.slots || {}) },
+  };
+}
+
+// A PLACEHOLDER costume set that only proves the hook: a party hat on every head. The real costume sets
+// (the fantasy skin: witches, wizards, hunters, alchemists, rangers) are a later task.
+registerCostume('party-hat', {
+  forRole(role, seed) {
+    const tilt = ((seed * 37) % 7 - 3) * 0.05;
+    return {
+      parts: [
+        { bone: 'head', slot: 'hat', geo: lathe('party-hat', [[0, 0], [0.13, 0], [0.12, 0.02], [0.012, 0.3], [0, 0.3]], 12), m: M(0.02, DIM.headY + 0.22, -0.02, -0.15, 0, tilt), outline: 0.008 },
+        { bone: 'head', slot: 'pompom', geo: ball(0.035, 8), m: M(0.02 - Math.sin(tilt) * 0.3, DIM.headY + 0.22 + 0.29, -0.02 - 0.045), outline: 0.006 },
+      ],
+      slots: { hat: 'palette.fabricAlt', pompom: 'palette.gold' },
+    };
+  },
+});

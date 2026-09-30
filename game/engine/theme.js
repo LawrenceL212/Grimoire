@@ -71,7 +71,7 @@ export const DEFAULTS = {
     scrubsAlt: '#6b7fcc', // clinic: a second scrubs colour
     blazer: '#2e3a4c',    // council: blazers
     blazerAlt: '#6b2f3c', // council: a burgundy blazer
-    trousers: '#2f2d35',  // dark trousers and skirts
+    trousers: '#45424f',  // dark trousers and skirts
     chinos: '#b49b73',    // light trousers
     jeans: '#46608a',
     shoes: '#2b211c',
@@ -90,6 +90,7 @@ export const DEFAULTS = {
   light: { sun: 2.9, sunColor: '#ffcf94', hemi: 1.45, lamps: 1.0, shadowSoft: 3, dusk: 0.3, exposure: 1.2, rim: 0.9, rimColor: '#8f86ff', contact: 0.7 },
   world: { tileFill: 0.92, tileHeight: 0.22 },
   chars: { scale: 1.25 },
+  people: { costumeSet: 'none' }, // a costume layer over every person (game/art/people/outfits.js registerCostume)
   drone: { scale: 1.4, speed: 1.0, trail: 56 },
   anim: { speed: 1.0 },
   ui: { hudScale: 1.0, codeOpacity: 0.94 },

@@ -70,24 +70,26 @@ export function buildPeopleScene(kind = 'sheet') {
     const cols = ['#d9a441', '#6fbf8b', '#86c4e0', '#e2574c', '#efe6d2'];
     for (let i = 0; i < 9; i++) { ctx.fillStyle = cols[(i * 3) % 5]; ctx.fillRect(10 + (i % 3) * 12, 10 + i * 12, 40 + ((i * 37) % 90), 6); }
   };
-  const desks = [[-0.2, -1.6], [1.75, -1.6]].map(([x, z], i) => {
-    place(group, 'desk', x, z);
-    place(group, 'monitor', x - 0.05, z - 0.23, 0, 0.62, { draw: code });
-    if (i === 0) place(group, 'mug', x + 0.45, z + 0.05, 0.4, 0.62); else place(group, 'desk-lamp', x + 0.7, z - 0.2, -0.6, 0.62);
-    return place(group, 'office-chair', x - 0.22, z + 0.5, Math.PI);
+  // the first desk faces the back wall (its typist shows their back), the second faces the room (and the camera)
+  const desks = [[-0.2, -1.6, 0], [1.75, -1.2, Math.PI]].map(([x, z, ry], i) => {
+    const f = ry ? -1 : 1; // +1: the sitter faces -Z
+    place(group, 'desk', x, z, ry);
+    place(group, 'monitor', x - 0.05 * f, z - 0.23 * f, ry, 0.62, { draw: code });
+    if (i === 0) place(group, 'mug', x + 0.45, z + 0.05, 0.4, 0.62); else place(group, 'desk-lamp', x - 0.7, z + 0.2, 2.5, 0.62);
+    return place(group, 'office-chair', x - 0.22 * f, z + 0.5 * f, ry ? 0 : Math.PI);
   });
   const add = (o, x, z, yaw = 0) => { const p = new Person(o); p.root.position.set(x, 0, z); p.yaw = p.targetYaw = yaw; group.add(p.root); people.push(p); return p; };
   add({ role: 'office', seed: 3 }, 0, 0).sit(desks[0]); people.at(-1).play('type');
   add({ role: 'office', seed: 8, prop: null }, 0, 0).sit(desks[1]); people.at(-1).play('type');
   add({ role: 'council', seed: 2 }, -1.5, 0.3).sit(sofa, 1); people.at(-1).play('talk');
   add({ role: 'clinic', seed: 4 }, 1.9, -0.25, Math.PI / 2).play('frustrated');
-  const loop = [[1.2, 1.6], [-0.1, 2.2], [-0.2, -0.5], [1.1, -0.6], [1.5, 0.6]];
-  const w1 = add({ role: 'lab', seed: 5 }, 1.2, 1.6), w2 = add({ role: 'school', seed: 6 }, 1.25, 1.75);
+  const loop = [[0.6, 2.2], [2.3, 2.1], [2.2, 0.8], [0.9, 0.2], [0.3, 1.1]];
+  const w1 = add({ role: 'lab', seed: 5 }, 0.6, 2.2), w2 = add({ role: 'school', seed: 6 }, 0.3, 1.6);
   w2.play('carry');
   loops.push(w1, w2);
   const run = (p) => { p.walkTo([...loop.slice(1), loop[0]]).then(() => run(p)); };
   loops.forEach(run);
-  add({ role: 'gym', seed: 1 }, -0.7, 1.9, 0.5).play('wave');
+  add({ role: 'gym', seed: 1 }, -1.0, 2.0, 0.5).play('wave');
   return finish(group, people, loops, new THREE.Vector3(0, 0.4, 0), 4.6);
 }
 

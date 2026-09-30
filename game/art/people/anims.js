@@ -51,7 +51,7 @@ export function upper(state, c) {
   const sw = Math.sin(phase) * walk;
   switch (state) {
     case 'type': return {
-      'spine.x': 0.16, 'spine.y': 0, 'head.x': 0.1 + Math.sin(t * 0.8 + seed) * 0.04, 'head.y': Math.sin(t * 0.5 + seed) * 0.08,
+      'spine.x': 0.14, 'spine.y': 0, 'head.x': -0.06 - 0.16 * Math.max(0, Math.sin(t * 0.45 + seed)) + Math.sin(t * 0.8 + seed) * 0.03, 'head.y': Math.sin(t * 0.5 + seed) * 0.08,
       ...arms((k, s) => {
         const tap = Math.max(0, Math.sin(t * 15 + (s > 0 ? 0 : Math.PI) + Math.sin(t * 3.1) * 1.5));
         return { [`sh${k}.x`]: -0.72, [`sh${k}.z`]: -s * 0.1, [`sh${k}.y`]: s * 0.15, [`el${k}.x`]: -1.0 + tap * 0.14, [`hand${k}.x`]: 0.35 - tap * 0.25 };
@@ -73,7 +73,7 @@ export function upper(state, c) {
         ...arms((k, s) => ({ [`sh${k}.x`]: -2.35, [`sh${k}.z`]: s * 0.5, [`el${k}.x`]: -2.0, [`hand${k}.x`]: -0.2 })),
       };
       const standing = {
-        'spine.x': 0.14, 'head.x': 0.12, 'head.y': shake,
+        'spine.x': 0.06, 'head.x': -0.12, 'head.y': shake,
         ...arms((k, s) => ({ [`sh${k}.x`]: 0.18 + (rm ? 0 : Math.max(0, Math.sin(t * 7 + s)) * 0.14), [`sh${k}.z`]: s * 0.3, [`el${k}.x`]: -0.55, [`hand${k}.x`]: 0.3 })),
       };
       return mix(standing, seated, sit);
