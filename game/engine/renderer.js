@@ -61,6 +61,13 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
     state.zoom = get('camera.zoom');
     place();
   }
+  // Aim at a point from a set distance (before the theme zoom), e.g. the game's own framing distance.
+  function setDistance(dist, at = target) {
+    target.set(at.x ?? 0, at.y ?? 0, at.z ?? 0);
+    state.dist = dist;
+    state.zoom = get('camera.zoom');
+    place();
+  }
   // Move the camera target to a point (or Object3D), optionally changing zoom. Instant under reduced motion.
   function focus(at, { zoom } = {}) {
     const to = at && at.isObject3D ? at.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(at?.x ?? 0, at?.y ?? 0, at?.z ?? 0);
@@ -143,5 +150,5 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   }
 
   resize();
-  return { scene, camera, renderer, frame, focus, frameAll, onLost, resetView, dispose };
+  return { scene, camera, renderer, frame, focus, frameAll, setDistance, onLost, resetView, dispose };
 }

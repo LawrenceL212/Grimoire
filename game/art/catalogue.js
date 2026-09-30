@@ -10,6 +10,7 @@ import { theme, DEFAULTS, get as tget, PRESETS, applyPreset, onThemeChange } fro
 import { createStage } from '../engine/renderer.js';
 import { mountTweakPanel } from '../engine/tweak-panel.js';
 import { setOutlines, setToon, toonOwn } from '../engine/kit.js';
+import { FLOOR_KINDS, tileField, contactShadow } from './materials.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const WORK_BUDGET_MS = 6;     // grid rendering per animation frame
@@ -316,6 +317,7 @@ const dlg = $('closeup');
 function teardown() {
   if (!cu) return;
   cu.ro.disconnect();
+  cu.obj?.traverse?.((o) => { if (o.isInstancedMesh) o.dispose(); });
   cu.stage.dispose();
   cu.canvas.remove();
   const gone = [cu.obj, cu.plate];
@@ -361,7 +363,7 @@ function openCloseup(id) {
     fit();
   });
   ro.observe(canvas);
-  cu = { id, canvas, stage, ro, plate, camera: stage.camera, frames: 0, lights, pivot, obj, meta, spin: false, anim: null };
+  cu = { mode: 'asset', id, canvas, stage, ro, plate, camera: stage.camera, frames: 0, lights, pivot, obj, meta, spin: false, anim: null };
   window.__catalogue.closeup = cu;
   stage.frame((dt, t) => {
     cu.frames++;
@@ -369,6 +371,7 @@ function openCloseup(id) {
     if (cu.anim && obj) { try { meta.anims[cu.anim](obj, t); } catch (e) { console.error(e); cu.anim = null; } }
   });
 
+  showSections('asset');
   $('cu-title').textContent = id;
   $('cu-chips').innerHTML = `<span class="chip cat">${esc(meta.category)}</span><span class="chip">${esc(meta.sector)}</span>`;
   const b = m ? m.bbox : { w: 0, h: 0, d: 0 };
@@ -389,8 +392,86 @@ function openCloseup(id) {
   $('cu-anims').innerHTML = anims.map((a) => `<button class="btn" type="button" data-anim="${esc(a)}" aria-pressed="false">${esc(a)}</button>`).join('');
   $('cu-spin').setAttribute('aria-pressed', 'false');
 }
+function showSections(mode) {
+  $('cu-asset').hidden = mode !== 'asset';
+  $('cu-nav').hidden = mode !== 'asset';
+  $('cu-patch').hidden = mode !== 'patch';
+  if (mode !== 'asset') $('cu-anims-wrap').hidden = true;
+  $('patch').setAttribute('aria-pressed', String(mode === 'patch'));
+}
+
+// ---------- floor patch: 6x6 tiles of one kind (or one row per kind) with props on them ----------
+// The game frames its office so it fills 80% of the view height: 8.5 units half-height at the
+// theme's field of view (the scene spike's framing), divided by the theme zoom.
+const gameDistance = () => 8.5 / (Math.tan(THREE.MathUtils.degToRad(tget('camera.fov') / 2)) * 0.8);
+const PATCH_KINDS = [...Object.keys(FLOOR_KINDS), 'mixed'];
+const PATCH_PROPS = [['sample-crate', -1.5, -1.5, 0.35], ['sample-crate', -0.5, 1.5, -0.2], ['sample-bench', 1, -0.5, 0]];
+function buildPatch(kind, shadows) {
+  const g = new THREE.Group();
+  g.name = 'floor-patch';
+  const cells = [];
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) cells.push([i - 2.5, j - 2.5]);
+  if (kind === 'mixed') Object.keys(FLOOR_KINDS).forEach((k, row) => g.add(tileField(k, cells.filter(([, z]) => z === row - 2.5), { seed: row + 1 })));
+  else g.add(tileField(kind, cells));
+  for (const [id, x, z, ry] of PATCH_PROPS) {
+    const o = make(id, {});
+    o.position.set(x, 0, z); o.rotation.y = ry;
+    if (shadows) contactShadow(o);
+    g.add(o);
+  }
+  setToon(g, tget('toggles.toon'));
+  return g;
+}
+function setPatchDistance(which) {
+  if (!cu || cu.mode !== 'patch') return;
+  cu.dist = which;
+  cu.stage.resetView();
+  cu.stage.setDistance(gameDistance() * (which === 'close' ? 0.38 : 1), { x: 0, y: 0, z: 0 });
+  for (const b of $('cu-patch').querySelectorAll('[data-dist]')) b.setAttribute('aria-pressed', String(b.dataset.dist === which));
+}
+function setPatch(kind, shadows = cu.shadows) {
+  if (!cu || cu.mode !== 'patch') return;
+  const old = cu.obj;
+  if (old) { cu.pivot.remove(old); old.traverse((o) => { if (o.isInstancedMesh) o.dispose(); }); }
+  cu.kind = kind; cu.shadows = shadows;
+  cu.obj = buildPatch(kind, shadows);
+  cu.pivot.add(cu.obj);
+  if (old) disposeUnused([old]);
+  $('patch-kind').value = kind;
+  $('patch-shadows').setAttribute('aria-pressed', String(shadows));
+  $('cu-title').textContent = kind === 'mixed' ? 'Floor patch: all six' : `Floor patch: ${kind}`;
+}
+function openPatch(kind = 'wood') {
+  teardown();
+  if (!PATCH_KINDS.includes(kind)) kind = 'wood';
+  if (!dlg.open) dlg.showModal();
+  const canvas = document.createElement('canvas');
+  $('cu-stage').prepend(canvas);
+  const stage = createStage(canvas, { reducedMotion });
+  const lights = makeLights();
+  const pivot = new THREE.Group();
+  stage.scene.add(lights.group, pivot);
+  lights.fit(new THREE.Vector3(0, 0.4, 0), 4.6);
+  let seen = `${canvas.clientWidth}x${canvas.clientHeight}`;
+  const ro = new ResizeObserver(() => {
+    const now = `${canvas.clientWidth}x${canvas.clientHeight}`;
+    if (now === seen || !canvas.clientWidth) return;
+    seen = now;
+    dispatchEvent(new Event('resize'));
+  });
+  ro.observe(canvas);
+  cu = { mode: 'patch', id: null, canvas, stage, ro, plate: null, camera: stage.camera, frames: 0, lights, pivot, obj: null, meta: null, spin: false, anim: null, kind, shadows: true, dist: 'game' };
+  window.__catalogue.closeup = cu;
+  stage.frame((dt) => { cu.frames++; if (cu.spin) pivot.rotation.y += dt * SPIN; });
+  showSections('patch');
+  $('cu-chips').innerHTML = '';
+  $('cu-spin').setAttribute('aria-pressed', 'false');
+  setPatch(kind, true);
+  setPatchDistance('game');
+}
+
 function step(dir) {
-  if (!cu) return;
+  if (!cu || cu.mode !== 'asset') return;
   const vis = cells.filter((c) => !c.card.hidden);
   const i = vis.findIndex((c) => c.meta.id === cu.id);
   const next = vis[(i + dir + vis.length) % vis.length];
@@ -473,6 +554,7 @@ function boot() {
     syncPlate();
     thumbs?.lights.sync();
     cu?.lights.sync();
+    if (cu?.mode === 'patch' && (!path || path.startsWith('camera'))) setPatchDistance(cu.dist);
     if (thumbs) thumbs.renderer.toneMappingExposure = tget('light.exposure');
     if (!path || path.startsWith('toggles')) {
       setOutlines(tget('toggles.outlines'));
@@ -484,10 +566,18 @@ function boot() {
     cells.forEach((c) => { c.dirty = true; });
   });
 
-  dlg.addEventListener('close', teardown);
+  // 'close' is dispatched as a task: by then a new close-up may already be open, so keep that one
+  dlg.addEventListener('close', () => { if (!dlg.open) teardown(); });
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   $('cu-close').addEventListener('click', () => dlg.close());
-  $('cu-reset').addEventListener('click', () => { if (cu) { cu.pivot.rotation.y = 0; cu.stage.resetView(); } });
+  $('cu-reset').addEventListener('click', () => { if (!cu) return; cu.pivot.rotation.y = 0; if (cu.mode === 'patch') setPatchDistance(cu.dist); else cu.stage.resetView(); });
+  fillSelect($('patch-kind'), PATCH_KINDS);
+  for (const o of $('patch-kind').options) if (o.value === 'mixed') o.textContent = 'all six (one per row)';
+  $('patch-kind').addEventListener('change', (e) => setPatch(e.target.value));
+  $('patch-shadows').addEventListener('click', () => { if (cu?.mode === 'patch') setPatch(cu.kind, !cu.shadows); });
+  $('cu-patch').addEventListener('click', (e) => { const b = e.target.closest('[data-dist]'); if (b) setPatchDistance(b.dataset.dist); });
+  $('patch').addEventListener('click', () => openPatch(cu?.kind || 'wood'));
+  dlg.addEventListener('close', () => { if (!dlg.open) $('patch').setAttribute('aria-pressed', 'false'); });
   $('cu-spin').addEventListener('click', (e) => { if (!cu) return; cu.spin = !cu.spin; e.target.setAttribute('aria-pressed', String(cu.spin)); });
   $('cu-anims').addEventListener('click', (e) => {
     const b = e.target.closest('[data-anim]');
@@ -509,7 +599,7 @@ function boot() {
   window.__catalogue.ready = true;
 }
 
-window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), close: () => dlg.close(),
+window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), patch: (kind) => openPatch(kind), close: () => dlg.close(),
   gpuMemory: () => thumbs && { ...thumbs.renderer.info.memory } };
 
 // Test-only fixtures, loaded only when the URL asks: ?test-bad=1 (three broken assets), ?stress=N (N clones).

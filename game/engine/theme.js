@@ -14,6 +14,13 @@ export const DEFAULTS = {
     tileA: '#4a3b2f',     // hallway checker
     tileB: '#5b4939',
     tileWood: '#8a5c3a',  // room floors
+    // floor tiles (game/art/materials.js): each pattern is drawn in greys and multiplied by its colour
+    floorWood: '#a0714a',
+    floorCarpet: '#6a5a86',
+    floorLino: '#c2ae86',
+    floorConcrete: '#9a948a',
+    floorRubber: '#5a6068',
+    floorCeramic: '#d3dcd6',
     wall: '#5a4533',
     base: '#1f1813',      // diorama slab
   },
@@ -25,7 +32,7 @@ export const DEFAULTS = {
     mo: '#8f6fb0',
   },
   camera: { pitch: 32, yaw: 6, zoom: 1.12, fov: 30 },       // pitch = degrees from straight down
-  light: { sun: 2.9, sunColor: '#ffcf94', hemi: 1.45, lamps: 1.0, shadowSoft: 3, dusk: 0.3, exposure: 1.2, rim: 0.9, rimColor: '#8f86ff' },
+  light: { sun: 2.9, sunColor: '#ffcf94', hemi: 1.45, lamps: 1.0, shadowSoft: 3, dusk: 0.3, exposure: 1.2, rim: 0.9, rimColor: '#8f86ff', contact: 0.7 },
   world: { tileFill: 0.92, tileHeight: 0.22 },
   chars: { scale: 1.25 },
   drone: { scale: 1.4, speed: 1.0, trail: 56 },
@@ -35,19 +42,22 @@ export const DEFAULTS = {
 };
 
 export const PRESETS = {
-  'Warm dusk': {},
+  'Warm dusk': {}, // the DEFAULTS, floor colours included
   'Bright day': {
-    palette: { bg: '#7f929c', bgGlow: '#c3d0d6', tileA: '#5b4a3b', tileB: '#665342', tileWood: '#a4764b', wall: '#7b6450', base: '#3d3027' },
+    palette: { bg: '#7f929c', bgGlow: '#c3d0d6', tileA: '#5b4a3b', tileB: '#665342', tileWood: '#a4764b', wall: '#7b6450', base: '#3d3027',
+      floorWood: '#b8864f', floorCarpet: '#5f7f9a', floorLino: '#d6c6a0', floorConcrete: '#aaa49a', floorRubber: '#5c636c', floorCeramic: '#e8eeea' },
     light: { sun: 3.4, sunColor: '#fff2dc', hemi: 1.7, lamps: 0.35, dusk: 0.0, shadowSoft: 2 },
     toggles: { fog: false },
   },
   'Night lab': {
-    palette: { bg: '#07090d', bgGlow: '#1b2533', gold: '#e3b456', tileA: '#1b1d22', tileB: '#22252b', tileWood: '#4a3a2e', wall: '#2c2c33', base: '#101116' },
+    palette: { bg: '#07090d', bgGlow: '#1b2533', gold: '#e3b456', tileA: '#1b1d22', tileB: '#22252b', tileWood: '#4a3a2e', wall: '#2c2c33', base: '#101116',
+      floorWood: '#5e4633', floorCarpet: '#343c5c', floorLino: '#6a6452', floorConcrete: '#55555a', floorRubber: '#34383f', floorCeramic: '#7f8c8e' },
     light: { sun: 0.7, sunColor: '#8ea6ff', hemi: 0.55, lamps: 1.8, dusk: 1.0, shadowSoft: 4 },
     toggles: { fog: true },
   },
   'Cozy paper': {
-    palette: { bg: '#d9c9a8', bgGlow: '#fff3da', tileA: '#c9b48f', tileB: '#d4c09b', tileWood: '#b3855b', wall: '#8c6f55', base: '#6b5540' },
+    palette: { bg: '#d9c9a8', bgGlow: '#fff3da', tileA: '#c9b48f', tileB: '#d4c09b', tileWood: '#b3855b', wall: '#8c6f55', base: '#6b5540',
+      floorWood: '#c29260', floorCarpet: '#a27266', floorLino: '#e2d1a8', floorConcrete: '#b8ae9c', floorRubber: '#6a645c', floorCeramic: '#f1e9d8' },
     light: { sun: 2.7, sunColor: '#ffe6c0', hemi: 1.6, lamps: 0.6, dusk: 0.15, shadowSoft: 5 },
     toggles: { fog: false },
   },
@@ -88,6 +98,8 @@ export const SCHEMA = [
   ['Palette', [
     ['palette.bg', 'color', 'Background / sky'], ['palette.bgGlow', 'color', 'Sky haze'],
     ['palette.tileA', 'color', 'Floor tile A'], ['palette.tileB', 'color', 'Floor tile B'], ['palette.tileWood', 'color', 'Room floor'],
+    ['palette.floorWood', 'color', 'Floor: wood'], ['palette.floorCarpet', 'color', 'Floor: carpet'], ['palette.floorLino', 'color', 'Floor: lino'],
+    ['palette.floorConcrete', 'color', 'Floor: concrete'], ['palette.floorRubber', 'color', 'Floor: gym rubber'], ['palette.floorCeramic', 'color', 'Floor: ceramic'],
     ['palette.wall', 'color', 'Walls'], ['palette.base', 'color', 'Diorama base'],
     ['palette.gold', 'color', 'Gold accent'], ['palette.danger', 'color', 'Danger'], ['palette.ok', 'color', 'OK'],
     ['palette.ink', 'color', 'UI ink'], ['palette.paper', 'color', 'UI paper'], ['palette.text', 'color', 'UI text'],
@@ -106,6 +118,7 @@ export const SCHEMA = [
     ['light.shadowSoft', 'range', 'Shadow softness', 0, 10, 0.1], ['light.dusk', 'range', 'Time of dusk', 0, 1, 0.01],
     ['light.exposure', 'range', 'Exposure', 0.4, 2.2, 0.01],
     ['light.rim', 'range', 'Rim light', 0, 3, 0.05], ['light.rimColor', 'color', 'Rim colour'],
+    ['light.contact', 'range', 'Contact shadows', 0, 1, 0.01],
   ]],
   ['World', [
     ['world.tileFill', 'range', 'Tile size (fill)', 0.7, 1.0, 0.005], ['world.tileHeight', 'range', 'Tile thickness', 0.05, 0.6, 0.01],

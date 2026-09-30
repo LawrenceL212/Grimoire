@@ -207,8 +207,8 @@ await close();
   await g.page.waitForFunction(() => window.__catalogue && window.__catalogue.ready === true, null, { timeout: 30000 });
   await g.page.waitForTimeout(4000); // the stats window is the last 240 frames: past the warm-up shader compiles
   const s = await g.page.evaluate(() => window.__catalogue.stats());
-  t.check('stress mode registers 60 clones', s.total === 63, String(s.total));
-  t.check('grid work p95 under 12 ms with 63 assets (CPU proxy: JS time in the frame callback, incl. render submission)',
+  t.check('stress mode registers 60 clones', s.total === r.assets.length + 60, `${s.total} = ${r.assets.length} + 60?`);
+  t.check(`grid work p95 under 12 ms with ${s.total} assets (CPU proxy: JS time in the frame callback, incl. render submission)`,
     s.frames >= 100 && s.workP95 < 12, JSON.stringify(s));
   t.check('no page errors in stress mode', g.errors.length === 0, g.errors.join(' | '));
   await g.close();
