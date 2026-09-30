@@ -3,7 +3,7 @@
 // at the back of a classroom; the teacher's desk shows its front panel (+Z) to the class.
 import * as THREE from 'three';
 import { chamfer, slab, plan, lathe, tube, drum, ball, leaf, merged, mat4, painted, liveTex } from '../shapes.js';
-import { adder, strut, card, C, G, FONT, HAND } from '../parts.js';
+import { adder, seat, strut, card, C, G, FONT, HAND } from '../parts.js';
 import { sectorAsset, corner, wallRun, ring } from './common.js';
 
 const asset = sectorAsset('school');
@@ -19,7 +19,7 @@ asset('student-desk', {
   category: 'furniture', tiles: [1, 1],
   build(g) {
     const add = adder(g), TOP = 0.6, dz = -0.22;
-    g.userData.surface = TOP; g.userData.seat = 0.4;
+    g.userData.surface = TOP; seat(g, 0, 0.42, 0.21, Math.PI);
     // the desk: a wooden top on a tubular frame, a book tray under the top
     add(slab(0.74, 0.5, 0.035, { r: 0.03, bev: 0.012 }), G('woodLight'), { y: TOP - 0.0175, z: dz });
     for (const sx of [-1, 1]) {

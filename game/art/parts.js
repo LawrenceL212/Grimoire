@@ -7,6 +7,10 @@
 //   card(g, w, h, material, o)         a flat textured plane facing +Z, never outlined
 //   C(key) / G(key)                    the toon material for palette.<key>, plain or with wood grain
 //   FONT, HAND                         system font stacks for canvas lettering (plain, handwritten)
+//   seat(g, x, height, z, facing)      a place to sit: pushed onto g.userData.seats, the first is also
+//                                      g.userData.seat. { position: [x, height, z] (the top of the seat, where
+//                                      the hips go, in g's frame), facing (the yaw a sitter faces, 0 = +Z),
+//                                      height (above the floor) }. A Person sits on it with sit(object[, i]).
 import * as THREE from 'three';
 import { register } from './registry.js';
 import { contactShadow } from './materials.js';
@@ -45,4 +49,11 @@ export function card(g, w, h, mat, o = {}) {
   const key = `${w},${h}`;
   if (!planes.has(key)) planes.set(key, new THREE.PlaneGeometry(w, h));
   return part(planes.get(key), mat, { outline: 0, cast: false, ...o, parent: o.parent || g });
+}
+
+export function seat(g, x, height, z, facing = 0) {
+  const s = { position: [x, height, z], facing, height };
+  (g.userData.seats ||= []).push(s);
+  g.userData.seat ||= s;
+  return s;
 }

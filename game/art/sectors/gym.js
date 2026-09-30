@@ -2,7 +2,7 @@
 // (palette.rubber) for plates, pads, grips and belts, bright metal for bars, and yoga mats
 // (palette.yogaMat). The treadmill and rower face -Z (their consoles at the back of the tile).
 import { chamfer, taper, slab, lathe, tube, drum, merged, mat4, clear, painted, liveTex } from '../shapes.js';
-import { adder, strut, card, C, FONT } from '../parts.js';
+import { adder, seat, strut, card, C, FONT } from '../parts.js';
 import { sectorAsset, corner, wallRun, ring } from './common.js';
 
 const asset = sectorAsset('gym');
@@ -64,7 +64,7 @@ asset('bench-press', {
   category: 'furniture', tiles: [2, 2],
   build(g) {
     const add = adder(g);
-    g.userData.seat = 0.46;
+    seat(g, 0, 0.51, 0.5, Math.PI / 2); // astride the end of the bench, side on
     // the bench: two T feet, the spine, the padded top
     for (const z of [-0.28, 0.66]) {
       add(chamfer(0.5, 0.06, 0.09, 0.015), C('gymAccent'), { y: 0.03, z, outline: 0.01 });

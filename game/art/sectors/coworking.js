@@ -2,7 +2,7 @@
 // warm coral accent (palette.coral): a four-seat hot-desk pod with its stools, a glazed phone booth,
 // a bean bag, a sit-stand desk (raised, userData.surface 1.04) and a coffee bar (0.98).
 import { chamfer, slab, lathe, tube, drum, ball, leaf, merged, mat4, basic, clear, painted, liveTex } from '../shapes.js';
-import { adder, card, C, G, HAND } from '../parts.js';
+import { adder, seat, card, C, G, HAND } from '../parts.js';
 import { sectorAsset, corner, wallRun } from './common.js';
 import { drawCodeScreen } from '../furniture.js';
 
@@ -44,7 +44,10 @@ asset('hot-desk-pod', {
     add(lathe('cowork-planter', [[0, 0], [0.06, 0], [0.07, 0.08], [0, 0.08]], 10, { flat: true }), C('plastic'), { x: 0.0, y: TOP + 0.225, outline: 0.005 });
     add(merged('cowork-succulent', () => Array.from({ length: 7 }, (_, i) => [leaf({ len: 0.08, wid: 0.04, droop: 0.2 }), mat4(0, 0.07, 0, -0.5 - (i % 2) * 0.4, i * 0.9, 0)])), C('leafLight'), { x: 0, y: TOP + 0.225, outline: 0.004 });
     // four stools, two a side
-    for (const sz of [-1, 1]) for (const sx of [-1, 1]) stool(add, sx * 0.45, sz * 0.8, sx * sz > 0 ? 'coral' : 'felt');
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) {
+      stool(add, sx * 0.45, sz * 0.8, sx * sz > 0 ? 'coral' : 'felt');
+      seat(g, sx * 0.45, 0.5, sz * 0.8, sz < 0 ? 0 : Math.PI);
+    }
   },
 });
 
@@ -87,7 +90,7 @@ asset('bean-bag', {
   category: 'furniture', tiles: [1, 1],
   build(g) {
     const add = adder(g);
-    g.userData.seat = 0.3;
+    seat(g, 0, 0.28, 0.06);
     // the sack: a squashed base, a slumped back rising behind the seat hollow
     add(lathe('beanbag-base', [[0, 0], [0.3, 0], [0.4, 0.05], [0.44, 0.13], [0.42, 0.2], [0.32, 0.26], [0.16, 0.24], [0, 0.22]], 16), C('coral'), { z: 0.03, s: [1, 1, 0.94] });
     add(ball(0.3, 14), C('coral'), { y: 0.36, z: -0.2, s: [1.25, 1.02, 0.7], rx: -0.5 });

@@ -2,7 +2,7 @@
 // (palette.velvet) and footlights, rows of folding chairs facing it (-Z), a lectern that stands on
 // the stage (userData.surface 0.47), and a village-hall notice board.
 import { chamfer, taper, slab, lathe, tube, drum, ball, merged, mat4, basic, clear, painted, liveTex } from '../shapes.js';
-import { adder, card, C, G, FONT, HAND } from '../parts.js';
+import { adder, seat, card, C, G, FONT, HAND } from '../parts.js';
 import { sectorAsset, corner, wallRun, pleats } from './common.js';
 
 const asset = sectorAsset('hall');
@@ -70,7 +70,7 @@ asset('folding-chair-row', {
   category: 'furniture', tiles: [3, 1],
   build(g) {
     const add = adder(g);
-    g.userData.seat = 0.5;
+    for (const cx of [-1.11, -0.37, 0.37, 1.11]) seat(g, cx, 0.495, -0.02, Math.PI);
     rowCache ||= chairRow();
     add(merged('chair-row-frame', () => rowCache.frame), C('chrome'), { outline: 0.006 });
     add(merged('chair-row-seats', () => rowCache.seats), C('fabric'), { outline: 0.008 });

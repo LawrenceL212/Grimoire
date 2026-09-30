@@ -12,7 +12,7 @@
 //   make('door').open(t)                      t = 0 closed .. 1 swung 100 degrees toward +Z; userData.leaf is the leaf
 //   make('desk', { keyboard: false })         a bare desk (default: keyboard and mouse on the pad)
 //   userData.surface (desk, coffee-table, reception-counter, filing-cabinet): the height things stand on
-//   userData.seat (office-chair, sofa): the seat height
+//   userData.seat / userData.seats (office-chair, sofa): where people sit (parts.js seat())
 import * as THREE from 'three';
 import { part } from '../engine/kit.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
@@ -20,7 +20,7 @@ import {
   chamfer, taper, slab, plan, lathe, tube, leaf, merged, mat4, drum, ball,
   basic, clear, mapped, painted, liveTex, rng,
 } from './shapes.js';
-import { defineAsset, adder, strut, card, C, G, FONT, HAND } from './parts.js';
+import { defineAsset, adder, strut, card, seat, C, G, FONT, HAND } from './parts.js';
 
 export const FURNITURE = [];
 // Registers an asset whose build(g, opts) fills a group; the contact shadow is added last.
@@ -83,7 +83,7 @@ asset('office-chair', {
   category: 'furniture', tiles: [1, 1],
   build(g) {
     const add = adder(g);
-    g.userData.seat = 0.49;
+    seat(g, 0, 0.5, -0.04);
     // five-star base with twin castors
     add(drum(0.06, 0.07, 10), C('chrome'), { y: 0.1, outline: 0.01 });
     for (let i = 0; i < 5; i++) {
@@ -502,7 +502,7 @@ asset('sofa', {
   category: 'furniture', tiles: [2, 1],
   build(g) {
     const add = adder(g);
-    g.userData.seat = 0.37;
+    for (const sx of [-1, 1]) seat(g, sx * 0.385, 0.37, 0.06);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(taper(0.035, 0.035, 0.05, 0.05, 0.075, 0.01), C('woodDark'), { x: sx * 0.83, z: sz * 0.33, outline: 0.008 });
     add(slab(1.9, 0.84, 0.16, { r: 0.06, bev: 0.03 }), C('fabric'), { y: 0.15 });
     add(slab(1.74, 0.22, 0.38, { r: 0.06, bev: 0.05, bs: 2 }), C('fabric'), { y: 0.42, z: -0.31 });

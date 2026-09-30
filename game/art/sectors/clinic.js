@@ -1,7 +1,7 @@
 // sectors/clinic.js: the clinic pack. Clean white casework, mint curtains and couch (palette.mint),
 // the red cross (palette.medical), bright metal frames. The exam bed's head is at -Z.
 import { chamfer, slab, lathe, tube, drum, merged, mat4, clear, painted, liveTex } from '../shapes.js';
-import { adder, strut, card, C, G, FONT } from '../parts.js';
+import { adder, seat, strut, card, C, G, FONT } from '../parts.js';
 import { sectorAsset, corner, wallRun, pleats, ring } from './common.js';
 
 const asset = sectorAsset('clinic');
@@ -18,7 +18,7 @@ asset('exam-bed', {
   category: 'furniture', tiles: [1, 2],
   build(g) {
     const add = adder(g), H = 0.66;
-    g.userData.seat = H + 0.1;
+    seat(g, 0.14, H + 0.1, 0.3, Math.PI / 2); // on the side of the couch, legs over the edge
     // the base cabinet with two drawers and a pull-out step
     add(chamfer(0.5, 0.05, 1.3, 0.012), C('metal'), { y: 0.025, z: 0.05, outline: 0.01 });
     add(chamfer(0.58, H - 0.1, 1.4, 0.025), C('plastic'), { y: 0.05 + (H - 0.1) / 2, z: 0.05 });
@@ -117,7 +117,7 @@ asset('wheelchair', {
   category: 'furniture', tiles: [1, 1],
   build(g) {
     const add = adder(g), R = 0.3, az = 0.1;
-    g.userData.seat = 0.5;
+    seat(g, 0, 0.53, -0.04, Math.PI);
     // the big rear wheels: tyre, hand rim, spokes, hub
     for (const sx of [-1, 1]) {
       const x = sx * 0.31;
