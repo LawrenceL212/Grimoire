@@ -31,7 +31,7 @@ const box = (w, h, d, o = {}) => node({ geometry: boxGeometry(w, h, d, o), ...o 
 test('register defaults the sector and the budget from the category', () => {
   register('t-reg-desk', { category: 'furniture', tiles: [2, 1], build: () => box(1, 1, 1) });
   const meta = list().find((a) => a.id === 't-reg-desk');
-  assert.deepEqual(meta, { id: 't-reg-desk', category: 'furniture', sector: 'core', tiles: [2, 1], budget: 3000 });
+  assert.deepEqual(meta, { id: 't-reg-desk', category: 'furniture', sector: 'core', tiles: [2, 1], budget: 3000, budgetReason: null });
   assert.equal(BUDGETS.furniture, 3000);
   assert.equal(BUDGETS.equipment, 6000);
   assert.equal(BUDGETS.character, 7000);
@@ -51,12 +51,23 @@ test('bad definitions throw', () => {
   assert.throws(() => register('t-bad-tiles', { ...ok, tiles: [0, 1] }), /tiles/);
   assert.throws(() => register('t-bad-tiles2', { ...ok, tiles: [1] }), /tiles/);
   assert.throws(() => register('t-bad-build', { ...ok, build: null }), /build/);
-  assert.throws(() => register('t-bad-over', { ...ok, category: 'furniture', budget: 9000 }), /exceeds/);
+  assert.throws(() => register('t-bad-over', { ...ok, category: 'furniture', budget: 9000 }), /exceeds.*budgetReason/);
+  assert.throws(() => register('t-bad-over2', { ...ok, category: 'furniture', budget: 9000, budgetReason: '   ' }), /budgetReason/, 'a blank reason is no reason');
+  assert.equal(get('t-bad-over'), undefined);
   assert.equal(get('t-bad-cat'), undefined, 'a rejected asset is not registered');
   register('t-custom-cat', { ...ok, category: 'mystery', budget: 500 });
   assert.equal(get('t-custom-cat').budget, 500, 'an unknown category is fine with an explicit budget');
   register('t-lower', { ...ok, category: 'furniture', budget: 1200 });
   assert.equal(get('t-lower').budget, 1200, 'a budget may be tighter than the category default');
+});
+
+test('a budget above the category default is allowed with a reason, and list exposes it', () => {
+  register('t-over-ok', { category: 'furniture', tiles: [3, 1], budget: 4500, budgetReason: 'three linked desks in one piece', build: () => box(1, 1, 1) });
+  const meta = list().find((a) => a.id === 't-over-ok');
+  assert.equal(meta.budget, 4500);
+  assert.equal(meta.budgetReason, 'three linked desks in one piece');
+  const within = list().find((a) => a.id === 't-reg-desk');
+  assert.equal(within.budgetReason, null);
 });
 
 test('list filters by category and sector', () => {
@@ -96,7 +107,7 @@ test('measure counts triangles, indexed and not, and drawables', () => {
   assert.equal(m.hasNaN, false);
 });
 
-test('outline hulls count towards the triangles and are reported separately', () => {
+test('outline hulls are reported separately and excluded from the budget (ruling P2-4)', () => {
   const body = box(1, 1, 1);
   const hull = box(1, 1, 1); hull.userData.outlineChild = true;
   body.add(hull);
@@ -104,6 +115,9 @@ test('outline hulls count towards the triangles and are reported separately', ()
   assert.equal(m.triangles, 24);
   assert.equal(m.outlineTriangles, 12);
   assert.equal(m.drawables, 2);
+  // 12 mesh triangles against a budget of 12: within, although 24 are drawn with the hull
+  assert.deepEqual(check({ id: 'x', category: 'prop', tiles: [1, 1], budget: 12 }, m), []);
+  assert.match(check({ id: 'x', category: 'prop', tiles: [1, 1], budget: 11 }, m).join(), /over budget: 12 of 11/);
 });
 
 test('lines add a drawable but no triangles; hidden subtrees are skipped', () => {

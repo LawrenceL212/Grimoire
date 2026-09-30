@@ -6,7 +6,12 @@ const t = makeReporter();
 const { page, errors, close } = await openGame('game/art/catalogue.html', { context: { viewport: { width: 1280, height: 800 } } });
 try {
   await page.waitForFunction(() => window.__catalogue && window.__catalogue.ready === true, null, { timeout: 30000 });
-} catch (e) { t.check('the catalogue signals ready', false, String(e).split('\n')[0]); t.finish(); }
+} catch (e) {
+  t.check('the catalogue signals ready', false, String(e).split('\n')[0]);
+  await close();
+  t.finish(); // exits the process with status 1: nothing below runs
+  process.exit(1);
+}
 t.check('the catalogue signals ready', true);
 
 // ---- every asset x every preset: our own checks, straight from the registry ----
@@ -23,7 +28,7 @@ const r = await page.evaluate(async () => {
       try {
         const o = reg.make(a.id, {});
         const m = reg.measure(o);
-        Object.assign(row, { assetId: o.userData.assetId, triangles: m.triangles, hasNaN: m.hasNaN, bbox: m.bbox, bounds: m.bounds, drawables: m.drawables });
+        Object.assign(row, { assetId: o.userData.assetId, triangles: m.triangles, outlineTriangles: m.outlineTriangles, hasNaN: m.hasNaN, bbox: m.bbox, bounds: m.bounds, drawables: m.drawables });
       } catch (e) { row.error = String(e && e.stack || e); }
       rows.push(row);
     }
@@ -41,7 +46,8 @@ for (const row of r.rows) {
   if (row.error) { bad.build.push(`${tag}: ${row.error.split('\n')[0]}`); continue; }
   if (row.assetId !== row.id) bad.id.push(tag);
   if (row.hasNaN !== false) bad.nan.push(tag);
-  if (!(row.triangles <= row.budget)) bad.budget.push(`${tag} ${row.triangles}/${row.budget}`);
+  const meshTris = row.triangles - row.outlineTriangles; // budgets exclude outline hulls (ruling P2-4)
+  if (!(meshTris <= row.budget)) bad.budget.push(`${tag} ${meshTris}/${row.budget}`);
   if (!row.bounds || row.drawables === 0) { bad.empty.push(tag); continue; }
   const [w, d] = row.tiles;
   const hx = (w / 2) * TOL + EPS, hz = (d / 2) * TOL + EPS;
@@ -55,7 +61,7 @@ t.check('every asset builds in every preset', bad.build.length === 0, bad.build.
 t.check('make() stamps userData.assetId', bad.id.length === 0, bad.id.slice(0, 5).join(', '));
 t.check('no asset has NaN geometry', bad.nan.length === 0, bad.nan.slice(0, 5).join(', '));
 t.check('every asset draws something', bad.empty.length === 0, bad.empty.slice(0, 5).join(', '));
-t.check('every asset is within its triangle budget', bad.budget.length === 0, bad.budget.slice(0, 5).join(', '));
+t.check('every asset is within its triangle budget (mesh triangles, outline hulls excluded)', bad.budget.length === 0, bad.budget.slice(0, 5).join(', '));
 t.check('every asset fits its footprint, centred on the origin (5% tolerance)', bad.footprint.length === 0, bad.footprint.slice(0, 5).join(' | '));
 t.check('every non-structure asset is under 3.2 units tall', bad.height.length === 0, bad.height.slice(0, 5).join(', '));
 t.note('checked', `${r.assets.length} assets x ${r.presets.length} presets = ${r.rows.length} builds`);
@@ -151,4 +157,60 @@ const stats = await page.evaluate(() => window.__catalogue.stats());
 t.note('grid frame work (headless)', JSON.stringify(stats));
 t.check('no page errors', errors.length === 0, errors.join(' | '));
 await close();
+
+// ---- the catalogue flags broken assets (test-only fixtures via ?test-bad=1) ----
+{
+  const g = await openGame('game/art/catalogue.html?test-bad=1', { context: { viewport: { width: 1280, height: 800 } } });
+  await g.page.waitForFunction(() => window.__catalogue && window.__catalogue.ready === true, null, { timeout: 30000 });
+  const b = await g.page.evaluate(() => {
+    const card = (id) => {
+      const c = document.querySelector(`[data-asset="${id}"]`);
+      return c && { bad: c.classList.contains('bad'), warn: !c.querySelector('.warn').hidden, text: c.querySelector('.problems').textContent };
+    };
+    return {
+      over: card('test-bad-over-budget'), nan: card('test-bad-nan'), big: card('test-bad-oversized'),
+      good: ['sample-crate', 'sample-bench', 'sample-pillar'].map(card),
+      summary: document.getElementById('summary').textContent,
+    };
+  });
+  t.check('an over-budget asset shows the bad state with an over-budget warning', !!(b.over?.bad && b.over.warn && /over budget: \d+ of 50/.test(b.over.text)), JSON.stringify(b.over));
+  t.check('a NaN asset shows the bad state with a NaN warning', !!(b.nan?.bad && b.nan.warn && /NaN/.test(b.nan.text)), JSON.stringify(b.nan));
+  t.check('an oversized, off-centre asset shows the bad state with a footprint warning', !!(b.big?.bad && b.big.warn && /outside its 1x1 footprint/.test(b.big.text)), JSON.stringify(b.big));
+  t.check('the good samples are not flagged', b.good.every((c) => c && !c.bad && !c.warn), JSON.stringify(b.good));
+  t.check('the summary says 3 need attention', /\b3 need attention\b/.test(b.summary), b.summary);
+  const reason = await g.page.evaluate(async () => {
+    const c = document.querySelector('[data-asset="test-raised-budget"]');
+    window.__catalogue.open('test-raised-budget');
+    await new Promise((res) => setTimeout(res, 200));
+    const out = { bad: c.classList.contains('bad'), note: document.querySelector('#cu-problems [data-reason]')?.textContent || '' };
+    window.__catalogue.close();
+    return out;
+  });
+  t.check('a raised budget with a reason is not flagged, and the close-up shows the reason', reason.bad === false && /test fixture: a raised budget with its reason/.test(reason.note), JSON.stringify(reason));
+  // the fixtures build fresh (uncached) geometry on every build: preset rebuilds must free the old ones
+  const mem = await g.page.evaluate(async () => {
+    const th = await import('../engine/theme.js');
+    const wait = () => new Promise((res) => setTimeout(res, 250));
+    await wait();
+    const before = window.__catalogue.gpuMemory();
+    for (const p of ['Night lab', 'Bright day', 'Cozy paper', 'Warm dusk', 'Night lab', 'Warm dusk']) { th.applyPreset(p); await wait(); }
+    return { before, after: window.__catalogue.gpuMemory() };
+  });
+  t.check('preset rebuilds free the old geometry (no GPU growth over 6 switches)', mem.after.geometries <= mem.before.geometries && mem.before.geometries > 0, JSON.stringify(mem));
+  t.check('no page errors with the broken fixtures', g.errors.length === 0, g.errors.join(' | '));
+  await g.close();
+}
+
+// ---- 12 ms/frame with the catalogue loaded (?stress=60 adds 60 clones) ----
+{
+  const g = await openGame('game/art/catalogue.html?stress=60', { context: { viewport: { width: 1280, height: 720 } } });
+  await g.page.waitForFunction(() => window.__catalogue && window.__catalogue.ready === true, null, { timeout: 30000 });
+  await g.page.waitForTimeout(4000); // the stats window is the last 240 frames: past the warm-up shader compiles
+  const s = await g.page.evaluate(() => window.__catalogue.stats());
+  t.check('stress mode registers 60 clones', s.total === 63, String(s.total));
+  t.check('grid work p95 under 12 ms with 63 assets (CPU proxy: JS time in the frame callback, incl. render submission)',
+    s.frames >= 100 && s.workP95 < 12, JSON.stringify(s));
+  t.check('no page errors in stress mode', g.errors.length === 0, g.errors.join(' | '));
+  await g.close();
+}
 t.finish();

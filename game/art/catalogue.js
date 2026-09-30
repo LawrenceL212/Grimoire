@@ -149,6 +149,32 @@ function draw(cell, angle) {
   cell.dirty = false;
 }
 
+// ---------- GPU resources: free what a rebuild or a closed close-up no longer uses ----------
+// Kit caches share geometry and materials between builds, so only resources that no live
+// object still references are disposed (the rest are reused by the new builds).
+const TEX_KEYS = ['map', 'emissiveMap', 'alphaMap', 'gradientMap', 'normalMap', 'roughnessMap'];
+function resources(root, out = new Set()) {
+  root?.traverse?.((o) => {
+    if (o.geometry) out.add(o.geometry);
+    for (const mt of [].concat(o.material || [])) {
+      out.add(mt);
+      for (const k of TEX_KEYS) if (mt[k]) out.add(mt[k]);
+    }
+  });
+  return out;
+}
+function disposeUnused(oldRoots) {
+  const old = new Set();
+  for (const r of oldRoots) resources(r, old);
+  if (!old.size) return 0;
+  const live = new Set();
+  for (const c of cells) { resources(c.obj, live); resources(c.plate, live); }
+  if (cu) { resources(cu.obj, live); resources(cu.plate, live); }
+  let n = 0;
+  for (const x of old) if (!live.has(x) && typeof x.dispose === 'function') { x.dispose(); n++; }
+  return n;
+}
+
 // ---------- building and measuring ----------
 function buildCell(cell) {
   const { meta } = cell;
@@ -170,10 +196,11 @@ function buildCell(cell) {
 
 function label(cell) {
   const { meta, m, card } = cell;
-  const tris = m ? m.triangles : 0;
+  const tris = m ? m.triangles - m.outlineTriangles : 0; // the budget excludes outline hulls (ruling P2-4)
   const ratio = m ? tris / meta.budget : 0;
   card.querySelector('[data-tris]').textContent = `${fmt(tris)} / ${fmt(meta.budget)}`;
-  card.querySelector('[data-tris]').title = m ? `${fmt(m.outlineTriangles)} of these are outline hulls · ${m.drawables} draw calls` : '';
+  card.querySelector('[data-tris]').title = (m ? `${m.drawables} draw calls` : '') + (meta.budgetReason ? ` · budget raised: ${meta.budgetReason}` : '');
+  card.querySelector('[data-outline]').textContent = m ? `+ ${fmt(m.outlineTriangles)}` : '—';
   const bar = card.querySelector('.bar');
   bar.className = 'bar' + (ratio > 1 ? ' over' : ratio > 0.8 ? ' warm' : '');
   bar.firstElementChild.style.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
@@ -199,6 +226,7 @@ function makeCard(meta) {
       <dl class="nums">
         <dt>Triangles</dt><dd data-tris></dd>
         <span class="bar"><i></i></span>
+        <dt title="outline hull triangles: drawn, but outside the asset budget">Outline tris</dt><dd data-outline></dd>
         <dt>Footprint</dt><dd data-foot></dd>
         <dt title="width × depth × height, in tiles">Size</dt><dd data-size></dd>
       </dl>
@@ -290,7 +318,9 @@ function teardown() {
   cu.ro.disconnect();
   cu.stage.dispose();
   cu.canvas.remove();
+  const gone = [cu.obj, cu.plate];
   cu = null;
+  disposeUnused(gone);
   window.__catalogue.closeup = null;
 }
 function openCloseup(id) {
@@ -331,7 +361,7 @@ function openCloseup(id) {
     fit();
   });
   ro.observe(canvas);
-  cu = { id, canvas, stage, ro, camera: stage.camera, frames: 0, lights, pivot, obj, meta, spin: false, anim: null };
+  cu = { id, canvas, stage, ro, plate, camera: stage.camera, frames: 0, lights, pivot, obj, meta, spin: false, anim: null };
   window.__catalogue.closeup = cu;
   stage.frame((dt, t) => {
     cu.frames++;
@@ -343,16 +373,17 @@ function openCloseup(id) {
   $('cu-chips').innerHTML = `<span class="chip cat">${esc(meta.category)}</span><span class="chip">${esc(meta.sector)}</span>`;
   const b = m ? m.bbox : { w: 0, h: 0, d: 0 };
   $('cu-nums').innerHTML = [
-    ['Triangles', m ? `${fmt(m.triangles)} of ${fmt(meta.budget)}` : '—'],
-    ['of which outlines', m ? fmt(m.outlineTriangles) : '—'],
+    ['Triangles', m ? `${fmt(m.triangles - m.outlineTriangles)} of ${fmt(meta.budget)}` : '—'],
+    ['Outline hulls', m ? `+ ${fmt(m.outlineTriangles)} (not budgeted)` : '—'],
     ['Draw calls', m ? m.drawables : '—'],
     ['Footprint', `${meta.tiles[0]} × ${meta.tiles[1]} tiles`],
     ['Width × depth', `${b.w.toFixed(2)} × ${b.d.toFixed(2)}`],
     ['Height', b.h.toFixed(2)],
   ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-  $('cu-problems').innerHTML = problems.length
+  $('cu-problems').innerHTML = (problems.length
     ? problems.map((p) => `<p class="problems">${esc(p)}</p>`).join('')
-    : '<p class="ok-note">Within budget, footprint and height; no broken geometry.</p>';
+    : '<p class="ok-note">Within budget, footprint and height; no broken geometry.</p>')
+    + (meta.budgetReason ? `<p class="reason" data-reason>Budget raised above the ${esc(meta.category)} default: ${esc(meta.budgetReason)}</p>` : '');
   const anims = meta.anims ? Object.keys(meta.anims) : [];
   $('cu-anims-wrap').hidden = anims.length === 0;
   $('cu-anims').innerHTML = anims.map((a) => `<button class="btn" type="button" data-anim="${esc(a)}" aria-pressed="false">${esc(a)}</button>`).join('');
@@ -449,7 +480,7 @@ function boot() {
       cells.forEach((c) => c.obj && setToon(c.obj, on));
       if (cu?.obj) setToon(cu.obj, on);
     }
-    if (!path) { cells.forEach(buildCell); summary(); } // a preset or a reset: rebuild, in case a build reads the theme
+    if (!path) { const old = cells.map((c) => c.obj); cells.forEach(buildCell); disposeUnused(old); summary(); } // a preset or a reset: rebuild, in case a build reads the theme
     cells.forEach((c) => { c.dirty = true; });
   });
 
@@ -478,5 +509,15 @@ function boot() {
   window.__catalogue.ready = true;
 }
 
-window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), close: () => dlg.close() };
+window.__catalogue = { ready: false, closeup: null, stats, open: (id) => openCloseup(id), close: () => dlg.close(),
+  gpuMemory: () => thumbs && { ...thumbs.renderer.info.memory } };
+
+// Test-only fixtures, loaded only when the URL asks: ?test-bad=1 (three broken assets), ?stress=N (N clones).
+const params = new URLSearchParams(location.search);
+if (params.has('test-bad') || params.has('stress')) {
+  const fx = await import('./test-fixtures.js');
+  if (params.has('test-bad')) { fx.registerBad(); fx.registerRaised(); }
+  const n = Math.min(500, Number(params.get('stress')) || 0);
+  if (n > 0) fx.registerStress(n);
+}
 boot();

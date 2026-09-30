@@ -1,12 +1,13 @@
 // registry.js: the art pack's catalogue of asset factories.
 //
-// register(id, { category, sector = 'core', tiles: [w, d], budget?, build(opts) -> Object3D, anims? })
+// register(id, { category, sector = 'core', tiles: [w, d], budget?, budgetReason?, build(opts) -> Object3D, anims? })
 //   id: kebab-case, unique. tiles: footprint in floor tiles (1 tile = 1 unit), w along X, d along Z.
-//   budget: triangles; defaults to BUDGETS[category] and may only be tighter than that default.
+//   budget: mesh triangles (outline hulls excluded, reported separately); defaults to BUDGETS[category].
+//   A budget above the category default needs a non-empty budgetReason (shown in the catalogue).
 //   build(opts) must return an Object3D whose origin is the floor centre of its footprint, +Z facing front.
 //   anims (optional): { name: (object3d, seconds) => void }, played by the catalogue's close-up.
 // make(id, opts) -> Object3D with userData.assetId.   list({ category, sector }?) -> metadata copies.
-// measure(object3d) -> { triangles, outlineTriangles, drawables, bbox: { w, h, d }, bounds, hasNaN }
+// measure(object3d) -> { triangles (all drawn, hulls included), outlineTriangles, drawables, bbox: { w, h, d }, bounds, hasNaN }
 // check(meta, measured) -> [problem strings]; the catalogue shows them as warnings.
 //
 // Pure on purpose: no `three` import, so node can test it. measure() walks anything shaped
@@ -25,6 +26,7 @@ export function register(id, def = {}) {
   if (typeof id !== 'string' || !KEBAB.test(id)) throw new Error(`asset id "${id}" must be kebab-case`);
   if (assets.has(id)) throw new Error(`asset "${id}" is already registered`);
   const { category, sector = 'core', tiles, build, anims } = def;
+  const budgetReason = typeof def.budgetReason === 'string' && def.budgetReason.trim() ? def.budgetReason.trim() : null;
   if (typeof category !== 'string' || !category) throw new Error(`asset "${id}": category is required`);
   if (typeof sector !== 'string' || !sector) throw new Error(`asset "${id}": sector must be a string`);
   if (!Array.isArray(tiles) || tiles.length !== 2 || !tiles.every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) {
@@ -34,8 +36,10 @@ export function register(id, def = {}) {
   const cap = BUDGETS[category];
   const budget = def.budget ?? cap;
   if (typeof budget !== 'number' || !(budget > 0)) throw new Error(`asset "${id}": category "${category}" has no default budget; give one`);
-  if (cap !== undefined && budget > cap) throw new Error(`asset "${id}": budget ${budget} exceeds the ${category} budget of ${cap}`);
-  assets.set(id, { id, category, sector, tiles: [tiles[0], tiles[1]], budget, build, anims: anims || null });
+  if (cap !== undefined && budget > cap && !budgetReason) {
+    throw new Error(`asset "${id}": budget ${budget} exceeds the ${category} budget of ${cap}; give a budgetReason`);
+  }
+  assets.set(id, { id, category, sector, tiles: [tiles[0], tiles[1]], budget, budgetReason, build, anims: anims || null });
 }
 
 export function get(id) {
@@ -48,7 +52,7 @@ export function list({ category, sector } = {}) {
   for (const a of assets.values()) {
     if (category && a.category !== category) continue;
     if (sector && a.sector !== sector) continue;
-    out.push({ id: a.id, category: a.category, sector: a.sector, tiles: [...a.tiles], budget: a.budget });
+    out.push({ id: a.id, category: a.category, sector: a.sector, tiles: [...a.tiles], budget: a.budget, budgetReason: a.budgetReason });
   }
   return out;
 }
@@ -138,7 +142,8 @@ export function check(meta, m) {
   const out = [];
   if (m.hasNaN) out.push('NaN in the geometry');
   if (!m.bounds || m.drawables === 0) { out.push('draws nothing'); return out; }
-  if (m.triangles > meta.budget) out.push(`over budget: ${m.triangles} of ${meta.budget} triangles`);
+  const mesh = m.triangles - m.outlineTriangles; // budgets exclude outline hulls (ruling P2-4)
+  if (mesh > meta.budget) out.push(`over budget: ${mesh} of ${meta.budget} triangles`);
   const [w, d] = meta.tiles, e = 1e-6;
   const hx = (w / 2) * (1 + TOLERANCE) + e, hz = (d / 2) * (1 + TOLERANCE) + e;
   const { min, max } = m.bounds;
