@@ -30,3 +30,5 @@ for (const f of ['boot', 'world', 'js_view', 'php_sync', 'grading', 'timetable',
   const file = join(here, `test_game_${f}.mjs`);
   if (existsSync(file)) run([file]);
 }
+
+for (const f of ['engine']) run([join(here, `test_${f}.mjs`)]);
