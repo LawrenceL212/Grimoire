@@ -160,6 +160,15 @@ const r = await page.evaluate(async ({ KINDS, KEYS }) => {
     out.blobClear = px();
     scene.fog = new THREE.Fog(0xffffff, 0.5, 1.0); // everything past 1 unit is fully fogged
     out.blobFogged = px();
+    scene.fog = null;
+    // a flat prop lying on the floor over the blob (a rug, 1 cm up), seen from the game camera's
+    // distance and near plane: the blob must stay under it, not bleed over it
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(3, 3).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    rug.position.y = 0.0185; scene.add(rug);
+    const far = new THREE.PerspectiveCamera(30, 1, 0.5, 300); far.position.set(0, 35 * Math.cos(0.56), 35 * Math.sin(0.56)); far.lookAt(0, 0, 0);
+    ren.setRenderTarget(rt); ren.render(scene, far);
+    const b = new Uint8Array(4); ren.readRenderTargetPixels(rt, 16, 16, 1, 1, b); ren.setRenderTarget(null);
+    out.blobUnderRug = Array.from(b.slice(0, 3));
     ren.dispose(); rt.dispose();
   }
   return out;
@@ -203,6 +212,7 @@ t.check('the carpet pattern has no dominant stripe (row and column profiles with
 t.check('a carpet field is not a quarter-turn checker, and odd tiles are not shaded darker', !r.carpetChecker.turnsFollowParity && r.carpetChecker.shadeGap < 0.02, JSON.stringify(r.carpetChecker));
 t.check('the contact-shadow material takes part in fog', r.blobFogFlag === true);
 t.check('a blob darkens the floor without fog, and fades out inside thick fog', r.blobClear < 200 && r.blobFogged > 245, JSON.stringify({ clear: r.blobClear, fogged: r.blobFogged }));
+t.check('at game distance a blob stays under a rug lying 1 cm above it (no bleed-through)', r.blobUnderRug[0] === 255 && r.blobUnderRug[1] === 0, JSON.stringify(r.blobUnderRug));
 
 // ---- the catalogue's 6x6 floor patch ----
 const p = await page.evaluate(async () => {

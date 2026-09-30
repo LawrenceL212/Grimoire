@@ -311,8 +311,9 @@ function blobMaterial(opacity) {
           #endif
           gl_FragColor = vec4(vec3(1.0 - k), 1.0);
         }`,
+      // no polygon offset: BLOB_Y already clears the floor by ~50 depth steps at game distance, and an
+      // offset would pull the blob over anything flat lying just above it (a rug, a mat)
       transparent: true, depthWrite: false, blending: THREE.MultiplyBlending, premultipliedAlpha: true,
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     }));
   }
   return blobMats.get(k);
