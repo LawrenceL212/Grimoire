@@ -20,6 +20,9 @@
 //   emoteMaterial(kind)          one shared SpriteMaterial (and texture) per emote kind
 //   PEOPLE                       the live people in a scene (for separation): joined on update while attached,
 //                                left on dispose() or when detached
+//   heldBy(object3d) -> { person, hand } | null   who holds a thing (kept outside userData, so a held thing
+//                                still clones: Object3D.copy JSON-serialises userData)
+//   letGo(object3d)              takes a thing out of whoever holds it (the drone uses it to pick things up)
 import * as THREE from 'three';
 import { register } from './registry.js';
 import { liveTex } from './shapes.js';
@@ -44,6 +47,16 @@ onThemeChange((path) => {
 });
 const themeCostume = () => tget('people.costumeSet') || 'none';
 export const PEOPLE = new Set();
+// who holds what: object -> { person, hand }. A WeakMap, not userData: a Person in userData is a circular
+// reference, and Object3D.clone()/copy() JSON-serialise userData.
+const HELD_BY = new WeakMap();
+export const heldBy = (obj) => HELD_BY.get(obj) || null;
+export function letGo(obj) {
+  const by = HELD_BY.get(obj);
+  if (by && by.person.held[by.hand] === obj) by.person.release(by.hand);
+  else HELD_BY.delete(obj);
+  return obj;
+}
 const RM_QUERY = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 let nextId = 1;
 // per-frame scratch (update() allocates nothing)
@@ -255,7 +268,7 @@ export class Person {
     if (this.disposed) return;
     this.disposed = true;
     this.rig.skeleton.dispose(); // its bone texture
-    for (const h of ['L', 'R']) if (this.held[h]) delete this.held[h].userData.heldBy;
+    for (const h of ['L', 'R']) if (this.held[h]) HELD_BY.delete(this.held[h]);
   }
 
   // ------------------------------------------------ costumes and held things
@@ -269,18 +282,18 @@ export class Person {
   }
   hold(obj, hand = 'R') {
     if (hand !== 'L' && hand !== 'R') throw new Error(`hand must be 'L' or 'R', not "${hand}"`);
-    const by = obj.userData.heldBy; // already in someone's hand (this person's other hand, or another person's)
+    const by = HELD_BY.get(obj); // already in someone's hand (this person's other hand, or another person's)
     if (by && by.person.held[by.hand] === obj) by.person.held[by.hand] = null;
     this.release(hand);
     obj.position.set(0, -0.06, 0.035);
     this.bones[`hand${hand}`].add(obj);
     this.held[hand] = obj;
-    obj.userData.heldBy = { person: this, hand };
+    HELD_BY.set(obj, { person: this, hand });
     return obj;
   }
   release(hand = 'R') {
     const o = this.held[hand];
-    if (o) { o.removeFromParent(); delete o.userData.heldBy; }
+    if (o) { o.removeFromParent(); HELD_BY.delete(o); }
     this.held[hand] = null;
     return o;
   }

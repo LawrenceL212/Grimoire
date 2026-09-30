@@ -259,6 +259,10 @@ const r = await page.evaluate(async () => {
     out.handover = { aHeld: a.held.L === null ? null : 'still held', bHeld: b.held.R === lantern, parent: lantern.parent === b.bones.handR };
     b.hold(lantern, 'L');
     out.handover.swapHands = b.held.R === null && b.held.L === lantern && lantern.parent === b.bones.handL;
+    // a held thing still clones (Object3D.copy JSON-serialises userData: no Person may live there)
+    try { const c = lantern.clone(); out.handover.clone = !!c && P.heldBy(c) === null && P.heldBy(lantern)?.person === b && !('heldBy' in lantern.userData); } catch (e) { out.handover.clone = String(e); }
+    P.letGo(lantern);
+    out.handover.letGo = b.held.L === null && lantern.parent === null && P.heldBy(lantern) === null;
     a.dispose(); b.dispose();
   }
 
@@ -311,6 +315,7 @@ t.check('a crowd of 20 crossing at 30 fps keeps at least 0.35 apart', r.crowd.mi
 t.check('nobody alive drops out of the separation registry (20 people at 30 fps); dispose removes them', r.crowd.minRegistered === 20 && r.crowd.afterDispose === 0, JSON.stringify(r.crowd));
 t.check('spawning and disposing 50 people returns GPU textures to where they were (bone textures freed); dispose is safe twice', r.spawn.during > r.spawn.before && r.spawn.after <= r.spawn.before + 2 && r.spawn.twice && r.spawn.gone, JSON.stringify(r.spawn));
 t.check('holding a thing another person holds takes it from them; switching hands frees the old hand', r.handover.aHeld === null && r.handover.bHeld && r.handover.parent && r.handover.swapHands, JSON.stringify(r.handover));
+t.check('a held thing clones without throwing (the holder lives outside userData); letGo() frees it', r.handover.clone === true && r.handover.letGo, JSON.stringify(r.handover));
 const c = r.costume;
 t.check('a costume set switched in the theme changes the parts live (party hat added)', c.on.slots.includes('hat') && c.on.tris > c.before.tris && c.moving, JSON.stringify({ before: c.before, on: c.on.slots, tris: c.on.tris }));
 t.check('switching the costume set back restores the same parts', c.restored, JSON.stringify({ before: c.before, off: c.off }));
