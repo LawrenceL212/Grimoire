@@ -45,6 +45,13 @@ export function facePoint(el, az, out = 0) {
   return { pos, rot };
 }
 
+// moves a face bone to (el, az) on the head sphere, facing out, rolled by roll (no allocation)
+export function placeOnFace(obj, el, az, out = 0, roll = 0) {
+  const r = DIM.headR + out, ce = Math.cos(el);
+  obj.position.set(Math.sin(az) * ce * r, Math.sin(el) * r + DIM.headY, Math.cos(az) * ce * r);
+  obj.rotation.set(-el, az, roll, 'YXZ');
+}
+
 // [name, parent, x, y, z]; L is the person's left (+X, since a person faces +Z)
 const BONES = [
   ['root', null, 0, 0, 0],

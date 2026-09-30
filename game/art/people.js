@@ -18,7 +18,8 @@
 //                                 skeleton, pose, state, path and anything held are kept
 //   seatOf(target, i, frame) -> { x, z, floor, height, facing }
 //   emoteMaterial(kind)          one shared SpriteMaterial (and texture) per emote kind
-//   PEOPLE                       the people updated recently (for separation)
+//   PEOPLE                       the live people in a scene (for separation): joined on update while attached,
+//                                left on dispose() or when detached
 import * as THREE from 'three';
 import { register } from './registry.js';
 import { liveTex } from './shapes.js';
@@ -27,11 +28,11 @@ import { get as tget, onThemeChange } from '../engine/theme.js';
 import { C } from './parts.js';
 import { chamfer } from './shapes.js';
 import { contactShadow } from './materials.js';
-import { DIM, facePoint, buildRig, dressRig } from './people/rig.js';
+import { DIM, placeOnFace, buildRig, dressRig } from './people/rig.js';
 import { dress, costumed, registerCostume, costumeNames, ROLES, HAIR_STYLES } from './people/outfits.js';
 import {
   STATES, EXPRESSIONS, STATE_FACE, EMOTES, EMOTE_ALIAS, EMOTE_FACE,
-  seatedLegs, walkLegs, legExtent, upper, base, mix,
+  seatedLegs, walkLegs, legExtent, upper, base, blendInto,
 } from './people/anims.js';
 
 export { STATES, ROLES, HAIR_STYLES, EMOTES, EXPRESSIONS, registerCostume, costumeNames };
@@ -44,8 +45,13 @@ onThemeChange((path) => {
 const themeCostume = () => tget('people.costumeSet') || 'none';
 export const PEOPLE = new Set();
 const RM_QUERY = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-let clock = 0;          // advanced by every update (for "recently updated")
 let nextId = 1;
+// per-frame scratch (update() allocates nothing)
+const SIDES = [['L', 1], ['R', -1]];
+const BUSY_HANDS = new Set(['carry', 'type', 'celebrate', 'frustrated']);
+const LEGS = {}, SEATED = {}, U = {}, S = {}, HOLD = {};
+const QA = new THREE.Quaternion(), QB = new THREE.Quaternion(), VA = new THREE.Vector3();
+const NEAR = [];
 
 // ---------------------------------------------------------------- emotes (shared textures)
 const EMOTE_DRAW = {
@@ -178,7 +184,11 @@ export class Person {
     this.look = null; this.lookW = 0; this.lookYaw = 0; this.lookPitch = 0;
     this.faceName = 'neutral'; this.faceHold = 0; this.faceNow = { ...flatFace(EXPRESSIONS.neutral) };
     this.talk = 0;
-    this._seen = -1;
+    this.disposed = false;
+    this._c = { t: 0, sit: 0, walk: 0, phase: 0, rm: this.reducedMotion, seed: this.seed };
+    this._legs = Object.fromEntries(SIDES.map(([k]) => [k, { hip: this.bones[`hip${k}`], knee: this.bones[`knee${k}`], ankle: this.bones[`ankle${k}`] }]));
+    this._upper = UPPER_KEYS.map((key) => { const [bone, ax] = key.split('.'); return [key, this.bones[bone], ax]; });
+    this._faceBones = Object.fromEntries(SIDES.map(([k]) => [k, { eye: this.bones[`eye${k}`], happy: this.bones[`happy${k}`], brow: this.bones[`brow${k}`] }]));
     this._settle();
   }
 
@@ -239,7 +249,14 @@ export class Person {
   }
   hideEmote() { this.bubbleHold = 0; return Promise.resolve(); }
   bounce() { this.sqV = 4; }
-  dispose() { PEOPLE.delete(this); FOLLOWERS.delete(this._ref); this.root.removeFromParent(); }
+  dispose() {
+    PEOPLE.delete(this); FOLLOWERS.delete(this._ref);
+    this.root.removeFromParent();
+    if (this.disposed) return;
+    this.disposed = true;
+    this.rig.skeleton.dispose(); // its bone texture
+    for (const h of ['L', 'R']) if (this.held[h]) delete this.held[h].userData.heldBy;
+  }
 
   // ------------------------------------------------ costumes and held things
   setCostume(name) { this.costume = name; this._redress(); return this; }
@@ -252,15 +269,18 @@ export class Person {
   }
   hold(obj, hand = 'R') {
     if (hand !== 'L' && hand !== 'R') throw new Error(`hand must be 'L' or 'R', not "${hand}"`);
+    const by = obj.userData.heldBy; // already in someone's hand (this person's other hand, or another person's)
+    if (by && by.person.held[by.hand] === obj) by.person.held[by.hand] = null;
     this.release(hand);
     obj.position.set(0, -0.06, 0.035);
     this.bones[`hand${hand}`].add(obj);
     this.held[hand] = obj;
+    obj.userData.heldBy = { person: this, hand };
     return obj;
   }
   release(hand = 'R') {
     const o = this.held[hand];
-    if (o) o.removeFromParent();
+    if (o) { o.removeFromParent(); delete o.userData.heldBy; }
     this.held[hand] = null;
     return o;
   }
@@ -277,8 +297,7 @@ export class Person {
   update(dt, t) {
     dt = Math.min(Math.max(dt || 0, 0), 0.1);
     this.t += dt; t = t ?? this.t;
-    clock += dt; this._seen = clock;
-    if (this.root.parent) PEOPLE.add(this);
+    if (this.root.parent && !this.disposed) PEOPLE.add(this);
     const rm = this.reducedMotion;
     if (this.tr) {
       const tr = this.tr; tr.t += dt;
@@ -297,8 +316,9 @@ export class Person {
     if (this.handProp) this.handProp.visible = HOLD_PROP_IN.has(this.state) && this.w.carry < 0.3 && !this.held.L;
 
     // ---- legs and hips
-    const c = { t, sit: this.sitB, walk: this.walkW, phase: this.phase, rm, seed: this.seed };
-    const legs = walkLegs(this.phase, this.walkW);
+    const c = this._c;
+    c.t = t; c.sit = this.sitB; c.walk = this.walkW; c.phase = this.phase; c.rm = rm; c.seed = this.seed;
+    const legs = walkLegs(this.phase, this.walkW, LEGS);
     const fr = this.w.frustrated * (1 - this.sitB) * (1 - this.walkW);
     if (fr > 0.01) { // a stamp of the foot
       const st = Math.max(0, Math.sin(t * 6.5)) * fr;
@@ -306,40 +326,46 @@ export class Person {
     }
     let pelvisY = Math.max(legExtent(legs['hipL.x'], legs['kneeL.x']), legExtent(legs['hipR.x'], legs['kneeR.x'])) + DIM.hipDrop;
     if (!rm) pelvisY += Math.max(0, Math.sin(t * 7)) * 0.12 * this.w.celebrate * (1 - this.sitB);
-    let L = legs, dangle = false;
+    const L = legs;
+    let dangle = false;
     if (this.sitB > 0 && this.seat) {
-      const sl = seatedLegs(this.seat.height, t, rm);
-      dangle = !!sl.dangle;
-      L = mix(legs, sl, this.sitB);
+      dangle = seatedLegs(this.seat.height, t, rm, SEATED);
+      blendInto(L, SEATED, this.sitB);
       pelvisY = lerp(pelvisY, this.seat.height + DIM.seatDrop, this.sitB);
     }
     pelvisY += this.hop;
     const b = this.bones;
     b.pelvis.position.y = pelvisY;
-    for (const k of ['L', 'R']) {
-      const s = k === 'L' ? 1 : -1;
-      b[`hip${k}`].rotation.set(L[`hip${k}.x`], 0, s * 0.05 * this.sitB);
-      b[`knee${k}`].rotation.x = L[`knee${k}.x`];
+    for (const [k, s] of SIDES) {
+      const hip = L[k === 'L' ? 'hipL.x' : 'hipR.x'], knee = L[k === 'L' ? 'kneeL.x' : 'kneeR.x'];
+      const leg = this._legs[k];
+      leg.hip.rotation.set(hip, 0, s * 0.05 * this.sitB);
+      leg.knee.rotation.x = knee;
       // keep the foot flat on the floor (a little toe-off while walking; pointed when dangling)
-      b[`ankle${k}`].rotation.x = -(L[`hip${k}.x`] + L[`knee${k}.x`]) * (dangle ? 0.6 : 1 - 0.3 * this.walkW);
+      leg.ankle.rotation.x = -(hip + knee) * (dangle ? 0.6 : 1 - 0.3 * this.walkW);
     }
     b.pelvis.rotation.set(0, 0, 0);
 
     // ---- upper body: the base pose, blended toward each playing state by its weight
-    let U = base(c);
-    for (const s of STATES) if (this.w[s] > 0.002 && s !== 'idle' && s !== 'walk' && s !== 'sit') U = mix(U, { ...U, ...upper(s, c) }, this.w[s]);
+    base(c, U);
+    for (const s of STATES) {
+      if (this.w[s] > 0.002 && upper(s, c, S[s] ||= {})) blendInto(U, S[s], this.w[s]);
+    }
     // a held thing: that forearm comes forward (unless the state needs the arm: carry, type, wave, celebrate)
-    for (const [k, s] of [['L', 1], ['R', -1]]) {
-      const busy = ['carry', 'type', 'celebrate', 'frustrated'].includes(this.state) || (this.state === 'wave' && k === 'R');
+    for (const [k, s] of SIDES) {
+      const busy = BUSY_HANDS.has(this.state) || (this.state === 'wave' && k === 'R');
       this.holdW[k] = damp(this.holdW[k], this.held[k] && !busy ? 1 : 0, 8, dt);
-      if (this.holdW[k] > 0.002) U = mix(U, { ...U, [`sh${k}.x`]: -0.3 + (U[`sh${k}.x`] ?? 0) * 0.15, [`sh${k}.z`]: s * 0.14, [`el${k}.x`]: -1.2, [`hand${k}.x`]: 0.1, [`hand${k}.z`]: 0 }, this.holdW[k]);
+      if (this.holdW[k] > 0.002) {
+        const sh = k === 'L' ? 'shL.x' : 'shR.x';
+        const H = HOLD[k] ||= {};
+        H[sh] = -0.3 + U[sh] * 0.15; H[k === 'L' ? 'shL.z' : 'shR.z'] = s * 0.14; H[k === 'L' ? 'elL.x' : 'elR.x'] = -1.2;
+        H[k === 'L' ? 'handL.x' : 'handR.x'] = 0.1; H[k === 'L' ? 'handL.z' : 'handR.z'] = 0;
+        blendInto(U, H, this.holdW[k]);
+      }
     }
     // look-at
     this._look(dt, U);
-    for (const key of UPPER_KEYS) {
-      const [bone, ax] = key.split('.');
-      b[bone].rotation[ax] = U[key] ?? 0;
-    }
+    for (const [key, bone, ax] of this._upper) bone.rotation[ax] = U[key] ?? 0;
     // breathing and squash-and-stretch on the upper body
     const k = 120, cc = 9;
     this.sqV += (-k * this.sq - cc * this.sqV) * dt;
@@ -361,7 +387,7 @@ export class Person {
     const tg = this.path[0], last = this.path.length === 1;
     let dx = tg.x - p.x, dz = tg.z - p.z;
     const d = Math.hypot(dx, dz);
-    const others = neighbours(this);
+    const others = neighbours(this, NEAR);
     // arrive: close enough, or the spot is taken and we are near it
     const taken = last && d < 0.7 && others.some((o) => Math.hypot(o.root.position.x - tg.x, o.root.position.z - tg.z) < 0.55);
     if (d < (last ? 0.03 : 0.3) || taken) {
@@ -407,11 +433,11 @@ export class Person {
   _upright() {
     if (!this.held.L && !this.held.R) return;
     this.root.updateMatrixWorld(true);
-    const rq = this.root.getWorldQuaternion(new THREE.Quaternion());
-    for (const k of ['L', 'R']) {
+    const rq = this.root.getWorldQuaternion(QA);
+    for (const [k] of SIDES) {
       const o = this.held[k];
       if (!o || o.userData.upright === false) continue;
-      const hq = this.bones[`hand${k}`].getWorldQuaternion(new THREE.Quaternion());
+      const hq = (k === 'L' ? this.bones.handL : this.bones.handR).getWorldQuaternion(QB);
       o.quaternion.copy(hq.invert().multiply(rq));
     }
   }
@@ -420,8 +446,8 @@ export class Person {
     let want = 0;
     if (this.look) {
       this.root.updateWorldMatrix(true, false);
-      const hp = new THREE.Vector3(0, this.bones.pelvis.position.y + 0.6, 0).applyMatrix4(this.root.matrixWorld);
-      const dir = this.look.clone().sub(hp).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()).invert());
+      const hp = VA.set(0, this.bones.pelvis.position.y + 0.6, 0).applyMatrix4(this.root.matrixWorld);
+      const dir = hp.subVectors(this.look, hp).applyQuaternion(this.root.getWorldQuaternion(QA).invert());
       this.lookYaw = THREE.MathUtils.clamp(Math.atan2(dir.x, dir.z), -1.2, 1.2);
       this.lookPitch = THREE.MathUtils.clamp(-Math.atan2(dir.y, Math.hypot(dir.x, dir.z)), -0.5, 0.45);
       want = 1;
@@ -440,9 +466,9 @@ export class Person {
       if (this.faceHold <= 0) { this.faceName = null; this.faceHold = Infinity; }
     }
     const name = this.faceName || STATE_FACE[this.state] || 'neutral';
-    const want = flatFace(EXPRESSIONS[name]);
+    const want = FLAT_FACES[name];
     const f = this.faceNow;
-    for (const k of Object.keys(want)) f[k] = damp(f[k], want[k], 12, dt);
+    for (const k in want) f[k] = damp(f[k], want[k], 12, dt);
     // talking: the mouth opens and closes
     this.talk = damp(this.talk, this.state === 'talk' ? 1 : 0, 10, dt);
     const chatter = this.talk * (0.25 + 0.75 * Math.abs(Math.sin(t * 9.5) * Math.sin(t * 5.3 + 1)));
@@ -451,18 +477,15 @@ export class Person {
     if (this.blinkT < 0) this.blinkT = 1.8 + ((this.seed * 7.3 + t) % 3.2);
     const blink = this.blinkT < 0.12 ? 0.1 : 1;
     const b = this.bones;
-    for (const [k, s] of [['L', 1], ['R', -1]]) {
-      const eye = b[`eye${k}`], e = eye.userData.face;
+    for (const [k, s] of SIDES) {
+      const fb = this._faceBones[k];
+      const e = fb.eye.userData.face;
       const open = 1 - f.happy;
-      const { pos } = facePoint(e.el + f.gUp, e.az + f.gSide, e.out);
-      eye.position.copy(pos);
-      eye.scale.set(Math.max(1e-3, f.ex * open), Math.max(1e-3, f.ey * blink * open), Math.max(1e-3, open));
-      b[`happy${k}`].scale.setScalar(Math.max(1e-3, f.happy));
-      const brow = b[`brow${k}`], bf = brow.userData.face;
-      const raise = f.bRaise + (s > 0 ? f.bOne : 0);
-      const bp = facePoint(bf.el + raise / DIM.headR, bf.az, bf.out);
-      brow.position.copy(bp.pos);
-      brow.rotation.set(bp.rot.x, bp.rot.y, -s * f.bTilt, 'YXZ');
+      placeOnFace(fb.eye, e.el + f.gUp, e.az + f.gSide, e.out);
+      fb.eye.scale.set(Math.max(1e-3, f.ex * open), Math.max(1e-3, f.ey * blink * open), Math.max(1e-3, open));
+      fb.happy.scale.setScalar(Math.max(1e-3, f.happy));
+      const bf = fb.brow.userData.face;
+      placeOnFace(fb.brow, bf.el + (f.bRaise + (s > 0 ? f.bOne : 0)) / DIM.headR, bf.az, bf.out, -s * f.bTilt);
     }
     const talkK = 1 - this.talk;
     b.mSmile.scale.setScalar(Math.max(1e-3, f.smile * talkK));
@@ -492,13 +515,16 @@ function flatFace(x) {
   return { ex: x.eye[0], ey: x.eye[1], happy: x.happy, bRaise: x.brow[0], bTilt: x.brow[1], bOne: x.brow[2], gUp: x.glance[0], gSide: x.glance[1],
     smile: m.smile || 0, grin: m.grin || 0, o: m.o || 0, frown: m.frown || 0, flat: m.flat || 0 };
 }
+const FLAT_FACES = Object.fromEntries(Object.entries(EXPRESSIONS).map(([k, v]) => [k, flatFace(v)]));
 function angleTo(a, b) { let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI; if (d < -Math.PI) d += Math.PI * 2; return d; }
 const elastic = (k) => (k === 0 || k === 1 ? k : Math.pow(2, -10 * k) * Math.sin((k * 10 - 0.75) * (2 * Math.PI) / 3) + 1);
-function neighbours(me) {
-  const out = [];
+// the others in my scene (same parent frame). A person leaves PEOPLE when disposed or detached, never by
+// age: how often people are updated (or how many there are) does not matter.
+function neighbours(me, out) {
+  out.length = 0;
   for (const o of PEOPLE) {
     if (o === me) continue;
-    if (clock - o._seen > 0.5 || !o.root.parent) { PEOPLE.delete(o); continue; }
+    if (o.disposed || !o.root.parent) { PEOPLE.delete(o); continue; }
     if (o.root.parent === me.root.parent) out.push(o);
   }
   return out;

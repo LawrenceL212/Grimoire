@@ -212,6 +212,56 @@ const r = await page.evaluate(async () => {
     p.dispose();
   }
 
+  // ---- a crowd: 20 people crossing at 30 fps keep apart, and nobody drops out of the separation registry
+  {
+    const w = world();
+    const N = 20, ps = [];
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2, p = new P.Person({ role: P.ROLES[i % 6], seed: i + 1 });
+      p.root.position.set(Math.cos(a) * 3.2, 0, Math.sin(a) * 3.2); w.add(p.root); ps.push(p);
+      p.walkTo([[-Math.cos(a) * 3.2 + 0.3, -Math.sin(a) * 3.2]]);
+    }
+    let min = Infinity, minRegistered = Infinity;
+    for (let f = 0; f < 30 * 8; f++) {
+      for (const p of ps) p.update(1 / 30);
+      minRegistered = Math.min(minRegistered, ps.filter((p) => P.PEOPLE.has(p)).length);
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) min = Math.min(min, ps[i].root.position.distanceTo(ps[j].root.position));
+    }
+    const arrived = ps.filter((p) => !p.path.length).length;
+    ps.forEach((p) => p.dispose());
+    out.crowd = { min, minRegistered, arrived, afterDispose: ps.filter((p) => P.PEOPLE.has(p)).length };
+  }
+  // ---- spawning and disposing 50 people frees their GPU resources (bone textures)
+  {
+    const renderer = new THREE.WebGLRenderer({ canvas: document.createElement('canvas') });
+    renderer.setSize(64, 64, false);
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    cam.position.set(0, 5, 10); cam.lookAt(0, 0, 0);
+    const warm = new P.Person({ role: 'office', seed: 1 }); scene.add(warm.root); warm.update(1 / 60); renderer.render(scene, cam);
+    const before = renderer.info.memory.textures;
+    const ps = Array.from({ length: 50 }, (_, i) => { const p = new P.Person({ role: P.ROLES[i % 6], seed: i }); p.root.position.x = (i % 10) - 5; scene.add(p.root); p.update(1 / 60); return p; });
+    renderer.render(scene, cam);
+    const during = renderer.info.memory.textures;
+    ps.forEach((p) => p.dispose());
+    renderer.render(scene, cam);
+    const after = renderer.info.memory.textures;
+    let twice = true; try { ps[0].dispose(); } catch { twice = false; }
+    out.spawn = { before, during, after, twice, gone: ps.every((p) => !P.PEOPLE.has(p) && !p.root.parent) };
+    warm.dispose(); renderer.dispose();
+  }
+  // ---- handing a held thing to someone else takes it out of the first person's hands
+  {
+    const w = world();
+    const a = new P.Person({ role: 'lab', seed: 1 }), b = new P.Person({ role: 'gym', seed: 1 }); w.add(a.root, b.root);
+    const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.1), new THREE.MeshBasicMaterial());
+    a.hold(lantern, 'L'); b.hold(lantern, 'R');
+    run([a, b], 0.2);
+    out.handover = { aHeld: a.held.L === null ? null : 'still held', bHeld: b.held.R === lantern, parent: lantern.parent === b.bones.handR };
+    b.hold(lantern, 'L');
+    out.handover.swapHands = b.held.R === null && b.held.L === lantern && lantern.parent === b.bones.handL;
+    a.dispose(); b.dispose();
+  }
+
   // ---- the seat convention on every seat asset, and a person can sit on each
   out.seats = [];
   for (const [id, n] of [['office-chair', 1], ['sofa', 2], ['folding-chair-row', 4], ['student-desk', 1], ['bean-bag', 1], ['hot-desk-pod', 4], ['exam-bed', 1], ['wheelchair', 1], ['bench-press', 1]]) {
@@ -257,6 +307,10 @@ t.check('emote textures are shared: one texture per kind across six people, five
 t.check('an unknown emote throws', r.badEmoteThrows === true);
 t.check('faces follow emotes: ✓ closes the eyes happily, ! opens the mouth, ✗ frowns with brows down', r.faces.happy > 0.8 && r.faces.eyes < 0.2 && r.faces.o > 0.8 && r.faces.frown > 0.8, JSON.stringify(r.faces));
 t.check('reduced motion: no celebration jump, no frustrated head shake', r.rm.calmJump < 0.01 && r.rm.calmShake < 0.02 && r.rm.livelyJump > 0.06 && r.rm.livelyShake > 0.15, JSON.stringify(r.rm));
+t.check('a crowd of 20 crossing at 30 fps keeps at least 0.35 apart', r.crowd.min >= 0.35, JSON.stringify(r.crowd));
+t.check('nobody alive drops out of the separation registry (20 people at 30 fps); dispose removes them', r.crowd.minRegistered === 20 && r.crowd.afterDispose === 0, JSON.stringify(r.crowd));
+t.check('spawning and disposing 50 people returns GPU textures to where they were (bone textures freed); dispose is safe twice', r.spawn.during > r.spawn.before && r.spawn.after <= r.spawn.before + 2 && r.spawn.twice && r.spawn.gone, JSON.stringify(r.spawn));
+t.check('holding a thing another person holds takes it from them; switching hands frees the old hand', r.handover.aHeld === null && r.handover.bHeld && r.handover.parent && r.handover.swapHands, JSON.stringify(r.handover));
 const c = r.costume;
 t.check('a costume set switched in the theme changes the parts live (party hat added)', c.on.slots.includes('hat') && c.on.tris > c.before.tris && c.moving, JSON.stringify({ before: c.before, on: c.on.slots, tris: c.on.tris }));
 t.check('switching the costume set back restores the same parts', c.restored, JSON.stringify({ before: c.before, off: c.off }));
