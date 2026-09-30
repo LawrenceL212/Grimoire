@@ -61,8 +61,9 @@ export function createTimetable(root, { day = '2026-01-01', reduceMotion } = {})
 
   function render(objects) {
     const still = !reduced();
+    root.classList.toggle('tt-still', !still);
     for (const room of objects.rooms) ensureRow(room);
-    const bookings = objects.bookings.filter(inDay);
+    const bookings = objects.bookings.filter((b) => inDay(b) && tracks.has(b.room_id)); // no row for its room: not drawn
     const clashes = clashIds(bookings);
     const wanted = new Set(bookings.map((b) => b.id));
 
@@ -89,6 +90,7 @@ export function createTimetable(root, { day = '2026-01-01', reduceMotion } = {})
         known.set(b.id, el);
         track.appendChild(el);
       }
+      if (el.parentNode !== track) track.appendChild(el); // the booking moved room
       place(el, b);
       const wasClash = el.classList.contains('is-clash');
       el.classList.toggle('is-clash', clashes.has(b.id));

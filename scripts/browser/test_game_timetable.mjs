@@ -76,4 +76,41 @@ const scenario = async (page) => page.evaluate(async () => {
   t.check('reduced motion: removal is immediate', r.leaving === 0 && r.blocks === 1, JSON.stringify(r));
   await close();
 }
+{
+  const { page, close } = await openGame();
+  const r = await page.evaluate(async () => {
+    const { createTimetable } = await import('/game/ui/timetable.js');
+    const mk = (opts) => { const root = document.createElement('div'); document.body.appendChild(root); return [root, createTimetable(root, opts)]; };
+    const rooms = [{ id: 1, name: 'Room 1', capacity: 4 }, { id: 2, name: 'Room 2', capacity: 4 }];
+    const b = (room, s = '08:00', e = '09:00') => ({ id: 1, room_id: room, person_id: 1, start_at: `2026-01-01T${s}:00Z`, end_at: `2026-01-01T${e}:00Z` });
+    const out = {};
+    {
+      const [root, tt] = mk({ reduceMotion: true });
+      tt.render({ rooms, people: [], bookings: [b(1)] });
+      const el = root.querySelector('[data-booking-id="1"]');
+      tt.render({ rooms, people: [], bookings: [b(1, '10:00', '11:00')] });
+      out.still = { td: getComputedStyle(el).transitionDuration, anims: el.getAnimations().length };
+    }
+    {
+      const [root, tt] = mk();
+      tt.render({ rooms, people: [], bookings: [b(1)] });
+      tt.render({ rooms, people: [], bookings: [b(2)] });
+      const els = root.querySelectorAll('[data-booking-id="1"]:not(.is-leaving)');
+      out.moved = { n: els.length, room: els[0]?.closest('.tt-row').dataset.roomId, all: root.querySelectorAll('[data-booking-id="1"]').length };
+    }
+    {
+      const [root, tt] = mk({ reduceMotion: true });
+      tt.render({ rooms, people: [], bookings: [b(1)] });
+      tt.render({ rooms, people: [], bookings: [b(9)] });
+      out.orphan = root.querySelectorAll('[data-booking-id="1"]').length;
+      tt.render({ rooms, people: [], bookings: [b(9)] });
+      out.orphanNew = root.querySelectorAll('[data-booking-id]').length;
+    }
+    return out;
+  });
+  t.check('reduceMotion option stops the CSS transition too', r.still.td === '0s' && r.still.anims === 0, JSON.stringify(r.still));
+  t.check('a booking that changes room moves row, with no duplicate', r.moved.n === 1 && r.moved.room === '2' && r.moved.all === 1, JSON.stringify(r.moved));
+  t.check('a booking whose room has no row is not left on screen', r.orphan === 0 && r.orphanNew === 0, `${r.orphan} / ${r.orphanNew}`);
+  await close();
+}
 t.finish();
