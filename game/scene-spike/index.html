@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grimoire Scene Spike</title>
+<script>
+// Spike-only cache busting: the dev server sends no Cache-Control, so local modules are
+// versioned per page load (the import map pins Three.js to an exact CDN version).
+(() => {
+  const v = Date.now();
+  const imports = {
+    three: 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+    'three/addons/': 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/',
+  };
+  for (const m of ['scene', 'kit', 'settings', 'world', 'people', 'drone', 'fx']) imports[`./${m}.js`] = `./${m}.js?v=${v}`;
+  const map = document.createElement('script'); map.type = 'importmap';
+  map.textContent = JSON.stringify({ imports });
+  document.currentScript.after(map);
+  document.write(`<link rel="stylesheet" href="./style.css?v=${v}">`);
+})();
+</script>
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="c" aria-label="3D booking office"></canvas>
+
+    <header id="hud">
+      <div class="counters">
+        <div class="ctr" id="c-bookings" title="Bookings">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path class="fill" d="M7 13h3v3H7z"/></svg>
+          <b>0</b><span>bookings</span></div>
+        <div class="ctr" id="c-revenue" title="Revenue">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg>
+          <b>0</b><span>revenue</span></div>
+        <div class="ctr" id="c-rep" title="Reputation">
+          <svg viewBox="0 0 24 24"><path class="fill" d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>
+          <b>0</b><span>reputation</span></div>
+        <div class="ctr" id="c-tickets" title="Open tickets">
+          <svg viewBox="0 0 24 24"><path d="M3.5 7.5h17v3a2 2 0 000 3v3h-17v-3a2 2 0 000-3z"/><path d="M14 7.5v9" stroke-dasharray="1.6 1.6"/></svg>
+          <b>0</b><span>tickets</span></div>
+        <div class="ctr xp" id="c-xp" title="Experience">
+          <svg viewBox="0 0 24 24"><path class="fill" d="M13 2.5L5 13.5h5.5L10 21.5l8-11h-5.5z"/></svg>
+          <b>0</b><span>xp <i id="lvl">Lv 3</i></span>
+          <div class="bar"><div id="xpbar"></div></div></div>
+      </div>
+      <div class="actions">
+        <button class="sq warn" id="warn" title="Alerts"><svg viewBox="0 0 24 24"><path class="fill" d="M12 3l10 17H2z"/><path class="cut" d="M12 9v5M12 16.6v.2"/></svg></button>
+        <button class="sq" id="btn-clash" title="Run: the clash" disabled><svg viewBox="0 0 24 24"><path class="fill" d="M7 4.5v15l12-7.5z"/></svg><span>Run: the clash</span></button>
+        <button class="sq" id="btn-fix" title="Run: the fix" disabled><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg><span>Run: the fix</span></button>
+        <button class="sq" id="btn-reset" title="Reset"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 107-7H8.5"/><path d="M10.5 2.2L7.6 5l2.9 2.8"/></svg><span>Reset</span></button>
+        <button class="sq" id="btn-tweak" title="Tweak the look (T)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1"/></svg></button>
+      </div>
+    </header>
+
+    <div id="perf" aria-hidden="true"></div>
+    <div id="loading">Lighting the lamps…</div>
+  </main>
+
+  <div id="windows">
+    <section class="win" id="win-code" style="left:18px; top:92px; width:372px">
+      <div class="titlebar">
+        <span class="runicon" id="runicon" title="running"><svg viewBox="0 0 24 24"><path class="fill" d="M7 5v14l11-7z"/></svg></span>
+        <span class="title">bookings.sql</span>
+        <span class="status" id="code-status">idle</span>
+        <button class="min" title="Minimise">–</button>
+      </div>
+      <div class="body"><ol class="code" id="code"></ol></div>
+    </section>
+
+    <section class="win" id="win-ticket" style="right:18px; top:92px; width:290px">
+      <div class="titlebar">
+        <span class="runicon"><svg viewBox="0 0 24 24"><path d="M3.5 7.5h17v3a2 2 0 000 3v3h-17v-3a2 2 0 000-3z"/></svg></span>
+        <span class="title" id="ticket-title">ticket #0</span>
+        <span class="chip" id="ticket-chip">none</span>
+        <button class="min" title="Minimise">–</button>
+      </div>
+      <div class="body ticket-body">
+        <div class="avatar" id="ticket-avatar"></div>
+        <div class="msg">
+          <div class="from" id="ticket-from">Inbox</div>
+          <div class="text" id="ticket-text">No open tickets. The office is quiet.</div>
+          <div class="reply" id="ticket-reply"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="win tweak" id="win-tweak" hidden style="right:18px; top:92px; width:300px">
+      <div class="titlebar">
+        <span class="runicon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></span>
+        <span class="title">tweak the look</span>
+        <button class="min close" id="tweak-close" title="Close (T)">×</button>
+      </div>
+      <div class="body">
+        <div class="tweak-top">
+          <select id="preset" aria-label="Preset"></select>
+          <button id="copy-settings">Copy settings</button>
+          <button id="reset-settings">Reset</button>
+        </div>
+        <div id="tweak-fields"></div>
+      </div>
+    </section>
+  </div>
+</div>
+<script type="module">import './scene.js';</script>
+</body>
+</html>
