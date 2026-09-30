@@ -7,14 +7,15 @@ import { fileURLToPath } from 'url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 
-function hasPureTests(dir) {
-  if (!existsSync(dir)) return false;
+function collectPureTests(dir, out = []) {
+  if (!existsSync(dir)) return out;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name === 'node_modules') continue;
     const p = join(dir, e.name);
-    if (e.isDirectory() ? hasPureTests(p) : e.name.endsWith('.test.mjs')) return true;
+    if (e.isDirectory()) collectPureTests(p, out);
+    else if (e.name.endsWith('.test.mjs')) out.push(p);
   }
-  return false;
+  return out;
 }
 
 function run(args) {
@@ -22,7 +23,8 @@ function run(args) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
-if (hasPureTests(join(root, 'game'))) run(['--test', 'game/']);
+const pure = collectPureTests(join(root, 'game'));
+if (pure.length) run(['--test', ...pure]);
 
 for (const f of ['boot', 'world', 'js_view', 'php_sync', 'grading', 'timetable', 'meter', 'slice']) {
   const file = join(here, `test_game_${f}.mjs`);
