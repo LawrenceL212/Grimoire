@@ -11,6 +11,7 @@ import { createStage } from '../engine/renderer.js';
 import { mountTweakPanel } from '../engine/tweak-panel.js';
 import { setOutlines, setToon, toonOwn } from '../engine/kit.js';
 import { FLOOR_KINDS, tileField, contactShadow } from './materials.js';
+import { CORNERS } from './sectors/common.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const WORK_BUDGET_MS = 6;     // grid rendering per animation frame
@@ -401,10 +402,12 @@ function showSections(mode) {
 }
 
 // ---------- floor patch: 6x6 tiles of one kind (or one row per kind) with props on them ----------
+// 'sector:<name>' lays out that sector's corner (sectors/common.js CORNERS) on its own floor instead.
 // The game frames its office so it fills 80% of the view height: 8.5 units half-height at the
 // theme's field of view (the scene spike's framing), divided by the theme zoom.
 const gameDistance = () => 8.5 / (Math.tan(THREE.MathUtils.degToRad(tget('camera.fov') / 2)) * 0.8);
-const PATCH_KINDS = [...Object.keys(FLOOR_KINDS), 'mixed'];
+const PATCH_KINDS = [...Object.keys(FLOOR_KINDS), 'mixed', ...Object.keys(CORNERS).map((s) => `sector:${s}`)];
+const sectorOf = (kind) => (kind.startsWith('sector:') ? CORNERS[kind.slice(7)] : null);
 // a furnished office corner: [id, x, z, turn, height] (height for things standing on the desk)
 const PATCH_PROPS = [
   ...[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((x) => [x === 0.5 || x === 1.5 ? 'wall-window' : 'wall-segment', x, -2.9, 0]),
@@ -420,9 +423,10 @@ function buildPatch(kind, shadows) {
   g.name = 'floor-patch';
   const cells = [];
   for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) cells.push([i - 2.5, j - 2.5]);
+  const sector = sectorOf(kind);
   if (kind === 'mixed') Object.keys(FLOOR_KINDS).forEach((k, row) => g.add(tileField(k, cells.filter(([, z]) => z === row - 2.5), { seed: row + 1 })));
-  else g.add(tileField(kind, cells));
-  for (const [id, x, z, ry, y = 0] of PATCH_PROPS) {
+  else g.add(tileField(sector ? sector.floor : kind, cells));
+  for (const [id, x, z, ry = 0, y = 0] of sector ? sector.props : PATCH_PROPS) {
     const o = make(id, {});
     o.position.set(x, y, z); o.rotation.y = ry;
     if (shadows) contactShadow(o);
@@ -448,7 +452,8 @@ function setPatch(kind, shadows = cu.shadows) {
   if (old) disposeUnused([old]);
   $('patch-kind').value = kind;
   $('patch-shadows').setAttribute('aria-pressed', String(shadows));
-  $('cu-title').textContent = kind === 'mixed' ? 'Floor patch: all six' : `Floor patch: ${kind}`;
+  const sector = sectorOf(kind);
+  $('cu-title').textContent = kind === 'mixed' ? 'Floor patch: all six' : sector ? `Sector corner: ${kind.slice(7)} (${sector.floor})` : `Floor patch: ${kind}`;
 }
 function openPatch(kind = 'wood') {
   teardown();
@@ -581,7 +586,11 @@ function boot() {
   $('cu-close').addEventListener('click', () => dlg.close());
   $('cu-reset').addEventListener('click', () => { if (!cu) return; cu.pivot.rotation.y = 0; if (cu.mode === 'patch') setPatchDistance(cu.dist); else cu.stage.resetView(); });
   fillSelect($('patch-kind'), PATCH_KINDS);
-  for (const o of $('patch-kind').options) if (o.value === 'mixed') o.textContent = 'all six (one per row)';
+  for (const o of $('patch-kind').options) {
+    if (o.value === 'mixed') o.textContent = 'all six (one per row)';
+    const sec = sectorOf(o.value);
+    if (sec) o.textContent = `${o.value.slice(7)} corner (${sec.floor})`;
+  }
   $('patch-kind').addEventListener('change', (e) => setPatch(e.target.value));
   $('patch-shadows').addEventListener('click', () => { if (cu?.mode === 'patch') setPatch(cu.kind, !cu.shadows); });
   $('cu-patch').addEventListener('click', (e) => { const b = e.target.closest('[data-dist]'); if (b) setPatchDistance(b.dataset.dist); });

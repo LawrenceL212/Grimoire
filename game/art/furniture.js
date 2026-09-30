@@ -14,50 +14,17 @@
 //   userData.surface (desk, coffee-table, reception-counter, filing-cabinet): the height things stand on
 //   userData.seat (office-chair, sofa): the seat height
 import * as THREE from 'three';
-import { register } from './registry.js';
-import { contactShadow } from './materials.js';
-import { part, themed } from '../engine/kit.js';
+import { part } from '../engine/kit.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
 import {
   chamfer, taper, slab, plan, lathe, tube, leaf, merged, mat4, drum, ball,
-  basic, clear, mapped, painted, liveTex, rng, grain,
+  basic, clear, mapped, painted, liveTex, rng,
 } from './shapes.js';
+import { defineAsset, adder, strut, card, C, G, FONT, HAND } from './parts.js';
 
 export const FURNITURE = [];
-const C = (k) => themed(`palette.${k}`);
-const G = (k) => grain(`palette.${k}`); // the same colour with wood grain, for big tops
-const Y = new THREE.Vector3(0, 1, 0);
-const FONT = 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-const HAND = '"Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive';
-
 // Registers an asset whose build(g, opts) fills a group; the contact shadow is added last.
-function asset(id, def) {
-  FURNITURE.push(id);
-  const { shadow = {}, build, ...rest } = def;
-  register(id, {
-    ...rest,
-    build(opts) {
-      const g = new THREE.Group();
-      g.name = id;
-      build(g, opts || {});
-      contactShadow(g, { footprint: def.tiles, ...shadow });
-      return g;
-    },
-  });
-}
-// add(geo, material, { x, y, z, rx, ry, rz, s, outline, parent, static }): a static part of g
-const adder = (g) => (geo, mat, o = {}) => part(geo, mat, { static: true, ...o, parent: o.parent || g });
-// a round rod from a to b
-function strut(add, a, b, r, mat, o = {}) {
-  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
-  const m = add(drum(r, A.distanceTo(B), o.seg ?? 8, r * 0.3), mat, { outline: 0.008, ...o, x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, z: (A.z + B.z) / 2 });
-  m.quaternion.setFromUnitVectors(Y, B.sub(A).normalize());
-  return m;
-}
-// a flat textured card (screens, signs, labels): a plane facing +Z, never outlined
-function card(g, w, h, mat, o = {}) {
-  return part(new THREE.PlaneGeometry(w, h), mat, { outline: 0, cast: false, ...o, parent: o.parent || g });
-}
+const asset = (id, def) => defineAsset(FURNITURE, id, def);
 
 // ======================================================================= desk
 const keysTex = liveTex('keyboard-keys', 256, 80, (g, w, h) => {

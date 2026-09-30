@@ -3,5 +3,12 @@
 import './samples.js';
 import './materials.js';
 import './furniture.js';
+// the client sectors, one district each
+import './sectors/lab.js';
+import './sectors/gym.js';
+import './sectors/school.js';
+import './sectors/clinic.js';
+import './sectors/hall.js';
+import './sectors/coworking.js';
 
 export * from './registry.js';
