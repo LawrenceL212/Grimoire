@@ -194,3 +194,7 @@ counters driven by real outcomes, the multi-tenant world model, the director
 choosing tickets by growth and by fading skills. The Phase 1 results doc lists the
 required infrastructure items (world in a PGliteWorker, PHP in a terminable Worker,
 sandboxed runners) that remain prerequisites.
+
+## 12. Worlds and drones (2026-10-01)
+
+Each language is a drone character. The first world, the Siso-stack booking company, has three drones: Sequel (SQL), Jay (JavaScript) and Hex (PHP); the drone of the language used acts out each run. Other languages and subjects from the old Library become future worlds ("lives"): each is a company built around one language with its own drone, story, clients and Grimoire chapter, reusing the existing curriculum content as ticket material; the learner's skill map and Grimoire carry across worlds wherever concepts overlap. The first world ships first; future worlds get their own plan.
