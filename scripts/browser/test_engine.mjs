@@ -138,7 +138,7 @@ t.check('T is ignored in a contenteditable, works on the body', o.editableIgnore
 const pn = await page.evaluate(async () => {
   const th = await import('./theme.js'); const rd = await import('./renderer.js');
   th.resetTheme();
-  const canvas = document.createElement('canvas'); canvas.style.cssText = 'width:640px;height:400px';
+  const canvas = document.createElement('canvas'); canvas.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:400px';
   document.getElementById('root').appendChild(canvas);
   const stage = rd.createStage(canvas, { reducedMotion: true });
   stage.frame(() => {});
@@ -227,6 +227,81 @@ t.check('WASD and arrow keys pan; Ctrl+W and typing in a textarea do not', pn.ke
 t.check('pan bounds clamp the target', pn.clamped === true, JSON.stringify(pn.clamped));
 t.check('resetView, focus and frameAll clear the pan', pn.resetPan === true && pn.hadPan === true && pn.focusPan === true && pn.framePan === true, JSON.stringify([pn.resetPan, pn.hadPan, pn.focusPan, pn.framePan]));
 t.check('the context menu is suppressed on the canvas only', pn.menuCanvas === true && pn.menuBody === false, JSON.stringify([pn.menuCanvas, pn.menuBody]));
+
+// ---- panning, round 2: key guards, horizon rays, frame-rate independent inertia ----
+const p2 = await page.evaluate(async () => {
+  const th = await import('./theme.js'); const rd = await import('./renderer.js');
+  th.resetTheme();
+  const out = {};
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const mk = (rm) => {
+    const canvas = document.createElement('canvas'); canvas.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:400px';
+    document.getElementById('root').appendChild(canvas);
+    return { canvas, stage: rd.createStage(canvas, { reducedMotion: rm }) };
+  };
+  const evOn = (canvas) => (type, id, x, y, extra = {}) => canvas.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, ...extra }));
+  // key guards
+  {
+    const { stage } = mk(true); stage.frame(() => {}); stage.setPanBounds({ minX: -1e3, maxX: 1e3, minZ: -1e3, maxZ: 1e3 });
+    stage.resetView(); stage.frameAll();
+    const key = async (el, type, key) => { const e = new KeyboardEvent(type, { key, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e; };
+    const run = async (el) => { const t0 = stage.target; await key(el, 'keydown', 'ArrowLeft'); await wait(250); await key(el, 'keyup', 'ArrowLeft'); return stage.target.distanceTo(t0); };
+    const bar = document.createElement('div'); bar.tabIndex = 0; document.body.appendChild(bar);
+    bar.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') e.preventDefault(); });
+    out.keyHandled = await run(bar);
+    const sl = document.createElement('div'); sl.setAttribute('role', 'slider'); sl.tabIndex = 0; document.body.appendChild(sl);
+    out.keySlider = await run(sl);
+    const bt = document.createElement('button'); document.body.appendChild(bt);
+    out.keyButton = await run(bt);
+    out.keyBody = await run(document.body);
+    bar.remove(); sl.remove(); bt.remove(); stage.dispose();
+  }
+  // a ray just under the horizon must not fling the camera
+  {
+    const { canvas, stage } = mk(true); const ev = evOn(canvas);
+    stage.setPanBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 });
+    th.set('camera.fov', 110);
+    stage.frameAll();
+    ev('pointerdown', 1, 0, 5000, { button: 0 }); ev('pointermove', 1, 0, -10000); ev('pointerup', 1, 0, -10000); // pitch to the maximum
+    const V = stage.camera.position.constructor;
+    const overGround = (cy) => { stage.camera.updateMatrixWorld(true); const p = new V(0, -(cy / 400) * 2 + 1, 0.5).unproject(stage.camera); return p.sub(stage.camera.position).y < -1e-6; };
+    let row = 0; while (row < 400 && !overGround(row)) row++;
+    const d = stage.camera.position.distanceTo(stage.target), t0 = stage.target;
+    const i = { button: 1 };
+    ev('pointerdown', 1, 320, row + 1, i); ev('pointermove', 1, 320, row + 3, i); ev('pointerup', 1, 320, row + 3, i);
+    out.horizon = { row, moved: stage.target.distanceTo(t0), d };
+    stage.dispose();
+  }
+  // inertia: the same distance at 30 fps and at 144 fps
+  {
+    const { canvas, stage } = mk(false); const ev = evOn(canvas);
+    stage.setPanBounds({ minX: -1e3, maxX: 1e3, minZ: -1e3, maxZ: 1e3 });
+    th.resetTheme();
+    const coast = (fps) => {
+      stage.resetView(); stage.frameAll();
+      const i = { button: 1 };
+      ev('pointerdown', 1, 320, 260, i); ev('pointermove', 1, 340, 250, i); ev('pointermove', 1, 360, 240, i); ev('pointerup', 1, 360, 240, i);
+      const t0 = stage.target;
+      for (let k = 0; k < fps * 1.5; k++) stage.advance(1 / fps);
+      return stage.target.distanceTo(t0);
+    };
+    out.coast30 = coast(30); out.coast144 = coast(144);
+    // held still before release: no fling
+    stage.resetView(); stage.frameAll();
+    const i = { button: 1 };
+    ev('pointerdown', 1, 320, 260, i); ev('pointermove', 1, 360, 240, i); await wait(150); ev('pointerup', 1, 360, 240, i);
+    const t0 = stage.target; for (let k = 0; k < 60; k++) stage.advance(1 / 60);
+    out.heldStill = stage.target.distanceTo(t0);
+    stage.dispose();
+  }
+  th.set('palette.gold', '#ff0000'); // left persisted for the reload check
+  return out;
+});
+t.check('a keydown another handler already took (a window title bar) does not pan', p2.keyHandled < 1e-6, String(p2.keyHandled));
+t.check('arrow keys on a slider or button do not pan, on the body they do', p2.keySlider < 1e-6 && p2.keyButton < 1e-6 && p2.keyBody > 0.05, JSON.stringify([p2.keySlider, p2.keyButton, p2.keyBody]));
+t.check('a drag just under the horizon does not fling the camera', p2.horizon.moved < p2.horizon.d * 2, JSON.stringify(p2.horizon));
+t.check('pan inertia coasts the same distance at 30 and 144 fps', p2.coast30 > 0.05 && Math.abs(p2.coast30 - p2.coast144) / p2.coast30 < 0.1, `${p2.coast30} ${p2.coast144}`);
+t.check('holding still before release leaves no fling', p2.heldStill < 1e-6, String(p2.heldStill));
 
 // ---- persistence across a reload ----
 await page.reload({ waitUntil: 'load' });

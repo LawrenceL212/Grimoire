@@ -86,21 +86,26 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
     return tween(0.6, (k) => { if (gen !== focusGen) return; target.lerpVectors(from, to, k); state.zoom = lerp(z0, z1, k); place(); }, ease.inOut);
   }
 
+  // Inertia and held keys, integrated per second so the result does not depend on the frame rate
+  // (velocities are per second; the decay is integrated exactly over each step).
+  function advance(dt) {
+    if (!reducedMotion && (Math.abs(view.yawV) > 0.5 || Math.abs(view.pitchV) > 0.5) && pointers.size === 0) {
+      const k = Math.exp(-6 * dt), f = (1 - k) / 6;
+      view.yaw += view.yawV * f; view.pitch += view.pitchV * f; view.yawV *= k; view.pitchV *= k;
+      place();
+    }
+    if (!reducedMotion && (Math.abs(pan.vx) > 1e-3 || Math.abs(pan.vz) > 1e-3) && pointers.size === 0) {
+      const k = Math.exp(-8 * dt), f = (1 - k) / 8;
+      panBy(pan.vx * f, pan.vz * f); pan.vx *= k; pan.vz *= k;
+    }
+    if (held.size) keyPan(dt); else keyV.x = keyV.z = 0;
+  }
   function tick(now) {
     if (disposed) return;
     raf = requestAnimationFrame(tick);
     const dt = Math.min(0.1, (now - (last || now)) / 1000); last = now;
     updateTweens(dt);
-    if (!reducedMotion && (Math.abs(view.yawV) > 0.01 || Math.abs(view.pitchV) > 0.01) && pointers.size === 0) {
-      view.yaw += view.yawV; view.pitch += view.pitchV;
-      const k = Math.exp(-6 * dt); view.yawV *= k; view.pitchV *= k;
-      place();
-    }
-    if (!reducedMotion && (Math.abs(pan.vx) > 1e-4 || Math.abs(pan.vz) > 1e-4) && pointers.size === 0) {
-      panBy(pan.vx, pan.vz);
-      const k = Math.exp(-8 * dt); pan.vx *= k; pan.vz *= k;
-    }
-    if (held.size) keyPan(dt); else keyV.x = keyV.z = 0;
+    advance(dt);
     for (const fn of [...callbacks]) fn(dt, now / 1000);
     renderer.render(scene, camera);
   }
@@ -131,12 +136,15 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   // Move the target so the ground point that was under (ax, ay) is now under (bx, by).
   function panScreen(ax, ay, bx, by) {
     if (!groundAt(ax, ay, g0) || !groundAt(bx, by, g1)) return null;
+    // a ray grazing the horizon lands absurdly far away: refuse the move rather than fling the camera
+    const reach = 4 * state.dist / clamp(state.zoom * view.zoom, ZOOM[0], ZOOM[1]);
+    if (camera.position.distanceTo(g0) > reach || camera.position.distanceTo(g1) > reach) return null;
     const dx = g0.x - g1.x, dz = g0.z - g1.z;
     panBy(dx, dz);
     return { dx, dz };
   }
   const onDown = (e) => {
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, mode: modeOf(e) });
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, mode: modeOf(e), t: e.timeStamp });
     try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     view.yawV = view.pitchV = 0; pan.vx = pan.vz = 0;
     if (e.button === 1) e.preventDefault();
@@ -145,15 +153,16 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   const onMove = (e) => {
     const prev = pointers.get(e.pointerId);
     if (!prev) return;
-    const cur = { x: e.clientX, y: e.clientY, mode: prev.mode };
+    const cur = { x: e.clientX, y: e.clientY, mode: prev.mode, t: e.timeStamp };
+    const sec = Math.max(0.008, (e.timeStamp - prev.t) / 1000); // seconds since this pointer last moved
     if (pointers.size === 1) {
       if (prev.mode === 'pan') {
         const m = panScreen(prev.x, prev.y, cur.x, cur.y);
-        if (m) { pan.vx = m.dx; pan.vz = m.dz; }
+        pan.vx = m ? m.dx / sec : 0; pan.vz = m ? m.dz / sec : 0;
       } else {
         const dy = (cur.x - prev.x) * -0.4, dp = (cur.y - prev.y) * -0.3;
         view.yaw += dy; view.pitch += dp;
-        view.yawV = dy; view.pitchV = dp;
+        view.yawV = dy / sec; view.pitchV = dp / sec;
       }
     }
     if (pointers.size === 2) {
@@ -169,7 +178,13 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
     }
     place();
   };
-  const onUp = (e) => { pointers.delete(e.pointerId); pinch = 0; };
+  const onUp = (e) => {
+    const p = pointers.get(e.pointerId);
+    if (p && e.timeStamp - p.t > 80) { view.yawV = view.pitchV = 0; pan.vx = pan.vz = 0; } // held still before release: no fling
+    if (pointers.size > 1) { pan.vx = pan.vz = 0; view.yawV = view.pitchV = 0; }
+    pointers.delete(e.pointerId); pinch = 0;
+  };
+  const onLostCapture = (e) => { pointers.delete(e.pointerId); pinch = 0; };
   const noMenu = (e) => e.preventDefault();
   const noAutoscroll = (e) => { if (e.button === 1) e.preventDefault(); };
   canvas.addEventListener('contextmenu', noMenu);
@@ -179,15 +194,16 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   // ---- WASD / arrows: smooth, frame-rate independent, relative to the view direction ----
   const held = new Set(), keyV = { x: 0, z: 0 };
   const KEYS = { w: 'f', arrowup: 'f', s: 'b', arrowdown: 'b', a: 'l', arrowleft: 'l', d: 'r', arrowright: 'r' };
-  const typing = (t) => !!t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName || ''));
+  const typing = (t) => !!t && (t.isContentEditable || /^(input|textarea|select|button)$/i.test(t.tagName || '') ||
+    !!(t.closest && t.closest('[role="slider"],[role="menu"],[role="menuitem"],[role="spinbutton"],.gm-tweak,.gm-tweak-btn')));
   const onKeyDown = (e) => {
     const k = KEYS[String(e.key).toLowerCase()];
-    if (!k || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || typing(document.activeElement)) return;
+    if (!k || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || typing(document.activeElement)) return;
     held.add(k);
     if (e.key.startsWith('Arrow')) e.preventDefault();
   };
   const onKeyUp = (e) => { const k = KEYS[String(e.key).toLowerCase()]; if (k) held.delete(k); };
-  const onBlur = () => held.clear();
+  const onBlur = () => { held.clear(); pointers.clear(); pinch = 0; };
   function keyPan(dt) {
     const yaw = THREE.MathUtils.degToRad(get('camera.yaw') + view.yaw);
     const ix = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0), iz = (held.has('f') ? 1 : 0) - (held.has('b') ? 1 : 0);
@@ -212,6 +228,7 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onUp);
+  canvas.addEventListener('lostpointercapture', onLostCapture);
   canvas.addEventListener('wheel', onWheel, { passive: false });
   function resetView() { view.yaw = view.pitch = view.yawV = view.pitchV = 0; view.zoom = 1; pan.x = pan.z = pan.vx = pan.vz = 0; place(); }
 
@@ -221,7 +238,7 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
 
   function dispose() {
     disposed = true; focusGen++;
-    for (const [ev, fn] of [['pointerdown', onDown], ['pointermove', onMove], ['pointerup', onUp], ['pointercancel', onUp], ['wheel', onWheel], ['contextmenu', noMenu], ['mousedown', noAutoscroll], ['auxclick', noMenu]]) canvas.removeEventListener(ev, fn);
+    for (const [ev, fn] of [['pointerdown', onDown], ['pointermove', onMove], ['pointerup', onUp], ['pointercancel', onUp], ['lostpointercapture', onLostCapture], ['wheel', onWheel], ['contextmenu', noMenu], ['mousedown', noAutoscroll], ['auxclick', noMenu]]) canvas.removeEventListener(ev, fn);
     removeEventListener('keydown', onKeyDown); removeEventListener('keyup', onKeyUp); removeEventListener('blur', onBlur);
     cancelAnimationFrame(raf); raf = 0;
     removeEventListener('resize', onResize);
@@ -232,5 +249,5 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   }
 
   resize();
-  return { scene, camera, renderer, frame, focus, frameAll, setDistance, onLost, resetView, setPanBounds, dispose, get panOffset() { return { x: pan.x, z: pan.z }; }, get target() { return target.clone().add(_pan.set(pan.x, 0, pan.z)); } };
+  return { scene, camera, renderer, frame, focus, frameAll, setDistance, onLost, resetView, setPanBounds, advance, dispose, get panOffset() { return { x: pan.x, z: pan.z }; }, get target() { return target.clone().add(_pan.set(pan.x, 0, pan.z)); } };
 }
