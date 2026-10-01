@@ -512,7 +512,7 @@ function setPeople(kind) {
   cu.lights.fit(cu.people.center, cu.people.radius);
   if (old) disposeUnused([old]);
   $('people-kind').value = kind;
-  $('cu-title').textContent = { sheet: 'People: character sheet', office: 'People: the office corner at work', 'drone-rooms': 'Drone: escort and scan three rooms', 'drone-faces': 'Drone: faces and ticket states' }[kind] || kind;
+  $('cu-title').textContent = { sheet: 'People: character sheet', office: 'People: the office corner at work', 'drone-rooms': 'Drone: escort and scan three rooms', 'drone-faces': 'Drone: faces and ticket states', 'drone-personas': 'Drones: Sequel, Jay and Hex' }[kind] || kind;
   setPeopleDistance(cu.dist || 'game');
 }
 function openPeople(kind = 'sheet') {

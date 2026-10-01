@@ -4,6 +4,8 @@
 //                                   red, green: the marks stay over the rooms), escorts a visitor to a chair in
 //                                   a green room, stamps the visitor's ticket RESOLVED and celebrates
 //   buildDroneScene('drone-faces'): five drones, one per expression, with the four ticket states behind them
+//   buildDroneScene('drone-personas'): the SISO world's three language drones, Sequel (SQL), Jay (JavaScript)
+//                                   and Hex (PHP), idling side by side with their quirks and name labels
 //   -> { group, people, drone(s), fx, update(dt, t), camera(cam), center, radius, distance?, dispose() }
 import * as THREE from 'three';
 import { make } from './registry.js';
@@ -28,6 +30,21 @@ function label(text, w = 1.6, size = 0.34) {
 export function buildDroneScene(kind = 'drone-rooms') {
   const group = new THREE.Group();
   group.name = kind;
+  if (kind === 'drone-personas') {
+    const cells = [];
+    for (let i = -3; i < 3; i++) for (let j = -2; j < 2; j++) cells.push([i + 0.5, j + 0.5]);
+    group.add(tileField('wood', cells));
+    const drones = ['sequel', 'jay', 'hex'].map((persona, i) => {
+      const d = new Drone({ persona }); d.root.position.set((i - 1) * 1.9, 0, 0.2); d.alt = 1.25; group.add(d.root); d.hasPrev = false;
+      return d;
+    });
+    return {
+      group, people: [], drones, center: new THREE.Vector3(0, 1.2, 0), radius: 3.4, distance: 11,
+      camera(cam) { drones.forEach((d) => d.faceCamera(cam)); },
+      update(dt, t) { drones.forEach((d) => d.update(dt, t)); },
+      dispose() { drones.forEach((d) => d.dispose()); },
+    };
+  }
   if (kind === 'drone-faces') {
     const names = Object.keys(EXPRESSIONS);
     const cells = [];

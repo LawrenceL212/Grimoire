@@ -3,7 +3,9 @@
    carry and drop reparent correctly (out of a person's hand too); the face changes per action; the effects are
    pooled (20 confetti bursts add no draw calls or geometries); reduced motion suppresses bursts and shakes; a held
    thing clones; the Drone and effects keys are in DEFAULTS, every preset, SCHEMA and the tweak panel, and recolour
-   live; the catalogue's drone scene and every effect's demo run. */
+   live; the catalogue's drone scene and every effect's demo run. Personas: Sequel, Jay and Hex build as three distinct
+   drones (colours, eye shape, name label) within the same budget, their idle quirks differ (Jay bounces and wiggles,
+   Hex sweeps and hardly bobs, Sequel nods), their palette keys recolour live, and an unknown persona throws. */
 import { openGame, makeReporter } from './game_lib.mjs';
 
 const t = makeReporter();
@@ -226,6 +228,50 @@ const r = await page.evaluate(async () => {
     }
     o.userData.drone.dispose();
   }
+
+  // ---- personas: Sequel (SQL), Jay (JavaScript), Hex (PHP)
+  {
+    th.resetTheme();
+    const ids = ['sequel', 'jay', 'hex'];
+    const drones = ids.map((persona) => { const d = new D.Drone({ persona, reducedMotion: true }); const w = world(); w.add(d.root); for (let i = 0; i < 30; i++) d.update(1 / 60); return d; });
+    const base = new D.Drone({ reducedMotion: true }); world().add(base.root); for (let i = 0; i < 30; i++) base.update(1 / 60);
+    const face = (d) => { const c = d.faceTex.userData.canvas; return Array.from(c.getContext('2d').getImageData(0, 0, c.width, c.height).data); };
+    const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 60) n++; return n; };
+    const faces = drones.map(face);
+    const tris = drones.map((d) => { const m = reg.measure(d.root); return m.triangles - m.outlineTriangles; });
+    const baseM = reg.measure(base.root);
+    out.personas = {
+      names: drones.map((d) => d.persona.name), labels: drones.map((d) => !!d.label && d.label.visible), baseLabel: base.label,
+      shells: drones.map((d) => d.shellMesh.material.color.getHexString()), rings: drones.map((d) => d.ringMat.color.getHexString()),
+      baseShell: base.shellMesh.material.color.getHexString(), eyes: drones.map((d) => d.persona.eye),
+      faceDiff: [diff(faces[0], faces[1]), diff(faces[1], faces[2]), diff(faces[0], faces[2])],
+      tris, baseTris: baseM.triangles - baseM.outlineTriangles,
+      drawables: drones.map((d) => reg.measure(d.root).drawables), baseDrawables: baseM.drawables,
+    };
+    try { new D.Drone({ persona: 'cobol' }); out.personas.badThrows = false; } catch (e) { out.personas.badThrows = /persona/.test(String(e)); }
+    // idle quirks: six seconds of idling, with motion on
+    const motion = {};
+    for (const persona of ids) {
+      const d = new D.Drone({ persona, reducedMotion: false }); world().add(d.root);
+      const ys = [], zs = [], yaws = [], xs = [];
+      for (let i = 0; i < 480; i++) { d.update(1 / 60); if (i > 60) { ys.push(d.body.position.y); zs.push(d.tilt.rotation.z); yaws.push(d.body.rotation.y); xs.push(d.tilt.rotation.x); } }
+      const range = (a) => Math.max(...a) - Math.min(...a);
+      motion[persona] = { bob: range(ys), wiggle: range(zs), sweep: range(yaws), nod: range(xs) };
+      d.dispose();
+    }
+    out.personas.motion = motion;
+    // recolour live
+    const [sq, jay, hex] = drones;
+    th.set('palette.droneJayShell', '#ff0000');
+    th.set('palette.droneHexRing', '#00ff00'); hex.update(1 / 60);
+    th.set('palette.droneSequelEye', '#ff00ff'); sq.update(1 / 60);
+    const c = sq.faceTex.userData.canvas, px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let magenta = 0; for (let i = 0; i < px.length; i += 4) if (px[i] > 200 && px[i + 1] < 90 && px[i + 2] > 200) magenta++;
+    out.personas.recolour = { jayShell: jay.shellMesh.material.color.getHexString(), hexRing: hex.ringMat.color.getHexString(), sequelEyePixels: magenta,
+      othersKept: sq.shellMesh.material.color.getHexString() !== 'ff0000' && base.shellMesh.material.color.getHexString() !== 'ff0000' };
+    th.resetTheme();
+    drones.forEach((d) => d.dispose()); base.dispose();
+  }
   return out;
 });
 
@@ -263,6 +309,15 @@ t.check('the Drone and effects keys are in DEFAULTS, every preset, a SCHEMA grou
 t.check('the drone and effects recolour live (ring light, body, face screen, coins)', r.recolour.ring === '00ff00' && r.recolour.coin === '0000ff' && r.recolour.shell && r.recolour.screenAfter.every((v) => v > 150) && r.recolour.screenBefore.some((v) => v < 100), JSON.stringify(r.recolour));
 t.check('every effect demo loops without throwing', Object.values(r.demos).every((v) => v === 'ok'), JSON.stringify(r.demos));
 t.check('every drone close-up animation plays without throwing', Object.values(r.droneAnims).every((v) => v === 'ok'), JSON.stringify(r.droneAnims));
+
+const pe = r.personas;
+t.check('three personas build: Sequel, Jay and Hex, each with a name label (the default drone has none)', JSON.stringify(pe.names) === '["Sequel","Jay","Hex"]' && pe.labels.every(Boolean) && pe.baseLabel === null, JSON.stringify({ names: pe.names, labels: pe.labels }));
+t.check('the personas look distinct: body and ring colours differ from each other and the default, eye shapes differ, faces differ', new Set(pe.shells).size === 3 && !pe.shells.includes(pe.baseShell) && new Set(pe.rings).size === 3 && new Set(pe.eyes).size === 3 && pe.faceDiff.every((n) => n > 300), JSON.stringify({ shells: pe.shells, rings: pe.rings, eyes: pe.eyes, faceDiff: pe.faceDiff }));
+t.check('the personas stay within the drone budget (7,000 triangles), one extra draw (the label) over the default drone', pe.tris.every((n) => n <= 7000) && pe.drawables.every((n) => n <= pe.baseDrawables + 1), JSON.stringify({ tris: pe.tris, base: pe.baseTris, drawables: pe.drawables, baseDrawables: pe.baseDrawables }));
+const mo = pe.motion;
+t.check('idle quirks differ: Jay bounces most and wiggles, Hex barely bobs and sweeps, Sequel nods', mo.jay.bob > mo.sequel.bob * 1.5 && mo.sequel.bob > mo.hex.bob * 1.5 && mo.jay.wiggle > 0.1 && mo.sequel.wiggle < 0.02 && mo.hex.sweep > 0.2 && mo.sequel.sweep < 0.1 && mo.jay.sweep < 0.1 && mo.sequel.nod > 0.05, JSON.stringify(mo));
+t.check('persona colours recolour live (Jay body, Hex ring, Sequel eyes) and leave the others alone', pe.recolour.jayShell === 'ff0000' && pe.recolour.hexRing === '00ff00' && pe.recolour.sequelEyePixels > 200 && pe.recolour.othersKept, JSON.stringify(pe.recolour));
+t.check('an unknown persona throws', pe.badThrows === true, String(pe.badThrows));
 
 // ---- the catalogue's drone scene runs
 const scene = await page.evaluate(async () => {

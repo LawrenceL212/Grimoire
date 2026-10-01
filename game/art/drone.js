@@ -22,6 +22,13 @@
 //   d.state: 'idle' or the running action; d.faceName: the expression showing; d.fx: its Effects layer.
 //
 // Colours: palette.drone* (and ok / danger for verdicts) from the theme, live. Size, speed and trail: drone.*.
+//
+// Personas (the SISO world's three language drones): new Drone({ persona: 'sequel' | 'jay' | 'hex', label? })
+//   gives the drone its own colours (palette.drone<Name>Shell / Shade / Ring / Eye), eye shape, idle quirks
+//   and a floating name label (label: false hides it). Sequel (SQL) is gold and cream and calm: a slow bob
+//   and an occasional precise nod. Jay (JavaScript) is bright yellow and teal and quick: a bouncy bob, little
+//   idle hops, a wiggle and darting glances. Hex (PHP) is violet and silver and steady: hardly a bob, a slow
+//   lighthouse sweep. d.persona is the PERSONAS entry (id null without one); d.label the name sprite or null.
 import * as THREE from 'three';
 import { register } from './registry.js';
 import { C } from './parts.js';
@@ -39,6 +46,20 @@ export const EXPRESSIONS = {
   worried: { open: 0.95, happy: 0, focus: 0, worried: 1, mouth: -0.75, wide: 0.1, blush: 0, sparkle: 0, lookY: 0.1 },
   proud: { open: 1, happy: 0.9, focus: 0, worried: 0, mouth: 1, wide: 1, blush: 0.75, sparkle: 1, lookY: -0.35 },
 };
+// The default drone and the three personas. keys: palette keys (shell, shade, ring, eye); eye: the eye shape on the
+// screen; quirk: the idle motion (bob = two sines [amp, rate, amp, rate]; bounce = a hop every n s; wiggle = a bank
+// sway [amp, rate]; nod = a nod every n s; sweep = a slow yaw [amp, rate]; look = the eyes wander [amp, rate];
+// rotor = rotor speed).
+const BASE_QUIRK = { bob: [0.05, 2.4, 0.02, 1.3], bounce: 0, wiggle: [0, 0], nod: 0, sweep: [0, 0], look: [0.25, 0.7], rotor: 1 };
+export const PERSONAS = {
+  default: { id: null, name: null, lang: null, eye: 'pill', keys: { shell: 'droneShell', shade: 'droneShade', ring: 'droneRing', eye: 'droneEye' }, quirk: BASE_QUIRK },
+  sequel: { id: 'sequel', name: 'Sequel', lang: 'SQL', eye: 'calm', keys: { shell: 'droneSequelShell', shade: 'droneSequelShade', ring: 'droneSequelRing', eye: 'droneSequelEye' },
+    quirk: { ...BASE_QUIRK, bob: [0.035, 1.5, 0.012, 0.8], nod: 4.6, look: [0.14, 0.4], rotor: 0.9 } },
+  jay: { id: 'jay', name: 'Jay', lang: 'JavaScript', eye: 'tall', keys: { shell: 'droneJayShell', shade: 'droneJayShade', ring: 'droneJayRing', eye: 'droneJayEye' },
+    quirk: { ...BASE_QUIRK, bob: [0.085, 3.6, 0.03, 2.1], bounce: 1.9, wiggle: [0.09, 5.2], look: [0.65, 1.9], rotor: 1.3 } },
+  hex: { id: 'hex', name: 'Hex', lang: 'PHP', eye: 'hex', keys: { shell: 'droneHexShell', shade: 'droneHexShade', ring: 'droneHexRing', eye: 'droneHexEye' },
+    quirk: { ...BASE_QUIRK, bob: [0.016, 1.1, 0.006, 0.7], sweep: [0.38, 0.32], look: [0.08, 0.3], rotor: 0.8 } },
+};
 const ACTION_FACE = { flyTo: 'focus', scan: 'focus', stamp: 'focus', escort: 'happy', carry: 'focus', drop: 'focus', celebrate: 'proud', shrug: 'worried' };
 const RM_QUERY = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 const CANCEL = Symbol('cancelled');
@@ -54,11 +75,11 @@ const outBack = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.p
 const passOf = (v) => v === true || v === 'pass' || v === 'ok' || v === 'green';
 
 // ---------------------------------------------------------------- the model
-function buildBody(rig) {
-  const shell = C('droneShell'), shade = C('droneShade'), dark = C('droneRotor');
+function buildBody(rig, keys = PERSONAS.default.keys) {
+  const shell = C(keys.shell), shade = C(keys.shade), dark = C('droneRotor');
   // the body: a round, slightly squat dome
   const body = lathe('drone-body', [[0, -0.13], [0.12, -0.13], [0.2, -0.105], [0.245, -0.055], [0.262, 0], [0.255, 0.05], [0.228, 0.1], [0.17, 0.145], [0.09, 0.168], [0, 0.174]], 24);
-  part(body, shell, { parent: rig, outline: 0.014 });
+  rig.userData.shell = part(body, shell, { parent: rig, outline: 0.014 });
   // the underside cap and the lens
   part(lathe('drone-belly', [[0, -0.165], [0.1, -0.16], [0.155, -0.13], [0.16, -0.115]], 18), shade, { parent: rig, outline: 0.01 });
   // rotor arms on the diagonals, motor pods and hub caps
@@ -100,9 +121,19 @@ const BEAM_FS = `uniform vec3 color; uniform float strength, time; varying float
     gl_FragColor = vec4(color, a); }`;
 
 // ---------------------------------------------------------------- the face on the screen
-function drawFace(g, f, t) {
+// one eye's outline in the persona's shape (filled by the caller)
+function eyePath(g, shape, ex, ey, ew, eh) {
+  g.beginPath();
+  if (shape === 'hex') { // Hex: hexagonal eyes, flat top and bottom
+    const w = ew * 1.08, k = Math.min(w * 0.55, eh);
+    g.moveTo(ex - w, ey); g.lineTo(ex - w + k, ey - eh); g.lineTo(ex + w - k, ey - eh); g.lineTo(ex + w, ey); g.lineTo(ex + w - k, ey + eh); g.lineTo(ex - w + k, ey + eh); g.closePath();
+  } else if (shape === 'calm') g.ellipse(ex, ey, ew * 1.12, eh * 0.82, 0, 0, Math.PI * 2); // Sequel: soft wide ovals
+  else if (shape === 'tall') g.roundRect(ex - ew * 0.78, ey - eh * 1.12, ew * 1.56, eh * 2.24, Math.min(ew * 0.78, eh * 1.12)); // Jay: tall capsules
+  else g.roundRect(ex - ew, ey - eh, ew * 2, eh * 2, Math.min(ew, eh));
+}
+function drawFace(g, f, t, P = PERSONAS.default) {
   const W = FACE_W, H = FACE_H;
-  const bg = tget('palette.droneScreen'), eye = tget('palette.droneEye');
+  const bg = tget('palette.droneScreen'), eye = tget(`palette.${P.keys.eye}`);
   g.clearRect(0, 0, W, H);
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   const vg = g.createRadialGradient(W / 2, H * 0.45, 20, W / 2, H / 2, W * 0.6);
@@ -118,7 +149,10 @@ function drawFace(g, f, t) {
     if (round > 0.02) {
       g.globalAlpha = round;
       g.fillStyle = eye;
-      g.beginPath(); g.roundRect(ex - ew, ey - eh, ew * 2, eh * 2, Math.min(ew, eh)); g.fill();
+      eyePath(g, P.eye, ex, ey, ew, eh); g.fill();
+      if (P.eye === 'calm' && f.happy < 0.5) { // Sequel's calm, half-lowered lids
+        g.save(); g.shadowBlur = 0; g.fillStyle = bg; g.fillRect(ex - ew * 1.3, ey - eh - 10, ew * 2.6, 10 + eh * 0.42 * (1 - f.happy)); g.restore();
+      }
       // lids: focus lowers the inner corner, worried the outer one (cut with the screen colour)
       g.shadowBlur = 0; g.fillStyle = bg;
       const lid = (inner, outer) => { // a straight lid from the inner corner to the outer one
@@ -130,7 +164,11 @@ function drawFace(g, f, t) {
       if (f.worried > 0.01) lid(-2, eh * 0.85 * f.worried);
       // a highlight
       g.fillStyle = 'rgba(255,255,255,0.85)';
-      if (eh > 12) { g.beginPath(); g.ellipse(ex - ew * 0.35, ey - eh * 0.45, 6, 8 * Math.min(1, eh / 30), 0, 0, Math.PI * 2); g.fill(); }
+      if (eh > 12) {
+        const hy = P.eye === 'calm' ? ey - eh * 0.05 : ey - eh * 0.45;
+        g.beginPath(); g.ellipse(ex - ew * 0.35, hy, 6, 8 * Math.min(1, eh / 30), 0, 0, Math.PI * 2); g.fill();
+        if (P.eye === 'tall') { g.beginPath(); g.arc(ex + ew * 0.25, ey + eh * 0.35, 4, 0, Math.PI * 2); g.fill(); } // Jay: a second sparkle
+      }
       g.shadowBlur = 16;
     }
     if (f.happy > 0.02) { // closed, smiling eyes: ^ ^
@@ -170,27 +208,58 @@ function drawFace(g, f, t) {
   g.fillStyle = sh; g.fillRect(0, 0, W, H);
 }
 
+// ---------------------------------------------------------------- the persona's name label
+const LABELS = new Map(); // persona id -> { tex, mat }
+function drawLabel(g, P) {
+  const W = 256, H = 64, ring = tget(`palette.${P.keys.ring}`);
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = 'rgba(18,15,12,0.82)'; g.beginPath(); g.roundRect(4, 6, W - 8, H - 12, 24); g.fill();
+  g.strokeStyle = ring; g.lineWidth = 4; g.stroke();
+  g.fillStyle = ring; g.beginPath(); g.arc(30, H / 2, 8, 0, Math.PI * 2); g.fill();
+  g.fillStyle = tget('palette.text') || '#efe6d2'; g.font = '800 30px system-ui, "Segoe UI", sans-serif'; g.textBaseline = 'middle';
+  g.fillText(P.name, 48, H / 2 + 1);
+  const w = g.measureText(P.name).width;
+  g.fillStyle = ring; g.font = '700 22px system-ui, "Segoe UI", sans-serif'; g.fillText(P.lang, 58 + w, H / 2 + 2);
+}
+function labelMaterial(P) {
+  let L = LABELS.get(P.id);
+  if (!L) {
+    const tex = canvasTex(256, 64, (g) => drawLabel(g, P));
+    L = { tex, mat: new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }) };
+    LABELS.set(P.id, L);
+  }
+  return L.mat;
+}
+function refreshLabel(P) {
+  const L = LABELS.get(P.id);
+  if (L) { drawLabel(L.tex.userData.canvas.getContext('2d'), P); L.tex.needsUpdate = true; }
+}
+
 // ---------------------------------------------------------------- the drone
 export class Drone {
-  constructor({ reducedMotion, fx = null, name = 'drone' } = {}) {
+  constructor({ reducedMotion, fx = null, name, persona = null, label } = {}) {
+    if (persona && !(persona in PERSONAS && persona !== 'default')) throw new Error(`unknown drone persona "${persona}" (one of sequel, jay, hex)`);
+    this.persona = PERSONAS[persona || 'default'];
+    const K = this.keys = this.persona.keys;
     this.reducedMotion = reducedMotion ?? !!(RM_QUERY && RM_QUERY.matches);
-    this.root = new THREE.Group(); this.root.name = name;
+    this.root = new THREE.Group(); this.root.name = name || (this.persona.id ? `drone-${this.persona.id}` : 'drone');
     this.root.userData.drone = this;
     // root (on the floor) > body (height, yaw) > tilt > rig (theme scale) > parts
     this.body = new THREE.Group(); this.root.add(this.body);
     this.tilt = new THREE.Group(); this.body.add(this.tilt);
     this.rig = new THREE.Group(); this.tilt.add(this.rig);
-    this.arms = buildBody(this.rig);
+    this.arms = buildBody(this.rig, K);
+    this.shellMesh = this.rig.userData.shell;
     // own materials: the ring light, bulb, lens and blur discs change colour or opacity per drone
-    this.ringMat = new THREE.MeshBasicMaterial({ color: tget('palette.droneRing'), toneMapped: false });
+    this.ringMat = new THREE.MeshBasicMaterial({ color: tget(`palette.${K.ring}`), toneMapped: false });
     this.lensMat = new THREE.MeshBasicMaterial({ color: tget('palette.droneBeam'), toneMapped: false });
     part(new THREE.TorusGeometry(0.258, 0.02, 8, 40), this.ringMat, { parent: this.rig, rx: Math.PI / 2, y: 0.035, outline: 0.008, cast: false });
     part(new THREE.CircleGeometry(0.055, 18), this.lensMat, { parent: this.rig, y: LENS - 0.006, rx: Math.PI / 2, outline: 0, cast: false });
     this.bulb = part(ball(0.03, 10), this.ringMat, { parent: this.rig, x: 0.066, y: 0.28, z: -0.121, outline: 0.006, cast: false });
-    this.blurMat = new THREE.MeshBasicMaterial({ map: blurTexture(), color: tget('palette.droneShade'), transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+    this.blurMat = new THREE.MeshBasicMaterial({ map: blurTexture(), color: tget(`palette.${K.shade}`), transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
     const blades = bladeGeo(), disc = new THREE.CircleGeometry(0.15, 24);
     for (const a of this.arms) {
-      a.blade = part(blades, C('droneShade'), { parent: a.rotor, outline: 0.005 });
+      a.blade = part(blades, C(K.shade), { parent: a.rotor, outline: 0.005 });
       a.cap = part(ball(0.026, 8), this.ringMat, { parent: a.rotor, y: 0.018, outline: 0.005, cast: false });
       a.disc = part(disc, this.blurMat, { parent: a.rotor, rx: -Math.PI / 2, y: 0.004, outline: 0, cast: false });
     }
@@ -201,6 +270,13 @@ export class Drone {
     part(chamfer(0.36, 0.25, 0.07, 0.03), C('droneRotor'), { parent: screen, z: -0.01, outline: 0.012 });
     this.faceMesh = part(new THREE.PlaneGeometry(0.32, 0.21), this.faceMat, { parent: screen, z: 0.026, outline: 0, cast: false });
     this.screen = screen;
+    // the persona's name, floating over it (one shared sprite material per persona)
+    this.label = null;
+    if (this.persona.id && label !== false) {
+      this.label = new THREE.Sprite(labelMaterial(this.persona));
+      this.label.scale.set(0.5, 0.125, 1); this.label.position.y = 0.6; this.label.renderOrder = 6; this.label.name = 'drone-label';
+      this.rig.add(this.label);
+    }
     // the hook things hang from
     this.hook = new THREE.Group(); this.hook.position.y = LENS - 0.03; this.rig.add(this.hook);
     part(new THREE.TorusGeometry(0.03, 0.008, 6, 14, Math.PI * 1.2), C('droneRotor'), { parent: this.hook, rz: Math.PI * 1.4, y: -0.01, outline: 0.004 });
@@ -239,7 +315,11 @@ export class Drone {
     this.follow = null; this.carried = null;
     this.tasks = []; this._gen = 0; this._pending = null;
     this.t = 0;
-    this._off = onThemeChange((p) => { if (!p || p.startsWith('palette.')) this.faceDirty = true; });
+    this._off = onThemeChange((p) => {
+      if (!p || p.startsWith('palette.')) this.faceDirty = true;
+      if (!p || p === `palette.${K.shade}`) this.blurMat.color.set(tget(`palette.${K.shade}`));
+      if (this.label && (!p || p === `palette.${K.ring}` || p === 'palette.text')) refreshLabel(this.persona);
+    });
     this.update(1 / 60);
   }
 
@@ -350,7 +430,7 @@ export class Drone {
       const a0 = this.alt, a1 = a0 - (bottomNow - rootY) + 0.02;
       await this._tween(0.5, (k) => { this.alt = lerp(a0, a1, smooth(k)); });
       this._setDown(o);
-      this.fx.ring([this.root.position.x, 0.03, this.root.position.z], { color: 'palette.droneShade', from: 0.1, to: 0.7, dur: 0.4 });
+      this.fx.ring([this.root.position.x, 0.03, this.root.position.z], { color: `palette.${this.keys.shade}`, from: 0.1, to: 0.7, dur: 0.4 });
       this.express('happy', 1);
       await this._tween(0.45, (k) => { this.alt = lerp(a1, ALT, smooth(k)); });
     });
@@ -526,20 +606,25 @@ export class Drone {
       this.idleYaw = Math.atan2(VB.x - p.x, VB.z - p.z);
     }
     this.yaw = dampAngle(this.yaw, this.idleYaw, hs > 0.35 ? 6 : 3, dt);
-    this.body.rotation.y = this.yaw + this.spin;
+    const q = this.persona.quirk, idle = this.state === 'idle' && !rm;
+    this.sweep = damp(this.sweep || 0, idle && q.sweep[0] ? q.sweep[0] * Math.sin(t * q.sweep[1]) : 0, 2, dt);
+    this.body.rotation.y = this.yaw + this.spin + this.sweep;
     // tilt into flight: nose down along the travel, bank on turns
     const fwd = this.vel.x * Math.sin(this.yaw) + this.vel.z * Math.cos(this.yaw);
     const side = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
     const shrug = this.shrugK && !rm ? Math.sin(t * 7) * 0.22 : 0;
     const wob = this.wobble > 0 && !rm ? Math.sin(t * 22) * 0.18 * this.wobble : 0;
     this.wobble = Math.max(0, this.wobble - dt * 1.4);
-    this.tilt.rotation.x = damp(this.tilt.rotation.x, THREE.MathUtils.clamp(fwd * 0.11, -0.4, 0.4) + this.dip * 0.4, 7, dt);
+    const nod = idle && q.nod ? 0.16 * Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 / q.nod)), 12) : 0;
+    this.tilt.rotation.x = damp(this.tilt.rotation.x, THREE.MathUtils.clamp(fwd * 0.11, -0.4, 0.4) + this.dip * 0.4 + nod, 7, dt);
     this.bank = damp(this.bank, THREE.MathUtils.clamp(-side * 0.1, -0.35, 0.35), 7, dt);
-    this.tilt.rotation.z = this.bank + shrug + wob;
+    const wiggle = idle && q.wiggle[0] ? q.wiggle[0] * Math.sin(t * q.wiggle[1]) : 0;
+    this.tilt.rotation.z = this.bank + shrug + wob + wiggle;
     this.rig.rotation.z = this.roll;
     // hover: a bob, a hop on success, a squash on contact
     this.hop = Math.max(0, this.hop - dt * 1.8);
-    const bob = rm ? 0 : Math.sin(t * 2.4) * 0.05 + Math.sin(t * 1.3 + 1) * 0.02;
+    const bob = rm ? 0 : Math.sin(t * q.bob[1]) * q.bob[0] + Math.sin(t * q.bob[3] + 1) * q.bob[2]
+      + (idle && q.bounce ? 0.16 * Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 / q.bounce)), 8) : 0);
     const hop = rm ? 0 : Math.sin((1 - this.hop) * Math.PI) * 0.22 * (this.hop > 0 ? 1 : 0);
     const sc = this._scale();
     this.body.position.y = this.alt + bob + hop - this.dip;
@@ -547,7 +632,7 @@ export class Drone {
     const sq = rm ? 0 : Math.sin(this.squash * Math.PI) * 0.12;
     this.rig.scale.set(sc * (1 + sq), sc * (1 - sq), sc * (1 + sq));
     // rotors: spin with the blur disc
-    const rate = (this.state === 'idle' ? 1 : 1.3) * (rm ? 0.5 : 1);
+    const rate = (this.state === 'idle' ? 1 : 1.3) * (rm ? 0.5 : 1) * q.rotor;
     for (let i = 0; i < this.arms.length; i++) {
       const a = this.arms[i];
       a.blade.rotation.y += dt * 17 * rate * (i % 2 ? 1 : -1);
@@ -557,7 +642,7 @@ export class Drone {
     this.verdictK = damp(this.verdictK, this.verdict === null ? 0 : 1, 8, dt);
     this.ringFlash = Math.max(0, this.ringFlash - dt * 0.6);
     const verdictCol = this.verdict === null ? null : colour(this.verdict ? 'palette.ok' : 'palette.danger');
-    CA.copy(colour('palette.droneRing'));
+    CA.copy(colour(`palette.${this.keys.ring}`));
     if (verdictCol && this.beamOn > 0.01) CA.lerp(verdictCol, this.verdictK);
     const glowK = 1 + this.ringFlash * (0.6 + 0.4 * Math.sin(t * 14)) * (rm ? 0.5 : 1);
     this.ringMat.color.copy(CA).multiplyScalar(glowK);
@@ -597,7 +682,8 @@ export class Drone {
     for (const k in want) f[k] = damp(f[k], want[k], 11, dt);
     // looking: glance along the flight, else wander a little
     const side = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
-    f.lookX = damp(f.lookX, THREE.MathUtils.clamp(side * 0.4, -1, 1) + (this.reducedMotion ? 0 : Math.sin(t * 0.7) * 0.25), 6, dt);
+    const lk = this.persona.quirk.look;
+    f.lookX = damp(f.lookX, THREE.MathUtils.clamp(side * 0.4, -1, 1) + (this.reducedMotion ? 0 : Math.sin(t * lk[1]) * lk[0]), 6, dt);
     this.blinkT -= dt;
     if (this.blinkT < 0) this.blinkT = 2.2 + ((t * 7.31) % 2.6);
     this.blink = this.blinkT < 0.13 ? 0.08 : 1;
@@ -605,7 +691,7 @@ export class Drone {
     let changed = this.faceDirty || !drawn || (f.sparkle > 0.02);
     if (!changed) for (const k in shown) if (Math.abs(shown[k] - drawn[k]) > 0.004) { changed = true; break; }
     if (changed) {
-      drawFace(this.faceTex.userData.canvas.getContext('2d'), shown, t);
+      drawFace(this.faceTex.userData.canvas.getContext('2d'), shown, t, this.persona);
       this.faceTex.needsUpdate = true;
       this.faceDrawn = shown; this.faceDirty = false;
     }
@@ -614,7 +700,7 @@ export class Drone {
   _trail(dt, hs) {
     const n = Math.max(0, Math.min(120, tget('drone.trail') ?? 56));
     const life = 0.15 + n / 70;
-    const col = colour('palette.droneRing');
+    const col = colour(`palette.${this.keys.ring}`);
     const P = this.trailPos, Cc = this.trailCol, A = this.trailAge;
     // emit from behind the body, in the parent's frame
     if (n > 0 && this.root.parent) {
