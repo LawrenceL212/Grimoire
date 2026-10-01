@@ -105,12 +105,12 @@ export function createGrimoire({ host = document.body, store = null, now = gameN
     }
     const forms = st.langs.map((lang) => {
       const L = LANGS[lang], f = st.forms[lang];
-      const fInk = f && f.written ? inkOf({ ...st, ...f, introduced: true, written: true }, t) : inkOf({ ...st, written: false, introduced: true }, t);
+      const fInk = f && f.written ? inkOf({ ...st, ...f, introduced: true, written: true }, t) : inkOf({ ...st, written: false, introduced: true }, t); // a demonstration shows as one
       return `<section class="gm-form is-${fInk.status}" data-lang="${lang}" style="--ring:${ringOf(lang)};--ink-a:${fInk.opacity}">
-        <div class="gm-by"><i aria-hidden="true"></i><b>${L.droneName}</b><span>${L.name}</span><em>${fInk.status === 'unwritten' ? 'pencil' : fInk.status === 'fresh' ? 'ink' : fInk.status === 'fading' ? 'fading' : 'faint'}</em></div>
+        <div class="gm-by"><i aria-hidden="true"></i><b>${L.droneName}</b><span>${L.name}</span><em>${fInk.status === 'unwritten' ? 'pencil' : fInk.status === 'demo' ? 'demonstration' : fInk.status === 'fresh' ? 'ink' : fInk.status === 'fading' ? 'fading' : 'faint'}</em></div>
         <pre class="gm-ink"><code>${esc(s.forms[lang])}</code></pre></section>`;
     }).join('');
-    const label = ink.status === 'unwritten' ? 'UNWRITTEN' : 'WRITTEN';
+    const label = ink.status === 'unwritten' ? 'UNWRITTEN' : ink.status === 'demo' ? 'DEMONSTRATION' : 'WRITTEN';
     return `<article class="gm-page gm-spell is-${ink.status}" data-page="${i + 1}" data-spell="${s.id}" data-status="${ink.status}" style="--ink-a:${ink.opacity}">
       <header><span class="gm-num">${num}</span><h3 class="gm-name gm-ink">${esc(s.name)}</h3><span class="gm-seal">${label}</span><span class="gm-sr">${esc(INK_WORDS[ink.status])}</span></header>
       <p class="gm-line gm-ink">${esc(s.line)}</p>

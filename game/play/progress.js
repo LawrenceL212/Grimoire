@@ -15,6 +15,13 @@
 //                                         under the cap (a card already started is never blocked again)
 //   startCard(life, card, nowMs)          the card is served: its new concept counts toward today
 //   recordSolve(life, card, { help, lang, casts, nowMs, practice }) -> { life, xp, spells: [{ id, unaided, outcome }] }
+//                                         a teaching or scaffolded card (evidence: false) earns 0 XP; a practice solve
+//                                         casts nothing (no spell state changes at all)
+//   noteHelp(life, cardId, { hint, worked, codexEarly }) -> life   the help used on a card, kept in the record and
+//                                         never lowered (a reload, Continue or a tutorial replay cannot wash it out)
+//   helpSoFar(life, cardId) -> { hint, worked, codexEarly }
+//   effectiveNow(life, nowMs) / touch(life, nowMs)   the clock never goes backwards: max(now, the record's high
+//                                         water mark); every pace and meter decision uses it
 //   xpOf(life), solvedIds(life)
 // Stateful:
 //   createLife({ storage, key, now }) -> { life, save(), reset(), spellStore, ... the pure functions bound }
@@ -37,7 +44,7 @@ const pad = (n) => String(n).padStart(2, '0');
 export function dayKey(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
 export function freshLife(nowMs = Date.now()) {
-  return { v: 1, startedMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {} };
+  return { v: 1, startedMs: nowMs, highMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {} };
 }
 
 const isObj = (o) => o && typeof o === 'object' && !Array.isArray(o);
@@ -46,6 +53,7 @@ export function cleanLife(raw, nowMs = Date.now()) {
   const life = freshLife(nowMs);
   if (!isObj(raw) || raw.v !== 1) return life;
   life.startedMs = num(raw.startedMs) ?? nowMs;
+  life.highMs = Math.max(nowMs, num(raw.highMs) ?? 0);
   if (isObj(raw.tutorial)) {
     life.tutorial.done = raw.tutorial.done === true;
     life.tutorial.step = Number.isInteger(raw.tutorial.step) && raw.tutorial.step >= 0 ? raw.tutorial.step : 0;
@@ -54,12 +62,19 @@ export function cleanLife(raw, nowMs = Date.now()) {
   if (isObj(raw.cards)) {
     for (const [id, c] of Object.entries(raw.cards)) {
       if (!isObj(c)) continue;
-      life.cards[id] = { startedMs: num(c.startedMs), learnSeen: c.learnSeen === true, step: Number.isInteger(c.step) && c.step >= 0 ? c.step : 0 };
+      const hint = Number.isInteger(c.hint) ? Math.max(0, Math.min(4, c.hint)) : 0;
+      life.cards[id] = { startedMs: num(c.startedMs), learnSeen: c.learnSeen === true, step: Number.isInteger(c.step) && c.step >= 0 ? c.step : 0,
+        hint, worked: c.worked === true || hint >= 4, codexEarly: c.codexEarly === true, ...(typeof c.predict === 'string' ? { predict: c.predict } : {}) };
     }
   }
   if (Array.isArray(raw.solves)) {
-    life.solves = raw.solves.filter((s) => isObj(s) && typeof s.card === 'string' && num(s.atMs) !== null && ['clean', 'nudged', 'guided', 'exposure'].includes(s.help))
-      .map((s) => ({ card: s.card, atMs: s.atMs, help: s.help, assisted: s.help === 'guided' || s.help === 'exposure', unaided: s.unaided === true, lang: typeof s.lang === 'string' ? s.lang : 'sql', xp: num(s.xp) ?? 0, practice: s.practice === true }));
+    // a solve dated after the record's own latest moment cannot have happened; XP can never exceed the credit table
+    life.solves = raw.solves.filter((s) => isObj(s) && typeof s.card === 'string' && num(s.atMs) !== null && s.atMs <= life.highMs && ['clean', 'nudged', 'guided', 'exposure'].includes(s.help))
+      .map((s) => ({ card: s.card, atMs: s.atMs, help: s.help, assisted: s.help === 'guided' || s.help === 'exposure', unaided: s.unaided === true && (s.help === 'clean' || s.help === 'nudged') && s.practice !== true, lang: typeof s.lang === 'string' ? s.lang : 'sql',
+        xp: s.practice === true ? 0 : Math.max(0, Math.min(CREDIT[s.help], num(s.xp) ?? 0)), practice: s.practice === true }));
+    // only the first real solve of a card can carry XP
+    const paid = new Set();
+    for (const s of life.solves) { if (s.practice) continue; if (paid.has(s.card)) s.xp = 0; paid.add(s.card); }
   }
   if (isObj(raw.days)) for (const [d, ids] of Object.entries(raw.days)) if (/^\d{4}-\d\d-\d\d$/.test(d) && Array.isArray(ids)) life.days[d] = ids.filter((x) => typeof x === 'string');
   if (isObj(raw.spells)) life.spells = raw.spells; // spells.js validates its own records
@@ -81,7 +96,27 @@ export function nextCardId(ladder, life) {
 const startedEver = (life, id) => Object.values(life.days).some((ids) => ids.includes(id));
 export const newToday = (life, nowMs) => life.days[dayKey(nowMs)] || [];
 
+// the clock never goes backwards: a device clock set back cannot open a fresh day's cap or un-fade the ink
+export const effectiveNow = (life, nowMs) => Math.max(nowMs, life?.highMs ?? 0);
+export function touch(life, nowMs) {
+  if ((life.highMs ?? 0) >= nowMs) return life;
+  const next = structuredClone(life); next.highMs = nowMs; return next;
+}
+export function helpSoFar(life, cardId) {
+  const c = life.cards[cardId] || {};
+  return { hint: c.hint || 0, worked: !!c.worked, codexEarly: !!c.codexEarly };
+}
+export function noteHelp(life, cardId, { hint = 0, worked = false, codexEarly = false } = {}) {
+  const next = structuredClone(life);
+  const c = next.cards[cardId] ??= { startedMs: null, learnSeen: false, step: 0 };
+  c.hint = Math.max(c.hint || 0, Math.min(4, hint));
+  c.worked = !!c.worked || !!worked || c.hint >= 4;
+  c.codexEarly = !!c.codexEarly || !!codexEarly;
+  return next;
+}
+
 export function paceCheck(card, life, nowMs, cap) {
+  nowMs = effectiveNow(life, nowMs);
   const count = newToday(life, nowMs).length;
   if (!card || !card.newConcept || startedEver(life, card.id) || count < cap) return { ok: true, count, cap, message: '' };
   return {
@@ -91,7 +126,8 @@ export function paceCheck(card, life, nowMs, cap) {
 }
 
 export function startCard(life, card, nowMs) {
-  const next = structuredClone(life);
+  nowMs = effectiveNow(life, nowMs);
+  const next = touch(structuredClone(life), nowMs);
   next.cards[card.id] ??= { startedMs: nowMs, learnSeen: false, step: 0 };
   next.cards[card.id].startedMs ??= nowMs;
   if (card.newConcept && !startedEver(life, card.id)) (next.days[dayKey(nowMs)] ??= []).push(card.id);
@@ -103,13 +139,16 @@ export function startCard(life, card, nowMs) {
    (scaffolded on-ramp cards cannot), it is the first real solve of this card (a re-solve is not a fresh
    problem), and it is not practice. Everything else is recorded as exposure or guided. */
 export function recordSolve(life, card, { help = 'clean', lang = 'sql', casts = [], nowMs = Date.now(), practice = false } = {}) {
-  const next = structuredClone(life);
+  nowMs = effectiveNow(life, nowMs);
+  const next = touch(structuredClone(life), nowMs);
   const first = !solvedIds(life).has(card.id);
-  const xp = first && !practice ? creditLeft(help) : 0;
+  // XP pays for solving fresh problems on your own: a teaching or scaffolded ticket earns none
+  const xp = first && !practice && card.evidence !== false ? creditLeft(help) : 0;
   const fresh = first && !practice && card.evidence !== false;
   const unaided = fresh && (help === 'clean' || help === 'nudged');
   next.solves.push({ card: card.id, atMs: nowMs, help, assisted: help === 'guided' || help === 'exposure', unaided, lang, xp, practice: !!practice });
-  const spells = [...new Set(casts)].map((id) => ({ id, unaided, outcome: unaided ? 'clean' : help === 'guided' ? 'guided' : 'exposure' }));
+  // practice changes no spell at all: a passed ticket is not a fresh problem, and help is not a review
+  const spells = practice ? [] : [...new Set(casts)].map((id) => ({ id, unaided, outcome: unaided ? help : help === 'guided' ? 'guided' : 'exposure' }));
   return { life: next, xp, spells, first };
 }
 export const xpOf = (life) => life.solves.reduce((n, s) => n + (s.xp || 0), 0);

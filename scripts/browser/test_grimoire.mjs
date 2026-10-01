@@ -20,8 +20,8 @@ const r = await page.evaluate(async () => {
   const S = await import('./spells.js');
   const G = await import('./grimoire.js');
   const DAY = 86400000, NOW = Date.UTC(2026, 9, 1, 12);
-  const store = S.createSpellStore({ storage: S.memoryStorage() });
   let now = NOW;
+  const store = S.createSpellStore({ storage: S.memoryStorage(), now: () => now });
   const g = G.createGrimoire({ store, now: () => now });
   await g.ready;
   const out = {};
@@ -51,7 +51,7 @@ const r = await page.evaluate(async () => {
   now = NOW;
   store.introduce('where', ['js']);
   out.twoForms = look();
-  store.recordCast('where', { lang: 'sql', unaided: true, nowMs: now }); // a second unaided cast lasts longer
+  now = NOW + DAY; store.recordCast('where', { lang: 'sql', unaided: true, nowMs: now }); // a second unaided cast, a day later, lasts longer
   out.stronger = look();
   // the contents: one meter per drone
   g.show(0, { animate: false });
@@ -70,7 +70,7 @@ t.check('a cast with help does not write it in', r.assisted.status === 'unwritte
 t.check('cast unaided: WRITTEN in full ink, fresh, kept about 3 days', r.fresh.status === 'fresh' && r.fresh.seal === 'WRITTEN' && r.fresh.nameOpacity === 1 && r.fresh.stroke === 0 && /Kept about 3 days/.test(r.fresh.status_line), JSON.stringify(r.fresh));
 t.check('the ink follows the meter: fresh > fading > due, and a due spell stays readable and says "re-ink soon"', r.fresh.nameOpacity > r.fading.nameOpacity && r.fading.nameOpacity > r.due.nameOpacity && r.fading.status === 'fading' && r.due.status === 'due' && /re-ink soon/.test(r.due.status_line) && r.due.nameOpacity >= 0.5 && /RE-INK SOON/.test(r.due.sealText), JSON.stringify({ fresh: r.fresh.nameOpacity, fading: r.fading.nameOpacity, due: r.due.nameOpacity, line: r.due.status_line }));
 t.check('only the introduced forms are shown, each by its drone (Sequel for SQL, Jay for JavaScript)', JSON.stringify(r.fresh.forms) === '["sql"]' && JSON.stringify(r.twoForms.forms) === '["sql","js"]' && JSON.stringify(r.twoForms.drones) === '["Sequel","Jay"]', JSON.stringify({ one: r.fresh.forms, two: r.twoForms.forms, drones: r.twoForms.drones }));
-t.check('a second unaided cast keeps it longer', /Kept about 8 days/.test(r.stronger.status_line), r.stronger.status_line);
+t.check('a second unaided cast a day later keeps it longer (the gain depends on the recall)', /Kept about 11 days/.test(r.stronger.status_line), r.stronger.status_line);
 t.check('the contents list every spell and show a meter per drone (Sequel, Jay, Hex)', r.toc.length === r.spells.length && JSON.stringify(r.meters.map((m) => m.who)) === '["Sequel","Jay","Hex"]' && /1 of 1 written/.test(r.meters[0].note) && /0 of 1 written/.test(r.meters[1].note), JSON.stringify(r.meters));
 
 // ---- the HUD button opens it; turning; closing

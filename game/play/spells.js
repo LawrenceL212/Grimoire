@@ -20,6 +20,12 @@
 //          exposure: it never writes an unwritten spell; on a written one a guided cast keeps the stability and
 //          an exposure (outcome 'exposure', the default) cuts it to max(1, 0.3 S), as the learning design's
 //          credit table says. null for an unknown spell or language.
+//          The gain depends on recall at the time of the cast (learning design, section 2, item 3): with
+//          R = e^(-t/S) and g = e^(2(1-R)), clean S x min(4, 1 + 1.5 g), nudged S x min(3, 1 + 0.8 g), and a
+//          recast within 12 hours of the last one S x 1.1 at most (same-day repeats barely change what is kept);
+//          S never exceeds 180 days.
+//          { demo: true } (the tutorial's demonstration): the spell shows as a Demonstration in the book; it is not
+//          written, counts for nothing (no evidence, no meter), and the first real unaided cast is its first write.
 //     .set(id, state) / .clear() / .all()   for tests and for the progression, which feeds real progress
 //   Stored state is never trusted: every field is checked (known spells and languages, finite numbers, a time of
 //   casting that is not in the future, a positive stability); anything else falls back to "not met".
@@ -31,7 +37,7 @@
 //          'fading' (faded ink) and 'due' (faint but readable, marked "re-ink soon"); keptDays: about how long it is
 //          kept (stability)
 import { describeSkill } from '../memory/meter.js';
-import { INITIAL_STABILITY, nextStability } from '../memory/curve.js';
+import { INITIAL_STABILITY } from '../memory/curve.js';
 
 export const LANGS = Object.freeze({
   sql: { name: 'SQL', drone: 'sequel', droneName: 'Sequel', ring: 'droneSequelRing' },
@@ -103,7 +109,16 @@ function memoryStorage() { const m = new Map(); return { getItem: (k) => (m.has(
 export { memoryStorage };
 
 const MAX_STABILITY = 3650; // ten years: anything above is not a real memory, it is corrupt data
-const blank = () => ({ langs: [], written: false, lastMs: null, stability: INITIAL_STABILITY, assisted: false, forms: {} });
+const blank = () => ({ langs: [], written: false, demo: false, lastMs: null, stability: INITIAL_STABILITY, assisted: false, forms: {} });
+const DAY = 86400000, MAX_S = 180, SAME_DAY = 12 * 3600000;
+// the stability after a successful recall, from the recall at that moment (fractional days, never negative)
+export function gainOf(S, lastMs, nowMs, outcome = 'clean') {
+  if (lastMs == null) return INITIAL_STABILITY;
+  const dt = Math.max(0, nowMs - lastMs);
+  const R = Math.exp(-(dt / DAY) / S), g = Math.exp(2 * (1 - R));
+  const k = dt < SAME_DAY ? Math.min(1.1, 1 + 1.5 * g) : outcome === 'nudged' ? Math.min(3, 1 + 0.8 * g) : Math.min(4, 1 + 1.5 * g);
+  return Math.min(MAX_S, S * k);
+}
 const goodStability = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= MAX_STABILITY ? v : INITIAL_STABILITY);
 const goodTime = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
 
@@ -114,6 +129,7 @@ function clean(rec) {
   if (Array.isArray(rec.langs)) r.langs = ORDER.filter((l) => rec.langs.includes(l));
   r.lastMs = goodTime(rec.lastMs);
   r.written = rec.written === true && r.lastMs !== null;
+  r.demo = rec.demo === true && !r.written;
   r.stability = goodStability(rec.stability);
   r.assisted = rec.assisted === true;
   if (rec.forms && typeof rec.forms === 'object' && !Array.isArray(rec.forms)) {
@@ -149,7 +165,7 @@ export function createSpellStore({ storage, key = 'grimoire.spells.v1', now = ga
     const forms = {};
     for (const [l, f] of Object.entries(r.forms)) forms[l] = { ...f, written: f.written && real(f.lastMs) };
     const written = r.written && real(r.lastMs);
-    return { introduced: langs.length > 0, langs, written, lastMs: written ? r.lastMs : (real(r.lastMs) ? r.lastMs : null), stability: r.stability, assisted: r.assisted, forms };
+    return { introduced: langs.length > 0, langs, written, demo: !written && r.demo, lastMs: written ? r.lastMs : (real(r.lastMs) ? r.lastMs : null), stability: r.stability, assisted: r.assisted, forms };
   }
   function introduce(id, langs = ['sql']) {
     const want = [].concat(langs);
@@ -159,16 +175,22 @@ export function createSpellStore({ storage, key = 'grimoire.spells.v1', now = ga
     data[id] = r; save();
     return getSpellState(id);
   }
-  function recordCast(id, { lang = 'sql', unaided = false, outcome = 'exposure', nowMs = now() } = {}) {
+  function recordCast(id, { lang = 'sql', unaided = false, outcome = 'exposure', demo = false, nowMs = now() } = {}) {
     if (!KNOWN.has(id) || !isLang(lang) || !Number.isFinite(nowMs)) return null;
     const r = raw(id);
     if (!r.langs.includes(lang)) r.langs = ORDER.filter((l) => r.langs.includes(l) || l === lang);
     const f = { written: false, lastMs: null, stability: INITIAL_STABILITY, ...(r.forms[lang] || {}) };
+    if (demo === true && unaided !== true) { // the tutorial's demonstration: shown, never counted
+      if (!r.written) r.demo = true;
+      data[id] = r; save();
+      return getSpellState(id, nowMs);
+    }
     if (unaided === true) { // the only path that writes: a positive signal from the progression
-      r.stability = r.written ? Math.min(MAX_STABILITY, nextStability(r.stability, 'clean')) : INITIAL_STABILITY;
-      f.stability = f.written ? Math.min(MAX_STABILITY, nextStability(f.stability, 'clean')) : INITIAL_STABILITY;
+      const how = outcome === 'nudged' ? 'nudged' : 'clean';
+      r.stability = r.written ? gainOf(r.stability, r.lastMs, nowMs, how) : INITIAL_STABILITY;
+      f.stability = f.written ? gainOf(f.stability, f.lastMs, nowMs, how) : INITIAL_STABILITY;
       r.written = f.written = true; r.lastMs = f.lastMs = nowMs;
-      r.assisted = false;
+      r.assisted = false; r.demo = false;
     } else {
       // help never writes a spell in. On a written one: guided keeps what is kept; exposure (the worked example,
       // or a failure) cuts it so the spell comes back soon (learning design, section 1, the credit table)
@@ -205,9 +227,13 @@ export const recordCast = (id, opts) => defaultStore().recordCast(id, opts);
 // ---------------------------------------------------------------- the ink
 // a due spell stays readable (its status is said in words and by a hatched page, not only by fading)
 export const INK = Object.freeze({ fresh: 1, fading: 0.78, due: 0.58, unwritten: 0.5 });
-export const INK_WORDS = Object.freeze({ unknown: 'not met yet', unwritten: 'not written yet (pencil)', fresh: 'written, fresh ink', fading: 'written, the ink is fading', due: 'written, very faint: re-ink soon' });
+export const INK_WORDS = Object.freeze({ unknown: 'not met yet', unwritten: 'not written yet (pencil)', demo: 'a demonstration (not counted yet)', fresh: 'written, fresh ink', fading: 'written, the ink is fading', due: 'written, very faint: re-ink soon' });
 export function inkOf(state, nowMs = Date.now()) {
   if (!state || !state.introduced) return { status: 'unknown', opacity: 0, keptDays: 0, line: 'Not met yet.', r: 0 };
+  if (state.demo && !state.written) {
+    return { status: 'demo', opacity: INK.fresh, keptDays: 0, r: 0,
+      line: 'Demonstration: written in the tutorial to show how it works. It counts once you cast it on your own in a ticket.' };
+  }
   if (!state.written || state.lastMs == null || !Number.isFinite(state.lastMs) || state.lastMs > nowMs) {
     return { status: 'unwritten', opacity: INK.unwritten, keptDays: 0, r: 0,
       line: state.assisted ? 'Cast with help: cast it on your own to write it in.' : 'Not written yet: cast it on your own to write it in.' };

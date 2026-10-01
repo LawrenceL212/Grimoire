@@ -40,11 +40,12 @@ test('on a written spell, guided keeps the stability and exposure cuts it (credi
   const st = createSpellStore({ storage: memoryStorage(), now: () => NOW });
   st.recordCast('delete', { lang: 'sql', unaided: true, nowMs: NOW });
   st.recordCast('delete', { lang: 'sql', unaided: true, nowMs: NOW + DAY });
-  assert.equal(st.getSpellState('delete', NOW + DAY).stability, 7.5);
+  const S1 = st.getSpellState('delete', NOW + DAY).stability;
+  assert.ok(S1 > 3 * 3 && S1 <= 12, String(S1)); // recalled a day later: the gain depends on the recall
   st.recordCast('delete', { lang: 'sql', outcome: 'guided', nowMs: NOW + 2 * DAY });
-  assert.equal(st.getSpellState('delete', NOW + 2 * DAY).stability, 7.5);
+  assert.equal(st.getSpellState('delete', NOW + 2 * DAY).stability, S1);
   st.recordCast('delete', { lang: 'sql', outcome: 'exposure', nowMs: NOW + 3 * DAY });
-  assert.equal(st.getSpellState('delete', NOW + 3 * DAY).stability, 2.25);
+  assert.ok(Math.abs(st.getSpellState('delete', NOW + 3 * DAY).stability - 0.3 * S1) < 1e-9);
   assert.equal(st.getSpellState('delete', NOW + 3 * DAY).written, true); // help never un-writes either
 });
 
@@ -106,4 +107,31 @@ test('broken storage never throws', () => {
   const st = createSpellStore({ storage: bad });
   st.recordCast('where', { lang: 'sql', unaided: true, nowMs: NOW });
   assert.equal(st.getSpellState('where', NOW).written, true);
+});
+
+// ---- review round 1
+test('a same-day recast barely changes what is kept (x1.1 at most); a recall days later gains more', () => {
+  const st = createSpellStore({ storage: memoryStorage(), now: () => NOW });
+  st.recordCast('where', { lang: 'sql', unaided: true, nowMs: NOW });
+  st.recordCast('where', { lang: 'sql', unaided: true, nowMs: NOW + 3600000 });
+  assert.ok(Math.abs(st.getSpellState('where', NOW + DAY).stability - 3.3) < 1e-9, String(st.getSpellState('where', NOW + DAY).stability));
+  const b = createSpellStore({ storage: memoryStorage(), now: () => NOW });
+  b.recordCast('delete', { lang: 'sql', unaided: true, nowMs: NOW });
+  b.recordCast('delete', { lang: 'sql', unaided: true, nowMs: NOW + 2 * DAY });
+  const s = b.getSpellState('delete', NOW + 2 * DAY).stability;
+  assert.ok(s > 3 * 3 && s <= 12, String(s)); // R = e^(-2/3): g = e^(2(1-R)), S x min(4, 1 + 1.5 g)
+});
+
+test('the tutorial demonstration is flagged: written for the moment, never counted, the first real cast writes it', () => {
+  const st = createSpellStore({ storage: memoryStorage(), now: () => NOW });
+  st.recordCast('select-all', { lang: 'sql', demo: true, nowMs: NOW });
+  const d = st.getSpellState('select-all', NOW);
+  assert.equal(d.demo, true);
+  assert.equal(d.written, false, 'a demonstration is not a written spell');
+  assert.equal(inkOf(d, NOW).status, 'demo');
+  assert.match(inkOf(d, NOW).line, /Demonstration/);
+  st.recordCast('select-all', { lang: 'sql', unaided: true, nowMs: NOW + 2 * DAY });
+  const w = st.getSpellState('select-all', NOW + 2 * DAY);
+  assert.equal(w.written, true); assert.equal(w.demo, false);
+  assert.equal(w.stability, 3, 'the first real cast is the first write');
 });

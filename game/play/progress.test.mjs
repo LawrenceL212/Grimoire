@@ -108,3 +108,44 @@ test('createLife persists everything (spells included) under one key, and Contin
   assert.equal(broken.life.tutorial.done, false);
   broken.save();
 });
+
+// ---- review round 1: honesty leaks
+import { noteHelp, helpSoFar, effectiveNow, touch } from './progress.js';
+
+test('the help used on a card is kept in the record and never lowered', () => {
+  let life = startCard(freshLife(NOW), cardById('T11'), NOW);
+  life = noteHelp(life, 'T11', { hint: 4, worked: true });
+  life = noteHelp(life, 'T11', { hint: 1 });
+  const back = cleanLife(JSON.parse(JSON.stringify(life)), NOW);
+  assert.deepEqual(helpSoFar(back, 'T11'), { hint: 4, worked: true, codexEarly: false });
+  assert.equal(helpOf(helpSoFar(back, 'T11')), 'exposure');
+  life = noteHelp(life, 'T17', { codexEarly: true });
+  assert.equal(helpOf(helpSoFar(life, 'T17')), 'nudged');
+});
+
+test('a practice solve casts nothing; a teaching ticket earns no XP', () => {
+  let life = recordSolve(freshLife(NOW), cardById('T17'), { help: 'clean', casts: ['where'], nowMs: NOW }).life;
+  const p = recordSolve(life, cardById('T17'), { help: 'clean', casts: ['where', 'order-by'], nowMs: NOW, practice: true });
+  assert.deepEqual(p.spells, []);
+  for (const id of ['O1', 'O6', 'T01']) assert.equal(recordSolve(freshLife(NOW), cardById(id), { help: 'clean', nowMs: NOW }).xp, 0, id);
+  assert.equal(recordSolve(freshLife(NOW), cardById('T02'), { help: 'clean', nowMs: NOW }).xp, CREDIT.clean);
+});
+
+test('the clock never goes backwards: setting it back opens no fresh daily cap', () => {
+  let life = freshLife(NOW);
+  const cards = LADDER.filter((c) => c.newConcept).slice(0, DAILY_CAP + 1);
+  for (const c of cards.slice(0, DAILY_CAP)) life = startCard(life, c, NOW);
+  assert.equal(paceCheck(cards[DAILY_CAP], life, NOW - DAY, DAILY_CAP).ok, false);
+  assert.equal(effectiveNow(life, NOW - 3 * DAY), NOW);
+  assert.equal(touch(life, NOW + 5).highMs, NOW + 5);
+});
+
+test('stored XP is clamped to the credit table, solves dated in the future are dropped, only a first solve pays', () => {
+  const l = cleanLife({ v: 1, startedMs: NOW, highMs: NOW, solves: [
+    { card: 'T02', atMs: NOW, help: 'clean', xp: 500 },
+    { card: 'T02', atMs: NOW, help: 'clean', xp: 10 },
+    { card: 'T03', atMs: NOW, help: 'guided', xp: 10 },
+    { card: 'T04', atMs: NOW + 9 * DAY, help: 'clean', xp: 10 },
+  ] }, NOW);
+  assert.deepEqual(l.solves.map((s) => [s.card, s.xp]), [['T02', 10], ['T02', 0], ['T03', CREDIT.guided]]);
+});
