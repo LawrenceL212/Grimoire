@@ -258,12 +258,12 @@ const DUCK = {
 };
 const QUIET_WHEN_CALM = new Set(['type-click']);
 
-function chain(ac, bus, pan = 0, gain = 1) {
+function chain(ac, bus, pan = 0, gain = 1, alwaysPan = false) {
   const g = ac.createGain(); g.gain.value = gain;
-  let head = g;
-  if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(p); head = p; }
+  let head = g, panner = null;
+  if ((pan || alwaysPan) && ac.createStereoPanner) { panner = ac.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(panner); head = panner; }
   head.connect(bus);
-  return { input: g, dispose() { try { g.disconnect(); if (head !== g) head.disconnect(); } catch { /* gone */ } } };
+  return { input: g, panner, dispose() { try { g.disconnect(); if (head !== g) head.disconnect(); } catch { /* gone */ } } };
 }
 
 /* Play an effect now. Returns { name, end, ended: Promise } or null (not running yet, throttled,
@@ -303,7 +303,7 @@ export function startLoop(name = 'drone-hum', { pan = 0, speed } = {}) {
   loops.set(name, entry);
   whenReady((ac, gr) => {
     if (loops.get(name) !== entry) return; // stopped before audio was ready
-    entry.chain = chain(ac, gr.effects, entry.pan);
+    entry.chain = chain(ac, gr.effects, entry.pan, 1, true); // a loop can move: it always has a panner
     entry.loop = createLoop(ac, entry.chain.input, name, ac.currentTime);
     entry.pending = false;
     if (entry.speed != null) entry.loop.set('speed', entry.speed);
@@ -315,6 +315,7 @@ export function setLoopParam(name, param, value) {
   const e = loops.get(name);
   if (!e) return;
   if (e.pending) { if (param === 'speed') e.speed = value; else if (param === 'pan') e.pan = value; return; }
+  if (param === 'pan') { const p = e.chain.panner; if (p) p.pan.setTargetAtTime(Math.max(-1, Math.min(1, +value || 0)), p.context.currentTime, 0.08); return; }
   e.loop.set(param, value);
 }
 export function stopLoop(name = 'drone-hum') {

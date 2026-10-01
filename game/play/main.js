@@ -9,7 +9,9 @@
 // While the story plays, Run is refused and Reset cancels the story and rebuilds the office.
 //
 // window.__play = { ready, busy, phase, runs, refused, world, objects, clock, map, office, story,
-//   lastEvents, lastChanges, storyLog(), census(), scene: { occupants() }, stats(), bench(n), resetView() }
+//   lastEvents, lastChanges, storyLog(), census(), scene: { occupants() }, stats(), bench(n), resetView(), sound }
+// Sound (sound.js): the audio wakes on the first gesture; the effects follow the same real events the story
+// plays (run, error, level-up are cued here; the story and the drone cue the rest).
 // play.timeScale (default 1) speeds the office and the story up (tests set it; the outcome is the same).
 import { toObjects } from '../world/views.js';
 import { runSolution } from '../runners/index.js';
@@ -23,6 +25,7 @@ import { createWindows } from './windows.js';
 import { createEditor } from './editor.js';
 import { mountTweakPanel } from '../engine/tweak-panel.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
+import { createSound } from './sound.js';
 
 const CLOCK = '2026-01-01T08:45:00Z'; // the office clock on Day 1: who is sitting where comes from the bookings running now
 const LANGS = { sql: 'SQL', js: 'JavaScript', php: 'PHP' };
@@ -52,7 +55,7 @@ let tweak = null;
 let focusOn = false;
 const hud = createHud($('#hud'), {
   onReset: () => onReset(),
-  onTweak: () => { tweak ??= mountTweakPanel(app); tweak.toggle(); },
+  onTweak: () => { tweak ??= mountTweakPanel(app); sound.attachPanel(tweak.panel); tweak.toggle(); },
   onFocus: () => toggleFocus(),
 });
 hud.setClock('Day 1 · 08:45');
@@ -98,6 +101,8 @@ function fitTicket() {
 
 // ---------------------------------------------------------------- the code window
 const editor = createEditor($('#editor-host'), { onRun: () => onRun(), label: 'Your code' });
+const sound = createSound({ stage: () => stage, office: () => office, story: () => story, editor: editor.el, isBusy: () => play.busy, reducedMotion: RM });
+sound.mountSpeaker($('#hud'));
 let lang = 'sql';
 const tabs = [...document.querySelectorAll('.lang-tab')];
 function setLang(next) {
@@ -154,7 +159,7 @@ async function startScene() {
     stage.onLost(() => { glMessage(GL_LOST); story?.cancel(); }); // the run still finishes: its outcome is shown
     const [{ createOffice }, { createStory }] = await Promise.all([import('./office.js'), import('./story.js')]);
     office = createOffice(stage, { reducedMotion: RM });
-    story = createStory(office, { clock: CLOCK, reducedMotion: RM, timeScale: () => play.timeScale });
+    story = createStory(office, { clock: CLOCK, reducedMotion: RM, timeScale: () => play.timeScale, cue: (n, at) => sound.cue(n, at) });
     play.office = office; play.map = office.map; play.stage = stage; play.story = story;
     office.frame(wins.rects(), hudHeight());
     stage.frame((dt, t) => { if (!glDown) office.update(dt * (play.timeScale || 1), t); });
@@ -184,7 +189,13 @@ addEventListener('keydown', (e) => {
 let history = { solves: [] }; // kept across Reset: a ticket solved once earns nothing the second time
 let op = 0; // the latest Run or Reset: an older one that finishes late touches nothing
 let pendingCredit = 0; // XP a solve earned whose story Reset cut short: said after the reset
-const showState = (objects, grade) => hud.set(deriveState(objects, grade, history));
+let shownLevel = null; // the level the HUD shows: going up plays level-up (never on the first show)
+function showState(objects, grade) {
+  const s = deriveState(objects, grade, history);
+  hud.set(s);
+  if (shownLevel !== null && s.level > shownLevel) sound.cue('level-up');
+  shownLevel = s.level;
+}
 async function loadWorld() {
   const old = play.world;
   play.ready = false;
@@ -222,13 +233,14 @@ async function onRun() {
   const mine = ++op;
   play.runs++;
   setBusy(true, 'run');
+  sound.cue('run');
   try {
     show('is-running', lang === 'php' ? 'Loading PHP, then running…' : 'Running…');
     const world = play.world;
     const before = await toObjects(world);
     const res = await runSolution(world, lang, code);
     if (op !== mine) return;
-    if (!res.ok) { play.lastEvents = []; show('is-error', res.error); return; } // an error changes nothing: no scene events
+    if (!res.ok) { play.lastEvents = []; show('is-error', res.error); sound.cue('error'); return; } // an error changes nothing: no scene events
     const after = await toObjects(world);
     const grade = await gradeProblem(world, problem);
     if (op !== mine) return;
@@ -270,9 +282,10 @@ async function onRun() {
     } else {
       setTicket(true, said);
       show('is-miss', `Not yet: ${said.note}`, out);
+      sound.attention();
     }
   } catch (e) {
-    if (op === mine) show('is-error', String(e?.message ?? e));
+    if (op === mine) { show('is-error', String(e?.message ?? e)); sound.cue('error'); }
   } finally {
     if (op === mine) setBusy(false);
   }
@@ -297,6 +310,7 @@ play.stats = () => (office ? office.stats() : null);
 play.bench = (n) => (office ? office.bench(n) : null);
 play.resetView = () => { if (!office) return; focusOn = false; hud.setFocus(false); stage.resetView(); office.frame(wins.rects(), hudHeight()); };
 play.windows = wins;
+play.sound = sound;
 
 setBusy(true);
 await startScene();

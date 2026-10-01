@@ -2,7 +2,9 @@
 // diffWorlds (the real diff of the world before and after a run) in their order, with the drone and the
 // people, and nothing else: the story never looks at the expected answer.
 //
-//   createStory(office, { clock, reducedMotion }) -> story
+//   createStory(office, { clock, reducedMotion, cue }) -> story
+//     cue(name, [x, y, z]) is told the sounds of what really happens (sound.js): door-chime when someone
+//     comes in or goes out of the front door, scan-ok when a room calms, alert when a room starts to clash
 //     .play(events, { before, after, grade, wasOpen, changed }) -> Promise<{ cancelled }>
 //         changed false (no row of any table changed): the drone shrugs and nothing else happens;
 //         changed but no events (a name, a booking's person): no animation, the office is reconciled
@@ -38,8 +40,14 @@ export function when(iso) {
 }
 export const roomName = (objects, id) => (objects?.rooms || []).find((r) => r.id === id)?.name || `room ${id}`;
 
-export function createStory(office, { clock, reducedMotion = false, timeScale = () => 1 } = {}) {
+export function createStory(office, { clock, reducedMotion = false, timeScale = () => 1, cue = () => {} } = {}) {
   const { map, drone, fx } = office;
+  const door = () => { const d = map.doors[0].outside; return [d.x, 1, d.z]; };
+  const sound = (g, name, at) => { if (g === gen) { try { cue(name, at); } catch (err) { console.error('story sound:', err); } } };
+  // someone walks out of the front door: the bell rings when they reach it
+  const leave = (g, id) => office.leave(id).then((ok) => { if (ok) sound(g, 'door-chime', door()); return ok; });
+  // someone comes in from the front door
+  const enter = (g, b, room, objects) => { const r = office.enter(b, room, objects); sound(g, 'door-chime', door()); return r; };
   let gen = 0;
   let busy = false;
   let log = [];
@@ -92,7 +100,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       const p = entry.person.root.position;
       fx.text([p.x, 1.8, p.z], `Booking ${e.bookingId} cancelled`, { color: 'palette.danger', size: 0.8 });
       entry.person.emote('?', { hold: 1.1 });
-      ctx.walks.push(office.leave(e.bookingId)); // they get up and go now; the drone comes over to see them out
+      ctx.walks.push(leave(g, e.bookingId)); // they get up and go now; the drone comes over to see them out
       ctx.walks.push(drone.flyTo({ x: p.x + 0.4, z: p.z + 1.2 }));
       await pause(g, 0.35);
     },
@@ -108,8 +116,8 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
         return;
       }
       await card(g, ctx, from || to, `BOOKING ${e.bookingId}`, `${roomName(ctx.before, e.fromRoomId)} → ${roomName(ctx.after, e.toRoomId)}${retimed ? `, ${when(e.to.start_at)}` : ''}`, 'MOVED');
-      if (entry && !here) { ctx.walks.push(office.leave(e.bookingId)); await pause(g, 0.4); return; }
-      if (!entry && here) { await step(g, drone.flyTo(map.doors[0].inside)); await step(g, office.enter(b, to, ctx.after).done, 20); return; }
+      if (entry && !here) { ctx.walks.push(leave(g, e.bookingId)); await pause(g, 0.4); return; }
+      if (!entry && here) { await step(g, drone.flyTo(map.doors[0].inside)); await step(g, enter(g, b, to, ctx.after).done, 20); return; }
       // the drone walks them over
       const seat = office.freeSeat(to, entry);
       entry.room = to; entry.seat = seat; entry.booking = b;
@@ -130,8 +138,8 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       const here = !!room && ctx.running.has(e.bookingId);
       if (!entry && !here && ctx.cardsLeft <= 0) { offstage(ctx, room, 'retimed'); return; }
       await card(g, ctx, room, `BOOKING ${e.bookingId}`, `${when(e.from.start_at)} → ${when(e.to.start_at)}`, 'MOVED');
-      if (entry && !here) { ctx.walks.push(office.leave(e.bookingId)); await pause(g, 0.4); }
-      else if (!entry && here) await step(g, office.enter(b, room, ctx.after).done, 20);
+      if (entry && !here) { ctx.walks.push(leave(g, e.bookingId)); await pause(g, 0.4); }
+      else if (!entry && here) await step(g, enter(g, b, room, ctx.after).done, 20);
       else if (entry) entry.booking = b;
     },
     async 'booking-added'(g, e, ctx) {
@@ -144,7 +152,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
         return;
       }
       await step(g, drone.flyTo(map.doors[0].inside));
-      const { done } = office.enter(b, room, ctx.after);
+      const { done } = enter(g, b, room, ctx.after);
       await step(g, done, 20);
     },
     async 'clash-cleared'(g, e, ctx) {
@@ -154,6 +162,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       if (!room) return;
       await step(g, drone.flyTo(at(room)));
       map.setRoomState(room.id, 'ok');
+      sound(g, 'scan-ok', [room.center.x, 1, room.center.z]);
       fx.ring([room.center.x, 0.03, room.center.z], { color: 'palette.ok', from: 0.3, to: 2.4, dur: 0.9 });
       for (const en of office.people.values()) if (en.room === room) en.person.emote('ok', { hold: 1.4 });
       await pause(g, 0.7);
@@ -164,6 +173,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       if (!room) return;
       await step(g, drone.flyTo(at(room)));
       map.setRoomState(room.id, 'clash');
+      sound(g, 'alert', [room.center.x, 1, room.center.z]);
       fx.ring([room.center.x, 0.03, room.center.z], { color: 'palette.danger', from: 0.3, to: 2.4, dur: 0.9 });
       for (const id of [e.bookingId, e.otherId]) office.people.get(id)?.person.emote('!', { hold: 2 });
       drone.express('worried', 1.6);
