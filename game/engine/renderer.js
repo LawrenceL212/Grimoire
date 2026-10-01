@@ -194,7 +194,8 @@ export function createStage(canvas, { reducedMotion = false } = {}) {
   // ---- WASD / arrows: smooth, frame-rate independent, relative to the view direction ----
   const held = new Set(), keyV = { x: 0, z: 0 };
   const KEYS = { w: 'f', arrowup: 'f', s: 'b', arrowdown: 'b', a: 'l', arrowleft: 'l', d: 'r', arrowright: 'r' };
-  const typing = (t) => !!t && (t.isContentEditable || /^(input|textarea|select|button)$/i.test(t.tagName || '') ||
+  // a plain BUTTON (a HUD button keeps focus after a click) may still pan; the tweak panel's buttons and role=slider/menu items may not
+  const typing = (t) => !!t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName || '') ||
     !!(t.closest && t.closest('[role="slider"],[role="menu"],[role="menuitem"],[role="spinbutton"],.gm-tweak,.gm-tweak-btn')));
   const onKeyDown = (e) => {
     const k = KEYS[String(e.key).toLowerCase()];

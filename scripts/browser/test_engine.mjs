@@ -253,6 +253,12 @@ const p2 = await page.evaluate(async () => {
     out.keySlider = await run(sl);
     const bt = document.createElement('button'); document.body.appendChild(bt);
     out.keyButton = await run(bt);
+    bt.focus(); out.keyFocusedButton = await run(bt); // a focused plain button (a HUD button after a click) pans
+    const tw = document.createElement('div'); tw.className = 'gm-tweak'; const tb = document.createElement('button'); tw.appendChild(tb); document.body.appendChild(tw);
+    tb.focus(); out.keyTweakButton = await run(tb); tw.remove();
+    const mi = document.createElement('button'); mi.setAttribute('role', 'menuitem'); document.body.appendChild(mi); mi.focus();
+    out.keyMenuItem = await run(mi); mi.remove();
+    const ti = document.createElement('input'); document.body.appendChild(ti); ti.focus(); out.keyInput = await run(ti); ti.remove();
     out.keyBody = await run(document.body);
     bar.remove(); sl.remove(); bt.remove(); stage.dispose();
   }
@@ -298,7 +304,7 @@ const p2 = await page.evaluate(async () => {
   return out;
 });
 t.check('a keydown another handler already took (a window title bar) does not pan', p2.keyHandled < 1e-6, String(p2.keyHandled));
-t.check('arrow keys on a slider or button do not pan, on the body they do', p2.keySlider < 1e-6 && p2.keyButton < 1e-6 && p2.keyBody > 0.05, JSON.stringify([p2.keySlider, p2.keyButton, p2.keyBody]));
+t.check('arrow keys pan from the body or a plain (focused) button, not from a slider, menu item, tweak-panel button or text input', p2.keySlider < 1e-6 && p2.keyButton > 0.05 && p2.keyFocusedButton > 0.05 && p2.keyTweakButton < 1e-6 && p2.keyMenuItem < 1e-6 && p2.keyInput < 1e-6 && p2.keyBody > 0.05, JSON.stringify([p2.keySlider, p2.keyButton, p2.keyFocusedButton, p2.keyTweakButton, p2.keyMenuItem, p2.keyInput, p2.keyBody]));
 t.check('a drag just under the horizon does not fling the camera', p2.horizon.moved < p2.horizon.d * 2, JSON.stringify(p2.horizon));
 t.check('pan inertia coasts the same distance at 30 and 144 fps', p2.coast30 > 0.05 && Math.abs(p2.coast30 - p2.coast144) / p2.coast30 < 0.1, `${p2.coast30} ${p2.coast144}`);
 t.check('holding still before release leaves no fling', p2.heldStill < 1e-6, String(p2.heldStill));
