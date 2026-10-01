@@ -24,8 +24,8 @@ export const TUTORIAL = {
       checks: [{ kind: 'rows', truth: 'SELECT * FROM bookings WHERE room_id = 2', exactColumns: true }] },
     { id: 'hints', task: 'hint', say: "Stuck is normal. The hint ladder has four steps: a nudge, which idea, the Grimoire page, a worked example. Each costs some of the ticket's credit, and I always show the cost before you open one. Open the first hint now, on purpose." },
     { id: 'grimoire', task: 'run', lang: 'sql', starter: '', recall: ['select-all'],
-      say: "This is the Grimoire: your book of spells. A spell you've only seen is in pencil. It is written in ink only when you cast it on your own. Try now, with an empty editor and no help: show everyone in the people table.",
+      say: "This is the Grimoire: your book of spells. A spell you've only seen is in pencil. It is written in ink only when you cast it on your own, in a real ticket. Here is a demonstration: with an empty editor and no help, show everyone in the people table.",
       checks: [{ kind: 'rows', truth: 'SELECT * FROM people', exactColumns: true }] },
-    { id: 'meter', task: 'read', say: "Ink fades. Easy today is not the same as kept: this spell comes back in a few days, when it's nearly forgotten, because remembering it then is what makes it stick. The meter on each page shows how the ink is holding. That's everything: your first ticket is here." },
+    { id: 'meter', task: 'read', say: "Ink fades. Easy today is not the same as kept: a spell sticks when you remember it again after a gap, when it is nearly forgotten. That one was a demonstration; spells you cast on your own in tickets are written for real, and the meter on each page shows how their ink is holding (reviews arrive in the next update). That's everything: your first ticket is here." },
   ],
 };

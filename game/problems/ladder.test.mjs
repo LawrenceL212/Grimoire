@@ -102,3 +102,33 @@ test('the named world: the shadow keeps the named rooms and people and changes e
     for (const x of b) for (const y of b) if (x.id < y.id && x.room_id === y.room_id) assert.ok(!(x.start_at < y.end_at && y.start_at < x.end_at), `${x.id} ${y.id}`);
   }
 });
+
+// ---- review round 1
+test('answer checks require the asked-for columns; an alias is accepted by position; one value matching is not enough', () => {
+  const want = [{ id: 1, name: 'Boardroom', capacity: 10 }, { id: 2, name: 'Studio', capacity: 4 }];
+  assert.equal(compareRows([{ capacity: 10 }, { capacity: 4 }], want, { columns: ['name'] }).ok, false, 'a subset without the asked-for column');
+  assert.ok(compareRows([{ name: 'Boardroom' }, { name: 'Studio' }], want, { columns: ['name'] }).ok);
+  assert.ok(compareRows([{ room: 'Studio', seats: 4 }, { room: 'Boardroom', seats: 10 }], want, { columns: ['name', 'capacity'] }).ok, 'aliases, compared by position');
+  assert.equal(compareRows([{ room: 'Studio', seats: 5 }, { room: 'Boardroom', seats: 10 }], want, { columns: ['name', 'capacity'] }).ok, false);
+  assert.equal(compareValue([{ id: 1, n: 8 }], 8, 'capacity').ok, false, 'a row where some other value happens to match');
+  assert.ok(compareValue([{ capacity: 8 }], 8, 'capacity').ok);
+  assert.ok(compareValue([{ seats: 8 }], 8, 'capacity').ok, 'a single aliased value');
+  assert.ok(compareValue([{ id: 1, name: 'Boardroom', capacity: 8 }], 8, 'capacity').ok);
+});
+
+test('every rows check on a card names the columns it asks for', () => {
+  for (const c of LADDER) for (const s of c.steps) for (const k of s.checks) if (k.kind === 'rows') assert.ok(Array.isArray(k.columns) && k.columns.length || k.exactColumns, `${c.id}`);
+});
+
+test('T18: the smallest room for five differs between the real and the shadow world (a typed name cannot pass both)', () => {
+  const pick = (w) => { const ok = w.rooms.filter((r) => r.capacity >= 5); const m = Math.min(...ok.map((r) => r.capacity)); return ok.filter((r) => r.capacity === m).map((r) => r.name).sort(); };
+  const stage = ['boardroom10', 'garden', 'samFridayGone'];
+  const real = pick(namedRows({ stage })), shadow = pick(namedRows({ shadow: true, stage }));
+  assert.ok(real.every((n) => !shadow.includes(n)), JSON.stringify({ real, shadow }));
+});
+
+test('a question ticket refuses transaction control (a COMMIT would escape the rollback); words in strings and comments are fine', async () => {
+  const { refusesTxn } = await import('./card.js');
+  for (const c of ['UPDATE rooms SET capacity = 99;\nCOMMIT;\nSELECT 99;', 'BEGIN; SELECT 1;', 'rollback;', 'START TRANSACTION;']) assert.ok(refusesTxn(c), c);
+  for (const c of ["SELECT * FROM bookings WHERE end_at > '2026-01-05 00:00+00';", "SELECT 'commit' AS word; -- begin", 'SELECT name FROM rooms;']) assert.equal(refusesTxn(c), null, c);
+});

@@ -87,7 +87,7 @@ const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
 export function namedRows({ shadow = false, stage = [] } = {}) {
   const has = (f) => stage.includes(f);
   const rooms = shadow
-    ? [[1, 'Boardroom', 12], [2, 'Studio', 7], [3, 'Library', 5]]
+    ? [[1, 'Boardroom', 12], [2, 'Studio', 7], [3, 'Library', 4]] // the smallest room for five is the Studio here, the Library or the Garden Room for real (T18)
     : [[1, 'Boardroom', has('boardroom10') ? 10 : 8], [2, 'Studio', 4], [3, 'Library', 6]];
   if (has('garden')) rooms.push([4, 'Garden Room', shadow ? 9 : 6]);
   const people = shadow ? SHADOW_PEOPLE : PEOPLE;

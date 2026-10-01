@@ -67,13 +67,16 @@ try {
   t.check('the editor is empty for the unaided cast', (await page.locator('#editor').inputValue()) === '');
   await runCode(page, 'SELECT * FROM people;');
   const after = await page.evaluate(() => window.__play.chapter.store().getSpellState('select-all'));
-  t.check('cast on his own: the first spell is written in the Grimoire', after.written === true, JSON.stringify(after));
+  t.check('cast on his own in the tutorial: shown as a Demonstration, not counted as written', after.demo === true && after.written === false, JSON.stringify(after));
+  t.check('the toast says Demonstration', /Demonstration/.test(await page.locator('#result').innerText()));
   await page.waitForTimeout(700);
-  t.check('the Grimoire opens at the spell, in ink', await page.evaluate(() => document.querySelector('.gm-book-overlay [data-spell="select-all"]')?.dataset.status) === 'fresh');
+  const pageInBook = await page.evaluate(() => { const p = document.querySelector('.gm-book-overlay [data-spell="select-all"]'); return { status: p?.dataset.status, seal: p?.querySelector('.gm-seal')?.textContent }; });
+  t.check('the Grimoire opens at the spell, labelled DEMONSTRATION', pageInBook.status === 'demo' && pageInBook.seal === 'DEMONSTRATION', JSON.stringify(pageInBook));
   await page.evaluate(() => import('./grimoire.js').then((m) => m.grimoire().close()));
 
   // ---- the forgetting meter
-  t.check('step 8: the meter (easy today is not kept; it comes back in a few days)', await tstep() === 'meter' && /Easy today is not the same as kept/.test(await say()) && /Kept about/.test(await say()));
+  const meterSay = await say();
+  t.check('step 8: the meter (easy today is not kept; an example meter; no promise of a review that does not exist yet)', await tstep() === 'meter' && /Easy today is not the same as kept/.test(meterSay) && /kept about 3 days/.test(meterSay) && /reviews arrive in the next update/.test(meterSay) && !/comes back in a few days/.test(meterSay), meterSay);
   await page.click('#sequel-say [data-t="next"]');
   await ready(page);
   const c1 = await current(page);
@@ -92,11 +95,19 @@ try {
     t.check(`${card.id}: every cheat fails (${r.failed.join('; ')})`, r.failed.length === card.cheats.length, JSON.stringify(r));
     t.check(`${card.id}: the reference solution resolves it in the real runtime`, r.solved, JSON.stringify(r));
     t.check(`${card.id}: the recap is two lines`, await page.locator('#ticket-thread .recap p').count() === 2);
+    t.check(`${card.id}: the recap says a teaching ticket earns no XP, and why`, /Teaching ticket: no XP; XP comes from solving fresh problems on your own/.test(await page.locator('#ticket-thread').innerText()));
     await nextTicket(page);
   }
   const afterO5 = await current(page);
   t.check('the pace rule: five new concepts today, the sixth waits, with an honest message', afterO5.pace && /new ideas today/.test(afterO5.pace) && /tomorrow/.test(afterO5.pace), JSON.stringify(afterO5));
   t.check('the pace message offers practice, never a lock', await page.locator('#ticket-thread [data-act="practice"]').count() === 1);
+  t.check('teaching tickets earn no XP (O1-O5 are scaffolded)', await page.evaluate(() => window.__play.chapter.life.solves.reduce((n, s) => n + s.xp, 0)) === 0);
+  // the clock set back a day opens no fresh cap
+  await page.evaluate(() => { window.__play.chapter.setNow(Date.now() - 2 * 86400000); return window.__play.chapter.next(); });
+  await ready(page);
+  const back = await current(page);
+  t.check('setting the clock back opens no fresh daily cap (the record keeps a high-water mark)', !!back.pace && back.id !== 'T01', JSON.stringify(back));
+  await page.evaluate(() => window.__play.chapter.setNow(null));
   const solves = await page.evaluate(() => window.__play.chapter.life.solves.map((s) => [s.card, s.help, typeof s.atMs]));
   t.check('each solve is recorded with its help and a timestamp', solves.length === 5 && solves.every((s) => s[2] === 'number'), JSON.stringify(solves));
 
@@ -106,7 +117,11 @@ try {
   t.check('Continue: the page boots again', await ready(page));
   const c2 = await current(page);
   t.check('Continue resumes at the right ticket (T01), not the tutorial', c2.kind === 'card' && c2.id === 'T01', JSON.stringify(c2));
-  t.check('the spell written in the tutorial is still written after the reload', await page.evaluate(() => window.__play.chapter.store().getSpellState('select-all').written) === true);
+  t.check('the tutorial demonstration is still there (and still not counted) after the reload', await page.evaluate(() => { const s = window.__play.chapter.store().getSpellState('select-all'); return s.demo === true && s.written === false; }));
+  // help used on a card is kept: open hint 1 on T01, replay the tutorial, end it, reload: the hint is still used
+  await page.click('#ticket-thread [data-act="start"]');
+  await page.click('#ticket-thread [data-act="hint"][data-level="1"]');
+  t.check('after opening a hint, the keyboard stays in the ticket window', await page.evaluate(() => !!document.activeElement?.closest('#ticket-thread')));
 
   // ---- the tutorial can be replayed (practice; it records nothing) and can then be ended as a whole
   await page.click('#ticket-thread [data-act="tutorial"]');
@@ -116,7 +131,12 @@ try {
   t.check('on a replay it can be ended as a whole', await page.locator('#sequel-say [data-t="end"]').count() === 1);
   await page.click('#sequel-say [data-t="end"]');
   await ready(page);
-  t.check('ending the replay goes back to the chapter where it was', (await current(page)).id === 'T01');
+  const t01 = await current(page);
+  t.check('ending the replay goes back to the chapter where it was, with the hint still counted', t01.id === 'T01' && t01.hint === 1, JSON.stringify(t01));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ready(page);
+  const t01b = await current(page);
+  t.check('a reload (Continue) keeps the help already used on the ticket', t01b.id === 'T01' && t01b.hint === 1, JSON.stringify(t01b));
 } catch (e) {
   t.check('the chapter start test ran to the end', false, String(e?.stack || e).split('\n').slice(0, 3).join(' | '));
 }

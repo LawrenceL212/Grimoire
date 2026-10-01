@@ -121,10 +121,29 @@ const cols = (rows) => (rows && rows.length ? Object.keys(rows[0]) : []);
 const project = (rows, keys) => rows.map((r) => keys.map((k) => norm(r[k])).join('\u0001'));
 const sameMultiset = (a, b) => a.length === b.length && [...a].sort().join('\u0002') === [...b].sort().join('\u0002');
 
-/* got: the learner's rows; want: the truth's rows. Columns are matched by name: the learner may ask for
-   fewer columns than the truth holds (any valid query passes), but every column asked for must exist in the
-   truth, and at least one must. */
-export function compareRows(got, want, { mode = 'set', exactColumns = false, sorted = null } = {}) {
+/* got: the learner's rows; want: the truth's rows. `columns` are the columns the question asks for (every
+   rows check names them, or asks for exactColumns): the answer must hold them, by name, or (an alias such as
+   `AS seats`) by position when it has exactly that many columns. Other columns may come along only if they are
+   real columns of the answer; a subset that leaves out what was asked for fails. */
+function keysFor(gc, wc, columns) {
+  if (!columns) {
+    const keys = gc.filter((c) => wc.includes(c));
+    if (!keys.length || keys.length !== gc.length) {
+      const odd = gc.filter((c) => !wc.includes(c));
+      return { why: odd.length ? `the column${odd.length > 1 ? 's' : ''} ${odd.join(', ')} ${odd.length > 1 ? 'are' : 'is'} not part of the answer` : 'the answer\'s columns are not the ones asked for' };
+    }
+    return { mine: keys, theirs: keys };
+  }
+  if (columns.every((c) => gc.includes(c))) {
+    const odd = gc.filter((c) => !wc.includes(c));
+    if (odd.length) return { why: `the column${odd.length > 1 ? 's' : ''} ${odd.join(', ')} ${odd.length > 1 ? 'are' : 'is'} not part of the answer` };
+    return { mine: columns, theirs: columns };
+  }
+  if (gc.length === columns.length) return { mine: gc, theirs: columns }; // renamed (AS ...): compared by position
+  return { why: `the answer needs ${columns.length > 1 ? 'the columns' : 'the column'} ${columns.join(', ')}` };
+}
+const projectBy = (rows, keys) => rows.map((r) => keys.map((k) => norm(r[k])).join('\u0001'));
+export function compareRows(got, want, { mode = 'set', exactColumns = false, sorted = null, columns = null } = {}) {
   got = got || []; want = want || [];
   const gc = cols(got), wc = cols(want);
   if (exactColumns && (gc.length !== wc.length || !gc.every((c) => wc.includes(c)))) {
@@ -132,32 +151,34 @@ export function compareRows(got, want, { mode = 'set', exactColumns = false, sor
   }
   if (mode === 'one-of') {
     if (got.length !== 1) return { ok: false, why: `${got.length} rows came back; one was wanted` };
-    const keys = wc.length ? gc.filter((c) => wc.includes(c)) : gc;
-    if (!keys.length) return { ok: false, why: 'the answer\'s columns are not ones the question is about' };
-    const mine = project(got, keys)[0];
-    return project(want, keys).includes(mine) ? { ok: true } : { ok: false, why: 'that is not the row the question is after' };
+    const k = keysFor(gc, wc, columns);
+    if (k.why) return { ok: false, why: k.why };
+    return projectBy(want, k.theirs).includes(projectBy(got, k.mine)[0]) ? { ok: true } : { ok: false, why: 'that is not the row the question is after' };
   }
   if (!want.length) return got.length ? { ok: false, why: `${got.length} row${got.length === 1 ? '' : 's'} came back; none should` } : { ok: true };
   if (!got.length) return { ok: false, why: 'no rows came back' };
-  const keys = gc.filter((c) => wc.includes(c));
-  if (!keys.length || keys.length !== gc.length) {
-    const odd = gc.filter((c) => !wc.includes(c));
-    return { ok: false, why: odd.length ? `the column${odd.length > 1 ? 's' : ''} ${odd.join(', ')} ${odd.length > 1 ? 'are' : 'is'} not part of the answer` : 'the answer\'s columns are not the ones asked for' };
-  }
-  const g = project(got, keys), w = project(want, keys);
+  const k = keysFor(gc, wc, columns);
+  if (k.why) return { ok: false, why: k.why };
+  const g = projectBy(got, k.mine), w = projectBy(want, k.theirs);
   if (!sameMultiset(g, w)) return { ok: false, why: got.length !== want.length ? `${got.length} row${got.length === 1 ? '' : 's'} came back; ${want.length} should` : 'the rows are not the right ones' };
   if (mode === 'ordered' && g.join('\u0002') !== w.join('\u0002')) return { ok: false, why: 'the right rows, in the wrong order' };
   if (sorted) {
-    if (!gc.includes(sorted.column)) return { ok: false, why: `the answer needs the ${sorted.column} column to show its order` };
-    const v = got.map((r) => Number(r[sorted.column]));
-    for (let i = 1; i < v.length; i++) if (sorted.dir === 'desc' ? v[i] > v[i - 1] : v[i] < v[i - 1]) return { ok: false, why: 'the right rows, in the wrong order' };
+    const i = k.theirs.indexOf(sorted.column);
+    const col = i >= 0 ? k.mine[i] : gc.includes(sorted.column) ? sorted.column : null;
+    if (!col) return { ok: false, why: `the answer needs the ${sorted.column} column to show its order` };
+    const v = got.map((r) => Number(r[col]));
+    for (let j = 1; j < v.length; j++) if (sorted.dir === 'desc' ? v[j] > v[j - 1] : v[j] < v[j - 1]) return { ok: false, why: 'the right rows, in the wrong order' };
   }
   return { ok: true };
 }
-export function compareValue(got, truth) {
+/* One value: one row; a single column (any name) holds it, or the row has the asked-for column holding it.
+   A row where some OTHER value happens to equal the answer does not pass. */
+export function compareValue(got, truth, column = null) {
   if (!got || got.length !== 1) return { ok: false, why: `${got ? got.length : 0} rows came back; one was wanted` };
-  const t = norm(truth);
-  return Object.values(got[0]).some((v) => norm(v) === t) ? { ok: true } : { ok: false, why: 'that is not the right answer' };
+  const t = norm(truth), row = got[0], keys = Object.keys(row);
+  const v = keys.length === 1 ? row[keys[0]] : column && column in row ? row[column] : undefined;
+  if (v === undefined) return { ok: false, why: column ? `the answer needs the ${column} column (or just the one value)` : 'one value was wanted' };
+  return norm(v) === t ? { ok: true } : { ok: false, why: 'that is not the right answer' };
 }
 // PHP output: the truth as a whole number or word in the printed text
 export function outputHas(stdout, truth) {
@@ -195,9 +216,39 @@ export function castSpells(code, lang, starter = '') {
   return detectSpells(code, lang).filter((id) => !given.has(id));
 }
 
+// ---------------------------------------------------------------- question tickets: nothing the learner runs is kept
+/* A question (query-graded) ticket asks for an answer, so the learner's SQL runs inside a transaction that is
+   always rolled back: changing the data first and then "answering" it cannot pass, and the world is never
+   changed by a question. Transaction control in the learner's code would escape that, so it is refused. */
+const TXN = /\b(begin|commit|rollback|start\s+transaction|savepoint|release|abort)\b/i;
+export function refusesTxn(code) {
+  const bare = String(code || '').replace(/--[^\n]*/g, '').replace(/'(?:[^']|'')*'/g, "''");
+  return TXN.test(bare) ? 'This ticket asks a question, so nothing you run here is kept, and BEGIN, COMMIT and ROLLBACK are not allowed. Write the query that answers it.' : null;
+}
+export async function runQuestionSql(world, code) {
+  const refused = refusesTxn(code);
+  if (refused) return { ok: false, error: refused, refused: true };
+  try {
+    await world.exec('BEGIN');
+    const results = await world.exec(code);
+    const sets = results.filter((r) => r.fields && r.fields.length);
+    const after = await toObjects(world); // what the code did, seen before it is undone
+    return { ok: true, rows: sets.length ? sets[sets.length - 1].rows : [], stdout: '', after };
+  } catch (e) {
+    return { ok: false, error: String(e?.message ?? e) };
+  } finally { try { await world.exec('ROLLBACK'); } catch { /* nothing open */ } }
+}
+// the truths of a step, computed from the world BEFORE the learner's code runs
+export async function truthsOf(world, step) {
+  const out = {};
+  for (const k of step.checks) if (k.truth && !(k.truth in out)) out[k.truth] = await world.query(k.truth);
+  return out;
+}
+
 // ---------------------------------------------------------------- grading one step
 async function shadowRun(shadow, lang, code, php) {
   if (lang === 'sql') {
+    if (refusesTxn(code)) return { ok: false, error: refusesTxn(code) };
     // the shadow is never changed: the learner's code runs inside a transaction that is rolled back
     try {
       await shadow.exec('BEGIN');
@@ -214,6 +265,7 @@ async function shadowRun(shadow, lang, code, php) {
 const one = async (world, sql) => { const r = await world.query(sql); return r[0] ? Object.values(r[0])[0] : undefined; };
 
 /* ctx: { world, shadow (a World or a promise of one), lang, code, res (the runner's result), baseline,
+          truths (truthsOf before the run: the real world's answers are taken from before the code ran),
           act: { picked, choice, lookup: { opened: Set, ran: Set }, reply, ran }, php: () => runner }
    -> { passed, results: [{ name, ok, why, where }] } */
 export async function gradeStep(card, step, ctx) {
@@ -229,8 +281,8 @@ export async function gradeStep(card, step, ctx) {
         case 'rows': case 'value': {
           if (!res.ok) { add(name, false, res.error || 'the code did not run'); break; }
           const judge = async (w, rows, where) => {
-            const want = await w.query(k.truth);
-            const r = k.kind === 'value' ? compareValue(rows, want[0] ? Object.values(want[0])[0] : undefined) : compareRows(rows, want, k);
+            const want = where === 'real' && ctx.truths?.[k.truth] ? ctx.truths[k.truth] : await w.query(k.truth);
+            const r = k.kind === 'value' ? compareValue(rows, want[0] ? Object.values(want[0])[0] : undefined, want[0] ? Object.keys(want[0])[0] : null) : compareRows(rows, want, k);
             add(name, r.ok, r.why || '', where);
             return r.ok;
           };
@@ -245,13 +297,13 @@ export async function gradeStep(card, step, ctx) {
         }
         case 'return': {
           if (!res.ok) { add(name, false, res.error || 'the code did not run'); break; }
-          const t = await one(ctx.world, k.truth);
+          const t = ctx.truths?.[k.truth] ? Object.values(ctx.truths[k.truth][0] || {})[0] : await one(ctx.world, k.truth);
           add(name, norm(res.result) === norm(t), res.result === undefined ? 'nothing was returned' : `it returned ${res.result}`);
           break;
         }
         case 'output': {
           if (!res.ok) { add(name, false, res.error || 'the code did not run'); break; }
-          const t = await one(ctx.world, k.truth);
+          const t = ctx.truths?.[k.truth] ? Object.values(ctx.truths[k.truth][0] || {})[0] : await one(ctx.world, k.truth);
           add(name, outputHas(res.stdout, t), (res.stdout || '').trim() ? `it printed ${String(res.stdout).trim().slice(0, 60)}` : 'nothing was printed');
           break;
         }

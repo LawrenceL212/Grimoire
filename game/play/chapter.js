@@ -13,11 +13,11 @@
 import { toObjects } from '../world/views.js';
 import { runSolution, getPhpRunner } from '../runners/index.js';
 import { LADDER, TUTORIAL, cardById, DAILY_CAP } from '../problems/ladder.js';
-import { startWorld, startShadow, baselineOf, gradeStep, castSpells, detectSpells } from '../problems/card.js';
+import { startWorld, startShadow, baselineOf, gradeStep, castSpells, detectSpells, runQuestionSql, truthsOf } from '../problems/card.js';
 import { CLOCK as CHAPTER_CLOCK } from '../world/named.js';
 import { diffWorlds, rowChanges, clashPairs } from './bridge.js';
 import { deriveState } from './state.js';
-import { createLife, nextCardId, paceCheck, startCard, recordSolve, xpOf, helpOf, HINT_COST, solvedIds } from './progress.js';
+import { createLife, nextCardId, paceCheck, startCard, recordSolve, xpOf, helpOf, HINT_COST, solvedIds, noteHelp, helpSoFar, effectiveNow, touch } from './progress.js';
 import { setDefaultStore, spellById, SPELLS, inkOf, setClock } from './spells.js';
 import { createTimetable } from './timetable.js';
 import { describeSkill } from '../memory/meter.js';
@@ -31,10 +31,15 @@ export async function createChapter(ctx) {
   const { $, esc, play, wins, editor, hud, app } = ctx;
   const params = new URLSearchParams(location.search);
   let nowOverride = null; // setNow (tests): the whole game's clock moves, so the book and the stores agree
-  const now = () => nowOverride ?? Date.now();
+  const rawNow = () => nowOverride ?? Date.now();
   const L = ctx.life || createLife({ now }); // the page's life (main.js made it, and handled ?new)
   setDefaultStore(L.spellStore);
   const store = () => L.spellStore;
+  // the clock never goes backwards: every decision (the pace rule, the meter, the spells) uses the record's
+  // high-water mark when the device clock is behind it
+  const now = () => effectiveNow(L.life, rawNow());
+  setClock(now);
+  L.life = touch(L.life, rawNow());
 
   // ---------------------------------------------------------------- the page's extra parts
   const thread = $('#ticket-thread');
@@ -112,7 +117,8 @@ export async function createChapter(ctx) {
       cur = {
         kind: 'card', card, practice, step: practice ? 0 : Math.min(saved.step || 0, card.steps.length - 1),
         act: { picked: null, choice: null, lookup: { opened: new Set(), ran: new Set() }, reply: null, ran: false },
-        hint: 0, worked: false, codexEarly: false, casts: new Set(), solved: false, ranOnce: false,
+        // the help already used on this card comes back with it (a reload or Continue cannot wash it out)
+        ...(practice ? { hint: 0, worked: false, codexEarly: false } : helpSoFar(life(), card.id)), casts: new Set(), solved: false, ranOnce: false,
         learning: !!card.learnCard && !saved.learnSeen && !practice, showLookup: false, fresh: true, predicted: null, explained: false,
       };
       const { world } = await openWorld(card);
@@ -295,17 +301,31 @@ export async function createChapter(ctx) {
     l.cards[cur.card.id].learnSeen = true;
     L.save();
   }
+  // the help used is written into the life record at once, and never lowered
+  function keepHelp() {
+    if (cur?.kind !== 'card' || cur.practice) return;
+    setLife(noteHelp(life(), cur.card.id, { hint: cur.hint, worked: cur.worked, codexEarly: cur.codexEarly }));
+  }
   function openHint(level) {
     if (level !== cur.hint + 1) return;
     cur.hint = level;
     if (level >= 4) cur.worked = true; // opening the worked example is exposure, whether or not it is run
+    keepHelp();
     if (level === 3) {
       const id = cur.card.hints[2];
       store().introduce(id, [cur.card.languages[0]]);
       import('./grimoire.js').then((m) => m.grimoire().open(id));
     }
     render();
+    // the keyboard stays in the ticket window, on the hint just opened
+    const t = [...thread.querySelectorAll('.hint-text')].pop();
+    if (t && level !== 3) { t.tabIndex = -1; t.focus({ preventScroll: false }); }
   }
+  // opening the Grimoire from the HUD before the first run shows the code: recorded like an early look-up
+  document.getElementById('hud-grimoire')?.addEventListener('click', () => {
+    if (cur?.kind !== 'card' || cur.solved || cur.ranOnce || cur.practice || cur.card.evidence === false || cur.learning) return;
+    cur.codexEarly = true; keepHelp();
+  }, true);
 
   // ---------------------------------------------------------------- the interactions of the on-ramp
   function onPicked(id) {
@@ -326,7 +346,7 @@ export async function createChapter(ctx) {
   function lookupOpen(id) {
     cur.lookupOpen = id;
     cur.act.lookup.opened.add(id);
-    if (!cur.ranOnce && cur.card.spells.recall.length) cur.codexEarly = true; // producing it first is the point
+    if (!cur.ranOnce && cur.card.spells.recall.length) { cur.codexEarly = true; keepHelp(); } // producing it first is the point
     store().introduce(id, ['sql']);
     render();
   }
@@ -353,6 +373,14 @@ export async function createChapter(ctx) {
     else if (lang === 'js') await story.say(res.result === undefined ? 'nothing returned' : res.result);
     else await story.say((res.stdout || '').trim() || 'nothing printed');
   }
+  // a question ticket's SQL: run inside a transaction that is always rolled back (card.js runQuestionSql)
+  async function executeQuestion(code) {
+    const before = await toObjects(play.world);
+    const res = await runQuestionSql(play.world, code);
+    if (!res.ok) return { res, before };
+    const undone = rowChanges(before, res.after).length > 0;
+    return { res, before, after: before, events: [], changed: false, undone };
+  }
   async function execute(lang, code) {
     const world = play.world;
     const before = await toObjects(world);
@@ -370,11 +398,11 @@ export async function createChapter(ctx) {
   // it out; if it changed the world, the world is then put back as the ticket arrived
   async function runExample(ex, { worked = false, lookup = false } = {}) {
     if (play.busy || !ex) return false;
-    if (ex.show === 'pick') { showTimetable(true); timetable.inspect(ex.id, { follow: ex.follow }); if (worked) cur.worked = true; render(); return true; }
+    if (ex.show === 'pick') { showTimetable(true); timetable.inspect(ex.id, { follow: ex.follow }); if (worked) { cur.worked = true; keepHelp(); } render(); return true; }
     if (ex.show === 'lookup') { cur.showLookup = true; cur.lookupQ = ex.search; render(); return true; }
     const mine = ++op;
     ctx.setBusy(true, 'run');
-    if (worked) cur.worked = true;
+    if (worked) { cur.worked = true; keepHelp(); }
     try {
       ctx.show('is-running', ex.lang === 'php' ? 'Loading PHP, then running the example…' : 'Running the example…');
       const r = await execute(ex.lang, ex.code);
@@ -411,7 +439,10 @@ export async function createChapter(ctx) {
     ctx.sound?.cue?.('run');
     try {
       ctx.show('is-running', lang === 'php' ? 'Loading PHP, then running…' : 'Running…');
-      const r = await execute(lang, code);
+      // the answers are worked out from the world BEFORE his code runs
+      const truths = s.interaction ? null : await truthsOf(cur.world, s);
+      const question = cur.card.grading === 'query' && lang === 'sql';
+      const r = question ? await executeQuestion(code) : await execute(lang, code);
       if (op !== mine) return;
       cur.ranOnce = true;
       if (!r.res.ok) { play.lastEvents = []; ctx.show('is-error', r.res.error, explainError(r.res.error)); ctx.sound?.cue?.('error'); return; }
@@ -420,7 +451,9 @@ export async function createChapter(ctx) {
       let grade = null;
       if (!s.interaction) {
         ctx.show('is-running', 'Checking the answer…', outputHTML(lang, r.res));
-        grade = await gradeStep(cur.card, s, { world: cur.world, shadow: cur.shadowP, lang, code, res: r.res, baseline: cur.baseline, act: cur.act, php: getPhpRunner });
+        grade = await gradeStep(cur.card, s, { world: cur.world, shadow: cur.shadowP, lang, code, res: r.res, baseline: cur.baseline, act: cur.act, php: getPhpRunner, truths });
+        // a question is answered from the data as it is: an answer that needed the data changed first does not count
+        if (question && r.undone) grade = { passed: false, results: [{ name: 'the answer', ok: false, why: 'your code changed the data before answering. This ticket asks a question, so the change was not kept (it was rolled back): answer it from the data as it is', where: 'real' }] };
         play.lastGrade = grade;
       }
       if (op !== mine) return;
@@ -430,7 +463,7 @@ export async function createChapter(ctx) {
       timetable.render(r.after);
       hudUpdate(r.after);
       const n = lang === 'sql' ? (r.res.rows || []).length : null;
-      const ran = `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${r.changed ? ', and it changed the world' : ''}.`;
+      const ran = `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${r.changed ? ', and it changed the world' : ''}${r.undone ? ' (its change to the data was rolled back: a question changes nothing)' : ''}.`;
       if (!grade) { ctx.show('is-miss', `${ran} ${s.interaction === 'pick' ? 'Now pick the booking.' : 'Now answer in the ticket window.'}`, outputHTML(lang, r.res)); render(); return; }
       if (grade.passed) { await stepPassed(code, lang, r.res); return; }
       const failed = grade.results.filter((x) => !x.ok);
@@ -481,20 +514,23 @@ export async function createChapter(ctx) {
       else if (!st?.written) pencil.push(spellById(sp.id).name);
     }
     cur.solved = true;
-    const credit = cur.practice ? 'Practice: no credit, and nothing is written (a ticket you have passed is not a fresh problem).'
+    const credit = cur.practice ? 'Practice: no credit, and nothing in your Grimoire changes (a ticket you have passed is not a fresh problem).'
       : !r.first ? 'No XP this time: this ticket was already solved once.'
-        : help === 'clean' ? `+${r.xp} XP: a clean solve, no help.`
-          : help === 'nudged' ? `+${r.xp} XP: solved with a nudge.`
-            : help === 'guided' ? `+${r.xp} XP: guided (a hint named the idea). It comes back soon as a new problem.`
-              : `+${r.xp} XP: you used the worked example, so this counts as exposure, not mastery. It comes back soon, as a fresh variation.`;
+        : card.evidence === false ? 'Teaching ticket: no XP; XP comes from solving fresh problems on your own.'
+          : help === 'clean' ? `+${r.xp} XP: a clean solve, no help.`
+            : help === 'nudged' ? `+${r.xp} XP: solved with a nudge.`
+              : help === 'guided' ? `+${r.xp} XP: guided (a hint named the idea).`
+                : `+${r.xp} XP: you used the worked example, so this counts as exposure, not mastery.`;
     const spells = written.length ? `Written in your Grimoire, in ink: ${written.join(', ')}.` : pencil.length ? `Still in pencil: ${pencil.join(', ')} (cast it on your own, in a new problem, to write it in).` : '';
-    cur.outcome = { reply: card.thanks || 'That is exactly it. Thank you!', credit, spells, kept: written.length ? 'Easy today is not the same as kept. It comes back in a few days to find out.' : (card.evidence === false ? 'Scaffolded: this one teaches; it is not evidence of what you can do on your own yet.' : '') };
+    cur.outcome = { reply: card.thanks || 'That is exactly it. Thank you!', credit, spells, kept: written.length ? 'Easy today is not the same as kept. Your Grimoire shows when this starts to fade; reviews arrive in the next update.' : (card.evidence === false ? 'Scaffolded: this one teaches; it is not evidence of what you can do on your own yet.' : '') };
     play.lastSolve = { card: card.id, help, xp: r.xp, written, spells: r.spells };
     setTicket3d(card, false);
     ctx.show('is-win', `Solved: ${card.from.name.split(' ')[0]}'s ticket is resolved.${r.xp ? ` +${r.xp} XP` : ''}`);
     ctx.sound?.cue?.('level-up');
     hudUpdate();
     render();
+    // the editor goes back to the start of the code (a long line left it scrolled sideways)
+    editor.el.scrollLeft = 0; editor.el.scrollTop = 0; editor.el.setSelectionRange?.(0, 0); editor.el.dispatchEvent(new Event('scroll'));
   }
 
   // ---------------------------------------------------------------- moving on
@@ -519,7 +555,7 @@ export async function createChapter(ctx) {
     await loadCard(pick, { practice: true });
   }
   function chapterDone() {
-    cur = { kind: 'card', card: LADDER[LADDER.length - 1], solved: true, act: {}, step: 0, outcome: { reply: '', credit: '' }, pace: 'That is the whole opening chapter: every ticket solved. More arrive in the next chapter. For now, practise any solved ticket (no credit), or stop here: sleep is when today\'s learning settles in.' };
+    cur = { kind: 'card', card: LADDER[LADDER.length - 1], solved: true, act: {}, step: 0, outcome: { reply: '', credit: '' }, pace: 'That is the whole opening chapter: every ticket solved. JavaScript and PHP continue in the next chapter, with their own tickets. For now, practise any solved ticket (no credit), or stop here: sleep is when today\'s learning settles in.' };
     render();
   }
   async function reset() {
@@ -591,8 +627,10 @@ export async function createChapter(ctx) {
     let meter = '';
     if (s.id === 'meter') {
       const st = store().getSpellState('select-all'), ink = inkOf(st, now());
-      const m = st.written ? describeSkill({ name: 'Ask for everything', lang: 'SQL', lastMs: st.lastMs, stability: st.stability }, now()) : null;
-      meter = `<div class="say-meter"><b>Ask for everything</b> · ${esc(ink.line)}${m ? `<svg viewBox="0 0 120 40" role="img" aria-label="Estimated recall over the next days"><polyline points="${m.curve}" fill="none" stroke="currentColor" stroke-width="2"/></svg>` : ''}</div>`;
+      // an example meter (a spell just written, kept about 3 days), clearly labelled as an example: the demonstration
+      // itself is not on any meter
+      const m = describeSkill({ name: 'example', lang: 'SQL', lastMs: now(), stability: 3 }, now());
+      meter = `<div class="say-meter"><b>Ask for everything</b> · ${esc(ink.line)}<br><small>Example meter: a spell just written is kept about 3 days; the ink fades along this curve.</small><svg viewBox="0 0 120 40" role="img" aria-label="Example: estimated recall over the next days"><polyline points="${m.curve}" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>`;
     }
     bubble.innerHTML = `<div class="say-who"><i></i>Sequel</div><p>${esc(s.say)}</p>${meter}<div class="row">${buttons}</div>`;
     bubble.hidden = false;
@@ -635,9 +673,10 @@ export async function createChapter(ctx) {
       if (!grade.passed) { ctx.show('is-miss', `It ran, but it is not quite it: ${grade.results.filter((x) => !x.ok).map((x) => x.why)[0] || 'try again'}.`, ctx.rowsTable(r.res.rows)); return; }
       if (s.id === 'grimoire') {
         const unaided = !cur.helped && !cur.replay && castSpells(code, 'sql', '').includes('select-all');
-        store().recordCast('select-all', { lang: 'sql', unaided, outcome: 'exposure', nowMs: now() });
+        // the plan's moment, honestly labelled: a demonstration, never counted (the first real unaided cast writes it)
+        store().recordCast('select-all', { lang: 'sql', demo: unaided, outcome: 'exposure', nowMs: now() });
         play.lastSolve = { card: 'tutorial', unaided };
-        ctx.show('is-win', unaided ? 'Cast on your own: “Ask for everything” is written in your Grimoire, in ink.' : cur.replay ? 'Cast. (A replay is practice: nothing new is written.)' : 'Cast with help: it stays in pencil until you cast it on your own.', ctx.rowsTable(r.res.rows));
+        ctx.show('is-win', unaided ? 'Cast on your own: “Ask for everything” appears in your Grimoire as a Demonstration. It counts once you cast it on your own in a real ticket.' : cur.replay ? 'Cast. (A replay is practice: nothing new is written.)' : 'Cast with help: it stays in pencil until you cast it on your own.', ctx.rowsTable(r.res.rows));
         import('./grimoire.js').then((m) => { const g = m.grimoire(); g.open('select-all'); setTimeout(() => { g.close(); }, 2600 / Math.max(0.1, play.timeScale || 1)); });
       } else ctx.show('is-win', s.id === 'query' ? 'That is every booking: each lit-up person is one row; the others are at other times of the week.' : 'One word changed the question: now only the Studio (room 2).', ctx.rowsTable(r.res.rows));
       tutorialNext();
@@ -686,7 +725,7 @@ export async function createChapter(ctx) {
     run, reset, next, practice, loadCard, startTutorial,
     get current() { return cur ? { kind: cur.kind, id: cur.card?.id, step: cur.kind === 'tutorial' ? cur.t : cur.step, tutorialStep: cur.kind === 'tutorial' ? tStep().id : null, solved: !!cur.solved, learning: !!cur.learning, hint: cur.hint || 0, worked: !!cur.worked, practice: !!cur.practice, pace: cur.pace || null } : null; },
     get life() { return life(); },
-    store, timetable, setNow(ms) { nowOverride = ms; setClock(ms == null ? null : () => nowOverride); }, now, ladder: LADDER, cardById,
+    store, timetable, setNow(ms) { nowOverride = ms; }, now, ladder: LADDER, cardById,
     pickBooking(id) { showTimetable(true); return timetable.inspect(id); },
     dispose() { clearInterval(bubbleTimer); },
   };
