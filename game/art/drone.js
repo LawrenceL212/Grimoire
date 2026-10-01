@@ -291,7 +291,9 @@ export class Drone {
       this.dip = 0;
     });
   }
-  escort(person, seat, i = 0) {
+  // escort(person, seat, i, { path }): path (points in the person's frame) is the way to walk, ending by
+  // the seat; without one the person walks straight to the seat
+  escort(person, seat, i = 0, { path = null } = {}) {
     return this._run('escort', async () => {
       const frame = person.root.parent;
       const s = seatOf(seat, i, frame);
@@ -307,7 +309,7 @@ export class Drone {
       person.lookAt(null);
       // walk together: the drone keeps beside the person, a little ahead
       this.follow = { person, side: 1 };
-      await this._guard(person.walkTo([approach]));
+      await this._guard(person.walkTo(path && path.length ? path : [approach]));
       this.follow = null;
       await this._guard(person.sit(seat, i));
       this.express('proud', 1.5);

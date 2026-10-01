@@ -23,7 +23,8 @@
 //   right of the way it goes (two lanes on every corridor, so people passing do not meet head on).
 //   traffic.send(person, to, { seat, delay }) -> Promise: walks a person along a route; departures sent in
 //   the same moment are staggered, and a walker that has not made headway for a while re-plans with a
-//   sidestep (the people's local steering can jam in a crowd).
+//   sidestep (the people's local steering can jam in a crowd). traffic.clear(keep?) stops walkers where they
+//   stand (all of them, or those keep(person) returns false for) and resolves their sends with false.
 import * as THREE from 'three';
 import { make, get as assetMeta } from '../art/index.js';
 import { tileField } from '../art/materials.js';
@@ -459,7 +460,7 @@ function createTraffic(route, sidestepFrom) {
     const from = w.person.root.position;
     let pts = w.tries >= 4 ? [w.to] : route(from, w.to);
     if (!pts) pts = [w.to];
-    if (sidestep) pts = [sidestep, ...(route(sidestep, w.to) || [w.to])];
+    if (sidestep && w.tries < 4) pts = [sidestep, ...(route(sidestep, w.to) || [w.to])]; // after four tries: straight there
     w.started = true; w.still = 0; w.last.copy(from);
     const token = {}; w.token = token;
     w.person.walkTo(pts).then((arrived) => {
@@ -487,6 +488,17 @@ function createTraffic(route, sidestepFrom) {
       }
     }
   }
-  function clear() { for (const w of walkers) w.res(false); walkers.clear(); nextSlot = clock; }
-  return { send, update, clear, get size() { return walkers.size; } };
+  // clear(keep?): drop every walker (or those keep(person) does not keep), stopping their walk where they
+  // stand, and resolve their sends with false. Walkers kept are left alone, still walking.
+  function clear(keep = null) {
+    for (const w of [...walkers]) {
+      if (keep && keep(w.person)) continue;
+      walkers.delete(w);
+      w.token = null;
+      if (!w.person.disposed && w.started && !w.person.seat && !w.person.tr && w.person.path.length) w.person.walkTo([]);
+      w.res(false);
+    }
+    if (!walkers.size) nextSlot = clock;
+  }
+  return { send, update, clear, has: (person) => [...walkers].some((w) => w.person === person), get size() { return walkers.size; } };
 }
