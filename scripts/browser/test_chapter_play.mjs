@@ -92,7 +92,7 @@ try {
     const w = await written();
     const extra = w.filter((x) => !allowed.has(x));
     t.check(`${card.id}: spells are written only by unaided solves (${w.join(', ')})`, extra.length === 0, `not earned: ${extra.join(', ')}`);
-    if (card.id === 'T17') t.check('T17 solved clean writes the WHERE it recalled (left in pencil at T11)', w.includes('where') && w.includes('order-by'), w.join());
+    if (card.id === 'T17') t.check('T17 solved clean writes the WHERE it recalled (left in pencil at T11)', w.includes('where') && w.includes('order-by'), JSON.stringify({ w, s, casts: await page.evaluate(() => window.__play.lastSolve) }));
     if (card.id === 'T14' && SHOT) await page.screenshot({ path: `${SHOT}/task-15-chapter.png` });
 
     // Continue mid-chapter: a reload after T08 resumes at T10

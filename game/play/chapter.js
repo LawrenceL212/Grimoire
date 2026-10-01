@@ -18,7 +18,7 @@ import { CLOCK as CHAPTER_CLOCK } from '../world/named.js';
 import { diffWorlds, rowChanges, clashPairs } from './bridge.js';
 import { deriveState } from './state.js';
 import { createLife, nextCardId, paceCheck, startCard, recordSolve, xpOf, helpOf, HINT_COST, solvedIds } from './progress.js';
-import { setDefaultStore, spellById, SPELLS, inkOf } from './spells.js';
+import { setDefaultStore, spellById, SPELLS, inkOf, setClock } from './spells.js';
 import { createTimetable } from './timetable.js';
 import { describeSkill } from '../memory/meter.js';
 
@@ -30,7 +30,7 @@ const DAY_MS = 86400000;
 export async function createChapter(ctx) {
   const { $, esc, play, wins, editor, hud, app } = ctx;
   const params = new URLSearchParams(location.search);
-  let nowOverride = null;
+  let nowOverride = null; // setNow (tests): the whole game's clock moves, so the book and the stores agree
   const now = () => nowOverride ?? Date.now();
   const L = ctx.life || createLife({ now }); // the page's life (main.js made it, and handled ?new)
   setDefaultStore(L.spellStore);
@@ -47,7 +47,7 @@ export async function createChapter(ctx) {
   ttWin.id = 'win-timetable'; ttWin.setAttribute('aria-label', 'Timetable');
   ttWin.innerHTML = '<div class="bar" aria-label="Timetable"><span class="dot"></span><span>TIMETABLE · bookings</span><span class="sp"></span><button type="button" class="tt-close" aria-label="Hide the timetable">×</button></div><div class="body tt-host"></div>';
   app.appendChild(ttWin);
-  wins.add(ttWin, { id: 'timetable', right: 16, y: 84, w: 470, h: 430, minW: 300, minH: 220 });
+  wins.add(ttWin, { id: 'timetable', right: 16, y: 84, w: 470, h: (W, H) => Math.max(260, Math.min(600, H - 100)), minW: 300, minH: 220 });
   const showTimetable = (on) => { ttWin.hidden = !on; if (on) wins.layout(); };
   showTimetable(false);
   ttWin.querySelector('.tt-close').addEventListener('click', () => showTimetable(false));
@@ -74,7 +74,7 @@ export async function createChapter(ctx) {
   }
 
   // ---------------------------------------------------------------- the world
-  async function openWorld(card) {
+  async function openWorld(card, { keepPick = false } = {}) {
     const old = play.world;
     const world = await startWorld(card);
     const objects = await toObjects(world);
@@ -89,6 +89,7 @@ export async function createChapter(ctx) {
       office.resetDrones();
     }
     timetable.render(objects);
+    if (!keepPick) timetable.clear();
     if (old && old !== world) old.close().catch(() => {});
     return { world, objects };
   }
@@ -112,7 +113,7 @@ export async function createChapter(ctx) {
         kind: 'card', card, practice, step: practice ? 0 : Math.min(saved.step || 0, card.steps.length - 1),
         act: { picked: null, choice: null, lookup: { opened: new Set(), ran: new Set() }, reply: null, ran: false },
         hint: 0, worked: false, codexEarly: false, casts: new Set(), solved: false, ranOnce: false,
-        learning: !!card.learnCard && !saved.learnSeen && !practice, showLookup: false, predicted: null, explained: false,
+        learning: !!card.learnCard && !saved.learnSeen && !practice, showLookup: false, fresh: true, predicted: null, explained: false,
       };
       const { world } = await openWorld(card);
       if (op !== mine) return;
@@ -254,6 +255,8 @@ export async function createChapter(ctx) {
     thread.innerHTML = html;
     $('#win-ticket').classList.add('has-thread');
     ctx.fitTicket();
+    // a new ticket or its Learn card reads from the top (the symptom first); otherwise the latest part is in view
+    if (cur.learning || cur.fresh) { $('#win-ticket .body').scrollTop = 0; cur.fresh = false; }
     const q = thread.querySelector('#lookup-q');
     if (q && cur.lookupFocus) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); cur.lookupFocus = false; }
   }
@@ -381,7 +384,7 @@ export async function createChapter(ctx) {
       await act(ex.lang, r.res, r.before, r.after, r.events, r.changed, null);
       if (op !== mine) return false;
       if (r.changed) {
-        await openWorld(cur.card === TUTORIAL ? TUTORIAL : cur.card);
+        await openWorld(cur.card === TUTORIAL ? TUTORIAL : cur.card, { keepPick: true });
         cur.world = play.world;
         cur.baseline = await baselineOf(cur.world, cur.card.steps || []);
         ctx.show('is-miss', 'That was an example: the world is back as the ticket arrived.', outputHTML(ex.lang, r.res));
@@ -627,7 +630,7 @@ export async function createChapter(ctx) {
       ctx.show('is-running', 'Watch the office…', ctx.rowsTable(r.res.rows));
       await act('sql', r.res, r.before, r.after, r.events, r.changed, null);
       if (op !== mine) return;
-      if (r.changed) { await openWorld(T); cur.world = play.world; }
+      if (r.changed) { await openWorld(T, { keepPick: true }); cur.world = play.world; }
       if (s.task !== 'run') { ctx.show('is-win', 'It ran. Carry on with what Sequel says.', ctx.rowsTable(r.res.rows)); return; }
       if (!grade.passed) { ctx.show('is-miss', `It ran, but it is not quite it: ${grade.results.filter((x) => !x.ok).map((x) => x.why)[0] || 'try again'}.`, ctx.rowsTable(r.res.rows)); return; }
       if (s.id === 'grimoire') {
@@ -658,6 +661,8 @@ export async function createChapter(ctx) {
     const p = ctx.office && !ctx.glDown() ? ctx.office.screenOf('drone') : null;
     const W = innerWidth, H = innerHeight, bw = bubble.offsetWidth || 340, bh = bubble.offsetHeight || 160;
     let x = p ? p.x + 26 : W - bw - 16, y = p ? p.y - bh - 10 : H - bh - 16;
+    // never over the timetable (its inspector is what the bubble is talking about): bottom right instead
+    if (!ttWin.hidden) { const r = ttWin.getBoundingClientRect(); if (x < r.right && x + bw > r.left && y < r.bottom && y + bh > r.top) { x = W - bw - 16; y = H - bh - 16; if (y < r.bottom) x = Math.max(8, r.left - bw - 12); } }
     if (wins.isPhone) { bubble.style.left = ''; bubble.style.top = ''; bubble.classList.add('is-docked'); return; }
     bubble.classList.remove('is-docked');
     x = Math.max(8, Math.min(W - bw - 8, x)); y = Math.max(70, Math.min(H - bh - 8, y));
@@ -681,7 +686,7 @@ export async function createChapter(ctx) {
     run, reset, next, practice, loadCard, startTutorial,
     get current() { return cur ? { kind: cur.kind, id: cur.card?.id, step: cur.kind === 'tutorial' ? cur.t : cur.step, tutorialStep: cur.kind === 'tutorial' ? tStep().id : null, solved: !!cur.solved, learning: !!cur.learning, hint: cur.hint || 0, worked: !!cur.worked, practice: !!cur.practice, pace: cur.pace || null } : null; },
     get life() { return life(); },
-    store, timetable, setNow(ms) { nowOverride = ms; }, now, ladder: LADDER, cardById,
+    store, timetable, setNow(ms) { nowOverride = ms; setClock(ms == null ? null : () => nowOverride); }, now, ladder: LADDER, cardById,
     pickBooking(id) { showTimetable(true); return timetable.inspect(id); },
     dispose() { clearInterval(bubbleTimer); },
   };

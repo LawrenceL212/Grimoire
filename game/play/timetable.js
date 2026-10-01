@@ -7,6 +7,7 @@
 //     inspect(bookingId, { follow? })   open a booking's row (follow: 'room_id' | 'person_id' also opens the row it points at)
 //     followed                          the last { table, id } followed (for tests)
 //     picked                            the last booking id picked
+//     clear()                           forget the pick (a new ticket)
 //   }
 // onPick(id) is told every pick (a click on a block, or a call from the office).
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -80,5 +81,6 @@ export function createTimetable(el, { onPick } = {}) {
     const f = e.target.closest('.tt-follow');
     if (f && api.picked != null) inspect(api.picked, { follow: f.dataset.follow });
   });
-  return Object.assign(api, { render, inspect, el });
+  function clear() { api.picked = null; api.followed = null; insp.innerHTML = ''; grid.querySelectorAll('.is-picked').forEach((n) => n.classList.remove('is-picked')); }
+  return Object.assign(api, { render, inspect, clear, el });
 }

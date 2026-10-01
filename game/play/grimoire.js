@@ -8,12 +8,12 @@
 // faint pencil outline (UNWRITTEN); once cast unaided it is WRITTEN in ink, and the ink follows the memory meter:
 // fresh = full ink, fading = faded, due = very faint with "re-ink soon"; "kept about N days" is how long it holds.
 //
-//   createGrimoire({ host = document.body, store (default: the page's default store, read at each render), now = Date.now } = {}) -> {
+//   createGrimoire({ host = document.body, store (default: the page's default store, read at each render), now = the game clock } = {}) -> {
 //     el, ready (a promise: the stylesheet has loaded), open(spellId?), close(), toggle(), isOpen(), show(pageIndex, { animate }), next(), prev(),
 //     page (the first page showing), pages (count), refresh(), dispose() }
 //   grimoire() -> the page's one Grimoire (made on first use; the HUD button opens it)
 // Keys while open: Esc closes, Left / Right turn the page. The stylesheet (grimoire.css) is added on first use.
-import { SPELLS, LANGS, inkOf, defaultStore, INK_WORDS } from './spells.js';
+import { SPELLS, LANGS, inkOf, defaultStore, INK_WORDS, gameNow } from './spells.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
 
 const PHONE = '(max-width: 720px)';
@@ -36,7 +36,7 @@ function addStyles() {
 }
 const ringOf = (lang) => tget(`palette.${LANGS[lang].ring}`) || '#d9a441';
 
-export function createGrimoire({ host = document.body, store = null, now = Date.now } = {}) {
+export function createGrimoire({ host = document.body, store = null, now = gameNow } = {}) {
   const book = () => store || defaultStore(); // the life's store may be handed over after the book is made
   const ready = addStyles();
   const el = document.createElement('div');

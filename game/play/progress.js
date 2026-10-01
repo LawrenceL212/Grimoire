@@ -20,7 +20,7 @@
 //   createLife({ storage, key, now }) -> { life, save(), reset(), spellStore, ... the pure functions bound }
 //   The spells of this life live inside the same record (life.spells), read and written through spells.js's
 //   store with a storage adapter, so the HUD's Grimoire shows this life's progress.
-import { createSpellStore } from './spells.js';
+import { createSpellStore, gameNow } from './spells.js';
 
 export const LIFE_KEY = 'grimoire.life.siso.v1';
 export const CREDIT = Object.freeze({ clean: 10, nudged: 7, guided: 3, exposure: 0 });
@@ -118,7 +118,7 @@ export const xpOf = (life) => life.solves.reduce((n, s) => n + (s.xp || 0), 0);
 function safeStorage() {
   try { const s = globalThis.localStorage; const k = '__grimoire_probe'; s.setItem(k, '1'); s.removeItem(k); return s; } catch { return null; }
 }
-export function createLife({ storage, key = LIFE_KEY, now = Date.now } = {}) {
+export function createLife({ storage, key = LIFE_KEY, now = gameNow } = {}) {
   const S = storage === undefined ? safeStorage() : storage;
   let life;
   try { life = cleanLife(JSON.parse(S?.getItem(key) || 'null'), now()); } catch { life = freshLife(now()); }

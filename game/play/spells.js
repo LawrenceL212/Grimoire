@@ -127,7 +127,12 @@ function clean(rec) {
   return r;
 }
 
-export function createSpellStore({ storage, key = 'grimoire.spells.v1', now = Date.now } = {}) {
+// the game's clock: real time, unless a test (or the chapter's setNow) moves it; stores and the book read it
+let CLOCK = () => Date.now();
+export const gameNow = () => CLOCK();
+export const setClock = (fn) => { CLOCK = typeof fn === 'function' ? fn : () => Date.now(); };
+
+export function createSpellStore({ storage, key = 'grimoire.spells.v1', now = gameNow } = {}) {
   const S = storage === undefined ? (safeStorage() || memoryStorage()) : (storage || memoryStorage());
   let data = {};
   try {
