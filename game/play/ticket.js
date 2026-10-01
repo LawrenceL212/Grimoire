@@ -10,6 +10,7 @@
 //     credit     the XP line (resolved only): +10 on the first clean solve, else why not
 //     note       when not resolved: what is still wrong, in plain words (from the failed checks and the diff)
 import { when, roomName } from './story.js';
+import { changedIds, rowChanges } from './bridge.js';
 
 export const TICKET = {
   id: 'double-booking-1',
@@ -34,9 +35,14 @@ export function outcome({ events = [], grade, before, after, lang = 'sql', xp = 
   const using = LANG[lang] || lang;
   if (grade?.passed) {
     const h = whatHappened(events, before, after);
-    // what happened to the bookings that were there first, from the diff (not assumed)
-    const touched = new Set(events.filter((e) => e.type.startsWith('booking-') && e.bookingId <= originals).map((e) => e.bookingId));
-    const rest = touched.size ? ` It also changed ${touched.size} of the bookings that were there first (${[...touched].sort((a, b) => a - b).join(', ')}).` : ' Every booking that was there first is as it was.';
+    // what happened to the bookings that were there first: the diff events AND a full row comparison (any column, e.g. person_id)
+    const touched = new Set([
+      ...events.filter((e) => e.type.startsWith('booking-') && e.bookingId <= originals).map((e) => e.bookingId),
+      ...changedIds(before, after, 'bookings').filter((id) => id <= originals),
+    ]);
+    const others = rowChanges(before, after).filter((c) => c.table !== 'bookings' && (c.changed || c.removed)).map((c) => `${c.changed + c.removed} ${c.table}`);
+    const rest = (touched.size ? ` It also changed ${touched.size} of the bookings that were there first (${[...touched].sort((a, b) => a - b).join(', ')}).` : ' Every booking that was there first is as it was.')
+      + (others.length ? ` It also changed rows in ${others.join(' and ')}.` : '');
     let reply, did;
     if (h?.kind === 'removed') {
       reply = "Oh, so mine was the one that clashed. Fair enough, the 08:00 was there first. I'll book another slot. Thanks!";

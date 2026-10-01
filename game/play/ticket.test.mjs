@@ -43,3 +43,14 @@ test('the recap says what happened to the earlier bookings from the diff, not by
   assert.match(shifted.recap[0], /changed 2 of the bookings that were there first \(1, 4\)/);
   assert.doesNotMatch(shifted.recap[0], /as it was/);
 });
+
+test('a pass that changed booking 1 person (no diff event) must not claim the originals are untouched', () => {
+  const pass = { passed: true, results: [] };
+  const row = (id, person) => ({ id, room_id: 1, person_id: person, ...t });
+  const before = { rooms, people: [{ id: 1, name: 'A' }], bookings: [row(1, 1), row(21, 2)] };
+  const after = { rooms, people: [{ id: 1, name: 'B' }], bookings: [row(1, 9), row(21, 2)] };
+  const o = outcome({ events: [{ type: 'booking-removed', bookingId: 21, roomId: 1 }], grade: pass, before, after });
+  assert.doesNotMatch(o.recap[0], /as it was/);
+  assert.match(o.recap[0], /changed 1 of the bookings that were there first \(1\)/);
+  assert.match(o.recap[0], /rows in 1 people/);
+});

@@ -92,6 +92,11 @@ export function rowChanges(before, after) {
   }
   return out;
 }
+// the ids of the rows in one table that exist before and after but differ in ANY column (not only the ones the diff events watch)
+export function changedIds(before, after, table) {
+  const now = new Map((after?.[table] || []).map((r) => [r.id, r]));
+  return (before?.[table] || []).filter((r) => now.has(r.id) && !same(r, now.get(r.id))).map((r) => r.id);
+}
 export function describeRows(changes) {
   const parts = [];
   for (const c of changes) {
