@@ -32,7 +32,7 @@ const engine = (expr) => page.evaluate(async (e) => {
 
 t.check('no audio before a gesture', await engine('audio.getContext() === null'));
 t.check('a speaker button with an accessible label sits in the HUD',
-  await page.locator('#hud #hud-sound[aria-label][aria-pressed="false"]').count() === 1, await page.locator('#hud-sound').getAttribute('aria-label'));
+  await page.locator('#hud #hud-sound[aria-label="Sound"][aria-pressed="false"]').count() === 1, await page.locator('#hud-sound').getAttribute('aria-label'));
 
 // the first gesture wakes the sound: the context runs, the music starts, the waiting ticket is announced
 await page.locator('#ticket-said').click();
@@ -70,6 +70,19 @@ t.check('Reset', await ready(page));
 await page.waitForTimeout(300);
 const reset = await since(page, m);
 t.check('the ticket pops back on Reset (and the click is heard)', reset.includes('ticket-pop') && reset.includes('ui-click'), JSON.stringify(reset));
+
+// the hum's lifecycle: Reset in mid-flight stops it
+await page.evaluate(() => { window.__play.timeScale = 1; });
+await page.locator('#editor').fill(problem.reference.sql);
+await page.locator('#run').click();
+const humUp = await page.waitForFunction(async () => (await import('/game/engine/sfx.js')).loopRunning('drone-hum'), null, { timeout: 15000 }).then(() => true, () => false);
+t.check('the drone hums once a run is under way', humUp);
+await page.locator('#hud-reset').click();
+await ready(page);
+await page.waitForTimeout(800);
+t.check('Reset in mid-flight stops the hum', humUp && !(await engine("sfx.loopRunning('drone-hum')")));
+await page.evaluate(() => { window.__play.timeScale = 4; });
+await page.waitForTimeout(300);
 
 // an SQL error: the soft error sound and nothing else
 m = await mark(page);
@@ -112,6 +125,12 @@ t.check('the tweak panel has master, music and effects sliders, calm and mute',
 await page.locator('.gm-tweak .gm-sound [data-snd="music"]').fill('0.45');
 await page.locator('#hud-tweak').click();
 
+// a hidden tab is silent, and comes back when shown
+await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
+await page.waitForTimeout(1500);
+t.check('a hidden tab sets the output level to 0', (await engine('audio.outputLevel()')) < 1e-4);
+await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+
 // mute: silence, and it persists
 await page.locator('#hud-sound').click();
 await page.waitForTimeout(600);
@@ -130,4 +149,30 @@ t.check('unmute from the speaker', !(await engine('audio.getSettings().muted')) 
 
 t.check('no page errors', errors.length === 0, errors.join(' | '));
 await g.close();
+
+// WebGL lost: the hum stops, and a solve is still celebrated (success + coin from the ticket pill)
+{
+  const lost = await openGame(PAGE, { context: { viewport: { width: 1280, height: 720 } } });
+  const pg = lost.page;
+  t.check('(webgl loss) the page boots', await ready(pg));
+  await pg.locator('#ticket-said').click();
+  await pg.evaluate(() => { window.__play.timeScale = 1; });
+  await pg.locator('#editor').fill(problem.reference.sql);
+  await pg.locator('#run').click();
+  const up = await pg.waitForFunction(async () => (await import('/game/engine/sfx.js')).loopRunning('drone-hum'), null, { timeout: 15000 }).then(() => true, () => false);
+  await pg.evaluate(() => { const c = document.querySelector('#scene canvas'); const gl = c.getContext('webgl2') || c.getContext('webgl'); gl.getExtension('WEBGL_lose_context').loseContext(); });
+  await pg.waitForTimeout(800);
+  const down = await pg.evaluate(() => !!document.querySelector('.no-gl'));
+  t.check('WebGL loss stops the hum', up && down && !(await pg.evaluate(async () => (await import('/game/engine/sfx.js')).loopRunning('drone-hum'))), JSON.stringify({ up, down }));
+  await idle(pg);
+  // a second solve with the view down: Reset, run the fix again
+  await pg.locator('#hud-reset').click();
+  await ready(pg);
+  const n = await mark(pg);
+  await run(pg, problem.reference.sql);
+  const names = await since(pg, n);
+  t.check('with the 3D view down a solve still plays success and coin', names.includes('success') && names.includes('coin'), JSON.stringify(names));
+  t.check('(webgl loss) no page errors', lost.errors.length === 0, lost.errors.join(' | '));
+  await lost.close();
+}
 t.finish();

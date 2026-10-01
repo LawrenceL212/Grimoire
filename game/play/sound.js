@@ -4,7 +4,7 @@
 //   createSound({ stage, office, story, editor, isBusy, reducedMotion }) -> sound
 //     stage/office/story are getters (the 3D office loads later, and may never load)
 //     .cue(name, at?)      an effect now, panned from a scene point [x, y, z] (story.js and main.js call this)
-//     .mountSpeaker(hudEl) the HUD's mute button (aria-pressed, label follows the state)
+//     .mountSpeaker(hudEl) the HUD's mute button (aria-pressed, fixed label, aria-pressed = muted)
 //     .attachPanel(panelEl) the volume sliders (master, music, effects), calm audio and mute in the tweak panel
 //     .attention()         the ticket still needs attention (a failed check): alert, unless a red scan just said it
 //     .log                 every effect asked for, in order: { name, played, at } (tests read it)
@@ -88,7 +88,8 @@ export function createSound({ stage = () => null, office = () => null, story = (
     const dt = lastT ? Math.min(0.25, (now - lastT) / 1000) : 0;
     lastT = now;
     const o = office(), s = story();
-    if (o?.drone) {
+    const down = !!document.querySelector('.no-gl'); // main.js marks the page .no-gl when the 3D view is gone; with the view lost nothing flies, so nothing hums
+    if (o?.drone && !down) {
       const d = o.drone, pos = worldOf(d.root);
       // the hum: on while the drone is busy, its pitch from how fast it really moves
       if (d.state !== 'idle') {
@@ -110,7 +111,7 @@ export function createSound({ stage = () => null, office = () => null, story = (
         if (!reducedMotion) setTimeout(() => cue('confetti-pop', worldOf(d.root)), 160);
       }
       droneState = d.state;
-    }
+    } else if (hum) { sfx.stopLoop('drone-hum'); hum = false; last = null; } // Reset or a lost WebGL context cut the flight short
     // the ticket card: appears, resolved, reopened
     const t = s?.ticket || null;
     if (t !== card) {
@@ -124,13 +125,25 @@ export function createSound({ stage = () => null, office = () => null, story = (
   }
   requestAnimationFrame(watch);
 
+  // ---- without the 3D office there is no story card to stamp: cue the solve from the page's own ticket pill ----
+  const pill = document.querySelector('#win-ticket .pill');
+  if (pill) {
+    let wasOpen = pill.classList.contains('open');
+    new MutationObserver(() => {
+      const open = pill.classList.contains('open');
+      const noStage = !story()?.ticket || !!document.querySelector('.no-gl');
+      if (wasOpen && !open && noStage) { cue('success'); setTimeout(() => cue('coin'), 120); }
+      wasOpen = open;
+    }).observe(pill, { attributes: true, attributeFilter: ['class'] });
+  }
+
   // ---- the speaker button ----
   function mountSpeaker(hudEl) {
     const right = hudEl.querySelector('.hud-right') || hudEl;
     if (!document.getElementById('hud-sound-css')) {
       // the button's own look; on a phone the HUD's buttons may wrap to a second row rather than overflow
       const st = document.createElement('style'); st.id = 'hud-sound-css';
-      st.textContent = '#hud-sound{display:inline-flex;align-items:center;justify-content:center;padding:0 10px;color:var(--gold)}#hud-sound.is-on{color:var(--ink)}'
+      st.textContent = '#hud-sound{display:inline-flex;align-items:center;justify-content:center;padding:0 10px;color:var(--gold)}#hud-sound.is-muted{color:var(--ink)}'
         + '@media (max-width:720px){#hud-sound{padding:0 8px}#hud .hud-right{flex-wrap:wrap;row-gap:6px}}';
       document.head.appendChild(st);
     }
@@ -140,9 +153,9 @@ export function createSound({ stage = () => null, office = () => null, story = (
       const m = audio.getSettings().muted;
       b.innerHTML = m ? ICON_OFF : ICON_ON;
       b.setAttribute('aria-pressed', String(m));
-      b.setAttribute('aria-label', m ? 'Sound off: turn sound on' : 'Sound on: mute');
+      b.setAttribute('aria-label', 'Sound'); // a fixed name: aria-pressed carries the state
       b.title = m ? 'Sound is off (click to turn it on)' : 'Mute sound';
-      b.classList.toggle('is-on', m);
+      b.classList.toggle('is-muted', m);
     };
     b.addEventListener('click', () => { audio.toggleMuted(); paint(); if (!audio.getSettings().muted) cue('ui-click'); });
     audio.onAudioChange(paint);
