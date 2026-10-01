@@ -30,7 +30,8 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-No build step, no npm, no bundler. `index.html` is the whole app; ESM modules
+The site root (`index.html`) is the Grimoire game's title screen; the original Library app now lives at `library.html`.
+No build step, no npm, no bundler. `library.html` is the whole Library app; ESM modules
 come from CDN.
 
 ## Code execution
