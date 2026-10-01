@@ -5,7 +5,7 @@
 import { openGame, makeReporter } from './game_lib.mjs';
 
 const t = makeReporter();
-const PAGE = 'game/play/index.html';
+const PAGE = 'game/play/index.html?ticket=double-booking-1'; // Phase 1's double-booking card on its own (the chapter is tested in test_chapter_*)
 const ready = (page) => page.waitForFunction(() => window.__play && window.__play.ready === true, null, { timeout: 45000 }).then(() => true, () => false);
 const rect = (page, sel) => page.locator(sel).evaluate((n) => { const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; });
 const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth);

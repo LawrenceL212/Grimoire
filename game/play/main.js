@@ -13,6 +13,10 @@
 // Sound (sound.js): the audio wakes on the first gesture; the effects follow the same real events the story
 // plays (run, error, level-up are cued here; the story and the drone cue the rest).
 // play.timeScale (default 1) speeds the office and the story up (tests set it; the outcome is the same).
+//
+// Two modes. The default is the SISO world's opening chapter (chapter.js): a fresh life starts with the first-day
+// tutorial, then the ladder's tickets in order; Continue (any later visit) resumes at the right ticket. With
+// ?ticket=double-booking-1 the page plays Phase 1's double-booking card on its own, as before (no chapter progress).
 import { toObjects } from '../world/views.js';
 import { runSolution } from '../runners/index.js';
 import { startProblem, gradeProblem } from '../problems/check.js';
@@ -26,6 +30,8 @@ import { createEditor } from './editor.js';
 import { mountTweakPanel } from '../engine/tweak-panel.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
 import { createSound } from './sound.js';
+import { createLife } from './progress.js';
+import { setDefaultStore } from './spells.js';
 
 const CLOCK = '2026-01-01T08:45:00Z'; // the office clock on Day 1: who is sitting where comes from the bookings running now
 const LANGS = { sql: 'SQL', js: 'JavaScript', php: 'PHP' };
@@ -40,6 +46,13 @@ const PHP_NOTE = 'PHP works on a SQLite copy of the world, and your changes are 
 const GL_UNAVAILABLE = 'The 3D view could not start on this device (WebGL is not available). The ticket and the code window still work.';
 const GL_LOST = 'The 3D view stopped (the graphics driver reset it). The ticket and the code window still work; reload the page to bring the office back.';
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MODE = new URLSearchParams(location.search).get('ticket') === 'double-booking-1' ? 'ticket' : 'chapter';
+let chapter = null; // the chapter controller (chapter.js), in chapter mode
+// the life (progress.js): one record under one key, made before anything can open the Grimoire, so the HUD's
+// book always shows this life's spells. ?new (chapter mode) starts a new life.
+const life = createLife();
+if (MODE === 'chapter' && new URLSearchParams(location.search).has('new')) life.reset();
+setDefaultStore(life.spellStore);
 
 const $ = (s) => document.querySelector(s);
 const app = $('#app');
@@ -54,7 +67,7 @@ const play = window.__play = { ready: false, busy: false, phase: null, timeScale
 let tweak = null;
 let focusOn = false;
 const hud = createHud($('#hud'), {
-  onReset: () => onReset(),
+  onReset: () => (chapter ? chapter.reset() : onReset()),
   onTweak: () => { tweak ??= mountTweakPanel(app); sound.attachPanel(tweak.panel); tweak.toggle(); },
   onFocus: () => toggleFocus(),
 });
@@ -100,7 +113,7 @@ function fitTicket() {
 }
 
 // ---------------------------------------------------------------- the code window
-const editor = createEditor($('#editor-host'), { onRun: () => onRun(), label: 'Your code' });
+const editor = createEditor($('#editor-host'), { onRun: () => (chapter ? chapter.run() : onRun()), label: 'Your code' });
 const sound = createSound({ stage: () => stage, office: () => office, story: () => story, editor: editor.el, isBusy: () => play.busy, reducedMotion: RM });
 sound.mountSpeaker($('#hud'));
 let lang = 'sql';
@@ -115,8 +128,8 @@ function setLang(next) {
   $('#code-note').hidden = next !== 'php';
 }
 for (const b of tabs) b.addEventListener('click', () => setLang(b.dataset.lang));
-$('#run').addEventListener('click', () => onRun());
-$('#reset').addEventListener('click', () => onReset());
+$('#run').addEventListener('click', () => (chapter ? chapter.run() : onRun()));
+$('#reset').addEventListener('click', () => (chapter ? chapter.reset() : onReset()));
 setLang('sql');
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -212,7 +225,7 @@ async function loadWorld() {
       office.setRooms(clash);
       office.fx.clearTickets();
       story.setTicket(!grade.passed, [...clash][0] ?? 1);
-      office.drone.reset(); office.drone.root.position.copy(office.rest);
+      office.resetDrones();
     }
     show('', '');
     play.ready = true;
@@ -314,5 +327,23 @@ play.sound = sound;
 
 setBusy(true);
 await startScene();
-await loadWorld();
-setBusy(false);
+if (MODE === 'ticket') {
+  await loadWorld();
+  setBusy(false);
+} else {
+  // the chapter drives the same page: it gets the page's parts, never a second copy of them
+  const ctx = {
+    play, app, hud, wins, life, editor, sound, RM, $, esc, show, rowsTable, setBusy, fitTicket, hudHeight,
+    get office() { return office; }, get story() { return story; }, get stage() { return stage; }, glDown: () => glDown,
+    setLang, get lang() { return lang; }, tabs, showState: (s) => hud.set(s),
+  };
+  try {
+    const { createChapter } = await import('./chapter.js');
+    chapter = await createChapter(ctx);
+    play.chapter = chapter;
+  } catch (e) {
+    console.error('the chapter could not start', e);
+    show('is-error', `The game could not start: ${String(e?.message ?? e)}. Check your connection, then reload the page.`);
+    $('#loading').hidden = true;
+  }
+}

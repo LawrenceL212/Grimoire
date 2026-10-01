@@ -36,17 +36,19 @@ export function recordSolve(history, ticket, { clean = true } = {}) {
   return { ...history, solves: [...(history?.solves || []), { ticket, clean: !!clean }] };
 }
 
-export function deriveState(objects, grade, history) {
+// opts (the opening chapter): { day: 'YYYY-MM-DD' the timetable day, xp: the life's XP, openTickets }
+export function deriveState(objects, grade, history, opts = {}) {
   const all = objects?.bookings || [];
-  const bookings = all.filter((b) => String(b.start_at).slice(0, 10) === DAY).length;
+  const day = opts.day || DAY;
+  const bookings = all.filter((b) => String(b.start_at).slice(0, 10) === day).length;
   const clashes = clashPairs(all).length;
-  const xp = earned(history);
+  const xp = opts.xp ?? earned(history);
   return {
     bookings,
     revenue: bookings * PRICE,
     reputation: Math.max(0, Math.round((BASE_REPUTATION - CLASH_COST * clashes) * 10) / 10),
     clashes,
-    openTickets: grade ? (grade.passed ? 0 : 1) : (clashes > 0 ? 1 : 0),
+    openTickets: opts.openTickets ?? (grade ? (grade.passed ? 0 : 1) : (clashes > 0 ? 1 : 0)),
     xp,
     level: 1 + Math.floor(xp / XP_PER_LEVEL),
   };

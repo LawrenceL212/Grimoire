@@ -8,7 +8,7 @@ import { openGame, makeReporter } from './game_lib.mjs';
 
 const t = makeReporter();
 const SHOT = process.env.SHOT || null;
-const { page, errors, close } = await openGame('game/play/index.html', { context: { viewport: { width: 1280, height: 800 } } });
+const { page, errors, close } = await openGame('game/play/index.html?ticket=double-booking-1', { context: { viewport: { width: 1280, height: 800 } } });
 try {
   await page.waitForSelector('#hud-grimoire', { timeout: 30000 });
 } catch (e) {
@@ -76,13 +76,15 @@ t.check('the contents list every spell and show a meter per drone (Sequel, Jay, 
 // ---- the HUD button opens it; turning; closing
 await page.evaluate(() => {
   const DAY = 86400000, now = Date.now();
-  localStorage.setItem('grimoire.spells.v1', JSON.stringify({
+  // the spells live in the life's one record (progress.js), which the page's book reads
+  const spells = ({
     'table-row': { langs: ['sql'], written: true, lastMs: now - 0.2 * DAY, stability: 3, forms: { sql: { written: true, lastMs: now - 0.2 * DAY, stability: 3 } } },
     'id-link': { langs: ['sql'], written: true, lastMs: now - 1.0 * DAY, stability: 3, forms: { sql: { written: true, lastMs: now - 1.0 * DAY, stability: 3 } } },
     'select-all': { langs: ['sql', 'js', 'php'], written: true, lastMs: now - 0.1 * DAY, stability: 7.5, forms: { sql: { written: true, lastMs: now - 0.1 * DAY, stability: 7.5 }, js: { written: true, lastMs: now - 0.5 * DAY, stability: 3 } } },
     'select-columns': { langs: ['sql'], written: true, lastMs: now - 4 * DAY, stability: 3, forms: { sql: { written: true, lastMs: now - 4 * DAY, stability: 3 } } },
     where: { langs: ['sql'], written: false, lastMs: null, stability: 3, forms: {} },
-  }));
+  });
+  localStorage.setItem('grimoire.life.siso.v1', JSON.stringify({ v: 1, startedMs: now, tutorial: { done: true, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells }));
 });
 // the default store reads storage once, on first use: reload so the seeded state is what it reads
 await page.reload({ waitUntil: 'domcontentloaded' });

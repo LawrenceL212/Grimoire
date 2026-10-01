@@ -8,7 +8,7 @@ import { doubleBooking1 as problem } from '../../game/problems/double-booking-1.
 
 const t = makeReporter();
 const SPEED = 4;
-const PAGE = 'game/play/index.html';
+const PAGE = 'game/play/index.html?ticket=double-booking-1'; // Phase 1's double-booking card on its own (the chapter is tested in test_chapter_*)
 const VIEW = { viewport: { width: 1280, height: 720 } };
 const ready = (page, timeout = 45000) =>
   page.waitForFunction(() => window.__play && window.__play.ready === true && !window.__play.busy, null, { timeout }).then(() => true, () => false);

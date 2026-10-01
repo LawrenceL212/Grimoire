@@ -4,7 +4,7 @@ import { openGame, makeReporter } from './game_lib.mjs';
 import { doubleBooking1 as problem } from '../../game/problems/double-booking-1.js';
 
 const t = makeReporter();
-const PAGE = 'game/play/index.html';
+const PAGE = 'game/play/index.html?ticket=double-booking-1'; // Phase 1's double-booking card on its own (the chapter is tested in test_chapter_*)
 const ready = (page, timeout = 60000) =>
   page.waitForFunction(() => window.__play && window.__play.ready === true && !window.__play.busy, null, { timeout }).then(() => true, () => false);
 const idle = (page, timeout = 120000) => page.waitForFunction(() => !window.__play.busy, null, { timeout }).then(() => true, () => false);

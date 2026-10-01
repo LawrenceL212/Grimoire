@@ -135,13 +135,15 @@ function footprint(p) {
 }
 const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0);
 
+function drawLabel(g, text) {
+  g.clearRect(0, 0, 512, 128);
+  g.fillStyle = 'rgba(20,16,13,0.72)'; g.beginPath(); g.roundRect(8, 14, 496, 100, 30); g.fill();
+  g.strokeStyle = tget('palette.gold'); g.lineWidth = 5; g.stroke();
+  g.fillStyle = tget('palette.text'); g.font = '800 54px "Segoe UI", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text.toUpperCase(), 256, 66, 460);
+}
 function floorLabel(text, w = 2.0) {
-  const tex = canvasTex(512, 128, (g) => {
-    g.fillStyle = 'rgba(20,16,13,0.72)'; g.beginPath(); g.roundRect(8, 14, 496, 100, 30); g.fill();
-    g.strokeStyle = tget('palette.gold'); g.lineWidth = 5; g.stroke();
-    g.fillStyle = tget('palette.text'); g.font = '800 54px "Segoe UI", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(text.toUpperCase(), 256, 66, 460);
-  });
+  const tex = canvasTex(512, 128, (g) => drawLabel(g, text));
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
   m.rotation.x = -HALF_PI; m.position.y = 0.02; m.renderOrder = 2;
   m.name = `label-${text}`;
@@ -347,7 +349,7 @@ export function buildMap(stage, data = STARTER_OFFICE) {
     glow.position.set(center.x, 0.03, center.z); glow.visible = false; glow.renderOrder = 1; glow.name = `${r.id}-glow`;
     root.add(glow);
     const label = floorLabel(r.name); label.position.x = r.label[0]; label.position.z = r.label[1]; root.add(label);
-    return { id: r.id, name: r.name, tiles: [...r.tiles], center, seats: r.seats.map((s) => named.get(s)), desk: named.get(r.desk), glow, state: 'calm', t: 0 };
+    return { id: r.id, name: r.name, tiles: [...r.tiles], center, seats: r.seats.map((s) => named.get(s)), desk: named.get(r.desk), glow, state: 'calm', t: 0, labelTex: label.material.map };
   });
   for (const z of data.zones || []) { const l = floorLabel(z.name, z.w || 1.7); l.position.x = z.label[0]; l.position.z = z.label[1]; root.add(l); }
 
@@ -426,6 +428,13 @@ export function buildMap(stage, data = STARTER_OFFICE) {
     doors: [{ object: door, name: data.door.name, inside: doorInside(), outside: { x: data.door.outside[0], z: data.door.outside[1] } }],
     lookup: (name) => named.get(name) || null,
     route, approach, traffic, setRoomState, update, check,
+    // a room's floor label says a new name (the texture is redrawn in place, so merged meshes keep it)
+    relabel(id, text) {
+      const r = rooms.find((x) => x.id === id);
+      if (!r || !r.labelTex || r.label === text) return;
+      drawLabel(r.labelTex.userData.canvas.getContext('2d'), text);
+      r.labelTex.needsUpdate = true; r.label = text; r.name = text;
+    },
     roomAt(x, z) { return rooms.find((r) => x > r.tiles[0] && x < r.tiles[2] && z > r.tiles[1] && z < r.tiles[3]) || null; },
     bounds: { x0: X0, z0: Z0, x1: -X0, z1: -Z0 },
     stats: { baked, loose },

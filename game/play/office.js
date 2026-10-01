@@ -16,6 +16,12 @@
 //     .frame(rects)                 fit the office into the part of the scene the windows leave free
 //     .overview() / .focus(roomName)   the camera: the whole office, or one room close up
 //     .update(dt, t), .bench(n), .stats(), .dispose()
+//     .drones { sql, js, php }: Sequel, Jay and Hex, one drone per language; .drone is the one acting now
+//     .useDrone(lang)               the drone of the language used acts out the run (the others wait at the desk)
+//     .rest                         where the acting drone waits; .resetDrones() puts every drone back
+//     .relabel(worldRooms)          the floor labels say the world's room names (room-1 is rooms.id 1)
+//     .pick(x, y) -> bookingId      the booking of the person under a screen point (or null)
+//     .screenOf(bookingId | 'drone') -> { x, y } in CSS pixels of the canvas (or null)
 //   story.js drives .drone, .people and .map.traffic through these.
 import * as THREE from 'three';
 import { get as tget, onThemeChange } from '../engine/theme.js';
@@ -66,15 +72,34 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   stage.setPanBounds({ minX: map.bounds.x0 - 2, maxX: map.bounds.x1 + 2, minZ: map.bounds.z0 - 2, maxZ: map.bounds.z1 + 2 });
   const fx = new Effects({ reducedMotion });
   map.root.add(fx.root);
-  const drone = new PlayDrone({ fx, reducedMotion });
+  // one drone per language (Task 14): Sequel for SQL, Jay for JavaScript, Hex for PHP. They share the desk;
+  // the drone of the language a run used acts it out, so the learner sees which language did what
   const myDesk = map.lookup('my-desk');
-  const rest = new THREE.Vector3(myDesk.position.x - 0.1, 0, myDesk.position.z - 0.35);
-  drone.root.position.copy(rest);
-  drone.faceCamera(camera);
-  drone.express('happy');
-  map.root.add(drone.root);
-  // the drone hovers: its own soft blob on the floor is its shadow (a sun shadow of 17 parts costs a draw call each)
-  drone.root.traverse((o) => { o.castShadow = false; });
+  const homes = {
+    sql: new THREE.Vector3(myDesk.position.x - 0.1, 0, myDesk.position.z - 0.35),
+    js: new THREE.Vector3(myDesk.position.x + 0.65, 0, myDesk.position.z - 0.15),
+    php: new THREE.Vector3(myDesk.position.x - 0.85, 0, myDesk.position.z - 0.15),
+  };
+  const drones = {};
+  for (const [lang, persona] of [['sql', 'sequel'], ['js', 'jay'], ['php', 'hex']]) {
+    const d = new PlayDrone({ fx, reducedMotion, persona });
+    d.root.position.copy(homes[lang]);
+    d.faceCamera(camera);
+    d.express('happy');
+    map.root.add(d.root);
+    // the drone hovers: its own soft blob on the floor is its shadow (a sun shadow of 17 parts costs a draw call each)
+    d.root.traverse((o) => { o.castShadow = false; });
+    drones[lang] = d;
+  }
+  let active = 'sql';
+  let drone = drones.sql;
+  function useDrone(lang) {
+    if (!drones[lang] || lang === active) return drone;
+    if (drone.state !== 'idle') { drone.cancel(); drone.root.position.copy(homes[active]); }
+    active = lang; drone = drones[lang];
+    return drone;
+  }
+  function resetDrones() { for (const [l, d] of Object.entries(drones)) { d.reset(); d.root.position.copy(homes[l]); } }
 
   // ---------------------------------------------------------------- people
   const people = new Map();
@@ -292,7 +317,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     for (const p of leaving) p.update(dt, t);
     for (const s of staff) s.person.update(dt, t);
     ambient(dt);
-    drone.update(dt, t);
+    for (const d of Object.values(drones)) d.update(dt, t);
     fx.update(dt, t);
     map.update(dt, t);
   }
@@ -333,8 +358,37 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   function dispose() {
     offTheme(); removeEventListener('resize', onResize);
     clearPeople(); for (const s of staff) s.person.dispose();
-    drone.dispose(); fx.dispose(); map.dispose();
+    for (const d of Object.values(drones)) d.dispose();
+    fx.dispose(); map.dispose();
   }
-  return { map, drone, fx, people, staff, seed, reconcile, running, roomFor, roomOf, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose, rest,
+  // the floor labels follow the world's room names
+  function relabel(worldRooms = []) { for (const r of worldRooms) { const m = roomOf(r.id); if (m) map.relabel(m.id, r.name); } }
+  // picking: the person under a screen point, as the booking they sit for
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pick(x, y) {
+    const c = renderer.domElement.getBoundingClientRect();
+    ndc.set(((x - c.left) / c.width) * 2 - 1, -((y - c.top) / c.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const roots = [...people.values()].map((e) => e.person.root);
+    const hit = ray.intersectObjects(roots, true)[0];
+    if (!hit) return null;
+    for (const [id, e] of people) { let o = hit.object; while (o) { if (o === e.person.root) return id; o = o.parent; } }
+    return null;
+  }
+  const V = new THREE.Vector3();
+  function screenOf(what) {
+    let obj = null;
+    if (what === 'drone') obj = drone.root;
+    else obj = people.get(what)?.person.root || null;
+    if (!obj) return null;
+    obj.getWorldPosition(V); V.y += what === 'drone' ? 0.9 : 1.1;
+    V.project(camera);
+    const c = renderer.domElement.getBoundingClientRect();
+    if (V.z > 1) return null;
+    return { x: c.left + (V.x * 0.5 + 0.5) * c.width, y: c.top + (-V.y * 0.5 + 0.5) * c.height };
+  }
+  return { map, fx, people, staff, seed, reconcile, running, roomFor, roomOf, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose,
+    drones, useDrone, resetDrones, relabel, pick, screenOf,
+    get drone() { return drone; }, get rest() { return homes[active]; }, get activeLang() { return active; },
     get focused() { return !!focused; }, get fitDistance() { return fitDist; } };
 }

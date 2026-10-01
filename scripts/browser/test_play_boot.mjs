@@ -4,7 +4,7 @@
 import { openGame, makeReporter } from './game_lib.mjs';
 
 const t = makeReporter();
-const PAGE = 'game/play/index.html';
+const PAGE = 'game/play/index.html?ticket=double-booking-1'; // Phase 1's double-booking card on its own (the chapter is tested in test_chapter_*)
 const VIEW = { viewport: { width: 1280, height: 720 } };
 const ready = (page, timeout = 45000) =>
   page.waitForFunction(() => window.__play && window.__play.ready === true, null, { timeout }).then(() => true, () => false);

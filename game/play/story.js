@@ -41,7 +41,9 @@ export function when(iso) {
 export const roomName = (objects, id) => (objects?.rooms || []).find((r) => r.id === id)?.name || `room ${id}`;
 
 export function createStory(office, { clock, reducedMotion = false, timeScale = () => 1, cue = () => {} } = {}) {
-  const { map, drone, fx } = office;
+  const { map, fx } = office;
+  // the drone acting now (office.useDrone picks the one of the run's language), read at each use
+  const D = { get drone() { return office.drone; } };
   const door = () => { const d = map.doors[0].outside; return [d.x, 1, d.z]; };
   const sound = (g, name, at) => { if (g === gen) { try { cue(name, at); } catch (err) { console.error('story sound:', err); } } };
   // someone walks out of the front door: the bell rings when they reach it
@@ -72,7 +74,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
     const c = fx.ticket({ title, line, state: from, width: 1.25 });
     c.root.position.set(room.center.x, 2.15, room.center.z - 0.3);
     cards.push(c);
-    await step(g, drone.stamp(c, state));
+    await step(g, D.drone.stamp(c, state));
   }
   // events of bookings nobody is in the office for: counted per room and said once
   function offstage(ctx, room, verb) {
@@ -101,7 +103,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       fx.text([p.x, 1.8, p.z], `Booking ${e.bookingId} cancelled`, { color: 'palette.danger', size: 0.8 });
       entry.person.emote('?', { hold: 1.1 });
       ctx.walks.push(leave(g, e.bookingId)); // they get up and go now; the drone comes over to see them out
-      ctx.walks.push(drone.flyTo({ x: p.x + 0.4, z: p.z + 1.2 }));
+      ctx.walks.push(D.drone.flyTo({ x: p.x + 0.4, z: p.z + 1.2 }));
       await pause(g, 0.35);
     },
     async 'booking-moved'(g, e, ctx) {
@@ -117,17 +119,17 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       }
       await card(g, ctx, from || to, `BOOKING ${e.bookingId}`, `${roomName(ctx.before, e.fromRoomId)} → ${roomName(ctx.after, e.toRoomId)}${retimed ? `, ${when(e.to.start_at)}` : ''}`, 'MOVED');
       if (entry && !here) { ctx.walks.push(leave(g, e.bookingId)); await pause(g, 0.4); return; }
-      if (!entry && here) { await step(g, drone.flyTo(map.doors[0].inside)); await step(g, enter(g, b, to, ctx.after).done, 20); return; }
+      if (!entry && here) { await step(g, D.drone.flyTo(map.doors[0].inside)); await step(g, enter(g, b, to, ctx.after).done, 20); return; }
       // the drone walks them over
       const seat = office.freeSeat(to, entry);
       entry.room = to; entry.seat = seat; entry.booking = b;
       const target = seat ? map.approach(seat) : office.standSpot(to);
       if (seat) {
         const path = map.route(entry.person.root.position, target) || [target];
-        await step(g, drone.escort(entry.person, seat, 0, { path }), 25);
+        await step(g, D.drone.escort(entry.person, seat, 0, { path }), 25);
         entry.person.play('talk');
       } else {
-        await step(g, Promise.all([map.traffic.send(entry.person, target), drone.flyTo(at(to))]), 20);
+        await step(g, Promise.all([map.traffic.send(entry.person, target), D.drone.flyTo(at(to))]), 20);
         entry.person.face(Math.PI);
       }
     },
@@ -151,7 +153,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
         await card(g, ctx, room, `BOOKING ${e.bookingId}`, `${room.name}, ${when(b.start_at)}`, 'BOOKED');
         return;
       }
-      await step(g, drone.flyTo(map.doors[0].inside));
+      await step(g, D.drone.flyTo(map.doors[0].inside));
       const { done } = enter(g, b, room, ctx.after);
       await step(g, done, 20);
     },
@@ -160,7 +162,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       await walksDone(g, ctx);
       const room = office.roomFor(ctx.before, e.roomId);
       if (!room) return;
-      await step(g, drone.flyTo(at(room)));
+      await step(g, D.drone.flyTo(at(room)));
       map.setRoomState(room.id, 'ok');
       sound(g, 'scan-ok', [room.center.x, 1, room.center.z]);
       fx.ring([room.center.x, 0.03, room.center.z], { color: 'palette.ok', from: 0.3, to: 2.4, dur: 0.9 });
@@ -171,12 +173,12 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       sayOffstage(ctx);
       const room = office.roomFor(ctx.after, e.roomId);
       if (!room) return;
-      await step(g, drone.flyTo(at(room)));
+      await step(g, D.drone.flyTo(at(room)));
       map.setRoomState(room.id, 'clash');
       sound(g, 'alert', [room.center.x, 1, room.center.z]);
       fx.ring([room.center.x, 0.03, room.center.z], { color: 'palette.danger', from: 0.3, to: 2.4, dur: 0.9 });
       for (const id of [e.bookingId, e.otherId]) office.people.get(id)?.person.emote('!', { hold: 2 });
-      drone.express('worried', 1.6);
+      D.drone.express('worried', 1.6);
       await pause(g, 0.9);
     },
   };
@@ -190,8 +192,8 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
   }
   function stampNow(state) { // no drone: the card just says it
     if (!ticket || ticket.state === state) return;
-    if (state === 'RESOLVED') ticket.set({ line: `Bea · ${ticketRoom} sorted` });
-    else ticket.set({ line: `Bea · ${ticketRoom} double-booked` });
+    if (state === 'RESOLVED') ticket.set({ line: labels.done(ticketRoom) });
+    else ticket.set({ line: labels.open(ticketRoom) });
     ticket.stamp(state);
   }
 
@@ -208,7 +210,7 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
     };
     try {
       if (!changed) { // truly nothing: every row of every table is as it was
-        await step(g, drone.shrug());
+        await step(g, D.drone.shrug());
         return { cancelled: false };
       }
       for (const e of events) {
@@ -223,18 +225,18 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
       const clashing = roomsFromWorld(after, !!grade?.passed);
       if (grade?.passed && ticket) {
         if (ticket.state !== 'RESOLVED') {
-          ticket.set({ line: `Bea · ${ticketRoom} sorted` });
-          await step(g, drone.stamp(ticket, 'RESOLVED')); await step(g, drone.celebrate());
+          ticket.set({ line: labels.done(ticketRoom) });
+          await step(g, D.drone.stamp(ticket, 'RESOLVED')); await step(g, D.drone.celebrate());
         }
       } else if (grade && !grade.passed) {
-        if (ticket && ticket.state === 'RESOLVED') { ticket.set({ line: `Bea · ${ticketRoom} double-booked` }); await step(g, drone.stamp(ticket, 'OPEN')); } // it broke again
-        if (clashing[0] && events.length) await step(g, drone.scan(clashing[0].desk, false));
-        else drone.express('worried', 1.6);
+        if (ticket && ticket.state === 'RESOLVED') { ticket.set({ line: labels.open(ticketRoom) }); await step(g, D.drone.stamp(ticket, 'OPEN')); } // it broke again
+        if (clashing[0] && events.length) await step(g, D.drone.scan(clashing[0].desk, false));
+        else D.drone.express('worried', 1.6);
       }
       await pause(g, 0.6);
       for (const c of cards) c.dispose();
       cards = [];
-      await step(g, drone.flyTo(office.rest));
+      await step(g, D.drone.flyTo(office.rest));
       return { cancelled: false };
     } catch (err) {
       if (err === CANCEL) return { cancelled: true };
@@ -250,10 +252,82 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
     }
   }
 
+  /* A read-only query changes nothing, but its answer is rows of the world: show them where they live.
+     Bookings: a ring under each person whose booking came back (and a line for the ones on other days);
+     rooms: the room glows and says what came back about it; people: a ring under them if they are in.
+     Anything else (a number, a total): the drone says it over the desk. Never shown for a failed run. */
+  async function showRows(rows, objects, { label } = {}) {
+    const g = ++gen;
+    busy = true;
+    try {
+      if (!rows || !rows.length) { await step(g, D.drone.shrug()); return { shown: 0 }; }
+      const k = Object.keys(rows[0]);
+      const roomsById = new Map((objects.rooms || []).map((r) => [r.id, r]));
+      const nowIds = new Set(office.running(objects, clock).map((x) => x.booking.id));
+      let shown = 0;
+      const ring = (p) => { fx.ring([p.x, 0.04, p.z], { color: 'palette.gold', from: 0.15, to: 0.9, dur: 1.1 }); shown++; };
+      if (k.includes('room_id') && (k.includes('start_at') || k.includes('person_id')) || (k.includes('id') && k.includes('start_at'))) {
+        const off = new Map();
+        for (const r of rows) {
+          const e = office.people.get(Number(r.id));
+          if (e && nowIds.has(Number(r.id))) ring(e.person.root.position);
+          else if (r.room_id != null) off.set(r.room_id, (off.get(r.room_id) || 0) + 1);
+        }
+        const first = rows.map((r) => office.people.get(Number(r.id))).find(Boolean);
+        if (first) await step(g, D.drone.flyTo({ x: first.person.root.position.x + 0.5, z: first.person.root.position.z + 0.8 }), 6);
+        for (const [roomId, n] of off) {
+          const m = office.roomOf(roomId);
+          if (m) { fx.text([m.center.x, 1.7, m.center.z], `+${n} at other times`, { color: 'palette.gold', size: 0.7 }); shown++; }
+        }
+      } else if (k.includes('capacity') || (k.includes('name') && rows.some((r) => [...roomsById.values()].some((x) => x.name === r.name)))) {
+        for (const r of rows) {
+          const w = r.id != null && roomsById.has(Number(r.id)) ? roomsById.get(Number(r.id)) : [...roomsById.values()].find((x) => x.name === r.name);
+          const m = w && office.roomOf(w.id);
+          if (!m) continue;
+          map.setRoomState(m.id, 'ok');
+          fx.text([m.center.x, 1.8, m.center.z], r.capacity != null ? `${w.name}: ${r.capacity} seats` : w.name, { color: 'palette.gold', size: 0.75 });
+          shown++;
+        }
+        const firstRoom = rows.map((r) => [...roomsById.values()].find((x) => x.name === r.name || x.id === Number(r.id))).find(Boolean);
+        const m = firstRoom && office.roomOf(firstRoom.id);
+        if (m) await step(g, D.drone.flyTo(at(m)), 6);
+      } else if (k.includes('role') || (k.includes('name') && rows.some((r) => (objects.people || []).some((p) => p.name === r.name)))) {
+        for (const r of rows) {
+          for (const e of office.people.values()) if (e.booking.person_id === Number(r.id) || e.person.name === r.name) ring(e.person.root.position);
+        }
+      }
+      if (!shown) {
+        const v = Object.values(rows[0])[0];
+        const here = D.drone.root.position;
+        fx.text([here.x, 1.6, here.z], label || (rows.length === 1 ? String(v instanceof Date ? when(v.toISOString()) : v) : `${rows.length} rows`), { color: 'palette.gold', size: 0.9 });
+      }
+      await pause(g, 1.6);
+      for (const r of map.rooms) if (r.state === 'ok') map.setRoomState(r.id, 'calm');
+      office.setRooms(new Set(clashPairs(objects.bookings || []).map((p) => p.roomId)));
+      await step(g, D.drone.flyTo(office.rest), 6);
+      return { shown };
+    } catch (err) {
+      if (err === CANCEL) return { cancelled: true };
+      console.error('story rows:', err);
+      return { shown: 0 };
+    } finally { if (g === gen) busy = false; }
+  }
+  // a value a JavaScript or PHP run answered with, floated over the office by its drone
+  async function say(text) {
+    const g = ++gen;
+    busy = true;
+    try {
+      const here = D.drone.root.position;
+      fx.text([here.x, 1.7, here.z], String(text).slice(0, 40), { color: 'palette.gold', size: 0.9 });
+      await step(g, D.drone.celebrate(), 4);
+      return {};
+    } catch (err) { return err === CANCEL ? { cancelled: true } : {}; } finally { if (g === gen) busy = false; }
+  }
+
   function cancel() {
     gen++;
     busy = false;
-    drone.cancel();
+    D.drone.cancel();
     map.traffic.clear(isStaff);
     for (const c of cards) c.dispose();
     cards = [];
@@ -261,17 +335,21 @@ export function createStory(office, { clock, reducedMotion = false, timeScale = 
   }
 
   let ticketRoom = 'Room 1';
-  function setTicket(open, worldRoomId) {
+  const BEA = { title: 'TICKET #1', open: (room) => `Bea · ${room} double-booked`, done: (room) => `Bea · ${room} sorted` };
+  let labels = BEA;
+  // text: optional { title, open(room), done(room) } for a chapter ticket (default: Bea's double booking)
+  function setTicket(open, worldRoomId, text = null) {
     if (ticket) { ticket.dispose(); ticket = null; }
+    labels = text ? { ...BEA, ...text } : BEA;
     if (!open) return;
     const r = office.roomOf(worldRoomId) || map.rooms[0];
     ticketRoom = r.name;
-    ticket = fx.ticket({ title: 'TICKET #1', line: `Bea · ${r.name} double-booked`, state: 'OPEN', width: 2.6 });
+    ticket = fx.ticket({ title: labels.title, line: labels.open(r.name), state: 'OPEN', width: 2.6 });
     ticket.root.position.set(r.center.x, 3.2, r.center.z - 1.4); // over the back wall of the room
   }
 
   return {
-    play, cancel, setTicket,
+    play, cancel, setTicket, showRows, say,
     get log() { return log.slice(); },
     get busy() { return busy; },
     get ticket() { return ticket; },

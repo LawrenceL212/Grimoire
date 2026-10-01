@@ -8,7 +8,7 @@ const prefix = process.env.SHOOT_PREFIX || 'task-9';
 const code = process.argv[3] || 'DELETE FROM bookings WHERE id = 21;';
 const lang = process.argv[4] || 'sql';
 const during = Number(process.argv[5] || 20000);
-const { page, errors, close } = await openGame('game/play/index.html', { context: { viewport: { width: 1280, height: 720 } } });
+const { page, errors, close } = await openGame('game/play/index.html?ticket=double-booking-1', { context: { viewport: { width: 1280, height: 720 } } });
 await page.waitForFunction(() => window.__play && window.__play.ready === true, null, { timeout: 45000 });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: join(out, `${prefix}-before.png`) });

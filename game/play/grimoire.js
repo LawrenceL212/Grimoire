@@ -8,7 +8,7 @@
 // faint pencil outline (UNWRITTEN); once cast unaided it is WRITTEN in ink, and the ink follows the memory meter:
 // fresh = full ink, fading = faded, due = very faint with "re-ink soon"; "kept about N days" is how long it holds.
 //
-//   createGrimoire({ host = document.body, store = defaultStore(), now = Date.now } = {}) -> {
+//   createGrimoire({ host = document.body, store (default: the page's default store, read at each render), now = Date.now } = {}) -> {
 //     el, ready (a promise: the stylesheet has loaded), open(spellId?), close(), toggle(), isOpen(), show(pageIndex, { animate }), next(), prev(),
 //     page (the first page showing), pages (count), refresh(), dispose() }
 //   grimoire() -> the page's one Grimoire (made on first use; the HUD button opens it)
@@ -36,7 +36,8 @@ function addStyles() {
 }
 const ringOf = (lang) => tget(`palette.${LANGS[lang].ring}`) || '#d9a441';
 
-export function createGrimoire({ host = document.body, store = defaultStore(), now = Date.now } = {}) {
+export function createGrimoire({ host = document.body, store = null, now = Date.now } = {}) {
+  const book = () => store || defaultStore(); // the life's store may be handed over after the book is made
   const ready = addStyles();
   const el = document.createElement('div');
   el.className = 'gm-book-overlay';
@@ -65,7 +66,7 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
   function contentsHTML() {
     const t = now();
     const rows = SPELLS.map((s, i) => {
-      const st = store.getSpellState(s.id), ink = inkOf(st, t);
+      const st = book().getSpellState(s.id), ink = inkOf(st, t);
       const name = st.introduced ? esc(s.name) : '· · ·';
       const said = st.introduced ? `${s.name}: ${INK_WORDS[ink.status]}` : `Spell ${ROMAN[i] || i + 1}: ${INK_WORDS.unknown}`;
       return `<li><button type="button" class="gm-toc is-${ink.status}" data-goto="${i + 1}" style="--ink-a:${ink.opacity}" aria-label="${esc(said)}">
@@ -74,7 +75,7 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
     const meters = LANG_ORDER.map((lang) => {
       let met = 0, written = 0, ink = 0;
       for (const s of SPELLS) {
-        const st = store.getSpellState(s.id);
+        const st = book().getSpellState(s.id);
         if (!st.langs.includes(lang)) continue;
         met++;
         const f = st.forms[lang];
@@ -95,7 +96,7 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
     </article>`;
   }
   function spellHTML(i) {
-    const s = SPELLS[i], st = store.getSpellState(s.id), t = now(), ink = inkOf(st, t);
+    const s = SPELLS[i], st = book().getSpellState(s.id), t = now(), ink = inkOf(st, t);
     const num = ROMAN[i] || String(i + 1);
     if (ink.status === 'unknown') {
       return `<article class="gm-page gm-spell is-unknown" data-page="${i + 1}" data-spell="${s.id}" data-status="unknown">
