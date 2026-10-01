@@ -10,7 +10,8 @@
 //     isPhone            true while the phone layout is on
 //     reset()            forget stored positions and go back to the defaults
 //   }
-//   A default may be given from the right edge (right: 16 means 16 px from the right).
+//   A default may be given from the right edge (right: 16 means 16 px from the right); y and h may be
+//   functions of the viewport (W, H), worked out again on every layout() for windows never moved.
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const EDGE = 8; // a window keeps at least this far inside the viewport
 
@@ -84,7 +85,7 @@ export function createWindows(host, { phoneQuery = '(max-width: 720px)', storage
   function defOf(o) {
     const { W, H } = area();
     const h = typeof o.h === 'function' ? o.h(W, H) : o.h;
-    return { w: o.w, h, x: o.right !== undefined ? W - o.right - o.w : o.x, y: o.y };
+    return { w: o.w, h, x: o.right !== undefined ? W - o.right - o.w : o.x, y: typeof o.y === 'function' ? o.y(W, H) : o.y };
   }
   function add(el, o) {
     const s = stored[o.id];

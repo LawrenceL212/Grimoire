@@ -3,7 +3,9 @@
 // people, and nothing else: the story never looks at the expected answer.
 //
 //   createStory(office, { clock, reducedMotion }) -> story
-//     .play(events, { before, after, grade, wasOpen }) -> Promise<{ cancelled }>
+//     .play(events, { before, after, grade, wasOpen, changed }) -> Promise<{ cancelled }>
+//         changed false (no row of any table changed): the drone shrugs and nothing else happens;
+//         changed but no events (a name, a booking's person): no animation, the office is reconciled
 //         booking-removed   the person (if their booking is running at the office clock) stands and leaves
 //         booking-moved     a card shows the move; the drone escorts the person to the new room (or they
 //                           leave, or arrive, if the move takes the booking out of, or into, the clock)
@@ -18,7 +20,8 @@
 //       RESOLVED when the grade passed, or a scan of the room that still clashes when it did not.
 //     .cancel()        stop now (Reset): the drone, the walkers and the story's cards; a cancelled play()
 //                      resolves { cancelled: true } and touches nothing more
-//     .setTicket(open, roomName)   the floating card of the open ticket (removed when not open)
+//     .setTicket(open, worldRoomId) the floating card of the open ticket (removed when not open); it reads
+//                      "sorted" once stamped RESOLVED
 //     .log             the events played by the last play(), in order
 //     .busy            true while playing
 //   Every wait is capped, so a stuck walk can never hang the page.
@@ -35,7 +38,7 @@ export function when(iso) {
 }
 export const roomName = (objects, id) => (objects?.rooms || []).find((r) => r.id === id)?.name || `room ${id}`;
 
-export function createStory(office, { clock, reducedMotion = false } = {}) {
+export function createStory(office, { clock, reducedMotion = false, timeScale = () => 1 } = {}) {
   const { map, drone, fx } = office;
   let gen = 0;
   let busy = false;
@@ -44,7 +47,7 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
   let ticket = null; // the open ticket's card
   const isStaff = (p) => office.staff.some((s) => s.person === p);
 
-  const sleep = (s) => new Promise((r) => setTimeout(r, s * 1000));
+  const sleep = (s) => new Promise((r) => setTimeout(r, (s * 1000) / Math.max(0.1, timeScale() || 1))); // the page's time scale (tests speed it up)
   const check = (g) => { if (g !== gen) throw CANCEL; };
   async function step(g, p, max = 12) {
     const v = await Promise.race([p, sleep(max).then(() => 'timeout')]);
@@ -168,14 +171,22 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
     },
   };
 
-  function roomsFromWorld(after) {
-    const clashing = new Set(clashPairs(after.bookings || []).map((p) => p.roomId));
-    const names = new Set([...clashing].map((id) => roomName(after, id)));
-    for (const r of map.rooms) map.setRoomState(r.id, names.has(r.name) ? 'clash' : r.state === 'ok' ? 'ok' : 'calm');
-    return map.rooms.filter((r) => names.has(r.name));
+  // the glows from the world: red where a room clashes; the green "sorted" glow a cleared room got during
+  // the story stays only when the ticket is resolved (after a failed grade nothing is shown as sorted)
+  function roomsFromWorld(after, passed) {
+    const clashing = new Set(clashPairs(after.bookings || []).map((p) => office.roomOf(p.roomId)).filter(Boolean));
+    for (const r of map.rooms) map.setRoomState(r.id, clashing.has(r) ? 'clash' : passed && r.state === 'ok' ? 'ok' : 'calm');
+    return map.rooms.filter((r) => clashing.has(r));
+  }
+  function stampNow(state) { // no drone: the card just says it
+    if (!ticket || ticket.state === state) return;
+    if (state === 'RESOLVED') ticket.set({ line: `Bea · ${ticketRoom} sorted` });
+    else ticket.set({ line: `Bea · ${ticketRoom} double-booked` });
+    ticket.stamp(state);
   }
 
-  async function play(events, { before, after, grade, wasOpen = true }) {
+  // changed: some row in the world changed (bridge.js rowChanges), even when no booking event came of it
+  async function play(events, { before, after, grade, wasOpen = true, changed = events.length > 0 }) {
     const g = ++gen;
     busy = true;
     log = [];
@@ -186,7 +197,7 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
       running: new Set(office.running(after, clock).map((x) => x.booking.id)),
     };
     try {
-      if (!events.length) {
+      if (!changed) { // truly nothing: every row of every table is as it was
         await step(g, drone.shrug());
         return { cancelled: false };
       }
@@ -199,12 +210,15 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
       await walksDone(g, ctx);
       // the office now matches the world exactly, whatever the animation managed to show
       office.reconcile(after, clock);
-      const clashing = roomsFromWorld(after);
+      const clashing = roomsFromWorld(after, !!grade?.passed);
       if (grade?.passed && ticket) {
-        if (ticket.state !== 'RESOLVED') { await step(g, drone.stamp(ticket, 'RESOLVED')); await step(g, drone.celebrate()); }
+        if (ticket.state !== 'RESOLVED') {
+          ticket.set({ line: `Bea · ${ticketRoom} sorted` });
+          await step(g, drone.stamp(ticket, 'RESOLVED')); await step(g, drone.celebrate());
+        }
       } else if (grade && !grade.passed) {
-        if (ticket && ticket.state === 'RESOLVED') await step(g, drone.stamp(ticket, 'OPEN')); // it broke again
-        if (clashing[0]) await step(g, drone.scan(clashing[0].desk, false));
+        if (ticket && ticket.state === 'RESOLVED') { ticket.set({ line: `Bea · ${ticketRoom} double-booked` }); await step(g, drone.stamp(ticket, 'OPEN')); } // it broke again
+        if (clashing[0] && events.length) await step(g, drone.scan(clashing[0].desk, false));
         else drone.express('worried', 1.6);
       }
       await pause(g, 0.6);
@@ -216,7 +230,10 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
       if (err === CANCEL) return { cancelled: true };
       console.error('story:', err);
       office.reconcile(after, clock);
-      roomsFromWorld(after);
+      roomsFromWorld(after, !!grade?.passed);
+      for (const c of cards) c.dispose();
+      cards = [];
+      if (grade) stampNow(grade.passed ? 'RESOLVED' : 'OPEN');
       return { cancelled: false };
     } finally {
       if (g === gen) busy = false;
@@ -233,10 +250,12 @@ export function createStory(office, { clock, reducedMotion = false } = {}) {
     fx.reset();
   }
 
-  function setTicket(open, room) {
+  let ticketRoom = 'Room 1';
+  function setTicket(open, worldRoomId) {
     if (ticket) { ticket.dispose(); ticket = null; }
     if (!open) return;
-    const r = map.rooms.find((x) => x.name === room || x.id === room) || map.rooms[0];
+    const r = office.roomOf(worldRoomId) || map.rooms[0];
+    ticketRoom = r.name;
     ticket = fx.ticket({ title: 'TICKET #1', line: `Bea · ${r.name} double-booked`, state: 'OPEN', width: 2.6 });
     ticket.root.position.set(r.center.x, 3.2, r.center.z - 1.4); // over the back wall of the room
   }

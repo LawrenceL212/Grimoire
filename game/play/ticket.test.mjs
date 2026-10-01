@@ -34,3 +34,12 @@ test('not resolved: an honest note from the failed checks and the diff', () => {
   const cheat = outcome({ events: [], grade: { passed: false, results: [{ name: 'the original 20 bookings are untouched', ok: false, detail: '0' }] }, before: W, after: W });
   assert.match(cheat.note, /Only 0 of the 20 bookings/);
 });
+
+test('the recap says what happened to the earlier bookings from the diff, not by assumption', () => {
+  const pass = { passed: true, results: [] };
+  const clean = outcome({ events: [{ type: 'booking-removed', bookingId: 21, roomId: 1 }], grade: pass, before: W, after: W });
+  assert.match(clean.recap[0], /Every booking that was there first is as it was/);
+  const shifted = outcome({ events: [{ type: 'booking-retimed', bookingId: 4, roomId: 1, from: t, to: t }, { type: 'booking-retimed', bookingId: 1, roomId: 1, from: t, to: t }], grade: pass, before: W, after: W });
+  assert.match(shifted.recap[0], /changed 2 of the bookings that were there first \(1, 4\)/);
+  assert.doesNotMatch(shifted.recap[0], /as it was/);
+});

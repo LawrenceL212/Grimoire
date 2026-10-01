@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diffWorlds, clashPairs, overlaps } from './bridge.js';
+import { diffWorlds, clashPairs, overlaps, rowChanges, describeRows } from './bridge.js';
 
 const b = (id, room_id, start, end, day = '01') => ({ id, room_id, person_id: 1, start_at: `2026-01-${day}T${start}:00Z`, end_at: `2026-01-${day}T${end}:00Z` });
 const world = (...bookings) => ({ rooms: [{ id: 1 }, { id: 2 }, { id: 3 }], people: [], bookings });
@@ -88,4 +88,17 @@ test('a clash between the same two bookings that changes room is cleared in one 
 test('missing lists are empty worlds', () => {
   assert.deepEqual(diffWorlds({}, world(B1)), [{ type: 'booking-added', bookingId: 1, roomId: 1 }]);
   assert.deepEqual(diffWorlds(world(B1), {}), [{ type: 'booking-removed', bookingId: 1, roomId: 1 }]);
+});
+
+test('rowChanges sees every table and column, so a change with no scene event is still a change', () => {
+  const w = { rooms: [{ id: 1, name: 'Room 1', capacity: 5 }], people: [{ id: 1, name: 'Ann', role: 'customer' }], bookings: [B1] };
+  assert.deepEqual(rowChanges(w, structuredClone(w)), []);
+  assert.deepEqual(rowChanges(w, { ...w, bookings: [{ ...B1, start_at: '2026-01-01T08:00:00.000Z' }] }), []); // same instant
+  const renamed = { ...w, rooms: [{ id: 1, name: 'Room One', capacity: 5 }] };
+  assert.deepEqual(rowChanges(w, renamed), [{ table: 'rooms', added: 0, removed: 0, changed: 1 }]);
+  assert.deepEqual(diffWorlds(w, renamed), []);
+  const other = { ...w, bookings: [{ ...B1, person_id: 3 }], people: [...w.people, { id: 2, name: 'Bo', role: 'customer' }] };
+  const ch = rowChanges(w, other);
+  assert.deepEqual(ch, [{ table: 'people', added: 1, removed: 0, changed: 0 }, { table: 'bookings', added: 0, removed: 0, changed: 1 }]);
+  assert.equal(describeRows(ch), '1 row in people added, 1 row in bookings changed');
 });

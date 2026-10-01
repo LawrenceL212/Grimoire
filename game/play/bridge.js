@@ -18,6 +18,11 @@
 //
 //   overlaps(a, b)          the NO_OVERLAP_SQL rule: same room, a.start < b.end and b.start < a.end
 //   clashPairs(bookings)    [{ a, b, roomId }] every overlapping pair, a < b, sorted
+//   rowChanges(before, after) -> [{ table, added, removed, changed }]   every table, every column (only the
+//                           tables with a change): what decides "the world did not change", since a
+//                           change the scene has no event for (a person's name, a booking's person, a
+//                           room's name) is still a change
+//   describeRows(changes) -> '1 row in people changed' (plain words, for the code window)
 const ms = (iso) => Date.parse(iso);
 
 export function overlaps(a, b) {
@@ -62,4 +67,37 @@ export function diffWorlds(before, after) {
   const started = pairsAfter.filter((p) => !keysBefore.has(key(p))).map(clash('clash-started'));
 
   return [...removed.sort(byId), ...moved.sort(byId), ...retimed.sort(byId), ...added.sort(byId), ...cleared, ...started];
+}
+
+const TABLES = ['rooms', 'people', 'bookings'];
+const same = (a, b) => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    const x = a[k], y = b[k];
+    if (x === y) continue;
+    if ((k === 'start_at' || k === 'end_at') && ms(x) === ms(y)) continue;
+    if (String(x) !== String(y)) return false;
+  }
+  return true;
+};
+export function rowChanges(before, after) {
+  const out = [];
+  for (const table of TABLES) {
+    const was = new Map((before?.[table] || []).map((r) => [r.id, r]));
+    const now = new Map((after?.[table] || []).map((r) => [r.id, r]));
+    let added = 0, removed = 0, changed = 0;
+    for (const [id, r] of was) { const n = now.get(id); if (!n) removed++; else if (!same(r, n)) changed++; }
+    for (const id of now.keys()) if (!was.has(id)) added++;
+    if (added || removed || changed) out.push({ table, added, removed, changed });
+  }
+  return out;
+}
+export function describeRows(changes) {
+  const parts = [];
+  for (const c of changes) {
+    for (const [n, verb] of [[c.changed, 'changed'], [c.added, 'added'], [c.removed, 'removed']]) {
+      if (n) parts.push(`${n} row${n === 1 ? '' : 's'} in ${c.table} ${verb}`);
+    }
+  }
+  return parts.join(', ');
 }

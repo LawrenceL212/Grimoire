@@ -11,7 +11,7 @@
 //     .enter(booking, room, objects) -> { entry, done }   someone walks in from the door and sits
 //     .leave(bookingId) -> Promise  someone stands and walks out of the door (then is gone)
 //     .freeSeat(room), .standSpot(room), .census() -> { people, seated, leaving, tickets, walkers, drone }
-//     .setRooms(clashIds)           room glows from the real world (a set of room names that clash)
+//     .setRooms(clashIds)           room glows from the real world (a set of world room ids that clash)
 //     .occupants()                  [{ bookingId, name, room, inRoom, seated }]
 //     .frame(rects)                 fit the office into the part of the scene the windows leave free
 //     .overview() / .focus(roomName)   the camera: the whole office, or one room close up
@@ -100,19 +100,19 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     leaving.clear();
   }
   // the bookings running at the office clock, in a room the office has, earliest first
+  // a world room is the map room of the same id (room-1 is rooms.id 1), whatever the world calls it now:
+  // renaming a room in the world does not make it vanish from the office
+  const roomOf = (roomId) => map.rooms.find((r) => r.id === `room-${roomId}`) || null;
   function running(objects, clock) {
     const now = Date.parse(clock);
-    const roomName = new Map((objects.rooms || []).map((r) => [r.id, r.name]));
+    const exists = new Set((objects.rooms || []).map((r) => r.id));
     return (objects.bookings || [])
-      .filter((b) => Date.parse(b.start_at) <= now && Date.parse(b.end_at) > now)
+      .filter((b) => Date.parse(b.start_at) <= now && Date.parse(b.end_at) > now && exists.has(b.room_id))
       .sort((a, b) => Date.parse(a.start_at) - Date.parse(b.start_at) || a.id - b.id)
-      .map((b) => ({ booking: b, room: map.rooms.find((r) => r.name === roomName.get(b.room_id)) || null }))
+      .map((b) => ({ booking: b, room: roomOf(b.room_id) }))
       .filter((x) => x.room);
   }
-  const roomFor = (objects, roomId) => {
-    const name = (objects.rooms || []).find((r) => r.id === roomId)?.name;
-    return map.rooms.find((r) => r.name === name) || null;
-  };
+  const roomFor = (objects, roomId) => ((objects.rooms || []).some((r) => r.id === roomId) ? roomOf(roomId) : null);
   function makePerson(b, objects) {
     const who = (objects.people || []).find((p) => p.id === b.person_id);
     const p = new Person({ role: roleOf(b.person_id), seed: 100 + b.id, name: who?.name || `Booking ${b.id}`, reducedMotion });
@@ -149,16 +149,25 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     return entry;
   }
   // make the office match the world at the clock without any walking: people whose booking is no longer
-  // running here go, missing ones appear in their room, and everyone keeps their latest booking row
+  // running here go, missing ones appear in their room, someone else on a booking (another person_id)
+  // replaces the one sitting there, anyone given a seat but not in it (an escort that ran out of time)
+  // is put in it, and everyone keeps their latest booking row and name
   function reconcile(objects, clock) {
     const want = new Map(running(objects, clock).map((x) => [x.booking.id, x]));
     for (const [id, e] of [...people]) {
       const w = want.get(id);
-      if (!w || w.room !== e.room) { map.traffic.clear((p) => p !== e.person); e.person.dispose(); people.delete(id); }
+      const stranded = e.seat && !e.person.seat && !e.person.tr && !map.traffic.has(e.person);
+      if (!w || w.room !== e.room || w.booking.person_id !== e.booking.person_id || stranded) {
+        map.traffic.clear((p) => p !== e.person); e.person.dispose(); people.delete(id);
+      }
     }
     for (const [id, w] of want) {
       const e = people.get(id);
-      if (e) e.booking = w.booking; else place(w.booking, w.room, objects);
+      if (e) {
+        e.booking = w.booking;
+        const who = (objects.people || []).find((p) => p.id === w.booking.person_id);
+        if (who) e.person.name = who.name;
+      } else place(w.booking, w.room, objects);
     }
   }
   function seed(objects, clock) {
@@ -195,8 +204,8 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     const walkers = [...people.values()].filter((e) => map.traffic.has(e.person)).length + [...leaving].filter((p) => map.traffic.has(p)).length;
     return { people: n, seated: people.size, leaving: leaving.size, tickets: fx.stats().tickets, walkers, drone: drone.state };
   }
-  function setRooms(clashNames) {
-    for (const r of map.rooms) map.setRoomState(r.id, clashNames.has(r.name) ? 'clash' : 'calm');
+  function setRooms(clashRoomIds) {
+    for (const r of map.rooms) map.setRoomState(r.id, [...clashRoomIds].some((id) => roomOf(id) === r) ? 'clash' : 'calm');
   }
   function occupants() {
     return [...people.values()].map(({ person, booking, room }) => {
@@ -326,6 +335,6 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     clearPeople(); for (const s of staff) s.person.dispose();
     drone.dispose(); fx.dispose(); map.dispose();
   }
-  return { map, drone, fx, people, staff, seed, reconcile, running, roomFor, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose, rest,
+  return { map, drone, fx, people, staff, seed, reconcile, running, roomFor, roomOf, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose, rest,
     get focused() { return !!focused; }, get fitDistance() { return fitDist; } };
 }

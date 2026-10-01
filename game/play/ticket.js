@@ -30,23 +30,26 @@ function whatHappened(events, before, after) {
   return null;
 }
 
-export function outcome({ events = [], grade, before, after, lang = 'sql', xp = 0 }) {
+export function outcome({ events = [], grade, before, after, lang = 'sql', xp = 0, originals = 20 }) {
   const using = LANG[lang] || lang;
   if (grade?.passed) {
     const h = whatHappened(events, before, after);
+    // what happened to the bookings that were there first, from the diff (not assumed)
+    const touched = new Set(events.filter((e) => e.type.startsWith('booking-') && e.bookingId <= originals).map((e) => e.bookingId));
+    const rest = touched.size ? ` It also changed ${touched.size} of the bookings that were there first (${[...touched].sort((a, b) => a - b).join(', ')}).` : ' Every booking that was there first is as it was.';
     let reply, did;
     if (h?.kind === 'removed') {
       reply = "Oh, so mine was the one that clashed. Fair enough, the 08:00 was there first. I'll book another slot. Thanks!";
-      did = `You cancelled the newer booking (${BEA}) with ${using} and left the earlier one alone.`;
+      did = `You cancelled the newer booking (${BEA}) with ${using}.${rest}`;
     } else if (h?.kind === 'moved') {
       reply = `${h.room}${h.retimed ? ` on ${h.at}` : ''}? Perfect, I'll head there. Thank you!`;
-      did = `You moved the newer booking (${BEA}) to ${h.room}${h.retimed ? `, ${h.at}` : ''} with ${using} and left the earlier one alone.`;
+      did = `You moved the newer booking (${BEA}) to ${h.room}${h.retimed ? `, ${h.at}` : ''} with ${using}.${rest}`;
     } else if (h?.kind === 'retimed') {
       reply = `${h.at} in ${h.room} then. That works for me, thank you!`;
-      did = `You moved the newer booking (${BEA}) to ${h.at} with ${using} and left the earlier one alone.`;
+      did = `You moved the newer booking (${BEA}) to ${h.at} with ${using}.${rest}`;
     } else {
       reply = 'The room is mine now, nobody in my chair. Thank you!';
-      did = `You changed the timetable with ${using} so the two bookings no longer overlap.`;
+      did = `You changed the timetable with ${using} so no two bookings overlap.${rest}`;
     }
     return {
       resolved: true, reply,

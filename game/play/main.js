@@ -9,13 +9,14 @@
 // While the story plays, Run is refused and Reset cancels the story and rebuilds the office.
 //
 // window.__play = { ready, busy, phase, runs, refused, world, objects, clock, map, office, story,
-//   lastEvents, storyLog(), census(), scene: { occupants() }, stats(), bench(n), resetView() }
+//   lastEvents, lastChanges, storyLog(), census(), scene: { occupants() }, stats(), bench(n), resetView() }
+// play.timeScale (default 1) speeds the office and the story up (tests set it; the outcome is the same).
 import { toObjects } from '../world/views.js';
 import { runSolution } from '../runners/index.js';
 import { startProblem, gradeProblem } from '../problems/check.js';
 import { doubleBooking1 as problem } from '../problems/double-booking-1.js';
 import { createHud, clashingRooms } from './hud.js';
-import { diffWorlds } from './bridge.js';
+import { diffWorlds, rowChanges, describeRows } from './bridge.js';
 import { deriveState, recordSolve, creditFor } from './state.js';
 import { TICKET, outcome } from './ticket.js';
 import { createWindows } from './windows.js';
@@ -44,7 +45,7 @@ const CSS_VARS = { '--ink': 'palette.ink', '--paper': 'palette.paper', '--text':
 function cssTheme() { for (const [v, p] of Object.entries(CSS_VARS)) document.documentElement.style.setProperty(v, String(tget(p))); }
 cssTheme();
 onThemeChange((p) => { if (!p || Object.values(CSS_VARS).includes(p)) cssTheme(); });
-const play = window.__play = { ready: false, busy: false, phase: null, runs: 0, refused: 0, world: null, objects: null, clock: CLOCK, map: null, office: null, story: null, lastEvents: null };
+const play = window.__play = { ready: false, busy: false, phase: null, timeScale: 1, runs: 0, refused: 0, world: null, objects: null, clock: CLOCK, map: null, office: null, story: null, lastEvents: null };
 
 // ---------------------------------------------------------------- the HUD
 let tweak = null;
@@ -58,8 +59,14 @@ hud.setClock('Day 1 · 08:45');
 
 // ---------------------------------------------------------------- the windows
 const wins = createWindows(app, { onChange: () => {} });
-wins.add($('#win-ticket'), { id: 'ticket', x: 16, y: 84, w: 440, h: 196, minW: 260, minH: 110 });
-wins.add($('#win-code'), { id: 'code', x: 16, y: 292, w: 440, h: (W, H) => Math.max(300, Math.min(470, H - 292 - 16)), minW: 300, minH: 240 });
+// the ticket grows to show Bea's answer, the recap and the credit, and the code window moves down under it
+// (while neither has been moved by hand; a moved ticket window scrolls to the answer instead)
+const TICKET_TOP = 84, TICKET_H = 196, CODE_MIN = 240;
+let ticketWant = TICKET_H;
+const ticketH = (W, H) => Math.max(TICKET_H, Math.min(ticketWant, H - TICKET_TOP - 12 - CODE_MIN - 16));
+wins.add($('#win-ticket'), { id: 'ticket', x: 16, y: TICKET_TOP, w: 440, h: ticketH, minW: 260, minH: 110 });
+wins.add($('#win-code'), { id: 'code', x: 16, y: (W, H) => TICKET_TOP + ticketH(W, H) + 12, w: 440,
+  h: (W, H) => { const y = TICKET_TOP + ticketH(W, H) + 12; return Math.max(CODE_MIN, Math.min(470, H - y - 16)); }, minW: 300, minH: 240 });
 
 // ---------------------------------------------------------------- the ticket: Bea's words, then what came of the run
 $('#ticket-id').textContent = `TICKET #${TICKET.number}`;
@@ -71,7 +78,7 @@ function setTicket(open, out = null) {
   pill.textContent = open ? 'OPEN' : 'RESOLVED ✓';
   pill.className = `pill ${open ? 'open' : 'done'}`;
   $('#win-ticket').classList.toggle('has-thread', !!out);
-  if (!out) { thread.innerHTML = ''; return; }
+  if (!out) { thread.innerHTML = ''; fitTicket(); return; }
   if (out.resolved) {
     thread.innerHTML = `<p class="reply"><b>${esc(TICKET.from)}:</b> “${esc(out.reply)}”</p>`
       + `<div class="recap"><span class="tag">What you just did</span><p>${esc(out.recap[0])}</p><p>${esc(out.recap[1])}</p></div>`
@@ -80,8 +87,13 @@ function setTicket(open, out = null) {
     thread.innerHTML = `<p class="still"><b>Still open.</b> ${esc(out.note)}</p>`
       + '<button type="button" class="chip" disabled title="Hints arrive in a later update">Hint · arrives in a later update</button>';
   }
-  const body = $('#win-ticket .body');
-  body.scrollTop = Math.max(0, thread.offsetTop - 8); // the answer in view, the symptom a scroll away
+  fitTicket();
+}
+function fitTicket() {
+  const body = $('#win-ticket .body'), bar = $('#win-ticket .bar');
+  ticketWant = thread.innerHTML ? bar.offsetHeight + thread.offsetTop + thread.offsetHeight + 18 : TICKET_H;
+  wins.layout();
+  body.scrollTop = body.scrollHeight; // the end of the answer (the credit) in view, if it still does not fit
 }
 
 // ---------------------------------------------------------------- the code window
@@ -139,13 +151,13 @@ async function startScene() {
     const [{ createStage }] = await Promise.all([import('../engine/renderer.js')]);
     const canvas = $('#scene canvas');
     try { stage = createStage(canvas, { reducedMotion: RM }); } catch { glMessage(GL_UNAVAILABLE); return; }
-    stage.onLost(() => { glMessage(GL_LOST); story?.cancel(); });
+    stage.onLost(() => { glMessage(GL_LOST); story?.cancel(); }); // the run still finishes: its outcome is shown
     const [{ createOffice }, { createStory }] = await Promise.all([import('./office.js'), import('./story.js')]);
     office = createOffice(stage, { reducedMotion: RM });
-    story = createStory(office, { clock: CLOCK, reducedMotion: RM });
+    story = createStory(office, { clock: CLOCK, reducedMotion: RM, timeScale: () => play.timeScale });
     play.office = office; play.map = office.map; play.stage = stage; play.story = story;
     office.frame(wins.rects(), hudHeight());
-    stage.frame((dt, t) => { if (!glDown) office.update(dt, t); });
+    stage.frame((dt, t) => { if (!glDown) office.update(dt * (play.timeScale || 1), t); });
     addEventListener('resize', () => { if (office && !focusOn) office.frame(wins.rects(), hudHeight()); });
   } catch (e) {
     console.warn('the 3D office could not start', e);
@@ -158,8 +170,7 @@ function toggleFocus(force) {
   focusOn = force ?? !focusOn;
   hud.setFocus(focusOn);
   const clash = [...clashingRooms(play.objects || {})][0];
-  const name = play.objects?.rooms?.find((r) => r.id === clash)?.name || 'Room 1';
-  if (focusOn) office.focus(name); else office.overview();
+  if (focusOn) office.focus(office.roomOf(clash ?? 1)?.id || 'room-1'); else office.overview();
 }
 addEventListener('keydown', (e) => {
   if (e.key !== 'f' && e.key !== 'F') return;
@@ -172,10 +183,7 @@ addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- the world
 let history = { solves: [] }; // kept across Reset: a ticket solved once earns nothing the second time
 let op = 0; // the latest Run or Reset: an older one that finishes late touches nothing
-const clashRoomName = (objects) => {
-  const id = [...clashingRooms(objects)][0];
-  return objects.rooms?.find((r) => r.id === id)?.name || null;
-};
+let pendingCredit = 0; // XP a solve earned whose story Reset cut short: said after the reset
 const showState = (objects, grade) => hud.set(deriveState(objects, grade, history));
 async function loadWorld() {
   const old = play.world;
@@ -190,9 +198,9 @@ async function loadWorld() {
     if (office) {
       office.seed(objects, CLOCK);
       const clash = clashingRooms(objects);
-      office.setRooms(new Set(objects.rooms.filter((r) => clash.has(r.id)).map((r) => r.name)));
+      office.setRooms(clash);
       office.fx.clearTickets();
-      story.setTicket(!grade.passed, clashRoomName(objects) || 'Room 1');
+      story.setTicket(!grade.passed, [...clash][0] ?? 1);
       office.drone.reset(); office.drone.root.position.copy(office.rest);
     }
     show('', '');
@@ -225,24 +233,34 @@ async function onRun() {
     const grade = await gradeProblem(world, problem);
     if (op !== mine) return;
     const events = diffWorlds(before, after);
+    const rows = rowChanges(before, after); // every table and column: decides whether anything changed at all
+    const changed = rows.length > 0;
     play.lastEvents = events;
+    play.lastChanges = rows;
     play.objects = after;
     const wasOpen = $('#win-ticket .pill').classList.contains('open');
-    const solvedNow = grade.passed && wasOpen && events.length > 0;
+    const solvedNow = grade.passed && wasOpen && changed;
     const credit = solvedNow ? creditFor(history, problem.id, { clean: true }) : 0;
-    if (solvedNow) history = recordSolve(history, problem.id, { clean: true }); // no worked example yet: every solve is clean
+    // the solve is recorded when it happens (no worked example yet: every solve is clean); if Reset cuts
+    // the story short, the reset says what it earned
+    if (solvedNow) { history = recordSolve(history, problem.id, { clean: true }); pendingCredit = credit || -1; }
     const out = lang === 'sql' ? rowsTable(res.rows) : (res.logs?.length || res.stdout) ? `<pre class="out">${esc((res.logs || []).join('\n') || res.stdout)}</pre>` : '';
 
     if (office && story && !glDown) {
       setBusy(true, 'story');
       show('is-running', events.length ? 'Your code ran. Watch the office…' : 'Your code ran…', out);
-      const r = await story.play(events, { before, after, grade, wasOpen });
-      if (r.cancelled || op !== mine) return;
+      await story.play(events, { before, after, grade, wasOpen, changed });
+      // only Reset (a newer op) drops the outcome; a story stopped by a lost 3D view still reports it
+      if (op !== mine) return;
     }
+    pendingCredit = 0;
     showState(after, grade);
-    if (!events.length) {
-      const n = lang === 'sql' && res.rows ? res.rows.length : null;
-      show('is-miss', `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}. The world did not change.`, out);
+    const n = lang === 'sql' && res.rows ? res.rows.length : null;
+    const ran = `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}.`;
+    if (!changed) { show('is-miss', `${ran} The world did not change.`, out); return; }
+    if (!office || !story || glDown) office?.reconcile(after, CLOCK);
+    if (!events.length && !solvedNow) {
+      show('is-miss', `${ran} No booking moved; ${describeRows(rows)}.`, out);
       return;
     }
     const said = outcome({ events, grade, before, after, lang, xp: credit });
@@ -264,7 +282,11 @@ async function onReset() {
   const mine = ++op;
   story?.cancel();
   setBusy(true, 'reset');
-  try { await loadWorld(); } finally { if (op === mine) setBusy(false); }
+  const credit = pendingCredit; pendingCredit = 0;
+  try {
+    await loadWorld();
+    if (credit && play.ready) show('is-win', `Reset. Your fix had resolved ${TICKET.from}'s ticket${credit > 0 ? ` and earned +${credit} XP` : ''} before the reset; the world is back as the ticket arrived.`);
+  } finally { if (op === mine) setBusy(false); }
 }
 
 // ---------------------------------------------------------------- measuring (tests and the report)
