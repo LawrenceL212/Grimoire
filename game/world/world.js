@@ -16,7 +16,8 @@ const loadPGlite = () => (pglite ??= import(failures ? `${PGLITE}?retry=${failur
 export class World {
   constructor(db) { this.db = db; }
 
-  static async create(counts = {}, { loadDataDir } = {}) {
+  // seed: SQL that fills the world instead of seedSql(counts) (the opening chapter's named world, world/named.js)
+  static async create(counts = {}, { loadDataDir, seed } = {}) {
     const { PGlite } = await loadPGlite();
     const db = new PGlite(loadDataDir ? { loadDataDir } : {});
     await db.waitReady;
@@ -24,7 +25,7 @@ export class World {
     const world = new World(db);
     if (!loadDataDir) {
       await db.exec(SCHEMA);
-      await db.exec(seedSql(counts));
+      await db.exec(seed ?? seedSql(counts));
     }
     return world;
   }
