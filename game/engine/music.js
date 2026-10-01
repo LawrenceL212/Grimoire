@@ -14,7 +14,7 @@
 
    createMusic(ctx, out, opts) builds the same instrument into any (Offline)AudioContext; the
    module-level start()/stop() drive one live instance on the engine's music bus. */
-import { whenReady, initAudio, midiHz, noiseBuffer, rng } from './audio.js';
+import { whenReady, initAudio, getSettings, midiHz, noiseBuffer, rng } from './audio.js';
 
 export const DISTRICTS = Object.freeze({
   office:    { root: 41, bpm: 74, mode: 'major',  keys: 'rhodes', cut: 1.0, hats: 1.0, bell: 1.0, swing: 0.6 },
@@ -46,7 +46,8 @@ export function districtProfile(name) {
   return { name: k, ...DISTRICTS[k] };
 }
 
-export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 'normal', district = 'office' } = {}) {
+export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 'normal', district = 'office',
+  clock = () => ac.currentTime, shouldPause = () => false, manual = false } = {}) {
   const r = rng(seed);
   const pick = (a) => a[Math.floor(r() * a.length)];
   const gain = (v, to) => { const g = ac.createGain(); g.gain.value = v; if (to) g.connect(to); return g; };
@@ -66,7 +67,7 @@ export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 
   const st = {
     mood, baseMood: mood === 'celebrate' ? 'normal' : mood, celebrateBars: mood === 'celebrate' ? 2 : 0,
     district: districtProfile(district), degree: 0, voicing: [], bassLast: 0, melody: 2,
-    bars: 0, events: 0, eventsLastBar: 0, appliedMood: null,
+    bars: 0, events: 0, eventsLastBar: 0, appliedMood: null, active: 0, skipped: 0, paused: false,
   };
 
   function applyMood(t, tc = 0.25) {
@@ -81,67 +82,87 @@ export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 
   }
   applyMood(ac.currentTime, 0.01);
 
-  /* ---- voices ---- */
+  /* ---- voices ----
+     Each note is a small subgraph hanging off a long-lived layer bus; when its last source ends,
+     every node of the note is disconnected so nothing accumulates over a long session. */
   function count() { st.events++; }
+  function voiceScope() {
+    const nodes = []; let sounding = 0;
+    return {
+      gain(v, to) { const g = gain(v, to); nodes.push(g); return g; },
+      node(n) { nodes.push(n); return n; },
+      run(s, t, end, offset) {
+        nodes.push(s); sounding++; st.active++;
+        s.onended = () => {
+          st.active--;
+          if (--sounding === 0) for (const n of nodes) { try { n.disconnect(); } catch { /* gone */ } }
+        };
+        if (offset != null) s.start(t, offset); else s.start(t);
+        s.stop(end);
+        return s;
+      },
+    };
+  }
   function env(p, t, peak, a, hold, decayTc, len) {
     p.setValueAtTime(0, t);
     p.linearRampToValueAtTime(peak, t + a);
     p.setTargetAtTime(peak * hold, t + a, decayTc);
     p.setTargetAtTime(0, t + len, 0.12);
   }
-  function osc(type, f, t, end, to, detune = 0) {
+  function osc(V, type, f, t, end, to, detune = 0) {
     const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = detune;
-    o.connect(to); o.start(t); o.stop(end); return o;
+    o.connect(to); return V.run(o, t, end);
   }
   /* Keys. rhodes: sine + a quickly fading 2x "tine" + a quiet triangle; glass: sine + 3x partial;
      pluck: triangle with a short decay; pad: two detuned triangles, slow attack. */
   function keyNote(n, t, len, vel) {
     count();
-    const f = midiHz(n), g = gain(0, keys), kind = st.district.keys, end = t + len + 0.8;
+    const V = voiceScope(), f = midiHz(n), g = V.gain(0, keys), kind = st.district.keys, end = t + len + 0.8;
     if (kind === 'pad') {
       env(g.gain, t, 0.05 * vel, 0.35, 0.8, 1.2, len);
-      osc('triangle', f, t, end, g, -6); osc('triangle', f, t, end, g, 6);
+      osc(V, 'triangle', f, t, end, g, -6); osc(V, 'triangle', f, t, end, g, 6);
       return;
     }
     if (kind === 'pluck') {
       env(g.gain, t, 0.07 * vel, 0.006, 0.05, 0.3, len);
-      osc('triangle', f, t, end, g); osc('sine', f * 2, t, end, g);
+      osc(V, 'triangle', f, t, end, g); osc(V, 'sine', f * 2, t, end, g);
       return;
     }
     env(g.gain, t, 0.065 * vel, 0.008, 0.3, 0.6, len);
-    osc('sine', f, t, end, g);
-    osc('triangle', f, t, end, gain(0.25, g));
-    const bark = gain(0, g);
+    osc(V, 'sine', f, t, end, g);
+    osc(V, 'triangle', f, t, end, V.gain(0.25, g));
+    const bark = V.gain(0, g);
     bark.gain.setValueAtTime(0, t); bark.gain.linearRampToValueAtTime(kind === 'glass' ? 0.35 : 0.45, t + 0.004); bark.gain.setTargetAtTime(0, t + 0.004, kind === 'glass' ? 0.25 : 0.08);
-    osc('sine', f * (kind === 'glass' ? 3 : 2), t, Math.min(end, t + 1.5), bark);
+    osc(V, 'sine', f * (kind === 'glass' ? 3 : 2), t, Math.min(end, t + 1.5), bark);
   }
   function bassNote(n, t, len, vel) {
     count();
-    const f = midiHz(n), g = gain(0, bass), end = t + len + 0.5;
+    const V = voiceScope(), f = midiHz(n), g = V.gain(0, bass), end = t + len + 0.5;
     env(g.gain, t, 0.2 * vel, 0.015, 0.55, 0.4, len);
-    osc('sine', f, t, end, g); osc('triangle', f, t, end, gain(0.22, g));
+    osc(V, 'sine', f, t, end, g); osc(V, 'triangle', f, t, end, V.gain(0.22, g));
   }
   function kick(t, vel) {
     count();
-    const g = gain(0, drums);
+    const V = voiceScope(), g = V.gain(0, drums);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.22 * vel, t + 0.004); g.gain.setTargetAtTime(0, t + 0.01, 0.07);
     const o = ac.createOscillator(); o.frequency.setValueAtTime(78, t); o.frequency.exponentialRampToValueAtTime(44, t + 0.12);
-    o.connect(g); o.start(t); o.stop(t + 0.45);
+    o.connect(g); V.run(o, t, t + 0.45);
   }
   function brush(t, vel, { f = 2600, q = 0.6, a = 0.015, tc = 0.06, len = 0.35, peak = 0.06, to = drums } = {}) {
     count();
-    const s = ac.createBufferSource(); s.buffer = noiseBuffer(ac);
-    const fl = ac.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
-    const g = gain(0, to);
+    const V = voiceScope();
+    const s = ac.createBufferSource(); s.buffer = noiseBuffer(ac); s.loop = true; // looped: no end-of-buffer click
+    const fl = V.node(ac.createBiquadFilter()); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
+    const g = V.gain(0, to);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak * vel, t + a); g.gain.setTargetAtTime(0, t + a, tc);
-    s.connect(fl); fl.connect(g); s.start(t, r() * 1.5); s.stop(t + len);
+    s.connect(fl); fl.connect(g); V.run(s, t, t + len, r() * 1.9);
   }
   function hat(t, vel) { brush(t, vel, { f: 7500, q: 0.8, a: 0.002, tc: 0.018, len: 0.12, peak: 0.03, to: hats }); }
   function bellNote(n, t, vel) {
     count();
-    const f = midiHz(n), g = gain(0, bells);
+    const V = voiceScope(), f = midiHz(n), g = V.gain(0, bells);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.04 * vel, t + 0.004); g.gain.setTargetAtTime(0, t + 0.004, 0.35);
-    osc('sine', f, t, t + 1.8, g); osc('sine', f * 2, t, t + 0.6, gain(0.15, g));
+    osc(V, 'sine', f, t, t + 1.8, g); osc(V, 'sine', f * 2, t, t + 0.6, V.gain(0.15, g));
   }
 
   /* ---- harmony ---- */
@@ -226,15 +247,31 @@ export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 
   }
 
   /* ---- live scheduling (look-ahead) and offline rendering ---- */
-  let timer = null, nextBar = 0, stopped = false;
+  /* The timer only ever schedules the bar that starts within LOOKAHEAD. If the timer was throttled
+     or the main thread stalled (nextBar already in the past), the missed bars are dropped and the
+     grid restarts from now: never a backlog of bars landing at once. While paused (hidden tab,
+     muted) nothing new is scheduled; on return the grid restarts the same way (the engine's
+     visibility/mute fades bring the sound back in). */
+  const LOOKAHEAD = 1.6;
+  let timer = null, nextBar = 0, stopped = false, started = false;
   function tick() {
-    while (!stopped && nextBar < ac.currentTime + 0.6) nextBar += scheduleBar(Math.max(nextBar, ac.currentTime + 0.05));
+    if (stopped || !started) return 0;
+    if (shouldPause()) { st.paused = true; return 0; }
+    st.paused = false;
+    const now = clock();
+    if (nextBar < now) { st.skipped++; nextBar = now + 0.05; }
+    let n = 0;
+    while (nextBar < now + LOOKAHEAD && n < 2) { nextBar += scheduleBar(nextBar); n++; }
+    return n;
   }
   return {
-    start(at = ac.currentTime + 0.1) {
+    start(at = clock() + 0.1) {
+      started = true;
       nextBar = at; output.gain.setValueAtTime(0, at); output.gain.linearRampToValueAtTime(1, at + 2.5);
-      tick(); timer = setInterval(tick, 120);
+      tick(); if (!manual) timer = setInterval(tick, 200);
     },
+    /* one scheduler step (the live timer calls this; tests drive it by hand); returns bars scheduled */
+    tick,
     /* schedule `seconds` of music from t0 (for an OfflineAudioContext); returns the bar count */
     render(t0, seconds) { let t = t0; const n0 = st.bars; while (t < t0 + seconds) t += scheduleBar(t); return st.bars - n0; },
     /* the next `bars` bars from t0, returns their end time (offline use: change mood between calls) */
@@ -255,7 +292,12 @@ export function createMusic(ac, out, { seed = (Math.random() * 1e9) | 0, mood = 
     },
     setDistrict(name) { st.district = districtProfile(name); st.voicing = []; applyMood(ac.currentTime, 0.8); },
     density() { const M = MOOD[st.mood]; return 8 * M.pHat * (st.district.hats) + 8 * M.pBell + 4 * M.pRehit + 2 * M.pWalk + 8 * M.arp + 6; },
-    state() { return { mood: st.mood, baseMood: st.baseMood, district: st.district.name, bars: st.bars, events: st.events, eventsLastBar: st.eventsLastBar, density: this.density(), playing: !!timer }; },
+    /* what the mood returns to after celebrate (the typing idle timer uses this) */
+    setBaseMood(m) { if (MOOD[m] && m !== 'celebrate') st.baseMood = m; },
+    state() {
+      return { mood: st.mood, baseMood: st.baseMood, district: st.district.name, bars: st.bars, events: st.events, eventsLastBar: st.eventsLastBar,
+        density: this.density(), playing: !!timer, active: st.active, skipped: st.skipped, paused: st.paused };
+    },
     layers: layer, keysFilter: keysF, output,
   };
 }
@@ -269,7 +311,8 @@ export function start({ seed } = {}) {
   wanted = true;
   whenReady((ac, gr) => {
     if (!wanted || live) return;
-    live = createMusic(ac, gr.music, { seed, mood: wantedMood, district: wantedDistrict });
+    live = createMusic(ac, gr.music, { seed, mood: wantedMood, district: wantedDistrict,
+      shouldPause: () => document.hidden || getSettings().muted });
     live.start();
   });
 }
@@ -283,11 +326,19 @@ export function setMood(m) {
   if (live) live.setMood(m);
 }
 export function setDistrict(name) { wantedDistrict = String(name); if (live) live.setDistrict(wantedDistrict); }
+/* Typing focuses the music; idle for idleMs returns it to normal. A celebrate in progress is never
+   cut short: typing during it (or the idle return) only changes the mood celebrate returns to. */
 export function typing(idleMs = 6000) {
-  if (live && live.state().mood !== 'celebrate') live.setMood('focus');
-  else if (!live) wantedMood = 'focus';
+  const celebrating = () => live && live.state().mood === 'celebrate';
+  if (celebrating()) live.setBaseMood('focus');
+  else if (live) live.setMood('focus');
+  else wantedMood = 'focus';
   clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => setMood('normal'), idleMs);
+  typingTimer = setTimeout(() => {
+    wantedMood = 'normal';
+    if (celebrating()) live.setBaseMood('normal');
+    else if (live) live.setMood('normal');
+  }, idleMs);
 }
 export const isPlaying = () => !!live;
 export const musicState = () => (live ? live.state() : { mood: wantedMood, district: wantedDistrict, playing: false, wanted });

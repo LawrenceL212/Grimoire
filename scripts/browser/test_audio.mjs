@@ -145,6 +145,95 @@ t.check('mute stops the output, unmute brings it back', mus.levelMuted < 1e-4 &&
 t.check('a hidden tab fades the music out, and back in when visible', mus.fadeHidden < 0.05 && mus.fadeVisible > 0.9, `${mus.fadeHidden.toFixed(3)} / ${mus.fadeVisible.toFixed(3)}`);
 t.check('music stops', mus.stopped);
 
+// ---- the scheduler: stalls, pauses, long sessions, typing vs celebrate, coalesced writes ----
+const sch = await page.evaluate(async () => {
+  const { audio, sfx, music } = window.audioTest;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const out = {};
+  // a 30 s stall: the stubbed clock jumps from 0 to 30 s between two ticks
+  {
+    const ac = new OfflineAudioContext(2, 48000, 48000);
+    let now = 0;
+    const m = music.createMusic(ac, ac.destination, { seed: 1, manual: true, clock: () => now });
+    m.start(0.1);
+    const b0 = m.state().bars, e0 = m.state().events;
+    now = 30;
+    out.stallBars = m.tick();
+    out.stallEvents = m.state().events - e0;
+    out.stallSkipped = m.state().skipped;
+    now = 30.2;
+    out.nextTickBars = m.tick();
+    out.b0 = b0;
+  }
+  // three simulated minutes, ticking every 0.25 s like the live timer: voices alive stay flat
+  {
+    const sr = 22050, secs = 180, ac = new OfflineAudioContext(1, sr * secs, sr);
+    const m = music.createMusic(ac, ac.destination, { seed: 8, manual: true });
+    const samples = [];
+    for (let t = 0.25; t < secs; t += 0.25) {
+      ac.suspend(t).then(() => { m.tick(); samples.push([t, m.state().active]); ac.resume(); });
+    }
+    m.start(0.05);
+    await ac.startRendering();
+    await sleep(50);
+    const win = (a, b) => Math.max(...samples.filter(([t]) => t >= a && t < b).map(([, v]) => v));
+    out.activeMinute1 = win(10, 60); out.activeMinute3 = win(120, 180);
+    out.longBars = m.state().bars; out.longSkipped = m.state().skipped;
+  }
+  // live: muted or hidden pauses scheduling and the drone fades while hidden
+  await sleep(100);
+  music.start();
+  await sleep(1500);
+  const live = music.liveMusic();
+  audio.setMuted(true);
+  await sleep(300);
+  const mb = live.state().bars;
+  await sleep(3800);
+  out.mutedBars = live.state().bars - mb; out.mutedPaused = live.state().paused;
+  audio.setMuted(false);
+  await sleep(500);
+  out.unmutedBars = live.state().bars - mb;
+  sfx.startLoop('drone-hum', { speed: 0.5 });
+  await sleep(600);
+  out.droneVisible = sfx.loopState().level;
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  document.dispatchEvent(new Event('visibilitychange'));
+  await sleep(300);
+  const hb = live.state().bars;
+  await sleep(3600);
+  out.hiddenBars = live.state().bars - hb;
+  out.droneHidden = sfx.loopState().level;
+  delete document.hidden;
+  document.dispatchEvent(new Event('visibilitychange'));
+  await sleep(700);
+  out.droneBack = sfx.loopState().level;
+  out.visibleBars = live.state().bars - hb;
+  sfx.stopLoop('drone-hum');
+  // typing during a celebrate never cuts it short
+  music.setMood('celebrate');
+  music.typing(200);
+  await sleep(400);
+  out.celebrateKept = live.state().mood; out.celebrateBase = live.state().baseMood;
+  music.stop();
+  // a slider drag: 60 changes, few writes, the last value kept
+  let writes = 0;
+  const real = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) { if (k === 'grimoire.audio.v1') writes++; return real.call(this, k, v); };
+  for (let i = 0; i <= 60; i++) { audio.setVolume('music', i / 100); await sleep(5); }
+  await sleep(400);
+  Storage.prototype.setItem = real;
+  out.writes = writes;
+  out.stored = JSON.parse(localStorage.getItem('grimoire.audio.v1')).music;
+  audio.resetAudioSettings();
+  return out;
+});
+t.check('after a 30 s stall, one bar is scheduled (missed bars dropped), then nothing until it is due', sch.stallBars === 1 && sch.nextTickBars === 0 && sch.stallSkipped === 1 && sch.stallEvents < 40, `bars ${sch.stallBars}, events ${sch.stallEvents}, next tick ${sch.nextTickBars}`);
+t.check('a three-minute session keeps the live voice count flat', sch.activeMinute3 <= Math.max(60, sch.activeMinute1 * 1.3) && sch.longBars > 50 && sch.longSkipped === 0, `max alive ${sch.activeMinute1} (minute 1) vs ${sch.activeMinute3} (minute 3), ${sch.longBars} bars`);
+t.check('muted: no new bars are scheduled; unmuted: it resumes', sch.mutedBars === 0 && sch.mutedPaused && sch.unmutedBars >= 1, `muted +${sch.mutedBars}, after unmute +${sch.unmutedBars}`);
+t.check('hidden tab: no new bars, the drone hum fades, both return when visible', sch.hiddenBars === 0 && sch.droneHidden < 0.01 && sch.droneVisible > 0.05 && sch.droneBack > 0.05 && sch.visibleBars >= 1, `bars +${sch.hiddenBars}/+${sch.visibleBars}, drone ${sch.droneVisible.toFixed(3)} -> ${sch.droneHidden.toFixed(4)} -> ${sch.droneBack.toFixed(3)}`);
+t.check('the typing idle timer does not cut a celebrate short', sch.celebrateKept === 'celebrate' && sch.celebrateBase === 'normal', `${sch.celebrateKept}, returns to ${sch.celebrateBase}`);
+t.check('slider drags coalesce storage writes and keep the last value', sch.writes <= 3 && sch.stored === 0.6, `${sch.writes} writes for 61 changes, stored ${sch.stored}`);
+
 // ---- persistence ----
 await page.evaluate(() => { const { audio } = window.audioTest; audio.setVolume('music', 0.42); audio.setVolume('effects', 0.5); audio.setCalm(true); });
 await page.reload();

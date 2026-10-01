@@ -25,7 +25,15 @@ function loadSettings() {
   } catch { /* unreadable settings fall back to the defaults */ }
   return { ...AUDIO_DEFAULTS };
 }
-function saveSettings() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* storage off: keep going */ } }
+/* Writes are coalesced (a slider drag fires dozens of changes): at most one write per 300 ms,
+   always the latest values, and flushed when the page is hidden or unloaded. */
+let saveTimer = null;
+export function flushAudioSettings() {
+  clearTimeout(saveTimer); saveTimer = null;
+  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* storage off: keep going */ }
+}
+function saveSettings() { if (!saveTimer) saveTimer = setTimeout(flushAudioSettings, 300); }
+if (typeof window !== 'undefined') window.addEventListener('pagehide', () => { if (saveTimer) flushAudioSettings(); });
 
 let settings = loadSettings();
 let ctx = null;
@@ -118,6 +126,8 @@ function onGesture() {
     document.addEventListener('visibilitychange', onVisibility);
     onVisibility();
     ctx.addEventListener?.('statechange', () => { if (ctx.state === 'running') flushReady(); });
+    // older iOS only unlocks output once a source has started inside the gesture: one silent sample
+    try { const s = ctx.createBufferSource(); s.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); s.connect(ctx.destination); s.start(0); } catch { /* fine */ }
   }
   if (ctx.state !== 'running') ctx.resume().then(flushReady, () => {});
   else flushReady();
@@ -129,6 +139,8 @@ function flushReady() {
 
 function onVisibility() {
   if (!graph) return;
+  // a context suspended or 'interrupted' (iOS calls, other tabs) is resumed when we come back
+  if (!document.hidden && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().then(flushReady, () => {});
   const p = graph.fade.gain, t = ctx.currentTime;
   p.cancelScheduledValues(t);
   p.setValueAtTime(p.value, t);

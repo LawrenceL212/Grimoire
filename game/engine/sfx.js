@@ -54,12 +54,12 @@ function bell(V, t, f, peak, dur) {
 /* Filtered noise: `type` filter at f (sweeping to f2), envelope as above. */
 function noise(V, { t, dur, peak, attack = 0.002, type = 'bandpass', f, f2, q = 1 }) {
   const ac = V.ac, s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain();
-  s.buffer = noiseBuffer(ac);
+  s.buffer = noiseBuffer(ac); s.loop = true; // looped, so a random offset never runs off the end
   fl.type = type; fl.frequency.setValueAtTime(f, t); fl.Q.value = q;
   if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
   envelope(g.gain, t, peak, attack, t + dur);
   s.connect(fl); fl.connect(g); g.connect(V.out);
-  const off = V.r() * 1.5;
+  const off = V.r() * 1.9;
   s.start(t, off); s.stop(t + dur + 0.02);
   V.track(s, t + dur + 0.02);
 }
@@ -245,6 +245,7 @@ export function createLoop(ac, out, name = 'drone-hum', t0 = ac.currentTime) {
       return t + fade + 0.05;
     },
     get speed() { return speed; },
+    get level() { return level.gain.value; },
   };
 }
 
@@ -284,8 +285,19 @@ export function play(name, { pan = 0, gain = 1 } = {}) {
   return { name, end: r.end, ended };
 }
 
+/* Loops fade out while the tab is hidden and back in when it returns. */
+let loopVisibilityHooked = false;
+function hookLoopVisibility() {
+  if (loopVisibilityHooked || typeof document === 'undefined') return;
+  loopVisibilityHooked = true;
+  document.addEventListener('visibilitychange', () => {
+    for (const e of loops.values()) if (!e.pending) e.loop.set('level', document.hidden ? 0 : 1);
+  });
+}
+
 export function startLoop(name = 'drone-hum', { pan = 0, speed } = {}) {
   initAudio();
+  hookLoopVisibility();
   if (loops.has(name)) { if (speed != null) setLoopParam(name, 'speed', speed); return name; }
   const entry = { pending: true, pan, speed };
   loops.set(name, entry);
@@ -295,6 +307,7 @@ export function startLoop(name = 'drone-hum', { pan = 0, speed } = {}) {
     entry.loop = createLoop(ac, entry.chain.input, name, ac.currentTime);
     entry.pending = false;
     if (entry.speed != null) entry.loop.set('speed', entry.speed);
+    if (document.hidden) entry.loop.set('level', 0);
   });
   return name;
 }
@@ -313,3 +326,4 @@ export function stopLoop(name = 'drone-hum') {
   setTimeout(() => e.chain.dispose(), Math.max(0, (end - e.chain.input.context.currentTime) * 1000) + 100);
 }
 export const loopRunning = (name = 'drone-hum') => loops.has(name);
+export function loopState(name = 'drone-hum') { const e = loops.get(name); return e && !e.pending ? { speed: e.loop.speed, level: e.loop.level } : null; }
