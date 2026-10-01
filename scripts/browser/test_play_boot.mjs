@@ -1,7 +1,7 @@
 /* The 3D play page boots against the real world: the HUD reads the world, the office seats the
    bookings that are running at the office clock, the windows work, a real fix runs end to end,
    the scene stays inside its budgets, and losing (or never having) WebGL leaves the code window usable. */
-import { openGame, makeReporter } from './game_lib.mjs';
+import { openGame, makeReporter, BASE } from './game_lib.mjs';
 
 const t = makeReporter();
 const PAGE = 'game/play/index.html?ticket=double-booking-1'; // Phase 1's double-booking card on its own (the chapter is tested in test_chapter_*)
@@ -152,11 +152,11 @@ const settle = (page) => page.waitForSelector('#result.is-win, #result.is-miss, 
   await close();
 }
 
-// The old address sends people to the new page; the Phase 1 page lives on at classic.html.
+// The old address sends people to the title screen (Task 14); the Phase 1 page lives on at classic.html.
 {
   const { page, close } = await openGame('game/index.html', { context: VIEW });
-  await page.waitForURL(/play\/index\.html/, { timeout: 10000 }).catch(() => {});
-  t.check('game/index.html redirects to play/index.html', /\/game\/play\/index\.html/.test(page.url()), page.url());
+  await page.waitForURL((u) => !/\/game\//.test(u.pathname), { timeout: 10000 }).catch(() => {});
+  t.check('game/index.html redirects to the title screen at the site root (Task 14)', new URL(page.url()).pathname === new URL(BASE).pathname, page.url());
   await close();
 }
 t.finish();

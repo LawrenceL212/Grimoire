@@ -1,0 +1,102 @@
+/* The title screen (site root). System fonts only; the gold matches the intro and the play page. */
+:root {
+  --ink: #14110f; --bg: #16120f; --text: #efe6d2; --gold: #d9a441; --gold-hi: #f3cf7a; --danger: #e2574c;
+  --muted: color-mix(in srgb, var(--text) 64%, transparent);
+  --line: color-mix(in srgb, var(--gold) 32%, #2c241d);
+  --glass: rgba(18, 14, 11, .72);
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 16px/1.45 var(--sans); }
+body { overflow-x: hidden; }
+
+#title-app {
+  position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden;
+  /* the dusk behind the office; also the whole backdrop when WebGL is not there */
+  background: radial-gradient(120% 80% at 70% 18%, #6a4f7a 0%, #3b2c45 32%, #1e1720 62%, #120e0c 100%);
+}
+#backdrop { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity 1.2s ease; }
+#title-app.scene-on #backdrop { opacity: 1; }
+#veil { position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(12,9,7,.86) 0%, rgba(12,9,7,.55) 30%, rgba(12,9,7,0) 55%),
+    radial-gradient(140% 100% at 60% 50%, transparent 55%, rgba(8,6,5,.65) 100%); }
+
+#front {
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; justify-content: center; gap: 28px;
+  width: min(540px, 100%); padding: max(28px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) clamp(16px, 6vw, 72px);
+}
+
+#logo {
+  display: inline-block; white-space: nowrap; margin: 0; padding: 0 .02em .06em 0; font: 700 clamp(46px, 5.8vw, 82px)/1.05 var(--serif); letter-spacing: .12em; color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 55%, #a8772a 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px rgba(217,164,65,.45)) drop-shadow(0 2px 2px rgba(0,0,0,.6));
+}
+#tagline { margin: 12px 0 0; font: italic 500 clamp(16px, 2vw, 20px)/1.35 var(--serif); color: var(--text); text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+
+#menu { max-width: 460px; display: flex; flex-direction: column; gap: 14px; }
+.life {
+  padding: 16px 16px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--glass);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 14px 40px rgba(0,0,0,.45);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.life-head { display: flex; gap: 12px; align-items: flex-start; }
+.seal { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); font-size: 20px;
+  background: radial-gradient(circle at 35% 30%, #3a2c1c, #18120d); box-shadow: 0 0 14px rgba(217,164,65,.25); }
+.life h2 { margin: 0; font: 700 19px/1.2 var(--serif); color: #fff3d6; }
+.life-sub { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.note { margin: 0; font-size: 13px; color: var(--muted); }
+#more-lives { margin: -4px 0 0 6px; font: italic 14px var(--serif); color: var(--muted); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px;
+  border-radius: 999px; border: 1px solid var(--line); background: rgba(20,16,12,.78); color: var(--text);
+  font: 600 15px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s, transform .15s;
+}
+.btn:hover, .btn:focus-visible { border-color: var(--gold); background: rgba(40,31,21,.9); outline: none; }
+.btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 40%, transparent); }
+.btn.primary { min-height: 52px; font-size: 18px; font-weight: 700; color: #241806; border-color: var(--gold-hi);
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold)); box-shadow: 0 6px 22px rgba(217,164,65,.35); }
+.btn.primary:hover, .btn.primary:focus-visible { background: linear-gradient(180deg, #ffe09a, #e3b04f); }
+.btn.danger { border-color: var(--danger); color: #ffd9d4; }
+.btn.danger:hover, .btn.danger:focus-visible { background: rgba(120,30,24,.6); border-color: #ff7a6e; }
+#actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+#actions .btn { padding: 10px 8px; font-size: 14px; }
+#library-line { margin: 2px 0 0 6px; font-size: 14px; }
+#library-line a { color: var(--muted); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--gold) 45%, transparent); text-underline-offset: 3px; }
+#library-line a:hover, #library-line a:focus-visible { color: var(--gold-hi); }
+
+dialog {
+  width: min(420px, calc(100vw - 32px)); padding: 0; border-radius: 16px; border: 1px solid var(--line);
+  background: #1b1612; color: var(--text); box-shadow: 0 24px 70px rgba(0,0,0,.6);
+}
+dialog::backdrop { background: rgba(6,4,3,.6); backdrop-filter: blur(2px); }
+dialog form { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
+dialog h2 { margin: 0; font: 700 22px var(--serif); color: var(--gold-hi); }
+dialog p { margin: 0; }
+.row { display: grid; grid-template-columns: 74px 1fr 40px; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+.row.check { grid-template-columns: auto 1fr; }
+.row select { grid-column: 2 / 4; min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: #120e0b; color: var(--text); font: inherit; }
+.row input[type=range] { width: 100%; accent-color: var(--gold); }
+.row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--gold); }
+.row output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dlg-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.noscript { position: relative; z-index: 2; padding: 16px; }
+
+/* phones: the office fills the top, the menu sits on a dark fade at the bottom */
+@media (max-width: 720px) {
+  #veil { background: linear-gradient(180deg, rgba(12,9,7,.35) 0%, rgba(12,9,7,0) 28%, rgba(12,9,7,.55) 52%, rgba(12,9,7,.92) 72%); }
+  #menu { max-width: none; }
+  #logo { font-size: clamp(44px, 13vw, 64px); }
+  #front { width: 100%; justify-content: space-between; padding-left: 16px; gap: 18px; }
+  #brand { text-align: center; }
+  #logo { letter-spacing: .1em; }
+  #actions .btn { font-size: 13px; padding: 10px 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #backdrop, .btn { transition: none; }
+}
