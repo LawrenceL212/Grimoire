@@ -37,7 +37,7 @@ export function createHud(el, { onReset, onTweak, onFocus, onGrimoire } = {}) {
     <div class="hud-right">
       <div class="clock" id="hud-clock" title="The office clock">Day 1</div>
       <div class="warn" id="hud-warn" role="status" aria-label="No open tickets"><i></i></div>
-      <button type="button" class="hud-btn" id="hud-grimoire" title="Open the Grimoire, your book of spells" aria-label="Grimoire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5M9 8.5h6"/></svg><span>Grimoire</span></button>
+      <button type="button" class="hud-btn" id="hud-grimoire" title="Open the Grimoire, your book of spells" aria-label="Grimoire" aria-expanded="false" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5M9 8.5h6"/></svg><span>Grimoire</span></button>
       <button type="button" class="hud-btn" id="hud-focus" aria-pressed="false" title="Focus the camera on the ticket (F)">Focus</button>
       <button type="button" class="hud-btn" id="hud-tweak" title="Tweak the look (T)">Tweak</button>
       <button type="button" class="hud-btn" id="hud-reset" title="Put the world back as it was when the ticket arrived">Reset</button>

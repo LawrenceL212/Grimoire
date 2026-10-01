@@ -35,23 +35,23 @@ const r = await page.evaluate(async () => {
       status: p.dataset.status, forms: [...p.querySelectorAll('.gm-form')].map((f) => f.dataset.lang),
       drones: [...p.querySelectorAll('.gm-by b')].map((b) => b.textContent),
       nameOpacity: cs ? Number(cs.opacity) : null, stroke: cs ? parseFloat(cs.webkitTextStrokeWidth || '0') : 0, transparent: cs ? cs.color === 'rgba(0, 0, 0, 0)' : false,
-      seal: p.querySelector('.gm-seal')?.textContent || null, status_line: p.querySelector('.gm-status')?.textContent || p.textContent.trim(),
+      seal: p.querySelector('.gm-seal')?.textContent || null, sealText: p.querySelector('.gm-seal') ? p.querySelector('.gm-seal').textContent + getComputedStyle(p.querySelector('.gm-seal'), '::after').content : '', status_line: p.querySelector('.gm-status')?.textContent || p.textContent.trim(),
       text: p.textContent,
     };
   };
   out.unknown = look();
   store.introduce('where', ['sql']);
   out.unwritten = look();
-  store.recordCast('where', { lang: 'sql', assisted: true, nowMs: now });
+  store.recordCast('where', { lang: 'sql', outcome: 'exposure', nowMs: now });
   out.assisted = look();
-  store.recordCast('where', { lang: 'sql', assisted: false, nowMs: now });
+  store.recordCast('where', { lang: 'sql', unaided: true, nowMs: now });
   out.fresh = look();
   now = NOW + 0.67 * DAY; out.fading = look();
   now = NOW + 3 * DAY; out.due = look();
   now = NOW;
   store.introduce('where', ['js']);
   out.twoForms = look();
-  store.recordCast('where', { lang: 'sql', nowMs: now }); // a second unaided cast lasts longer
+  store.recordCast('where', { lang: 'sql', unaided: true, nowMs: now }); // a second unaided cast lasts longer
   out.stronger = look();
   // the contents: one meter per drone
   g.show(0, { animate: false });
@@ -68,7 +68,7 @@ t.check('a spell not met yet is a blank page (no name, no forms)', r.unknown.sta
 t.check('met but never cast: listed and UNWRITTEN, in pencil outline', r.unwritten.status === 'unwritten' && r.unwritten.seal === 'UNWRITTEN' && r.unwritten.stroke > 0 && r.unwritten.transparent && /cast it on your own/.test(r.unwritten.status_line), JSON.stringify(r.unwritten));
 t.check('a cast with help does not write it in', r.assisted.status === 'unwritten' && /with help/.test(r.assisted.status_line), JSON.stringify({ s: r.assisted.status, line: r.assisted.status_line }));
 t.check('cast unaided: WRITTEN in full ink, fresh, kept about 3 days', r.fresh.status === 'fresh' && r.fresh.seal === 'WRITTEN' && r.fresh.nameOpacity === 1 && r.fresh.stroke === 0 && /Kept about 3 days/.test(r.fresh.status_line), JSON.stringify(r.fresh));
-t.check('the ink follows the meter: fresh > fading > due, and a due spell says "re-ink soon"', r.fresh.nameOpacity > r.fading.nameOpacity && r.fading.nameOpacity > r.due.nameOpacity && r.fading.status === 'fading' && r.due.status === 'due' && /re-ink soon/.test(r.due.status_line) && r.due.nameOpacity < 0.35, JSON.stringify({ fresh: r.fresh.nameOpacity, fading: r.fading.nameOpacity, due: r.due.nameOpacity, line: r.due.status_line }));
+t.check('the ink follows the meter: fresh > fading > due, and a due spell stays readable and says "re-ink soon"', r.fresh.nameOpacity > r.fading.nameOpacity && r.fading.nameOpacity > r.due.nameOpacity && r.fading.status === 'fading' && r.due.status === 'due' && /re-ink soon/.test(r.due.status_line) && r.due.nameOpacity >= 0.5 && /RE-INK SOON/.test(r.due.sealText), JSON.stringify({ fresh: r.fresh.nameOpacity, fading: r.fading.nameOpacity, due: r.due.nameOpacity, line: r.due.status_line }));
 t.check('only the introduced forms are shown, each by its drone (Sequel for SQL, Jay for JavaScript)', JSON.stringify(r.fresh.forms) === '["sql"]' && JSON.stringify(r.twoForms.forms) === '["sql","js"]' && JSON.stringify(r.twoForms.drones) === '["Sequel","Jay"]', JSON.stringify({ one: r.fresh.forms, two: r.twoForms.forms, drones: r.twoForms.drones }));
 t.check('a second unaided cast keeps it longer', /Kept about 8 days/.test(r.stronger.status_line), r.stronger.status_line);
 t.check('the contents list every spell and show a meter per drone (Sequel, Jay, Hex)', r.toc.length === r.spells.length && JSON.stringify(r.meters.map((m) => m.who)) === '["Sequel","Jay","Hex"]' && /1 of 1 written/.test(r.meters[0].note) && /0 of 1 written/.test(r.meters[1].note), JSON.stringify(r.meters));
@@ -91,9 +91,13 @@ await page.click('#hud-grimoire');
 await page.waitForSelector('.gm-book-overlay.is-open', { timeout: 5000 });
 const opened = await page.evaluate(() => {
   const o = document.querySelector('.gm-book-overlay');
-  return { visible: !o.hidden && getComputedStyle(o).display !== 'none', pages: o.querySelectorAll('.gm-spread > .gm-page').length, folio: o.querySelector('.gm-folio').textContent, focus: document.activeElement?.className };
+  return { visible: !o.hidden && getComputedStyle(o).display !== 'none', pages: o.querySelectorAll('.gm-spread > .gm-page').length, folio: o.querySelector('.gm-folio').textContent, focus: document.activeElement?.className,
+    expanded: document.getElementById('hud-grimoire').getAttribute('aria-expanded'), spreadLive: o.querySelector('.gm-spread').getAttribute('aria-live'), folioLive: o.querySelector('.gm-folio').getAttribute('aria-live'),
+    tocLabels: [...o.querySelectorAll('.gm-toc')].slice(0, 5).map((b) => b.getAttribute('aria-label')) };
 });
 t.check('the HUD button opens the book: a two-page spread on a desktop, the contents first', opened.visible && opened.pages === 2 && /Pages 1–2 of/.test(opened.folio) && opened.focus === 'gm-close', JSON.stringify(opened));
+t.check('a11y: the HUD button says the book is open (aria-expanded), only the folio is announced on a turn', opened.expanded === 'true' && opened.spreadLive === null && opened.folioLive === 'polite', JSON.stringify(opened));
+t.check('a11y: each contents entry says its ink status in words, not only by opacity', /fresh ink/.test(opened.tocLabels[0]) && /fading/.test(opened.tocLabels[1]) && /not written yet/.test(opened.tocLabels[4]), JSON.stringify(opened.tocLabels));
 await page.click('.gm-next');
 const turned = await page.evaluate(() => ({ leaf: !!document.querySelector('.gm-leaf'), folio: document.querySelector('.gm-folio').textContent, spells: [...document.querySelectorAll('.gm-spread > .gm-page:not(.gm-leaf)')].map((p) => p.dataset.spell + ':' + p.dataset.status) }));
 t.check('Next turns the page (a leaf swings over) and the folio follows', turned.leaf && /Pages 3–4 of/.test(turned.folio) && turned.spells.join() === 'id-link:fading,select-all:fresh', JSON.stringify(turned));
@@ -102,8 +106,8 @@ if (SHOT) await page.screenshot({ path: `${SHOT}/task-14a-grimoire.png` });
 await page.keyboard.press('ArrowLeft');
 const back = await page.evaluate(() => document.querySelector('.gm-folio').textContent);
 await page.keyboard.press('Escape');
-const shut = await page.evaluate(() => ({ hidden: document.querySelector('.gm-book-overlay').hidden, focus: document.activeElement?.id }));
-t.check('Left turns back; Esc closes it and gives the focus back to the HUD button', /Pages 1–2 of/.test(back) && shut.hidden && shut.focus === 'hud-grimoire', JSON.stringify({ back, shut }));
+const shut = await page.evaluate(() => ({ hidden: document.querySelector('.gm-book-overlay').hidden, focus: document.activeElement?.id, expanded: document.getElementById('hud-grimoire').getAttribute('aria-expanded') }));
+t.check('Left turns back; Esc closes it and gives the focus back to the HUD button', /Pages 1–2 of/.test(back) && shut.hidden && shut.focus === 'hud-grimoire' && shut.expanded === 'false', JSON.stringify({ back, shut }));
 await page.click('#hud-grimoire');
 await page.waitForSelector('.gm-book-overlay.is-open');
 await page.click('.gm-close');

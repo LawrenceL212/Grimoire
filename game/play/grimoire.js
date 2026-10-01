@@ -13,7 +13,7 @@
 //     page (the first page showing), pages (count), refresh(), dispose() }
 //   grimoire() -> the page's one Grimoire (made on first use; the HUD button opens it)
 // Keys while open: Esc closes, Left / Right turn the page. The stylesheet (grimoire.css) is added on first use.
-import { SPELLS, LANGS, inkOf, defaultStore } from './spells.js';
+import { SPELLS, LANGS, inkOf, defaultStore, INK_WORDS } from './spells.js';
 import { get as tget, onThemeChange } from '../engine/theme.js';
 
 const PHONE = '(max-width: 720px)';
@@ -45,10 +45,10 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
   el.innerHTML = `
     <div class="gm-book">
       <button type="button" class="gm-close" aria-label="Close the Grimoire" title="Close (Esc)">×</button>
-      <div class="gm-spread" aria-live="polite"></div>
+      <div class="gm-spread"></div>
       <nav class="gm-nav" aria-label="Pages">
         <button type="button" class="gm-turn gm-prev" aria-label="Previous page">‹ <span>Back</span></button>
-        <span class="gm-folio"></span>
+        <span class="gm-folio" aria-live="polite"></span>
         <button type="button" class="gm-turn gm-next" aria-label="Next page"><span>Next</span> ›</button>
       </nav>
     </div>`;
@@ -67,7 +67,8 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
     const rows = SPELLS.map((s, i) => {
       const st = store.getSpellState(s.id), ink = inkOf(st, t);
       const name = st.introduced ? esc(s.name) : '· · ·';
-      return `<li><button type="button" class="gm-toc is-${ink.status}" data-goto="${i + 1}" style="--ink-a:${ink.opacity}">
+      const said = st.introduced ? `${s.name}: ${INK_WORDS[ink.status]}` : `Spell ${ROMAN[i] || i + 1}: ${INK_WORDS.unknown}`;
+      return `<li><button type="button" class="gm-toc is-${ink.status}" data-goto="${i + 1}" style="--ink-a:${ink.opacity}" aria-label="${esc(said)}">
         <span class="gm-toc-name">${name}</span><span class="gm-toc-dots"></span><span class="gm-toc-num">${ROMAN[i] || i + 1}</span></button></li>`;
     }).join('');
     const meters = LANG_ORDER.map((lang) => {
@@ -110,7 +111,7 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
     }).join('');
     const label = ink.status === 'unwritten' ? 'UNWRITTEN' : 'WRITTEN';
     return `<article class="gm-page gm-spell is-${ink.status}" data-page="${i + 1}" data-spell="${s.id}" data-status="${ink.status}" style="--ink-a:${ink.opacity}">
-      <header><span class="gm-num">${num}</span><h3 class="gm-name gm-ink">${esc(s.name)}</h3><span class="gm-seal">${label}</span></header>
+      <header><span class="gm-num">${num}</span><h3 class="gm-name gm-ink">${esc(s.name)}</h3><span class="gm-seal">${label}</span><span class="gm-sr">${esc(INK_WORDS[ink.status])}</span></header>
       <p class="gm-line gm-ink">${esc(s.line)}</p>
       <div class="gm-forms">${forms}</div>
       <footer class="gm-status">${esc(ink.line)}</footer>
@@ -160,6 +161,7 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
     if (spellId) { const i = SPELLS.findIndex((s) => s.id === spellId); if (i >= 0) page = i + 1; }
     returnFocus = document.activeElement;
     opened = true; el.hidden = false;
+    expanded(true);
     render();
     requestAnimationFrame(() => el.classList.add('is-open'));
     $('.gm-close').focus({ preventScroll: true });
@@ -167,9 +169,12 @@ export function createGrimoire({ host = document.body, store = defaultStore(), n
   function close() {
     if (!opened) return;
     opened = false; el.classList.remove('is-open'); el.hidden = true;
+    expanded(false);
     spread.querySelectorAll('.gm-leaf').forEach((x) => x.remove());
     if (returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus({ preventScroll: true });
   }
+  // the HUD's book button says whether the book is open
+  function expanded(on) { document.getElementById('hud-grimoire')?.setAttribute('aria-expanded', String(on)); }
   const next = () => show(first(page) + perSpread());
   const prev = () => show(first(page) - perSpread());
 
