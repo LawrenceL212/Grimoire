@@ -229,6 +229,22 @@ const r = await page.evaluate(async () => {
     o.userData.drone.dispose();
   }
 
+  // ---- a scaled drone's trail spawns at its body, not above it
+  {
+    const w = world();
+    const d = new D.Drone({ reducedMotion: false }); d.root.scale.setScalar(0.4); w.add(d.root);
+    let gap = Infinity, emitted = 0;
+    const res = d.flyTo([3, 0]);
+    for (let i = 0; i < 120; i++) {
+      d.update(1 / 60);
+      const bodyY = d.body.getWorldPosition(new THREE.Vector3()).y;
+      if (d.trailI > emitted) { emitted = d.trailI; const k = (d.trailI - 1) % d.trailN; gap = Math.min(gap, Math.abs(d.trailPos[k * 3 + 1] - bodyY)); }
+    }
+    await res;
+    out.scaledTrail = { emitted, gap, size: d.trail.material.size };
+    d.dispose();
+  }
+
   // ---- personas: Sequel (SQL), Jay (JavaScript), Hex (PHP)
   {
     th.resetTheme();
@@ -310,6 +326,7 @@ t.check('the drone and effects recolour live (ring light, body, face screen, coi
 t.check('every effect demo loops without throwing', Object.values(r.demos).every((v) => v === 'ok'), JSON.stringify(r.demos));
 t.check('every drone close-up animation plays without throwing', Object.values(r.droneAnims).every((v) => v === 'ok'), JSON.stringify(r.droneAnims));
 
+t.check('a scaled drone trail spawns at its body (the root scale is respected), and its points shrink with it', r.scaledTrail.emitted > 3 && r.scaledTrail.gap < 0.15 && r.scaledTrail.size < 0.15, JSON.stringify(r.scaledTrail));
 const pe = r.personas;
 t.check('three personas build: Sequel, Jay and Hex, each with a name label (the default drone has none)', JSON.stringify(pe.names) === '["Sequel","Jay","Hex"]' && pe.labels.every(Boolean) && pe.baseLabel === null, JSON.stringify({ names: pe.names, labels: pe.labels }));
 t.check('the personas look distinct: body and ring colours differ from each other and the default, eye shapes differ, faces differ', new Set(pe.shells).size === 3 && !pe.shells.includes(pe.baseShell) && new Set(pe.rings).size === 3 && new Set(pe.eyes).size === 3 && pe.faceDiff.every((n) => n > 300), JSON.stringify({ shells: pe.shells, rings: pe.rings, eyes: pe.eyes, faceDiff: pe.faceDiff }));

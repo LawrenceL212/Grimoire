@@ -704,7 +704,8 @@ export class Drone {
     const P = this.trailPos, Cc = this.trailCol, A = this.trailAge;
     // emit from behind the body, in the parent's frame
     if (n > 0 && this.root.parent) {
-      VA.set(0, this.body.position.y - 0.05 * this._scale(), 0).add(this.root.position);
+      // the body's height is in the root's frame: scale it into the parent's (a drone may be drawn smaller)
+      VA.set(0, (this.body.position.y - 0.05 * this._scale()) * this.root.scale.y, 0).add(this.root.position);
       if (VA.distanceTo(this.lastEmit) > 0.07 && hs > 0.25) {
         const i = this.trailI++ % this.trailN;
         P[i * 3] = VA.x; P[i * 3 + 1] = VA.y; P[i * 3 + 2] = VA.z; A[i] = 0;
@@ -719,7 +720,7 @@ export class Drone {
       if (k > 0) any = true;
     }
     this.trail.visible = any;
-    this.trail.material.size = 0.3 * this._scale() / 1.4;
+    this.trail.material.size = 0.3 * this._scale() / 1.4 * this.root.scale.y;
     this.trail.geometry.attributes.position.needsUpdate = true;
     this.trail.geometry.attributes.color.needsUpdate = true;
   }

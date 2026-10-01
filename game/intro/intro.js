@@ -11,8 +11,10 @@
 // the browser's speechSynthesis (an en-GB voice if there is one, else any English voice), else captions alone.
 // Music and effects go through game/engine/sfx.js and music.js when they load (dynamic import; no-ops if not).
 //
-//   window.__intro = { duration, lines, ready, time, seek(t), play(), pause(), skip(), done (Promise -> { skipped }),
-//                      voice: { mode, played } }
+//   window.__intro = { duration, lines, ready, time, seek(t), play(), pause(), skip(), dispose(), done (Promise -> { skipped }),
+//                      voice: { mode, played }, disposed, frames, listening, reducedMotion, cameraPosition }
+// Finishing or skipping disposes the page's stage (frame loop, WebGL, listeners, audio, speech); "Watch again" reloads.
+// prefers-reduced-motion: no flicker or light pulses, still camera shots joined by cuts.
 // URL: ?capture=1 (no autoplay, no sound: record.mjs steps it), ?autoplay=1 (no start card), ?mute=1 (no sound,
 // voice attempts still recorded), ?voice=web (ignore the files, use speechSynthesis), ?next=<url> (go there at the end).
 import * as THREE from 'three';
@@ -30,12 +32,15 @@ import { part, glow, floorGlow, canvasTex, ease, lerp } from '../engine/kit.js';
 (function warmDusk() {
   const copy = (into, from) => { for (const k of Object.keys(from)) { if (from[k] && typeof from[k] === 'object') copy(into[k] ??= {}, from[k]); else into[k] = from[k]; } };
   copy(theme, JSON.parse(JSON.stringify(DEFAULTS)));
-  theme.drone.trail = 0; // the drones fly short hops in a small room: no trail
 })();
 
 const Q = new URLSearchParams(location.search);
 const CAPTURE = Q.has('capture'), AUTOPLAY = Q.has('autoplay') || CAPTURE, MUTE = Q.has('mute') || CAPTURE, FORCE_WEB = Q.get('voice') === 'web';
 const STEP = 1 / 30;
+// prefers-reduced-motion: no flicker or pulsing lights, and still camera shots joined by cuts instead of drifts
+const RM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ac = new AbortController(); // every listener this page adds goes through it, so dispose() removes them all
+const on = (target, ev, fn, opts = {}) => target.addEventListener(ev, fn, { ...opts, signal: ac.signal });
 const $ = (id) => document.getElementById(id);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const k01 = (t, a, b) => clamp01((t - a) / (b - a));
@@ -51,7 +56,7 @@ const LINES = cues.lines.map((l) => ({ ...l, len: lengths[l.id] ?? Math.max(2.2,
 
 // ================================================================ stage and light
 const canvas = $('c');
-const stage = createStage(canvas, { reducedMotion: false });
+const stage = createStage(canvas, { reducedMotion: RM });
 const { scene, camera, renderer } = stage;
 renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
@@ -204,7 +209,7 @@ screenMesh.position.set(0, 0.15, 0.012); lid.add(screenMesh);
 const screenLight = new THREE.PointLight(0xbcd4ff, 0, 2.2, 1.6); screenLight.position.set(-0.85, 1.05, -1.3); Cr.add(screenLight);
 // the Grimoire on the desk: an old leather book that opens
 const book = new THREE.Group(); book.position.set(-0.2, 0.765, -1.55); book.rotation.y = -0.25; Cr.add(book);
-const leather = C('blazerAlt'); // old burgundy leather
+const leather = C('hair2'); // old brown leather (the theme's warm brown)
 box(book, 0.3, 0.045, 0.4, C('sheet'), 0, 0.03, 0, { outline: 0.006 });
 box(book, 0.31, 0.012, 0.41, leather, 0, 0.006, 0, { outline: 0.006 });
 const cover = new THREE.Group(); cover.position.set(-0.155, 0.056, 0); book.add(cover);
@@ -212,6 +217,10 @@ box(cover, 0.31, 0.014, 0.41, leather, 0.155, 0, 0, { outline: 0.006 });
 const sigilTex = canvasTex(128, 128, (g) => { g.strokeStyle = tget('palette.gold'); g.lineWidth = 5; g.beginPath(); g.arc(64, 64, 46, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(64, 22); g.lineTo(100, 86); g.lineTo(28, 86); g.closePath(); g.stroke(); });
 const sigil = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.18), new THREE.MeshBasicMaterial({ map: sigilTex, transparent: true, toneMapped: false }));
 sigil.rotation.x = -Math.PI / 2; sigil.position.set(0.155, 0.009, 0); cover.add(sigil);
+// a gold clasp: a strap over the fore-edge and a little plate on the cover, and gold corners
+box(cover, 0.07, 0.018, 0.09, C('gold'), 0.29, 0.004, 0, { outline: 0.004 });
+box(book, 0.03, 0.06, 0.07, C('gold'), 0.165, 0.03, 0, { outline: 0.004 });
+for (const z of [-0.185, 0.185]) box(cover, 0.045, 0.018, 0.045, C('gold'), 0.285, 0.002, z, { outline: 0.003 });
 const bookGlow = glow(0xffd28a, 1.4, 0); bookGlow.position.set(-0.2, 1.0, -1.55); Cr.add(bookGlow);
 const bookLight = new THREE.PointLight(0xffd28a, 0, 3, 1.6); bookLight.position.set(-0.2, 1.2, -1.4); Cr.add(bookLight);
 // the shelf the drones sleep on
@@ -264,7 +273,7 @@ function along(pts, d) {
 let actors = [], drones = [], events = [], evIdx = 0, you = null, diner = null;
 class Actor {
   constructor(opts, { parent, x, z, yaw = 0, show = [0, 1e9], segs = [] }) {
-    this.p = new Person({ reducedMotion: false, ...opts });
+    this.p = new Person({ reducedMotion: RM, ...opts });
     this.p.root.position.set(x, 0, z); this.p.yaw = this.p.targetYaw = yaw;
     parent.add(this.p.root);
     Object.assign(this, { show, segs, ctrl: 'kin' });
@@ -290,13 +299,13 @@ const DS = 0.42; // the drones are small in the room
 const lensDrop = 0.16 * 1.4; // the lens hangs this far below the body's centre (rig units, at drone.scale)
 class Sleeper {
   constructor(persona, x, wake, hover) {
-    this.d = new Drone({ persona, reducedMotion: false });
+    this.d = new Drone({ persona, reducedMotion: RM });
     this.d.root.scale.setScalar(DS);
     this.d.root.position.set(x, 0, -1.92);
     this.rest = (SHELF_Y + 0.025) / DS + lensDrop + 0.04;
     this.d.alt = this.rest;
     this.d.faceCamera(camera);
-    if (this.d.label) this.d.label.scale.multiplyScalar(1.6); // the name stays readable on a small drone
+    if (this.d.label) { this.d.label.scale.multiplyScalar(2.1); this.d.label.position.y = 0.66; } // the name stays readable on a small drone
     Cr.add(this.d.root);
     Object.assign(this, { persona, wake, hover, x });
     drones.push(this);
@@ -304,7 +313,7 @@ class Sleeper {
   power(T) { // 0 asleep .. 1 awake, with a flicker as the screen comes on
     if (T < this.wake) return 0;
     const k = k01(T, this.wake, this.wake + 0.7);
-    return k < 1 ? k * (0.55 + 0.45 * Math.abs(Math.sin((T - this.wake) * 38))) : 1;
+    return k < 1 ? (RM ? k : k * (0.55 + 0.45 * Math.abs(Math.sin((T - this.wake) * 38)))) : 1;
   }
   step(T, dt) {
     const d = this.d, on = this.power(T), awake = T >= this.wake;
@@ -405,9 +414,13 @@ const CAM = [
   [53.5, CX - 1.0, 1.5, -0.9, 5.4, 64, 4], [66.5, CX - 0.6, 1.5, -0.8, 5.9, 66, 0],
   [71.5, CX - 0.7, 1.3, -0.4, 6.8, 62, 14], [76.0, CX - 0.9, 1.2, 0.0, 7.4, 60, 22], [85, CX - 0.9, 1.2, 0.0, 8.2, 58, 26],
 ];
+// reduced motion: a few still shots (the keys where a shot starts), cut from one to the next
+const CAM_RM = CAM.filter((c) => [0, 14.61, 21.71, 29.0, 40.5, 53.5, 71.5].includes(c[0]));
 function cameraAt(T) {
-  let i = 0; while (i < CAM.length - 2 && CAM[i + 1][0] <= T) i++;
-  const a = CAM[i], b = CAM[i + 1], k = ease.inOut(k01(T, a[0], b[0]));
+  const keys = RM ? CAM_RM : CAM;
+  let i = 0; while (i < keys.length - 2 && keys[i + 1][0] <= T) i++;
+  if (RM && keys[i + 1][0] <= T) i++;
+  const a = keys[i], b = RM ? keys[i] : keys[i + 1], k = RM ? 0 : ease.inOut(k01(T, a[0], b[0]));
   const v = a.map((x, j) => lerp(x, b[j], k));
   const [, tx, ty, tz, d, pitch, yaw] = v;
   const w = canvas.clientWidth || 1280, h = canvas.clientHeight || 720, portrait = h > w;
@@ -481,20 +494,20 @@ function applyWorld(T, dt) {
     hemi.color.set(0xffe0b5).lerp(new THREE.Color(0x5b5f9e), 0.5); hemi.intensity = tget('light.hemi') * 0.7 * (1 - 0.4 * dim);
     barLamps.forEach((b, i) => { b.l.intensity = 7 * (1 - dim * (i === 1 ? 0.3 : 0.85)); b.b.material.opacity = 0.7 * (1 - dim * (i === 1 ? 0.3 : 0.85)); });
     openSign.material.map = T >= 11.6 ? CLOSED_TEX : OPEN_TEX;
-    neonGlow.material.opacity = 0.5 * (0.9 + 0.1 * Math.sin(T * 9));
+    neonGlow.material.opacity = 0.5 * (RM ? 1 : 0.9 + 0.1 * Math.sin(T * 9));
   } else if (set === 'B') {
     sun.color.set(0x8ea6ff); sun.intensity = 0.55; hemi.color.set(0x6a7ac8); hemi.intensity = tget('light.hemi') * 0.45;
     for (const s of streetLamps) s.l.intensity = 9;
   } else {
     sun.color.set(0x8ea6ff); sun.intensity = 0.35; hemi.color.set(0xffd8b0).lerp(new THREE.Color(0x5b5f9e), 0.5); hemi.intensity = tget('light.hemi') * 0.5;
     deskLamp.l.intensity = 4.2;
-    const bk = inOut(T, 38.6, 53.0, 0.8, 1.6), pulse = 0.85 + 0.15 * Math.sin(T * 3.2);
+    const bk = inOut(T, 38.6, 53.0, 0.8, 1.6), pulse = RM ? 1 : 0.85 + 0.15 * Math.sin(T * 3.2);
     bookGlow.material.opacity = 0.45 * bk * pulse; bookLight.intensity = 1.2 * bk * pulse; bookGlow.scale.setScalar(1.2 + 0.4 * bk);
     cover.rotation.z = Math.PI * 0.94 * ease.inOut(k01(T, 41.2, 42.6));
     screenLight.intensity = T >= 28.6 ? 1.4 : 0;
     drawScreen(T);
     desk.rotation.z = T >= 30.6 && T < 35.6 ? 0.012 * Math.sin(T * 17) : 0; // wobbly
-    const ring = inOut(T, 71.8, 76.6, 0.2, 1.2), flick = 0.75 + 0.25 * Math.abs(Math.sin(T * 9));
+    const ring = inOut(T, 71.8, 76.6, 0.2, 1.2), flick = RM ? 1 : 0.75 + 0.25 * Math.abs(Math.sin(T * 9));
     doorGlow.material.opacity = 0.8 * ring * flick; doorLight.intensity = 4 * ring;
     roomDoor.open(0.12 * ease.inOut(k01(T, 74.4, 76.0)));
     apronOnDoor.visible = T >= 22.5;
@@ -515,14 +528,26 @@ function hookMusic(on) { if (MUTE || !sound.music) return; try { if (on) { sound
 const SFX_EVENTS = cues.sfx.flatMap(([name, t0, t1]) => (name === 'clicks' ? Array.from({ length: Math.floor((t1 - t0) / 0.14) }, (_, i) => [t0 + i * 0.14, name]) : name === 'steps' ? [] : [[t0, name]]));
 
 // ================================================================ voice: files first, then speechSynthesis, else captions only
-const voice = { mode: 'none', played: [], files: new Map(), synth: null };
+const voice = { mode: 'none', played: [], files: new Map(), sources: [] };
 for (const l of LINES) { // preload the pre-rendered lines
   if (CAPTURE || FORCE_WEB) break;
   const a = new Audio(); a.preload = 'auto';
-  a.addEventListener('canplaythrough', () => { voice.files.set(l.id, a); voice.mode = 'files'; }, { once: true });
-  a.addEventListener('error', () => {}, { once: true });
+  on(a, 'canplaythrough', () => { voice.files.set(l.id, a); voice.mode = 'files'; }, { once: true });
+  on(a, 'error', () => {}, { once: true });
+  voice.sources.push(a);
   a.src = new URL(`./voice/${l.id}.mp3`, import.meta.url).href;
 }
+// the browser's voices arrive late (voiceschanged): ask once at start, and wait for them before the first line
+let voicesReady = null;
+function voicesLoaded() {
+  if (!('speechSynthesis' in window)) return Promise.resolve([]);
+  if (speechSynthesis.getVoices().length) return Promise.resolve(speechSynthesis.getVoices());
+  return (voicesReady ??= new Promise((res) => {
+    on(speechSynthesis, 'voiceschanged', () => res(speechSynthesis.getVoices()), { once: true });
+    setTimeout(() => res(speechSynthesis.getVoices()), 1500); // some browsers never fire it
+  }));
+}
+if (!CAPTURE) voicesLoaded();
 function pickVoice(male) {
   if (!('speechSynthesis' in window)) return null;
   const all = speechSynthesis.getVoices().filter((v) => /^en\b|^en-/i.test(v.lang));
@@ -538,7 +563,11 @@ function speak(l) {
   speakWeb(l);
 }
 function speakWeb(l) {
-  if (!('speechSynthesis' in window)) return;
+  if (finished || !playing || disposed || !('speechSynthesis' in window)) return; // never after a skip or a pause
+  voicesLoaded().then(() => speakNow(l));
+}
+function speakNow(l) {
+  if (finished || !playing || disposed) return;
   try {
     const w = cues.voices[l.who]?.web || {};
     const u = new SpeechSynthesisUtterance(l.text);
@@ -555,10 +584,11 @@ function hush() {
 }
 
 // ================================================================ the clock
-let T = 0, playing = false, finished = false;
+let T = 0, playing = false, finished = false, disposed = false, frames = 0;
 function step(dt) {
   T += dt;
   while (evIdx < events.length && events[evIdx][0] <= T + 1e-9) { try { events[evIdx][1](); } catch (e) { console.error(e); } evIdx++; }
+  cameraAt(T); // the drones turn their faces to the camera as it is at this moment, even on a long seek
   for (const a of actors) a.step(T);
   for (const a of actors) a.p.update(dt, T);
   for (const s of drones) s.step(T, dt);
@@ -566,6 +596,7 @@ function step(dt) {
 function reset() { buildActors(); T = 0; for (const a of actors) a.step(0); for (const s of drones) s.step(0, 0); }
 function render() { applyWorld(T); cameraAt(T); applyOverlays(T); renderer.render(scene, camera); }
 function seek(t, draw = true) {
+  if (disposed) return T;
   t = Math.max(0, Math.min(DURATION, t));
   if (t < T - 1e-6) reset();
   while (t - T > 1e-6) step(Math.min(STEP, t - T));
@@ -582,13 +613,31 @@ function finish(skipped) {
   finished = true; playing = false;
   hush(); hookMusic(false);
   if (skipped) seek(DURATION - 4.2); // rest on the title
+  else seek(DURATION - 0.01);
+  // keep the last frame as a still behind the title, then tear the stage down
+  try { els.sky.style.background = `url(${canvas.toDataURL('image/jpeg', 0.85)}) center / cover, #050404`; } catch { /* a lost context: the sky stays */ }
+  dispose();
   resolveDone({ skipped: !!skipped, time: T });
-  const next = Q.get('next');
-  if (next && /^[\w./?=&#-]+$/.test(next)) { location.href = next; return; }
+  const next = Q.get('next'); // only a path on this site: "/..." or "./...", never "//host"
+  if (next && /^(\/(?!\/)|\.\/)[\w./?=&#-]*$/.test(next)) { location.href = next; return; }
   if (!CAPTURE) endCard.hidden = false;
 }
+// dispose(): stop the frame loop and the stage, drop every listener, stop and release the voices and the music
+function dispose() {
+  if (disposed) return;
+  disposed = true; playing = false;
+  hush(); hookMusic(false);
+  for (const a of voice.sources) { try { a.pause(); a.removeAttribute('src'); a.load(); } catch { /* ignore */ } }
+  voice.files.clear(); voice.sources.length = 0;
+  ac.abort();
+  offFrame();
+  for (const a of actors) a.p.dispose();
+  for (const s of drones) s.d.dispose();
+  actors = []; drones = [];
+  stage.dispose();
+}
 function play() {
-  if (finished) { finished = false; endCard.hidden = true; seek(0); }
+  if (disposed) { location.reload(); return; } // the stage is gone: watching again starts afresh
   startCard.hidden = true;
   playing = true;
   hookMusic(true);
@@ -596,7 +645,8 @@ function play() {
 function skip() { finish(true); }
 reset();
 seek(0);
-stage.frame((dt) => {
+const offFrame = stage.frame((dt) => {
+  frames++;
   if (!playing) { cameraAt(T); return; }
   const from = T, to = Math.min(DURATION, T + Math.min(dt, 0.1));
   for (const l of LINES) if (l.at > from && l.at <= to) speak(l);
@@ -605,10 +655,10 @@ stage.frame((dt) => {
   if (T >= DURATION - 1e-6) finish(false);
 });
 
-$('skip').addEventListener('click', skip);
-$('start-btn').addEventListener('click', play);
-$('replay').addEventListener('click', () => { voice.played = []; play(); });
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); skip(); } });
+on($('skip'), 'click', skip);
+on($('start-btn'), 'click', play);
+$('replay').addEventListener('click', () => location.reload()); // kept after dispose: it is how you watch again
+on(window, 'keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); skip(); } });
 if (CAPTURE) { $('skip').hidden = true; }
 if (AUTOPLAY && !CAPTURE) play();
 else if (!CAPTURE) startCard.hidden = false;
@@ -617,8 +667,13 @@ window.__intro = {
   duration: DURATION,
   lines: LINES.map(({ id, at, len, who, text: tx }) => ({ id, at, len, who, text: tx })),
   seek: (t) => seek(t),
-  play, skip,
+  play, skip, dispose,
   pause() { playing = false; hush(); },
+  get disposed() { return disposed; },
+  get frames() { return frames; },
+  get listening() { return !ac.signal.aborted; },
+  reducedMotion: RM,
+  get cameraPosition() { return camera.position.toArray(); },
   get time() { return T; },
   get playing() { return playing; },
   done,
