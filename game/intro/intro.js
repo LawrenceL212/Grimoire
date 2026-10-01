@@ -234,7 +234,7 @@ const doorGlow = glow(0xffe0a0, 2.4, 0); doorGlow.position.set(-2.0, 1.2, 0.5); 
 const doorLight = new THREE.PointLight(0xffe0a0, 0, 4, 1.6); doorLight.position.set(-1.8, 1.4, 0.5); Cr.add(doorLight);
 
 // ================================================================ the laptop screen (a sign-up page)
-const NAME = 'Siso Bookings Ltd', DIRECTOR = 'You', OFFICE = 'A tiny bedroom';
+const NAME = 'Your booking company', DIRECTOR = 'You', OFFICE = 'A tiny bedroom';
 const typed = (s, T, a, b) => s.slice(0, Math.floor(k01(T, a, b) * s.length));
 let screenKey = '';
 function drawScreen(T) {
@@ -613,9 +613,9 @@ function finish(skipped) {
   finished = true; playing = false;
   hush(); hookMusic(false);
   if (skipped) seek(DURATION - 4.2); // rest on the title
-  else seek(DURATION - 0.01);
-  // keep the last frame as a still behind the title, then tear the stage down
-  try { els.sky.style.background = `url(${canvas.toDataURL('image/jpeg', 0.85)}) center / cover, #050404`; } catch { /* a lost context: the sky stays */ }
+  else render(); // already at the end: draw this state, do not re-simulate from 0
+  // keep the last frame as a still behind the title (PNG keeps the alpha, so the sky gradient shows through), then tear the stage down
+  try { els.sky.style.background = `url(${canvas.toDataURL('image/png')}) center / cover, ${els.sky.style.background || '#050404'}`; } catch { /* a lost context: the sky stays */ }
   dispose();
   resolveDone({ skipped: !!skipped, time: T });
   const next = Q.get('next'); // only a path on this site: "/..." or "./...", never "//host"

@@ -51,13 +51,23 @@ t.check('the story is told: the noodle bar, the promise, the company, the blank 
 const between = await page.evaluate(() => { window.__intro.seek(14.6); return { line: document.getElementById('caption').dataset.line, fade: Number(document.getElementById('fade').style.opacity) }; });
 t.check('between scenes it cuts through black with no caption', between.line === '' && between.fade > 0.9, JSON.stringify(between));
 const signup = await page.evaluate(() => { window.__intro.seek(36.6); return { name: document.getElementById('f-name').textContent, done: document.getElementById('f-submit').textContent, op: Number(document.getElementById('signup').style.opacity) }; });
-t.check('the company is registered on the laptop (the sign-up page fills in and is accepted)', signup.name === 'Siso Bookings Ltd' && /Registered/.test(signup.done) && signup.op > 0.9, JSON.stringify(signup));
+t.check('the company is registered on the laptop (the sign-up page fills in and is accepted)', signup.name === 'Your booking company' && /Registered/.test(signup.done) && signup.op > 0.9, JSON.stringify(signup));
 
 // ---- Skip ends it at once
 await page.evaluate(() => { window.__intro.seek(10); window.__intro.play(); });
 await page.click('#skip');
 const sk = await page.evaluate(async () => { const r = await Promise.race([window.__intro.done, new Promise((res) => setTimeout(() => res('timeout'), 1500))]); return { r, end: !document.getElementById('end').hidden, playing: window.__intro.playing, title: Number(document.getElementById('title').style.opacity), onward: document.getElementById('onward').getAttribute('href') }; });
 t.check('Skip ends it at once: done resolves { skipped: true }, the title shows and the office is offered', sk.r && sk.r.skipped === true && sk.end && !sk.playing && sk.title > 0.9 && /play\/index\.html/.test(sk.onward), JSON.stringify(sk));
+const endBg = await page.evaluate(async () => {
+  const bg = document.getElementById('sky').style.background; const m = /url\("?(data:image\/png[^")]+)"?\)/.exec(bg);
+  if (!m) return { png: false, bg: bg.slice(0, 80) };
+  const img = new Image(); img.src = m[1]; await img.decode();
+  const c = document.createElement('canvas'); c.width = 64; c.height = 36; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 36);
+  const d = x.getImageData(0, 0, 64, 36).data; let lit = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 0 && d[i] + d[i + 1] + d[i + 2] > 30) lit++;
+  return { png: true, lit, gradient: /gradient/.test(bg) };
+});
+t.check('the end-card background is a PNG with lit pixels over the sky gradient (not a flat black JPEG)', endBg.png && endBg.lit > 20 && endBg.gradient, JSON.stringify(endBg));
 const f0 = await page.evaluate(() => window.__intro.frames);
 await page.waitForTimeout(500);
 await page.keyboard.press('Escape');
