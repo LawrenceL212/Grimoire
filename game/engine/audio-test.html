@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grimoire sound check</title>
+<style>
+  :root { --bg: #1d1a24; --panel: #27222f; --ink: #f3e9d8; --muted: #b7a98f; --gold: #e2b65c; --line: #3a3343; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 20px; color: var(--gold); margin: 0 0 4px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 8px; }
+  p.hint { color: var(--muted); margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-width: 900px; }
+  button, select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button.on { background: var(--gold); color: #1d1a24; border-color: var(--gold); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 900px; }
+  label.s { display: grid; grid-template-columns: 80px 1fr 44px; gap: 8px; align-items: center; max-width: 420px; margin: 6px 0; }
+  input[type=range] { width: 100%; accent-color: var(--gold); }
+  #meter { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; max-width: 420px; }
+  #meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width 60ms linear; }
+  #status { color: var(--muted); }
+</style></head>
+<body>
+<h1>Grimoire sound check</h1>
+<p class="hint">Every sound here is synthesised in the browser. Click anywhere first to wake the audio. <span id="status">Audio: asleep</span></p>
+
+<h2>Effects</h2>
+<div class="grid" id="fx"></div>
+
+<h2>Drone hum (loop)</h2>
+<div class="row"><button id="drone">Start drone</button>
+  <label class="s" style="flex:1">Speed <input id="speed" type="range" min="0" max="1" step="0.01" value="0.3"><output id="speedv">0.30</output></label></div>
+
+<h2>Music</h2>
+<div class="row"><button id="music">Start music</button>
+  <button data-mood="normal" class="mood on">Normal</button><button data-mood="focus" class="mood">Focus (typing)</button><button data-mood="celebrate" class="mood">Celebrate</button>
+  <select id="district"></select></div>
+
+<h2>Levels</h2>
+<label class="s">Master <input data-bus="master" type="range" min="0" max="1" step="0.01"><output></output></label>
+<label class="s">Music <input data-bus="music" type="range" min="0" max="1" step="0.01"><output></output></label>
+<label class="s">Effects <input data-bus="effects" type="range" min="0" max="1" step="0.01"><output></output></label>
+<div class="row"><button id="mute">Mute</button><button id="calm">Calm audio</button><button id="reset">Reset levels</button><button id="demo">Download 30 s demo (WAV)</button></div>
+<p class="hint">Output level</p><div id="meter"><i></i></div>
+
+<script type="module">
+import * as audio from './audio.js';
+import * as sfx from './sfx.js';
+import * as music from './music.js';
+
+audio.initAudio();
+const $ = (s) => document.querySelector(s);
+const status = $('#status');
+setInterval(() => {
+  const c = audio.getContext();
+  status.textContent = 'Audio: ' + (c ? c.state : 'asleep');
+  $('#meter i').style.width = Math.min(100, audio.outputLevel() * 400) + '%';
+}, 100);
+
+for (const name of sfx.EFFECTS) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.onclick = () => audio.whenReady(() => sfx.play(name, { pan: 0 }));
+  $('#fx').append(b);
+}
+$('#drone').onclick = (e) => {
+  if (sfx.loopRunning()) { sfx.stopLoop('drone-hum'); e.target.textContent = 'Start drone'; e.target.classList.remove('on'); }
+  else { sfx.startLoop('drone-hum', { speed: +$('#speed').value }); e.target.textContent = 'Stop drone'; e.target.classList.add('on'); }
+};
+$('#speed').oninput = (e) => { $('#speedv').textContent = (+e.target.value).toFixed(2); sfx.setLoopParam('drone-hum', 'speed', +e.target.value); };
+
+$('#music').onclick = (e) => {
+  if (music.musicState().playing || music.isPlaying()) { music.stop(); e.target.textContent = 'Start music'; e.target.classList.remove('on'); }
+  else { music.start(); e.target.textContent = 'Stop music'; e.target.classList.add('on'); }
+};
+for (const b of document.querySelectorAll('.mood')) b.onclick = () => {
+  music.setMood(b.dataset.mood);
+  for (const o of document.querySelectorAll('.mood')) o.classList.toggle('on', o === b);
+  if (b.dataset.mood === 'celebrate') { sfx.play('success'); setTimeout(() => { for (const o of document.querySelectorAll('.mood')) o.classList.toggle('on', o.dataset.mood === 'normal'); }, 6500); }
+};
+for (const d of Object.keys(music.DISTRICTS)) $('#district').append(new Option(d, d));
+$('#district').onchange = (e) => music.setDistrict(e.target.value);
+
+function syncLevels() {
+  const s = audio.getSettings();
+  for (const i of document.querySelectorAll('input[data-bus]')) { i.value = s[i.dataset.bus]; i.nextElementSibling.textContent = Math.round(s[i.dataset.bus] * 100) + '%'; }
+  $('#mute').classList.toggle('on', s.muted); $('#mute').textContent = s.muted ? 'Muted' : 'Mute';
+  $('#calm').classList.toggle('on', s.calm);
+}
+for (const i of document.querySelectorAll('input[data-bus]')) i.oninput = () => { audio.setVolume(i.dataset.bus, +i.value); syncLevels(); };
+$('#mute').onclick = () => { audio.toggleMuted(); syncLevels(); };
+$('#calm').onclick = () => { audio.setCalm(!audio.getSettings().calm); syncLevels(); };
+$('#reset').onclick = () => { audio.resetAudioSettings(); syncLevels(); };
+syncLevels();
+
+/* ---- the 30 s demo: music bed with effects at known times, rendered offline ---- */
+const DEMO_CUES = [
+  [2.0, 'door-chime', -0.4], [3.6, 'ticket-pop', 0.2], [5.0, 'alert', 0.2], [6.6, 'window-open', 0],
+  [14.2, 'run', 0], [17.0, 'scan-ok', 0.3], [18.0, 'scan-fail', 0.3], [19.4, 'error', 0], [20.4, 'scan-ok', 0.3],
+  [21.2, 'success', 0], [22.2, 'coin', 0.2], [22.5, 'confetti-pop', -0.2], [24.2, 'level-up', 0],
+  [26.6, 'reopen', -0.3], [27.8, 'ui-click', 0], [28.6, 'window-close', 0],
+];
+async function renderDemo(seconds = 30, seed = 2026) {
+  const sr = 48000, ac = new OfflineAudioContext(2, sr * seconds, sr);
+  const gr = audio.createGraph(ac, audio.AUDIO_DEFAULTS);
+  const m = music.createMusic(ac, gr.music, { seed, district: 'office' });
+  const R = audio.rng(seed);
+  // music, bar by bar so the mood can change: focus while typing (8-14 s), celebrate after the solve
+  let t = 0, celebrated = false;
+  m.output.gain.setValueAtTime(0, 0); m.output.gain.linearRampToValueAtTime(1, 2.5);
+  while (t < seconds) {
+    if (t >= 6 && t < 12.9) { if (m.state().mood !== 'focus') m.setMood('focus', t); }
+    else if (t >= 20 && !celebrated) { m.setMood('celebrate', t); celebrated = true; }
+    else if (t >= 12.9 && m.state().mood === 'focus') m.setMood('normal', t);
+    t = m.renderBars(t, 1);
+  }
+  const fx = (name, at, pan = 0) => {
+    const p = ac.createStereoPanner(); p.pan.value = pan; p.connect(gr.effects);
+    const r = sfx.synth(ac, p, name, at, { seed: (R() * 1e9) | 0 });
+    if (!['type-click', 'ui-click'].includes(name)) audio.duckGraph(gr, { at, depth: 0.55, hold: Math.min(0.6, r.end - at) });
+  };
+  const cues = [...DEMO_CUES];
+  for (let k = 8.0; k < 13.6;) { cues.push([k, 'type-click', (R() - 0.5) * 0.3]); k += 0.07 + R() * 0.12 + (R() < 0.08 ? 0.3 : 0); }
+  cues.sort((a, b) => a[0] - b[0]);
+  for (const [at, name, pan] of cues) fx(name, at, pan);
+  // the drone flies 15-19.5 s, speeding up then settling
+  const dp = ac.createStereoPanner(); dp.connect(gr.effects);
+  const loop = sfx.createLoop(ac, dp, 'drone-hum', 15);
+  loop.set('speed', 0.2, 15); loop.set('speed', 0.9, 16.2); loop.set('speed', 0.5, 18); loop.stop(19.5, 0.6);
+  // ending: fade the bed out over the last 2 s
+  gr.master.gain.setValueAtTime(gr.master.gain.value, seconds - 2); gr.master.gain.linearRampToValueAtTime(0, seconds - 0.05);
+  return { buffer: await ac.startRendering(), cues };
+}
+function encodeWav(buffer) {
+  const ch = buffer.numberOfChannels, n = buffer.length, sr = buffer.sampleRate;
+  const out = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) out.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); out.setUint32(4, 36 + n * ch * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true); out.setUint32(24, sr, true);
+  out.setUint32(28, sr * ch * 2, true); out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true); w(36, 'data'); out.setUint32(40, n * ch * 2, true);
+  const data = [...Array(ch)].map((_, c) => buffer.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { out.setInt16(o, Math.max(-1, Math.min(1, data[c][i])) * 32767, true); o += 2; }
+  return new Blob([out], { type: 'audio/wav' });
+}
+$('#demo').onclick = async (e) => {
+  e.target.disabled = true; e.target.textContent = 'Rendering...';
+  const { buffer } = await renderDemo();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(encodeWav(buffer)); a.download = 'grimoire-audio-demo.wav'; a.click();
+  e.target.disabled = false; e.target.textContent = 'Download 30 s demo (WAV)';
+};
+window.audioTest = { audio, sfx, music, renderDemo, encodeWav, DEMO_CUES };
+</script>
+</body></html>
