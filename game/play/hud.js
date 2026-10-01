@@ -1,13 +1,13 @@
 // hud.js: the top bar. Five counters read from the real world (bookings, revenue, reputation, open
 // tickets, XP and level), the office clock, a warning lamp that pulses while a ticket is open, and the
-// Reset, Tweak and Focus buttons.
+// Grimoire, Reset, Tweak and Focus buttons (Grimoire opens grimoire.js's book unless onGrimoire is given).
 //
 //   summarise(objects, { openTickets, xp }) -> { bookings, revenue, reputation, clashes, openTickets, xp, level }
 //       pure: bookings on the timetable day, £40 each; reputation 4.8 less 0.3 per clashing pair (the same overlap
 //       rule as NO_OVERLAP_SQL: same room, a.start < b.end and b.start < a.end); level = 1 + xp / 100.
 //       (state.js deriveState is the source; this wraps it.)
 //   clashingRooms(objects) -> Set of room ids with an overlap (pure)
-//   createHud(el, { onReset, onTweak, onFocus }) -> { set(counters), setClock(text), setBusy(on), setFocus(on) }
+//   createHud(el, { onReset, onTweak, onFocus, onGrimoire? }) -> { set(counters), setClock(text), setBusy(on), setFocus(on) }
 import { get as tget, onThemeChange } from '../engine/theme.js';
 import { clashPairs } from './bridge.js';
 import { deriveState, PRICE } from './state.js';
@@ -29,7 +29,7 @@ const ICON = {
 };
 const LABEL = { bookings: 'Bookings', revenue: 'Revenue', reputation: 'Reputation', tickets: 'Open tickets', xp: 'XP' };
 
-export function createHud(el, { onReset, onTweak, onFocus } = {}) {
+export function createHud(el, { onReset, onTweak, onFocus, onGrimoire } = {}) {
   el.innerHTML = `
     <div class="counters" role="group" aria-label="Your company">
       ${Object.keys(LABEL).map((k) => `<div class="ctr" data-ctr="${k}">${ICON[k]}<span class="lbl">${LABEL[k]}</span><b>–</b>${k === 'xp' ? '<small class="lvl">Lv 1</small>' : ''}</div>`).join('')}
@@ -37,6 +37,7 @@ export function createHud(el, { onReset, onTweak, onFocus } = {}) {
     <div class="hud-right">
       <div class="clock" id="hud-clock" title="The office clock">Day 1</div>
       <div class="warn" id="hud-warn" role="status" aria-label="No open tickets"><i></i></div>
+      <button type="button" class="hud-btn" id="hud-grimoire" title="Open the Grimoire, your book of spells" aria-label="Grimoire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5M9 8.5h6"/></svg><span>Grimoire</span></button>
       <button type="button" class="hud-btn" id="hud-focus" aria-pressed="false" title="Focus the camera on the ticket (F)">Focus</button>
       <button type="button" class="hud-btn" id="hud-tweak" title="Tweak the look (T)">Tweak</button>
       <button type="button" class="hud-btn" id="hud-reset" title="Put the world back as it was when the ticket arrived">Reset</button>
@@ -45,6 +46,8 @@ export function createHud(el, { onReset, onTweak, onFocus } = {}) {
   q('#hud-reset').addEventListener('click', () => onReset?.());
   q('#hud-tweak').addEventListener('click', () => onTweak?.());
   q('#hud-focus').addEventListener('click', () => onFocus?.());
+  // the Grimoire: opened here (lazily) unless the page passes its own handler
+  q('#hud-grimoire').addEventListener('click', () => (onGrimoire ? onGrimoire() : import('./grimoire.js').then((m) => m.grimoire().toggle())));
   const scale = () => el.style.setProperty('--hud-scale', String(tget('ui.hudScale') || 1));
   onThemeChange((p) => { if (!p || p === 'ui.hudScale') scale(); });
   scale();
