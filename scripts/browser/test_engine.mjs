@@ -134,6 +134,100 @@ t.check('resetView restores the default camera', o.resetOk === true);
 t.check('mountTweakPanel is idempotent', o.idempotent === true);
 t.check('T is ignored in a contenteditable, works on the body', o.editableIgnored === true && o.bodyToggles === true, JSON.stringify(o));
 
+// ---- panning: middle / right / shift drag, two fingers, keys, bounds, reset ----
+const pn = await page.evaluate(async () => {
+  const th = await import('./theme.js'); const rd = await import('./renderer.js');
+  th.resetTheme();
+  const canvas = document.createElement('canvas'); canvas.style.cssText = 'width:640px;height:400px';
+  document.getElementById('root').appendChild(canvas);
+  const stage = rd.createStage(canvas, { reducedMotion: true });
+  stage.frame(() => {});
+  const V = stage.camera.position.constructor;
+  const out = {};
+  const ground = (cx, cy) => {
+    const r = canvas.getBoundingClientRect();
+    stage.camera.updateMatrixWorld(true);
+    const p = new V(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1, 0.5).unproject(stage.camera);
+    const d = p.sub(stage.camera.position);
+    return stage.camera.position.clone().addScaledVector(d, -stage.camera.position.y / d.y);
+  };
+  const ev = (type, id, x, y, extra = {}) => canvas.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, ...extra }));
+  const tgt = () => stage.target;
+  const drag = (init, a, b) => {
+    stage.resetView(); stage.frameAll();
+    const t0 = tgt(), g = ground(a[0], a[1]);
+    ev('pointerdown', 1, a[0], a[1], init); ev('pointermove', 1, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, init); ev('pointermove', 1, b[0], b[1], init); ev('pointerup', 1, b[0], b[1], init);
+    const g2 = ground(b[0], b[1]);
+    return { moved: tgt().distanceTo(t0), flat: Math.abs(tgt().y - t0.y), err: g.distanceTo(g2) };
+  };
+  stage.setPanBounds({ minX: -1e3, maxX: 1e3, minZ: -1e3, maxZ: 1e3 });
+  out.middle = drag({ button: 1 }, [320, 260], [400, 200]);
+  out.right = drag({ button: 2 }, [320, 260], [250, 300]);
+  out.shift = drag({ button: 0, shiftKey: true }, [320, 260], [380, 330]);
+  out.plain = (() => { stage.resetView(); stage.frameAll(); const t0 = tgt(); ev('pointerdown', 1, 320, 260); ev('pointermove', 1, 400, 200); ev('pointerup', 1, 400, 200); return tgt().distanceTo(t0); })();
+  // at another orbit angle and zoom
+  stage.resetView(); stage.frameAll();
+  ev('pointerdown', 1, 10, 10); ev('pointermove', 1, 130, 60); ev('pointerup', 1, 130, 60);
+  canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -500, bubbles: true, cancelable: true }));
+  { const t0 = tgt(), g = ground(300, 250); const i = { button: 1 };
+    ev('pointerdown', 1, 300, 250, i); ev('pointermove', 1, 360, 280, i); ev('pointerup', 1, 360, 280, i);
+    out.tilted = { moved: tgt().distanceTo(t0), err: g.distanceTo(ground(360, 280)) }; }
+  // two fingers: midpoint pans, distance zooms
+  stage.resetView(); stage.frameAll();
+  { const t0 = tgt(), d0 = stage.camera.position.distanceTo(tgt());
+    ev('pointerdown', 1, 280, 200, { pointerType: 'touch' }); ev('pointerdown', 2, 360, 200, { pointerType: 'touch' });
+    ev('pointermove', 1, 280, 240); ev('pointermove', 2, 360, 240); // both fingers move down: pan only
+    const t1 = tgt(); out.twoPan = t1.distanceTo(t0); out.twoPanZoom = Math.abs(stage.camera.position.distanceTo(t1) - d0);
+    ev('pointermove', 1, 240, 240); ev('pointermove', 2, 400, 240); // spread: zoom
+    out.twoZoom = stage.camera.position.distanceTo(tgt()) < d0 - 0.01;
+    ev('pointerup', 1, 240, 240); ev('pointerup', 2, 400, 240); }
+  // keys
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  stage.resetView(); stage.frameAll();
+  { const t0 = tgt();
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true })); await wait(300); dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
+    out.keyD = tgt().distanceTo(t0);
+    const t1 = tgt();
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })); await wait(300); dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', bubbles: true }));
+    out.keyUp = tgt().distanceTo(t1);
+    const t2 = tgt();
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true })); await wait(200); dispatchEvent(new KeyboardEvent('keyup', { key: 'w', bubbles: true }));
+    out.keyCtrl = tgt().distanceTo(t2);
+    const ta = document.createElement('textarea'); document.body.appendChild(ta); ta.focus();
+    const t3 = tgt();
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true })); await wait(200); ta.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', bubbles: true }));
+    out.keyTextarea = tgt().distanceTo(t3); ta.remove(); }
+  // bounds, reset, focus
+  stage.resetView(); stage.frameAll();
+  stage.setPanBounds({ minX: -1, maxX: 1, minZ: -1, maxZ: 1 });
+  { const i = { button: 1 };
+    for (let k = 0; k < 6; k++) { ev('pointerdown', 1, 100, 350, i); ev('pointermove', 1, 600, 50, i); ev('pointerup', 1, 600, 50, i); }
+    const t = tgt(); out.clamped = Math.abs(t.x) <= 1.0001 && Math.abs(t.z) <= 1.0001 && (Math.abs(t.x) > 0.5 || Math.abs(t.z) > 0.5);
+    stage.resetView(); const r = tgt(); out.resetPan = Math.abs(r.x) < 1e-6 && Math.abs(r.z) < 1e-6 && stage.panOffset.x === 0;
+    stage.setPanBounds({ minX: -1e3, maxX: 1e3, minZ: -1e3, maxZ: 1e3 });
+    ev('pointerdown', 1, 100, 350, i); ev('pointermove', 1, 600, 50, i); ev('pointerup', 1, 600, 50, i);
+    out.hadPan = Math.hypot(stage.panOffset.x, stage.panOffset.z) > 1;
+    await stage.focus({ x: 0, y: 0, z: 0 }); out.focusPan = Math.hypot(stage.panOffset.x, stage.panOffset.z) === 0 && tgt().length() < 1e-6;
+    ev('pointerdown', 1, 100, 350, i); ev('pointermove', 1, 600, 50, i); ev('pointerup', 1, 600, 50, i);
+    stage.frameAll(); out.framePan = Math.hypot(stage.panOffset.x, stage.panOffset.z) === 0; }
+  // the context menu is suppressed on the canvas only
+  const cm = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); canvas.dispatchEvent(cm);
+  const cm2 = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); document.body.dispatchEvent(cm2);
+  out.menuCanvas = cm.defaultPrevented; out.menuBody = cm2.defaultPrevented;
+  stage.dispose();
+  th.set('palette.gold', '#ff0000'); // left persisted for the reload check
+  return out;
+});
+t.check('middle-drag pans along the ground, the grabbed point stays under the cursor', pn.middle.moved > 0.05 && pn.middle.flat < 1e-6 && pn.middle.err < 0.02, JSON.stringify(pn.middle));
+t.check('right-drag pans the same way', pn.right.moved > 0.05 && pn.right.flat < 1e-6 && pn.right.err < 0.02, JSON.stringify(pn.right));
+t.check('shift + left drag pans, plain left drag still orbits only', pn.shift.moved > 0.05 && pn.shift.err < 0.02 && pn.plain < 1e-6, JSON.stringify([pn.shift, pn.plain]));
+t.check('panning holds at a tilted, zoomed view', pn.tilted.moved > 0.02 && pn.tilted.err < 0.02, JSON.stringify(pn.tilted));
+t.check('two fingers pan by their midpoint and pinch zooms', pn.twoPan > 0.05 && pn.twoPanZoom < 1e-3 && pn.twoZoom === true, JSON.stringify([pn.twoPan, pn.twoPanZoom, pn.twoZoom]));
+t.check('WASD and arrow keys pan; Ctrl+W and typing in a textarea do not', pn.keyD > 0.05 && pn.keyUp > 0.05 && pn.keyCtrl < 1e-6 && pn.keyTextarea < 1e-6, JSON.stringify([pn.keyD, pn.keyUp, pn.keyCtrl, pn.keyTextarea]));
+t.check('pan bounds clamp the target', pn.clamped === true, JSON.stringify(pn.clamped));
+t.check('resetView, focus and frameAll clear the pan', pn.resetPan === true && pn.hadPan === true && pn.focusPan === true && pn.framePan === true, JSON.stringify([pn.resetPan, pn.hadPan, pn.focusPan, pn.framePan]));
+t.check('the context menu is suppressed on the canvas only', pn.menuCanvas === true && pn.menuBody === false, JSON.stringify([pn.menuCanvas, pn.menuBody]));
+
 // ---- persistence across a reload ----
 await page.reload({ waitUntil: 'load' });
 const persisted = await page.evaluate(async () => {
