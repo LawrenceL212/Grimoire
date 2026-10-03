@@ -1183,6 +1183,55 @@ self.onmessage = function (e) {
 };
 </script>
 
+<script type="text/plain" id="w-php">
+/* PHP 8.4 via php-wasm, in a worker so an endless loop cannot lock the tab.
+   The Emscripten web build wants a `document` even inside a worker, so a
+   minimal stub stands in for it. The worker is disposable: a timeout kills it
+   and the next run starts a fresh one.
+
+   State is reset with php.refresh() before every run. Without it, globals
+   leak from one run into the next - which would let one test case's variables
+   colour the next and make grading order-dependent.
+
+   The learner's code is written to a file and INCLUDED rather than handed to
+   run(): run() prefixes the script, so declare(strict_types=1) could never be
+   its first statement, and strict types is exactly what a PHP dungeon must
+   be able to assess. */
+self.document = { currentScript: null, body: null, createElement: function () { return { style: {} }; },
+  addEventListener: function () {}, getElementById: function () { return null; },
+  querySelector: function () { return null; }, documentElement: { style: {} } };
+self.window = self;
+var php = null, booting = null, out = "", err = "";
+function boot() {
+  if (booting) return booting;
+  booting = (async function () {
+    var mod = await import("https://cdn.jsdelivr.net/npm/php-wasm/PhpWeb.mjs");
+    var sqlite = (await import("https://cdn.jsdelivr.net/npm/php-wasm-sqlite@0.1.0/index.mjs")).default;
+    php = new mod.PhpWeb({ version: "8.4", sharedLibs: [sqlite] });
+    php.addEventListener("output", function (ev) { out += (ev.detail || []).join(""); });
+    php.addEventListener("error", function (ev) { err += (ev.detail || []).join(""); });
+    await new Promise(function (res) { php.addEventListener("ready", res); });
+  })();
+  return booting;
+}
+self.onmessage = async function (e) {
+  var id = e.data.id;
+  try {
+    await boot();
+    out = ""; err = "";
+    await php.refresh();
+    var bytes = new TextEncoder().encode(e.data.code), bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    await php.run("<?php file_put_contents('/tmp/grimoire_run.php', base64_decode('" + btoa(bin) + "')); include '/tmp/grimoire_run.php';");
+    self.postMessage({ id: id, ok: !err, stdout: out, stderr: err });
+  } catch (x) {
+    var m = (x && x.message) ? x.message : String(x);
+    self.postMessage({ id: id, ok: false, stdout: out, stderr: err || m,
+      unavailable: /import|fetch|network|Failed to/i.test(m) });
+  }
+};
+</script>
+
 <script type="text/plain" id="w-js">
 self.onmessage = function (e) {
   var id = e.data.id, out = [];
@@ -1678,6 +1727,18 @@ function jsHarness(userCode, callExpr, stdinLines) {
     "  } catch (e) { __o = { ok: false, v: (e && e.message) ? e.message : String(e) }; }\n" +
     "  console.log(" + JSON.stringify(SENTINEL) + " + JSON.stringify(__o));\n})();\n";
 }
+/* PHP: the call happens inside the same file as the learner's code, so
+   declare(strict_types=1) at the top of their file governs the call. A file
+   that ends in `?>` is re-opened first, or the harness would print as text. */
+function phpHarness(userCode, callExpr) {
+  if (!callExpr) return userCode;
+  const closed = /\?>\s*$/.test(userCode);
+  return userCode + "\n" + (closed ? "<?php " : "") +
+    "try { $__v = " + callExpr + ";\n" +
+    "  $__o = ['ok' => true, 'v' => json_encode($__v)];\n" +
+    "} catch (Throwable $__e) { $__o = ['ok' => false, 'v' => get_class($__e) . ': ' . $__e->getMessage()]; }\n" +
+    "echo \"\\n\" . '" + SENTINEL + "' . json_encode($__o);\n";
+}
 const SENTINEL = "<<<GRIMOIRE_RESULTS>>>";
 
 function splitSentinel(stdout) {
@@ -1704,11 +1765,18 @@ async function runOneTest(dungeon, ch, userCode, test, carry) {
   const label = test.label || (ch.fn
     ? `${ch.constant ? ch.fn : `${ch.fn}(${test.input ?? ""})`} -> ${wants}`
     : "program output");
-  const full = (carry ? carry + "\n\n" : "") + userCode;
+  // A test may carry its own `schema` (the same query, different data - which
+  // is how a SQL challenge gets its edge cases) and an `after` probe that runs
+  // hidden after the learner's script, so a constraint they wrote can be
+  // shown to reject bad data rather than merely to exist.
+  const full = (carry ? carry + "\n\n" : "") + userCode +
+    (test.after ? ";\n" + test.after : "");
   const stdinLines = ch.fn ? [] : String(test.input ?? "").split("\n").filter((x) => x.length);
 
-  if (rt === "sqljs") {
-    const r = await Exec.runSql(full, ch.schema);
+  if (rt === "sqljs" || rt === "pglite") {
+    const schema = test.schema ?? ch.schema;
+    const r = rt === "pglite" ? await Exec.runPg(full, schema)
+                              : await Exec.runSql(full, schema);
     if (r.unavailable) return { ok: false, label, unavailable: true, error: r.stderr };
     if (r.stderr) return { ok: false, label, error: r.stderr };
     const got = normOut(r.stdout);
@@ -1725,12 +1793,13 @@ async function runOneTest(dungeon, ch, userCode, test, carry) {
   let program = full;
   if (rt === "pyodide") program = pyHarness(full, callExpr, stdinLines);
   else if (rt === "worker") program = jsHarness(full, callExpr, stdinLines);
+  else if (rt === "phpwasm") program = phpHarness(full, callExpr);
 
   const r = await Exec.run(dungeon, program, stdinLines.join("\n"));
   if (r.unavailable) return { ok: false, label, unavailable: true, error: r.stderr };
 
   const split = splitSentinel(r.stdout);
-  if (ch.fn && (rt === "pyodide" || rt === "worker")) {
+  if (ch.fn && (rt === "pyodide" || rt === "worker" || rt === "phpwasm")) {
     if (!split.payload) {
       return { ok: false, label, error: r.stderr || "Your code did not finish running." };
     }
@@ -2486,6 +2555,12 @@ const RUNTIME_BACKENDS = [
   { id: "sqljs", kind: "browser", langs: ["sql"],
     available: () => true,
     note: "SQLite compiled to WebAssembly." },
+  { id: "pglite", kind: "browser", langs: ["postgresql", "postgres", "pgsql"],
+    available: () => true,
+    note: "A real PostgreSQL server compiled to WebAssembly (PGlite), running on this machine." },
+  { id: "phpwasm", kind: "browser", langs: ["php"],
+    available: () => true,
+    note: "PHP 8.4 compiled to WebAssembly (php-wasm) in a worker, with a real PDO/SQLite driver." },
   { id: "iframe", kind: "browser", langs: ["html", "css", "html-css"],
     available: () => true,
     note: "A sandboxed iframe preview." },
@@ -2498,7 +2573,7 @@ const RUNTIME_BACKENDS = [
           "Most exercises behave identically, but this is not CRuby." },
   { id: "piston", kind: "remote", langs: [
       "c", "cpp", "rust", "go", "java", "csharp", "swift", "kotlin",
-      "haskell", "scala", "elixir", "lua", "r", "php", "zig", "bash",
+      "haskell", "scala", "elixir", "lua", "r", "zig", "bash",
       "assembly-x86-64"],
     available: () => !!State.index?.execUrl || !!State.index?.pistonUrl,
     note: "This language needs an execution service. Point \"execUrl\" in " +
@@ -2708,6 +2783,70 @@ const Exec = {
     }
   },
 
+  /* PostgreSQL, for real: PGlite is the actual server compiled to WebAssembly,
+     so strict typing, JSONB, arrays, RETURNING, window functions, EXCLUDE
+     constraints and EXPLAIN all behave as they do in production - which is the
+     whole reason it is used instead of SQLite for a PostgreSQL dungeon.
+     Every run gets a brand-new database, so no run can see another's tables.
+     Values that would parse into JS objects (dates, json, arrays) are kept as
+     the text Postgres produced, so what a learner sees is what psql would show. */
+  PG_VERSION: "0.5.8",
+  pgMod: null,
+  async runPg(code, schema) {
+    if (!Exec.pgMod) {
+      Exec.onBootChange?.(true);
+      try {
+        Exec.pgMod = await import(
+          "https://cdn.jsdelivr.net/npm/@electric-sql/pglite@" + Exec.PG_VERSION + "/dist/index.js");
+      } catch (e) {
+        Exec.onBootChange?.(false);
+        return { ok: false, stdout: "", unavailable: true,
+                 stderr: "PostgreSQL runtime failed to load: " + e.message };
+      }
+      Exec.onBootChange?.(false);
+    }
+    const keepText = {};
+    // date, time, timestamp, timestamptz, interval, json, jsonb, and the
+    // common array types
+    [1082, 1083, 1114, 1184, 1186, 114, 3802, 1009, 1007, 1016, 1015, 1231]
+      .forEach((oid) => { keepText[oid] = (v) => v; });
+    // CREATE EXTENSION only works if the extension was loaded when the server
+    // started, so read the names out of the SQL and load each contrib module
+    // on demand. A booking dungeon needs btree_gist for its overlap constraint.
+    const extensions = {};
+    const wanted = new Set();
+    String((schema || "") + " " + code).replace(
+      /create\s+extension\s+(?:if\s+not\s+exists\s+)?"?([a-z_0-9-]+)"?/gi,
+      (_, n) => { wanted.add(n.toLowerCase().replace(/-/g, "_")); return _; });
+    for (const name of wanted) {
+      try {
+        const m = await import("https://cdn.jsdelivr.net/npm/@electric-sql/pglite@" +
+          Exec.PG_VERSION + "/dist/contrib/" + name + ".js");
+        extensions[name] = m[name] || m.default;
+      } catch { /* not a contrib module: let CREATE EXTENSION report it */ }
+    }
+    let db;
+    try {
+      db = new Exec.pgMod.PGlite({ extensions });
+      await db.waitReady;
+      await db.exec("SET TIME ZONE 'UTC'");
+      if (schema) await db.exec(schema);
+      const res = await db.exec(code, { rowMode: "array", parsers: keepText });
+      const sets = res.filter((r) => r.fields && r.fields.length);
+      if (!sets.length) return { ok: true, stdout: "(no rows)", stderr: "", rows: [] };
+      const t = sets[sets.length - 1];
+      const cols = t.fields.map((f) => f.name);
+      const cell = (v) => v === null || v === undefined ? "NULL" : String(v);
+      const lines = [cols.join(" | "), cols.map(() => "---").join(" | ")]
+        .concat(t.rows.map((r) => r.map(cell).join(" | ")));
+      return { ok: true, stdout: lines.join("\n"), stderr: "", rows: t.rows, columns: cols };
+    } catch (e) {
+      return { ok: false, stdout: "", stderr: String(e.message || e) };
+    } finally {
+      try { await db?.close(); } catch {}
+    }
+  },
+
   /* HTML/CSS renders in a sandboxed iframe. Nothing escapes it: no same-origin,
      no top navigation, scripts only so the page can behave. */
   runIframe(code, mountId) {
@@ -2737,6 +2876,15 @@ const Exec = {
     if (rt === "ruby") return Exec.runWorker("ruby", code, 8000);
     if (rt === "prolog") return Exec.runWorker("prolog", code, 6000);
     if (rt === "sqljs") return Exec.runSql(code, opts.schema);
+    if (rt === "pglite") return Exec.runPg(code, opts.schema);
+    if (rt === "phpwasm") {
+      // the first run downloads the interpreter, so allow it far longer
+      const budget = Exec.phpReady ? 10000 : 90000;
+      return Exec.runWorker("php", code, budget).then((r) => {
+        Exec.phpReady = !r.timedOut && !r.unavailable;
+        return r;
+      });
+    }
     if (rt === "iframe") return Exec.runIframe(code, opts.mountId);
     if (rt === "none") {
       return Promise.resolve({ ok: false, stdout: "", unavailable: true,
@@ -2924,7 +3072,7 @@ function renderMap() {
 
   const list = (State.index.dungeons || [])
     .filter((d) => (d.books || []).includes(book.id))
-    .sort((a, c) => (a.order || 0) - (c.order || 0));
+    .sort((a, c) => (a.bookOrder?.[book.id] ?? a.order ?? 0) - (c.bookOrder?.[book.id] ?? c.order ?? 0));
 
   if (book.layout === "path") return renderPath(book, list);
 
@@ -3747,7 +3895,8 @@ function wireCodeEditor(ch, root, ctx) {
                out.innerHTML = '<span class="muted">Running\u2026</span>'; }
     const rt = runtimeFor(dungeon);
     if (boot && ((rt === "pyodide" && !Exec.pyReady) || rt === "sqljs" ||
-                 rt === "ruby" || rt === "prolog")) {
+                 rt === "ruby" || rt === "prolog" || rt === "pglite" ||
+                 (rt === "phpwasm" && !Exec.phpReady))) {
       const msg = boot.querySelector("[data-bootmsg]");
       if (msg) msg.textContent = BOOT_MSG[rt] || "Starting the runtime\u2026";
       boot.hidden = false;
@@ -3781,6 +3930,8 @@ const BOOT_MSG = {
   sqljs: "Conjuring the SQLite engine\u2026 (first load only)",
   ruby: "Conjuring the Ruby compatibility layer\u2026 (first load only)",
   prolog: "Conjuring the Prolog engine\u2026 (first load only)",
+  pglite: "Conjuring PostgreSQL\u2026 (first load only)",
+  phpwasm: "Conjuring the PHP runtime\u2026 (first load only)",
 };
 
 /* ==========================================================================
