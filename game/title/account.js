@@ -6,9 +6,10 @@
 //   choice       a save from another account (or a guest game) meets a cloud game: the player decides; the default is
 //                the safe one (keep the cloud game, download the local game as a backup file)
 //   signed in    the email, the sync chip, Sync now, Sign out (the game stays on this device)
-// A player with an earlier session gets the SDK loaded at startup (so the game syncs); a guest never does.
+// This file and firebase.js/session.js are small and always loaded; the Firebase SDK itself (the real download) is loaded
+// only when Sign in / Create account is pressed, or at startup for a player with an earlier session. A guest never loads it.
 import * as fb from '../sync/firebase.js';
-import { createSession } from '../sync/session.js';
+import { createSession, toast } from '../sync/session.js';
 import { downloadSave } from '../sync/file.js';
 import { localStore } from './saves.js';
 
@@ -18,11 +19,11 @@ export function initAccount({ refresh = () => {}, api = {} } = {}) {
   const storage = localStore();
   const session = createSession({ fb, storage });
   api.sync = session;
+  api.signedIn = () => !!(session.account() || session.hint());
   let mode = 'signin', busy = false, current = null, chipMounted = false;
   const PANELS = ['out', 'form', 'choice', 'in'];
   const show = (name) => {
     for (const p of PANELS) $(`acct-${p}`).hidden = p !== name;
-    $('acct-restore-row').hidden = !session.hasBackup();
   };
   const msg = (t) => { $('acct-msg').textContent = t || ''; };
   const err = (t) => { $('acct-error').textContent = t || ''; };
@@ -46,6 +47,8 @@ export function initAccount({ refresh = () => {}, api = {} } = {}) {
     $('acct-who').textContent = current?.email || '';
     if (!chipMounted) { chipMounted = true; session.mountChip($('acct-chip-slot')); }
     show('in');
+    $('acct-who').parentElement.setAttribute('tabindex', '-1');
+    $('acct-who').parentElement.focus();   // focus moves to "Signed in as ...", never left on a control that just hid
   }
 
   async function finish(account, choice) {
@@ -54,7 +57,19 @@ export function initAccount({ refresh = () => {}, api = {} } = {}) {
     let res;
     try { res = await session.connect(account, choice); } catch { res = { ok: false, error: 'Something went wrong. Your game is safe on this device' }; }
     setBusy(false); msg('');
-    if (res.needsChoice) { show('choice'); $('acct-keep').focus(); return; }
+    if (res.needsChoice) {
+      const cloud = res.hasCloud !== false;
+      $('acct-keep').hidden = !cloud;
+      $('acct-merge').textContent = cloud ? 'Merge my game into this account' : 'Upload your game to this new account';
+      $('acct-merge').classList.toggle('primary', !cloud);
+      $('acct-choice-msg').textContent = cloud
+        ? 'This device has a game from another account (or a guest game). Merge it into this account, or keep this account’s cloud game and set the local one aside (it will be downloaded as a backup file).'
+        : 'This device has a game from another account (or a guest game), and this account has no cloud game yet. Upload your game to this new account, or cancel. Nothing is erased either way.';
+      show('choice');
+      if ($('settings').open) (cloud ? $('acct-keep') : $('acct-merge')).focus();
+      else toast('You are signed in, but this device has a different game. Open Settings to choose how to combine them.');
+      return;
+    }
     showIn();
     if (res.backupFile) { try { downloadSave(res.backupFile); } catch { /* the backup key still holds it */ } }
     if (!res.ok) msg(`${res.error} Press Sync now to try again.`);
@@ -78,7 +93,7 @@ export function initAccount({ refresh = () => {}, api = {} } = {}) {
 
   $('acct-signin').addEventListener('click', () => openForm('signin'));
   $('acct-create').addEventListener('click', () => openForm('create'));
-  $('acct-cancel').addEventListener('click', () => { err(''); $('acct-pass').value = ''; show('out'); });
+  $('acct-cancel').addEventListener('click', () => { err(''); $('acct-pass').value = ''; show('out'); $('acct-signin').focus(); });
   $('acct-submit').addEventListener('click', submit);
   // inside the Settings dialog's own form, Enter would close the dialog: it moves on or submits instead
   $('acct-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('acct-pass').focus(); } });
@@ -91,28 +106,30 @@ export function initAccount({ refresh = () => {}, api = {} } = {}) {
   });
   $('acct-keep').addEventListener('click', () => finish(current, 'aside'));
   $('acct-merge').addEventListener('click', () => finish(current, 'merge'));
-  $('acct-choice-cancel').addEventListener('click', async () => { setBusy(true, 'Signing out...'); await session.disconnect(); current = null; setBusy(false); msg('Signed out. Nothing was changed on this device.'); show('out'); });
+  async function doSignOut(text) {
+    setBusy(true, 'Signing out...');
+    const r = await session.disconnect();
+    current = null; setBusy(false);
+    show('out');
+    msg(r && r.ok === false
+      ? `Syncing is stopped on this device, but signing out did not finish: ${r.error} Try again when you are online.`
+      : text);
+    $('acct-signin').focus();
+    return r;
+  }
+  api.signOutFirst = () => doSignOut('Signed out. Your game is still on this device, and it is no longer syncing.');
+  $('acct-choice-cancel').addEventListener('click', () => doSignOut('Signed out. Nothing was changed on this device.'));
   $('acct-sync').addEventListener('click', async () => {
     if (busy) return;
     if (!session.engine()) { await finish(current); return; }
     setBusy(true, 'Syncing...');
     const r = await session.syncNow();
     setBusy(false);
-    msg(r?.ok ? 'In sync.' : (r?.error || 'No connection: your game is saved on this device and will sync later'));
+    msg(r?.held ? 'A newer game from another device is ready: reload to use it.' : r?.ok ? 'In sync.' : (r?.error || 'No connection: your game is saved on this device and will sync later'));
+    $('acct-sync').focus();
     refresh();
   });
-  $('acct-signout').addEventListener('click', async () => {
-    if (busy) return;
-    setBusy(true, 'Signing out...');
-    await session.disconnect();
-    current = null; setBusy(false);
-    show('out'); msg('Signed out. Your game is still on this device, and it is no longer syncing.');
-  });
-  $('acct-restore').addEventListener('click', () => {
-    const r = session.restoreBackup();
-    msg(r.ok ? 'Restored the save from before the last sync. If you are signed in, the next sync merges your cloud game back in, so sign out first to keep this one.' : r.error);
-    refresh(); show($('acct-in').hidden ? ($('acct-form').hidden ? ($('acct-choice').hidden ? 'out' : 'choice') : 'form') : 'in');
-  });
+  $('acct-signout').addEventListener('click', () => { if (!busy) doSignOut('Signed out. Your game is still on this device, and it is no longer syncing.'); });
   $('settings').addEventListener('close', () => { if (!busy) { $('acct-pass').value = ''; err(''); if (!$('acct-form').hidden) show('out'); } });
 
   show('out');

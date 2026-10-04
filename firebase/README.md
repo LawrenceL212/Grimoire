@@ -13,3 +13,6 @@ To publish them (project `grimoire-250ad`):
 Until they are published, sign-in works but saving to the cloud is refused; the game keeps working on the device and the
 sync chip says it could not sync. Email/password sign-in must also be enabled under Authentication, Sign-in method (the
 old Library already uses it).
+
+The game and the old Library use the same Firebase project and the same persistence (browser local storage), so a
+sign-in in one is shared by the other: one login for both.

@@ -9,7 +9,7 @@ import { openGame, makeReporter } from './game_lib.mjs';
 
 const t = makeReporter();
 const LIFE = 'grimoire.life.siso.v1';
-const HINT = 'grimoire.sync.hint.v1', LAST = 'grimoire.sync.lastUid.v1', BACKUP = 'grimoire.life.siso.v1.backup';
+const HINT = 'grimoire.sync.hint.v1', LAST = 'grimoire.sync.lastUid.v1', BACKUP = 'grimoire.life.siso.v1.backup', AUTOBACKUP = 'grimoire.life.siso.v1.autobackup';
 const ready = (page) => page.waitForFunction(() => window.__title && window.__title.ready, null, { timeout: 60000 });
 
 const APP = 'export const initializeApp = (c) => ({ c });';
@@ -118,7 +118,7 @@ const VIEW = { viewport: { width: 1280, height: 800 }, acceptDownloads: true };
   await page.waitForFunction(() => document.querySelector('.sync-chip') && document.querySelector('.sync-chip').dataset.status === 'synced', null, { timeout: 15000 });
   t.check('merging puts both games on this device and in the cloud', (await solves(page)) === 'O1,O2' && (await cloud(page, 'uid-ann')) === 'O1,O2', `${await solves(page)} / ${await cloud(page, 'uid-ann')}`);
   t.check('it shows the email and the sync chip', (await page.textContent('#acct-who')) === 'ann@example.test' && /Saved to the cloud/.test(await page.textContent('#acct-chip-slot')));
-  t.check('the pre-merge save is kept for one undo; the last uid and a sign-in hint are stored', (await solves(page, BACKUP)) === 'O1' && (await ls(page, LAST)) === 'uid-ann' && (await ls(page, HINT)) === '1');
+  t.check('the pre-merge save is kept for one undo; the last uid and a sign-in hint are stored', ((await solves(page, AUTOBACKUP)) === 'O1' || (await solves(page, BACKUP)) === 'O1') && (await ls(page, LAST)) === 'uid-ann' && (await ls(page, HINT)) === '1');
   t.check('the cloud document has exactly schema, updatedAt, siso', await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('stub.cloud.games/uid-ann'))).sort().join() === 'schema,siso,updatedAt'));
   await page.setViewportSize({ width: 390, height: 780 });
   t.check('the signed-in panel fits 390 px', await fits(page));
@@ -128,8 +128,7 @@ const VIEW = { viewport: { width: 1280, height: 800 }, acceptDownloads: true };
   await page.click('#acct-signout');
   await page.waitForSelector('#acct-out:not([hidden])');
   t.check('sign out keeps the local game, says so, stops syncing and forgets the hint', (await solves(page)) === 'O1,O2' && /still on this device/.test(await page.textContent('#acct-msg')) && !(await ls(page, HINT)) && !(await ls(page, 'stub.user')));
-  await page.click('#acct-restore');
-  t.check('Restore the save from before the last sync works (one level of undo)', /Restored/.test(await page.textContent('#acct-msg')) && (await solves(page)) === 'O1', `${await solves(page)} | ${await page.textContent('#acct-msg')}`);
+  t.check('after sign out, focus is on the Sign in button (not a hidden control)', await page.evaluate(() => document.activeElement && document.activeElement.id === 'acct-signin'));
   t.check('no page errors (sign in)', errors.length === 0, errors.join('|'));
   await close();
 }
@@ -151,7 +150,7 @@ const VIEW = { viewport: { width: 1280, height: 800 }, acceptDownloads: true };
   const file = JSON.parse(readFileSync(await dl.path(), 'utf8'));
   t.check('the default downloads the local game as a backup file', /^grimoire-save-/.test(dl.suggestedFilename()) && file.siso.life.solves.map((s) => s.card).join() === 'O1');
   await page.waitForSelector('#acct-in:not([hidden])');
-  t.check('the cloud game is kept and the local one set aside (also kept under the backup key)', (await solves(page)) === 'O3' && (await cloud(page, 'uid-bob')) === 'O3' && (await solves(page, BACKUP)) === 'O1');
+  t.check('the cloud game is kept and the local one set aside (also kept under the backup key)', (await solves(page)) === 'O3' && (await cloud(page, 'uid-bob')) === 'O3' && ((await solves(page, BACKUP)) === 'O1' || (await solves(page, AUTOBACKUP)) === 'O1'));
   t.check('the message says where the old game went', /downloaded as grimoire-save-/.test(await page.textContent('#acct-msg')));
   t.check('no page errors (other account)', errors.length === 0, errors.join('|'));
   await close();
@@ -180,6 +179,54 @@ const VIEW = { viewport: { width: 1280, height: 800 }, acceptDownloads: true };
   t.check('offline: the chip shows offline and the local game is untouched', /Offline/.test(await page.textContent('#acct-chip-slot')) && (await solves(page)) === 'O1');
   await page.context().setOffline(false);
   t.check('no page errors (create)', errors.length === 0, errors.join('|'));
+  await close();
+}
+
+// ================= 3b. another account, EMPTY cloud: no destructive default, nothing wiped
+{
+  const { page, errors, close } = await openGame('', { context: VIEW, beforeGoto: (p) => stub(p, []) });
+  await ready(page);
+  await seedUsers(page); await putLocal(page, ['O1']);
+  await page.evaluate((k) => localStorage.setItem(k, 'uid-ann'), LAST);
+  await page.reload(); await ready(page);
+  await openSettings(page);
+  await signInAs(page, 'bob@example.test', 'stub-pass-bob');
+  await page.waitForSelector('#acct-choice:not([hidden])');
+  t.check('with no cloud game the "keep the cloud game" button is not offered', !(await page.isVisible('#acct-keep')));
+  t.check('the default is "Upload your game to this new account" and has focus', /Upload your game to this new account/.test(await page.textContent('#acct-merge')) && await page.evaluate(() => document.activeElement.id !== 'acct-keep'));
+  t.check('the text does not claim a cloud game exists', !/keep this account/.test(await page.textContent('#acct-choice-msg')) && /no cloud game yet/.test(await page.textContent('#acct-choice-msg')));
+  t.check('nothing was wiped while the choice is open', (await solves(page)) === 'O1');
+  await page.click('#acct-merge');
+  await page.waitForSelector('#acct-in:not([hidden])');
+  await page.waitForFunction(() => document.querySelector('.sync-chip')?.dataset.status === 'synced', null, { timeout: 15000 });
+  t.check('uploading puts the game in the new account and keeps it here', (await cloud(page, 'uid-bob')) === 'O1' && (await solves(page)) === 'O1');
+  t.check('focus moved to the "Signed in as" line', await page.evaluate(() => document.activeElement && document.activeElement.contains(document.getElementById('acct-who'))));
+
+  // ---- signed in: wipe-like confirmations warn, offer Sign out first, and New game is recoverable
+  await page.click('#settings-done');
+  await page.click('#new-game');
+  await page.waitForSelector('#confirm-new[open]');
+  t.check('New game says plainly that the account copy would merge back in, and offers Sign out first', /would merge back in/.test(await page.textContent('#confirm-new .signed-warn')) && await page.isVisible('#confirm-new .sign-out-first'));
+  await page.click('#confirm-new .sign-out-first');
+  await page.waitForFunction(() => !localStorage.getItem('grimoire.sync.hint.v1'));
+  t.check('Sign out first signs out and hides the warning', !(await page.isVisible('#confirm-new .signed-warn')) && !(await ls(page, 'stub.user')));
+  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('#confirm-clear')]);
+  await page.goto(page.url().replace(/game\/intro.*$/, ''), { waitUntil: 'domcontentloaded' }); await ready(page);
+  t.check('New game wiped the save but kept it once in the backup (Restore can bring it back)', (await solves(page)) === null && (await solves(page, BACKUP)) === 'O1', `${await solves(page)} / ${await solves(page, BACKUP)}`);
+  t.check('no page errors (empty cloud)', errors.length === 0, errors.join('|'));
+  await close();
+}
+{
+  const { page, close } = await openGame('', { context: VIEW, beforeGoto: (p) => stub(p, []) });
+  await ready(page);
+  await putLocal(page, ['O1']);
+  await page.evaluate(([l, h, b]) => { localStorage.setItem(l, 'uid-ann'); localStorage.setItem(h, '1'); localStorage.setItem(b, '{"v":1}'); }, [LAST, HINT, BACKUP]);
+  await page.reload(); await ready(page);
+  await openSettings(page);
+  await page.click('#erase-all'); await page.waitForSelector('#erase-confirm:not([hidden])');
+  await page.click('#erase-yes');
+  await page.waitForTimeout(300);
+  t.check('Erase everything on this device removes the save, the backups, lastUid and the hint', await page.evaluate(() => !Object.keys(localStorage).some((k) => /^grimoire\.(life|spells|sync)\./.test(k))));
   await close();
 }
 
@@ -218,6 +265,8 @@ const toPlay = (page) => page.goto(new URL('game/play/index.html', page.url()).h
   t.check('a slow cloud (7 s) holds play back by about 3 seconds at most', took - fast < 4500, `${took} ms against ${fast} ms with a fast cloud`);
   t.check('play started on the local game', (await solves(page)) === 'O1');
   await page.waitForSelector('.sync-toast', { timeout: 25000 });
+  await page.waitForFunction(() => /newer game/.test(document.querySelector('#hud .sync-chip')?.textContent || ''), null, { timeout: 15000 });
+  t.check('the chip shows the held state, not an error', await page.evaluate(() => document.querySelector('#hud .sync-chip').dataset.status === 'held'));
   t.check('what arrives later is not forced in: a toast says a newer game is ready', /newer game from another device is ready: reload to use it/.test(await page.textContent('.sync-toast')) && (await solves(page)) === 'O1');
   await page.evaluate(() => localStorage.setItem('stub.delay', '0'));
   await page.reload(); await playReady(page);

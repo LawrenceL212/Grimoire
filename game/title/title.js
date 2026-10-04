@@ -18,6 +18,7 @@
 import { SAVE_KEYS, hasSave, clearSave, localStore } from './saves.js';
 import { exportSave, previewImport, applyImport, downloadSave, localSummary, fileTooBig } from '../sync/file.js';
 import { localAdapter, restoreBackup, backupInfo } from '../sync/local.js';
+import * as localMod from '../sync/local.js';
 import { initAccount } from './account.js';
 
 const $ = (id) => document.getElementById(id);
@@ -43,7 +44,24 @@ function refresh() {
 }
 $('watch-intro').href = introHref('./');
 
+// signed in: a wipe here would simply merge back from the account, so every wipe-like confirmation says so and offers to sign out first
+const signedIn = () => !!(api.sync && (api.sync.account() || api.sync.hint()));
+function showSignedWarnings() {
+  const on = signedIn();
+  for (const el of document.querySelectorAll('.signed-warn, .sign-out-first')) el.hidden = !on;
+}
+for (const b of document.querySelectorAll('.sign-out-first')) {
+  b.addEventListener('click', async () => {
+    const box = b.closest('form, #import-confirm, #restore-confirm');
+    await api.signOutFirst?.();
+    showSignedWarnings();
+    const next = box && [...box.querySelectorAll('.btn')].find((x) => !x.hidden && !x.classList.contains('sign-out-first'));
+    next?.focus();
+  });
+}
 function newGame() {
+  // an accidental New game is recoverable: the wiped save is kept once in the manual backup slot (Restore in Settings)
+  try { if (hasSave(store)) localMod.backupNow?.(store, { slot: 'manual' }); } catch { /* the backup is best effort */ }
   clearSave(store);
   refresh();
   location.href = introHref(PLAY);
@@ -52,6 +70,7 @@ const confirmDlg = $('confirm-new');
 $('new-game').addEventListener('click', () => {
   if (!hasSave(store)) { newGame(); return; }
   confirmDlg.returnValue = '';
+  showSignedWarnings();
   if (typeof confirmDlg.showModal === 'function') confirmDlg.showModal();
   else if (window.confirm('Start a new game? This clears the company\'s progress and your Grimoire.')) newGame();
 });
@@ -144,6 +163,7 @@ function doImport(mode) {
 }
 $('import-merge').addEventListener('click', () => doImport('merge'));
 $('import-replace').addEventListener('click', () => {
+  showSignedWarnings();
   $('import-choices').hidden = true; $('import-confirm').hidden = false;
   $('cmp-local').textContent = sumText(localSummary({ readLocal: local.readLocal }));
   $('cmp-file').textContent = sumText(pendingSummary);
@@ -151,7 +171,7 @@ $('import-replace').addEventListener('click', () => {
 });
 $('import-cancel').addEventListener('click', () => importState('Kept what is on this device.'));
 $('import-replace-yes').addEventListener('click', () => doImport('replace'));
-$('restore-save').addEventListener('click', () => { $('restore-save').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus(); });
+$('restore-save').addEventListener('click', () => { showSignedWarnings(); $('restore-save').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus(); });
 $('restore-cancel').addEventListener('click', () => { showRestore(); importState('Kept what is on this device.'); });
 $('restore-yes').addEventListener('click', () => {
   const r = restoreBackup({ storage: store });
@@ -160,6 +180,23 @@ $('restore-yes').addEventListener('click', () => {
 });
 settingsDlg.addEventListener('close', () => importState(''));
 showRestore();
+
+// erase everything on this device (shared-device privacy): the save, both backups, the sync memory, and the session
+const eraseBox = $('erase-confirm');
+$('erase-all').addEventListener('click', () => { eraseBox.hidden = false; $('erase-cancel').focus(); });
+$('erase-cancel').addEventListener('click', () => { eraseBox.hidden = true; $('erase-all').focus(); });
+$('erase-yes').addEventListener('click', async () => {
+  if (signedIn()) await api.signOutFirst?.();
+  clearSave(store);
+  for (const k of ['grimoire.sync.lastUid.v1', 'grimoire.sync.hint.v1']) {
+    try { store?.removeItem(k); } catch { /* blocked */ }
+  }
+  for (let i = (store?.length ?? 0) - 1; i >= 0; i--) { const k = store.key(i); if (k && /^grimoire\.(life|spells)\./.test(k)) { try { store.removeItem(k); } catch { /* blocked */ } } }
+  eraseBox.hidden = true;
+  importState('Erased. Nothing of your game is left on this device.');
+  refresh(); showRestore();
+  $('erase-all').focus();
+});
 
 // ---------------------------------------------------------------- title music: normal mood, after the first gesture
 import('../engine/music.js').then((m) => { m.setMood('normal'); m.start(); api.music = () => m.musicState(); }).catch(() => { /* no sound: the title still works */ });

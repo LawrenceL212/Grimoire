@@ -13,7 +13,7 @@
 import { createSync } from './engine.js';
 import { localAdapter } from './local.js';
 import { exportSave } from './file.js';
-import { restoreBackup as restoreLocalBackup, backupInfo } from './local.js';
+import { restoreBackup as restoreLocalBackup, backupInfo, backupSlots } from './local.js';
 import { fromDoc } from './doc.js';
 import { createStatusChip } from './status.js';
 import { LIFE_KEY } from '../play/progress.js';
@@ -93,7 +93,7 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
           backupFile = f.ok ? f : null;
           const back = fromDoc(remote, { now: now() });
           if (!back.ok) return { ok: false, error: 'The cloud game could not be read. Nothing was changed.', account };
-          if (local.writeLocal(back.state) === false) return { ok: false, error: 'This device could not store the cloud game, so nothing was changed.', account };
+          if (local.writeLocal(back.state, { slot: 'manual' }) === false) return { ok: false, error: 'This device could not store the cloud game, so nothing was changed.', account };
           set(KEYS.lastUid, account.uid);
         }
       }
@@ -109,7 +109,8 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
     return fb.signOutNow();
   }
   const hasBackup = () => !!backupInfo(storage);
-  const restoreBackup = () => restoreLocalBackup({ storage, now });
+  // a set-aside game is in the MANUAL slot; the engine's merges use the AUTO slot (local.js)
+  const restoreBackup = ({ slot } = {}) => restoreLocalBackup({ storage, now, slot: slot || (backupSlots(storage).manual ? 'manual' : 'auto') });
   return {
     connect, disconnect, restoreBackup, hasBackup,
     syncNow: () => (eng ? eng.syncNow() : Promise.resolve({ ok: false, skipped: true })),
