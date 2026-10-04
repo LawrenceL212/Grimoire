@@ -180,3 +180,56 @@ test('status events and unsubscribe', async () => {
   off(); await A.sync.syncNow();
   assert.deepEqual(seen, ['idle', 'syncing', 'synced']);
 });
+
+test('IMPORTANT 6: a write that lands between pull and push is a conflict: the engine re-pulls, re-merges and nothing is lost', async () => {
+  const b = device(); b.solve(card('T03'), { at: T0 + 2 * H });
+  const a = device(); a.solve(card('T02'), { at: T0 + H });
+  const cloud = memoryBackend({ doc: device().doc() });
+  let fired = false, pulls = 0;
+  const racing = {
+    async pull() { pulls++; const r = await cloud.pull(); if (!fired) { fired = true; await cloud.push(b.doc(), { expectVersion: r.version }); } return r; },
+    push: (d, o) => cloud.push(d, o),
+  };
+  const A = phone(a, racing, clock());
+  await A.sync.start();
+  assert.equal(A.sync.status(), 'synced');
+  assert.equal(pulls, 2);                                    // pulled again after the conflict
+  assert.equal(xpOf(cloud.doc.siso.life), 20);               // B's solve was not overwritten
+  assert.equal(xpOf(A.box.state.life), 20);
+});
+
+test('IMPORTANT 6: two engines writing at once converge; endless conflicts end in a soft error, never a throw', async () => {
+  const cloud = memoryBackend();
+  const a = device(), b = device();
+  a.solve(card('T02'), { at: T0 + H }); b.solve(card('T03'), { at: T0 + 2 * H });
+  const A = phone(a, cloud, clock()), B = phone(b, cloud, clock());
+  await Promise.all([A.sync.start(), B.sync.start()]);
+  await A.sync.syncNow(); await B.sync.syncNow();
+  assert.equal(canon(A.docNow().siso), canon(B.docNow().siso));
+  assert.equal(xpOf(cloud.doc.siso.life), 20);
+  let pulls = 0;
+  const always = { async pull() { pulls++; return { doc: null, version: 1 }; }, async push() { const e = new Error('busy'); e.conflict = true; throw e; } };
+  const C = phone(device(), always, clock());
+  await assert.doesNotReject(C.sync.start());
+  assert.equal(C.sync.status(), 'error');
+  assert.ok(pulls >= 2 && pulls <= 8);
+});
+
+test('IMPORTANT 6: a failed writeLocal is an error, never "synced"', async () => {
+  const other = device(); other.solve(card('T03'), { at: T0 + 2 * H });
+  const cloud = memoryBackend({ doc: other.doc() });
+  const s = createSync({ backend: cloud, readLocal: () => device().state(), writeLocal: () => false, now: () => NOW, listen: false, setTimer: () => 1, clearTimer: () => {} });
+  await s.start();
+  assert.equal(s.status(), 'error');
+});
+
+test('notices from the merge reach onNotice', async () => {
+  const a = device(), b = device();
+  a.solve(card('T03'), { at: T0 + 2 * H }); a.buy('bedside-table');
+  b.help('T03', { hint: 2 }); b.solve(card('T03'), { at: T0 + H, help: 'guided' });
+  const cloud = memoryBackend({ doc: b.doc() });
+  const A = phone(a, cloud, clock());
+  const got = []; A.sync.onNotice((n) => got.push(n));
+  await A.sync.start();
+  assert.ok(got.some((n) => /purchases were kept/.test(n)));
+});

@@ -3,9 +3,15 @@
 // never lowered.
 //
 //   createSync({ backend, readLocal, writeLocal, now, debounceMs = 5000, retryMinMs = 1000, retryMaxMs = 60000, ... })
-//     backend      { pull() -> doc | null, push(doc) -> Promise }   (null / absent: the game just plays; status 'idle')
+//     backend      { pull() -> doc | null | { doc, version }, push(doc, { expectVersion }?) -> Promise }
+//                  (null / absent: the game just plays; status 'idle'). Versions are optional: when pull() returns
+//                  { doc, version }, push gets { expectVersion: version } and may reject with err.conflict = true
+//                  (someone wrote in between): the engine then pulls again, merges again and retries, up to MAX_CONFLICTS
+//                  times in one cycle. A backend that returns a plain doc and ignores the second argument works as before.
 //     readLocal()  -> { life, spells } | null            writeLocal({ life, spells })      (see local.js)
-//   returns { start(), notifyChange(), flush(), syncNow(), onStatus(fn), status(), hasBackend, stop() }
+//   returns { start(), notifyChange(), flush(), syncNow(), onStatus(fn), onNotice(fn), notices(), status(), hasBackend, stop() }
+//   writeLocal may return false (the local write failed): the cycle then ends in 'error', never 'synced'.
+//   onNotice(fn): fn(string) for things worth telling the player, from the merge (a purchase set aside...) and the gate.
 //
 //   start()         run one cycle now and listen for pagehide / visibilitychange(hidden) (flush) and online / offline
 //   notifyChange()  the save changed: push after a quiet debounceMs (5 s); a burst of changes is one push
@@ -17,20 +23,28 @@
 //                   now and on every change and returns the unsubscribe function.
 //   Fail soft: nothing here throws into the UI; every failure becomes a status and a retry.
 import { checkDoc, toDoc, fromDoc, canon } from './doc.js';
-import { mergeSaves } from './merge.js';
+import { mergeDetailed } from './merge.js';
 
 // two documents are the same save when their content is: updatedAt is only a stamp
 const same = (a, b) => canon(a?.siso) === canon(b?.siso);
 
-// a backend that lives in memory: for tests, and for simulating two devices on one cloud
-export function memoryBackend({ doc = null } = {}) {
-  let stored = doc == null ? null : structuredClone(doc), online = true, failures = 0;
+export const MAX_CONFLICTS = 5;
+
+// a backend that lives in memory: for tests, and for simulating two devices on one cloud. With versions (the default),
+// pull() returns { doc, version } and push(doc, { expectVersion }) rejects with err.conflict when the cloud moved on.
+export function memoryBackend({ doc = null, versions = true } = {}) {
+  let stored = doc == null ? null : structuredClone(doc), online = true, failures = 0, version = doc == null ? 0 : 1;
   const gate = () => { if (!online) throw new Error('offline'); if (failures > 0) { failures--; throw new Error('backend failure'); } };
   return {
-    async pull() { gate(); return stored == null ? null : structuredClone(stored); },
-    async push(d) { gate(); stored = structuredClone(d); this.pushes++; },
+    async pull() { gate(); const d = stored == null ? null : structuredClone(stored); return versions ? { doc: d, version } : d; },
+    async push(d, { expectVersion } = {}) {
+      gate();
+      if (versions && expectVersion !== undefined && expectVersion !== version) { const e = new Error('the cloud save changed'); e.conflict = true; throw e; }
+      stored = structuredClone(d); version++; this.pushes++;
+    },
     pushes: 0,
     get doc() { return stored == null ? null : structuredClone(stored); },
+    get version() { return version; },
     setOnline(v) { online = !!v; },
     failNext(n = 1) { failures = n; },
   };
@@ -45,7 +59,8 @@ export function createSync({
 } = {}) {
   const hasBackend = !!backend && typeof backend.pull === 'function' && typeof backend.push === 'function';
   let status = 'idle', detail = '';
-  const listeners = new Set();
+  const listeners = new Set(), noticeListeners = new Set();
+  let lastNotices = [];
   let debounceT = null, retryT = null, retries = 0, inflight = null, again = false, started = false;
   const off = [];
 
@@ -55,27 +70,41 @@ export function createSync({
     for (const fn of [...listeners]) { try { fn(status, detail); } catch { /* a listener must not break the sync */ } }
   }
 
+  function tell(list) {
+    for (const n of list) { if (!lastNotices.includes(n)) lastNotices.push(n); for (const fn of [...noticeListeners]) { try { fn(n); } catch { /* ignore */ } } }
+  }
+
+  // one attempt: pull, merge with what is local right now, write local, push. A version conflict repeats it.
+  async function attempt() {
+    const pulled = await backend.pull();
+    const versioned = pulled && typeof pulled === 'object' && 'doc' in pulled && !('schema' in pulled);
+    const remoteRaw = versioned ? pulled.doc : pulled, version = versioned ? pulled.version : undefined;
+    let remote = null;
+    if (remoteRaw != null) {
+      const r = checkDoc(remoteRaw, { now: now() });
+      if (!r.ok) throw new Error(`the cloud save was not accepted: ${r.error}`);
+      remote = r.doc;
+    }
+    // local is read AFTER the pull and written in the same breath: nothing can change it in between
+    const state = readLocal();
+    const local = state ? toDoc(state, { now: now() }) : null;
+    const m = mergeDetailed(local, remote, { now: now() });
+    const merged = m.doc;
+    if (merged) {
+      if (!local || !same(merged, local)) {
+        const back = fromDoc(merged, { now: now() });
+        if (!back.ok || writeLocal(back.state) === false) throw new Error('the merged save could not be stored on this device');
+      }
+      if (!remote || !same(merged, remote)) await (version === undefined ? backend.push(merged) : backend.push(merged, { expectVersion: version }));
+    }
+    tell(m.notices);
+  }
   async function once() {
     if (!isOnline()) { setStatus('offline'); return { ok: false, offline: true }; }
     setStatus('syncing');
     try {
-      const remoteRaw = await backend.pull();
-      let remote = null;
-      if (remoteRaw != null) {
-        const r = checkDoc(remoteRaw, { now: now() });
-        if (!r.ok) throw new Error(`the cloud save was not accepted: ${r.error}`);
-        remote = r.doc;
-      }
-      // local is read AFTER the pull and written in the same breath: nothing can change it in between
-      const state = readLocal();
-      const local = state ? toDoc(state, { now: now() }) : null;
-      const merged = mergeSaves(local, remote, { now: now() });
-      if (merged) {
-        if (!local || !same(merged, local)) {
-          const back = fromDoc(merged, { now: now() });
-          if (back.ok) writeLocal(back.state);
-        }
-        if (!remote || !same(merged, remote)) await backend.push(merged);
+      for (let n = 0; ; n++) {
+        try { await attempt(); break; } catch (e) { if (!(e && e.conflict) || n >= MAX_CONFLICTS) throw e; }
       }
       retries = 0;
       if (retryT) { clearTimer(retryT); retryT = null; }
@@ -143,5 +172,6 @@ export function createSync({
     try { fn(status, detail); } catch { /* ignore */ }
     return () => listeners.delete(fn);
   }
-  return { start, stop, notifyChange, flush, syncNow, onStatus, status: () => status, hasBackend };
+  function onNotice(fn) { noticeListeners.add(fn); return () => noticeListeners.delete(fn); }
+  return { start, stop, notifyChange, flush, syncNow, onStatus, onNotice, notices: () => [...lastNotices], status: () => status, hasBackend };
 }
