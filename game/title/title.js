@@ -16,6 +16,8 @@
 //   window.__title = { ready, scene ('on' | 'off' | 'pending'), hasSave, startHref, reducedMotion, saveKeys, drift() (the scene turn, radians),
 //                    music() (the music engine's state) }
 import { SAVE_KEYS, hasSave, clearSave, localStore } from './saves.js';
+import { exportSave, previewImport, applyImport, downloadSave } from '../sync/file.js';
+import { localAdapter } from '../sync/local.js';
 
 const $ = (id) => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -91,6 +93,47 @@ $('preset').addEventListener('change', (e) => {
   themeMod?.applyPreset(e.target.value);
   try { store?.setItem(PRESET_KEY, e.target.value); } catch { /* storage off */ }
 });
+
+// ---------------------------------------------------------------- your game: export and import a save file
+// All the rules live in game/sync (doc.js validates, merge.js merges, file.js reads and writes); this only shows them.
+const local = localAdapter(store);
+const importPanel = $('import-panel'), importMsg = $('import-msg');
+let pendingText = null;
+function importState(msg, { bad = false, choices = false, confirm = false } = {}) {
+  importPanel.hidden = !msg;
+  importMsg.textContent = msg || ''; importMsg.classList.toggle('bad', bad);
+  $('import-choices').hidden = !choices; $('import-confirm').hidden = !confirm;
+  if (!choices && !confirm) pendingText = null;
+}
+$('export-save').addEventListener('click', () => {
+  const out = exportSave({ readLocal: local.readLocal });
+  if (!out.ok) { importState(out.error, { bad: true }); return; }
+  downloadSave(out);
+  importState(`Saved ${out.filename}. Keep it somewhere safe, or open it on your other device.`);
+});
+$('import-save').addEventListener('click', () => { $('import-file').value = ''; $('import-file').click(); });
+$('import-file').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  let text = '';
+  try { text = await file.text(); } catch { text = ''; }
+  const p = previewImport(text);
+  if (!p.ok) { importState(`${p.error} Nothing was changed.`, { bad: true }); return; }
+  const s = p.summary;
+  pendingText = text;
+  importState(`This save: ${s.daysInBusiness} day${s.daysInBusiness === 1 ? '' : 's'} in business, ${s.solves} ticket${s.solves === 1 ? '' : 's'} solved, ${s.spells} spell${s.spells === 1 ? '' : 's'} written, £${s.balance} saved. Merge keeps the best of this device and the file.`, { choices: true });
+});
+function doImport(mode) {
+  const r = applyImport(pendingText, { mode, confirmed: mode === 'replace', readLocal: local.readLocal, writeLocal: local.writeLocal });
+  if (!r.ok) { importState(`${r.error} Nothing was changed.`, { bad: true }); return; }
+  importState(r.changed ? (mode === 'merge' ? 'Merged. Your progress is on this device now.' : 'Replaced. This device now has the imported game.') : 'Nothing to change: this device already has all of it.');
+  refresh();
+}
+$('import-merge').addEventListener('click', () => doImport('merge'));
+$('import-replace').addEventListener('click', () => { $('import-choices').hidden = true; $('import-confirm').hidden = false; });
+$('import-cancel').addEventListener('click', () => importState('Kept what is on this device.'));
+$('import-replace-yes').addEventListener('click', () => doImport('replace'));
+settingsDlg.addEventListener('close', () => importState(''));
 
 // ---------------------------------------------------------------- title music: normal mood, after the first gesture
 import('../engine/music.js').then((m) => { m.setMood('normal'); m.start(); api.music = () => m.musicState(); }).catch(() => { /* no sound: the title still works */ });
