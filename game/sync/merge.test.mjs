@@ -16,7 +16,7 @@ function pair() {
   const a = device(), b = device();
   a.solve(X, { at: T0 + H, casts: ['where'] });
   a.help('T14', { hint: 2 });
-  b.solve(Y, { at: T0 + 2 * H, casts: ['select-all'] });
+  b.solve(Y, { at: T0 + 2 * H, casts: ['update'] });
   b.help('T14', { worked: true });
   return [a, b];
 }
@@ -40,7 +40,7 @@ test('two devices solving different cards merge to the union: no double XP, no d
   assert.equal(xp(m), 20);
   assert.equal(earnedOf(m.siso.life.solves), 80);
   assert.equal(balanceOf(m.siso.life), 80); // each balance held 40; the merged home holds 80, not 120 and not 40
-  assert.ok(written(m, 'where') && written(m, 'select-all'));
+  assert.ok(written(m, 'where') && written(m, 'update'));
 });
 
 test('the same card solved on both devices pays once', () => {
@@ -103,13 +103,13 @@ test('spells: written on neither side is never written; written on one side stay
   let m = merge(a.doc(), b.doc());
   assert.equal(written(m, 'where'), false);
   assert.equal(written(m, 'limit'), false);
-  const c = device(); c.solve(Z, { at: T0 + 3 * H, casts: ['where'] });
+  const c = device(); c.solve(X, { at: T0 + 2 * H }); c.solve(Z, { at: T0 + 3 * H, casts: ['where'] });
   m = merge(a.doc(), c.doc());
   assert.equal(written(m, 'where'), true);
   assert.equal(m.siso.spells.where.lastMs, T0 + 3 * H);
   const d1 = device(), d2 = device();
   d1.solve(X, { at: T0 + H, casts: ['where'] });
-  d2.solve(Y, { at: T0 + H, casts: ['where'] });
+  d2.solve(X, { at: T0 + H, casts: ['where'] });
   d2.solve(Z, { at: T0 + 3 * 86400000, casts: ['where'] }); // a recast days later: stability grows
   m = merge(d1.doc(), d2.doc());
   const s1 = d1.doc().siso.spells.where, s2 = d2.doc().siso.spells.where;

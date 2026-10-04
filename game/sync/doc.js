@@ -45,8 +45,15 @@ const goodKey = (k) => typeof k === 'string' && k.length > 0 && k.length <= 80 &
 
 const CARD = new Map(LADDER.map((c, i) => [c.id, { i, evidence: c.evidence !== false }]));
 // the first ladder card that teaches or recalls a spell: from it on, an unaided solve could have cast it
-const SPELL_FROM = new Map();
-LADDER.forEach((c, i) => { for (const id of [...(c.spells?.teach || []), ...(c.spells?.recall || [])]) if (!SPELL_FROM.has(id)) SPELL_FROM.set(id, i); });
+// the ladder cards that teach or recall each spell, by index; evidence cards only when at least one exists (a spell only a
+// teaching ticket introduces, such as table-row, is backed by a solve of that ticket instead)
+const SPELL_CARDS = new Map();
+LADDER.forEach((c, i) => { for (const id of [...(c.spells?.teach || []), ...(c.spells?.recall || [])]) { if (!SPELL_CARDS.has(id)) SPELL_CARDS.set(id, []); SPELL_CARDS.get(id).push(i); } });
+for (const [id, list] of SPELL_CARDS) { const ev = list.filter((i) => LADDER[i].evidence !== false); if (ev.length) SPELL_CARDS.set(id, ev); }
+const HELP_RANK = { clean: 0, nudged: 1, guided: 2, exposure: 3 };
+// ONE order for solves, in doc.js and merge.js, with every tie broken, so equal content is equal text
+export const solveOrder = (p, q) => p.atMs - q.atMs || (p.card < q.card ? -1 : p.card > q.card ? 1 : 0) || (p.practice === true) - (q.practice === true)
+  || (HELP_RANK[p.help] ?? 9) - (HELP_RANK[q.help] ?? 9) || (p.lang < q.lang ? -1 : p.lang > q.lang ? 1 : 0);
 const worthOf = (items) => items.reduce((n, it) => n + (it.starter ? 0 : priceOf(it.id)), 0);
 
 export function canon(v) {
@@ -104,7 +111,7 @@ export function checkDoc(raw, { now = Date.now() } = {}) {
   let setBack = 0;
   const solves = (Array.isArray(pre.solves) ? pre.solves : []).filter((s) => isObj(s) && goodKey(s.card) && CARD.has(s.card) && num(s.atMs) !== null)
     .map((s) => { if (s.atMs > limit) { setBack++; return { ...s, atMs: limit }; } return s; })
-    .sort((p, q) => p.atMs - q.atMs);
+    .sort(solveOrder);
   if (setBack) notices.push(`A device clock was ahead: ${setBack} solve time${setBack === 1 ? ' was' : 's were'} set back to now.`);
   const real = new Set(), extra = new Map();
   pre.solves = [];
@@ -126,13 +133,18 @@ export function checkDoc(raw, { now = Date.now() } = {}) {
   const home = cleanHome(rawHome, evidenceCards.size * EARNINGS.unaidedEvidenceSolve);
   home.balance = Math.max(0, Math.min(home.balance, earnedOf(life.solves) - worthOf(home.items)));
   life.home = home;
-  // ink needs a real unaided solve at or after the card that teaches the spell
-  // (any real solve of an evidence card made clean or nudged counts, first or not: that fact only ever grows when two saves are
-  // merged, so which merge order was used can never decide whether a spell stays written)
-  const top = Math.max(-1, ...life.solves.filter((s) => !s.practice && CARD.get(s.card).evidence && (s.help === 'clean' || s.help === 'nudged')).map((s) => CARD.get(s.card).i));
+  // INK NEEDS BACKING in the same doc: a real (non-practice) solve, with any help, of an evidence card that teaches or recalls the
+  // spell, AND a clean or nudged real solve of that card or a LATER one. Both are plain existence facts about the solves, which
+  // only ever grow when two saves are merged, so the order of merging cannot decide whether a spell stays written.
+  const realSolves = life.solves.filter((s) => !s.practice && CARD.get(s.card).evidence);
+  const solvedIdx = new Set(realSolves.map((s) => CARD.get(s.card).i));
+  const top = Math.max(-1, ...realSolves.filter((s) => s.help === 'clean' || s.help === 'nudged').map((s) => CARD.get(s.card).i));
+  // a teaching ticket (no evidence) can back only a spell no evidence card teaches
+  const solvedAny = new Set(life.solves.filter((s) => !s.practice).map((s) => CARD.get(s.card).i));
+  const backed = (id) => { const list = SPELL_CARDS.get(id); if (!list) return false; const own = list.filter((i) => (LADDER[i].evidence !== false ? solvedIdx : solvedAny).has(i)); return own.length > 0 && top >= Math.min(...own); };
   const spells = cleanSpells(siso.spells, limit);
   for (const [id, r] of Object.entries(spells)) {
-    if (!r.written || (SPELL_FROM.has(id) && top >= SPELL_FROM.get(id))) continue;
+    if (!r.written || backed(id)) continue;
     r.written = false;
     for (const f of Object.values(r.forms)) f.written = false;
   }

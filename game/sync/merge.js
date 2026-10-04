@@ -39,16 +39,31 @@
 //             solve of a card earns, so a guided first solve on one device can cancel a later clean one on another):
 //             the items are kept, the balance is floored at 0, and a notice says so. doc.js bounds the items by what the
 //             solves could have earned, so a forged home still cannot mint furniture.
+//             (Corner: a side in debt that had also SOLD furniture lost the half-price loss from its slack, so its balance can come
+//             out a little higher than a different merge order would give; it never exceeds earnings minus the worth owned.)
+//             KNOWN LIMIT: when merged earnings fall below what a side had spent, the balance floors at 0 and the exact slack is
+//             lost; a later merge in a different grouping can then give a different balance (always between 0 and earned minus
+//             the worth owned, so never minted). Everything else, and the balance whenever the floor is not engaged, is
+//             order-independent (fuzzed in harden.test.mjs).
 //  updatedAt  the later of the two (a stamp only; it decides nothing).
 //  A card marked "worked" (help recorded on the CARD) can still have its first solve unaided and paid when that solve was
 //  made before the help was taken, on another device: the credit belongs to the solve and the help to the card, exactly
 //  as on one device where a replay after the solve can raise the card's help. That is acceptable: the credit was earned
 //  clean at the time, and no later help ever raises or repeats it.
+//  KNOWN LIMITS (self-attested saves, documented rather than hidden):
+//   (a) the pace cap (DAILY_CAP new concepts a day) only truncates days[date]; it is NOT enforced on solves. What a forged save
+//       can claim is bounded instead by the finite ladder: at most one earning solve per card, so at most 14 evidence cards
+//       x 40 = 560 pounds in all.
+//   (b) two solves of one card with the same atMs and the same practice flag are the same solve and collapse to the worst help
+//       (a re-sync of one solve must not count twice). That makes the merge order-dependent only for forged saves with
+//       colliding timestamps (a 0.3% corner in the fuzz, unreachable by real play, whose clock never repeats a card's time).
+//   (c) spell ink is backed by existence facts (see doc.js), so a save that really did solve the tickets cannot be told from
+//       one that merely lists them: the gate stops spells with no solve behind them, not a forged solve.
 //  Notices: mergeDetailed() returns { doc, notices[] }; mergeSaves() returns just the doc.
 import { cleanLife, CREDIT } from '../play/progress.js';
 import { earnedOf, priceOf } from '../play/home-rules.js';
 import { cleanSpellRecord } from '../play/spells.js';
-import { checkDoc, canon } from './doc.js';
+import { checkDoc, canon, solveOrder } from './doc.js';
 
 const RANK = { clean: 0, nudged: 1, guided: 2, exposure: 3 };
 const worse = (a, b) => (RANK[a] >= RANK[b] ? a : b);
@@ -85,7 +100,7 @@ function mergeSolves(sa, sb) {
       xp: Math.min(o.xp, s.xp), lang: o.lang < s.lang ? o.lang : s.lang,
     });
   }
-  const all = [...byKey.values()].sort((p, q) => p.atMs - q.atMs || (p.card < q.card ? -1 : p.card > q.card ? 1 : 0));
+  const all = [...byKey.values()].sort(solveOrder);
   const seen = new Set();
   return all.map((s) => {
     if (s.practice) return { ...s, xp: 0, unaided: false };
@@ -165,7 +180,11 @@ export function mergeDetailed(a, b, { now } = {}) {
   };
   const earned = earnedOf(cleanLife({ ...life, home: null }, 0).solves); // what the merged solves earn, by the table
   const winners = pickHome([{ life: la }, { life: lb }]);
-  const slack = Math.max(...winners.map((s) => s.life.home.balance - earnedOf(s.life.solves)));
+  // slack = what the side had spent. A side that is IN DEBT (it owns more than its solves earned, which a merge can cause) has
+  // balance 0 and lost the exact figure, so its slack is taken as minus the worth of what it owns: the same figure whichever way
+  // the merges were grouped.
+  const slackOf = (l) => { const e = earnedOf(l.solves), w = worthOf(l.home.items); return e >= w ? l.home.balance - e : -w; };
+  const slack = Math.max(...winners.map((s) => slackOf(s.life)));
   life.home = { ...structuredClone(winners[0].life.home), balance: Math.max(0, slack + earned) };
 
   const r = checkDoc({ schema: 1, updatedAt: Math.max(A.updatedAt, B.updatedAt), siso: { life, spells: mergeSpells(A.siso.spells, B.siso.spells) } }, { now });

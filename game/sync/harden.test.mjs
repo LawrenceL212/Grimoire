@@ -163,3 +163,95 @@ test('IMPORTANT 7: a clock far ahead sets solve times back to the ceiling instea
   assert.equal(xpOf(m.doc.siso.life), 20);
   assert.ok(m.notices.length >= 1);
 });
+
+// ---- round 2
+import { createSync, memoryBackend } from './engine.js';
+
+test('R2 ink: only the last card solved clean does not keep every spell written', () => {
+  const d = device();
+  d.solve(C('T21'), { at: T0 + H });                       // the last card of the ladder, clean
+  const forged = JSON.parse(JSON.stringify(d.doc()));
+  const rec = { langs: ['sql'], written: true, lastMs: T0 + H, stability: 20, assisted: false, forms: { sql: { written: true, lastMs: T0 + H, stability: 20 } } };
+  forged.siso.spells = Object.fromEntries(['table-row', 'id-link', 'select-all', 'select-columns', 'where', 'update', 'insert', 'order-by', 'compare', 'delete', 'and', 'time-range', 'limit', 'js-variable', 'php-query', 'overlap'].map((id) => [id, structuredClone(rec)]));
+  const out = checkDoc(forged, { now: NOW }).doc.siso.spells;
+  const ink = Object.entries(out).filter(([, r]) => r.written).map(([id]) => id);
+  assert.deepEqual(ink, ['delete']);                       // T21 recalls delete: a real solve of a card that recalls it, and clean
+  for (const [id, r] of Object.entries(out)) if (!r.written) assert.ok(r.langs.includes('sql'), `${id} keeps its exposure`);
+});
+
+test('R2 ink: a spell needs a solve of a card that teaches or recalls it, and a clean one at that card or later', () => {
+  const guidedThenLater = device();
+  guidedThenLater.solve(C('T03'), { at: T0 + H, help: 'guided', casts: ['where'] });   // where's card, but only guided
+  const sp = (id) => ({ langs: ['sql'], written: true, lastMs: T0 + H, stability: 3, assisted: false, forms: {} });
+  const mk = (d) => { const f = JSON.parse(JSON.stringify(d.doc())); f.siso.spells = { where: sp(), update: sp() }; return checkDoc(f, { now: NOW }).doc.siso.spells; };
+  assert.equal(mk(guidedThenLater).where.written, false);  // nothing clean at T03 or later
+  guidedThenLater.solve(C('T04'), { at: T0 + 2 * H });     // a clean solve LATER on the ladder
+  const s2 = mk(guidedThenLater);
+  assert.equal(s2.where.written, true);                    // backed: where's card solved (guided) and a clean solve after it
+  assert.equal(s2.update.written, true);
+  const cleanOnlyBefore = device();
+  cleanOnlyBefore.solve(C('T02'), { at: T0 + H }); cleanOnlyBefore.solve(C('T03'), { at: T0 + 2 * H, help: 'guided' });
+  assert.equal(mk(cleanOnlyBefore).where.written, false);  // the clean solve came before where's card on the ladder
+});
+
+function mutate(r, doc) {
+  const d = JSON.parse(JSON.stringify(doc));
+  const L = d.siso.life, pick = (a) => a[Math.floor(r() * a.length)];
+  const k = Math.floor(r() * 7);
+  if (k === 0 && L.solves.length) pick(L.solves).xp = pick([-5, 999, 10.5]);
+  if (k === 1) L.home.balance = pick([-10, 1e9, 55.5]);
+  if (k === 2) L.solves.push({ card: pick(['T02', 'T03', 'T04', 'nope', 'O1']), atMs: pick([T0 + 7 * H, NOW + 9e12, T0 + H]), help: pick(['clean', 'guided', 'x']), unaided: true, xp: 10, lang: 'sql' });
+  if (k === 3) d.siso.spells.where = { langs: ['sql'], written: true, lastMs: pick([T0 + H, NOW + 9e13]), stability: pick([3, 1e9]), assisted: false, forms: { sql: { written: true, lastMs: T0 + H, stability: 5 } } };
+  if (k === 4) L.home.items.push({ uid: 'z' + Math.floor(r() * 5), id: pick(['sofa', 'laptop', 'rug', 'nonsense']), tone: null, x: null, z: null, rot: 0 });
+  if (k === 5) L.cards.T03 = { hint: pick([9, -1]), worked: 'y', step: -3 };
+  if (k === 6) d.siso.life.highMs = pick([NOW + 9e12, 5, 'x']);
+  return d;
+}
+// the balance is carried as slack and floored at 0 when earnings fall below spending (merge.js): there the exact figure is lost,
+// so across different groupings the balance may differ (always within 0..earned-worth); everything else must be identical
+const noBalance = (d) => { const c = structuredClone(d); c.siso.life.home.balance = 0; return c; };
+test('R2 fuzz with tampering: no minted credit, commutative, idempotent, associative (6000 triples; balance only within bounds)', () => {
+  const r = rng(777);
+  const pool = Array.from({ length: 50 }, (_, k) => randomDevice(r, k));
+  const same = (x, y) => canon(noBalance(x)) === canon(noBalance(y));
+  let seen = 0;
+  for (let n = 0; n < 6000; n++) {
+    const raw = [0, 0, 0].map(() => pool[Math.floor(r() * pool.length)]);
+    const [A, B, Cc] = raw.map((d) => (r() < 0.4 ? mutate(r, d) : d)).map((d) => { const c = checkDoc(d, { now: NOW }); return c.ok ? c.doc : pool[0]; });
+    const ab = merge(A, B), m = merge(ab, Cc);
+    assert.ok(same(ab, merge(B, A)), `commutative at ${n}`);
+    assert.ok(same(m, merge(A, merge(B, Cc))), `(AB)C vs A(BC) at ${n}`);
+    assert.ok(same(m, merge(merge(A, Cc), B)), `(AB)C vs (AC)B at ${n}`);
+    assert.equal(canon(merge(m, m)), canon(m), `idempotent at ${n}`);
+    assert.equal(canon(checkDoc(m, { now: NOW }).doc), canon(m), `stable under the gate at ${n}`);
+    assert.equal(canon(ab), canon(merge(B, A)), `commutative incl. balance at ${n}`);
+    const L = m.siso.life;
+    assert.ok(xpOf(L) <= 140 && earnedOf(L.solves) <= 560, `no minted credit at ${n}`);
+    assert.ok(L.home.balance <= earnedOf(L.solves));
+    assert.ok(L.solves.every((s) => LADDER.some((c) => c.id === s.card)));
+    seen++;
+  }
+  assert.equal(seen, 6000);
+});
+
+test('R2 tie-break: solves with the same time are in one order whatever order they arrive in', () => {
+  const d = device();
+  d.solve(C('T03'), { at: T0 + H }); d.solve(C('T04'), { at: T0 + H }); d.solve(C('T02'), { at: T0 + H });
+  const a = JSON.parse(JSON.stringify(d.doc())), b = JSON.parse(JSON.stringify(d.doc()));
+  b.siso.life.solves.reverse();
+  assert.equal(canon(checkDoc(a, { now: NOW }).doc), canon(checkDoc(b, { now: NOW }).doc));
+  assert.equal(canon(merge(a, b)), canon(merge(b, a)));
+  assert.equal(canon(merge(a, b)), canon(checkDoc(a, { now: NOW }).doc));
+});
+
+test('R2 tie-break: the engine makes no redundant write when local differs only by the order of tied solves', async () => {
+  const d = device();
+  d.solve(C('T03'), { at: T0 + H }); d.solve(C('T04'), { at: T0 + H });
+  const remote = JSON.parse(JSON.stringify(d.doc()));
+  const st = d.state(); st.life = { ...st.life, solves: [...st.life.solves].reverse() };
+  let writes = 0;
+  const s = createSync({ backend: memoryBackend({ doc: remote }), readLocal: () => st, writeLocal: () => { writes++; }, now: () => NOW, listen: false, setTimer: () => 1, clearTimer: () => {} });
+  await s.start();
+  assert.equal(writes, 0);
+  assert.equal(s.status(), 'synced');
+});
