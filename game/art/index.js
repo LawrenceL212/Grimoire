@@ -3,6 +3,7 @@
 import './samples.js';
 import './materials.js';
 import './furniture.js';
+import './home.js';
 // the client sectors, one district each
 import './sectors/lab.js';
 import './sectors/gym.js';
