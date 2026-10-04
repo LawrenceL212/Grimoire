@@ -17,19 +17,19 @@ async function play(page) {
     let life = P.freshLife(Date.now() - 3 * 86400000);
     const store = S.createSpellStore({ storage: S.memoryStorage(), key: 's' });
     let at = Date.now() - 2 * 86400000;
-    for (const [id, casts] of [['T1', ['where']], ['T2', ['select-all']], ['T3', ['limit']]]) {
+    for (const [id, casts] of [['T02', ['select-all']], ['T03', ['where']], ['T04', ['update']]]) {
       const r = P.recordSolve(life, { id, evidence: true, newConcept: true }, { help: 'clean', casts, nowMs: at += 3600000 });
       life = r.life;
       for (const s of r.spells) store.recordCast(s.id, { lang: 'sql', unaided: s.unaided, outcome: s.outcome, nowMs: at });
     }
-    life = P.noteHelp(life, 'T4', { hint: 2 });
+    life = P.noteHelp(life, 'T06', { hint: 2 });
     const spells = {};
     for (const { spell } of store.all()) { const st = store.getSpellState(spell.id); if (st.introduced) spells[spell.id] = { langs: st.langs, written: st.written, demo: st.demo, lastMs: st.lastMs, stability: st.stability, assisted: st.assisted, forms: st.forms }; }
     localStorage.setItem(key, JSON.stringify({ ...life, spells }));
   }, LIFE);
 }
 const snapshot = (page) => page.evaluate((k) => JSON.stringify(Object.fromEntries(Object.keys(localStorage).sort().map((x) => [x, localStorage.getItem(x)])) ), LIFE);
-const progress = (page) => page.evaluate((k) => { const l = JSON.parse(localStorage.getItem(k) || 'null'); return l && { solves: l.solves.map((s) => `${s.card}:${s.xp}:${s.gbp}`), xp: l.solves.reduce((n, s) => n + s.xp, 0), balance: l.home.balance, spells: Object.entries(l.spells).filter(([, r]) => r.written).map(([id]) => id).sort(), card4: l.cards.T4?.hint }; }, LIFE);
+const progress = (page) => page.evaluate((k) => { const l = JSON.parse(localStorage.getItem(k) || 'null'); return l && { solves: l.solves.map((s) => `${s.card}:${s.xp}:${s.gbp}`), xp: l.solves.reduce((n, s) => n + s.xp, 0), balance: l.home.balance, spells: Object.entries(l.spells).filter(([, r]) => r.written).map(([id]) => id).sort(), card4: l.cards.T06?.hint }; }, LIFE);
 const openSettings = async (page) => { await page.click('#open-settings'); await page.waitForSelector('#settings[open]'); };
 const pick = (page, name, text) => page.setInputFiles('#import-file', { name, mimeType: 'application/json', buffer: Buffer.from(text) });
 
@@ -110,11 +110,29 @@ const pick = (page, name, text) => page.setInputFiles('#import-file', { name, mi
   await pick(page, name, text); await page.waitForSelector('#import-choices:not([hidden])');
   await page.click('#import-replace');
   t.check('Replace asks to confirm first', await page.isVisible('#import-replace-yes') && (await snapshot(page)) === snap2);
+  const cmp = { local: await page.textContent('#cmp-local'), file: await page.textContent('#cmp-file') };
+  t.check('the Replace confirm shows what is on this device next to what is in the file (days, tickets, spells, balance)',
+    /0 tickets solved/.test(cmp.local) && /£0 saved/.test(cmp.local) && /3 tickets solved/.test(cmp.file) && /3 spells written/.test(cmp.file) && /£120/.test(cmp.file) && /day/.test(cmp.local), JSON.stringify(cmp));
+  t.check('the safe button (Keep what is here) has the focus when the confirm opens', await page.evaluate(() => document.activeElement && document.activeElement.id === 'import-cancel'));
   await page.click('#import-cancel');
   t.check('Cancel keeps what is on the device', (await snapshot(page)) === snap2);
   await pick(page, name, text); await page.waitForSelector('#import-choices:not([hidden])');
+  const fresh = await progress(page);
   await page.click('#import-replace'); await page.click('#import-replace-yes');
   t.check('confirmed Replace makes this device the file', JSON.stringify(await progress(page)) === JSON.stringify(before));
+  // ---- the way back: restore the save from before the import (asks first; the swap can be undone)
+  t.check('after a Replace the Restore button is offered', await page.isVisible('#restore-save'));
+  await page.click('#restore-save');
+  t.check('Restore asks first and changes nothing until confirmed', await page.isVisible('#restore-yes') && JSON.stringify(await progress(page)) === JSON.stringify(before));
+  await page.click('#restore-cancel');
+  t.check('cancelling the restore changes nothing', JSON.stringify(await progress(page)) === JSON.stringify(before) && await page.isVisible('#restore-save'));
+  await page.click('#restore-save'); await page.click('#restore-yes');
+  t.check('Restore puts the earlier save back', JSON.stringify(await progress(page)) === JSON.stringify(fresh), JSON.stringify({ now: await progress(page), fresh }));
+  t.check('and the swap is itself restorable (the imported game is the new backup)', await page.isVisible('#restore-save'));
+  await page.click('#restore-save'); await page.click('#restore-yes');
+  t.check('restoring again returns to the imported game', JSON.stringify(await progress(page)) === JSON.stringify(before));
+  const bk = await page.evaluate(() => ({ life: !!localStorage.getItem('grimoire.life.siso.v1.backup'), at: Number(localStorage.getItem('grimoire.life.siso.v1.backup.at')) }));
+  t.check('the backup is one generation with a timestamp', bk.life && bk.at > 0, JSON.stringify(bk));
   t.check('no page errors', errors.length === 0, errors.join(' | '));
   await close();
 }
@@ -132,7 +150,7 @@ const pick = (page, name, text) => page.setInputFiles('#import-file', { name, mi
   await page.click('#import-replace');
   const fit = await page.evaluate(() => {
     const dlg = document.getElementById('settings').getBoundingClientRect();
-    const els = ['export-save', 'import-save', 'import-cancel', 'import-replace-yes', 'import-msg'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return { id, l: r.left, r: r.right, w: r.width, vis: !!document.getElementById(id).offsetParent }; });
+    const els = ['export-save', 'import-save', 'import-cancel', 'import-replace-yes', 'import-msg', 'cmp-local', 'cmp-file'].map((id) => { const r = document.getElementById(id).getBoundingClientRect(); return { id, l: r.left, r: r.right, w: r.width, vis: !!document.getElementById(id).offsetParent }; });
     return { dlg: { l: dlg.left, r: dlg.right }, els, scrollW: document.documentElement.scrollWidth, innerW: innerWidth, dlgScroll: document.getElementById('settings').scrollWidth - document.getElementById('settings').clientWidth };
   });
   t.check('at 390 px the dialog fits the screen with no sideways scroll', fit.dlg.l >= 0 && fit.dlg.r <= 390 && fit.scrollW <= fit.innerW && fit.dlgScroll <= 0, JSON.stringify(fit));

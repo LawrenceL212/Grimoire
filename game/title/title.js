@@ -16,8 +16,8 @@
 //   window.__title = { ready, scene ('on' | 'off' | 'pending'), hasSave, startHref, reducedMotion, saveKeys, drift() (the scene turn, radians),
 //                    music() (the music engine's state) }
 import { SAVE_KEYS, hasSave, clearSave, localStore } from './saves.js';
-import { exportSave, previewImport, applyImport, downloadSave } from '../sync/file.js';
-import { localAdapter } from '../sync/local.js';
+import { exportSave, previewImport, applyImport, downloadSave, localSummary, fileTooBig } from '../sync/file.js';
+import { localAdapter, restoreBackup, backupInfo } from '../sync/local.js';
 import { initAccount } from './account.js';
 
 const $ = (id) => document.getElementById(id);
@@ -83,6 +83,7 @@ function currentPreset() { try { return store?.getItem(PRESET_KEY) || 'Warm dusk
 $('open-settings').addEventListener('click', async () => {
   await loadSettingsModules();
   fillSettings();
+  showRestore?.();
   if (typeof settingsDlg.showModal === 'function') settingsDlg.showModal(); else settingsDlg.setAttribute('open', '');
 });
 for (const [id, bus] of [['vol-master', 'master'], ['vol-music', 'music']]) {
@@ -99,7 +100,7 @@ $('preset').addEventListener('change', (e) => {
 // All the rules live in game/sync (doc.js validates, merge.js merges, file.js reads and writes); this only shows them.
 const local = localAdapter(store);
 const importPanel = $('import-panel'), importMsg = $('import-msg');
-let pendingText = null;
+let pendingText = null, pendingSummary = null;
 function importState(msg, { bad = false, choices = false, confirm = false } = {}) {
   importPanel.hidden = !msg;
   importMsg.textContent = msg || ''; importMsg.classList.toggle('bad', bad);
@@ -113,28 +114,52 @@ $('export-save').addEventListener('click', () => {
   importState(`Saved ${out.filename}. Keep it somewhere safe, or open it on your other device.`);
 });
 $('import-save').addEventListener('click', () => { $('import-file').value = ''; $('import-file').click(); });
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const sumText = (s) => (s ? `${plural(s.daysInBusiness, 'day')} in business, ${plural(s.solves, 'ticket')} solved, ${plural(s.spells, 'spell')} written, £${s.balance} saved` : 'no game yet');
+function showRestore() {
+  const info = backupInfo(store);
+  $('restore-row').hidden = !info;
+  $('restore-confirm').hidden = true;
+  $('restore-save').hidden = !info;
+  if (info) $('restore-save').title = info.at ? `Saved ${new Date(info.at).toLocaleString()}` : '';
+}
 $('import-file').addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
+  // the size is checked BEFORE the file is read, so a huge file is never loaded into memory
+  if (fileTooBig(file.size)) { importState('That file is far too large to be a Grimoire save. Nothing was changed.', { bad: true }); return; }
   let text = '';
   try { text = await file.text(); } catch { text = ''; }
   const p = previewImport(text);
   if (!p.ok) { importState(`${p.error} Nothing was changed.`, { bad: true }); return; }
-  const s = p.summary;
-  pendingText = text;
-  importState(`This save: ${s.daysInBusiness} day${s.daysInBusiness === 1 ? '' : 's'} in business, ${s.solves} ticket${s.solves === 1 ? '' : 's'} solved, ${s.spells} spell${s.spells === 1 ? '' : 's'} written, £${s.balance} saved. Merge keeps the best of this device and the file.`, { choices: true });
+  pendingText = text; pendingSummary = p.summary;
+  importState(`This save: ${sumText(p.summary)}. Merge keeps the best of this device and the file.`, { choices: true });
 });
 function doImport(mode) {
   const r = applyImport(pendingText, { mode, confirmed: mode === 'replace', readLocal: local.readLocal, writeLocal: local.writeLocal });
   if (!r.ok) { importState(`${r.error} Nothing was changed.`, { bad: true }); return; }
-  importState(r.changed ? (mode === 'merge' ? 'Merged. Your progress is on this device now.' : 'Replaced. This device now has the imported game.') : 'Nothing to change: this device already has all of it.');
-  refresh();
+  const extra = (r.notices || []).map((n) => ` ${n}`).join('');
+  importState((r.changed ? (mode === 'merge' ? 'Merged. Your progress is on this device now.' : 'Replaced. This device now has the imported game.') : 'Nothing to change: this device already has all of it.') + extra);
+  refresh(); showRestore();
 }
 $('import-merge').addEventListener('click', () => doImport('merge'));
-$('import-replace').addEventListener('click', () => { $('import-choices').hidden = true; $('import-confirm').hidden = false; });
+$('import-replace').addEventListener('click', () => {
+  $('import-choices').hidden = true; $('import-confirm').hidden = false;
+  $('cmp-local').textContent = sumText(localSummary({ readLocal: local.readLocal }));
+  $('cmp-file').textContent = sumText(pendingSummary);
+  $('import-cancel').focus(); // the safe choice is the one under the finger
+});
 $('import-cancel').addEventListener('click', () => importState('Kept what is on this device.'));
 $('import-replace-yes').addEventListener('click', () => doImport('replace'));
+$('restore-save').addEventListener('click', () => { $('restore-save').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus(); });
+$('restore-cancel').addEventListener('click', () => { showRestore(); importState('Kept what is on this device.'); });
+$('restore-yes').addEventListener('click', () => {
+  const r = restoreBackup({ storage: store });
+  importState(r.ok ? 'Restored. This device has the earlier save; what was here is now the earlier save.' : `${r.error} Nothing was changed.`, { bad: !r.ok });
+  refresh(); showRestore();
+});
 settingsDlg.addEventListener('close', () => importState(''));
+showRestore();
 
 // ---------------------------------------------------------------- title music: normal mood, after the first gesture
 import('../engine/music.js').then((m) => { m.setMood('normal'); m.start(); api.music = () => m.musicState(); }).catch(() => { /* no sound: the title still works */ });
