@@ -344,7 +344,7 @@ export async function runProbe(world, k) {
     if (k.empty) await world.exec(`TRUNCATE ${Object.keys(r.cat.tables).map(quoteIdent).join(', ')} CASCADE`);
     for (const p of k.steps) {
       let sql;
-      try { sql = p.insert ? insertSql(r.t, r.map, p.insert) : fillSql(p.query, k.table, r.map); } catch (e) { verdict = { ok: false, why: `${k.table} has ${String(e.message)}` }; break; }
+      try { sql = p.insert ? insertSql(r.t, r.map, p.insert) : fillSql(p.query, k.table, r.map); } catch (e) { const role = /no column for (\w+)/.exec(e.message)?.[1]; verdict = { ok: false, why: `${k.table} needs a column for ${ROLE_WORDS[role] || role}` }; break; }
       await world.exec('SAVEPOINT probe');
       let rows = null, code = null, msg = '';
       try { const res = await world.exec(sql); rows = res.filter((x) => x.fields?.length).pop()?.rows || []; } catch (e) { code = e?.code || 'error'; msg = String(e?.message ?? e); }
