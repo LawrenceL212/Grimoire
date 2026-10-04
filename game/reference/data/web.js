@@ -1,0 +1,45 @@
+// web.js: HTML and CSS reference entries. "Try it" draws the example in a sandboxed frame (no scripts, no network).
+// `expect` says in words what you see; `check` is the machine test of that claim: every {sel, text?, attr?, css?}
+// must hold in the drawn page (scripts/browser/test_reference.mjs).
+const E = (id, category, name, signature, summary, example, expect, check, mistake, see) => ({
+  id: `web-${id}`, lang: 'web', category, name, signature, summary, example, expect, check, mistake, see: see.map((s) => `web-${s}`),
+});
+
+export const WEB = [
+  E('form', 'HTML', '<form>', '<form action="/save" method="post"> ... </form>', 'Wraps fields and a button. Pressing the button sends the fields to the address in action.',
+    '<form action="/save" method="post">\n  <input name="who">\n  <button>Send</button>\n</form>',
+    'A text box and a Send button.', [{ sel: 'form[method=post] input[name=who]' }, { sel: 'form button', text: 'Send' }],
+    'Fields with no name attribute. They look fine but are never sent.', ['input', 'label', 'button']),
+  E('input', 'HTML', '<input>', '<input type="..." name="...">', 'One field. The type picks what kind: text, email, number, date, checkbox, password.',
+    '<input type="email" name="email" placeholder="you@example.com" required>\n<input type="number" name="seats" min="1" max="20">',
+    'An email box and a number box.', [{ sel: 'input[type=email][required]' }, { sel: 'input[type=number][max="20"]' }],
+    'Trusting required, min and max alone. The browser checks them for friendliness; the server must check again.', ['label', 'form']),
+  E('label', 'HTML', '<label>', '<label for="id">Text</label>', 'Names a field. Clicking the label focuses the field, and screen readers read it out.',
+    '<label for="who">Your name</label>\n<input id="who" name="who">',
+    'The words "Your name" next to a text box.', [{ sel: 'label[for=who]', text: 'Your name' }, { sel: 'input#who' }],
+    'Using placeholder instead of a label. The hint vanishes as you type and is not a proper name for the field.', ['input', 'form']),
+  E('button', 'HTML', '<button>', '<button type="submit">Text</button>', 'A clickable button. Inside a form it sends the form unless type="button".',
+    '<button type="button">Cancel</button>\n<button type="submit">Save</button>',
+    'Two buttons, Cancel and Save.', [{ sel: 'button[type=button]', text: 'Cancel' }, { sel: 'button[type=submit]', text: 'Save' }],
+    'Forgetting type="button" on a button that should not send the form. In a form it defaults to submit.', ['form', 'link']),
+  E('link', 'HTML', '<a> link', '<a href="address">text</a>', 'A link to another page or address.',
+    '<a href="/rooms">All rooms</a>',
+    'Underlined text "All rooms" that goes to /rooms.', [{ sel: 'a[href="/rooms"]', text: 'All rooms' }],
+    'Using a link to do an action such as delete. Links go places; use a button in a form for actions.', ['button']),
+  E('list', 'HTML', '<ul> / <li>', '<ul><li>item</li></ul>', 'A bulleted list. <ol> numbers it instead.',
+    '<ul>\n  <li>Studio</li>\n  <li>Garden</li>\n</ul>',
+    'A list of two bulleted items.', [{ sel: 'ul > li', text: 'Studio' }, { sel: 'ul li:nth-child(2)', text: 'Garden' }],
+    'Putting text directly inside <ul>. Only <li> goes there.', ['css-class']),
+  E('css-class', 'CSS', 'Class selector', '.name { property: value; }', 'Styles every element that has class="name".',
+    '<style>\n  .alert { color: red; font-weight: bold; }\n</style>\n<p class="alert">Clash found</p>',
+    'The words "Clash found" in bold red.', [{ sel: 'p.alert', css: { color: 'rgb(255, 0, 0)', 'font-weight': '700' } }],
+    'Writing .alert in the stylesheet but id="alert" in the HTML. A dot means class, a # means id.', ['box-model', 'flex']),
+  E('box-model', 'CSS', 'padding / margin', 'padding: 8px;  margin: 8px;', 'padding is space inside an element, around its content. margin is space outside it, between neighbours.',
+    '<style>\n  .card { padding: 10px; margin: 20px; border: 1px solid black; }\n</style>\n<div class="card">Hi</div>',
+    'A bordered box with room inside it and space round it.', [{ sel: '.card', css: { 'padding-top': '10px', 'margin-top': '20px' } }],
+    'Adding padding and finding the box got wider. Padding grows the box unless box-sizing: border-box is set.', ['css-class', 'flex']),
+  E('flex', 'CSS', 'display: flex', '.row { display: flex; gap: 8px; }', 'Lays an element\'s children out in a row, with an even gap.',
+    '<style>\n  .row { display: flex; gap: 8px; }\n</style>\n<div class="row"><span>A</span><span>B</span><span>C</span></div>',
+    'A, B and C side by side in a row.', [{ sel: '.row', css: { display: 'flex', 'column-gap': '8px' } }],
+    'Putting display: flex on the children. It goes on the parent, the container.', ['css-class', 'box-model']),
+];
