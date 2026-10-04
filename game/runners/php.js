@@ -1,4 +1,5 @@
 import { TABLES } from '../world/views.js';
+import { getSandbox } from '../sandbox/client.js';
 
 /* PHP cannot reach a Postgres server in the browser, so the learner works on a
    SQLite copy of the world through PDO and the result is written back. The
@@ -10,13 +11,13 @@ import { TABLES } from '../world/views.js';
    run must start on a pristine runtime: after each run the runtime is reset
    with PhpWeb.refresh() (pib_refresh, which shuts PHP down and starts it again
    inside the same WebAssembly module). The reset happens in the background
-   after a run, so the next run only waits for it if it comes very quickly. */
+   after a run, so the next run only waits for it if it comes very quickly.
 
-// Pinned: php-wasm 0.1.0 is what the unversioned URL resolved to on 2026-09-30.
-const PHP_WASM_VERSION = '0.1.0';
-const SRC = `https://cdn.jsdelivr.net/npm/php-wasm@${PHP_WASM_VERSION}/PhpWeb.mjs`;
-const SQLITE = 'https://cdn.jsdelivr.net/npm/php-wasm-sqlite@0.1.0/index.mjs';
-const READY_TIMEOUT_MS = 60000;
+   The runtime itself lives in a Worker inside a sandboxed iframe (game/sandbox/host.js, which pins php-wasm and
+   php-wasm-sqlite at 0.1.0). This module builds the PHP script and reads the result; the script travels as the
+   request's `code`. */
+
+const RUN_TIMEOUT_MS = 8000;
 
 const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
 // A fresh marker per run, so nothing the learner prints can be mistaken for it.
@@ -62,53 +63,23 @@ set_time_limit(2);
 })();`;
 
 export async function createPhpRunner() {
-  const { PhpWeb } = await import(SRC);
-  const { default: sqlite } = await import(SQLITE);
-  let out = '';
-  let err = '';
-
-  async function start() {
-    const php = new PhpWeb({ version: '8.4', sharedLibs: [sqlite] });
-    php.addEventListener('output', (e) => { out += (e.detail || []).join(''); });
-    php.addEventListener('error', (e) => { err += (e.detail || []).join(''); });
-    await new Promise((resolve, reject) => {
-      php.addEventListener('ready', resolve);
-      setTimeout(() => reject(new Error('PHP runtime never became ready')), READY_TIMEOUT_MS);
-    });
-    return php;
-  }
-
-  let php = await start();
-  // Resolves when `php` is pristine. If a reset fails, a new runtime replaces it.
-  let pristine = Promise.resolve();
-  const replace = () => start().then((p) => { php = p; });
+  const sandbox = getSandbox();
+  await sandbox.warm('php');
 
   async function runOnce(code, world) {
-    try { await pristine; } catch { pristine = replace(); await pristine; }
-    out = '';
-    err = '';
     const sentinel = makeSentinel();
-    try { await php.run(wrap(code, world, sentinel)); } catch (e) { err += String((e && e.message) || e); }
-    const stdout = out;
-    const stderr = err;
-    pristine = php.refresh().catch(replace);
-
+    const res = await sandbox.run('php', wrap(code, world, sentinel), { timeoutMs: RUN_TIMEOUT_MS });
+    if (res.timedOut) return { ok: false, stdout: '', error: `Timed out after ${RUN_TIMEOUT_MS} ms. Does a loop never finish?`, timedOut: true };
+    if (!res.ok) return { ok: false, stdout: '', error: res.error || 'PHP did not finish' };
+    const stdout = res.stdout;
     const i = stdout.indexOf(sentinel);
-    if (i === -1) return { ok: false, stdout, error: (stderr || stdout || 'PHP did not finish').trim() };
+    if (i === -1) return { ok: false, stdout, error: ((res.stderr) || stdout || 'PHP did not finish').trim() };
     try {
       return { ok: true, stdout: stdout.slice(0, i), world: JSON.parse(stdout.slice(i + sentinel.length)) };
-    } catch (e) {
+    } catch {
       return { ok: false, stdout, error: 'PHP returned data the game could not read.' };
     }
   }
 
-  // Single flight: runs share one runtime and one output buffer, so they queue.
-  let queue = Promise.resolve();
-  return {
-    run(code, world) {
-      const next = queue.then(() => runOnce(code, world));
-      queue = next.catch(() => {});
-      return next;
-    },
-  };
+  return { run: (code, world) => runOnce(code, world) }; // the sandbox queues runs, one at a time
 }
