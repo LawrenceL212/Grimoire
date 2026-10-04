@@ -11,6 +11,8 @@
 //     readLocal()  -> { life, spells } | null            writeLocal({ life, spells })      (see local.js)
 //   returns { start(), notifyChange(), flush(), syncNow(), onStatus(fn), onNotice(fn), notices(), status(), hasBackend, stop() }
 //   writeLocal may return false (the local write failed): the cycle then ends in 'error', never 'synced'.
+//   writeLocal may return 'held' (the page that owns the save is open and would overwrite it: session.js): the local write is
+//   skipped on purpose, the merge is still PUSHED, the cycle ends 'synced' with detail 'held' and nothing is retried.
 //   onNotice(fn): fn(string) for things worth telling the player, from the merge (a purchase set aside...) and the gate.
 //
 //   start()         run one cycle now and listen for pagehide / visibilitychange(hidden) (flush) and online / offline
@@ -90,26 +92,31 @@ export function createSync({
     const local = state ? toDoc(state, { now: now() }) : null;
     const m = mergeDetailed(local, remote, { now: now() });
     const merged = m.doc;
+    let held = false;
     if (merged) {
       if (!local || !same(merged, local)) {
         const back = fromDoc(merged, { now: now() });
-        if (!back.ok || writeLocal(back.state) === false) throw new Error('the merged save could not be stored on this device');
+        const w = back.ok ? writeLocal(back.state) : false;
+        if (w === 'held') held = true;
+        else if (w === false) throw new Error('the merged save could not be stored on this device');
       }
       if (!remote || !same(merged, remote)) await (version === undefined ? backend.push(merged) : backend.push(merged, { expectVersion: version }));
     }
     tell(m.notices);
+    return held;
   }
   async function once() {
     if (!isOnline()) { setStatus('offline'); return { ok: false, offline: true }; }
     setStatus('syncing');
     try {
+      let held = false;
       for (let n = 0; ; n++) {
-        try { await attempt(); break; } catch (e) { if (!(e && e.conflict) || n >= MAX_CONFLICTS) throw e; }
+        try { held = await attempt(); break; } catch (e) { if (!(e && e.conflict) || n >= MAX_CONFLICTS) throw e; }
       }
       retries = 0;
       if (retryT) { clearTimer(retryT); retryT = null; }
-      setStatus('synced');
-      return { ok: true };
+      setStatus('synced', held ? 'held' : '');
+      return { ok: true, held };
     } catch (e) {
       setStatus(isOnline() ? 'error' : 'offline', String(e?.message || e));
       return { ok: false, error: String(e?.message || e) };

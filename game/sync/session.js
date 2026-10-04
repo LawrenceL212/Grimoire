@@ -12,14 +12,14 @@
 // stored here; Firebase keeps the session itself.
 import { createSync } from './engine.js';
 import { localAdapter } from './local.js';
-import * as fileMod from './file.js';
-const { exportSave } = fileMod;
+import { exportSave } from './file.js';
+import { restoreBackup as restoreLocalBackup, backupInfo } from './local.js';
 import { fromDoc } from './doc.js';
 import { createStatusChip } from './status.js';
 import { LIFE_KEY } from '../play/progress.js';
 import { hasSave, localStore } from '../title/saves.js';
 
-export const KEYS = Object.freeze({ lastUid: 'grimoire.sync.lastUid.v1', hint: 'grimoire.sync.hint.v1', backup: 'grimoire.life.siso.v1.backup' });
+export const KEYS = Object.freeze({ lastUid: 'grimoire.sync.lastUid.v1', hint: 'grimoire.sync.hint.v1', backup: 'grimoire.life.siso.v1.backup' }); // the backup key is kept by local.js
 const RELOAD = 'A newer game from another device is ready: reload to use it';
 
 export function toast(msg, doc = globalThis.document) {
@@ -37,7 +37,7 @@ export function toast(msg, doc = globalThis.document) {
 }
 
 export function createSession({ fb, storage = localStore(), local = localAdapter(storage), onToast = toast, now = () => Date.now(), engineOptions = {} } = {}) {
-  let eng = null, acct = null, live = false, toasted = false, cur = 'idle', curDetail = '', offStatus = null;
+  let eng = null, acct = null, live = false, toasted = false, cur = 'idle', curDetail = '', offStatus = null, held = false;
   // one status source for the chips, whichever engine is attached now (the chip may be mounted before there is one)
   const listeners = new Set();
   const source = {
@@ -48,12 +48,11 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
   const get = (k) => { try { return storage ? storage.getItem(k) : null; } catch { return null; } };
   const set = (k, v) => { try { if (v == null) storage?.removeItem(k); else storage?.setItem(k, v); } catch { /* storage off */ } };
 
-  const backupLocal = () => { const raw = get(LIFE_KEY); if (raw) set(KEYS.backup, raw); };
-  // the engine writes local only through here: pre-merge copy first; once the play page holds its life in memory a write
-  // would be overwritten by its next save, so it is held back and the player is told to reload (the cloud has the merge)
+  // the engine writes local only through here (local.js keeps the pre-merge copy). Once the play page holds its life in
+  // memory a write would be overwritten by its next save, so it is HELD: the merge is still pushed, the player is told
+  // to reload, and the engine does not count it as a failure.
   const writeLocal = (state) => {
-    if (live) { if (!toasted) { toasted = true; onToast(RELOAD); } return false; }
-    backupLocal();
+    if (live) { if (!toasted) { toasted = true; onToast(RELOAD); } return 'held'; }
     return local.writeLocal(state);
   };
   function attach(account) {
@@ -63,15 +62,18 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
     set(KEYS.hint, '1');
     const backend = fb.firebaseBackend(account.uid);
     eng = createSync({ backend, readLocal: local.readLocal, writeLocal, now, ...engineOptions });
-    offStatus = eng.onStatus(emit);
+    held = false;
+    offStatus = eng.onStatus((st, d) => {
+      if (st === 'synced') set(KEYS.lastUid, account.uid);   // the save belongs to this account from its first success
+      if (st === 'synced' && d === 'held') held = true;
+      emit(st === 'synced' && held ? 'held' : st, d);
+    });
     return eng;
   }
   const mountChip = (parent) => { const c = createStatusChip(source); parent.appendChild(c); return c; };
   async function start(account) {
     const e = attach(account);
-    const res = await e.start();
-    if (res && res.ok) set(KEYS.lastUid, account.uid);
-    return res;
+    return e.start();
   }
 
   async function connect(account, choice) {
@@ -83,20 +85,21 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
       let remote;
       try { remote = await fb.firebaseBackend(account.uid).pull(); } catch (e) { return { ok: false, error: (e && e.message) || 'No connection', account }; }
       if (lastUid != null || remote != null) {
-        if (choice !== 'aside' && choice !== 'merge') return { needsChoice: true, account };
-        backupLocal();
+        if (choice !== 'aside' && choice !== 'merge') return { needsChoice: true, account, hasCloud: remote != null };
         if (choice === 'aside') {
+          // setting the local game aside only makes sense when there is a cloud game to keep: never wipe for nothing
+          if (remote == null) return { ok: false, error: 'This account has no cloud game yet, so there is nothing to keep. Upload your game instead.', account };
           const f = exportSave({ readLocal: local.readLocal });
           backupFile = f.ok ? f : null;
-          const back = remote ? fromDoc(remote, { now: now() }) : null;
-          if (remote && !back.ok) return { ok: false, error: 'The cloud game could not be read. Nothing was changed.', account };
-          if (back) local.writeLocal(back.state); else set(LIFE_KEY, null);
+          const back = fromDoc(remote, { now: now() });
+          if (!back.ok) return { ok: false, error: 'The cloud game could not be read. Nothing was changed.', account };
+          if (local.writeLocal(back.state) === false) return { ok: false, error: 'This device could not store the cloud game, so nothing was changed.', account };
           set(KEYS.lastUid, account.uid);
         }
       }
     }
     const res = await start(account);
-    return { ok: true, account, backupFile, synced: !!(res && res.ok), error: res && res.ok ? '' : ((res && res.error) || '') };
+    return { ok: true, account, backupFile, synced: !!(res && res.ok), held: !!(res && res.held), error: res && res.ok ? '' : ((res && res.error) || '') };
   }
   async function disconnect() {
     if (eng) eng.stop();
@@ -105,17 +108,8 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
     set(KEYS.hint, null);            // stop loading the SDK at startup; lastUid stays, so another account is noticed
     return fb.signOutNow();
   }
-  const hasBackup = () => !!get(KEYS.backup);
-  function restoreBackup() {
-    if (typeof fileMod.restoreBackup === 'function') { // the file module's helper, once it exists (same backup key)
-      try { const r = fileMod.restoreBackup(); if (r && r.ok !== undefined) return r; } catch { /* fall through to ours */ }
-    }
-    const raw = get(KEYS.backup);
-    if (!raw) return { ok: false, error: 'There is no earlier save to restore.' };
-    set(KEYS.backup, get(LIFE_KEY));  // one level: what is here now becomes the backup, so a restore can be undone too
-    set(LIFE_KEY, raw);
-    return { ok: true };
-  }
+  const hasBackup = () => !!backupInfo(storage);
+  const restoreBackup = () => restoreLocalBackup({ storage, now });
   return {
     connect, disconnect, restoreBackup, hasBackup,
     syncNow: () => (eng ? eng.syncNow() : Promise.resolve({ ok: false, skipped: true })),
@@ -142,8 +136,7 @@ export async function bootPlaySync({ timeoutMs = 3000, fb } = {}) {
       // only the account this save last synced with is synced here: anything else needs the title screen's choice
       if (!account || account.uid !== s.lastUid()) return;
       const e = s.attach(account);
-      const res = await e.start();
-      if (res && res.ok) { try { storage.setItem(KEYS.lastUid, account.uid); } catch { /* ignore */ } }
+      await e.start();
     })().catch(() => {});
     await Promise.race([work, new Promise((r) => setTimeout(r, timeoutMs))]);
     s.goLive();

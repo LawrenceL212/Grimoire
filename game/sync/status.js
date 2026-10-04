@@ -9,6 +9,7 @@ export const STATUS_TEXT = Object.freeze({
   offline: { text: 'Offline: saved on this device', tone: 'warn' },
   syncing: { text: 'Syncing...', tone: 'busy' },
   synced: { text: 'Saved to the cloud', tone: 'ok' },
+  held: { text: 'A newer game is ready: reload to use it', tone: 'ok' },
   error: { text: 'Could not sync: will retry', tone: 'warn' },
 });
 export const describeStatus = (s) => STATUS_TEXT[s] || STATUS_TEXT.idle;

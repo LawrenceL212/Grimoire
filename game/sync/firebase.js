@@ -32,7 +32,8 @@ const MESSAGES = {
   'auth/network-request-failed': OFFLINE,
   'unavailable': OFFLINE,
   'deadline-exceeded': OFFLINE,
-  'permission-denied': 'The cloud refused this save. Sign out and sign in again',
+  'permission-denied': 'The cloud refused this save. Sign out and sign in again, or check that the Firestore rules are published',
+  'invalid-remote': 'The game in your account could not be read, so nothing was uploaded',
   'unauthenticated': 'You are signed out. Sign in again to sync',
   'resource-exhausted': 'The cloud is busy. It will try again soon',
   'sdk-load': OFFLINE,
@@ -41,7 +42,7 @@ export function mapError(e) {
   const code = String(e?.code || '').replace(/^firestore\//, '');
   if (MESSAGES[code]) return MESSAGES[code];
   const msg = String(e?.message || e || '');
-  if (/offline|network|fetch|Failed to load|import/i.test(msg)) return OFFLINE;
+  if (/offline|network|failed to (fetch|load)/i.test(msg)) return OFFLINE;
   return 'Something went wrong. Your game is safe on this device';
 }
 const fail = (e) => ({ ok: false, error: mapError(e) });
@@ -54,7 +55,10 @@ export function loadSdk(importer = (u) => import(/* @vite-ignore */ u)) {
     try {
       const [app, fa, fs] = await Promise.all([importer(`${BASE}firebase-app.js`), importer(`${BASE}firebase-auth.js`), importer(`${BASE}firebase-firestore.js`)]);
       const a = app.initializeApp(FIREBASE_CONFIG);
-      return { auth: fa.getAuth(a), db: fs.getFirestore(a), fa, fs };
+      const auth = fa.getAuth(a);
+      // the same persistence as library.html, so the Library and the game can share one login
+      try { if (fa.setPersistence && fa.browserLocalPersistence) await fa.setPersistence(auth, fa.browserLocalPersistence); } catch { /* the default persistence is fine */ }
+      return { auth, db: fs.getFirestore(a), fa, fs };
     } catch (e) { sdkP = null; const err = new Error('sdk-load'); err.code = 'sdk-load'; err.cause = e; throw err; }
   })();
   return sdkP;
@@ -119,7 +123,11 @@ export function firebaseBackend(uid, { store = sdkStore(), now = () => Date.now(
       try {
         await store.transact(path, (current) => {
           let remote = null;
-          if (current != null) { const r = checkDoc(current, { now: now() }); if (r.ok) remote = r.doc; }
+          if (current != null) {
+            const r = checkDoc(current, { now: now() });
+            if (!r.ok) throw Object.assign(new Error('invalid remote'), { code: 'invalid-remote' }); // never overwrite what cannot be read
+            remote = r.doc;
+          }
           const merged = mergeSaves(doc, remote, { now: now() }) || doc;
           return exact(merged);
         });

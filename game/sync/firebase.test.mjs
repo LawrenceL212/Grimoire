@@ -66,11 +66,11 @@ test('push merges a concurrent remote change instead of overwriting it', async (
   assert.equal(xpOf(out.state.life), 20);
 });
 
-test('a corrupt remote document does not block a push', async () => {
+test('a corrupt remote document is never overwritten by a push', async () => {
   const st = fakeStore();
   st.docs.set('games/u1', { schema: 99, junk: true });
-  await firebaseBackend('u1', { store: st, now: () => NOW }).push(A().doc());
-  assert.equal(st.docs.get('games/u1').schema, 1);
+  await assert.rejects(firebaseBackend('u1', { store: st, now: () => NOW }).push(A().doc()), /could not be read/);
+  assert.equal(st.docs.get('games/u1').schema, 99);
 });
 
 test('error mapping is plain English', () => {
