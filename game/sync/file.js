@@ -6,8 +6,8 @@
 //        before a Replace, so the player sees what would be lost)
 //   fileTooBig(bytes)     check File.size BEFORE reading the file; the cap (MAX_BYTES) is on bytes, not characters
 //   applyImport(text, { mode = 'merge', confirmed, readLocal?, writeLocal?, now? }) -> { ok, mode, error?, changed, notices[] }
-//        The default writer (local.js) keeps the previous save as a backup first, so any import can be undone with
-//        restoreBackup().
+//        The default writer (local.js) keeps the previous save in the MANUAL backup slot first (the sync engine never
+//        touches that slot), so any import can be undone with restoreBackup().
 //        merge (the default, recommended): the file and this device's save are merged (merge.js): neither loses anything
 //        replace: this device's save becomes the file; the CALLER must have asked the player and passes confirmed: true,
 //                 otherwise nothing happens
@@ -18,6 +18,8 @@
 import { checkDoc, toDoc, fromDoc, canon, MAX_BYTES } from './doc.js';
 import { mergeDetailed } from './merge.js';
 import { localAdapter } from './local.js';
+import { localStore } from '../title/saves.js';
+import { LIFE_KEY } from '../play/progress.js';
 
 const DAY = 86400000;
 const pad = (n) => String(n).padStart(2, '0');
@@ -52,12 +54,23 @@ export const summaryOf = (doc) => {
   };
 };
 
-export function localSummary({ readLocal = localAdapter().readLocal, now = Date.now } = {}) {
+export function localSummary({ readLocal = localAdapter().readLocal, now = Date.now, storage = localStore() } = {}) {
   try {
     const state = readLocal();
     const doc = state ? toDoc(state, { now: now() }) : null;
-    return doc ? summaryOf(doc) : null;
+    if (doc) return summaryOf(doc);
+    // something is stored but it cannot be read: say so (the next write keeps a backup of it)
+    let raw = null; try { raw = state ? 'x' : storage?.getItem(LIFE_KEY); } catch { raw = null; }
+    return raw ? { unreadable: true } : null;
   } catch { return null; }
+}
+
+// one line for a summary, for the screen
+export function describeSummary(s) {
+  const n = (v, w) => `${v} ${w}${v === 1 ? '' : 's'}`;
+  if (!s) return 'no game yet';
+  if (s.unreadable) return 'unreadable save (a backup will be kept)';
+  return `${n(s.daysInBusiness, 'day')} in business, ${n(s.solves, 'ticket')} solved, ${n(s.spells, 'spell')} written, £${s.balance} saved`;
 }
 
 export function previewImport(text, { now = Date.now } = {}) {
@@ -82,7 +95,7 @@ export function applyImport(text, { mode = 'merge', confirmed = false, readLocal
     const changed = !local || canon(local.siso) !== canon(next.siso);
     if (changed) {
       const back = fromDoc(next, { now: now() });
-      if (!back.ok || ad.writeLocal(back.state) === false) return fail('This device could not store the save. Nothing was changed.');
+      if (!back.ok || ad.writeLocal(back.state, { slot: 'manual' }) === false) return fail('This device could not store the save. Nothing was changed.');
     }
     return { ok: true, mode, changed, notices };
   } catch (e) {

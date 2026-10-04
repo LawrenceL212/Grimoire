@@ -58,7 +58,7 @@ test('CRITICAL 2: an unreadable local save is backed up before it is overwritten
   assert.equal(S.getItem(SPELLS_BACKUP), '{"where":{"written":true}}');
   const S2 = store({ [LIFE]: 'garbage' });
   assert.equal(localAdapter(S2).writeLocal(played('T02').state()), true);
-  assert.equal(S2.getItem(LIFE_BACKUP), 'garbage');
+  assert.equal(S2.getItem('grimoire.life.siso.v1.autobackup'), 'garbage'); // an engine write goes to the AUTO slot
 });
 
 test('CRITICAL 2: if the backup cannot be stored, nothing is overwritten', () => {
@@ -99,4 +99,73 @@ test('localSummary matches the file summary shape; merge reports notices', () =>
   assert.equal(localSummary({ readLocal: () => null }), null);
   const r = applyImport(exportOf(played('T04')), { readLocal: localAdapter(S).readLocal, writeLocal: localAdapter(S).writeLocal, now: () => NOW });
   assert.ok(Array.isArray(r.notices));
+});
+
+// ---- round 2: two backup slots
+import { backupNow, backupSlots, SLOTS } from './local.js';
+import { createSync, memoryBackend } from './engine.js';
+import { hasSave, saveKeysIn } from '../title/saves.js';
+const AUTO = 'grimoire.life.siso.v1.autobackup';
+
+test('SLOTS: the manual slot survives any number of engine writes after a Replace; the auto slot takes the engine writes', async () => {
+  const S = store(); const clockNow = () => NOW;
+  const ad = localAdapter(S, { now: clockNow });
+  save(S, played('T02', 'T03', 'T04'));
+  const original = S.getItem(LIFE);
+  // a (wrong) Replace by the player: the manual slot keeps the original
+  const r = applyImport(exportOf(played('T06')), { mode: 'replace', confirmed: true, readLocal: ad.readLocal, writeLocal: ad.writeLocal, now: clockNow });
+  assert.ok(r.ok);
+  assert.equal(S.getItem(LIFE_BACKUP), original);
+  // three engine writes, each bringing something new from the cloud
+  for (const [i, id] of ['T08', 'T10', 'T11'].entries()) {
+    const other = played(id); const cloud = memoryBackend({ doc: other.doc() });
+    const sync = createSync({ backend: cloud, readLocal: ad.readLocal, writeLocal: (st) => ad.writeLocal(st), now: clockNow, listen: false, setTimer: () => 1, clearTimer: () => {} });
+    await sync.start();
+    assert.equal(sync.status(), 'synced', `engine write ${i}`);
+  }
+  assert.equal(S.getItem(LIFE_BACKUP), original, 'the manual slot is untouched by the engine');
+  assert.ok(S.getItem(AUTO), 'the engine wrote to the auto slot');
+  assert.notEqual(S.getItem(AUTO), original);
+  const live = S.getItem(LIFE);
+  assert.ok(restoreBackup({ storage: S, now: clockNow }).ok);          // default slot: manual
+  assert.equal(S.getItem(LIFE), original);
+  assert.equal(S.getItem(LIFE_BACKUP), live);                           // undoable
+  const slots = backupSlots(S);
+  assert.ok(slots.manual && slots.auto && slots.manual.at === NOW);
+  // restoring the auto slot is its own undoable swap
+  const beforeAuto = S.getItem(LIFE), autoRaw = S.getItem(AUTO);
+  assert.ok(restoreBackup({ storage: S, slot: 'auto' }).ok);
+  assert.equal(S.getItem(LIFE), autoRaw);
+  assert.equal(S.getItem(AUTO), beforeAuto);
+});
+
+test('backupNow copies the live life and spells into a slot (manual by default); false when nothing is live or storage refuses', () => {
+  const S = store({ 'grimoire.spells.v1': '{"a":1}' });
+  assert.equal(backupNow(S), false);
+  save(S, played('T02'));
+  const live = S.getItem(LIFE);
+  assert.equal(backupNow(S, { now: () => 77 }), true);
+  assert.equal(S.getItem(LIFE_BACKUP), live);
+  assert.equal(S.getItem(SPELLS_BACKUP), '{"a":1}');
+  assert.equal(S.getItem(BACKUP_AT), '77');
+  assert.equal(backupNow(S, { slot: 'auto', now: () => 78 }), true);
+  assert.equal(S.getItem(AUTO), live);
+  assert.equal(S.getItem(SLOTS.auto.at), '78');
+  store.deny = /backup/;
+  try { assert.equal(backupNow(S), false); } finally { store.deny = null; }
+});
+
+test('saves.js ignores every backup key: they make no Continue and are not cleared as a save', () => {
+  const S = store({ [LIFE_BACKUP]: '{"v":1}', [BACKUP_AT]: '1', [AUTO]: '{"v":1}', [`${AUTO}.at`]: '1', 'grimoire.spells.v1.autobackup': '{}' });
+  assert.deepEqual(saveKeysIn(S), []);
+  assert.equal(hasSave(S), false);
+});
+
+test('localSummary says an unreadable save is unreadable, not "no game yet"', async () => {
+  const { describeSummary } = await import('./file.js');
+  const S = store({ [LIFE]: '{ broken' });
+  const s = localSummary({ readLocal: localAdapter(S).readLocal, storage: S });
+  assert.deepEqual(s, { unreadable: true });
+  assert.equal(describeSummary(s), 'unreadable save (a backup will be kept)');
+  assert.equal(describeSummary(localSummary({ readLocal: () => null, storage: store() })), 'no game yet');
 });
