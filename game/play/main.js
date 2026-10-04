@@ -36,7 +36,8 @@ import { createHome } from './home.js';
 
 const CLOCK = '2026-01-01T08:45:00Z'; // the office clock on Day 1: who is sitting where comes from the bookings running now
 const LANGS = { sql: 'SQL', js: 'JavaScript', php: 'PHP' };
-const FILES = { sql: 'bookings.sql', js: 'bookings.js', php: 'bookings.php' };
+const EXT = { sql: 'sql', js: 'js', php: 'php' };
+let fileBase = 'bookings'; // the editor's tab names the file the step is about (the chapter sets it: rooms, practice-pad...)
 const STARTERS = {
   sql: '-- write SQL here\n',
   js: '// `world.bookings` is an array. Change it, then run.\n',
@@ -134,10 +135,11 @@ function setLang(next) {
   for (const b of tabs) { const on = b.dataset.lang === next; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
   if (!editor.value.trim() || Object.values(STARTERS).includes(editor.value)) editor.value = STARTERS[next];
   editor.lang = next;
-  $('#code-file').textContent = FILES[next];
+  $('#code-file').textContent = `${fileBase}.${EXT[next]}`;
   $('#code-note').textContent = next === 'php' ? PHP_NOTE : '';
   $('#code-note').hidden = next !== 'php';
 }
+function setFile(base) { fileBase = String(base || 'bookings'); $('#code-file').textContent = `${fileBase}.${EXT[lang]}`; }
 for (const b of tabs) b.addEventListener('click', () => setLang(b.dataset.lang));
 $('#run').addEventListener('click', () => (chapter ? chapter.run() : onRun()));
 $('#reset').addEventListener('click', () => (chapter ? chapter.reset() : onReset()));
@@ -348,7 +350,7 @@ if (MODE === 'ticket') {
   const ctx = {
     play, app, hud, wins, life, editor, sound, RM, $, esc, show, rowsTable, setBusy, fitTicket, hudHeight,
     get office() { return office; }, get story() { return story; }, get stage() { return stage; }, glDown: () => glDown,
-    setLang, get lang() { return lang; }, tabs, showState: (s) => hud.set(s), homeSync: () => home?.sync(),
+    setLang, setFile, get lang() { return lang; }, tabs, showState: (s) => hud.set(s), homeSync: () => home?.sync(),
   };
   try {
     const { createChapter } = await import('./chapter.js');
