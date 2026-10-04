@@ -38,7 +38,7 @@ function phone(d, backend, clk, extra = {}) {
 }
 
 test('no backend: the game just plays, status idle, nothing throws, local untouched', async () => {
-  const d = device(); d.solve(card('X'), { at: T0 + H });
+  const d = device(); d.solve(card('T03'), { at: T0 + H });
   const box = { state: d.state() };
   const sync = createSync({ readLocal: () => box.state, writeLocal: () => { throw new Error('must not write'); }, now: () => NOW, listen: false });
   const seen = []; sync.onStatus((s) => seen.push(s));
@@ -50,9 +50,9 @@ test('no backend: the game just plays, status idle, nothing throws, local untouc
 test('two-device simulation converges to the same save, with no double credit', async () => {
   const cloud = memoryBackend(), clk = clock();
   const a = device(), b = device();
-  a.solve(card('X'), { at: T0 + H, casts: ['where'] });
-  b.solve(card('Y'), { at: T0 + 2 * H, casts: ['select-all'] });
-  b.solve(card('X'), { at: T0 + 3 * H });                  // the same card again on B: a re-solve after A's
+  a.solve(card('T03'), { at: T0 + H, casts: ['where'] });
+  b.solve(card('T04'), { at: T0 + 2 * H, casts: ['select-all'] });
+  b.solve(card('T03'), { at: T0 + 3 * H });                  // the same card again on B: a re-solve after A's
   const A = phone(a, cloud, clock()), B = phone(b, cloud, clk);
   await A.sync.start();                                     // cloud had nothing: A's save goes up
   assert.ok(cloud.doc);
@@ -67,7 +67,7 @@ test('two-device simulation converges to the same save, with no double credit', 
 
 test('local is never lowered by a stale remote', async () => {
   const stale = device(); const cloud = memoryBackend({ doc: stale.doc() });
-  const a = device(); a.solve(card('X'), { at: T0 + H }); a.solve(card('Y'), { at: T0 + 2 * H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H }); a.solve(card('T04'), { at: T0 + 2 * H });
   const A = phone(a, cloud, clock());
   await A.sync.start();
   assert.equal(xpOf(A.box.state.life), 20);
@@ -75,7 +75,7 @@ test('local is never lowered by a stale remote', async () => {
 });
 
 test('a new device (no local save) takes the cloud save; with nothing anywhere nothing is written', async () => {
-  const a = device(); a.solve(card('X'), { at: T0 + H }); a.solve(card('Y'), { at: T0 + 2 * H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H }); a.solve(card('T04'), { at: T0 + 2 * H });
   const cloud = memoryBackend({ doc: a.doc() });
   const box = { state: null };
   const sync = createSync({ backend: cloud, readLocal: () => box.state, writeLocal: (s) => { box.state = s; }, now: () => NOW, listen: false });
@@ -89,12 +89,12 @@ test('a new device (no local save) takes the cloud save; with nothing anywhere n
 
 test('offline, then back online: the progress made offline is pushed', async () => {
   const cloud = memoryBackend(), clk = clock(), off = { v: false };
-  const a = device(); a.solve(card('X'), { at: T0 + H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H });
   const A = phone(a, cloud, clk, { offline: off });
   await A.sync.start();
   assert.equal(A.sync.status(), 'synced');
   off.v = true; cloud.setOnline(false);
-  a.solve(card('Y'), { at: T0 + 2 * H }); A.box.state = a.state();
+  a.solve(card('T04'), { at: T0 + 2 * H }); A.box.state = a.state();
   A.sync.notifyChange();
   await clk.advance(5000);
   assert.equal(A.sync.status(), 'offline');
@@ -107,16 +107,16 @@ test('offline, then back online: the progress made offline is pushed', async () 
 
 test('debounce: a burst of changes is one push after 5 s; flush pushes at once', async () => {
   const cloud = memoryBackend(), clk = clock();
-  const a = device(); a.solve(card('X'), { at: T0 + H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H });
   const A = phone(a, cloud, clk);
   await A.sync.start();
   const base = cloud.pushes;
-  for (let i = 0; i < 5; i++) { a.solve(card('C' + i), { at: T0 + (i + 2) * H }); A.box.state = a.state(); A.sync.notifyChange(); await clk.advance(1000); }
+  for (let i = 0; i < 5; i++) { a.solve(card(['T06', 'T08', 'T10', 'T11', 'T13'][i]), { at: T0 + (i + 2) * H }); A.box.state = a.state(); A.sync.notifyChange(); await clk.advance(1000); }
   assert.equal(cloud.pushes, base);                          // 5 s of quiet has not passed since the last change
   await clk.advance(4001);
   assert.equal(cloud.pushes, base + 1);
   assert.equal(xpOf(cloud.doc.siso.life), 60);
-  a.solve(card('LATE'), { at: T0 + 20 * H }); A.box.state = a.state(); A.sync.notifyChange();
+  a.solve(card('T16'), { at: T0 + 20 * H }); A.box.state = a.state(); A.sync.notifyChange();
   await A.sync.flush();                                      // pagehide: no waiting
   assert.equal(cloud.pushes, base + 2);
   assert.equal(xpOf(cloud.doc.siso.life), 70);
@@ -126,7 +126,7 @@ test('debounce: a burst of changes is one push after 5 s; flush pushes at once',
 
 test('failures retry with backoff 1 s doubling to 60 s, never throw, and recover', async () => {
   const cloud = memoryBackend(), clk = clock();
-  const a = device(); a.solve(card('X'), { at: T0 + H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H });
   const A = phone(a, cloud, clk);
   const seen = []; A.sync.onStatus((s) => seen.push(s));
   cloud.failNext(8);
@@ -143,7 +143,7 @@ test('failures retry with backoff 1 s doubling to 60 s, never throw, and recover
 });
 
 test('a broken backend, a throwing writeLocal and a garbage remote never throw into the caller', async () => {
-  const clk = clock(), a = device(); a.solve(card('X'), { at: T0 + H });
+  const clk = clock(), a = device(); a.solve(card('T03'), { at: T0 + H });
   const boom = { pull: () => { throw new Error('sync pull'); }, push: async () => { throw new Error('x'); } };
   const s1 = createSync({ backend: boom, readLocal: () => a.state(), writeLocal: () => {}, now: () => NOW, setTimer: clk.setTimer, clearTimer: clk.clearTimer, listen: false });
   await assert.doesNotReject(s1.start());
@@ -152,28 +152,28 @@ test('a broken backend, a throwing writeLocal and a garbage remote never throw i
   const s2 = createSync({ backend: garbage, readLocal: () => a.state(), writeLocal: () => { throw new Error('must not write'); }, now: () => NOW, setTimer: clk.setTimer, clearTimer: clk.clearTimer, listen: false });
   await assert.doesNotReject(s2.start());
   assert.equal(s2.status(), 'error');
-  const other = device(); other.solve(card('Y'), { at: T0 + 2 * H });
+  const other = device(); other.solve(card('T04'), { at: T0 + 2 * H });
   const s3 = createSync({ backend: memoryBackend({ doc: other.doc() }), readLocal: () => a.state(), writeLocal: () => { throw new Error('disk full'); }, now: () => NOW, setTimer: clk.setTimer, clearTimer: clk.clearTimer, listen: false });
   await assert.doesNotReject(s3.start());
   assert.equal(s3.status(), 'error');
 });
 
 test('progress made while a pull is in flight is not overwritten', async () => {
-  const a = device(); a.solve(card('X'), { at: T0 + H });
-  const other = device(); other.solve(card('Y'), { at: T0 + 2 * H });
+  const a = device(); a.solve(card('T03'), { at: T0 + H });
+  const other = device(); other.solve(card('T04'), { at: T0 + 2 * H });
   const box = { state: a.state() };
   let release;
   const slow = { async pull() { await new Promise((r) => { release = r; }); return other.doc(); }, async push() {} };
   const s = createSync({ backend: slow, readLocal: () => box.state, writeLocal: (st) => { box.state = st; }, now: () => NOW, listen: false });
   const run = s.start();
   await settle();
-  a.solve(card('Z'), { at: T0 + 3 * H }); box.state = a.state(); // the player solves while we wait
+  a.solve(card('T14'), { at: T0 + 3 * H }); box.state = a.state(); // the player solves while we wait
   release(); await run;
   assert.equal(xpOf(box.state.life), 30);
 });
 
 test('status events and unsubscribe', async () => {
-  const cloud = memoryBackend(), a = device(); a.solve(card('X'), { at: T0 + H });
+  const cloud = memoryBackend(), a = device(); a.solve(card('T03'), { at: T0 + H });
   const A = phone(a, cloud, clock());
   const seen = []; const off = A.sync.onStatus((s) => seen.push(s));
   await A.sync.start();

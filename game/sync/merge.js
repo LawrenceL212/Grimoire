@@ -21,19 +21,32 @@
 //             get stricter, never be reopened by a merge); highMs the max (time never goes backwards), and never
 //             before the latest solve.
 //  spells     per spell: written ONLY if a record that is written (backed by an unaided, non-demo cast; spells.js writes
-//             nothing else) exists on one side. If both are written, the record with the later lastMs wins, and the
-//             stability is never below the larger of the two. If one is written, that one wins (the other side's
-//             pencil marks do not erase ink; its "assisted" mark is kept). If neither is written, the result is not
-//             written (never invent ink); introduced languages are joined and a demonstration stays a demonstration.
-//             Per-language forms follow the same rule.
-//  home       the side with the higher purchase counter `seq` wins (ties: the later document updatedAt, then a stable
-//             text order, so it never depends on the argument order). Its balance is topped up ONLY by what the
-//             merged solves earned beyond that side's own solves, then cleanHome clamps the balance and drops
-//             anything unaffordable against the merged earnings: nothing can exceed what the merged solves earned.
-//             seq becomes the larger of the two so the counter never goes back.
-//  updatedAt  the later of the two.
+//             nothing else) exists on one side, and the merged doc still holds a real unaided solve that could have cast it
+//             (doc.js: otherwise the spell goes back to pencil). If both are written, the WHOLE record with the later
+//             lastMs wins and keeps its own stability (a stability is never paired with the other record's lastMs). Raising
+//             it to the other's when that one was unaided ink is NOT done: with `assisted` ORed (help is never forgotten)
+//             the "was it unaided" fact is lost after one merge, so such a raise would depend on the order of merging
+//             (checked by the three-way fuzz in harden.test.mjs). `assisted` is the OR of both. If one is written, that one wins (the other side's pencil marks do not erase
+//             ink; its "assisted" mark is kept). If neither is written, the result is not written (never invent ink);
+//             introduced languages are joined and a demonstration stays a demonstration. Forms follow the same rule.
+//  home       a pure TOTAL ORDER on the home itself, so the result never depends on argument order or grouping: the home
+//             with the higher purchase counter `seq` wins, ties go to the stable canonical text of its items (the stamp is
+//             the home's own content, so it travels inside the merged doc with no extra field). The balance is carried as
+//             "slack" = balance minus what that side's solves earned (what it had spent), and the merged balance is the
+//             winner's slack (the best among exact ties) plus what the merged solves earned, floored at 0. So each solve is
+//             paid once however the devices are merged, and a purchase made on the losing device is set aside with its
+//             money returned (a notice says so). PURCHASES ARE NEVER DELETED because merged earnings fell (the earliest
+//             solve of a card earns, so a guided first solve on one device can cancel a later clean one on another):
+//             the items are kept, the balance is floored at 0, and a notice says so. doc.js bounds the items by what the
+//             solves could have earned, so a forged home still cannot mint furniture.
+//  updatedAt  the later of the two (a stamp only; it decides nothing).
+//  A card marked "worked" (help recorded on the CARD) can still have its first solve unaided and paid when that solve was
+//  made before the help was taken, on another device: the credit belongs to the solve and the help to the card, exactly
+//  as on one device where a replay after the solve can raise the card's help. That is acceptable: the credit was earned
+//  clean at the time, and no later help ever raises or repeats it.
+//  Notices: mergeDetailed() returns { doc, notices[] }; mergeSaves() returns just the doc.
 import { cleanLife, CREDIT } from '../play/progress.js';
-import { earnedOf } from '../play/home-rules.js';
+import { earnedOf, priceOf } from '../play/home-rules.js';
 import { cleanSpellRecord } from '../play/spells.js';
 import { checkDoc, canon } from './doc.js';
 
@@ -66,7 +79,7 @@ function mergeCards(a, b) {
 function mergeSolves(sa, sb) {
   const byKey = new Map();
   for (const s of [...sa, ...sb]) {
-    const k = `${s.card}\u0000${s.atMs}`, o = byKey.get(k);
+    const k = `${s.card}\u0000${s.atMs}|${s.practice ? 1 : 0}`, o = byKey.get(k);
     byKey.set(k, !o ? { ...s } : {
       ...o, help: worse(o.help, s.help), unaided: o.unaided && s.unaided, practice: o.practice || s.practice,
       xp: Math.min(o.xp, s.xp), lang: o.lang < s.lang ? o.lang : s.lang,
@@ -84,10 +97,10 @@ function mergeSolves(sa, sb) {
 
 // ---- spells
 // the later cast wins; a tie falls to the larger stability, then to a stable text order
-const ahead = (x, y) => (x.lastMs !== y.lastMs ? (x.lastMs > y.lastMs ? x : y) : x.stability !== y.stability ? (x.stability > y.stability ? x : y) : byText(x, y) >= 0 ? x : y);
+const ahead = (x, y) => (x.lastMs !== y.lastMs ? (x.lastMs > y.lastMs ? x : y) : x.stability !== y.stability ? (x.stability > y.stability ? x : y) : byText({ ...x, assisted: 0 }, { ...y, assisted: 0 }) >= 0 ? x : y);
 function mergeForm(x, y) {
   if (!x || !y) return { ...(x || y) };
-  if (x.written && y.written) return { ...ahead(x, y), written: true, stability: Math.max(x.stability, y.stability) };
+  if (x.written && y.written) return { ...ahead(x, y), written: true };
   if (x.written) return { ...x };
   if (y.written) return { ...y };
   return { written: false, lastMs: latest(x.lastMs, y.lastMs), stability: Math.max(x.stability, y.stability) };
@@ -97,11 +110,13 @@ const normRec = (r) => { if (r.written) return r; const c = structuredClone(r); 
 function mergeRec(x0, y0) {
   if (!x0 || !y0) return structuredClone(x0 || y0);
   const x = normRec(x0), y = normRec(y0);
+  const assisted = x.assisted || y.assisted;
   let out;
-  if (x.written && y.written) { const w = ahead(x, y); out = { ...w, written: true, stability: Math.max(x.stability, y.stability) }; }
-  else if (x.written) out = { ...x, assisted: x.assisted || y.assisted };
-  else if (y.written) out = { ...y, assisted: x.assisted || y.assisted };
-  else out = { written: false, demo: x.demo || y.demo, assisted: x.assisted || y.assisted, lastMs: latest(x.lastMs, y.lastMs), stability: Math.max(x.stability, y.stability) };
+  if (x.written && y.written) {
+    out = { ...ahead(x, y), written: true, assisted };
+  } else if (x.written) out = { ...x, assisted };
+  else if (y.written) out = { ...y, assisted };
+  else out = { written: false, demo: x.demo || y.demo, assisted, lastMs: latest(x.lastMs, y.lastMs), stability: Math.max(x.stability, y.stability) };
   out.langs = LANGS.filter((l) => x.langs.includes(l) || y.langs.includes(l));
   out.forms = {};
   for (const l of LANGS) if (x.forms[l] || y.forms[l]) out.forms[l] = mergeForm(x.forms[l], y.forms[l]);
@@ -113,17 +128,29 @@ function mergeSpells(a, b) {
   return out;
 }
 
-// ---- home: the side with the higher seq, topped up only by what the merged solves earned beyond its own
-function pickHome(A, B) {
-  const ha = A.siso.life.home, hb = B.siso.life.home;
-  const c = ha.seq - hb.seq || A.updatedAt - B.updatedAt || byText(ha, hb);
-  return c >= 0 ? { home: ha, life: A.siso.life } : { home: hb, life: B.siso.life };
+// ---- home: a total order on (seq, items); the balance travels as slack
+const homeKey = (h) => canon(h.items);
+const worthOf = (items) => items.reduce((n, it) => n + (it.starter ? 0 : priceOf(it.id)), 0);
+const boughtIds = (h) => h.items.filter((i) => !i.starter).map((i) => i.id).sort();
+function pickHome(sides) {
+  let best = [];
+  for (const s of sides) {
+    const h = s.life.home;
+    let c = 1;
+    if (best.length) { const g = best[0].life.home; c = h.seq - g.seq || (homeKey(h) < homeKey(g) ? -1 : homeKey(h) > homeKey(g) ? 1 : 0); }
+    if (c > 0) best = [s]; else if (c === 0) best.push(s);
+  }
+  return best;
 }
 
-export function mergeSaves(a, b, { now } = {}) {
+export const NOTICE_SPENT = 'Your fix on another device had earned money earlier; your purchases were kept.';
+export const NOTICE_SET_ASIDE = 'A purchase made on your other device was set aside, and its money returned.';
+
+export function mergeDetailed(a, b, { now } = {}) {
   const ra = a == null ? null : checkDoc(a, { now }), rb = b == null ? null : checkDoc(b, { now });
   const A = ra?.ok ? ra.doc : null, B = rb?.ok ? rb.doc : null;
-  if (!A || !B) return structuredClone(A || B || null);
+  const notices = [...(ra?.ok ? ra.notices : []), ...(rb?.ok ? rb.notices : [])];
+  if (!A || !B) return { doc: structuredClone(A || B || null), notices: [...new Set(notices)] };
   const la = A.siso.life, lb = B.siso.life;
 
   const days = {};
@@ -136,12 +163,21 @@ export function mergeSaves(a, b, { now } = {}) {
     tutorial: { done: la.tutorial.done || lb.tutorial.done, step: Math.max(la.tutorial.step, lb.tutorial.step), skipped: [...new Set([...la.tutorial.skipped, ...lb.tutorial.skipped])].sort() },
     cards: mergeCards(la.cards, lb.cards), solves, days,
   };
-  // the chosen home gains only the earnings its own solves did not already hold
-  const pick = pickHome(A, B);
   const earned = earnedOf(cleanLife({ ...life, home: null }, 0).solves); // what the merged solves earn, by the table
-  const delta = Math.max(0, earned - earnedOf(pick.life.solves));
-  life.home = { ...structuredClone(pick.home), seq: Math.max(la.home.seq, lb.home.seq), balance: pick.home.balance + delta };
+  const winners = pickHome([{ life: la }, { life: lb }]);
+  const slack = Math.max(...winners.map((s) => s.life.home.balance - earnedOf(s.life.solves)));
+  life.home = { ...structuredClone(winners[0].life.home), balance: Math.max(0, slack + earned) };
 
   const r = checkDoc({ schema: 1, updatedAt: Math.max(A.updatedAt, B.updatedAt), siso: { life, spells: mergeSpells(A.siso.spells, B.siso.spells) } }, { now });
-  return r.ok ? r.doc : structuredClone(A); // cannot happen for valid inputs; never return something unchecked
+  if (!r.ok) return { doc: structuredClone(A), notices: [...new Set(notices)] }; // cannot happen for valid inputs; never return something unchecked
+  if (worthOf(r.doc.siso.life.home.items) > earnedOf(r.doc.siso.life.solves)) notices.push(NOTICE_SPENT);
+  const kept = boughtIds(r.doc.siso.life.home);
+  for (const l of [la, lb]) {
+    const mine = [...kept];
+    const lost = boughtIds(l.home).some((id) => { const k = mine.indexOf(id); if (k < 0) return true; mine.splice(k, 1); return false; });
+    if (lost) { notices.push(NOTICE_SET_ASIDE); break; }
+  }
+  return { doc: r.doc, notices: [...new Set([...notices, ...r.notices])] };
 }
+
+export const mergeSaves = (a, b, opts) => mergeDetailed(a, b, opts).doc;

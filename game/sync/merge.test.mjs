@@ -7,7 +7,7 @@ import { earnedOf } from '../play/home-rules.js';
 import { device, card, T0, NOW } from './_kit.mjs';
 
 const H = 3600000;
-const X = card('X'), Y = card('Y'), Z = card('Z');
+const X = card('T03'), Y = card('T04'), Z = card('T14');
 const xp = (doc) => xpOf(doc.siso.life);
 const merge = (a, b) => mergeSaves(a, b, { now: NOW });
 const written = (doc, id) => doc.siso.spells[id]?.written === true;
@@ -15,9 +15,9 @@ const written = (doc, id) => doc.siso.spells[id]?.written === true;
 function pair() {
   const a = device(), b = device();
   a.solve(X, { at: T0 + H, casts: ['where'] });
-  a.help('Z', { hint: 2 });
+  a.help('T14', { hint: 2 });
   b.solve(Y, { at: T0 + 2 * H, casts: ['select-all'] });
-  b.help('Z', { worked: true });
+  b.help('T14', { worked: true });
   return [a, b];
 }
 
@@ -56,13 +56,13 @@ test('the same card solved on both devices pays once', () => {
 
 test('help is sticky across devices (cards: worst hint, worked, codexEarly, furthest step)', () => {
   const a = device(), b = device();
-  a.help('X', { hint: 2 }); b.help('X', { worked: true }); b.help('Y', { codexEarly: true });
+  a.help('T03', { hint: 2 }); b.help('T03', { worked: true }); b.help('T04', { codexEarly: true });
   const m = merge(a.doc(), b.doc());
-  assert.equal(m.siso.life.cards.X.hint, 2);
-  assert.equal(m.siso.life.cards.X.worked, true);
-  assert.equal(m.siso.life.cards.Y.codexEarly, true);
-  const a2 = device(); a2.help('X', { hint: 3 });
-  assert.equal(merge(a.doc(), a2.doc()).siso.life.cards.X.hint, 3);
+  assert.equal(m.siso.life.cards.T03.hint, 2);
+  assert.equal(m.siso.life.cards.T03.worked, true);
+  assert.equal(m.siso.life.cards.T04.codexEarly, true);
+  const a2 = device(); a2.help('T03', { hint: 3 });
+  assert.equal(merge(a.doc(), a2.doc()).siso.life.cards.T03.hint, 3);
 });
 
 test('tutorial: done if either; days and highMs: never lower', () => {
@@ -74,22 +74,22 @@ test('tutorial: done if either; days and highMs: never lower', () => {
   assert.equal(m.siso.life.tutorial.step, 3);
   assert.equal(m.siso.life.highMs, Math.max(a.life.highMs, b.life.highMs));
   assert.equal(m.siso.life.startedMs, T0);
-  assert.deepEqual(Object.values(m.siso.life.days)[0], ['X', 'Y']);
+  assert.deepEqual(Object.values(m.siso.life.days)[0], ['T03', 'T04']);
 });
 
 test('the same card clean on one device and assisted on the other: the earlier solve decides, never both', () => {
   // assisted first (B at T0+H), clean later (A at T0+2H): assisted credit, and the later clean cannot upgrade it
   let a = device(), b = device();
-  a.solve(X, { at: T0 + 2 * H, help: 'clean' }); b.help('X', { hint: 2 }); b.solve(X, { at: T0 + H, help: 'guided' });
+  a.solve(X, { at: T0 + 2 * H, help: 'clean' }); b.help('T03', { hint: 2 }); b.solve(X, { at: T0 + H, help: 'guided' });
   let m = merge(a.doc(), b.doc());
   assert.equal(xp(m), 3);
   assert.equal(earnedOf(m.siso.life.solves), 0);
   assert.equal(balanceOf(m.siso.life), 0);
-  assert.equal(m.siso.life.cards.X.hint, 2); // and the help is remembered
+  assert.equal(m.siso.life.cards.T03.hint, 2); // and the help is remembered
   assert.deepEqual(merge(b.doc(), a.doc()), m);
   // clean first (A at T0+H): its credit, once, and never 10 + 3
   a = device(); b = device();
-  a.solve(X, { at: T0 + H, help: 'clean' }); b.help('X', { hint: 2 }); b.solve(X, { at: T0 + 2 * H, help: 'guided' });
+  a.solve(X, { at: T0 + H, help: 'clean' }); b.help('T03', { hint: 2 }); b.solve(X, { at: T0 + 2 * H, help: 'guided' });
   m = merge(a.doc(), b.doc());
   assert.equal(xp(m), 10);
   assert.ok(xp(m) <= Math.max(xpOf(a.life), xpOf(b.life)), 'never above the best one device earned');
@@ -140,9 +140,9 @@ test('a demonstration is never merged into ink', () => {
 
 test('home: the side with more purchases wins, topped up by earnings it lacked, never above what was earned', () => {
   const a = device(), b = device();
-  for (let i = 0; i < 3; i++) a.solve(card('A' + i), { at: T0 + (i + 1) * H }); // 120 pounds
+  for (let i = 0; i < 3; i++) a.solve(card(['T08', 'T10', 'T11'][i]), { at: T0 + (i + 1) * H }); // 120 pounds
   assert.ok(a.buy('laptop').ok && a.buy('office-chair').ok);                    // spends 105: balance 15
-  b.solve(card('B0'), { at: T0 + 9 * H });                                      // 40 pounds
+  b.solve(card('T13'), { at: T0 + 9 * H });                                      // 40 pounds
   const m = merge(a.doc(), b.doc());
   const home = m.siso.life.home;
   assert.equal(earnedOf(m.siso.life.solves), 160);

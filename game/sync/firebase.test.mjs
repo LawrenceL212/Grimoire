@@ -22,8 +22,8 @@ function fakeStore({ fail = null } = {}) {
   };
   return s;
 }
-const A = () => { const d = device(); d.solve(card('c1'), { at: T0 + H }); return d; };
-const B = () => { const d = device(); d.solve(card('c2'), { at: T0 + 2 * H }); return d; };
+const A = () => { const d = device(); d.solve(card('T02'), { at: T0 + H }); return d; };
+const B = () => { const d = device(); d.solve(card('T03'), { at: T0 + 2 * H }); return d; };
 
 test('pull of a missing document is null', async () => {
   const b = firebaseBackend('u1', { store: fakeStore(), now: () => NOW });
@@ -62,7 +62,7 @@ test('push merges a concurrent remote change instead of overwriting it', async (
   await b.push(a.doc());
   const out = fromDoc(st.docs.get('games/u1'), { now: NOW });
   assert.ok(out.ok);
-  assert.deepEqual(out.state.life.solves.map((s) => s.card).sort(), ['c1', 'c2']);
+  assert.deepEqual(out.state.life.solves.map((s) => s.card).sort(), ['T02', 'T03']);
   assert.equal(xpOf(out.state.life), 20);
 });
 
@@ -102,6 +102,6 @@ test('the engine over the backend: two devices converge through the cloud', asyn
   const mk = (d) => { let state = d.state(); return { sync: createSync({ backend: firebaseBackend('u1', { store: st, now: () => NOW }), readLocal: () => state, writeLocal: (s) => { state = s; }, now: () => NOW, listen: false, setTimer: () => 0, clearTimer: () => {} }), get: () => state }; };
   const x = mk(A()), y = mk(B());
   await x.sync.syncNow(); await y.sync.syncNow(); await x.sync.syncNow();
-  assert.deepEqual(x.get().life.solves.map((s) => s.card).sort(), ['c1', 'c2']);
-  assert.deepEqual(y.get().life.solves.map((s) => s.card).sort(), ['c1', 'c2']);
+  assert.deepEqual(x.get().life.solves.map((s) => s.card).sort(), ['T02', 'T03']);
+  assert.deepEqual(y.get().life.solves.map((s) => s.card).sort(), ['T02', 'T03']);
 });

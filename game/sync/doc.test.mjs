@@ -4,7 +4,7 @@ import { checkDoc, toDoc, fromDoc, MAX_BYTES, canon } from './doc.js';
 import { device, card, T0, NOW } from './_kit.mjs';
 
 const H = 3600000;
-const played = () => { const d = device(); d.solve(card('X'), { at: T0 + H, casts: ['where'] }); d.help('Y', { hint: 1 }); return d; };
+const played = () => { const d = device(); d.solve(card('T03'), { at: T0 + H, casts: ['where'] }); d.help('T04', { hint: 1 }); return d; };
 
 test('toDoc gives exactly the three top-level keys, and fromDoc gives the state back', () => {
   const d = played();
@@ -37,7 +37,7 @@ test('a tampered doc is clamped by the existing validators', () => {
   t.siso.life.solves[0].xp = 1e6;
   t.siso.life.solves.push({ card: 'FUT', atMs: NOW + 1e12, help: 'clean', unaided: true, xp: 10, lang: 'sql' });
   t.siso.life.home.balance = -10; t.siso.life.home.items.push({ uid: 'z', id: 'sofa', tone: null, x: null, z: null, rot: 0 });
-  t.siso.life.cards.X = { hint: 99, worked: 'yes', evil: 1 };
+  t.siso.life.cards.T03 = { hint: 99, worked: 'yes', evil: 1 };
   t.siso.life.cards['__proto__'] = { hint: 4 };
   t.siso.spells.where.lastMs = NOW + 1e12;
   t.siso.spells.where.stability = 1e12;
@@ -50,10 +50,10 @@ test('a tampered doc is clamped by the existing validators', () => {
   assert.ok(L.solves.length === 1 && L.solves[0].xp <= 10);
   assert.equal(L.home.balance, 0);
   assert.equal(L.home.items.some((i) => i.id === 'sofa'), false);
-  assert.equal(L.cards.X.hint, 4);
-  assert.ok(!('evil' in L.cards.X));
+  assert.equal(L.cards.T03.hint, 4);
+  assert.ok(!('evil' in L.cards.T03));
   assert.ok(Object.getPrototypeOf(L.cards) === Object.prototype && !Object.keys(L.cards).includes('__proto__'));
-  assert.equal(r.doc.siso.spells.where.written, false); // a "written in the future" spell is not written
+  assert.ok(r.doc.siso.spells.where.lastMs <= NOW + 36 * H); // a time in the future is set back, never kept
   assert.ok(!('notASpell' in r.doc.siso.spells));
   assert.ok(r.doc.updatedAt <= NOW + 36 * H && L.highMs <= NOW + 36 * H);
 });
