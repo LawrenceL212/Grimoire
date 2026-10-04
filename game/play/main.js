@@ -332,7 +332,7 @@ play.sound = sound;
 
 setBusy(true);
 await startScene();
-home = createHome({ L: life, hud, app, getOffice: () => office, getStage: () => stage, rects: () => wins.rects(), hudHeight, RM });
+home = createHome({ L: life, hud, app, wins, getOffice: () => office, getStage: () => stage, rects: () => wins.rects(), hudHeight, RM });
 play.home = home;
 if (MODE === 'ticket') {
   await loadWorld();

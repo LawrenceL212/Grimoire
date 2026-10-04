@@ -10,11 +10,13 @@
 //     apply(result)     a result of home-rules.js (buy, sell, place, ...): ok -> stored in the life and shown; returns the result
 //     sync()            the balance chip and the room follow the life (the chapter calls it after a solve)
 //     view              the 3D room (null until the first visit)
+//     shop, edit        the shop window and edit mode (home-ui.js); selected: the uid picked up in edit mode
 //   }
 
+import { createHomeUi } from './home-ui.js';
 // (home-view.js, which needs three, is loaded with a dynamic import on the first visit, so a missing WebGL never stops the page)
 const FADE_MS = 220;
-export function createHome({ L, hud, app, getOffice, getStage, rects, hudHeight, RM = false, onMode } = {}) {
+export function createHome({ L, hud, app, wins, getOffice, getStage, rects, hudHeight, RM = false, onMode } = {}) {
   let mode = 'office', view = null, busy = null;
   const api = {
     get mode() { return mode; },
@@ -23,6 +25,7 @@ export function createHome({ L, hud, app, getOffice, getStage, rects, hudHeight,
     sync() {
       hud.setBalance(L.life.home.balance);
       view?.sync(L.life.home.items, api.selected ?? null);
+      api.ui?.render();
     },
     apply(result) {
       if (result?.ok && result.home) { L.life = { ...L.life, home: result.home }; api.sync(); }
@@ -39,6 +42,7 @@ export function createHome({ L, hud, app, getOffice, getStage, rects, hudHeight,
         const fade = document.getElementById('home-fade');
         const dim = async (on) => { if (RM || !fade) return; fade.classList.toggle('on', on); await new Promise((r) => setTimeout(r, FADE_MS)); };
         await dim(true);
+        if (next === 'office') api.onLeave?.();
         mode = next;
         if (office) {
           if (next === 'home') {
@@ -59,6 +63,8 @@ export function createHome({ L, hud, app, getOffice, getStage, rects, hudHeight,
       await busy; busy = null;
     },
   };
+  api.ui = wins ? createHomeUi({ home: api, hud, wins, app, getStage }) : null;
+  api.shop = api.ui?.shop; api.edit = api.ui?.edit;
   api.sync();
   return api;
 }

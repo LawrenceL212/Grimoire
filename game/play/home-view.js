@@ -6,7 +6,7 @@
 //     show(on)                  visible or not
 //     sync(items, selectedUid)  rebuild the furniture from home.items (placed ones only); a gold footprint marks the selected
 //     pick(x, y, camera, canvas) -> uid | null          the furniture under a screen point
-//     ground(x, y, camera, canvas) -> { x, z } | null   the floor point under a screen point
+//     ground(x, y, camera, canvas, height = 0) -> { x, z } | null   the point of the floor (or of a desk top at `height`) under a screen point
 //     setCursor(spot | null)    a green (ok) or red (refused) footprint under the pointer
 //     dispose()
 //   }
@@ -90,8 +90,9 @@ export function createHomeView(stage) {
     const hit = ray.intersectObjects([...objects.values()], true).find((h) => h.object.userData.homeUid);
     return hit ? hit.object.userData.homeUid : null;
   }
-  function ground(x, y, camera, canvas) {
+  function ground(x, y, camera, canvas, height = 0) {
     aim(x, y, camera, canvas);
+    plane.constant = -height;
     const p = ray.ray.intersectPlane(plane, new THREE.Vector3());
     return p ? { x: p.x, z: p.z } : null;
   }
