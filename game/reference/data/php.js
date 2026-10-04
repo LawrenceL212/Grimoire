@@ -92,7 +92,7 @@ export const PHP = [
     '3.14 3 1 9', 'Dividing integers with / and expecting a whole number: 7 / 2 is 3.5. Use intdiv.', ['sprintf', 'variables']),
   E('str-replace', 'Strings', 'str_replace / substr', 'str_replace(find, replace, $text),  substr($text, start, length)', 'Swap one piece of text for another, or cut out part of a string.',
     "echo str_replace('cat', 'dog', 'the cat sat'), ' ';\necho substr('Dune', 0, 3);",
-    'the dog sat Stu', 'Mixing up the argument order of str_replace: find, replace, then the text.', ['string-functions', 'explode-implode']),
+    'the dog sat Dun', 'Mixing up the argument order of str_replace: find, replace, then the text.', ['string-functions', 'explode-implode']),
   E('isset-empty', 'Basics', 'isset / empty', 'isset($x), empty($x)', 'isset: the variable or key exists and is not null. empty: it is missing, null, 0, "" or an empty array.',
     "$form = ['qty' => '0', 'note' => ''];\nvar_dump(isset($form['qty']), isset($form['gone']));\nvar_dump(empty($form['qty']), empty($form['note']));",
     'bool(true)\nbool(false)\nbool(true)\nbool(true)', 'Using empty() on a quantity: the text "0" counts as empty, so a real 0 looks like nothing was entered.', ['null-coalesce', 'get-post']),

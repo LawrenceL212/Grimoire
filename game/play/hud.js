@@ -7,7 +7,7 @@
 //       rule as NO_OVERLAP_SQL: same room, a.start < b.end and b.start < a.end); level = 1 + xp / 100.
 //       (state.js deriveState is the source; this wraps it.)
 //   clashingRooms(objects) -> Set of room ids with an overlap (pure)
-//   createHud(el, { onReset, onTweak, onFocus, onGrimoire?, onHome, onShop, onEdit }) -> { set(counters), setClock(text), setBusy(on), setFocus(on),
+//   createHud(el, { onReset, onTweak, onFocus, onGrimoire?, onLibrary?, onHome, onShop, onEdit }) -> { set(counters), setClock(text), setBusy(on), setFocus(on),
 //     setBalance(n), setHome(on), setEdit(on), setShop(on) }   (the balance chip and the Home / Shop / Edit buttons: home.js)
 import { get as tget, onThemeChange } from '../engine/theme.js';
 import { clashPairs } from './bridge.js';
@@ -31,7 +31,7 @@ const ICON = {
 };
 const LABEL = { bookings: 'Bookings', revenue: 'Revenue', reputation: 'Reputation', tickets: 'Open tickets', xp: 'XP', balance: 'Balance' };
 
-export function createHud(el, { onReset, onTweak, onFocus, onGrimoire, onHome, onShop, onEdit } = {}) {
+export function createHud(el, { onReset, onTweak, onFocus, onGrimoire, onLibrary, onHome, onShop, onEdit } = {}) {
   el.innerHTML = `
     <div class="counters" role="group" aria-label="Your company">
       ${Object.keys(LABEL).map((k) => `<div class="ctr" data-ctr="${k}">${ICON[k]}<span class="lbl">${LABEL[k]}</span><b>–</b>${k === 'xp' ? '<small class="lvl">Lv 1</small>' : ''}</div>`).join('')}
@@ -40,6 +40,7 @@ export function createHud(el, { onReset, onTweak, onFocus, onGrimoire, onHome, o
       <div class="clock" id="hud-clock" title="The office clock">Day 1</div>
       <div class="warn" id="hud-warn" role="status" aria-label="No open tickets"><i></i></div>
       <button type="button" class="hud-btn" id="hud-grimoire" title="Open the Grimoire, your book of spells" aria-label="Grimoire" aria-expanded="false" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5M9 8.5h6"/></svg><span>Grimoire</span></button>
+      <button type="button" class="hud-btn" id="hud-library" title="The Library: look up any statement, function or operator, any time. It is documentation, free to use" aria-label="Library" aria-expanded="false" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5"/></svg><span>Library</span></button>
       <button type="button" class="hud-btn" id="hud-home" aria-pressed="false" title="Go home to your room, or back to the office">Home</button>
       <button type="button" class="hud-btn" id="hud-shop" aria-expanded="false" aria-haspopup="dialog" title="The furniture shop">Shop</button>
       <button type="button" class="hud-btn" id="hud-edit" aria-pressed="false" title="Move, turn, sell and recolour your furniture" hidden>Edit</button>
@@ -56,6 +57,8 @@ export function createHud(el, { onReset, onTweak, onFocus, onGrimoire, onHome, o
   q('#hud-focus').addEventListener('click', () => onFocus?.());
   // the Grimoire: opened here (lazily) unless the page passes its own handler
   q('#hud-grimoire').addEventListener('click', () => (onGrimoire ? onGrimoire() : import('./grimoire.js').then((m) => m.grimoire().toggle())));
+  // the Library: a lookup panel (reference/panel.js), opened lazily; free to open, it touches no credit or help
+  q('#hud-library').addEventListener('click', () => (onLibrary ? onLibrary() : import('../reference/panel.js').then((m) => m.reference().toggle())));
   const scale = () => el.style.setProperty('--hud-scale', String(tget('ui.hudScale') || 1));
   onThemeChange((p) => { if (!p || p === 'ui.hudScale') scale(); });
   scale();

@@ -157,6 +157,6 @@ export const SQL = [
     "CREATE TABLE pet (id int, name text);\nCREATE INDEX pet_name_idx ON pet (name);\nSELECT indexname FROM pg_indexes WHERE tablename = 'pet';",
     'indexname\npet_name_idx', 'Indexing every column. Each index slows writes and takes space; index what you search and join on.', ['explain', 'primary-key']),
   E('explain', 'Performance', 'EXPLAIN', 'EXPLAIN SELECT ...', 'Shows how PostgreSQL plans to run a query, without running it.',
-    'EXPLAIN SELECT * FROM fruit WHERE id = 3;',
+    "EXPLAIN SELECT * FROM fruit WHERE name = 'cherry';",
     'QUERY PLAN\nSeq Scan on fruit', 'Reading too much into costs on a tiny table. With few rows a plain scan is the cheapest plan.', ['create-index', 'where'], { setup: FRUIT, loose: true }),
 ];

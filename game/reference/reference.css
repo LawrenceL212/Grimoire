@@ -1,0 +1,77 @@
+/* reference.css: the Library drawer (panel.js). Docked at the right under the HUD, no backdrop, so the game stays usable
+   with it open. Short rows, one idea per block, generous spacing: quick to scan. Phone: it fills the screen. */
+.rf-panel {
+  --rf-bg: #1d1915; --rf-ink: #14110f; --rf-text: #efe6d2; --rf-muted: color-mix(in srgb, #efe6d2 66%, transparent);
+  --rf-gold: #d9a441; --rf-line: color-mix(in srgb, #d9a441 28%, #2c241d); --rf-ok: #6fbf8b; --rf-bad: #e2574c;
+  --rf-mono: "Cascadia Mono", Consolas, ui-monospace, "SF Mono", Menlo, monospace;
+  position: fixed; z-index: 39; right: 12px; top: 72px; bottom: 12px; width: min(440px, calc(100vw - 24px));
+  display: flex; flex-direction: column; min-height: 0; color: var(--rf-text); background: var(--rf-bg);
+  border: 1px solid var(--rf-line); border-radius: 14px; box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+  font: 15px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  opacity: 0; transform: translateX(14px); transition: opacity .18s ease, transform .18s ease;
+}
+.rf-panel.is-open { opacity: 1; transform: none; }
+.rf-panel[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .rf-panel { transition: none; } }
+.rf-panel button { font: inherit; color: inherit; cursor: pointer; }
+.rf-panel button:focus-visible, .rf-panel input:focus-visible, .rf-panel summary:focus-visible { outline: 2px solid var(--rf-gold); outline-offset: 2px; }
+
+.rf-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px 8px; }
+.rf-head h2 { margin: 0; font-size: 18px; letter-spacing: .04em; color: var(--rf-gold); }
+.rf-free { flex: 1; font-size: 12px; color: var(--rf-muted); }
+.rf-close { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--rf-line); background: none; font-size: 20px; line-height: 1; }
+.rf-close:hover { border-color: var(--rf-gold); }
+
+.rf-tabs { display: flex; gap: 6px; padding: 0 14px 8px; flex-wrap: wrap; }
+.rf-tab { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--rf-line); background: none; font-weight: 600; font-size: 13px; }
+.rf-tab:hover { border-color: var(--rf-gold); }
+.rf-tab.is-on { background: var(--rf-gold); color: var(--rf-ink); border-color: var(--rf-gold); }
+
+.rf-browse { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 14px 12px; gap: 8px; }
+.rf-browse[hidden], .rf-entry[hidden] { display: none; }
+.rf-search { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--rf-line); background: var(--rf-ink); color: var(--rf-text); font: inherit; }
+.rf-search::placeholder { color: var(--rf-muted); }
+.rf-cats, .rf-recent-list, .rf-see { display: flex; gap: 6px; flex-wrap: wrap; }
+.rf-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rf-line); background: none; font-size: 12.5px; }
+.rf-chip small { color: var(--rf-muted); }
+.rf-chip:hover { border-color: var(--rf-gold); }
+.rf-chip.is-on { border-color: var(--rf-gold); background: color-mix(in srgb, var(--rf-gold) 22%, transparent); }
+.rf-recent { display: flex; flex-direction: column; gap: 4px; }
+.rf-recent > span, .rf-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--rf-muted); }
+.rf-recent[hidden] { display: none; }
+.rf-count { margin: 0; font-size: 12px; color: var(--rf-muted); }
+.rf-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; }
+.rf-row { display: block; width: 100%; text-align: left; padding: 7px 8px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--rf-line) 55%, transparent); background: none; border-radius: 6px; }
+.rf-row:hover { background: color-mix(in srgb, var(--rf-gold) 12%, transparent); }
+.rf-row b { display: block; font-size: 14.5px; }
+.rf-row span { display: block; font-size: 12.5px; color: var(--rf-muted); }
+.rf-none { padding: 14px 8px; color: var(--rf-muted); }
+
+.rf-entry { flex: 1; min-height: 0; overflow: auto; padding: 0 14px 16px; scrollbar-width: thin; display: flex; flex-direction: column; gap: 6px; }
+.rf-back { align-self: flex-start; padding: 4px 8px; border: 0; background: none; color: var(--rf-gold); font-size: 13px; }
+.rf-name { margin: 0; font-size: 20px; }
+.rf-sig { display: block; padding: 6px 9px; border-radius: 8px; background: var(--rf-ink); font: 13px/1.4 var(--rf-mono); color: var(--rf-gold); overflow-wrap: anywhere; }
+.rf-sum { margin: 2px 0 6px; font-size: 16px; }
+.rf-label { margin-top: 8px; }
+.rf-entry pre { margin: 0; padding: 9px 11px; border-radius: 8px; background: var(--rf-ink); border: 1px solid var(--rf-line); font: 13px/1.5 var(--rf-mono); overflow: auto; white-space: pre; scrollbar-width: thin; }
+.rf-setup summary { cursor: pointer; font-size: 12.5px; color: var(--rf-muted); }
+.rf-setup pre { margin-top: 4px; opacity: .72; }
+.rf-try { align-self: flex-start; margin-top: 4px; padding: 8px 16px; border-radius: 10px; border: 0; background: var(--rf-gold); color: var(--rf-ink); font-weight: 700; }
+.rf-try:disabled { opacity: .55; cursor: default; }
+.rf-norun { margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--rf-line); color: var(--rf-muted); font-size: 13px; }
+.rf-out:empty { display: none; }
+.rf-out { margin-top: 2px; }
+.rf-out[data-state="running"] { color: var(--rf-muted); }
+.rf-out pre { border-left: 3px solid var(--rf-ok); }
+.rf-out[data-state="error"] pre { border-left-color: var(--rf-bad); }
+.rf-out[data-state="refused"] pre { border-left-color: var(--rf-gold); }
+.rf-tag { margin: 4px 0 0; font-size: 12.5px; }
+.rf-tag.is-ok { color: var(--rf-ok); }
+.rf-tag.is-bad { color: var(--rf-bad); font-weight: 700; }
+.rf-frame { width: 100%; min-height: 110px; border: 1px solid var(--rf-line); border-radius: 8px; background: #fff; }
+.rf-mistake { margin: 0; padding: 8px 10px; border-radius: 8px; border-left: 3px solid var(--rf-bad); background: color-mix(in srgb, var(--rf-bad) 9%, transparent); font-size: 14px; }
+.rf-expect { color: var(--rf-muted); }
+
+@media (max-width: 720px) {
+  .rf-panel { right: 8px; left: 8px; top: 64px; bottom: 8px; width: auto; }
+}
