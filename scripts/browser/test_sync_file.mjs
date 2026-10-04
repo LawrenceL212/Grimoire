@@ -17,7 +17,7 @@ async function play(page) {
     let life = P.freshLife(Date.now() - 3 * 86400000);
     const store = S.createSpellStore({ storage: S.memoryStorage(), key: 's' });
     let at = Date.now() - 2 * 86400000;
-    for (const [id, casts] of [['T02', ['select-all']], ['T03', ['where']], ['T04', ['update']]]) {
+    for (const [id, casts] of [['T02', ['select-columns']], ['T03', ['where']], ['T04', ['update']]]) {
       const r = P.recordSolve(life, { id, evidence: true, newConcept: true }, { help: 'clean', casts, nowMs: at += 3600000 });
       life = r.life;
       for (const s of r.spells) store.recordCast(s.id, { lang: 'sql', unaided: s.unaided, outcome: s.outcome, nowMs: at });

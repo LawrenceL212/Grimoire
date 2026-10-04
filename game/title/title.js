@@ -16,8 +16,8 @@
 //   window.__title = { ready, scene ('on' | 'off' | 'pending'), hasSave, startHref, reducedMotion, saveKeys, drift() (the scene turn, radians),
 //                    music() (the music engine's state) }
 import { SAVE_KEYS, hasSave, clearSave, localStore } from './saves.js';
-import { exportSave, previewImport, applyImport, downloadSave, localSummary, fileTooBig } from '../sync/file.js';
-import { localAdapter, restoreBackup, backupInfo } from '../sync/local.js';
+import { exportSave, previewImport, applyImport, downloadSave, localSummary, describeSummary, fileTooBig } from '../sync/file.js';
+import { localAdapter, restoreBackup, backupSlots } from '../sync/local.js';
 import * as localMod from '../sync/local.js';
 import { initAccount } from './account.js';
 
@@ -134,13 +134,27 @@ $('export-save').addEventListener('click', () => {
 });
 $('import-save').addEventListener('click', () => { $('import-file').value = ''; $('import-file').click(); });
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const sumText = (s) => (s ? `${plural(s.daysInBusiness, 'day')} in business, ${plural(s.solves, 'ticket')} solved, ${plural(s.spells, 'spell')} written, £${s.balance} saved` : 'no game yet');
+const sumText = describeSummary;
+// two backup slots (game/sync/local.js): MANUAL (an import, New game, setting a game aside) and AUTO (before a sync wrote the save)
+let restoreSlot = 'manual';
+const slotLabel = (slot, info) => {
+  const when = info.at ? ` (${new Date(info.at).toLocaleString()})` : '';
+  return slot === 'manual' ? `Restore my save from before the last import or New game${when}` : `Restore the copy from before the last sync${when}`;
+};
 function showRestore() {
-  const info = backupInfo(store);
-  $('restore-row').hidden = !info;
+  const slots = backupSlots(store);
+  $('restore-row').hidden = !(slots.manual || slots.auto);
   $('restore-confirm').hidden = true;
-  $('restore-save').hidden = !info;
-  if (info) $('restore-save').title = info.at ? `Saved ${new Date(info.at).toLocaleString()}` : '';
+  for (const [slot, id] of [['manual', 'restore-save'], ['auto', 'restore-auto']]) {
+    const b = $(id);
+    b.hidden = !slots[slot];
+    if (slots[slot]) b.textContent = slotLabel(slot, slots[slot]);
+  }
+}
+function askRestore(slot) {
+  restoreSlot = slot;
+  showSignedWarnings();
+  $('restore-save').hidden = true; $('restore-auto').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus();
 }
 $('import-file').addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
@@ -171,10 +185,11 @@ $('import-replace').addEventListener('click', () => {
 });
 $('import-cancel').addEventListener('click', () => importState('Kept what is on this device.'));
 $('import-replace-yes').addEventListener('click', () => doImport('replace'));
-$('restore-save').addEventListener('click', () => { showSignedWarnings(); $('restore-save').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus(); });
+$('restore-save').addEventListener('click', () => askRestore('manual'));
+$('restore-auto').addEventListener('click', () => askRestore('auto'));
 $('restore-cancel').addEventListener('click', () => { showRestore(); importState('Kept what is on this device.'); });
 $('restore-yes').addEventListener('click', () => {
-  const r = restoreBackup({ storage: store });
+  const r = restoreBackup({ storage: store, slot: restoreSlot });
   importState(r.ok ? 'Restored. This device has the earlier save; what was here is now the earlier save.' : `${r.error} Nothing was changed.`, { bad: !r.ok });
   refresh(); showRestore();
 });
