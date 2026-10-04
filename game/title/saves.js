@@ -26,7 +26,8 @@ export function saveKeysIn(storage) {
   if (!storage) return [];
   const found = new Set();
   for (const k of SAVE_KEYS) { try { if (storage.getItem(k) != null) found.add(k); } catch { /* blocked */ } }
-  for (const k of keysOf(storage)) if (k.startsWith(LIFE_PREFIX)) found.add(k);
+  // the one-generation backup the sync code keeps (game/sync/local.js) is not a save: it never makes Continue appear
+  for (const k of keysOf(storage)) if (k.startsWith(LIFE_PREFIX) && !/\.backup(\.at)?$/.test(k)) found.add(k);
   return [...found];
 }
 

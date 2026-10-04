@@ -48,3 +48,11 @@ test('a storage that throws is treated as empty', () => {
   assert.equal(hasSave(bad), false);
   assert.deepEqual(clearSave(bad), []);
 });
+
+test('the sync backup keys are not a save: no Continue from a backup alone, and the exact keys are listed apart', () => {
+  const s = store({ 'grimoire.life.siso.v1.backup': '{"v":1,"solves":[1]}', 'grimoire.life.siso.v1.backup.at': '5', 'grimoire.spells.v1.backup': '{"a":1}' });
+  assert.deepEqual(saveKeysIn(s), []);
+  assert.equal(hasSave(s), false);
+  assert.deepEqual(clearSave(s), []);
+  assert.equal(s.getItem('grimoire.life.siso.v1.backup') != null, true);
+});

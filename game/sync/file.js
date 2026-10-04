@@ -2,7 +2,12 @@
 //
 //   exportSave({ readLocal?, now? }) -> { ok, filename: 'grimoire-save-YYYY-MM-DD.json', text } | { ok: false, error }
 //   previewImport(text, { now? }) -> { ok, error?, summary: { daysInBusiness, solves, spells, balance } }
-//   applyImport(text, { mode = 'merge', confirmed, readLocal?, writeLocal?, now? }) -> { ok, mode, error?, changed }
+//   localSummary({ readLocal?, now? }) -> summary | null     the same summary of what is on THIS device (shown beside the file's
+//        before a Replace, so the player sees what would be lost)
+//   fileTooBig(bytes)     check File.size BEFORE reading the file; the cap (MAX_BYTES) is on bytes, not characters
+//   applyImport(text, { mode = 'merge', confirmed, readLocal?, writeLocal?, now? }) -> { ok, mode, error?, changed, notices[] }
+//        The default writer (local.js) keeps the previous save as a backup first, so any import can be undone with
+//        restoreBackup().
 //        merge (the default, recommended): the file and this device's save are merged (merge.js): neither loses anything
 //        replace: this device's save becomes the file; the CALLER must have asked the player and passes confirmed: true,
 //                 otherwise nothing happens
@@ -11,23 +16,27 @@
 //   daysInBusiness: days from the day the company started to its latest moment, counted inclusively
 //   solves: tickets solved; spells: spells written in ink; balance: the home's balance in pounds
 import { checkDoc, toDoc, fromDoc, canon, MAX_BYTES } from './doc.js';
-import { mergeSaves } from './merge.js';
+import { mergeDetailed } from './merge.js';
 import { localAdapter } from './local.js';
 
 const DAY = 86400000;
 const pad = (n) => String(n).padStart(2, '0');
+
+export const fileTooBig = (bytes) => !(bytes <= MAX_BYTES);
 
 export function exportSave({ readLocal = localAdapter().readLocal, now = Date.now } = {}) {
   const state = readLocal();
   const doc = state ? toDoc(state, { now: now() }) : null;
   if (!doc) return { ok: false, error: 'There is no game on this device to export yet.' };
   const d = new Date(now());
-  return { ok: true, filename: `grimoire-save-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`, text: JSON.stringify(doc) };
+  const text = JSON.stringify(doc);
+  if (fileTooBig(new TextEncoder().encode(text).length)) return { ok: false, error: 'This save is too large to export.' };
+  return { ok: true, filename: `grimoire-save-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`, text };
 }
 
 function parse(text, now) {
   if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'That file is empty.' };
-  if (text.length > MAX_BYTES * 1.2) return { ok: false, error: 'That file is far too large to be a Grimoire save.' };
+  if (new TextEncoder().encode(text).length > MAX_BYTES) return { ok: false, error: 'That file is far too large to be a Grimoire save.' };
   let raw;
   try { raw = JSON.parse(text); } catch { return { ok: false, error: 'That file is not a Grimoire save (it is not readable).' }; }
   return checkDoc(raw, { now });
@@ -43,6 +52,14 @@ export const summaryOf = (doc) => {
   };
 };
 
+export function localSummary({ readLocal = localAdapter().readLocal, now = Date.now } = {}) {
+  try {
+    const state = readLocal();
+    const doc = state ? toDoc(state, { now: now() }) : null;
+    return doc ? summaryOf(doc) : null;
+  } catch { return null; }
+}
+
 export function previewImport(text, { now = Date.now } = {}) {
   const r = parse(text, now());
   if (!r.ok) return { ok: false, error: r.error, summary: null };
@@ -53,20 +70,23 @@ export function applyImport(text, { mode = 'merge', confirmed = false, readLocal
   try {
     const ad = readLocal && writeLocal ? { readLocal, writeLocal } : localAdapter();
     const r = parse(text, now());
-    if (!r.ok) return { ok: false, mode, error: r.error, changed: false };
-    if (mode !== 'merge' && mode !== 'replace') return { ok: false, mode, error: 'Unknown import mode.', changed: false };
-    if (mode === 'replace' && confirmed !== true) return { ok: false, mode, error: 'Replacing needs the player\'s confirmation first.', changed: false };
+    const fail = (error) => ({ ok: false, mode, error, changed: false, notices: [] });
+    if (!r.ok) return fail(r.error);
+    if (mode !== 'merge' && mode !== 'replace') return fail('Unknown import mode.');
+    if (mode === 'replace' && confirmed !== true) return fail('Replacing needs the confirmation of the player first.');
     const state = ad.readLocal();
     const local = state ? toDoc(state, { now: now() }) : null;
-    const next = mode === 'replace' || !local ? r.doc : mergeSaves(local, r.doc, { now: now() });
+    let next = r.doc, notices = [...r.notices];
+    if (mode === 'merge' && local) { const m = mergeDetailed(local, r.doc, { now: now() }); next = m.doc; notices = m.notices; }
+    // an unreadable local save (state null or toDoc null) still counts as "something is there": the writer backs up the raw text
     const changed = !local || canon(local.siso) !== canon(next.siso);
     if (changed) {
       const back = fromDoc(next, { now: now() });
-      if (!back.ok || ad.writeLocal(back.state) === false) return { ok: false, mode, error: 'This device could not store the save.', changed: false };
+      if (!back.ok || ad.writeLocal(back.state) === false) return fail('This device could not store the save. Nothing was changed.');
     }
-    return { ok: true, mode, changed };
+    return { ok: true, mode, changed, notices };
   } catch (e) {
-    return { ok: false, mode, error: 'The save could not be imported.', changed: false };
+    return { ok: false, mode, error: 'The save could not be imported.', changed: false, notices: [] };
   }
 }
 
