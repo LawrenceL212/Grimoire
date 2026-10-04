@@ -95,14 +95,14 @@ const opened = await page.evaluate(() => {
   const o = document.querySelector('.gm-book-overlay');
   return { visible: !o.hidden && getComputedStyle(o).display !== 'none', pages: o.querySelectorAll('.gm-spread > .gm-page').length, folio: o.querySelector('.gm-folio').textContent, focus: document.activeElement?.className,
     expanded: document.getElementById('hud-grimoire').getAttribute('aria-expanded'), spreadLive: o.querySelector('.gm-spread').getAttribute('aria-live'), folioLive: o.querySelector('.gm-folio').getAttribute('aria-live'),
-    tocLabels: [...o.querySelectorAll('.gm-toc')].slice(0, 5).map((b) => b.getAttribute('aria-label')) };
+    tocLabels: [...o.querySelectorAll('.gm-toc')].slice(0, 6).map((b) => b.getAttribute('aria-label')) };
 });
 t.check('the HUD button opens the book: a two-page spread on a desktop, the contents first', opened.visible && opened.pages === 2 && /Pages 1–2 of/.test(opened.folio) && opened.focus === 'gm-close', JSON.stringify(opened));
 t.check('a11y: the HUD button says the book is open (aria-expanded), only the folio is announced on a turn', opened.expanded === 'true' && opened.spreadLive === null && opened.folioLive === 'polite', JSON.stringify(opened));
-t.check('a11y: each contents entry says its ink status in words, not only by opacity', /fresh ink/.test(opened.tocLabels[0]) && /fading/.test(opened.tocLabels[1]) && /not written yet/.test(opened.tocLabels[4]), JSON.stringify(opened.tocLabels));
+t.check('a11y: each contents entry says its ink status in words, not only by opacity', /fresh ink/.test(opened.tocLabels[0]) && /fading/.test(opened.tocLabels[1]) && /not met yet/.test(opened.tocLabels[2]) && /not written yet/.test(opened.tocLabels[5]), JSON.stringify(opened.tocLabels));
 await page.click('.gm-next');
 const turned = await page.evaluate(() => ({ leaf: !!document.querySelector('.gm-leaf'), folio: document.querySelector('.gm-folio').textContent, spells: [...document.querySelectorAll('.gm-spread > .gm-page:not(.gm-leaf)')].map((p) => p.dataset.spell + ':' + p.dataset.status) }));
-t.check('Next turns the page (a leaf swings over) and the folio follows', turned.leaf && /Pages 3–4 of/.test(turned.folio) && turned.spells.join() === 'id-link:fading,select-all:fresh', JSON.stringify(turned));
+t.check('Next turns the page (a leaf swings over) and the folio follows', turned.leaf && /Pages 3–4 of/.test(turned.folio) && turned.spells.join() === 'id-link:fading,create-table:unknown', JSON.stringify(turned));
 await page.waitForTimeout(900);
 if (SHOT) await page.screenshot({ path: `${SHOT}/task-14a-grimoire.png` });
 await page.keyboard.press('ArrowLeft');
@@ -133,7 +133,7 @@ const phone = await page.evaluate(() => {
     codeOverflow: code ? code.scrollWidth > code.clientWidth + 1 : true, scrollW: document.documentElement.scrollWidth, folio: document.querySelector('.gm-folio').textContent };
 });
 if (SHOT) await page.screenshot({ path: `${SHOT}/task-14a-grimoire-phone.png` });
-t.check('phone: one page at a time, the book inside the screen, code readable without sideways scrolling', phone.pages === 1 && phone.book.l >= 0 && phone.book.r <= 390.5 && phone.book.b <= 844.5 && phone.pageW >= 300 && phone.codePx >= 12 && !phone.codeOverflow && phone.scrollW <= 390 && /Page 4 of/.test(phone.folio), JSON.stringify(phone));
+t.check('phone: one page at a time, the book inside the screen, code readable without sideways scrolling', phone.pages === 1 && phone.book.l >= 0 && phone.book.r <= 390.5 && phone.book.b <= 844.5 && phone.pageW >= 300 && phone.codePx >= 12 && !phone.codeOverflow && phone.scrollW <= 390 && /Page 5 of/.test(phone.folio), JSON.stringify(phone));
 t.check('phone: a spell with three introduced forms shows all three (SQL, JavaScript, PHP)', phone.spell === 'select-all' && JSON.stringify(phone.forms) === '["sql","js","php"]', JSON.stringify(phone.forms));
 t.check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 await close();
