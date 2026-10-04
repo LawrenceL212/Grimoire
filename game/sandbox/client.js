@@ -10,7 +10,7 @@
    Never throws. See host.js for the wire format. */
 export const LIMITS = Object.freeze({
   maxRequestBytes: 4 * 1024 * 1024,
-  readyTimeoutMs: 90000, // iframe load plus runtime warm-up (PHP: 1-4 s typical, longer on a cold CDN)
+  readyTimeoutMs: 30000, // iframe load plus runtime warm-up (PHP: 1-4 s typical, longer on a cold CDN)
   jsGraceMs: 1500,       // the JS host stops its own worker at timeoutMs; the parent backstop fires after this
 });
 const PAGES = { js: 'host-js.html', php: 'host.html' };
@@ -39,13 +39,14 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
     frame.setAttribute('aria-hidden', 'true');
     frame.tabIndex = -1;
     frame.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;pointer-events:none';
-    const s = { frame, tok, port: null, pending: new Map(), t0: performance.now(), loadedMs: null };
+    const s = { frame, tok, port: null, pending: new Map(), ignored: 0, t0: performance.now(), loadedMs: null };
     s.warm = new Promise((resolve, reject) => {
       let timer = setTimeout(() => reject(new Error('The sandbox did not start.')), LIMITS.readyTimeoutMs);
       s.settle = (err) => { clearTimeout(timer); reject(err); };
       s.onWindowMessage = (e) => {
         // Only our own iframe may start the handshake, and only once.
-        if (e.source !== frame.contentWindow || e.data?.type !== 'grimoire-host-loaded' || s.port) return;
+        if (e.data?.type !== 'grimoire-host-loaded') return;
+        if (e.source !== frame.contentWindow || s.port) { s.ignored++; return; }
         const ch = new MessageChannel();
         s.port = ch.port1;
         ch.port1.onmessage = (m) => {
@@ -82,10 +83,16 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
     catch { size = Infinity; }
     if (!(size <= LIMITS.maxRequestBytes)) return { ok: false, error: 'That request is too large to run.' };
 
-    const s = ensure(lang);
-    try { await s.warm; } catch (e) {
-      destroy(lang);
-      return { ok: false, error: String(e?.message ?? e) };
+    // A sandbox that fails to start (for example right after an out-of-memory crash, while the old one is still
+    // being freed) is replaced once before giving up.
+    let s;
+    for (let attempt = 0; ; attempt++) {
+      s = ensure(lang);
+      try { await s.warm; break; } catch (e) {
+        destroy(lang);
+        if (attempt === 1) return { ok: false, error: String(e?.message ?? e) };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
     if (s.dead) return { ok: false, error: 'The sandbox was reset.' };
 
@@ -98,7 +105,11 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
         setTimeout(() => ensure(lang), 0); // a fresh, warming sandbox for the next run
         resolve({ ok: false, error: `Timed out after ${timeoutMs} ms. Does a loop never finish?`, timedOut: true });
       }, hardMs);
-      s.pending.set(id, ({ token: _t, id: _i, ...res }) => { clearTimeout(timer); resolve(res); });
+      s.pending.set(id, ({ token: _t, id: _i, fatal, ...res }) => {
+        clearTimeout(timer);
+        if (fatal) { destroy(lang); setTimeout(() => ensure(lang), 0); } // the runtime died (out of memory): start over
+        resolve(res);
+      });
       try { s.port.postMessage({ token: s.tok, id, kind, lang, code, world, timeoutMs }); }
       catch {
         clearTimeout(timer); s.pending.delete(id);
@@ -113,7 +124,7 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
     warm: (lang) => { const s = ensure(lang); return s.warm.then(() => ({ ms: s.loadedMs })); },
     destroy,
     /** For tests only. */
-    inspect: (lang) => slots[lang] && ({ frame: slots[lang].frame, tok: slots[lang].tok, send: (m) => slots[lang].port.postMessage(m) }),
+    inspect: (lang) => slots[lang] && ({ frame: slots[lang].frame, tok: slots[lang].tok, pending: slots[lang].pending, ignored: () => slots[lang].ignored, send: (m) => slots[lang].port.postMessage(m) }),
   };
 }
 

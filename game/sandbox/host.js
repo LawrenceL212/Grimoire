@@ -59,8 +59,11 @@ self.onmessage = async (e) => {
   out = ''; err = '';
   try { await php.run(code); } catch (x) { err += String((x && x.message) || x); }
   const stdout = out, stderr = err;
-  pristine = PhpBase.prototype.refresh.call(php).catch(replace);
-  self.postMessage({ id, ok: true, stdout, stderr });
+  // An aborted runtime (out of memory, wasm trap) cannot be refreshed or rebuilt in this worker: say so, and the
+  // parent replaces the whole sandbox.
+  const fatal = /Out of memory|Aborted|RuntimeError|Program terminated with exit\(1\)/.test(stderr + stdout);
+  if (!fatal) pristine = PhpBase.prototype.refresh.call(php).catch(replace);
+  self.postMessage({ id, ok: true, stdout, stderr, fatal });
 };
 (async () => {
   try {
@@ -112,7 +115,7 @@ self.onmessage = async (e) => {
             await warm;
             const id = ++seq;
             const m = await new Promise((r) => { waiting.set(id, r); w.postMessage({ id, code: req.code }); });
-            return m.ok ? { ok: true, stdout: m.stdout, stderr: m.stderr } : { ok: false, error: m.error };
+            return m.ok ? { ok: true, stdout: m.stdout, stderr: m.stderr, fatal: m.fatal } : { ok: false, error: m.error };
           },
         };
       },
