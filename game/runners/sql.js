@@ -8,7 +8,7 @@ export async function runSql(world, code) {
     await world.exec('COMMIT');
     const sets = results.filter((r) => r.fields && r.fields.length);
     const last = sets[sets.length - 1];
-    return { ok: true, rows: last ? last.rows : [], stdout: last ? JSON.stringify(last.rows) : '(no rows)' };
+    return { ok: true, rows: last ? last.rows : [], query: !!last, stdout: last ? JSON.stringify(last.rows) : '(no rows)' }; // query: it asked for rows (a CREATE returns none)
   } catch (e) {
     try { await world.exec('ROLLBACK'); } catch { /* nothing to roll back */ }
     return { ok: false, error: String((e && e.message) || e) };

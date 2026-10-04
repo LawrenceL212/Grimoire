@@ -96,6 +96,74 @@ t.check('restore: and the same next id', out.rebuild.sameNextId);
 t.check('Reset: the log up to the ticket\'s mark gives the table and no rows', JSON.stringify(out.resetToMark) === '{"tables":["rooms"],"rows":0}', JSON.stringify(out.resetToMark));
 t.check('the shadow world from the DDL log has his tables and none of his rows', JSON.stringify(out.shadow) === '{"tables":["rooms"],"rows":0,"passesSchema":true}', JSON.stringify(out.shadow));
 t.check('a log that cannot be replayed says where it stopped, and why', !out.brokenReplay.ok && out.brokenReplay.at === 4 && /nowhere/.test(out.brokenReplay.error), JSON.stringify(out.brokenReplay));
+// ---- the rooms_pkey report (M-B): the probe's own test rows must never collide with his ids, whatever his key
+const pk = await page.evaluate(async () => {
+  const { World } = await import('/game/world/world.js');
+  const C = await import('/game/problems/card.js');
+  const { S1 } = await import('/game/problems/arc/s1.js');
+  const R = {};
+  const tables = {
+    lawrence: 'Create TABLE if not exists Rooms(id int PRIMARY KEY, room TEXT, seats INT)', // his exact statement: no default on id
+    serial: 'CREATE TABLE rooms (id SERIAL PRIMARY KEY, room TEXT, seats INT);',
+    identityAlways: 'CREATE TABLE rooms (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, room TEXT, seats INT);',
+    serialName: 'CREATE TABLE rooms (id SERIAL PRIMARY KEY, name TEXT, seats INT);',
+  };
+  for (const [k, sql] of Object.entries(tables)) {
+    for (const withRows of [false, true]) {
+      const w = await World.create({}, { empty: true });
+      await C.runSql(w, sql);
+      // the table already made in an earlier step, with his rooms 1-3 in it (given by hand when id has no default)
+      if (withRows) await C.runSql(w, k === 'identityAlways' ? "INSERT INTO rooms (room, seats) VALUES ('Boardroom', 8), ('Studio', 4), ('Library', 12);"
+        : `INSERT INTO rooms (id, ${k === 'serialName' ? 'name' : 'room'}, seats) VALUES (1, 'Boardroom', 8), (2, 'Studio', 4), (3, 'Library', 12);`);
+      const before = JSON.stringify(await w.query('SELECT * FROM rooms ORDER BY id'));
+      const g = await C.gradeStep(S1, S1.steps[2], { world: w, act: {} });
+      R[`${k}${withRows ? '+rows' : ''}`] = { passed: g.passed, why: g.results.filter((x) => !x.ok).map((x) => x.why), unchanged: JSON.stringify(await w.query('SELECT * FROM rooms ORDER BY id')) === before };
+      await w.close();
+    }
+  }
+  // a real refusal (a CHECK of his) is said in plain words, the database's words last
+  const w = await World.create({}, { empty: true });
+  await C.runSql(w, 'CREATE TABLE rooms (id SERIAL PRIMARY KEY, name TEXT, capacity INT CHECK (capacity < 5));');
+  const g = await C.gradeStep(S1, S1.steps[2], { world: w, act: {} });
+  R.refused = g.results.filter((x) => !x.ok).map((x) => x.why)[0];
+  return R;
+});
+for (const [k, v] of Object.entries(pk)) if (k !== 'refused') t.check(`S1 passes his valid table (${k}): the probe picks its own ids above his`, v.passed && v.unchanged, JSON.stringify(v));
+t.check('a table his rule refuses is told in plain words first, the database last', /^To check your rooms table, the game tried to save a test Boardroom/.test(pk.refused) && /CHECK rules refused/.test(pk.refused) && /The database said: "/.test(pk.refused), pk.refused);
+
+// ---- M-B: a card resolved by his names, graded on his world AND his shadow (built from his change log)
+const s3 = await page.evaluate(async () => {
+  const { World } = await import('/game/world/world.js');
+  const C = await import('/game/problems/card.js');
+  const L = await import('/game/world/ddl-log.js');
+  const { cardById } = await import('/game/problems/ladder.js');
+  let log = [];
+  for (const sql of ['CREATE TABLE rooms (id int PRIMARY KEY, title VARCHAR(40) NOT NULL, seats SMALLINT NOT NULL);',
+    "INSERT INTO rooms VALUES (11, 'boardroom', 8), (12, 'Studio', 4), (13, 'Library', 12);",
+    "UPDATE rooms SET seats = 10 WHERE title = 'boardroom';", "INSERT INTO rooms VALUES (14, 'Garden Room', 6);"]) log = L.append(log, sql);
+  const { world } = await L.rebuild(World, log);
+  const shadow = await C.startArcShadow(log);
+  const R = { shadowRows: await shadow.query('SELECT * FROM rooms ORDER BY id'), realRows: await world.query('SELECT * FROM rooms ORDER BY id') };
+  const names = await C.namesOf(world);
+  const grade = async (id, code) => {
+    const card = C.resolveCard(cardById(id), names).card;
+    const s = card.steps[0];
+    const truths = await C.truthsOf(world, s);
+    const res = await C.runQuestionSql(world, code === 'ref' ? card.reference[0].code : code === 'cheat' ? card.cheats[0].code : code);
+    const g = await C.gradeStep(card, s, { world, shadow, lang: 'sql', code: code === 'ref' ? card.reference[0].code : card.cheats[0].code, res, truths, act: {} });
+    return { passed: g.passed, where: g.results.filter((x) => !x.ok).map((x) => x.where), code: code === 'ref' ? card.reference[0].code : card.cheats[0].code };
+  };
+  for (const id of ['T02', 'T03', 'T08', 'T10']) R[id] = { ref: await grade(id, 'ref'), cheat: await grade(id, 'cheat') };
+  R.after = JSON.stringify(await world.query('SELECT * FROM rooms ORDER BY id')) === JSON.stringify(R.realRows);
+  return R;
+});
+t.check("his shadow keeps his ids and names, changes the seats, adds two rooms (his own key without a default)", JSON.stringify(s3.shadowRows.map((r) => [r.id, r.title, r.seats])) === '[[11,"boardroom",12],[12,"Studio",7],[13,"Library",4],[14,"Garden Room",9],[15,"Attic",3],[16,"Loft",16]]', JSON.stringify(s3.shadowRows));
+for (const id of ['T02', 'T03', 'T08', 'T10']) {
+  t.check(`${id} on his own columns (title, seats): the resolved reference passes on both worlds`, s3[id].ref.passed, JSON.stringify(s3[id].ref));
+  t.check(`${id}: its cheat fails`, !s3[id].cheat.passed, JSON.stringify(s3[id].cheat));
+}
+t.check('T10 "more than 7" passes his world and is caught on his shadow (the 7-seater)', s3.T10.cheat.where.every((w) => w === 'shadow'), JSON.stringify(s3.T10.cheat));
+t.check('questions changed nothing of his', s3.after);
 t.check('no page errors', errors.length === 0, errors.join(' | '));
 await close();
 t.finish();

@@ -53,7 +53,8 @@ test('probe rows go in through his columns; his other required columns get plain
   const t = table([['id', 'integer', false, true], ['label', 'text', false], ['seats', 'integer', false], ['floor', 'integer', false], ['note', 'text']]);
   const { map } = resolveRoles(t, ROOM_ROLES);
   const sql = insertSql(t, map, [{ name: "O'Neill Room", capacity: '10' }]);
-  assert.equal(sql, `INSERT INTO "rooms" ("label", "seats", "floor") VALUES ('O''Neill Room', '10', '1')`);
+  // the key gets its own value above his highest id (never a shared filler, never one of his)
+  assert.equal(sql, `INSERT INTO "rooms" ("id", "label", "seats", "floor") VALUES ((SELECT COALESCE(max("id"), 0) + 1001 FROM "rooms"), 'O''Neill Room', '10', '1')`);
   assert.equal(fillSql("SELECT {name} AS name FROM {table} WHERE {capacity} >= '7'", 'rooms', map), `SELECT "label" AS name FROM "rooms" WHERE "seats" >= '7'`);
   assert.throws(() => fillSql('SELECT {capacity} FROM {table}', 'rooms', { name: 'name' }));
 });
@@ -97,7 +98,7 @@ test('the arc opens the ladder: S0 (O1, O2 on the notebook), S1, S2, then the on
   const early = LADDER.filter((c) => c.id !== 'S1').map((c, i) => ({ ...c, serve: i + 1, needs: c.needs.filter((n) => n !== 'S1'), uses: c.uses.filter((u) => u !== 'create-table') }));
   assert.ok(checkLadder(early, TUTORIAL).some((b) => /S2: checks the table rooms, which no card before it/.test(b)));
   assert.ok(validateCard({ ...cardById('S2'), acceptance: [] }).some((b) => /acceptance/.test(b)));
-  assert.ok(validateCard({ ...cardById('T01'), steps: [{ ...cardById('T01').steps[0], checks: [{ kind: 'schema', table: 'rooms', roles: 'room' }] }] }).some((b) => /belong to product-arc cards/.test(b)));
+  assert.ok(validateCard({ ...cardById('T13'), steps: [{ ...cardById('T13').steps[0], checks: [{ kind: 'schema', table: 'rooms', roles: 'room' }] }] }).some((b) => /belong to product-arc cards/.test(b)));
 });
 
 test('saves: a life from before the arc keeps its spells, credit and home; its company starts empty and is rebuilt by the arc', () => {

@@ -47,8 +47,19 @@
 // both worlds (the shadow world keeps the named rooms and people, and changes everything else). A product-arc card
 // (world: { arc: true }) runs on HIS company database, which only his own runs ever built (world/ddl-log.js);
 // `choice` and `cell` there take their truth from Priya's notebook (problems/arc/notebook.js) through `note`.
+//
+// The product arc, milestone M-B: a card on his world is written against the house convention (the table is
+// rooms, the key id) and TEMPLATES for what is his to choose, resolved from his world when the card opens
+// (resolveCard): {rooms.name} / {rooms.capacity} are his columns for those roles (catalogue.js), {room:Boardroom}
+// is the id of his row for Priya's Boardroom and {roomName:Boardroom} the name as he typed it (for a quoted SQL
+// literal). Its query-graded steps are also checked on HIS shadow (startArcShadow): his change log replayed (the
+// same tables, the same rules), his rows set aside, and the named shadow rooms put in through his columns.
+// Examples in his company run on Sequel's practice pad (world/pad.js) unless marked on: 'company' (a read-only
+// question about his rooms, rolled back). A step marked on: 'pad' is answered on the pad.
 import { World } from '../world/world.js';
-import { namedSeedSql, STAGES } from '../world/named.js';
+import { namedSeedSql, STAGES, arcShadowRooms } from '../world/named.js';
+import { rebuild as rebuildLog, stripSql } from '../world/ddl-log.js';
+import { PAD_TABLES } from '../world/pad.js';
 import { runSql } from '../runners/sql.js';
 import { runJs } from '../runners/js.js';
 import { toObjects } from '../world/views.js';
@@ -81,9 +92,12 @@ export function validateCard(c) {
   need(Array.isArray(c.uses) && Array.isArray(c.needs) && Array.isArray(c.revisits), 'uses, needs and revisits lists');
   need(Array.isArray(c.languages) && c.languages.length > 0 && c.languages.every((l) => ['sql', 'js', 'php'].includes(l)), 'allowed languages');
   need(c.world && Array.isArray(c.world.stage) && c.world.stage.every((s) => STAGES.includes(s)), 'a world stage');
+  const tpl = templatesOf(c);
+  if (!c.world?.arc) need(!tpl.cols.size && !tpl.rows.size, 'templates ({rooms.name}, {room:...}) belong to product-arc cards (a seeded card has fixed names)');
+  for (const k of tpl.cols) { const [t, role] = k.split('.'); need(ARC_ROLES[t] && role in ARC_ROLES[t], `a template {${k}} names a role his ${t} table can fill`); }
   if (c.world?.arc) {
-    need(c.grading !== 'query', 'an arc card is graded on his own world (one-off or interact), never against a seeded shadow');
-    need(Array.isArray(c.acceptance) && c.acceptance.length > 0 && c.acceptance.every((a) => typeof a === 'string' && a), 'the acceptance checks in plain words (the goal is shown, never the answer)');
+    // a build stage (S1, S2...) shows its acceptance; a kept ticket on his world keeps its symptom-only pedagogy
+    if (c.stage) need(Array.isArray(c.acceptance) && c.acceptance.length > 0 && c.acceptance.every((a) => typeof a === 'string' && a), 'the acceptance checks in plain words (the goal is shown, never the answer)');
     for (const s of c.steps || []) for (const k of s.checks || []) {
       if (k.kind === 'schema' || k.kind === 'probe') need(typeof k.table === 'string' && ROLE_SETS[k.roles], `${k.kind} check: a table and a known role set`);
       if (k.kind === 'probe') need(Array.isArray(k.steps) && k.steps.length && k.steps.every((p) => (p.insert || p.query) && typeof p.why === 'string'), 'probe check: steps, each with plain words for when it fails');
@@ -113,8 +127,87 @@ export function validateCard(c) {
   return bad;
 }
 
+// ---------------------------------------------------------------- templates: a card resolved against HIS world (pure)
+export const ARC_ROLES = Object.freeze({ rooms: ROOM_ROLES, people: PERSON_ROLES });
+const TPL = /\{(rooms|people|bookings)\.(\w+)\}|\{(room|roomName):([^{}\n]+)\}/g;
+// a column name as he would type it: bare when it is a plain lower-case name, quoted otherwise
+export const identOut = (n) => (/^[a-z_][a-z0-9_]*$/.test(n) ? n : quoteIdent(n));
+const rowKey = (s) => String(s ?? '').trim().toLowerCase();
+function eachString(v, fn) {
+  if (typeof v === 'string') fn(v);
+  else if (Array.isArray(v)) v.forEach((x) => eachString(x, fn));
+  else if (v && typeof v === 'object') Object.values(v).forEach((x) => eachString(x, fn));
+}
+function mapStrings(v, fn) {
+  if (typeof v === 'string') return fn(v);
+  if (Array.isArray(v)) return v.map((x) => mapStrings(x, fn));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, mapStrings(x, fn)]));
+  return v;
+}
+/* what a card's templates ask of his world: cols { 'rooms.name' }, rows { 'Boardroom' } (rooms by Priya's name) */
+export function templatesOf(card) {
+  const cols = new Set(), rows = new Set();
+  eachString(card, (s) => { for (const m of s.matchAll(TPL)) { if (m[1]) cols.add(`${m[1]}.${m[2]}`); else rows.add(m[4].trim()); } });
+  return { cols, rows };
+}
+/* names: { cols: { rooms: { name: 'title', capacity: 'seats' } }, rooms: [{ id, name }] } -> { card, missing: [..] }
+   Anything his world cannot give (a column for a role, a named room) is listed in `missing`, in plain words, and
+   left as the house name, so the card still opens and its checks fail honestly instead of the page breaking. */
+export function resolveCard(card, names) {
+  const missing = new Set();
+  const out = mapStrings(card, (s) => s.replace(TPL, (all, t, role, kind, label) => {
+    if (t) {
+      const col = names?.cols?.[t]?.[role];
+      if (!col) { missing.add(`a column in ${t} for ${ROLE_WORDS[role] || role}`); return role; }
+      return identOut(col);
+    }
+    const row = (names?.rooms || []).find((r) => rowKey(r.name) === rowKey(label));
+    if (!row) { missing.add(`the ${label.trim()} in your rooms table`); return kind === 'room' ? '0' : label.trim().replace(/'/g, "''"); }
+    return kind === 'room' ? String(row.id) : String(row.name).replace(/'/g, "''");
+  }));
+  return { card: out, missing: [...missing] };
+}
+export async function namesOf(world) {
+  const cat = await readCatalogue(world);
+  const cols = {};
+  for (const [t, roles] of Object.entries(ARC_ROLES)) if (cat.tables[t]) cols[t] = resolveRoles(cat.tables[t], roles).map;
+  const rooms = cat.tables.rooms ? (await toObjects(world)).rooms.map((r) => ({ id: r.id, name: r.name })) : [];
+  return { cols, rooms };
+}
+/* the tables a piece of SQL reads or writes, and the ones it makes itself (for the ladder's rules) */
+export function tablesIn(sql) {
+  const s = stripSql(String(sql || '')).replace(TPL, 'x');
+  const made = new Set([...s.matchAll(/\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_]\w*)/gi)].map((m) => m[1].toLowerCase()));
+  const used = new Set([...s.matchAll(/\b(?:from|join|into|update|table|truncate)\s+(?:only\s+)?([a-z_]\w*)/gi)].map((m) => m[1].toLowerCase()).filter((n) => !['if', 'only'].includes(n)));
+  return { used: [...used].filter((n) => !made.has(n)), made: [...made] };
+}
+export { PAD_TABLES };
+
 // ---------------------------------------------------------------- the world a card starts from
 export const seedOf = (card, shadow = false) => namedSeedSql({ shadow, stage: card.world.stage });
+/* HIS shadow (milestone M-B): his change log replayed into an empty PostgreSQL (his tables, types and rules exactly,
+   SP1), then every row of his set aside and the named shadow rooms (named.js arcShadowRooms) put in through his
+   columns, keeping his ids. A shadow row one of his own rules refuses is left out: his rules hold there too. */
+export async function startArcShadow(log) {
+  const r = await rebuildLog(World, log);
+  if (!r.ok) { r.world.close().catch(() => {}); throw new Error(`the second world could not be built from your change log: ${r.error}`); }
+  const world = r.world;
+  const real = (await toObjects(world)).rooms;
+  const cat = await readCatalogue(world);
+  const all = Object.keys(cat.tables);
+  if (all.length) await world.exec(`TRUNCATE ${all.map(quoteIdent).join(', ')} RESTART IDENTITY CASCADE`);
+  const t = cat.tables.rooms;
+  if (t) {
+    const { map } = resolveRoles(t, ROOM_ROLES);
+    const roles = Object.keys(map);
+    for (const row of arcShadowRooms(real)) {
+      const pick = Object.fromEntries([['id', row.id], ...roles.map((k) => [k, row[k]])]);
+      try { await world.exec(insertSql(t, { ...map, id: 'id' }, [pick])); } catch { /* his rule refused it: left out */ }
+    }
+    await world.query("SELECT setval(pg_get_serial_sequence('rooms', 'id'), COALESCE((SELECT max(id) FROM rooms), 1), (SELECT count(*) > 0 FROM rooms)) WHERE pg_get_serial_sequence('rooms', 'id') IS NOT NULL");
+  }
+  return world;
+}
 export async function startWorld(card) {
   const world = await World.create({}, { seed: seedOf(card) });
   if (card.setup) await world.exec(card.setup);
@@ -283,13 +376,23 @@ export function fillSql(sql, table, map) {
 }
 /* rows given by role go in through HIS columns; any other column he made required (NOT NULL, no default) gets a
    plain value of its type, so an extra column of his never fails a probe that is not about it. */
-export function insertSql(t, map, rows) {
+/* The key: a test row never relies on his id having a default, and never collides with an id he already has (or
+   with each other): when the rows give no id, each gets its own, above his highest (max(id) + 1001, + 1002...),
+   whether his id is SERIAL, an IDENTITY, or a plain `id int PRIMARY KEY` he fills himself. (Before this, a key
+   with no default got the same filler value for every test row, and the probe failed on its own ids: rooms_pkey.)
+   A GENERATED ALWAYS identity takes an explicit id only with OVERRIDING SYSTEM VALUE, which is added then. */
+export function insertSql(t, map, rows, { overriding = false } = {}) {
   const roles = Object.keys(rows[0] || {});
   const cols = roles.map((r) => { if (!map[r]) throw new Error(`no column for ${r}`); return map[r]; });
-  const extra = t.columns.filter((c) => !c.nullable && !c.hasDefault && !cols.includes(c.name));
-  const names = [...cols, ...extra.map((c) => c.name)].map(quoteIdent).join(', ');
-  const values = rows.map((row) => `(${[...roles.map((r) => lit(row[r])), ...extra.map((c) => lit(FILLER[c.cls] ?? null))].join(', ')})`).join(', ');
-  return `INSERT INTO ${quoteIdent(t.name)} (${names}) VALUES ${values}`;
+  const key = t.pk?.length === 1 ? t.columns.find((c) => c.name === t.pk[0]) : null;
+  const ownKey = key && !cols.includes(key.name) && (key.cls === 'integer' || key.cls === 'number' || key.cls === 'text') ? key : null;
+  const extra = t.columns.filter((c) => !c.nullable && !c.hasDefault && !cols.includes(c.name) && c !== ownKey);
+  const keyVal = (i) => (ownKey.cls === 'text' ? lit(`test-${i + 1}`) : `(SELECT COALESCE(max(${quoteIdent(ownKey.name)}), 0) + ${1001 + i} FROM ${quoteIdent(t.name)})`);
+  const names = [...(ownKey ? [ownKey.name] : []), ...cols, ...extra.map((c) => c.name)].map(quoteIdent).join(', ');
+  const values = rows.map((row, i) => `(${[...(ownKey ? [keyVal(i)] : []), ...roles.map((r) => lit(row[r])), ...extra.map((c) => lit(FILLER[c.cls] ?? null))].join(', ')})`).join(', ');
+  const keyCols = [ownKey?.name, ...(key && cols.includes(key.name) ? [key.name] : [])].filter(Boolean);
+  const always = overriding || t.columns.some((c) => keyCols.includes(c.name) && c.identity === 'ALWAYS');
+  return `INSERT INTO ${quoteIdent(t.name)} (${names})${always ? ' OVERRIDING SYSTEM VALUE' : ''} VALUES ${values}`;
 }
 const normal = (v) => (v === null || v === undefined ? null : typeof v === 'number' || typeof v === 'bigint' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) ? Number(v) : String(v).trim().toLowerCase());
 const fmt = (s, vars) => String(s || '').replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
@@ -332,6 +435,22 @@ export async function checkSchema(world, k) {
   if (r.missing.length) return { ok: false, why: `${k.table} needs a column for ${r.missing.map((m) => ROLE_WORDS[m] || m).join(' and ')}` };
   return { ok: true, map: r.map };
 }
+/* Pure: a probe step the database refused, said for a beginner: what the game tried (and that it was only a test,
+   undone afterwards), what that means for his table, what to do; the database's own words come last, quoted. */
+const REFUSED = {
+  '23505': 'two rows ended up with the same value in a column that must be different on every row',
+  '23502': 'a column of yours must always be filled in, and the test row had nothing for it. If it is a column the game cannot know about, give it a DEFAULT or let it be empty',
+  '22001': 'one of your columns is too short for that text (a VARCHAR with a small limit). Make it longer, or use TEXT',
+  '22P02': "a column's type does not accept that value: check the types you chose",
+  '22003': "a number is too big for a column's type: check the types you chose",
+  '23514': 'one of your CHECK rules refused it: is the rule what you meant?',
+  '23503': 'a link column points at a row that does not exist',
+};
+export function probeRefused(p, code, msg, table = 'rooms') {
+  const tried = p.tried || p.why;
+  const what = REFUSED[code] || 'your table refused it';
+  return `To check your ${table} table, the game tried to ${tried}, inside a test that is undone afterwards (nothing of yours was changed). Your table refused: ${what}${/[.?!]$/.test(what) ? "" : "."} Fix the table (you can DROP TABLE it and make it again, or press Reset), then run again. The database said: "${String(msg).trim()}"`;
+}
 /* Inside one transaction that is always rolled back; every sequence of his is put back afterwards (a rolled-back
    INSERT still moves a SERIAL on, SP1), so a probe never changes his next id or any row. */
 export async function runProbe(world, k) {
@@ -350,7 +469,7 @@ export async function runProbe(world, k) {
       try { const res = await world.exec(sql); rows = res.filter((x) => x.fields?.length).pop()?.rows || []; } catch (e) { code = e?.code || 'error'; msg = String(e?.message ?? e); }
       await world.exec(code ? 'ROLLBACK TO SAVEPOINT probe' : 'RELEASE SAVEPOINT probe');
       const want = p.expect || 'ok';
-      if (want === 'ok' && code) { verdict = { ok: false, why: `${p.why} (the database said: ${msg})` }; break; }
+      if (want === 'ok' && code) { verdict = { ok: false, why: probeRefused(p, code, msg, k.table) }; break; }
       if (want !== 'ok' && code !== want) { verdict = { ok: false, why: p.why }; break; }
       if (p.query && !code) { const j = judgeProbeRows(rows, p); if (!j.ok) { verdict = j; break; } }
     }
@@ -389,7 +508,7 @@ export async function gradeStep(card, step, ctx) {
   const add = (name, ok, why = '', where = 'real') => results.push({ name, ok: !!ok, why, where });
   const res = ctx.res || {};
   let shadowRes = null;
-  const useShadow = card.grading === 'query' && !step.interaction && ctx.shadow;
+  const useShadow = card.grading === 'query' && !step.interaction && step.on !== 'pad' && ctx.shadow; // the practice pad has no shadow: it is not his data
   for (const k of step.checks) {
     const name = k.name || k.kind;
     try {

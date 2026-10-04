@@ -10,14 +10,14 @@ const SCHEMA = { kind: 'schema', name: 'a rooms table, a key called id, a column
 const BOARDROOM = {
   kind: 'probe', name: "Priya's Boardroom (8 seats) can be kept and read back", table: 'rooms', roles: 'room', empty: true,
   steps: [
-    { insert: [{ name: 'Boardroom', capacity: 8 }], why: "the Boardroom with 8 seats could not be saved" },
+    { insert: [{ name: 'Boardroom', capacity: 8 }], tried: 'save a test Boardroom with 8 seats in it', why: 'the Boardroom with 8 seats could not be saved' },
     { query: 'SELECT {name} AS name, {capacity} AS capacity FROM {table}', equal: [{ name: 'Boardroom', capacity: 8 }], why: 'the Boardroom did not come back as it went in' },
   ],
 };
 const SEVEN = {
   kind: 'probe', name: "Sam's question works: rooms seating at least 7", table: 'rooms', roles: 'room', empty: true,
   steps: [
-    { insert: [{ name: 'A', capacity: '10' }, { name: 'B', capacity: '8' }, { name: 'C', capacity: '6' }], why: 'three test rooms (10, 8 and 6 seats) could not be saved' },
+    { insert: [{ name: 'A', capacity: '10' }, { name: 'B', capacity: '8' }, { name: 'C', capacity: '6' }], tried: 'save three test rooms in it (10, 8 and 6 seats)', why: 'three test rooms (10, 8 and 6 seats) could not be saved' },
     { query: "SELECT {name} AS name FROM {table} WHERE {capacity} >= '7'", values: { name: ['A', 'B'] }, why: 'asked for the rooms seating at least 7 (of 10, 8 and 6), it gave the wrong ones: 10 was treated as words, not a number' },
   ],
 };

@@ -111,3 +111,19 @@ export function namedSeedSql(opts = {}) {
     seq('rooms', rooms), seq('people', people), seq('bookings', bookings),
   ].join('\n');
 }
+
+/* The product arc (milestone M-B): the shadow of HIS company. His world holds only what he typed (Priya's rooms,
+   through his own columns), so its shadow is built from his change log (the same tables, his rules), with his rows
+   set aside and these put in through his columns instead: each of his rooms keeps its id and its name (cards ask
+   about the Boardroom by name, and a link points at the same id on both worlds), while the seats change, and two
+   rooms he does not have are added. The traps the cheats fall into live here: a 7-seater ("more than 7" misses
+   it), a Boardroom that does not seat 8 or 10 (a number read off the screen), a room order no sort can fake. */
+export const ARC_SHADOW_SEATS = Object.freeze({ boardroom: 12, studio: 7, library: 4, 'garden room': 9 });
+export const ARC_SHADOW_EXTRA = Object.freeze([{ name: 'Attic', capacity: 3 }, { name: 'Loft', capacity: 16 }]);
+const key = (s) => String(s ?? '').trim().toLowerCase();
+export function arcShadowRooms(real = []) {
+  const rows = real.map((r) => ({ id: r.id, name: r.name, capacity: ARC_SHADOW_SEATS[key(r.name)] ?? ((Number(r.capacity) || 1) * 3) % 17 + 2 }));
+  let next = Math.max(0, ...real.map((r) => Number(r.id) || 0));
+  for (const x of ARC_SHADOW_EXTRA) if (!rows.some((r) => key(r.name) === key(x.name))) rows.push({ id: ++next, ...x });
+  return rows;
+}
