@@ -302,6 +302,14 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     fitDist = dist * zoom;
   }
   let fitDist = 30;
+  // the home room reuses this camera: aim the framing (and the pan limits) at another floor, or back at the office's own
+  function setFocusBox(b = map.bounds) {
+    box.min.set(b.x0 - 0.3, 0, b.z0 - 0.3); box.max.set(b.x1 + 0.3, 1.5, b.z1 + 0.3);
+    let k = 0;
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners[k++].set(x, y, z);
+    home.set((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2 + 0.2);
+    stage.setPanBounds({ minX: b.x0 - 2, maxX: b.x1 + 2, minZ: b.z0 - 2, maxZ: b.z1 + 2 });
+  }
   function overview() { focused = null; return stage.focus(home, { zoom: tget('camera.zoom') }); }
   function focus(roomName) {
     const r = map.rooms.find((x) => x.name === roomName || x.id === roomName) || map.rooms[0];
@@ -366,6 +374,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   // picking: the person under a screen point, as the booking they sit for
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(x, y) {
+    if (!map.root.visible) return null; // the office is hidden (the player is at home)
     const c = renderer.domElement.getBoundingClientRect();
     ndc.set(((x - c.left) / c.width) * 2 - 1, -((y - c.top) / c.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
@@ -388,7 +397,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     return { x: c.left + (V.x * 0.5 + 0.5) * c.width, y: c.top + (-V.y * 0.5 + 0.5) * c.height };
   }
   return { map, fx, people, staff, seed, reconcile, running, roomFor, roomOf, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose,
-    drones, useDrone, resetDrones, relabel, pick, screenOf,
+    drones, useDrone, resetDrones, relabel, pick, screenOf, setFocusBox,
     get drone() { return drone; }, get rest() { return homes[active]; }, get activeLang() { return active; },
     get focused() { return !!focused; }, get fitDistance() { return fitDist; } };
 }

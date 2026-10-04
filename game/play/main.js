@@ -32,6 +32,7 @@ import { get as tget, onThemeChange } from '../engine/theme.js';
 import { createSound } from './sound.js';
 import { createLife } from './progress.js';
 import { setDefaultStore } from './spells.js';
+import { createHome } from './home.js';
 
 const CLOCK = '2026-01-01T08:45:00Z'; // the office clock on Day 1: who is sitting where comes from the bookings running now
 const LANGS = { sql: 'SQL', js: 'JavaScript', php: 'PHP' };
@@ -66,10 +67,14 @@ const play = window.__play = { ready: false, busy: false, phase: null, timeScale
 // ---------------------------------------------------------------- the HUD
 let tweak = null;
 let focusOn = false;
+let home = null; // the home room (home.js), made once the scene is up
 const hud = createHud($('#hud'), {
   onReset: () => (chapter ? chapter.reset() : onReset()),
   onTweak: () => { tweak ??= mountTweakPanel(app); sound.attachPanel(tweak.panel); tweak.toggle(); },
   onFocus: () => toggleFocus(),
+  onHome: () => home?.toggle(),
+  onShop: () => home?.shop?.toggle(),
+  onEdit: () => home?.edit?.toggle(),
 });
 hud.setClock('Day 1 · 08:45');
 
@@ -327,6 +332,8 @@ play.sound = sound;
 
 setBusy(true);
 await startScene();
+home = createHome({ L: life, hud, app, getOffice: () => office, getStage: () => stage, rects: () => wins.rects(), hudHeight, RM });
+play.home = home;
 if (MODE === 'ticket') {
   await loadWorld();
   setBusy(false);
@@ -335,7 +342,7 @@ if (MODE === 'ticket') {
   const ctx = {
     play, app, hud, wins, life, editor, sound, RM, $, esc, show, rowsTable, setBusy, fitTicket, hudHeight,
     get office() { return office; }, get story() { return story; }, get stage() { return stage; }, glDown: () => glDown,
-    setLang, get lang() { return lang; }, tabs, showState: (s) => hud.set(s),
+    setLang, get lang() { return lang; }, tabs, showState: (s) => hud.set(s), homeSync: () => home?.sync(),
   };
   try {
     const { createChapter } = await import('./chapter.js');

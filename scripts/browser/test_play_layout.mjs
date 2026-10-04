@@ -19,7 +19,7 @@ for (const [name, vp, phone] of [['1280x720', { width: 1280, height: 720 }, fals
   const hudR = await rect(page, '#hud');
   t.check(`${name}: the HUD fits the width`, hudR.x >= 0 && hudR.r <= vp.width + 0.5, JSON.stringify(hudR));
   const counters = await page.locator('[data-ctr]').count();
-  t.check(`${name}: all five HUD counters show`, counters === 5 && await page.locator('[data-ctr="tickets"]').isVisible());
+  t.check(`${name}: all six HUD counters show (the balance chip joined the five)`, counters === 6 && await page.locator('[data-ctr="tickets"]').isVisible());
   for (const sel of ['#win-ticket', '#win-code']) {
     const r = await rect(page, sel);
     t.check(`${name}: ${sel} is on screen horizontally`, onScreenX(r, vp.width), JSON.stringify(r));
