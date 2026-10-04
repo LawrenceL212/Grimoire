@@ -143,6 +143,9 @@ function clean(rec) {
   return r;
 }
 
+// exported for game/sync (the validator, unchanged): one stored record, checked field by field
+export { clean as cleanSpellRecord };
+
 // the game's clock: real time, unless a test (or the chapter's setNow) moves it; stores and the book read it
 let CLOCK = () => Date.now();
 export const gameNow = () => CLOCK();
