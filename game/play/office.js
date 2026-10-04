@@ -24,7 +24,7 @@
 //     .screenOf(bookingId | 'drone') -> { x, y } in CSS pixels of the canvas (or null)
 //     .setArc({ tables, rooms } | null) -> { added, lit }   the product arc: a cabinet per table he made, a room
 //                                   lit only where his rooms table has a row; null: a seeded world (as built)
-//     .arcState()                   { cabinets, dark, lit } (tests) or null
+//     .arcState()                   { cabinets, dark, lit, annex } (tests) or null
 //   story.js drives .drone, .people and .map.traffic through these.
 import * as THREE from 'three';
 import { get as tget, onThemeChange } from '../engine/theme.js';
@@ -131,7 +131,11 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   // the bookings running at the office clock, in a room the office has, earliest first
   // a world room is the map room of the same id (room-1 is rooms.id 1), whatever the world calls it now:
   // renaming a room in the world does not make it vanish from the office
-  const roomOf = (roomId) => map.rooms.find((r) => r.id === `room-${roomId}`) || null;
+  // In his company (setArc) the rooms are his rows, whatever ids they got: the first of them (by id) is the first
+  // room of the office, and so on; rows beyond the office's rooms are in the annex (arcAnnex), not in a room.
+  const arcSlot = new Map(); // his rooms.id -> map room, while the arc is on
+  let arcSlotsOn = false;
+  const roomOf = (roomId) => (arcSlotsOn ? arcSlot.get(Number(roomId)) : map.rooms.find((r) => r.id === `room-${roomId}`)) || null;
   function running(objects, clock) {
     const now = Date.parse(clock);
     const exists = new Set((objects.rooms || []).map((r) => r.id));
@@ -381,7 +385,8 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
 
   // ---------------------------------------------------------------- the product arc: the office is what he built
   // setArc({ tables: [{ name, columns }], rooms: [{ id, name }] }): a filing cabinet per table HE created (his
-  // column names on its label), and a room only where his rooms table has a row (room-1 is his rooms.id 1): the
+  // column names on its label), and a room only where his rooms table has a row (his rows in id order fill room-1,
+  // room-2, room-3, whatever ids they got; more rows than rooms go to the annex plates by the lab corner): the
   // others stay dark, labelled as not there yet. A table or room that was not there before arrives (the cabinet
   // grows out of the floor; the room lights up). setArc(null): a seeded world, the office as built.
   const arcLayer = new THREE.Group(); arcLayer.name = 'arc'; map.root.add(arcLayer);
@@ -410,10 +415,27 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   }
   const disposeTree = (o) => o.traverse((x) => { x.geometry?.dispose?.(); if (x.material) for (const m of [].concat(x.material)) { m.map?.dispose?.(); m.dispose?.(); } });
   let arcOn = null;
+  // the annex: his rooms beyond the office's three, each a lit plate in the corridor by the lab corner (in order),
+  // so a fourth or a tenth room of his is in the office too, until the company moves somewhere bigger
+  const ANNEX_MAX = 8;
+  let annex = []; // [{ id, name, label }]
+  function clearAnnex() { for (const a of annex) { arcLayer.remove(a.label); disposeTree(a.label); } annex = []; }
+  function layAnnex(rows) {
+    clearAnnex();
+    const shown = rows.slice(0, ANNEX_MAX);
+    shown.forEach((r, k) => {
+      const more = k === ANNEX_MAX - 1 && rows.length > ANNEX_MAX ? ` (+${rows.length - ANNEX_MAX} more)` : '';
+      const label = cabinetLabel(`annex · ${String(r.name || `room ${r.id}`).slice(0, 22)}${more}`);
+      label.position.set(4.75 + (k % 2) * 1.6, 0.03, -1.65 + Math.floor(k / 2) * 0.34);
+      arcLayer.add(label);
+      annex.push({ id: r.id, name: r.name, label });
+    });
+  }
   function setArc(arc) {
     const receptionist = staff[0]?.person;
     if (!arc) {
       arcOn = null;
+      arcSlotsOn = false; arcSlot.clear(); clearAnnex();
       for (const s of shades.values()) s.visible = false;
       for (const [t, c] of cabinets) { arcLayer.remove(c.obj, c.label); disposeTree(c.label); cabinets.delete(t); }
       if (receptionist) receptionist.root.visible = true;
@@ -440,6 +462,14 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
       cabinets.set(t.name, { obj, label, key, slot: CAB_SLOTS.indexOf(slot), born: have || first ? null : 0 });
       if (!have) added.push(t.name);
     }
+    // his rows, in id order, fill the office's rooms; the rest go to the annex
+    const ordered = [...(arc.rooms || [])].sort((a, b) => Number(a.id) - Number(b.id));
+    arcSlot.clear(); arcSlotsOn = true;
+    ordered.slice(0, map.rooms.length).forEach((r, k) => arcSlot.set(Number(r.id), map.rooms[k]));
+    const extra = ordered.slice(map.rooms.length);
+    const before = new Set(annex.map((a) => a.id));
+    layAnnex(extra);
+    if (!first) for (const r of extra) if (!before.has(r.id)) lit.push(`annex-${r.id}`);
     const mine = new Set((arc.rooms || []).map((r) => roomOf(r.id)).filter(Boolean));
     for (const r of map.rooms) {
       const on = mine.has(r);
@@ -454,7 +484,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     return { added, lit };
   }
   function arcState() {
-    return arcOn ? { cabinets: [...cabinets.entries()].map(([t, c]) => ({ table: t, label: c.key, grown: c.obj.scale.x > 0.99 })), dark: map.rooms.filter((r) => shades.get(r.id).visible).map((r) => r.id), lit: map.rooms.filter((r) => !shades.get(r.id).visible).map((r) => ({ id: r.id, label: r.label || r.name })) } : null;
+    return arcOn ? { cabinets: [...cabinets.entries()].map(([t, c]) => ({ table: t, label: c.key, grown: c.obj.scale.x > 0.99 })), dark: map.rooms.filter((r) => shades.get(r.id).visible).map((r) => r.id), lit: map.rooms.filter((r) => !shades.get(r.id).visible).map((r) => ({ id: r.id, label: r.label || r.name })), annex: annex.map((a) => a.name) } : null;
   }
   function arcUpdate(dt) {
     for (const c of cabinets.values()) {
