@@ -5,7 +5,8 @@ import { updateTweens, tween, ease, lerp } from './kit.js';
 
 export function createStage(canvas, { reducedMotion = false } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Render at least 2x: at devicePixelRatio 1 the thin outlines alias (browser zoom raised the ratio, which is why zooming looked fine).
+  renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 2.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
