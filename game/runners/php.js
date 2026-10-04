@@ -1,4 +1,4 @@
-import { TABLES } from '../world/views.js';
+import { TABLES, sanitizeWorld } from '../world/views.js';
 import { getSandbox } from '../sandbox/client.js';
 
 /* PHP cannot reach a Postgres server in the browser, so the learner works on a
@@ -57,7 +57,7 @@ set_time_limit(2);
   echo "${sentinel}";
   $o = [];
   foreach (['rooms', 'people', 'bookings'] as $t) {
-    $o[$t] = $pdo->query("SELECT * FROM $t ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    $o[$t] = $pdo->query("SELECT * FROM $t ORDER BY id LIMIT 5001")->fetchAll(PDO::FETCH_ASSOC);
   }
   echo json_encode($o);
 })();`;
@@ -68,14 +68,16 @@ export async function createPhpRunner() {
 
   async function runOnce(code, world) {
     const sentinel = makeSentinel();
-    const res = await sandbox.run('php', wrap(code, world, sentinel), { timeoutMs: RUN_TIMEOUT_MS });
+    const res = await sandbox.run('php', wrap(code, world, sentinel), { timeoutMs: RUN_TIMEOUT_MS, recycle: /vrzno/i.test(code) });
     if (res.timedOut) return { ok: false, stdout: '', error: `Timed out after ${RUN_TIMEOUT_MS} ms. Does a loop never finish?`, timedOut: true };
     if (!res.ok) return { ok: false, stdout: '', error: res.error || 'PHP did not finish' };
     const stdout = res.stdout;
     const i = stdout.indexOf(sentinel);
     if (i === -1) return { ok: false, stdout, error: ((res.stderr) || stdout || 'PHP did not finish').trim() };
     try {
-      return { ok: true, stdout: stdout.slice(0, i), world: JSON.parse(stdout.slice(i + sentinel.length)) };
+      const checked = sanitizeWorld(JSON.parse(stdout.slice(i + sentinel.length)));
+      if (checked.error) return { ok: false, stdout: stdout.slice(0, i), error: checked.error };
+      return { ok: true, stdout: stdout.slice(0, i), world: checked.world };
     } catch {
       return { ok: false, stdout, error: 'PHP returned data the game could not read.' };
     }

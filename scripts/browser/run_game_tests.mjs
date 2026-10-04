@@ -31,4 +31,4 @@ for (const f of ['boot', 'world', 'js_view', 'php_sync', 'grading', 'timetable',
   if (existsSync(file)) run([file]);
 }
 
-for (const f of ['sandbox', 'engine', 'art_catalogue', 'art_materials', 'art_furniture', 'art_sectors', 'art_people', 'art_drone', 'play_boot', 'play_layout', 'play_ticket', 'audio', 'play_audio', 'grimoire', 'intro', 'title', 'sync_file', 'account', 'chapter_start', 'chapter_play', 'chapter_literals', 'home']) run([join(here, `test_${f}.mjs`)]);
+for (const f of ['sandbox', 'sandbox_limits', 'engine', 'art_catalogue', 'art_materials', 'art_furniture', 'art_sectors', 'art_people', 'art_drone', 'play_boot', 'play_layout', 'play_ticket', 'audio', 'play_audio', 'grimoire', 'intro', 'title', 'sync_file', 'account', 'chapter_start', 'chapter_play', 'chapter_literals', 'home']) run([join(here, `test_${f}.mjs`)]);

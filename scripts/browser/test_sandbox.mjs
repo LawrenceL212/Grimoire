@@ -73,6 +73,7 @@ const r = await page.evaluate(async () => {
     try { echo json_encode(vrzno_eval("String(self.localStorage)")); } catch (Throwable $e) { echo 'threw'; }`, empty);
 
   // --- the frames themselves
+  await sb.warm('php'); // the bridge probes above recycled it
   const jf = sb.inspect('js').frame, pf = sb.inspect('php').frame;
   out.frames = {
     sandboxAttr: [jf.getAttribute('sandbox'), pf.getAttribute('sandbox')],

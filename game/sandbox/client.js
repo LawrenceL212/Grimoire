@@ -6,7 +6,7 @@
    including one inside php-wasm) and a fresh one is started in the background, so the page never freezes and the
    next run works.
 
-   run(lang, code, { world, timeoutMs, kind = 'run' }) -> { ok, result?, world?, logs?, stdout?, stderr?, error?, timedOut? }
+   run(lang, code, { world, timeoutMs, kind = 'run', recycle }) -> { ok, result?, world?, logs?, stdout?, stderr?, error?, timedOut? }
    Never throws. See host.js for the wire format. */
 export const LIMITS = Object.freeze({
   maxRequestBytes: 4 * 1024 * 1024,
@@ -69,13 +69,13 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
 
   /* One run at a time per language: the runtimes are single-flight. */
   const queues = {};
-  function run(lang, code, { world, timeoutMs, kind = 'run' } = {}) {
-    const next = (queues[lang] ?? Promise.resolve()).then(() => runOnce(lang, code, world, timeoutMs, kind));
+  function run(lang, code, { world, timeoutMs, kind = 'run', recycle = false } = {}) {
+    const next = (queues[lang] ?? Promise.resolve()).then(() => runOnce(lang, code, world, timeoutMs, kind, recycle));
     queues[lang] = next.catch(() => {});
     return next;
   }
 
-  async function runOnce(lang, code, world, timeoutMs, kind) {
+  async function runOnce(lang, code, world, timeoutMs, kind, recycle) {
     if (!PAGES[lang]) return { ok: false, error: `There is no sandbox for ${lang}.` };
     timeoutMs ??= lang === 'php' ? 8000 : 2000;
     let size;
@@ -107,7 +107,9 @@ export function createSandbox({ doc = document, base = import.meta.url } = {}) {
       }, hardMs);
       s.pending.set(id, ({ token: _t, id: _i, fatal, ...res }) => {
         clearTimeout(timer);
-        if (fatal) { destroy(lang); setTimeout(() => ensure(lang), 0); } // the runtime died (out of memory): start over
+        // The runtime died (out of memory), or the code touched the JS bridge, which can alter the worker's
+        // globals: start over with a fresh sandbox rather than trust this one.
+        if (fatal || recycle) { destroy(lang); setTimeout(() => ensure(lang), 0); }
         resolve(res);
       });
       try { s.port.postMessage({ token: s.tok, id, kind, lang, code, world, timeoutMs }); }
