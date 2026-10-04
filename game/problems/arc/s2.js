@@ -12,7 +12,7 @@ export const S2 = {
   from: PRIYA, says: 'The cabinet is there, but it is empty. Put my three rooms in: Boardroom 8, Studio 4, Library 12.',
   kind: 'feature', cause: 'client feature request', grading: 'one-off',
   concept: 'insert', newConcept: 1, teaches: ['insert'], uses: ['table-row', 'create-table'], needs: ['S1'], revisits: ['S1', 'O2'],
-  languages: ['sql'], world: { stage: [], arc: true }, showNotebook: 'rooms',
+  languages: ['sql'], world: { stage: [], arc: true }, showNotebook: 'rooms', adds: { rooms: ['Boardroom', 'Studio', 'Library'] },
   acceptance: [
     "Your rooms table holds exactly Priya's rooms: one row each for the Boardroom, the Studio and the Library.",
     'Each with the seats in her notebook (8, 4 and 12). Names are compared without caring about capitals or spaces at the ends.',

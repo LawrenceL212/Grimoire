@@ -6,7 +6,8 @@
 // Re-hosted for the product arc (S0): the company starts EMPTY, so the tutorial comes in two parts. Part 1
 // (before the notebook tickets) happens on Priya's paper notebook: there is no database to query yet. Part 2
 // (after S2) happens on HIS rooms table, the first data the company has: the query he is shown asks for his own
-// rooms. Part 2 never changes his world (its runs are rolled back).
+// rooms. Part 2 never changes his world (its runs are rolled back). Its ids are his: {room:Boardroom} is the id his
+// own Boardroom got (card.js resolveCard), so a table whose rows were put in twice and fixed still reads true.
 //
 // It is ladder data too: it teaches how to play (play-* concepts, not counted toward the day's cap) and
 // PREVIEWS three SQL ideas (a whole table, a row, and WHERE) that the cards then teach properly.
@@ -28,9 +29,9 @@ export const TUTORIAL = {
     { id: 'query', part: 2, task: 'run', lang: 'sql', starter: 'SELECT * FROM rooms;',
       say: "Your rooms are in a real database now, so we can ask it. Here is a question in SQL, typed for you: SELECT means show, * every column, FROM rooms your table, and ; ends it. Press Run.",
       checks: [{ kind: 'rows', truth: 'SELECT * FROM rooms', exactColumns: true }] },
-    { id: 'change', part: 2, task: 'run', lang: 'sql', starter: 'SELECT * FROM rooms WHERE id = 1;',
-      say: "This one keeps only the room whose id is 1 (WHERE picks rows; you'll learn it properly soon). Change the 1 to a 2, one word, and run it.",
-      checks: [{ kind: 'rows', truth: 'SELECT * FROM rooms WHERE id = 2', exactColumns: true }] },
+    { id: 'change', part: 2, task: 'run', lang: 'sql', starter: 'SELECT * FROM rooms WHERE id = {room:Boardroom};',
+      say: "This one keeps only the room whose id is {room:Boardroom}, your Boardroom (WHERE picks rows; you'll learn it properly soon). Your Studio's id is {room:Studio}: change the {room:Boardroom} to a {room:Studio}, one word, and run it.",
+      checks: [{ kind: 'rows', truth: 'SELECT * FROM rooms WHERE id = {room:Studio}', exactColumns: true }] },
     { id: 'grimoire', part: 2, task: 'run', lang: 'sql', starter: '', recall: ['select-all'],
       say: "This is the Grimoire: your book of spells. A spell you've only seen is in pencil. It is written in ink only when you cast it on your own, in a real ticket. Here is a demonstration: with an empty editor and no help, show every room again.",
       checks: [{ kind: 'rows', truth: 'SELECT * FROM rooms', exactColumns: true }] },
