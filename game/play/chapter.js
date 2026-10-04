@@ -10,10 +10,24 @@
 // the right ticket. ?new starts a new life; ?tutorial replays the tutorial (practice: nothing is recorded).
 //
 //   createChapter(ctx) -> { run(), reset(), state(), setNow(ms), next(), ... }   (window.__play.chapter)
+//
+// The product arc (milestone M-A): a card with world.arc runs on HIS company database, which starts empty and is
+// only ever what his own runs made it. Every run of his that changed it is appended to the life's change log
+// (world/ddl-log.js); the log is replayed into an empty PostgreSQL on load, and Reset cuts it back to where it was
+// when the ticket arrived. Scaffold steps marked on: 'pad' (and every example) run on Sequel's practice pad, a
+// separate empty database that is wiped before each run and never kept. S0's tickets are answered on Priya's
+// paper notebook (notebook.js). The office shows his tables as filing cabinets and lights a room only where his
+// rooms table has a row (office.setArc).
 import { toObjects } from '../world/views.js';
+import { World } from '../world/world.js';
+import { append as logAppend, upTo as logUpTo, rebuild as rebuildWorld, isChange } from '../world/ddl-log.js';
+import { readCatalogue } from '../world/catalogue.js';
 import { runSolution, getPhpRunner } from '../runners/index.js';
-import { LADDER, TUTORIAL, cardById, DAILY_CAP } from '../problems/ladder.js';
+import { runSql } from '../runners/sql.js';
+import { LADDER, TUTORIAL, PART2_START, cardById, DAILY_CAP, heldConcept } from '../problems/ladder.js';
 import { startWorld, startShadow, baselineOf, gradeStep, castSpells, detectSpells, runQuestionSql, truthsOf } from '../problems/card.js';
+import { createNotebook } from './notebook.js';
+import { NOTEBOOK } from '../problems/arc/notebook.js';
 import { CLOCK as CHAPTER_CLOCK } from '../world/named.js';
 import { diffWorlds, rowChanges, clashPairs } from './bridge.js';
 import { deriveState } from './state.js';
@@ -53,10 +67,20 @@ export async function createChapter(ctx) {
   ttWin.innerHTML = '<div class="bar" aria-label="Timetable"><span class="dot"></span><span>TIMETABLE · bookings</span><span class="sp"></span><button type="button" class="tt-close" aria-label="Hide the timetable">×</button></div><div class="body tt-host"></div>';
   app.appendChild(ttWin);
   wins.add(ttWin, { id: 'timetable', right: 16, y: 84, w: 470, h: (W, H) => Math.max(260, Math.min(600, H - 100)), minW: 300, minH: 220 });
-  const showTimetable = (on) => { ttWin.hidden = !on; if (on) wins.layout(); };
+  const showTimetable = (on) => { ttWin.hidden = !on; if (on) { nbWin.hidden = true; wins.layout(); } }; // one paper at a time: the timetable or the notebook
   showTimetable(false);
   ttWin.querySelector('.tt-close').addEventListener('click', () => showTimetable(false));
   const timetable = createTimetable(ttWin.querySelector('.tt-host'), { onPick: (id) => onPicked(id) });
+  // Priya's notebook (the product arc's S0): paper, before there is any database
+  const nbWin = document.createElement('section');
+  nbWin.id = 'win-notebook'; nbWin.setAttribute('aria-label', "Priya's notebook");
+  nbWin.innerHTML = '<div class="bar" aria-label="Notebook"><span class="dot"></span><span>PRIYA\'S NOTEBOOK · paper</span><span class="sp"></span><button type="button" class="nb-close" aria-label="Hide the notebook">×</button></div><div class="body nb-host"></div>';
+  app.appendChild(nbWin);
+  wins.add(nbWin, { id: 'notebook', right: 16, y: 84, w: 440, h: (W, H) => Math.max(260, Math.min(520, H - 100)), minW: 300, minH: 220 });
+  const showNotebook = (on, page = null) => { nbWin.hidden = !on; if (on) { if (page) notebook.show(page); showTimetable(false); wins.layout(); } };
+  const notebook = createNotebook(nbWin.querySelector('.nb-host'), { onCell: (c) => onCell(c) });
+  showNotebook(false);
+  nbWin.querySelector('.nb-close').addEventListener('click', () => showNotebook(false));
   // Sequel's speech bubble (the tutorial)
   const bubble = document.createElement('div');
   bubble.id = 'sequel-say'; bubble.className = 'say'; bubble.hidden = true;
@@ -80,15 +104,53 @@ export async function createChapter(ctx) {
   }
 
   // ---------------------------------------------------------------- the world
-  async function openWorld(card, { keepPick = false } = {}) {
+  // ---- the product arc: his company database (rebuilt from his change log) and Sequel's practice pad
+  const arc = { world: null, pad: null, padBusy: null };
+  const arcLife = () => (life().arc ??= { company: null, log: [], marks: {} });
+  const isArc = (card) => !!card?.world?.arc;
+  async function arcWorld({ fresh = false } = {}) {
+    if (arc.world && !fresh) return arc.world;
+    const r = await rebuildWorld(World, arcLife().log);
+    if (!r.ok) ctx.show('is-error', `Your company's database could be rebuilt only up to change ${r.at} of ${arcLife().log.length}: ${r.error}. Everything up to there is yours as you made it; Reset puts the current ticket back to its start.`);
+    const old = arc.world;
+    arc.world = r.world;
+    if (old && old !== r.world && old !== play.world) old.close().catch(() => {});
+    return arc.world;
+  }
+  function arcRecord(code, card) {
+    if (!isChange(code)) return false;
+    const a = arcLife(), n = a.log.length;
+    a.log = logAppend(a.log, code, { card: card?.id || 'tutorial', atMs: now() });
+    L.save();
+    return a.log.length > n;
+  }
+  // the pad: an empty database, wiped before every use, never kept
+  async function padWorld() {
+    arc.pad ??= await World.create({}, { empty: true });
+    await arc.pad.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    return arc.pad;
+  }
+  async function arcView(world) {
+    const cat = await readCatalogue(world);
+    const objects = await toObjects(world);
+    return { tables: Object.values(cat.tables).map((t) => ({ name: t.name, columns: t.columns.map((c) => c.name).filter((c) => c !== 'id') })), rooms: objects.rooms.map((r) => ({ id: r.id, name: r.name })) };
+  }
+  async function arcShow(world) {
+    const office = ctx.office;
+    if (!office) return null;
+    return office.setArc(await arcView(world));
+  }
+
+  async function openWorld(card, { keepPick = false, fresh = false } = {}) {
     const old = play.world;
-    const world = await startWorld(card);
+    const world = isArc(card) ? await arcWorld({ fresh }) : await startWorld(card);
     const objects = await toObjects(world);
     play.world = world; play.objects = objects; play.clock = clockOf(card);
     const office = ctx.office;
     if (office) {
       ctx.story?.cancel();
       office.seed(objects, clockOf(card));
+      if (isArc(card)) await arcShow(world); else office.setArc(null);
       office.relabel(objects.rooms);
       office.setRooms(new Set(clashPairs(objects.bookings).map((p) => p.roomId)));
       office.fx.clearTickets();
@@ -96,7 +158,10 @@ export async function createChapter(ctx) {
     }
     timetable.render(objects);
     if (!keepPick) timetable.clear();
-    if (old && old !== world) old.close().catch(() => {});
+    if (old && old !== world) {
+      if (old === arc.world) arc.world = null; // leaving his company for a seeded ticket: it is rebuilt when he comes back
+      old.close().catch(() => {});
+    }
     return { world, objects };
   }
   function setTicket3d(card, open) {
@@ -112,15 +177,19 @@ export async function createChapter(ctx) {
     ctx.setBusy(true, 'reset');
     play.ready = false;
     try {
-      if (!practice) setLife(startCard(life(), card, now()));
+      // an old life that learnt this idea on a retired card (T06) meets it as recall: no Learn card, not a new idea today
+      const held = !practice && heldConcept(card, solvedIds(life()));
+      if (!practice) setLife(startCard(life(), held ? { ...card, newConcept: 0 } : card, now()));
+      // where his company's database stood when this ticket arrived (Reset goes back to it)
+      if (isArc(card) && !practice && !(card.id in arcLife().marks)) { arcLife().marks[card.id] = arcLife().log.length; L.save(); }
       for (const s of card.spells.teach) store().introduce(s, [card.languages[0]]);
       const saved = life().cards[card.id] || {};
       cur = {
-        kind: 'card', card, practice, step: practice ? 0 : Math.min(saved.step || 0, card.steps.length - 1),
-        act: { picked: null, choice: null, lookup: { opened: new Set(), ran: new Set() }, reply: null, ran: false },
+        kind: 'card', card, practice, held, step: practice ? 0 : Math.min(saved.step || 0, card.steps.length - 1),
+        act: { picked: null, cell: null, choice: null, lookup: { opened: new Set(), ran: new Set() }, reply: null, ran: false },
         // the help already used on this card comes back with it (a reload or Continue cannot wash it out)
         ...(practice ? { hint: 0, worked: false, codexEarly: false } : helpSoFar(life(), card.id)), casts: new Set(), solved: false, ranOnce: false,
-        learning: !!card.learnCard && !saved.learnSeen && !practice, showLookup: false, fresh: true, predicted: null, explained: false,
+        learning: !!card.learnCard && !saved.learnSeen && !practice && !held, showLookup: false, fresh: true, predicted: null, explained: false,
       };
       const { world } = await openWorld(card);
       if (op !== mine) return;
@@ -128,9 +197,11 @@ export async function createChapter(ctx) {
       cur.shadowP = card.grading === 'query' ? startShadow(card) : null;
       cur.shadowP?.catch(() => {});
       cur.baseline = await baselineOf(world, card.steps);
-      if (step().interaction === 'choice' && step().options) cur.options = (await world.query(step().options)).map((r) => Object.values(r)[0]);
+      if (step().interaction === 'choice' && step().options) cur.options = await optionsOf(step(), world);
       setTicket3d(card, true);
       showTimetable(!!card.showTimetable);
+      if (card.showNotebook) showNotebook(true, card.showNotebook); else showNotebook(false);
+      notebook.clear();
       prepareStep();
       render();
       hudUpdate();
@@ -143,6 +214,8 @@ export async function createChapter(ctx) {
       if (op === mine) ctx.setBusy(false);
     }
   }
+  // a choice's options: SQL on the world, or (on the notebook) a plain list
+  const optionsOf = async (s, world) => (Array.isArray(s.options) ? s.options : (await world.query(s.options)).map((r) => Object.values(r)[0]));
   function prepareStep() {
     const s = step();
     if (!s) return;
@@ -210,6 +283,11 @@ export async function createChapter(ctx) {
     }
     if (s.interaction === 'reply') return `<section class="ask"><p>${esc(s.prompt)}</p><div class="col">${s.options.map((o) => `<button type="button" class="btn opt" data-act="reply" data-value="${esc(o.id)}">${esc(o.text)}</button>`).join('')}</div></section>`;
     if (s.interaction === 'lookup') return '<section class="ask"><p>Use “Look it up” below: search for what you want to do.</p></section>';
+    if (s.interaction === 'cell') {
+      const c = cur.act.cell, pg = c ? NOTEBOOK.pages[c.page] : null;
+      const said = c ? `You clicked ${pg.title}, line ${c.row}, ${pg.columns.find((x) => x.id === c.col)?.label || c.col}.` : "Click a cell in Priya's notebook.";
+      return `<section class="ask"><p>${esc(said)}</p><button type="button" class="btn" data-act="notebook">Open the notebook</button></section>`;
+    }
     return '';
   }
   function lookupHTML() {
@@ -242,12 +320,16 @@ export async function createChapter(ctx) {
     header(card);
     const nSteps = card.steps.length;
     objective.innerHTML = cur.solved ? '<b>Resolved.</b>'
-      : `<b>${esc(s.objective)}</b> <span class="lvl">${nSteps > 1 ? `Step ${cur.step + 1} of ${nSteps} · ` : ''}${s.interaction ? '' : `${LEVEL[s.level]}`}</span>`;
+      : `<b>${esc(s.objective)}</b> <span class="lvl">${nSteps > 1 ? `Step ${cur.step + 1} of ${nSteps} · ` : ''}${s.interaction ? '' : `${LEVEL[s.level]}`}</span>`
+        + (isArc(card) && !s.interaction ? `<span class="where-run"> · ${s.on === 'pad' ? "runs on Sequel's practice pad: nothing there is kept" : "runs on your company's database: what you make here stays"}</span>` : '');
     let html = '';
     if (cur.pace) html += `<section class="pace"><p>${esc(cur.pace)}</p><button type="button" class="btn" data-act="practice">Practise a solved ticket (no credit)</button></section>`;
     else if (cur.learning) html += learnHTML(card);
     else if (cur.solved) html += solvedHTML();
     else {
+      // the goal and how it will be checked, never the answer (the product arc)
+      if (card.acceptance) html += `<section class="acceptance" aria-label="Done when"><span class="tag">Done when</span><ul>${card.acceptance.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>${card.convention ? `<p class="convention">${esc(card.convention)}</p>` : ''}</section>`;
+      if (cur.held) html += '<p class="note">You have met this idea before, on an earlier ticket: no Learn card this time. Producing it from memory is the point (the Learn card is still there, free, under the tools).</p>';
       if (card.calibrate && cur.predicted == null) html += `<section class="ask"><p>Before you start: will you solve this without hints?</p><div class="row">${['yes', 'not sure', 'no'].map((v) => `<button type="button" class="btn opt" data-act="predict" data-value="${v}">${v}</button>`).join('')}</div></section>`;
       if (card.lookupOnly && cur.hint < 2) html += '<p class="note">No Learn card on this one: the tool you need is in the Grimoire. Look it up by what you want to do.</p>';
       html += interactionHTML(s);
@@ -255,7 +337,7 @@ export async function createChapter(ctx) {
       if (cur.hint >= 4) html += workedHTML(card);
       if (cur.showLookup || s.interaction === 'lookup') html += lookupHTML();
     }
-    html += `<div class="tools row"><button type="button" class="btn link" data-act="timetable">Timetable</button>
+    html += `<div class="tools row">${isArc(card) ? '<button type="button" class="btn link" data-act="notebook">Notebook</button>' : '<button type="button" class="btn link" data-act="timetable">Timetable</button>'}
       <button type="button" class="btn link" data-act="lookup">Look it up</button>
       ${card.learnCard && !cur.learning ? '<button type="button" class="btn link" data-act="relearn">Learn card</button>' : ''}
       <button type="button" class="btn link" data-act="tutorial">Replay the tutorial</button></div>`;
@@ -283,6 +365,7 @@ export async function createChapter(ctx) {
     else if (a === 'hint') openHint(Number(b.dataset.level));
     else if (a === 'worked-run') runExample(cur.card.workedExample, { worked: true });
     else if (a === 'timetable') { showTimetable(true); }
+    else if (a === 'notebook') { showNotebook(true, b.dataset.page || cur.card.showNotebook || null); }
     else if (a === 'lookup') { cur.showLookup = !cur.showLookup; render(); }
     else if (a === 'lookup-open') lookupOpen(b.dataset.spell);
     else if (a === 'lookup-run') lookupRun();
@@ -335,6 +418,12 @@ export async function createChapter(ctx) {
     const s = step();
     if (s?.interaction === 'pick') { cur.act.picked = id; gradeInteraction(); }
   }
+  // a cell of Priya's notebook clicked: the tutorial's first look, or S0's answer
+  function onCell(c) {
+    if (cur?.kind === 'tutorial') { tutorialPicked(c); return; }
+    if (!cur || cur.solved || cur.kind !== 'card') return;
+    if (step()?.interaction === 'cell') { cur.act.cell = { page: c.page, row: c.row, col: c.col }; gradeInteraction(); }
+  }
   async function gradeInteraction() {
     const s = step();
     const g = await gradeStep(cur.card, s, { world: cur.world, act: cur.act, baseline: cur.baseline });
@@ -360,6 +449,8 @@ export async function createChapter(ctx) {
 
   // ---------------------------------------------------------------- runs
   function explainError(err) {
+    const exists = /relation "([^"]+)" already exists/.exec(err);
+    if (exists) return `<p class="err-help">Your <code>${esc(exists[1])}</code> table is already there, so it cannot be made again. To start it over, remove it first with <code>DROP TABLE ${esc(exists[1])};</code> (look it up, free), or press Reset to go back to how this ticket began.</p>`;
     const m = /at or near "([^"]+)"/.exec(err) || /(\w+) is not defined/.exec(err) || /Unexpected (?:token|identifier) '?([^'\s]+)'?/.exec(err);
     return m ? `<p class="err-help">What it could not understand: <code>${esc(m[1])}</code>. Look at that word first.</p>` : '';
   }
@@ -382,6 +473,13 @@ export async function createChapter(ctx) {
     const undone = rowChanges(before, res.after).length > 0;
     return { res, before, after: before, events: [], changed: false, undone };
   }
+  // a scaffold step of the product arc: Sequel's practice pad, wiped first, never kept
+  async function executePad(code) {
+    const pad = await padWorld();
+    const res = await runSql(pad, code);
+    const none = { rooms: [], people: [], bookings: [] };
+    return { res, before: play.objects || none, after: play.objects || none, events: [], changed: false, world: pad };
+  }
   async function execute(lang, code) {
     const world = play.world;
     const before = await toObjects(world);
@@ -401,6 +499,9 @@ export async function createChapter(ctx) {
     if (play.busy || !ex) return false;
     if (ex.show === 'pick') { showTimetable(true); timetable.inspect(ex.id, { follow: ex.follow }); if (worked) { cur.worked = true; keepHelp(); } render(); return true; }
     if (ex.show === 'lookup') { cur.showLookup = true; cur.lookupQ = ex.search; render(); return true; }
+    if (ex.show === 'note') { showNotebook(true); notebook.highlight(ex.page, ex.row); if (worked) { cur.worked = true; keepHelp(); } render(); return true; }
+    // in his company an example never touches his database: it runs on Sequel's practice pad
+    if (isArc(cur.card) && ex.lang === 'sql') return padExample(ex, { worked });
     const mine = ++op;
     ctx.setBusy(true, 'run');
     if (worked) { cur.worked = true; keepHelp(); }
@@ -418,6 +519,22 @@ export async function createChapter(ctx) {
         cur.baseline = await baselineOf(cur.world, cur.card.steps || []);
         ctx.show('is-miss', 'That was an example: the world is back as the ticket arrived.', outputHTML(ex.lang, r.res));
       } else ctx.show('is-win', worked ? 'The worked example ran. It is practice: this solve now counts as exposure, not mastery.' : 'The example ran.', outputHTML(ex.lang, r.res));
+      return true;
+    } catch (e) {
+      ctx.show('is-error', String(e?.message ?? e)); return false;
+    } finally { if (op === mine) ctx.setBusy(false); if (cur?.kind === 'card') render(); }
+  }
+  async function padExample(ex, { worked = false } = {}) {
+    const mine = ++op;
+    ctx.setBusy(true, 'run');
+    if (worked) { cur.worked = true; keepHelp(); }
+    try {
+      const pad = await padWorld();
+      const r = await runSql(pad, ex.code);
+      if (op !== mine) return false;
+      if (!r.ok) { ctx.show('is-error', `On the practice pad: ${r.error}`, explainError(r.error)); return true; }
+      const tables = (await pad.tables()).join(', ');
+      ctx.show('is-win', `${worked ? 'The worked example ran' : 'The example ran'} on Sequel's practice pad${tables ? ` (it now has: ${tables})` : ''}. Nothing in your company changed.${worked ? ' It is practice: this solve now counts as exposure, not mastery.' : ''}`, outputHTML('sql', r));
       return true;
     } catch (e) {
       ctx.show('is-error', String(e?.message ?? e)); return false;
@@ -443,35 +560,42 @@ export async function createChapter(ctx) {
       // the answers are worked out from the world BEFORE his code runs
       const truths = s.interaction ? null : await truthsOf(cur.world, s);
       const question = cur.card.grading === 'query' && lang === 'sql';
-      const r = question ? await executeQuestion(code) : await execute(lang, code);
+      const onPad = isArc(cur.card) && s.on === 'pad';
+      const r = onPad ? await executePad(code) : question ? await executeQuestion(code) : await execute(lang, code);
       if (op !== mine) return;
       cur.ranOnce = true;
-      if (!r.res.ok) { play.lastEvents = []; ctx.show('is-error', r.res.error, explainError(r.res.error)); ctx.sound?.cue?.('error'); return; }
+      if (!r.res.ok) { play.lastEvents = []; ctx.show('is-error', onPad ? `On the practice pad: ${r.res.error}` : r.res.error, explainError(r.res.error)); ctx.sound?.cue?.('error'); return; }
+      // his company keeps what his code did: the run joins the change log (the save, and what Reset cuts back)
+      const kept = isArc(cur.card) && !onPad && !cur.practice && arcRecord(code, cur.card);
       cur.act.ran = true;
       play.objects = r.after; play.lastEvents = r.events;
       let grade = null;
       if (!s.interaction) {
         ctx.show('is-running', 'Checking the answer…', outputHTML(lang, r.res));
-        grade = await gradeStep(cur.card, s, { world: cur.world, shadow: cur.shadowP, lang, code, res: r.res, baseline: cur.baseline, act: cur.act, php: getPhpRunner, truths });
+        grade = await gradeStep(cur.card, s, { world: onPad ? r.world : cur.world, shadow: cur.shadowP, lang, code, res: r.res, baseline: cur.baseline, act: cur.act, php: getPhpRunner, truths });
         // a question is answered from the data as it is: an answer that needed the data changed first does not count
         if (question && r.undone) grade = { passed: false, results: [{ name: 'the answer', ok: false, why: 'your code changed the data before answering. This ticket asks a question, so the change was not kept (it was rolled back): answer it from the data as it is', where: 'real' }] };
         play.lastGrade = grade;
       }
       if (op !== mine) return;
       ctx.show('is-running', r.changed ? 'Your code ran. Watch the office…' : 'Your code ran…', outputHTML(lang, r.res));
-      await act(lang, r.res, r.before, r.after, r.events, r.changed, grade ? grade.passed : null);
+      if (!onPad) await act(lang, r.res, r.before, r.after, r.events, r.changed, grade ? grade.passed : null);
       if (op !== mine) return;
+      // the office follows his database: a cabinet for a new table, a room lit for a new row
+      if (isArc(cur.card) && !onPad) { const shown = await arcShow(play.world); if (shown?.added.length || shown?.lit.length) ctx.sound?.cue?.('scan-ok'); }
       timetable.render(r.after);
       hudUpdate(r.after);
       const n = lang === 'sql' ? (r.res.rows || []).length : null;
-      const ran = `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${r.changed ? ', and it changed the world' : ''}${r.undone ? ' (its change to the data was rolled back: a question changes nothing)' : ''}.`;
+      const ran = onPad ? `It ran on the practice pad${n ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}.`
+        : `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${r.changed || kept ? (isArc(cur.card) ? ", and it changed your company's database" : ', and it changed the world') : ''}${r.undone ? ' (its change to the data was rolled back: a question changes nothing)' : ''}.`;
       if (!grade) { ctx.show('is-miss', `${ran} ${s.interaction === 'pick' ? 'Now pick the booking.' : 'Now answer in the ticket window.'}`, outputHTML(lang, r.res)); render(); return; }
       if (grade.passed) { await stepPassed(code, lang, r.res); return; }
       const failed = grade.results.filter((x) => !x.ok);
       const shadowOnly = failed.length && failed.every((x) => x.where === 'shadow');
-      const why = failed.map((x) => `${x.name}: ${x.why}`).filter(Boolean).slice(0, 2).join('; ');
+      const why = [...new Set(failed.map((x) => `${x.name}: ${x.why}`).filter(Boolean))].slice(0, 2).join('; ');
       const tail = shadowOnly ? ' It gave the right answer here, but the same question asked of another week of data came out wrong: an answer typed in, or a rule that only fits this data, will not hold.' : '';
-      const reset = r.changed && cur.card.grading === 'one-off' ? ' Reset puts the world back as the ticket arrived.' : '';
+      const reset = kept ? " What you ran is kept: it is your database. Change it with SQL (DELETE, DROP TABLE: look them up, free), or press Reset to put it back as it was when this ticket arrived."
+        : r.changed && cur.card.grading === 'one-off' ? ' Reset puts the world back as the ticket arrived.' : '';
       ctx.show('is-miss', `${ran} Not yet: ${why}.${tail}${reset}`, outputHTML(lang, r.res));
       ctx.sound?.attention?.();
     } catch (e) {
@@ -493,8 +617,8 @@ export async function createChapter(ctx) {
       cur.step++;
       if (!cur.practice) { const c = life().cards[card.id]; if (c) { c.step = cur.step; L.save(); } }
       prepareStep();
-      cur.act.picked = null; cur.act.choice = null;
-      if (step().interaction === 'choice' && step().options) cur.options = (await cur.world.query(step().options)).map((r) => Object.values(r)[0]);
+      cur.act.picked = null; cur.act.choice = null; cur.act.cell = null;
+      if (step().interaction === 'choice' && step().options) cur.options = await optionsOf(step(), cur.world);
       ctx.show('is-win', `Step ${cur.step} done. Next: ${step().objective}`);
       render();
       return;
@@ -525,6 +649,7 @@ export async function createChapter(ctx) {
     const spells = written.length ? `Written in your Grimoire, in ink: ${written.join(', ')}.` : pencil.length ? `Still in pencil: ${pencil.join(', ')} (cast it on your own, in a new problem, to write it in).` : '';
     cur.outcome = { reply: card.thanks || 'That is exactly it. Thank you!', credit, spells, kept: written.length ? 'Easy today is not the same as kept. Your Grimoire shows when this starts to fade; reviews arrive in the next update.' : (card.evidence === false ? 'Scaffolded: this one teaches; it is not evidence of what you can do on your own yet.' : '') };
     play.lastSolve = { card: card.id, help, xp: r.xp, written, spells: r.spells };
+    if (isArc(card) && card.steps.some((s) => !s.interaction)) showNotebook(false); // the paper is put away: look at what he built
     setTicket3d(card, false);
     ctx.show('is-win', `Solved: ${card.from.name.split(' ')[0]}'s ticket is resolved.${r.xp ? ` +${r.xp} XP` : ''}`);
     ctx.sound?.cue?.('level-up');
@@ -537,6 +662,7 @@ export async function createChapter(ctx) {
   // ---------------------------------------------------------------- moving on
   async function next() {
     if (cur?.kind === 'card' && cur.card.explain && !cur.explained) cur.explained = true;
+    if (part2Due()) { await startTutorial(); return; } // his rooms exist: the tutorial's second part, on them
     const id = nextCardId(LADDER, life());
     if (!id) { chapterDone(); return; }
     const card = cardById(id);
@@ -551,7 +677,8 @@ export async function createChapter(ctx) {
     await loadCard(card);
   }
   async function practice() {
-    const done = LADDER.filter((c) => solvedIds(life()).has(c.id) && c.steps.every((s) => !s.interaction));
+    // never a ticket of his company: practising one would change (or Reset) his real database
+    const done = LADDER.filter((c) => solvedIds(life()).has(c.id) && c.steps.every((s) => !s.interaction) && !isArc(c));
     const pick = done[Math.floor((now() / 1000) % Math.max(1, done.length))] || LADDER[0];
     await loadCard(pick, { practice: true });
   }
@@ -567,17 +694,29 @@ export async function createChapter(ctx) {
     const mine = ++op;
     ctx.setBusy(true, 'reset');
     try {
-      await openWorld(cur.card);
+      // his company: the change log goes back to where it stood when this ticket arrived, and is replayed
+      let undone = 0;
+      if (isArc(cur.card) && !cur.practice) {
+        const a = arcLife(), mark = a.marks[cur.card.id] ?? a.log.length;
+        undone = a.log.length - mark;
+        a.log = logUpTo(a.log, mark);
+        L.save();
+      }
+      await openWorld(cur.card, { fresh: isArc(cur.card) });
       cur.world = play.world;
       cur.baseline = await baselineOf(cur.world, cur.card.steps);
       setTicket3d(cur.card, !cur.solved);
       hudUpdate();
-      ctx.show('', 'Reset: the world is back as the ticket arrived.');
+      ctx.show('', isArc(cur.card) ? `Reset: your company's database is back as it was when this ticket arrived${undone ? ` (${undone} change${undone === 1 ? '' : 's'} undone)` : ''}.` : 'Reset: the world is back as the ticket arrived.');
     } finally { if (op === mine) ctx.setBusy(false); }
   }
 
   // ---------------------------------------------------------------- the first-day tutorial (Sequel)
   const T = TUTORIAL;
+  // part 2 of the tutorial needs his rooms: it opens once S2 is solved
+  const roomsMade = () => solvedIds(life()).has(T.part2After);
+  const part2Due = () => !life().tutorial.done && life().tutorial.step >= PART2_START && roomsMade();
+  const company = () => arcLife().company || 'your company';
   async function startTutorial({ replay = false } = {}) {
     const mine = ++op;
     ctx.setBusy(true, 'reset');
@@ -590,6 +729,8 @@ export async function createChapter(ctx) {
       if (op !== mine) return;
       cur.world = play.world;
       setTicket3d({ ...T, from: T.ticket.from, serve: 0, title: 'first day' }, true);
+      showTimetable(false);
+      showNotebook(tStep().part === 1, 'bookings');
       enterTutorialStep();
       hudUpdate();
       play.ready = true;
@@ -600,6 +741,7 @@ export async function createChapter(ctx) {
     const s = tStep();
     cur.hinted = false; cur.helped = false; cur.pickedId = null;
     if (s.task === 'run') editor.value = s.starter ?? '';
+    if (s.task === 'pick') showNotebook(true, 'bookings');
     if (s.id === 'grimoire') store().introduce('select-all', ['sql']);
     $('#win-ticket').classList.toggle('pulse', s.id === 'ticket');
     renderTutorial();
@@ -607,11 +749,12 @@ export async function createChapter(ctx) {
   }
   function renderTutorial() {
     const s = tStep();
-    header({ ...T, from: T.ticket.from, says: T.ticket.says }, { tutorial: true });
+    const tk = s.part === 2 ? T.ticket2 : T.ticket;
+    header({ ...T, from: tk.from, says: tk.says }, { tutorial: true });
     objective.innerHTML = `<b>First day, step ${cur.t + 1} of ${T.steps.length}</b>`;
     let html = '';
     if (s.id === 'hints') {
-      const rungs = HINT_COST.map((h) => `<li class="${cur.hinted && h.level === 1 ? 'is-open' : ''}"><button type="button" class="rung" data-act="t-hint" data-level="${h.level}" ${h.level === 1 && !cur.hinted ? '' : 'disabled'}><b>${h.level}</b> ${esc(h.name)} <small>${esc(h.costs)}</small></button>${cur.hinted && h.level === 1 ? '<p class="hint-text">Look at the number after room_id: it says which room.</p>' : ''}</li>`).join('');
+      const rungs = HINT_COST.map((h) => `<li class="${cur.hinted && h.level === 1 ? 'is-open' : ''}"><button type="button" class="rung" data-act="t-hint" data-level="${h.level}" ${h.level === 1 && !cur.hinted ? '' : 'disabled'}><b>${h.level}</b> ${esc(h.name)} <small>${esc(h.costs)}</small></button>${cur.hinted && h.level === 1 ? '<p class="hint-text">Look at the Room column of the notebook: it says which room.</p>' : ''}</li>`).join('');
       html += `<section class="hints"><span class="tag">Hint ladder</span><ol>${rungs}</ol></section>`;
     }
     thread.innerHTML = html;
@@ -621,7 +764,8 @@ export async function createChapter(ctx) {
     const last = cur.t === T.steps.length - 1;
     let buttons = '';
     if (s.task === 'read' || !s.task || (s.task === 'pick' && cur.pickedId != null)) buttons += `<button type="button" class="btn primary" data-t="next">${last ? 'Finish: my first ticket ▸' : s.id === 'ticket' ? "I've read it ▸" : 'Next ▸'}</button>`;
-    if (s.id === 'world' && cur.pickedId == null) buttons += '<button type="button" class="btn" data-t="timetable">Open the timetable</button>';
+    if (s.task === 'company') buttons += `<input class="company" id="company-name" maxlength="40" aria-label="Your company's name" placeholder="Your company's name" value="${esc(arcLife().company || '')}"><button type="button" class="btn primary" data-t="company">That's its name ▸</button>`;
+    if (s.id === 'world' && cur.pickedId == null) buttons += '<button type="button" class="btn" data-t="notebook">Open the notebook</button>';
     if (s.id === 'grimoire') buttons += '<button type="button" class="btn" data-t="showme">Show me (counts as help)</button>';
     if (!last) buttons += '<button type="button" class="btn link" data-t="skip">Skip this step</button>';
     if (cur.replay) buttons += '<button type="button" class="btn link" data-t="end">End the tutorial</button>';
@@ -644,15 +788,26 @@ export async function createChapter(ctx) {
     else if (a === 'skip') { if (!cur.replay) { life().tutorial.skipped.push(tStep().id); L.save(); } tutorialNext(); }
     else if (a === 'end') endTutorial();
     else if (a === 'timetable') showTimetable(true);
-    else if (a === 'showme') { cur.helped = true; editor.value = 'SELECT * FROM people;'; ctx.show('is-miss', 'Shown, not cast: press Run, and the spell stays in pencil this time (help never writes a spell in).'); }
+    else if (a === 'notebook') showNotebook(true, 'bookings');
+    else if (a === 'company') {
+      const name = String(bubble.querySelector('#company-name')?.value || '').trim().slice(0, 40);
+      if (!name) { ctx.show('is-miss', 'Give it a name: anything you like (it goes on your website later).'); return; }
+      arcLife().company = name; L.save();
+      ctx.show('is-win', `${name}: founded today, by you and Priya. Nothing in it yet but a notebook.`);
+      tutorialNext();
+    }
+    else if (a === 'showme') { cur.helped = true; editor.value = 'SELECT * FROM rooms;'; ctx.show('is-miss', 'Shown, not cast: press Run, and the spell stays in pencil this time (help never writes a spell in).'); }
   });
   function tutorialAct(a) {
     if (a === 't-hint') { cur.hinted = true; renderTutorial(); ctx.show('is-win', 'That is the hint ladder. On a real ticket that nudge would have cost 3 XP, and the solve would count as "nudged". The cost is always shown before you open one.'); setTimeout(() => cur?.kind === 'tutorial' && tStep().id === 'hints' && tutorialNext(), 50); }
   }
-  function tutorialPicked(id) {
+  function tutorialPicked(c) {
     if (tStep().id !== 'world') return;
+    const id = typeof c === 'object' ? c.row : c;
     cur.pickedId = id;
-    ctx.show('is-win', `That is booking ${id}: one row of the bookings table. Every block, and every person in a room, is a row like it.`);
+    ctx.show('is-win', typeof c === 'object'
+      ? `That is line ${id} of Priya's bookings: one booking, one row. Its headings (Who, Room, Day, From, To) are its columns. A database keeps exactly this, and ${company()} will have one soon.`
+      : `That is booking ${id}: one row of the bookings table.`);
     renderTutorial();
   }
   async function tutorialRun() {
@@ -662,14 +817,16 @@ export async function createChapter(ctx) {
     const mine = ++op;
     ctx.setBusy(true, 'run');
     try {
-      const r = await execute('sql', code);
+      // the tutorial runs on his company's database, and changes nothing there: every run is rolled back
+      const before = await toObjects(play.world);
+      const res = await runQuestionSql(play.world, code);
       if (op !== mine) return;
-      if (!r.res.ok) { ctx.show('is-error', r.res.error, explainError(r.res.error)); return; }
+      if (!res.ok) { ctx.show('is-error', res.error, explainError(res.error)); return; }
+      const r = { res, before, after: before, events: [], changed: false };
       const grade = s.checks ? await gradeStep({ grading: 'one-off' }, s, { world: play.world, lang: 'sql', code, res: r.res, act: {} }) : { passed: false, results: [] };
       ctx.show('is-running', 'Watch the office…', ctx.rowsTable(r.res.rows));
       await act('sql', r.res, r.before, r.after, r.events, r.changed, null);
       if (op !== mine) return;
-      if (r.changed) { await openWorld(T, { keepPick: true }); cur.world = play.world; }
       if (s.task !== 'run') { ctx.show('is-win', 'It ran. Carry on with what Sequel says.', ctx.rowsTable(r.res.rows)); return; }
       if (!grade.passed) { ctx.show('is-miss', `It ran, but it is not quite it: ${grade.results.filter((x) => !x.ok).map((x) => x.why)[0] || 'try again'}.`, ctx.rowsTable(r.res.rows)); return; }
       if (s.id === 'grimoire') {
@@ -679,20 +836,27 @@ export async function createChapter(ctx) {
         play.lastSolve = { card: 'tutorial', unaided };
         ctx.show('is-win', unaided ? 'Cast on your own: “Ask for everything” appears in your Grimoire as a Demonstration. It counts once you cast it on your own in a real ticket.' : cur.replay ? 'Cast. (A replay is practice: nothing new is written.)' : 'Cast with help: it stays in pencil until you cast it on your own.', ctx.rowsTable(r.res.rows));
         import('./grimoire.js').then((m) => { const g = m.grimoire(); g.open('select-all'); setTimeout(() => { g.close(); }, 2600 / Math.max(0.1, play.timeScale || 1)); });
-      } else ctx.show('is-win', s.id === 'query' ? 'That is every booking: each lit-up person is one row; the others are at other times of the week.' : 'One word changed the question: now only the Studio (room 2).', ctx.rowsTable(r.res.rows));
+      } else ctx.show('is-win', s.id === 'query' ? `Those are your rooms, from ${company()}'s own table: the database answered Priya's question.` : 'One word changed the question: now only the room whose id is 2.', ctx.rowsTable(r.res.rows));
       tutorialNext();
     } finally { if (op === mine) ctx.setBusy(false); }
   }
   function tutorialNext() {
     if (cur.t >= T.steps.length - 1) { endTutorial(); return; }
-    cur.t++;
+    const to = cur.t + 1;
+    // part 1 ends where the database begins: part 2 waits until his rooms are in it
+    if (tStep().part === 1 && T.steps[to].part === 2 && !roomsMade()) {
+      if (!cur.replay) { life().tutorial.step = to; L.save(); }
+      endTutorial({ part: 1 });
+      return;
+    }
+    cur.t = to;
     if (!cur.replay) { life().tutorial.step = cur.t; L.save(); }
     enterTutorialStep();
   }
-  async function endTutorial() {
+  async function endTutorial({ part = 2 } = {}) {
     bubble.hidden = true;
     $('#win-ticket').classList.remove('pulse');
-    if (!cur.replay) { life().tutorial.done = true; L.save(); }
+    if (!cur.replay && part === 2) { life().tutorial.done = true; L.save(); }
     await next();
   }
   // the bubble sits by Sequel (or in a fixed place when there is no 3D view)
@@ -702,7 +866,7 @@ export async function createChapter(ctx) {
     const W = innerWidth, H = innerHeight, bw = bubble.offsetWidth || 340, bh = bubble.offsetHeight || 160;
     let x = p ? p.x + 26 : W - bw - 16, y = p ? p.y - bh - 10 : H - bh - 16;
     // never over the timetable (its inspector is what the bubble is talking about): bottom right instead
-    if (!ttWin.hidden) { const r = ttWin.getBoundingClientRect(); if (x < r.right && x + bw > r.left && y < r.bottom && y + bh > r.top) { x = W - bw - 16; y = H - bh - 16; if (y < r.bottom) x = Math.max(8, r.left - bw - 12); } }
+    for (const w of [ttWin, nbWin]) if (!w.hidden) { const r = w.getBoundingClientRect(); if (x < r.right && x + bw > r.left && y < r.bottom && y + bh > r.top) { x = W - bw - 16; y = H - bh - 16; if (y < r.bottom) x = Math.max(8, r.left - bw - 12); } }
     if (wins.isPhone) { bubble.style.left = ''; bubble.style.top = ''; bubble.classList.add('is-docked'); return; }
     bubble.classList.remove('is-docked');
     x = Math.max(8, Math.min(W - bw - 8, x)); y = Math.max(70, Math.min(H - bh - 8, y));
@@ -726,12 +890,15 @@ export async function createChapter(ctx) {
     run, reset, next, practice, loadCard, startTutorial,
     get current() { return cur ? { kind: cur.kind, id: cur.card?.id, step: cur.kind === 'tutorial' ? cur.t : cur.step, tutorialStep: cur.kind === 'tutorial' ? tStep().id : null, solved: !!cur.solved, learning: !!cur.learning, hint: cur.hint || 0, worked: !!cur.worked, practice: !!cur.practice, pace: cur.pace || null } : null; },
     get life() { return life(); },
-    store, timetable, setNow(ms) { nowOverride = ms; }, now, ladder: LADDER, cardById,
+    store, timetable, notebook, setNow(ms) { nowOverride = ms; }, now, ladder: LADDER, cardById,
+    // the product arc: his change log, his company database, and what the office shows of it (tests)
+    arc: { get log() { return arcLife().log; }, get company() { return arcLife().company; }, world: () => arc.world, pad: () => arc.pad, office: () => ctx.office?.arcState() ?? null },
     pickBooking(id) { showTimetable(true); return timetable.inspect(id); },
     dispose() { clearInterval(bubbleTimer); },
   };
-  if (params.has('tutorial') && life().tutorial.done) await startTutorial({ replay: true });
-  else if (!life().tutorial.done) await startTutorial();
+  const tut = life().tutorial;
+  if (params.has('tutorial') && (tut.done || tut.step >= PART2_START)) await startTutorial({ replay: true });
+  else if (!tut.done && (tut.step < PART2_START || part2Due())) await startTutorial();
   else await next();
   return api;
 }

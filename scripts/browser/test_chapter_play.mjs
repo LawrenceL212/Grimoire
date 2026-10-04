@@ -15,17 +15,20 @@ const DAY = 86400000;
 const { page, errors, close } = await openGame('game/play/index.html?ticket=double-booking-1', { context: { viewport: { width: 1280, height: 800 } } });
 page.on('dialog', (d) => d.dismiss());
 
-// a life that has done the tutorial and the on-ramp, yesterday
+// a life that has done the tutorial, S0-S2 of the product arc (his rooms table and rooms, in his change log) and the on-ramp, yesterday
 await page.waitForFunction(() => window.__play, null, { timeout: 30000 });
 const base = Date.now() - 2 * DAY;
 await page.evaluate((b) => {
-  const on = ['O1', 'O2', 'O3', 'O4', 'O5'];
+  const on = ['O1', 'O2', 'S1', 'S2', 'O3', 'O4', 'O5'];
   const life = {
     v: 1, startedMs: b, tutorial: { done: true, step: 7, skipped: [] },
     cards: Object.fromEntries(on.map((id) => [id, { startedMs: b, learnSeen: true, step: 0 }])),
     solves: on.map((card) => ({ card, atMs: b, help: 'clean', unaided: false, lang: 'sql', xp: 10, practice: false })),
     days: { '2000-01-01': on },
     spells: { 'select-all': { langs: ['sql'], written: false, demo: true, lastMs: null, stability: 3, forms: {} } }, // the tutorial's demonstration
+    arc: { company: 'Harbour Desk', marks: { S1: 0, S2: 1 }, log: [
+      { sql: 'CREATE TABLE rooms (id SERIAL PRIMARY KEY, name TEXT NOT NULL, capacity INTEGER NOT NULL);', card: 'S1' },
+      { sql: "INSERT INTO rooms (name, capacity) VALUES ('Boardroom', 8), ('Studio', 4), ('Library', 12);", card: 'S2' }] },
   };
   localStorage.setItem('grimoire.life.siso.v1', JSON.stringify(life));
 }, base);
@@ -46,7 +49,7 @@ try {
   t.check('Continue: a life past the on-ramp resumes at T01', await ready(page) && (await current(page)).id === 'T01', JSON.stringify(await current(page)));
   await page.evaluate(() => { window.__play.timeScale = 10; });
   let paceSeen = 0, continued = false, workedChecked = false, hintsShot = false;
-  for (const card of LADDER.slice(5)) {
+  for (const card of LADDER.slice(LADDER.findIndex((c) => c.id === 'T01'))) {
     let c = await current(page);
     if (c.pace) {
       paceSeen++;

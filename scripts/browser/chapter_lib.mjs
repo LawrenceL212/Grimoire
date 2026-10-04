@@ -31,6 +31,14 @@ export async function answer(page, a) {
     await page.locator('#lookup-q').fill(words[a.lookup] || a.lookup);
     await page.locator(`#ticket-thread [data-act="lookup-open"][data-spell="${a.lookup}"]`).click();
     await page.click('#ticket-thread [data-act="lookup-run"]');
+  } else if ('cell' in a) {
+    // a cell of Priya's notebook: by its line (row) or, for a cheat, by where it sits after a sort (at)
+    const c = a.cell;
+    await page.evaluate(() => { document.getElementById('win-notebook').hidden = false; });
+    await page.locator(`#win-notebook .nb-tab[data-page="${c.page}"]`).click();
+    if (c.sort) await page.locator(`#win-notebook .nb-sort[data-sort="${c.sort}"]`).click();
+    if (c.at != null) await page.locator('#win-notebook tbody tr').nth(c.at).locator(`.nb-cell[data-col="${c.col}"]`).click();
+    else await page.locator(`#win-notebook .nb-cell[data-row="${c.row}"][data-col="${c.col}"]`).click();
   } else if ('reply' in a) {
     await page.locator(`#ticket-thread [data-act="reply"][data-value="${a.reply}"]`).click();
   }

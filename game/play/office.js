@@ -22,6 +22,9 @@
 //     .relabel(worldRooms)          the floor labels say the world's room names (room-1 is rooms.id 1)
 //     .pick(x, y) -> bookingId      the booking of the person under a screen point (or null)
 //     .screenOf(bookingId | 'drone') -> { x, y } in CSS pixels of the canvas (or null)
+//     .setArc({ tables, rooms } | null) -> { added, lit }   the product arc: a cabinet per table he made, a room
+//                                   lit only where his rooms table has a row; null: a seeded world (as built)
+//     .arcState()                   { cabinets, dark, lit } (tests) or null
 //   story.js drives .drone, .people and .map.traffic through these.
 import * as THREE from 'three';
 import { get as tget, onThemeChange } from '../engine/theme.js';
@@ -29,6 +32,7 @@ import { Person, ROLES } from '../art/people.js';
 import { Drone } from '../art/drone.js';
 import { Effects } from '../art/fx.js';
 import { buildMap } from './map.js';
+import { make } from '../art/index.js';
 
 // the drone reads small at game distance: the play page gives it extra size (theme drone.playScale)
 class PlayDrone extends Drone { _scale() { return super._scale() * (tget('drone.playScale') || 1); } }
@@ -324,7 +328,8 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     for (const { person } of people.values()) person.update(dt, t);
     for (const p of leaving) p.update(dt, t);
     for (const s of staff) s.person.update(dt, t);
-    ambient(dt);
+    if (!arcOn) ambient(dt); // in his empty company nobody else works here yet
+    arcUpdate(dt);
     for (const d of Object.values(drones)) d.update(dt, t);
     fx.update(dt, t);
     map.update(dt, t);
@@ -365,12 +370,101 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
   }
   function dispose() {
     offTheme(); removeEventListener('resize', onResize);
+    for (const t of timers) clearTimeout(t);
+    setArc(null);
     clearPeople(); for (const s of staff) s.person.dispose();
     for (const d of Object.values(drones)) d.dispose();
     fx.dispose(); map.dispose();
   }
   // the floor labels follow the world's room names
   function relabel(worldRooms = []) { for (const r of worldRooms) { const m = roomOf(r.id); if (m) map.relabel(m.id, r.name); } }
+
+  // ---------------------------------------------------------------- the product arc: the office is what he built
+  // setArc({ tables: [{ name, columns }], rooms: [{ id, name }] }): a filing cabinet per table HE created (his
+  // column names on its label), and a room only where his rooms table has a row (room-1 is his rooms.id 1): the
+  // others stay dark, labelled as not there yet. A table or room that was not there before arrives (the cabinet
+  // grows out of the floor; the room lights up). setArc(null): a seeded world, the office as built.
+  const arcLayer = new THREE.Group(); arcLayer.name = 'arc'; map.root.add(arcLayer);
+  const CAB_SLOTS = [[3.4, 4.35], [4.4, 4.35], [5.4, 4.35], [6.4, 4.35], [3.4, 5.4], [4.4, 5.4]];
+  const cabinets = new Map(); // table -> { obj, label, born, key }
+  const shades = new Map(map.rooms.map((r) => {
+    const [a, b, c, d] = r.tiles;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(c - a - 0.1, d - b - 0.1), new THREE.MeshBasicMaterial({ color: 0x050403, transparent: true, opacity: 0.62, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set((a + c) / 2, 0.045, (b + d) / 2); m.renderOrder = 3; m.visible = false; m.name = `${r.id}-dark`;
+    arcLayer.add(m);
+    return [r.id, m];
+  }));
+  const timers = new Set();
+  const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
+  function cabinetLabel(text) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(20,16,13,0.8)'; g.beginPath(); g.roundRect(6, 8, 500, 80, 22); g.fill();
+    g.strokeStyle = tget('palette.gold') || '#d9a441'; g.lineWidth = 4; g.stroke();
+    g.fillStyle = '#efe6d2'; g.font = '700 34px "Segoe UI", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 256, 50, 470);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.28), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.renderOrder = 2;
+    return m;
+  }
+  const disposeTree = (o) => o.traverse((x) => { x.geometry?.dispose?.(); if (x.material) for (const m of [].concat(x.material)) { m.map?.dispose?.(); m.dispose?.(); } });
+  let arcOn = null;
+  function setArc(arc) {
+    const receptionist = staff[0]?.person;
+    if (!arc) {
+      arcOn = null;
+      for (const s of shades.values()) s.visible = false;
+      for (const [t, c] of cabinets) { arcLayer.remove(c.obj, c.label); disposeTree(c.label); cabinets.delete(t); }
+      if (receptionist) receptionist.root.visible = true;
+      return { added: [], lit: [] };
+    }
+    const first = arcOn === null;
+    // nobody works here yet: the company is him
+    if (receptionist) receptionist.root.visible = false;
+    const added = [], lit = [];
+    const want = new Map((arc.tables || []).map((t) => [t.name, t]));
+    for (const [t, c] of cabinets) if (!want.has(t)) { arcLayer.remove(c.obj, c.label); disposeTree(c.label); cabinets.delete(t); }
+    for (const t of want.values()) {
+      const key = `${t.name}: ${(t.columns || []).join(', ')}`;
+      const have = cabinets.get(t.name);
+      if (have && have.key === key) continue;
+      if (have) { arcLayer.remove(have.label); disposeTree(have.label); }
+      const slot = CAB_SLOTS[have ? have.slot : [...Array(CAB_SLOTS.length).keys()].find((i) => ![...cabinets.values()].some((c) => c.slot === i)) ?? 0];
+      const obj = have?.obj || make('filing-cabinet');
+      obj.position.set(slot[0], 0, slot[1]); obj.rotation.y = 0;
+      const label = cabinetLabel(key.length > 34 ? `${key.slice(0, 33)}…` : key);
+      label.position.set(slot[0], 0.03, slot[1] + 0.62);
+      if (!have) { arcLayer.add(obj); obj.scale.setScalar(first ? 1 : 0.001); }
+      arcLayer.add(label);
+      cabinets.set(t.name, { obj, label, key, slot: CAB_SLOTS.indexOf(slot), born: have || first ? null : 0 });
+      if (!have) added.push(t.name);
+    }
+    const mine = new Set((arc.rooms || []).map((r) => roomOf(r.id)).filter(Boolean));
+    for (const r of map.rooms) {
+      const on = mine.has(r);
+      const shade = shades.get(r.id);
+      const was = !shade.visible;
+      shade.visible = !on;
+      if (!on) map.relabel(r.id, 'not a room yet');
+      if (on && !was && !first) { lit.push(r.id); map.setRoomState(r.id, 'ok'); later(() => { if (r.state === 'ok') map.setRoomState(r.id, 'calm'); }, 2600); }
+    }
+    for (const w of arc.rooms || []) { const m = roomOf(w.id); if (m) map.relabel(m.id, w.name || `room ${w.id}`); }
+    arcOn = arc;
+    return { added, lit };
+  }
+  function arcState() {
+    return arcOn ? { cabinets: [...cabinets.entries()].map(([t, c]) => ({ table: t, label: c.key, grown: c.obj.scale.x > 0.99 })), dark: map.rooms.filter((r) => shades.get(r.id).visible).map((r) => r.id), lit: map.rooms.filter((r) => !shades.get(r.id).visible).map((r) => ({ id: r.id, label: r.label || r.name })) } : null;
+  }
+  function arcUpdate(dt) {
+    for (const c of cabinets.values()) {
+      if (c.born === null) continue;
+      c.born += dt;
+      const k = Math.min(1, c.born / 0.9);
+      c.obj.scale.setScalar(Math.max(0.001, 1 - (1 - k) ** 3));
+      if (k >= 1) c.born = null;
+    }
+  }
   // picking: the person under a screen point, as the booking they sit for
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(x, y) {
@@ -397,7 +491,7 @@ export function createOffice(stage, { reducedMotion = false } = {}) {
     return { x: c.left + (V.x * 0.5 + 0.5) * c.width, y: c.top + (-V.y * 0.5 + 0.5) * c.height };
   }
   return { map, fx, people, staff, seed, reconcile, running, roomFor, roomOf, freeSeat, standSpot, enter, leave, census, setRooms, occupants, frame, overview, focus, update, stats, bench, dispose,
-    drones, useDrone, resetDrones, relabel, pick, screenOf, setFocusBox,
+    drones, useDrone, resetDrones, relabel, pick, screenOf, setFocusBox, setArc, arcState,
     get drone() { return drone; }, get rest() { return homes[active]; }, get activeLang() { return active; },
     get focused() { return !!focused; }, get fitDistance() { return fitDist; } };
 }
