@@ -33,20 +33,35 @@
 //   lookup    { spell }        that Grimoire entry was looked up and its example run
 //   reply     { answer }       the reply chosen is the true root cause
 //   ran       {}               the query was run (and came back without an error)
+//   schema    { table, roles }  the product arc: his table exists, its key is `id`, and a column fills each role
+//                              (catalogue.js: the room's name is his text column, whatever he called it)
+//   probe     { table, roles, empty?, steps }   behaviour, inside BEGIN ... ROLLBACK (nothing he has is changed,
+//                              and every sequence is put back, SP1): empty: his rows are set aside first (TRUNCATE in
+//                              the transaction), so only the probe's rows count. Steps:
+//                                { insert: [{ role: value }], expect?: 'ok' | SQLSTATE, why }   rows through HIS columns
+//                                { query: 'SQL with {table} and {role}', values?: { role: [..] } | equal?: [{ role: v }],
+//                                  why, whyCount?, whyMissing?, whyValue? }
+//   cell      { page, where, cols }  the notebook cell picked is the one whose row matches `where` (by its content,
+//                              never by where it sits on screen), in one of `cols`
 // `truth` is SQL run on the same world the learner's answer came from; query-graded cards are checked on
-// both worlds (the shadow world keeps the named rooms and people, and changes everything else).
+// both worlds (the shadow world keeps the named rooms and people, and changes everything else). A product-arc card
+// (world: { arc: true }) runs on HIS company database, which only his own runs ever built (world/ddl-log.js);
+// `choice` and `cell` there take their truth from Priya's notebook (problems/arc/notebook.js) through `note`.
 import { World } from '../world/world.js';
 import { namedSeedSql, STAGES } from '../world/named.js';
 import { runSql } from '../runners/sql.js';
 import { runJs } from '../runners/js.js';
 import { toObjects } from '../world/views.js';
+import { readCatalogue, resolveRoles, quoteIdent, ROOM_ROLES, PERSON_ROLES } from '../world/catalogue.js';
+import { noteValue, noteRowKey } from './arc/notebook.js';
 
 export const CAUSES = ['client feature request', 'growth and scale', 'messy real-world input', "other people's code", 'rules and security', 'misunderstanding', 'report or question'];
 export const KINDS = ['question', 'bug', 'feature', 'onramp', 'checkpoint'];
 export const LEVELS = ['L0', 'L1', 'L2', 'L3'];
 export const GRADING = ['query', 'one-off', 'interact'];
-const CHECK_KINDS = ['rows', 'value', 'return', 'output', 'world', 'unchanged', 'pick', 'choice', 'lookup', 'reply', 'ran'];
-const INTERACTIONS = ['pick', 'choice', 'lookup', 'reply'];
+const CHECK_KINDS = ['rows', 'value', 'return', 'output', 'world', 'unchanged', 'pick', 'choice', 'lookup', 'reply', 'ran', 'schema', 'probe', 'cell'];
+const INTERACTIONS = ['pick', 'choice', 'lookup', 'reply', 'cell'];
+export const ROLE_SETS = Object.freeze({ room: ROOM_ROLES, person: PERSON_ROLES });
 
 // ---------------------------------------------------------------- validation (pure)
 export function validateCard(c) {
@@ -66,6 +81,15 @@ export function validateCard(c) {
   need(Array.isArray(c.uses) && Array.isArray(c.needs) && Array.isArray(c.revisits), 'uses, needs and revisits lists');
   need(Array.isArray(c.languages) && c.languages.length > 0 && c.languages.every((l) => ['sql', 'js', 'php'].includes(l)), 'allowed languages');
   need(c.world && Array.isArray(c.world.stage) && c.world.stage.every((s) => STAGES.includes(s)), 'a world stage');
+  if (c.world?.arc) {
+    need(c.grading !== 'query', 'an arc card is graded on his own world (one-off or interact), never against a seeded shadow');
+    need(Array.isArray(c.acceptance) && c.acceptance.length > 0 && c.acceptance.every((a) => typeof a === 'string' && a), 'the acceptance checks in plain words (the goal is shown, never the answer)');
+    for (const s of c.steps || []) for (const k of s.checks || []) {
+      if (k.kind === 'schema' || k.kind === 'probe') need(typeof k.table === 'string' && ROLE_SETS[k.roles], `${k.kind} check: a table and a known role set`);
+      if (k.kind === 'probe') need(Array.isArray(k.steps) && k.steps.length && k.steps.every((p) => (p.insert || p.query) && typeof p.why === 'string'), 'probe check: steps, each with plain words for when it fails');
+    }
+  }
+  for (const s of c.steps || []) for (const k of s.checks || []) if ((k.kind === 'schema' || k.kind === 'probe') && !c.world?.arc) need(false, `${k.kind} checks belong to product-arc cards`);
   if (c.teaches?.length && !c.lookupOnly) {
     need(c.learnCard && Array.isArray(c.learnCard.lines) && c.learnCard.lines.length >= 3 && c.learnCard.lines.length <= 5, 'a Learn card of 3-5 lines on a teaching ticket');
     need(c.learnCard?.example?.code || c.learnCard?.example?.show, 'a Learn card example tied to the world');
@@ -194,6 +218,7 @@ const SHAPES = {
     where: /\bwhere\b/i,
     update: /\bupdate\s+\w+\s+set\b/i,
     insert: /\binsert\s+into\b/i,
+    'create-table': /\bcreate\s+table\b/i,
     'order-by': /\border\s+by\b/i,
     compare: /(>=|<=|<>|!=|[^-<>=!]>(?!=)|<(?![=>]))/,
     delete: /\bdelete\s+from\b/i,
@@ -243,6 +268,97 @@ export async function truthsOf(world, step) {
   const out = {};
   for (const k of step.checks) if (k.truth && !(k.truth in out)) out[k.truth] = await world.query(k.truth);
   return out;
+}
+
+// ---------------------------------------------------------------- the product arc: his schema and its behaviour
+const lit = (v) => (v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`); // untyped: PostgreSQL types it by the column
+const FILLER = { text: 'x', integer: '1', number: '1', boolean: 'false', timestamptz: '2026-01-05T09:00:00Z', timestamp: '2026-01-05 09:00', date: '2026-01-05' };
+/* {table} becomes his table, {role} his column for that role (quoted). A role he has no column for cannot be filled. */
+export function fillSql(sql, table, map) {
+  return String(sql).replace(/\{(\w+)\}/g, (_, r) => {
+    if (r === 'table') return quoteIdent(table);
+    if (!map[r]) throw new Error(`no column for ${r}`);
+    return quoteIdent(map[r]);
+  });
+}
+/* rows given by role go in through HIS columns; any other column he made required (NOT NULL, no default) gets a
+   plain value of its type, so an extra column of his never fails a probe that is not about it. */
+export function insertSql(t, map, rows) {
+  const roles = Object.keys(rows[0] || {});
+  const cols = roles.map((r) => { if (!map[r]) throw new Error(`no column for ${r}`); return map[r]; });
+  const extra = t.columns.filter((c) => !c.nullable && !c.hasDefault && !cols.includes(c.name));
+  const names = [...cols, ...extra.map((c) => c.name)].map(quoteIdent).join(', ');
+  const values = rows.map((row) => `(${[...roles.map((r) => lit(row[r])), ...extra.map((c) => lit(FILLER[c.cls] ?? null))].join(', ')})`).join(', ');
+  return `INSERT INTO ${quoteIdent(t.name)} (${names}) VALUES ${values}`;
+}
+const normal = (v) => (v === null || v === undefined ? null : typeof v === 'number' || typeof v === 'bigint' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) ? Number(v) : String(v).trim().toLowerCase());
+const fmt = (s, vars) => String(s || '').replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
+/* Pure: the rows a probe query returned, against what the step wants. */
+export function judgeProbeRows(got, p) {
+  got = got || [];
+  if (p.values) {
+    for (const [role, want] of Object.entries(p.values)) {
+      const g = got.map((r) => normal(r[role])).map(String).sort(), w = want.map(normal).map(String).sort();
+      if (g.join('\u0001') !== w.join('\u0001')) return { ok: false, why: p.why };
+    }
+    return { ok: true };
+  }
+  if (p.equal) {
+    const key = p.key || Object.keys(p.equal[0] || {})[0];
+    if (got.length !== p.equal.length) return { ok: false, why: fmt(p.whyCount || p.why, { n: got.length, want: p.equal.length }) };
+    for (const w of p.equal) {
+      const hits = got.filter((r) => normal(r[key]) === normal(w[key]));
+      if (hits.length !== 1) return { ok: false, why: fmt(hits.length ? p.whyCount || p.why : p.whyMissing || p.why, { key: w[key], n: got.length, want: p.equal.length }) };
+      for (const [role, v] of Object.entries(w)) {
+        if (normal(hits[0][role]) !== normal(v)) return { ok: false, why: fmt(p.whyValue || p.why, { key: w[key], role, got: hits[0][role], want: v }) };
+      }
+    }
+    return { ok: true };
+  }
+  return { ok: true };
+}
+async function tableFor(world, k) {
+  const cat = await readCatalogue(world);
+  const t = cat.tables[k.table];
+  if (!t) return { why: `there is no table called ${k.table} yet` };
+  const { map, missing } = resolveRoles(t, ROLE_SETS[k.roles]);
+  return { cat, t, map, missing };
+}
+const ROLE_WORDS = { name: "the room's name (words)", capacity: 'how many people fit (a whole number)', role: "the person's role" };
+export async function checkSchema(world, k) {
+  const r = await tableFor(world, k);
+  if (r.why) return { ok: false, why: r.why };
+  if (!(r.t.pk.length === 1 && r.t.pk[0] === 'id')) return { ok: false, why: `${k.table} needs a primary key column called id (the house convention: every row gets its own number)` };
+  if (r.missing.length) return { ok: false, why: `${k.table} needs a column for ${r.missing.map((m) => ROLE_WORDS[m] || m).join(' and ')}` };
+  return { ok: true, map: r.map };
+}
+/* Inside one transaction that is always rolled back; every sequence of his is put back afterwards (a rolled-back
+   INSERT still moves a SERIAL on, SP1), so a probe never changes his next id or any row. */
+export async function runProbe(world, k) {
+  const r = await tableFor(world, k);
+  if (r.why) return { ok: false, why: r.why };
+  const seqs = await world.query("SELECT format('%I.%I', schemaname, sequencename) AS s, last_value AS v, start_value AS st FROM pg_sequences WHERE schemaname = 'public'");
+  let verdict = { ok: true };
+  await world.exec('BEGIN');
+  try {
+    if (k.empty) await world.exec(`TRUNCATE ${Object.keys(r.cat.tables).map(quoteIdent).join(', ')} CASCADE`);
+    for (const p of k.steps) {
+      let sql;
+      try { sql = p.insert ? insertSql(r.t, r.map, p.insert) : fillSql(p.query, k.table, r.map); } catch (e) { verdict = { ok: false, why: `${k.table} has ${String(e.message)}` }; break; }
+      await world.exec('SAVEPOINT probe');
+      let rows = null, code = null, msg = '';
+      try { const res = await world.exec(sql); rows = res.filter((x) => x.fields?.length).pop()?.rows || []; } catch (e) { code = e?.code || 'error'; msg = String(e?.message ?? e); }
+      await world.exec(code ? 'ROLLBACK TO SAVEPOINT probe' : 'RELEASE SAVEPOINT probe');
+      const want = p.expect || 'ok';
+      if (want === 'ok' && code) { verdict = { ok: false, why: `${p.why} (the database said: ${msg})` }; break; }
+      if (want !== 'ok' && code !== want) { verdict = { ok: false, why: p.why }; break; }
+      if (p.query && !code) { const j = judgeProbeRows(rows, p); if (!j.ok) { verdict = j; break; } }
+    }
+  } finally {
+    try { await world.exec('ROLLBACK'); } catch { /* nothing open */ }
+    for (const s of seqs) await world.query(s.v == null ? 'SELECT setval($1, $2, false)' : 'SELECT setval($1, $2, true)', [s.s, s.v ?? s.st]);
+  }
+  return verdict;
 }
 
 // ---------------------------------------------------------------- grading one step
@@ -325,8 +441,16 @@ export async function gradeStep(card, step, ctx) {
           add(name, ctx.act?.picked != null && norm(ctx.act.picked) === norm(t), ctx.act?.picked == null ? 'nothing picked yet' : 'that is not the one');
           break;
         }
+        case 'schema': { const v = await checkSchema(ctx.world, k); add(name, v.ok, v.why || ''); break; }
+        case 'probe': { const v = await runProbe(ctx.world, k); add(name, v.ok, v.why || ''); break; }
+        case 'cell': {
+          const c = ctx.act?.cell;
+          const key = noteRowKey(k.page, k.where);
+          add(name, !!c && c.page === k.page && String(c.row) === String(key) && (!k.cols || k.cols.includes(c.col)), c ? 'that is not the one' : 'nothing picked yet');
+          break;
+        }
         case 'choice': {
-          const t = await one(ctx.world, k.truth);
+          const t = k.note ? noteValue(k.note) : await one(ctx.world, k.truth);
           const c = ctx.act?.choice;
           add(name, c != null && String(c).trim().toLowerCase() === String(norm(t)).toLowerCase(), c == null ? 'no answer yet' : 'that is not the answer');
           break;

@@ -1,66 +1,8 @@
-// The on-ramp O1-O5 (learning design, section 3): what the tools ARE, before any typing from memory.
+// The on-ramp O3-O5 (learning design, section 3; O1 and O2 are in arc/s0.js): what the tools ARE, before any typing from memory.
 // None of it counts as evidence; each takes about a minute.
 import { PRIYA } from './people.js';
 
-export const O1 = {
-  id: 'O1', serve: 1, position: '#1', title: 'The timetable is a table', act: 1,
-  from: PRIYA, says: "I've put our first bookings in. Can you find mine? It's the one at ten on Monday.",
-  kind: 'onramp', cause: 'report or question', grading: 'interact',
-  concept: 'table-row', newConcept: 1, teaches: ['table-row'], uses: [], needs: [], revisits: [],
-  languages: ['sql'], world: { stage: [] }, showTimetable: true,
-  learnCard: {
-    title: 'Tables, rows and columns',
-    lines: [
-      'Everything the business knows lives in tables.',
-      'The timetable you see IS the bookings table: each block is one row.',
-      'Each fact about a booking (its room, its person, when it starts and ends) is a column.',
-      'Click a block and its row opens, every column labelled.',
-    ],
-    example: { show: 'pick', id: 1, note: 'Booking 1: the Boardroom at 08:00 on Monday, one row of the bookings table.' },
-  },
-  workedExample: { show: 'pick', id: 3, note: 'Any block opens as its row: booking 3 is the Studio, Tuesday at nine.' },
-  hints: ['Monday is the first column of the timetable.', 'Rows and blocks are the same thing: one booking is one row.', 'table-row'],
-  spells: { teach: ['table-row'], recall: [] },
-  steps: [{
-    objective: "Find Priya's booking: click it on the timetable.", level: 'L0', interaction: 'pick',
-    checks: [{ kind: 'pick', name: "Priya's Monday ten o'clock booking is the one picked",
-      truth: "SELECT b.id FROM bookings b JOIN people p ON p.id = b.person_id WHERE p.name = 'Priya Shah' AND b.start_at = '2026-01-05 10:00+00'" }],
-  }],
-  cheats: [{ name: "Priya's other booking (Wednesday)", answer: { picked: 10 } }, { name: 'any Monday ten o\'clock block', answer: { picked: 2 } }],
-  reference: [{ step: 0, answer: { picked: 5 } }],
-  recap: ["You found one row in a table: Priya's booking, the Studio on Monday at ten.", "Every question you'll answer is 'which rows?' and 'which columns?'."],
-  pattern: 'Find by key (preview)', evidence: false, timeMinutes: 1,
-};
-
-export const O2 = {
-  id: 'O2', serve: 2, position: '#2', title: 'Numbers that point', act: 1,
-  from: PRIYA, says: 'Which room is booking 7 in? The table just says 2.',
-  kind: 'onramp', cause: 'report or question', grading: 'interact',
-  concept: 'id-link', newConcept: 1, teaches: ['id-link'], uses: ['table-row'], needs: ['O1'], revisits: ['O1'],
-  languages: ['sql'], world: { stage: [] }, showTimetable: true,
-  learnCard: {
-    title: 'Ids that point',
-    lines: [
-      'Every row has an id: its own number, never shared with another row.',
-      "In a booking, room_id = 2 means 'the room whose id is 2'.",
-      'That room lives in another table, rooms. Follow the number to find its name.',
-    ],
-    example: { show: 'pick', id: 3, follow: 'person_id', note: "Booking 3's person_id is 5. Follow it: row 5 of people is Lena Novak." },
-  },
-  workedExample: { show: 'pick', id: 3, follow: 'person_id', note: "Follow booking 3's person_id to the people table." },
-  hints: ['The answer is in another table.', 'An id points at a row elsewhere: room_id points at a row of rooms.', 'id-link'],
-  spells: { teach: ['id-link'], recall: [] },
-  steps: [{
-    objective: "Follow booking 7's room_id, and say which room it is.", level: 'L0', interaction: 'choice',
-    prompt: 'Which room is booking 7 in?', options: 'SELECT name FROM rooms ORDER BY id',
-    checks: [{ kind: 'choice', name: 'the room booking 7 points at',
-      truth: 'SELECT r.name FROM bookings b JOIN rooms r ON r.id = b.room_id WHERE b.id = 7' }],
-  }],
-  cheats: [{ name: 'room 1 (the first room)', answer: { choice: 'Boardroom' } }],
-  reference: [{ step: 0, answer: { choice: 'Studio' } }],
-  recap: ['You followed an id from one table to another: room_id 2 is the Studio.', 'Later a query will do this for thousands of rows at once.'],
-  pattern: 'Look up across two tables (preview)', evidence: false, timeMinutes: 1,
-};
+// O1 and O2 moved to the product arc's S0 (problems/arc/s0.js): the same ideas, met on Priya's paper notebook.
 
 export const O3 = {
   id: 'O3', serve: 3, position: '#3', title: 'Asking a question', act: 1,

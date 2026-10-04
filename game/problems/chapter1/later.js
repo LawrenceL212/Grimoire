@@ -10,7 +10,7 @@ export const O6 = {
   id: 'O6', serve: 18, position: '#18', title: 'A first program', act: 1,
   from: PRIYA, says: 'Can the website work out things for itself, like how many seats we have in total?',
   kind: 'onramp', cause: 'client feature request', grading: 'one-off',
-  concept: 'js-program', newConcept: 1, teaches: ['js-program'], uses: [], needs: ['T01'], revisits: ['T04', 'T06'],
+  concept: 'js-program', newConcept: 1, teaches: ['js-program'], uses: [], needs: ['T01'], revisits: ['T04', 'S2'],
   languages: ['js'], world: { stage: ALL_STAGES },
   learnCard: {
     title: 'A program and a variable',

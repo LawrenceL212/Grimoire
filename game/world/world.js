@@ -17,13 +17,15 @@ export class World {
   constructor(db) { this.db = db; }
 
   // seed: SQL that fills the world instead of seedSql(counts) (the opening chapter's named world, world/named.js)
-  static async create(counts = {}, { loadDataDir, seed } = {}) {
+  // empty: no SCHEMA and no seed at all: the product arc's company, where every table and row is the learner's
+  // own (World.create({ empty: true }) or World.create({}, { empty: true }))
+  static async create(counts = {}, { loadDataDir, seed, empty = counts?.empty === true } = {}) {
     const { PGlite } = await loadPGlite();
     const db = new PGlite(loadDataDir ? { loadDataDir } : {});
     await db.waitReady;
     await db.exec("SET TIME ZONE 'UTC'");
     const world = new World(db);
-    if (!loadDataDir) {
+    if (!loadDataDir && !empty) {
       await db.exec(SCHEMA);
       await db.exec(seed ?? seedSql(counts));
     }
@@ -32,6 +34,8 @@ export class World {
 
   async query(sql, params) { return (await this.db.query(sql, params)).rows; }
   async exec(sql) { return this.db.exec(sql); }
+  // the learner's tables (public schema), by name
+  async tables() { return (await this.query("SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1")).map((r) => r.t); }
   async count(table) { return (await this.query(`SELECT count(*)::int AS n FROM ${table}`))[0].n; }
   async snapshot() { return this.db.dumpDataDir('gzip'); }
   static restore(blob) { return World.create({}, { loadDataDir: blob }); }

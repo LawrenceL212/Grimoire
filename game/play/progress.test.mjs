@@ -51,9 +51,9 @@ test('a spell is written only on an unaided first solve of a card that can count
 
 test('progress moves in ladder order; solves and timestamps are kept with their assisted flag', () => {
   let life = freshLife(NOW);
-  for (const id of ['O1', 'O2', 'O3']) life = recordSolve(life, cardById(id), { help: id === 'O2' ? 'exposure' : 'clean', nowMs: NOW }).life;
-  assert.equal(nextCardId(LADDER, life), 'O4');
-  assert.deepEqual(life.solves.map((s) => [s.card, s.assisted, s.atMs]), [['O1', false, NOW], ['O2', true, NOW], ['O3', false, NOW]]);
+  for (const id of ['O1', 'O2', 'S1']) life = recordSolve(life, cardById(id), { help: id === 'O2' ? 'exposure' : 'clean', nowMs: NOW }).life;
+  assert.equal(nextCardId(LADDER, life), 'S2');
+  assert.deepEqual(life.solves.map((s) => [s.card, s.assisted, s.atMs]), [['O1', false, NOW], ['O2', true, NOW], ['S1', false, NOW]]);
   const practice = recordSolve(life, cardById('O1'), { help: 'clean', nowMs: NOW, practice: true });
   assert.equal(practice.xp, 0);
   assert.equal(xpOf(practice.life), xpOf(life));

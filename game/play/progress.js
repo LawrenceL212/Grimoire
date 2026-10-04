@@ -32,6 +32,7 @@
 //   store with a storage adapter, so the HUD's Grimoire shows this life's progress.
 import { createSpellStore, gameNow } from './spells.js';
 import { earnFor, EARNINGS, earnedOf, newHome, cleanHome, creditHome } from './home-rules.js';
+import { cleanLog } from '../world/ddl-log.js';
 
 export const LIFE_KEY = 'grimoire.life.siso.v1';
 export const CREDIT = Object.freeze({ clean: 10, nudged: 7, guided: 3, exposure: 0 });
@@ -48,7 +49,20 @@ const pad = (n) => String(n).padStart(2, '0');
 export function dayKey(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
 export function freshLife(nowMs = Date.now()) {
-  return { v: 1, startedMs: nowMs, highMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {}, home: newHome() };
+  return { v: 1, startedMs: nowMs, highMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {}, home: newHome(), arc: newArc() };
+}
+/* The product arc's part of the life: his company's name, and the log of every run that changed his database (the
+   save of his world: replayed into an empty PostgreSQL on load, world/ddl-log.js). marks[cardId] is how long the
+   log was when that ticket first opened (Reset goes back to it). A life saved before the arc has none: it keeps
+   its spells, credit and home, and its company is rebuilt by the arc from empty (product arc, Q5). */
+export const newArc = () => ({ company: null, log: [], marks: {} });
+export function cleanArc(raw) {
+  const arc = newArc();
+  if (!isObj(raw)) return arc;
+  if (typeof raw.company === 'string' && raw.company.trim()) arc.company = raw.company.trim().slice(0, 40);
+  arc.log = cleanLog(raw.log);
+  if (isObj(raw.marks)) for (const [id, n] of Object.entries(raw.marks)) if (Number.isInteger(n) && n >= 0) arc.marks[id] = Math.min(n, arc.log.length);
+  return arc;
 }
 
 const isObj = (o) => o && typeof o === 'object' && !Array.isArray(o);
@@ -90,6 +104,7 @@ export function cleanLife(raw, nowMs = Date.now()) {
   if (isObj(raw.spells)) life.spells = raw.spells; // spells.js validates its own records
   // the home: never worth more than the solves could have earned
   life.home = cleanHome(raw.home, earnedOf(life.solves));
+  life.arc = cleanArc(raw.arc);
   return life;
 }
 
