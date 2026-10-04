@@ -178,7 +178,10 @@ export function createLife({ storage, key = LIFE_KEY, now = gameNow } = {}) {
   let life;
   try { life = cleanLife(JSON.parse(S?.getItem(key) || 'null'), now()); } catch { life = freshLife(now()); }
   const existed = (() => { try { return !!S?.getItem(key); } catch { return false; } })();
-  const save = () => { try { S?.setItem(key, JSON.stringify(life)); } catch { /* storage off or full: this life lasts the visit */ } };
+  const save = () => {
+    try { S?.setItem(key, JSON.stringify(life)); } catch { /* storage off or full: this life lasts the visit */ }
+    try { globalThis.__sync?.notifyLocalChange(); } catch { /* cloud sync is optional */ }
+  };
   // the spell store reads and writes life.spells, inside the same record
   const adapter = {
     getItem: () => JSON.stringify(life.spells || {}),

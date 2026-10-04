@@ -51,6 +51,11 @@ const MODE = new URLSearchParams(location.search).get('ticket') === 'double-book
 let chapter = null; // the chapter controller (chapter.js), in chapter mode
 // the life (progress.js): one record under one key, made before anything can open the Grimoire, so the HUD's
 // book always shows this life's spells. ?new (chapter mode) starts a new life.
+// cloud sync (game/sync/session.js): a signed-in player's cloud game is pulled and merged into the save BEFORE the life is
+// read, for at most ~3 s (offline or slow: play goes on and the next load picks it up). Guests never load any of it.
+let syncHint = false;
+try { syncHint = localStorage.getItem('grimoire.sync.hint.v1') === '1'; } catch { /* storage blocked: a guest */ }
+if (syncHint) await import('../sync/session.js').then((m) => m.bootPlaySync()).catch(() => {});
 const life = createLife();
 if (MODE === 'chapter' && new URLSearchParams(location.search).has('new')) life.reset();
 setDefaultStore(life.spellStore);
@@ -121,6 +126,7 @@ function fitTicket() {
 const editor = createEditor($('#editor-host'), { onRun: () => (chapter ? chapter.run() : onRun()), label: 'Your code' });
 const sound = createSound({ stage: () => stage, office: () => office, story: () => story, editor: editor.el, isBusy: () => play.busy, reducedMotion: RM });
 sound.mountSpeaker($('#hud'));
+try { globalThis.__sync?.mountChip($('#hud')); } catch { /* the sync chip is optional */ }
 let lang = 'sql';
 const tabs = [...document.querySelectorAll('.lang-tab')];
 function setLang(next) {
