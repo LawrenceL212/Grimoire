@@ -63,6 +63,9 @@ export async function doEntry(page, card, entry) {
    the reference solution for each step. Returns { cheatsFailed: [names], solved } */
 export async function playCard(page, card, { cheats = true, t = null } = {}) {
   await startCard(page);
+  // a card on his company is played as he sees it: resolved by his column names and his rooms' ids (M-B)
+  const live = await page.evaluate(() => window.__play.chapter.card);
+  if (live && live.id === card.id) card = live;
   const failed = [];
   for (let i = 0; i < card.steps.length; i++) {
     if (cheats) {

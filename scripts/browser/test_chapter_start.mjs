@@ -115,7 +115,7 @@ try {
   const c3 = await current(page);
   t.check('after the tutorial: O3, and the tutorial is done', c3.kind === 'card' && c3.id === 'O3' && await page.evaluate(() => window.__play.chapter.life.tutorial.done), JSON.stringify(c3));
   const r3 = await playCard(page, LADDER[4], { t });
-  t.check('O3 still resolves (its seeded world, until M-B re-hosts it)', r3.solved, JSON.stringify(r3));
+  t.check('O3 resolves on his own rooms (S3, milestone M-B)', r3.solved, JSON.stringify(r3));
   await nextTicket(page);
   const pace = await current(page);
   t.check('the pace rule: five new ideas today (O1, O2, S1, S2, O3), the sixth waits, honestly', pace.pace && /new ideas today/.test(pace.pace) && /tomorrow/.test(pace.pace), JSON.stringify(pace));
