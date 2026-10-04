@@ -22,12 +22,16 @@
 //   helpSoFar(life, cardId) -> { hint, worked, codexEarly }
 //   effectiveNow(life, nowMs) / touch(life, nowMs)   the clock never goes backwards: max(now, the record's high
 //                                         water mark); every pace and meter decision uses it
-//   xpOf(life), solvedIds(life)
+//   xpOf(life), solvedIds(life), balanceOf(life)
+//   life.home (home-rules.js): the spendable balance, what is owned and where it stands. recordSolve credits it from
+//   the earnings table (only a first unaided solve of an evidence card pays); cleanHome() on load never lets the
+//   balance and the things bought exceed what the life's own solves could have earned.
 // Stateful:
 //   createLife({ storage, key, now }) -> { life, save(), reset(), spellStore, ... the pure functions bound }
 //   The spells of this life live inside the same record (life.spells), read and written through spells.js's
 //   store with a storage adapter, so the HUD's Grimoire shows this life's progress.
 import { createSpellStore, gameNow } from './spells.js';
+import { earnFor, EARNINGS, earnedOf, newHome, cleanHome, creditHome } from './home-rules.js';
 
 export const LIFE_KEY = 'grimoire.life.siso.v1';
 export const CREDIT = Object.freeze({ clean: 10, nudged: 7, guided: 3, exposure: 0 });
@@ -44,7 +48,7 @@ const pad = (n) => String(n).padStart(2, '0');
 export function dayKey(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
 export function freshLife(nowMs = Date.now()) {
-  return { v: 1, startedMs: nowMs, highMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {} };
+  return { v: 1, startedMs: nowMs, highMs: nowMs, tutorial: { done: false, step: 0, skipped: [] }, cards: {}, solves: [], days: {}, spells: {}, home: newHome() };
 }
 
 const isObj = (o) => o && typeof o === 'object' && !Array.isArray(o);
@@ -72,12 +76,20 @@ export function cleanLife(raw, nowMs = Date.now()) {
     life.solves = raw.solves.filter((s) => isObj(s) && typeof s.card === 'string' && num(s.atMs) !== null && s.atMs <= life.highMs && ['clean', 'nudged', 'guided', 'exposure'].includes(s.help))
       .map((s) => ({ card: s.card, atMs: s.atMs, help: s.help, assisted: s.help === 'guided' || s.help === 'exposure', unaided: s.unaided === true && (s.help === 'clean' || s.help === 'nudged') && s.practice !== true, lang: typeof s.lang === 'string' ? s.lang : 'sql',
         xp: s.practice === true ? 0 : Math.max(0, Math.min(CREDIT[s.help], num(s.xp) ?? 0)), practice: s.practice === true }));
-    // only the first real solve of a card can carry XP
+    // only the first real solve of a card can carry XP, and only an unaided first solve earns money (home-rules.js EARNINGS)
     const paid = new Set();
-    for (const s of life.solves) { if (s.practice) continue; if (paid.has(s.card)) s.xp = 0; paid.add(s.card); }
+    for (const s of life.solves) {
+      if (s.practice) { s.gbp = 0; continue; }
+      const dup = paid.has(s.card);
+      if (dup) s.xp = 0;
+      paid.add(s.card);
+      s.gbp = !dup && s.unaided ? EARNINGS.unaidedEvidenceSolve : 0;
+    }
   }
   if (isObj(raw.days)) for (const [d, ids] of Object.entries(raw.days)) if (/^\d{4}-\d\d-\d\d$/.test(d) && Array.isArray(ids)) life.days[d] = ids.filter((x) => typeof x === 'string');
   if (isObj(raw.spells)) life.spells = raw.spells; // spells.js validates its own records
+  // the home: never worth more than the solves could have earned
+  life.home = cleanHome(raw.home, earnedOf(life.solves));
   return life;
 }
 
@@ -146,12 +158,16 @@ export function recordSolve(life, card, { help = 'clean', lang = 'sql', casts = 
   const xp = first && !practice && card.evidence !== false ? creditLeft(help) : 0;
   const fresh = first && !practice && card.evidence !== false;
   const unaided = fresh && (help === 'clean' || help === 'nudged');
-  next.solves.push({ card: card.id, atMs: nowMs, help, assisted: help === 'guided' || help === 'exposure', unaided, lang, xp, practice: !!practice });
+  // money follows the same honesty: only the first unaided solve of an evidence card (home-rules.js earnFor)
+  const gbp = earnFor({ first, practice: !!practice, evidence: card.evidence !== false, help });
+  next.solves.push({ card: card.id, atMs: nowMs, help, assisted: help === 'guided' || help === 'exposure', unaided, lang, xp, gbp, practice: !!practice });
+  next.home = creditHome(next.home || newHome(), gbp);
   // practice changes no spell at all: a passed ticket is not a fresh problem, and help is not a review
   const spells = practice ? [] : [...new Set(casts)].map((id) => ({ id, unaided, outcome: unaided ? help : help === 'guided' ? 'guided' : 'exposure' }));
-  return { life: next, xp, spells, first };
+  return { life: next, xp, gbp, spells, first };
 }
 export const xpOf = (life) => life.solves.reduce((n, s) => n + (s.xp || 0), 0);
+export const balanceOf = (life) => life?.home?.balance ?? 0;
 
 // ---------------------------------------------------------------- the stateful life (storage under one key)
 function safeStorage() {

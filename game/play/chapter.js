@@ -76,6 +76,7 @@ export async function createChapter(ctx) {
     hud.set(deriveState(objects || play.objects || {}, null, null, { day, xp: xpOf(life()), openTickets: cur && !cur.solved ? 1 : 0 }));
     const n = 1 + Math.max(0, Math.floor((now() - life().startedMs) / DAY_MS));
     hud.setClock(`Day ${n} · ${clockOf(cur?.card).slice(11, 16)}`);
+    ctx.homeSync?.(); // the balance chip follows the life's home
   }
 
   // ---------------------------------------------------------------- the world
