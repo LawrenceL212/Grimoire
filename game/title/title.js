@@ -18,6 +18,7 @@
 import { SAVE_KEYS, hasSave, clearSave, localStore } from './saves.js';
 import { exportSave, previewImport, applyImport, downloadSave } from '../sync/file.js';
 import { localAdapter } from '../sync/local.js';
+import { initAccount } from './account.js';
 
 const $ = (id) => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -186,5 +187,6 @@ async function startScene() {
 refresh();
 addEventListener('pageshow', refresh); // back from the play page: Start may have become Continue
 addEventListener('storage', refresh);
+initAccount({ refresh, api });
 api.ready = true;
 startScene();

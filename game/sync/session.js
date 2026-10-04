@@ -12,13 +12,14 @@
 // stored here; Firebase keeps the session itself.
 import { createSync } from './engine.js';
 import { localAdapter } from './local.js';
-import { exportSave } from './file.js';
+import * as fileMod from './file.js';
+const { exportSave } = fileMod;
 import { fromDoc } from './doc.js';
 import { createStatusChip } from './status.js';
 import { LIFE_KEY } from '../play/progress.js';
 import { hasSave, localStore } from '../title/saves.js';
 
-export const KEYS = Object.freeze({ lastUid: 'grimoire.sync.lastUid.v1', hint: 'grimoire.sync.hint.v1', backup: 'grimoire.sync.backup.v1' });
+export const KEYS = Object.freeze({ lastUid: 'grimoire.sync.lastUid.v1', hint: 'grimoire.sync.hint.v1', backup: 'grimoire.life.siso.v1.backup' });
 const RELOAD = 'A newer game from another device is ready: reload to use it';
 
 export function toast(msg, doc = globalThis.document) {
@@ -106,6 +107,9 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
   }
   const hasBackup = () => !!get(KEYS.backup);
   function restoreBackup() {
+    if (typeof fileMod.restoreBackup === 'function') { // the file module's helper, once it exists (same backup key)
+      try { const r = fileMod.restoreBackup(); if (r && r.ok !== undefined) return r; } catch { /* fall through to ours */ }
+    }
     const raw = get(KEYS.backup);
     if (!raw) return { ok: false, error: 'There is no earlier save to restore.' };
     set(KEYS.backup, get(LIFE_KEY));  // one level: what is here now becomes the backup, so a restore can be undone too
