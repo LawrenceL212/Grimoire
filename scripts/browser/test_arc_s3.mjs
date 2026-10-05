@@ -4,7 +4,7 @@
    then its reference solution, across the days the pace rule asks for. Along the way: every Learn card demo and
    look-up runs without an error (on his rooms read-only, or on Sequel's practice pad of fruit and books); the
    editor's tab names the file; a question never joins his change log; the office lights a room per row of his and
-   puts the fourth (the Garden Room) in the annex; after S3 the next card is T13. Then a life whose table has its
+   puts the fourth (the Garden Room) in the annex; after S3 the next card is S4. Then a life whose table has its
    own column names (title, seats) and ids that do not start at 1 plays T03 and T10 through the resolved card.
    SHOT=dir saves screenshots. */
 import { openGame, makeReporter } from './game_lib.mjs';
@@ -104,7 +104,7 @@ try {
   t.check('after S3 his change log is exactly his: the table, the three rooms, the Boardroom fix, the Garden Room', end.log.length === 4 && /CREATE TABLE/i.test(end.log[0]) && /UPDATE/i.test(end.log[2]) && /Garden Room/.test(end.log[3]), JSON.stringify(end.log));
   let c = await current(page);
   if (c.pace) { await nextDay(); c = await current(page); }
-  t.check('after S3 the chapter moves on to T13', c.id === 'T13', JSON.stringify(c));
+  t.check('after S3 the chapter moves on to S4 (people and bookings, milestone M-C)', c.id === 'S4', JSON.stringify(c));
 
   // ---- his own names: columns title and seats, ids from 11, a key with no default (filled by hand)
   await page.evaluate(() => {

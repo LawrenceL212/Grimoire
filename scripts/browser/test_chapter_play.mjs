@@ -1,5 +1,5 @@
 /* The opening chapter, part 2 (game/play/chapter.js): from a life that finished the tutorial and the on-ramp
-   O1-O5, every remaining ticket (T01 to T21, with O6-O8 in JavaScript and PHP) is played in the real runtimes
+   O1-O5, every remaining ticket (T01 to T21: S4-S6 on the way, O6-O8 in JavaScript and PHP, all on his company) is played in the real runtimes
    with its reference solution after each of its cheats has failed. Along the way: the pace rule holds new
    concepts to the day's cap and says so; Continue after a reload resumes at the right ticket; the hint ladder
    shows its cost before opening; the worked example makes a solve exposure and leaves its spells in pencil; a
