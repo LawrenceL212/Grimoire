@@ -26,14 +26,23 @@
 // runs on Sequel's practice pad, which is filled with a fruit stall and a bookshelf (world/pad.js) so it always has
 // something to run on. The editor's tab says which file the step is about (rooms.sql, practice-pad.sql...).
 // A run is said to have changed his company only when it really did (his tables or rows differ afterwards).
+//
+// Milestone M-C (S4-S6 and the kept cards after them): a card may ARRIVE with a colleague's script (card.arrives:
+// Priya's paper bookings at S5, Tom's import of Sam's spreadsheet at S6, Priya's booking on T21's morning). It runs
+// once, when the ticket first arrives, through HIS tables (problems/arc/scripts.js); what went in joins his change
+// log as that colleague's entry, before the ticket's Reset mark, and the script with its log (a plain verdict per
+// line) is shown in the ticket window. A card with variants (S5) is fixed to one when it first arrives. JavaScript
+// and PHP on his company read it and change nothing (runners/index.js runReadOnly). Each arc solve records the
+// decisions in his schema for later problems (catalogue.js schemaChoices).
 import { toObjects } from '../world/views.js';
 import { World } from '../world/world.js';
 import { append as logAppend, upTo as logUpTo, rebuild as rebuildWorld, isChange } from '../world/ddl-log.js';
-import { readCatalogue } from '../world/catalogue.js';
-import { runSolution, getPhpRunner } from '../runners/index.js';
+import { readCatalogue, schemaChoices } from '../world/catalogue.js';
+import { runSolution, runReadOnly, getPhpRunner } from '../runners/index.js';
+import { buildScript, runScript, loggedSql, scriptText, lineVerdict } from '../problems/arc/scripts.js';
 import { runSql } from '../runners/sql.js';
 import { LADDER, TUTORIAL, PART2_START, cardById, DAILY_CAP, heldConcept } from '../problems/ladder.js';
-import { startWorld, startShadow, startArcShadow, baselineOf, gradeStep, castSpells, detectSpells, runQuestionSql, truthsOf, resolveCard, namesOf, tablesIn } from '../problems/card.js';
+import { startWorld, startShadow, startArcShadow, baselineOf, gradeStep, castSpells, detectSpells, runQuestionSql, truthsOf, resolveCard, namesOf, tablesIn, variantFor, withVariant } from '../problems/card.js';
 import { PAD_SQL, PAD_NOTE } from '../world/pad.js';
 import { createNotebook } from './notebook.js';
 import { NOTEBOOK } from '../problems/arc/notebook.js';
@@ -115,7 +124,7 @@ export async function createChapter(ctx) {
   // ---------------------------------------------------------------- the world
   // ---- the product arc: his company database (rebuilt from his change log) and Sequel's practice pad
   const arc = { world: null, pad: null, padBusy: null };
-  const arcLife = () => (life().arc ??= { company: null, log: [], marks: {} });
+  const arcLife = () => { const a = (life().arc ??= { company: null, log: [], marks: {} }); a.scripts ??= {}; a.variants ??= {}; a.choices ??= {}; return a; };
   const isArc = (card) => !!card?.world?.arc;
   async function arcWorld({ fresh = false } = {}) {
     if (arc.world && !fresh) return arc.world;
@@ -138,6 +147,27 @@ export async function createChapter(ctx) {
     arc.pad ??= await World.create({}, { empty: true });
     await arc.pad.exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;\n${PAD_SQL}`);
     return arc.pad;
+  }
+  // a colleague's script, when the ticket first arrives: run through his tables, line by line; what went in joins his
+  // log as their entry; the script and a plain verdict per line are kept to show him
+  async function arrive(card, world) {
+    const a = arcLife();
+    const script = buildScript(card.arrives, await readCatalogue(world));
+    if (script.error) { a.scripts[card.id] = { title: 'A script that could not run', by: '', when: '', intro: `It needs ${script.error}.`, text: '', lines: [], error: script.error }; L.save(); return; }
+    const results = await runScript(world, script);
+    const sql = loggedSql(script, results);
+    if (sql) a.log = logAppend(a.log, sql, { card: card.id, atMs: now(), by: script.by });
+    a.scripts[card.id] = { title: script.title, by: script.by, when: script.when, intro: script.intro, text: scriptText(script),
+      lines: script.lines.map((l, i) => ({ label: l.label, verdict: lineVerdict(l, results[i]), ok: !!results[i]?.ok && results[i].rows > 0 })).filter((l, i) => !script.lines[i].member || l.ok) };
+    L.save();
+  }
+  function scriptHTML(card) {
+    const sc = isArc(card) && arcLife().scripts[card.id];
+    if (!sc) return '';
+    return `<section class="script" aria-label="${esc(sc.title)}"><span class="tag">${esc(sc.title)}${sc.when ? ` · ${esc(sc.by)}, ${esc(sc.when)}` : ''}</span>
+      <p class="note">${esc(sc.intro)}</p>
+      ${sc.lines.length ? `<ol class="script-log">${sc.lines.map((l) => `<li class="${l.ok ? 'went' : 'not'}"><b>${esc(l.label)}</b>: ${esc(l.verdict)}</li>`).join('')}</ol>` : ''}
+      ${sc.text ? `<details><summary>Read the script</summary>${codeBox(sc.text)}</details>` : ''}</section>`;
   }
   // a card on his world, resolved against it: his column names, his rooms' ids and spelling (card.js resolveCard)
   async function resolveFor(card, world) {
@@ -215,8 +245,7 @@ export async function createChapter(ctx) {
       // an old life that learnt this idea on a retired card (T06) meets it as recall: no Learn card, not a new idea today
       const held = !practice && heldConcept(card, solvedIds(life()));
       if (!practice) setLife(startCard(life(), held ? { ...card, newConcept: 0 } : card, now()));
-      // where his company's database stood when this ticket arrived (Reset goes back to it)
-      if (isArc(card) && !practice && !(card.id in arcLife().marks)) { arcLife().marks[card.id] = arcLife().log.length; L.save(); }
+      const first = isArc(card) && !practice && !(card.id in arcLife().marks);
       for (const s of card.spells.teach) store().introduce(s, [card.languages[0]]);
       const saved = life().cards[card.id] || {};
       cur = {
@@ -226,10 +255,21 @@ export async function createChapter(ctx) {
         ...(practice ? { hint: 0, worked: false, codexEarly: false } : helpSoFar(life(), card.id)), casts: new Set(), solved: false, ranOnce: false,
         learning: !!card.learnCard && !saved.learnSeen && !practice && !held, showLookup: false, fresh: true, predicted: null, explained: false,
       };
-      const { world } = await openWorld(card);
+      let { world } = await openWorld(card);
       if (op !== mine) return;
+      if (first) {
+        // what arrives with the ticket (a colleague's script), then which variant it is, then where his company's
+        // database stood when this ticket arrived (Reset goes back to it, never before the colleague's script)
+        if (card.arrives) await arrive(card, world);
+        if (card.variants) arcLife().variants[card.id] = variantFor(card, await readCatalogue(world));
+        arcLife().marks[card.id] = arcLife().log.length; L.save();
+        if (card.arrives) ({ world } = await openWorld(card));
+        if (op !== mine) return;
+      }
       cur.world = world;
       if (isArc(card)) {
+        const v = arcLife().variants[card.id];
+        if (v) cur.card = card = withVariant(card, v);
         const r = await resolveFor(card, world);
         cur.card = card = r.card; cur.names = r.names; cur.missing = r.missing;
       }
@@ -365,9 +405,10 @@ export async function createChapter(ctx) {
         + (isArc(card) && !s.interaction ? `<span class="where-run"> · ${s.on === 'pad' ? "runs on Sequel's practice pad: nothing there is kept" : card.grading === 'query' ? "asks your company's database: a question changes nothing" : "runs on your company's database: what you make here stays"}</span>` : '');
     let html = '';
     if (cur.pace) html += `<section class="pace"><p>${esc(cur.pace)}</p><button type="button" class="btn" data-act="practice">Practise a solved ticket (no credit)</button></section>`;
-    else if (cur.learning) html += learnHTML(card);
+    else if (cur.learning) html += scriptHTML(card) + learnHTML(card); // what arrived with the ticket is part of its symptom
     else if (cur.solved) html += solvedHTML();
     else {
+      html += scriptHTML(card);
       // the goal and how it will be checked, never the answer (the product arc)
       if (card.acceptance) html += `<section class="acceptance" aria-label="Done when"><span class="tag">Done when</span><ul>${card.acceptance.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>${card.convention ? `<p class="convention">${esc(card.convention)}</p>` : ''}</section>`;
       if (cur.held) html += '<p class="note">You have met this idea before, on an earlier ticket: no Learn card this time. Producing it from memory is the point (the Learn card is still there, free, under the tools).</p>';
@@ -378,7 +419,7 @@ export async function createChapter(ctx) {
       if (cur.hint >= 4) html += workedHTML(card);
       if (cur.showLookup || s.interaction === 'lookup') html += lookupHTML();
     }
-    html += `<div class="tools row">${isArc(card) ? '<button type="button" class="btn link" data-act="notebook">Notebook</button>' : '<button type="button" class="btn link" data-act="timetable">Timetable</button>'}
+    html += `<div class="tools row">${isArc(card) ? `<button type="button" class="btn link" data-act="notebook">Notebook</button>${card.showTimetable || card.arrives ? '<button type="button" class="btn link" data-act="timetable">Timetable</button>' : ''}` : '<button type="button" class="btn link" data-act="timetable">Timetable</button>'}
       <button type="button" class="btn link" data-act="lookup">Look it up</button>
       ${card.learnCard && !cur.learning ? '<button type="button" class="btn link" data-act="relearn">Learn card</button>' : ''}
       <button type="button" class="btn link" data-act="tutorial">Replay the tutorial</button></div>`;
@@ -527,6 +568,11 @@ export async function createChapter(ctx) {
   async function execute(lang, code) {
     const world = play.world;
     const before = await toObjects(world);
+    if (isArc(cur?.card) && lang !== 'sql') {
+      // JavaScript and PHP read his company and never write to it (yet): nothing in it changes
+      const res = await runReadOnly(world, lang, code);
+      return { res, before, after: before, events: [], changed: false, copyOnly: !!res.changedCopy };
+    }
     const res = await runSolution(world, lang, code);
     if (!res.ok) return { res, before };
     const after = await toObjects(world);
@@ -659,7 +705,7 @@ export async function createChapter(ctx) {
       const n = lang === 'sql' && r.res.query !== false ? (r.res.rows || []).length : null;
       const changedIt = isArc(cur.card) ? really : r.changed;
       const ran = onPad ? `It ran on the practice pad${n ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}.`
-        : `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${changedIt ? (isArc(cur.card) ? ", and it changed your company's database" : ', and it changed the world') : ''}${r.undone ? ' (its change to the data was rolled back: a question changes nothing)' : ''}.`;
+        : `Your code ran${n !== null ? ` and returned ${n} row${n === 1 ? '' : 's'}` : ''}${changedIt ? (isArc(cur.card) ? ", and it changed your company's database" : ', and it changed the world') : ''}${r.undone ? ' (its change to the data was rolled back: a question changes nothing)' : ''}${r.copyOnly ? ` (it changed only its own copy: ${LANG_NAME[lang]} reads your company here and writes nothing back)` : ''}.`;
       if (!grade) { ctx.show('is-miss', `${ran} ${s.interaction === 'pick' ? 'Now pick the booking.' : 'Now answer in the ticket window.'}`, outputHTML(lang, r.res)); render(); return; }
       if (grade.passed) { await stepPassed(code, lang, r.res); return; }
       const failed = grade.results.filter((x) => !x.ok);
@@ -721,6 +767,8 @@ export async function createChapter(ctx) {
     const spells = written.length ? `Written in your Grimoire, in ink: ${written.join(', ')}.` : pencil.length ? `Still in pencil: ${pencil.join(', ')} (cast it on your own, in a new problem, to write it in).` : '';
     cur.outcome = { reply: card.thanks || 'That is exactly it. Thank you!', credit, spells, kept: written.length ? 'Easy today is not the same as kept. Your Grimoire shows when this starts to fade; reviews arrive in the next update.' : (card.evidence === false ? 'Scaffolded: this one teaches; it is not evidence of what you can do on your own yet.' : '') };
     play.lastSolve = { card: card.id, help, xp: r.xp, written, spells: r.spells };
+    // the decisions in his schema, for the problems that read them later (nothing here is graded)
+    if (isArc(card) && !cur.practice && cur.world) readCatalogue(cur.world).then((cat) => { arcLife().choices = schemaChoices(cat); L.save(); }).catch(() => {});
     if (isArc(card) && card.steps.some((s) => !s.interaction)) showNotebook(false); // the paper is put away: look at what he built
     setTicket3d(card, false);
     ctx.show('is-win', `Solved: ${card.from.name.split(' ')[0]}'s ticket is resolved.${r.xp ? ` +${r.xp} XP` : ''}`);
@@ -749,8 +797,9 @@ export async function createChapter(ctx) {
     await loadCard(card);
   }
   async function practice() {
-    // never a ticket of his company: practising one would change (or Reset) his real database
-    const done = LADDER.filter((c) => solvedIds(life()).has(c.id) && c.steps.every((s) => !s.interaction) && !isArc(c));
+    // a ticket of his company only when it is a question (every run of it is rolled back): practising a change would
+    // change (or Reset) his real database
+    const done = LADDER.filter((c) => solvedIds(life()).has(c.id) && c.steps.every((s) => !s.interaction && s.on !== 'pad') && (!isArc(c) || c.grading === 'query'));
     const pick = done[Math.floor((now() / 1000) % Math.max(1, done.length))] || LADDER[0];
     await loadCard(pick, { practice: true });
   }
