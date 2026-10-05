@@ -282,7 +282,7 @@ export const T14 = {
   languages: ['sql'], world: { stage: ALL_STAGES },
   learnCard: {
     title: 'Both must hold',
-    lines: ['AND joins two conditions: a row stays only if both are true.', 'Sam is person 2; the Garden Room is room 4.', 'OR keeps a row if either is true (it is in the Grimoire).'],
+    lines: ['AND joins two conditions: a row stays only if both are true.', 'Sam is person 2; the Garden Room is room 4 (typed-in ids for now: later, JOIN finds them by name).', 'OR keeps a row if either is true (it is in the Grimoire).'],
     example: { lang: 'sql', code: 'SELECT * FROM bookings WHERE room_id = 1 AND person_id = 4;', note: "Omar's Boardroom bookings only." },
   },
   workedExample: { lang: 'sql', code: 'SELECT name FROM rooms WHERE capacity >= 5 AND capacity <= 8;', note: 'A sibling: rooms between five and eight seats.' },
@@ -309,6 +309,7 @@ export const T16 = {
       "Times are written like '2026-01-06 00:00+00': the date, the time, and +00 for UTC.",
       'A day runs from midnight up to, but not including, the next midnight.',
       "So Tuesday is start_at >= '2026-01-06 00:00+00' AND start_at < '2026-01-07 00:00+00'.",
+      "Whose midnight? +00 is UTC, which is London time in January (the office clock). From late March to late October London is an hour ahead, so a London day starts at 23:00 UTC: decide which time zone a 'day' means before you write it.",
     ],
     example: { lang: 'sql', code: "SELECT * FROM bookings WHERE start_at >= '2026-01-06 00:00+00' AND start_at < '2026-01-07 00:00+00';", note: "Tuesday's bookings." },
   },
@@ -319,7 +320,7 @@ export const T16 = {
     checks: [{ kind: 'rows', name: "Friday's Boardroom bookings, and nothing from Saturday", truth: `SELECT * FROM bookings WHERE room_id = 1 AND ${FRI}`, columns: ['id'] }] }],
   cheats: [{ name: 'up to and including midnight on Saturday', lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 1 AND start_at >= '2026-01-09 00:00+00' AND start_at <= '2026-01-10 00:00+00';" }],
   reference: [{ step: 0, lang: 'sql', code: `SELECT * FROM bookings WHERE room_id = 1 AND ${FRI};` }],
-  recap: ["You used 'from midnight up to, but not including, the next midnight' for a day.", "You'll use that shape for every time question."],
+  recap: ["You used 'from midnight up to, but not including, the next midnight' for a day.", "That shape fits every 'which day' question; which midnight (UTC or London) you decide each time."],
   evidence: true, timeMinutes: 3,
 };
 

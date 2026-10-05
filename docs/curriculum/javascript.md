@@ -11,7 +11,7 @@ never evidence). Everything else is Library, planned, or missing.
 
 | # | Concept | Plain meaning | Taught at | Checked by | Comes back | Status |
 |---|---|---|---|---|---|---|
-| 1 | A program, a variable, return | Instructions run top to bottom; `const total = 8;` puts 8 in a named box; `return` hands the answer back | O6 "A first program" (L0 run, L1 one change) | return (cheat: the old total typed in) | O7 | Built (see gaps.md I6) |
+| 1 | A program, a variable, return | Instructions run top to bottom; `const total = 8;` puts 8 in a named box; `return` hands the answer back (the card says the game runs the program inside a function; a top-level `return` in a real page is an error) | O6 "A first program" (L0 run, L1 one change) | return (cheat: the old total typed in) | O7 | Built (gaps.md I6 fixed) |
 | 2 | Reading JS errors | "x is not defined" means an unknown name, often a typo; capitals matter | O7 "'retrun is not defined'" | return after the fix | none built | Built |
 
 ## Library only (36 entries; the ones below are not covered by any card, built or planned)

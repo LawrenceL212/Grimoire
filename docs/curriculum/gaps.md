@@ -19,10 +19,11 @@ Priority: **must** (a junior would be stuck or unsafe without it), **should**
 3. **Spaced review is not built.** The tutorial says "reviews arrive in the
    next update". Today a concept comes back only if a later card happens to
    need it; seven built concepts never come back (R1, R2).
-4. **Three Library entries and one card are wrong or misleading** (I1-I4):
+4. **Three Library entries and one card were wrong or misleading** (I1-I4):
    PDO's default error mode, what `catch (Exception)` catches, PHP's `||`,
    and T16's "use this shape for every time question" (UTC days are wrong in
-   UK summer).
+   UK summer). **All fifteen items in section 1 were fixed on 2026-10-05**
+   (each checked against real PHP 8.4 and PostgreSQL first).
 5. **Whole job areas are absent from game and plans:** git, sessions and
    cookies, CSRF, Composer, the real PHP request model, browser DevTools, and
    AI-assisted development with CLAUDE.md files (M-E1, M-P2-M-P4, M-P6,
@@ -30,23 +31,29 @@ Priority: **must** (a junior would be stuck or unsafe without it), **should**
 
 ## 1. Inaccurate or oversimplified (check against real behaviour)
 
-| Id | Where | What it says | What is true | Fix | Priority |
-|---|---|---|---|---|---|
-| I1 | Library php-pdo-connect | Skipping `ERRMODE_EXCEPTION` makes errors "fail silently" | Since PHP 8.0 the default error mode **is** exceptions; silent was the PHP 7 default | "Before PHP 8 errors were silent by default; set it anyway so old config cannot change it" | must |
-| I2 | Library php-try-catch | Catching `Exception` misses a `PDOException` | `PDOException` extends `RuntimeException`, an `Exception`, so it **is** caught. What `Exception` misses is `Error` (TypeError, ValueError) | Reword to "misses a TypeError or other Error; catch Throwable to see both" | must |
-| I3 | Library php-null-coalesce | "Using `\|\|` for defaults ... `\|\|` would replace them" | In PHP `\|\|` returns `true`/`false`, never the value (that is JavaScript). The PHP trap is `?:`, which replaces `0` and `""` | Name `?:` as the trap; say `\|\|` gives a boolean | should |
-| I4 | T16 "This Friday in the Boardroom" | A day is `'... 00:00+00'` to the next midnight; recap "You'll use that shape for every time question" | The half-open shape is right. The `+00` (UTC) is right only in winter: from late March to late October a London day starts at 23:00 UTC | Add one line: "+00 works because the office clock is January, when UK time = UTC. In summer, see time zones (P12)." | must |
-| I5 | T21 "Two people, one Boardroom" | "Ids grow in booking order, so the lower id was booked first" | Ids come from a sequence when the row is inserted, not when it is committed; imports, manual ids and parallel requests break the rule, and ids can have gaps | True for this world; add "in real systems use a `created_at` column" | should |
-| I6 | O6, O7 | Programs end with `return total;` | In a real script a top-level `return` is a SyntaxError; the game silently wraps the program in a function | One line on the O6 card: "the game runs your program inside a function; in a page you would use the value instead" | should |
-| I7 | O8 | "in JavaScript `.` meant 'the part called'" | No built card teaches `.` in JavaScript (T05 is not built) | Drop the clause, or build T05 first | should |
-| I8 | O8 and every PHP card | (O8 is silent about SQLite) | `$pdo` is a SQLite copy: it accepts `'abc'` in an INTEGER column, stores times as text (compared as text), has no `ILIKE`, `::` casts or `now()`, and gives SQLite error codes | Put the Library's caveat on O8's Learn card now, not only at S9 | must |
-| I9 | S1, Library sql-primary-key | `SERIAL PRIMARY KEY` | Works everywhere, but PostgreSQL's own docs prefer `GENERATED ALWAYS AS IDENTITY` since version 10 (S1 already accepts it) | Mention both on the card; say which modern code uses | nice |
-| I10 | T19 Learn card | `start_at < '15:00' AND '14:00' < end_at` | That text will not run against a timestamptz column (it needs a full date and time) | Mark it as shorthand, or use full timestamps | nice |
-| I11 | T14 Learn card | "Sam is person 2; the Garden Room is room 4" | Works, but teaches typed-in ("magic") ids; real code finds ids by name with a JOIN or subquery | Add "you'll look these up properly with JOIN (T30)" | should |
-| I12 | Library php-function | A function cannot see outside variables unless passed in | Arrow functions `fn() =>` capture outside variables automatically (the same Library uses them); closures use `use` | Add the exception | nice |
-| I13 | Planned S9 | `handle(array $input, PDO $pdo): array` is "our codebase's convention" | Real PHP reads `$_POST`/`php://input` and sets the status with `http_response_code()` | Keep it, plus one bridge card showing the real form (M-P2) | must |
-| I14 | Planned P14 | Logins taught as `password_hash` only | Real logins also need sessions, cookie flags, session id regeneration and CSRF tokens | Add M-P3, M-P4 next to P14 | must |
-| I15 | Library sql-order-by | ASC is the default | Correct, but silent on NULLs: PostgreSQL sorts NULLs last in ASC, first in DESC | Add one line | nice |
+Every claim below was re-checked before fixing: PHP 8.4 CLI and php-wasm
+(PDO's default `ERRMODE_EXCEPTION`, `PDOException` caught by `catch
+(Exception)`, `0 || 'x'` is `bool(true)`, arrow functions capture), and
+PostgreSQL (PGlite: NULLs last in ASC, a London summer midnight is 23:00 UTC,
+`start_at < '15:00'` is refused on a timestamptz).
+
+| Id | Where | What it says | What is true | Fix | Priority | Status |
+|---|---|---|---|---|---|---|
+| I1 | Library php-pdo-connect | Skipping `ERRMODE_EXCEPTION` makes errors "fail silently" | Since PHP 8.0 the default error mode **is** exceptions; silent was the PHP 7 default | "Before PHP 8 errors were silent by default; set it anyway so old config cannot change it" | must | Fixed: the entry now says the PHP 8 default is exceptions (its example prints it) and that PHP 7 was silent (2026-10-05) |
+| I2 | Library php-try-catch | Catching `Exception` misses a `PDOException` | `PDOException` extends `RuntimeException`, an `Exception`, so it **is** caught. What `Exception` misses is `Error` (TypeError, ValueError) | Reword to "misses a TypeError or other Error; catch Throwable to see both" | must | Fixed: the entry says Exception catches PDOException (its example shows it) and misses Error (2026-10-05) |
+| I3 | Library php-null-coalesce | "Using `\|\|` for defaults ... `\|\|` would replace them" | In PHP `\|\|` returns `true`/`false`, never the value (that is JavaScript). The PHP trap is `?:`, which replaces `0` and `""` | Name `?:` as the trap; say `\|\|` gives a boolean | should | Fixed: the trap named is `?:`; `||` gives a boolean (2026-10-05) |
+| I4 | T16 "This Friday in the Boardroom" | A day is `'... 00:00+00'` to the next midnight; recap "You'll use that shape for every time question" | The half-open shape is right. The `+00` (UTC) is right only in winter: from late March to late October a London day starts at 23:00 UTC | Add one line: "+00 works because the office clock is January, when UK time = UTC. In summer, see time zones (P12)." | must | Fixed: a Learn line asks whose midnight (UTC = London only in winter; a London summer day starts 23:00 UTC); the recap no longer says "every time question" (2026-10-05) |
+| I5 | T21 "Two people, one Boardroom" | "Ids grow in booking order, so the lower id was booked first" | Ids come from a sequence when the row is inserted, not when it is committed; imports, manual ids and parallel requests break the rule, and ids can have gaps | True for this world; add "in real systems use a `created_at` column" | should | Fixed: "here bookings went in one at a time"; real systems keep `created_at` (2026-10-05) |
+| I6 | O6, O7 | Programs end with `return total;` | In a real script a top-level `return` is a SyntaxError; the game silently wraps the program in a function | One line on the O6 card: "the game runs your program inside a function; in a page you would use the value instead" | should | Fixed: O6 says the game runs the program inside a function (2026-10-05) |
+| I7 | O8 | "in JavaScript `.` meant 'the part called'" | No built card teaches `.` in JavaScript (T05 is not built) | Drop the clause, or build T05 first | should | Fixed: the clause is gone (2026-10-05) |
+| I8 | O8 and every PHP card | (O8 is silent about SQLite) | `$pdo` is a SQLite copy: it accepts `'abc'` in an INTEGER column, stores times as text (compared as text), has no `ILIKE`, `::` casts or `now()`, and gives SQLite error codes | Put the Library's caveat on O8's Learn card now, not only at S9 | must | Fixed: O8's Learn card says `$pdo` is a SQLite practice copy and what differs (2026-10-05) |
+| I9 | S1, Library sql-primary-key | `SERIAL PRIMARY KEY` | Works everywhere, but PostgreSQL's own docs prefer `GENERATED ALWAYS AS IDENTITY` since version 10 (S1 already accepts it) | Mention both on the card; say which modern code uses | nice | Fixed: S1 and the Library name `GENERATED ALWAYS AS IDENTITY` as the modern form (2026-10-05) |
+| I10 | T19 Learn card | `start_at < '15:00' AND '14:00' < end_at` | That text will not run against a timestamptz column (it needs a full date and time) | Mark it as shorthand, or use full timestamps | nice | Fixed: full timestamps on the card (2026-10-05) |
+| I11 | T14 Learn card | "Sam is person 2; the Garden Room is room 4" | Works, but teaches typed-in ("magic") ids; real code finds ids by name with a JOIN or subquery | Add "you'll look these up properly with JOIN (T30)" | should | Fixed: "typed-in ids for now: later, JOIN finds them by name" (2026-10-05) |
+| I12 | Library php-function | A function cannot see outside variables unless passed in | Arrow functions `fn() =>` capture outside variables automatically (the same Library uses them); closures use `use` | Add the exception | nice | Fixed: arrow functions and `use` named (2026-10-05) |
+| I13 | Planned S9 | `handle(array $input, PDO $pdo): array` is "our codebase's convention" | Real PHP reads `$_POST`/`php://input` and sets the status with `http_response_code()` | Keep it, plus one bridge card showing the real form (M-P2) | must | Fixed in the plan: S9 is followed by bridge card M-P2 (the same handler with `$_POST`, `php://input`, `http_response_code`) (2026-10-05) |
+| I14 | Planned P14 | Logins taught as `password_hash` only | Real logins also need sessions, cookie flags, session id regeneration and CSRF tokens | Add M-P3, M-P4 next to P14 | must | Fixed in the plan: P14 now lists sessions, cookie flags, id regeneration (M-P3) and CSRF (M-P4) beside it (2026-10-05) |
+| I15 | Library sql-order-by | ASC is the default | Correct, but silent on NULLs: PostgreSQL sorts NULLs last in ASC, first in DESC | Add one line | nice | Fixed: one line on NULLS FIRST/LAST (2026-10-05) |
 
 Checked and correct: the S1 TEXT-capacity probe (`'10' >= '7'` is false as
 text), O4/O7 error texts, the overlap rule with strict `<` (touching

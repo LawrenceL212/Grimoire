@@ -18,7 +18,7 @@ export const O6 = {
       'A program is a list of instructions, run from top to bottom.',
       'A variable is a named box: const total = 8; puts 8 in a box called total.',
       'In JavaScript = only stores. (In SQL, = compared in WHERE and set a value in SET.)',
-      'return total; hands the answer back.',
+      'return total; hands the answer back. (The game runs your program inside a function, which is why return works here. In a real page, return outside a function is an error: there you use the value instead.)',
     ],
     example: { lang: 'js', code: 'const people = 5;\nreturn people;', note: 'Jay runs it: the answer, 5, floats over the office.' },
   },
@@ -79,8 +79,9 @@ export const O8 = {
     lines: [
       'PHP runs on the server and asks the database for data. Every variable starts with $.',
       "$pdo is the connection to the database; -> means 'use its ability': $pdo->query(\"SELECT ...\") sends SQL you already know.",
-      "echo prints. A dot joins text: 'People: ' . $n (in JavaScript . meant 'the part called'; here it glues).",
+      "echo prints. A dot joins text: 'People: ' . $n.",
       "count(*) counts rows. It is taught later: here, just run it.",
+      "In this game $pdo is a SQLite practice copy of the office, not PostgreSQL (no database server runs in a browser). Simple SQL like this works the same; SQLite is looser (it takes 'abc' in a number column) and lacks PostgreSQL's ILIKE, :: and now().",
     ],
     example: { lang: 'php', code: "echo 'Hello from ' . 'PHP';", note: 'Hex runs it: two pieces of text glued together.' },
   },
@@ -132,7 +133,7 @@ export const T19 = {
     title: 'Two times overlap',
     lines: [
       'Two time periods overlap when each starts before the other ends.',
-      "For two till three: start_at < '15:00' AND '14:00' < end_at.",
+      "For two till three on Thursday: start_at < '2026-01-08 15:00+00' AND '2026-01-08 14:00+00' < end_at (a full date and time each side).",
       'A meeting from 13:30 to 14:30 is still there at two; one that ends at exactly 14:00 is not.',
     ],
     example: { lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 3 AND start_at < '2026-01-05 10:30+00' AND '2026-01-05 09:30+00' < end_at;", note: 'What is in the Library between half nine and half ten on Monday.' },
@@ -161,7 +162,7 @@ export const T21 = {
     lines: [
       'A double booking is two bookings in one room whose times overlap.',
       'Find the pair with the overlap rule, then decide which one changes.',
-      'Ids grow in booking order, so the lower id was booked first: it stands.',
+      'Here every booking went in one at a time, so the lower id was booked first: it stands. (Real systems keep a created_at column: imports and typed-in ids break the id rule.)',
       'Then remove the newer one, or move it to a free slot.',
     ],
     example: { lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 2 AND start_at < '2026-01-05 11:00+00' AND '2026-01-05 10:00+00' < end_at;", note: 'The overlap rule finds who is in the Studio from ten till eleven.' },
@@ -183,7 +184,7 @@ export const T21 = {
     { lang: 'php', name: 'cancel the newer booking from PHP', code: "$pdo->exec('DELETE FROM bookings WHERE id = 24');" },
     { lang: 'sql', name: 'move the newer booking to a free slot', code: "UPDATE bookings SET start_at = '2026-01-07 16:00+00', end_at = '2026-01-07 17:00+00' WHERE id = 24;" },
   ],
-  explain: { question: 'Sam asks: "Why keep the older booking?"', model: 'Whoever booked first had the room first; the newer booking is the one that should never have been allowed. Ids grow in booking order, so the lower id is the older one.', checklist: ['the first booking stands', 'the lower id was booked first', 'the newer one is moved or cancelled'] },
+  explain: { question: 'Sam asks: "Why keep the older booking?"', model: 'Whoever booked first had the room first; the newer booking is the one that should never have been allowed. Here bookings went in one at a time, so the lower id is the older one (a created_at column would say it for sure).', checklist: ['the first booking stands', 'the lower id was booked first (here)', 'the newer one is moved or cancelled'] },
   recap: ['You found the clash with the overlap rule and changed only the newer booking.', 'A double booking is two bookings in one room whose times overlap.'],
   pattern: 'Overlap of two time ranges', evidence: true, timeMinutes: 3,
 };

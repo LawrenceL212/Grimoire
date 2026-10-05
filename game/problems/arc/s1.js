@@ -41,7 +41,7 @@ export const S1 = {
     lines: [
       'CREATE TABLE gives a table its name, then its columns in brackets, separated by commas.',
       "A column's TYPE decides what it will accept: TEXT for words, INTEGER for whole numbers.",
-      'SERIAL PRIMARY KEY gives every row its own number, the id, without you typing it.',
+      'SERIAL PRIMARY KEY gives every row its own number, the id, without you typing it. (Newer code writes id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY: the same job, and what PostgreSQL advises since version 10. Either passes.)',
       'The example makes a table for shifts on the practice pad (nothing there is kept).',
     ],
     example: { lang: 'sql', code: SHIFTS, note: "Sequel's practice pad now has an empty shifts table: a day in words, the hours as a whole number." },

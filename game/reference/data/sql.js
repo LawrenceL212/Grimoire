@@ -38,7 +38,7 @@ export const SQL = [
   // ---- constraints
   E('primary-key', 'Constraints', 'PRIMARY KEY', 'column type PRIMARY KEY', 'Gives every row a unique, never-empty identity so it can be found again.',
     "CREATE TABLE pet (id int PRIMARY KEY, name text);\nINSERT INTO pet VALUES (1, 'Rex');\nINSERT INTO pet VALUES (1, 'Tia');",
-    'duplicate key value violates unique constraint', 'Reusing an id by hand. Let the database count: id serial PRIMARY KEY.', ['unique', 'not-null', 'foreign-key'], { error: true }),
+    'duplicate key value violates unique constraint', 'Reusing an id by hand. Let the database count: id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY is what PostgreSQL recommends since version 10; id serial PRIMARY KEY (older, and in a lot of code) does the same job.', ['unique', 'not-null', 'foreign-key'], { error: true }),
   E('not-null', 'Constraints', 'NOT NULL', 'column type NOT NULL', 'Refuses a row where this column has no value.',
     'CREATE TABLE pet (name text NOT NULL);\nINSERT INTO pet VALUES (NULL);',
     'null value in column "name"', "Thinking an empty string counts as NULL. It does not; '' is a value, and NOT NULL lets it through.", ['primary-key', 'default', 'is-null'], { error: true }),
@@ -76,7 +76,7 @@ export const SQL = [
     'name\napple\ncherry', 'Using double quotes round text: "red" is read as a column name. Text uses single quotes.', ['and-or-not', 'in', 'is-null', 'like'], { setup: FRUIT }),
   E('order-by', 'Reading rows', 'ORDER BY', 'ORDER BY col [ASC|DESC]', 'Sorts the result. ASC (smallest first) is the default.',
     'SELECT name, price FROM fruit ORDER BY price DESC;',
-    'name | price\ncherry | 4.00\nplum | 0.75\napple | 0.50\nlime | 0.30\nbanana | 0.25', "Sorting numbers stored as text: '10' sorts before '9'. Use a numeric column type.", ['limit', 'select'], { setup: FRUIT }),
+    'name | price\ncherry | 4.00\nplum | 0.75\napple | 0.50\nlime | 0.30\nbanana | 0.25', "Sorting numbers stored as text: '10' sorts before '9'. Use a numeric column type. And empty values: PostgreSQL puts NULLs last in ASC and first in DESC (add NULLS LAST or NULLS FIRST to choose).", ['limit', 'select'], { setup: FRUIT }),
   E('limit', 'Reading rows', 'LIMIT / OFFSET', 'LIMIT n [OFFSET m]', 'Returns only the first n rows, optionally skipping m first.',
     'SELECT name FROM fruit ORDER BY price DESC LIMIT 2 OFFSET 2;',
     'name\napple\nlime', 'Using LIMIT without ORDER BY. "The first 2" is then an arbitrary two.', ['order-by', 'select'], { setup: FRUIT }),

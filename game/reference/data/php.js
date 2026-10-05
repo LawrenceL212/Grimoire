@@ -34,10 +34,10 @@ export const PHP = [
     '6', 'Getting the end wrong by one: $i < 3 runs three times starting at 0.', ['foreach', 'if-else']),
   E('function', 'Functions', 'function', 'function name($a, $b = default): type { return ...; }', 'Names a piece of code you can run again with different inputs.',
     'function twice(int $n): int {\n  return $n * 2;\n}\necho twice(4);',
-    '8', 'Expecting a function to see variables from outside. It cannot unless you pass them in as arguments.', ['null-coalesce', 'array-map']),
+    '8', 'Expecting a named function to see variables from outside. It cannot: pass them in as arguments. (An arrow function fn($x) => ... does see them, and an anonymous function gets them with use ($total).)', ['null-coalesce', 'array-map']),
   E('try-catch', 'Control flow', 'try / catch', 'try { ... } catch (Exception $e) { ... }', 'Runs risky code and handles an exception instead of stopping.',
-    "try {\n  throw new Exception('no book');\n} catch (Exception $e) {\n  echo 'Caught: ' . $e->getMessage();\n}",
-    'Caught: no book', 'Catching Exception when the failure is a PDOException or a TypeError (an Error, not an Exception). Catch Throwable to see both.', ['pdo-connect', 'function']),
+    "try {\n  $pdo = new PDO('sqlite::memory:');\n  $pdo->query('SELECT * FROM nowhere');\n} catch (Exception $e) {\n  echo 'Caught a ' . get_class($e);\n}",
+    'Caught a PDOException', 'Thinking catch (Exception $e) misses a PDOException: it catches it (a PDOException is a RuntimeException, which is an Exception). What it misses is an Error, such as a TypeError or a ValueError. Catch Throwable to catch both kinds.', ['pdo-connect', 'function']),
   // ---- arrays
   E('array-basics', 'Arrays', 'Arrays', '$list = [a, b];  $list[] = c;  count($list)', 'An ordered list. [] on the end adds an item; count() says how many.',
     "$fruit = ['apple', 'plum'];\n$fruit[] = 'lime';\necho count($fruit), ' ', $fruit[0], ' ', end($fruit);",
@@ -57,7 +57,7 @@ export const PHP = [
   // ---- null and requests
   E('null-coalesce', 'Basics', 'Null coalescing ??', '$a ?? default', 'Uses $a if it exists and is not null, otherwise the default. No warning if it is missing.',
     "$user = ['name' => 'Ada'];\necho $user['city'] ?? 'unknown', ' ';\necho isset($user['name']) ? 'has name' : 'no name';",
-    'unknown has name', 'Using || for defaults. 0 and "" are falsy, so || would replace them; ?? only replaces null.', ['assoc-array', 'get-post']),
+    'unknown has name', 'Using ?: for defaults: $qty ?: 1 also replaces a real 0 or "", because they count as false; ?? only replaces null or a missing key. (|| is no help either: in PHP it gives true or false, never the value.)', ['assoc-array', 'get-post']),
   E('get-post', 'Web requests', '$_GET / $_POST', "$_GET['name'], $_POST['name']", 'Where PHP puts values sent by the browser: $_GET from the address (?name=Ada), $_POST from a form that posts.',
     "$_GET['name'] = 'Ada'; // a real request fills this for you\n$name = $_GET['name'] ?? 'stranger';\necho \"Hello \" . htmlspecialchars($name);",
     'Hello Ada', 'Trusting what arrives. Every value is text from a stranger: check it, and escape it before showing it.', ['htmlspecialchars', 'pdo-prepare', 'null-coalesce'], {}),
@@ -66,8 +66,8 @@ export const PHP = [
     '&lt;script&gt;alert(1)&lt;/script&gt;', 'Escaping when you save instead of when you print. Save the raw text; escape at the moment it goes into a page.', ['get-post', 'json-encode']),
   // ---- PDO (SQLite here; PostgreSQL in the real job)
   E('pdo-connect', 'Database (PDO)', 'PDO connect', "$pdo = new PDO('sqlite::memory:');", 'Opens a database connection. Here it is SQLite in memory; the real job connects to PostgreSQL with a pgsql: line instead.',
-    "$pdo = new PDO('sqlite::memory:');\n$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);\n$pdo->exec('CREATE TABLE pet (id INTEGER, name TEXT)');\necho 'connected';",
-    'connected', "Skipping ERRMODE_EXCEPTION: errors then fail silently. NOTE: this practice area is SQLite only; for PostgreSQL the line is 'pgsql:host=...;dbname=...' plus a user and password, and SQL such as serial / ILIKE only works there.", ['pdo-prepare', 'try-catch']),
+    "$pdo = new PDO('sqlite::memory:');\necho $pdo->getAttribute(PDO::ATTR_ERRMODE) === PDO::ERRMODE_EXCEPTION ? 'throws by default' : 'silent by default', \"\\n\";\n$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);\n$pdo->exec('CREATE TABLE pet (id INTEGER, name TEXT)');\necho 'connected';",
+    'throws by default\nconnected', "Thinking errors are silent without setAttribute: since PHP 8.0 a failed query throws by default (line 1 of the output). Before PHP 8 it was silent, which is why old code sets it; set it anyway. This pad is SQLite: PostgreSQL needs 'pgsql:host=...;dbname=...', a user and a password (and has serial, ILIKE).", ['pdo-prepare', 'try-catch']),
   E('pdo-prepare', 'Database (PDO)', 'prepare / execute', '$stmt = $pdo->prepare("... WHERE col = ?");  $stmt->execute([$value]);', 'Runs SQL with placeholders (? or :name) so values are sent separately and cannot rewrite your query.',
     "$pdo = new PDO('sqlite::memory:');\n$pdo->exec('CREATE TABLE pet (id INTEGER, name TEXT)');\n$stmt = $pdo->prepare('INSERT INTO pet (id, name) VALUES (?, ?)');\n$stmt->execute([1, 'Rex']);\n$stmt->execute([2, \"Tia'; DROP TABLE pet; --\"]);\necho $pdo->query('SELECT count(*) FROM pet')->fetchColumn();",
     '2', 'Putting a variable straight into the SQL string. That is SQL injection. Use placeholders every time. (SQLite here; same calls for PostgreSQL.)', ['pdo-fetch', 'pdo-connect', 'get-post']),

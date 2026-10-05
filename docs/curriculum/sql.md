@@ -15,7 +15,7 @@ bookings, until milestone M-B moves them onto yours (see gaps.md W2).
 | 2 | Linking by id | A row points at another row by keeping its number ("room 2") | O2 "Room 2" (S0) | interact | T14 (as typed-in numbers only) | Built |
 | 3 | CREATE TABLE | Declare a table first: its name, then each column with a type | S1 "Somewhere to keep the rooms" (pad: one word, one line, then blank) | schema + probe (cheat: seats stored as TEXT, so 10 sorts below 7) | none built (S4 planned) | Built |
 | 4 | Column types (TEXT, INTEGER) | The type decides what a column accepts and how it compares | S1 (inside it) | probe "rooms seating at least 7" | none built (S4 timestamps planned) | Built |
-| 5 | Primary key, SERIAL | Every row gets its own never-repeated number, made for you | S1 (one line of the Learn card) | schema (an `id` key exists) | none | Built, thin |
+| 5 | Primary key, SERIAL or IDENTITY | Every row gets its own never-repeated number, made for you (`GENERATED ALWAYS AS IDENTITY` is the modern form; both pass) | S1 (one line of the Learn card) | schema (an `id` key exists) | none | Built, thin |
 | 6 | INSERT | Add rows: columns in brackets, then VALUES | S2 "The three rooms" | probe: exactly Priya's 3 rooms (cheat: inserted twice) | none built (T06 retired) | Built |
 | 7 | A query is a question (SELECT *) | Ask the database; rows come back | Tutorial part 2 (preview), O3 "Asking a question" | rows | T01, T17, T18 | Built |
 | 8 | Reading an SQL error | Read what, where (the quoted word), what it expected | O4 "Reading an error" | rows after the fix | O7 (same habit in JS) | Built |
@@ -29,11 +29,11 @@ bookings, until milestone M-B moves them onto yours (see gaps.md W2).
 | 16 | Investigate before changing | Run a read-only SELECT first; reply with evidence | T11 "The Garden Room won't take us" | rows + unchanged + reply, closed-book explain step | T13, T21 | Built |
 | 17 | DELETE ... WHERE id | Remove only the row you found | T13 "Friday by mistake" | world + unchanged (cheat: all of Sam's bookings) | T21 | Built |
 | 18 | AND (OR in the Library) | A row stays only if both conditions hold | T14 "Too many in the Garden Room" | rows | T16, T17, T19 | Built |
-| 19 | A day as a time range | Timestamps like `'2026-01-09 00:00+00'`; a day is from midnight up to, not including, the next | T16 "This Friday in the Boardroom" | rows (cheat: `<=` next midnight) | T17, T19 | Built (see gaps.md I4) |
+| 19 | A day as a time range | Timestamps like `'2026-01-09 00:00+00'`; a day is from midnight up to, not including, the next; you decide whose midnight (UTC equals London only in winter) | T16 "This Friday in the Boardroom" | rows (cheat: `<=` next midnight) | T17, T19 | Built (gaps.md I4 fixed) |
 | 20 | LIMIT | Only the first n rows (learnt by look-up, no Learn card) | T17 "How long have I got?" | rows (cheat: sort by id, not time) | T18 | Built |
 | 21 | Filter, sort, take the top | Combine earlier ideas, unaided | T18 checkpoint "The smallest room for five" | rows (any tied answer), calibration prompt | none | Built |
 | 22 | Overlap of two time ranges | Two periods overlap when each starts before the other ends | T19 "Thursday, two till three" | rows + explain step | T21 | Built |
-| 23 | Fixing a clash in data | Find the clashing pair, keep the older, move or remove the newer | T21 "Two people, one Boardroom" | world (no overlaps) + unchanged | P3, P9 planned | Built (see gaps.md I5) |
+| 23 | Fixing a clash in data | Find the clashing pair, keep the older, move or remove the newer | T21 "Two people, one Boardroom" | world (no overlaps) + unchanged | P3, P9 planned | Built (gaps.md I5 fixed) |
 
 ## Library only (look up and run, not taught or checked)
 

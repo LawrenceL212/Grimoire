@@ -244,7 +244,11 @@ their bookings at the office clock (today's renderer, now from his rows).
 - O8 (kept) introduces PHP running SQL through `$pdo` on his world.
 - **Goal (S9):** "When someone presses Book, the booking should actually exist."
 - **Builds:** `book.php` with `function handle(array $input, PDO $pdo): array`
-  returning `[status, body]` (PC-7, taught as "our codebase's convention").
+  returning `[status, body]` (PC-7, taught as "our codebase's convention": a
+  convention of this game's codebase, not how PHP itself receives a request). Followed
+  by bridge card M-P2: the same handler written the way plain PHP does it (`$_POST`,
+  `json_decode(file_get_contents('php://input'), true)`, `http_response_code(201)`,
+  `header('Content-Type: application/json')`), so the real request model is met too.
 - **New idea `prepared-param`:** values go into a query as parameters, never glued
   into its text. Learn card: `$pdo->prepare('INSERT ... VALUES (?, ?, ?, ?)')`,
   `->execute([...])`; Codex entries for `$`, `->`, `[ ]`, `;`. Worked example:
@@ -357,7 +361,7 @@ realise.
 | P11 | "Cancelled bookings still block the room." | P10 done and his overlap check ignores `cancelled_at` | others' code (his own earlier code, still correct for its time) | `IS NULL` in the overlap rule, both layers | a customer books a cancelled slot successfully | overlap, P10 |
 | P12 | "Since the clocks went forward, our 9 o'clock bookings show at 10." [T60, T61] | real calendar reaches a DST change (or Helen's school data straddles one) and his column is `TIMESTAMP` or his JS formats in UTC | messy input | time zones: `TIMESTAMPTZ`, `AT TIME ZONE 'Europe/London'`, `Intl` (PC-12) | customers' slots on both sides of the change render and save at the right local time | timestamp-type, render-text |
 | P13 | "Oakfield Primary signs. Their staff mustn't see Sam's bookings." [T35, T74] | a second client is signed (business state) | feature request then security | tenancy: `client_id`, scoping every query, checking it in PHP | a scripted Oakfield user requesting Harbour Street's id gets nothing (world and response) | foreign-key, prepared-param, where |
-| P14 | "We need logins. Store passwords properly, the insurer asks how." [T71] | P13 done | rules and security | `password_hash` / `password_verify`; never plain text | catalogue: no plaintext column; probe login right/wrong; hash differs per user | create-table, prepared-param |
+| P14 | "We need logins. Store passwords properly, the insurer asks how." [T71] | P13 done | rules and security | `password_hash` / `password_verify`; never plain text. Not a whole login on its own: beside it, M-P3 (sessions, cookie flags `HttpOnly`/`Secure`/`SameSite`, `session_regenerate_id` at login) and M-P4 (a CSRF token on every form that changes data) | catalogue: no plaintext column; probe login right/wrong; hash differs per user | create-table, prepared-param |
 | P15 | "A member cancelled someone else's booking by changing the number in the link." [T73] | P10 + P14 done; a logged request in his access log shows it (a real event) | rules and security | authorisation: check ownership server-side | replayed request (PC-17) now returns 403 and changes nothing | P10, P14 |
 | P16 | "Priya needs to manage rooms, members mustn't." | P14 done | feature request | roles (`role` column, checks in PHP; later PC-3 SQL roles) | member gets 403 on room edits; Priya succeeds | P14, P15 |
 | P17 | "Harbour Street's page takes ages now." [T68, T69, T69a] | `bookings` passes 50,000 rows (growth via the importer of a big client) | growth and scale | `LIMIT`/paging, an index chosen from `EXPLAIN` (PC-11) | plan contains an index scan on his index; endpoint returns at most N rows per page | limit, order-by, where |

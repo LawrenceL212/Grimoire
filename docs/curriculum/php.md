@@ -5,7 +5,7 @@ there is no PostgreSQL server in a browser, so in this game `$pdo` talks to a
 **SQLite practice copy** of the world, not to PostgreSQL. The PDO calls
 (`prepare`, `execute`, `fetch`) are the same ones you would use against
 PostgreSQL; only the connection line differs. What this changes in practice
-is listed in [gaps.md](gaps.md) (I8). Status key: [README](README.md).
+is listed in [gaps.md](gaps.md) (I8), and O8's Learn card says it. Status key: [README](README.md).
 
 **Today the game teaches one PHP card**, an on-ramp (scaffolded, never
 evidence).
@@ -14,7 +14,7 @@ evidence).
 
 | # | Concept | Plain meaning | Taught at | Checked by | Comes back | Status |
 |---|---|---|---|---|---|---|
-| 1 | PHP wraps SQL: `$`, `$pdo->query`, `fetchColumn`, `echo`, `.` | Variables start with `$`; `$pdo` is the database connection; `->` uses its ability; `echo` prints; `.` glues text | O8 "PHP asks the database" (L0 run, L1 change one word) | output (cheat: `echo 'Rooms: 3'`) | T21 (optional PHP route, `$pdo->exec`) | Built, too big: gaps.md C6 |
+| 1 | PHP wraps SQL: `$`, `$pdo->query`, `fetchColumn`, `echo`, `.` | Variables start with `$`; `$pdo` is the database connection (here a SQLite practice copy, said on the card); `->` uses its ability; `echo` prints; `.` glues text | O8 "PHP asks the database" (L0 run, L1 change one word) | output (cheat: `echo 'Rooms: 3'`) | T21 (optional PHP route, `$pdo->exec`) | Built, too big: gaps.md C6 |
 
 ## Library only (30 entries; the ones below are not covered by any card, built or planned)
 
@@ -34,7 +34,7 @@ evidence).
 | 8 | A query with a condition from PHP | Your T03 SQL, sent from PHP | T07 | output on both worlds | T15 | Planned (LD) |
 | 9 | fetchAll, foreach, `$row['name']` | Loop over result rows | T15 | output on both worlds | T30a, S9 | Planned (LD) |
 | 10 | Prepared statements (`prepare`, `?`, `execute`) | Values go in as parameters, never glued into the SQL text | S9 "Saving the booking" / T22 | customers book through your form; rows exist | P5, P8, P13 | Planned (arc) |
-| 11 | The handler convention `handle(array $input, PDO $pdo): array` returning `[status, body]` | How this game's codebase answers a request | S9 | customers | S10, S11, every P | Planned (arc), game-only (gaps.md I17) |
+| 11 | The handler convention `handle(array $input, PDO $pdo): array` returning `[status, body]` | How this game's codebase answers a request (a game convention; bridge card M-P2 then shows plain PHP: `$_POST`, `php://input`, `http_response_code`) | S9 | customers | S10, S11, every P | Planned (arc), game-only (gaps.md I13) |
 | 12 | if / else, `\|\|`, `&&`, adding to an array (`$a[] = x`) | Decide, and collect results | T30a | output | T31 | Planned (LD) |
 | 13 | Functions with types | `function isFree(PDO $pdo, int $roomId, ...): bool` | T31 | probes | T37, T94 | Planned (LD) |
 | 14 | Returning JSON (`json_encode`, status code) | The server answers with data, not a page | S10 / T40 | customers | S11 | Planned (arc) |
