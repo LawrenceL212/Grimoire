@@ -43,7 +43,10 @@ test('every card names its cause, reporter, sector, hints and real Grimoire spel
 });
 
 test('the recall spells each card declares are exactly what its reference solution casts, unaided and fresh', () => {
-  for (const c of LADDER) {
+  // a card on his world is read as written against the house names (his own names change no spell)
+  const house = (code) => String(code).replace(/\{(rooms|people|bookings)\.(\w+)\}/g, '$2').replace(/\{(room|person|booking):[^{}"]+\}/g, '1').replace(/\{roomName:([^{}"]+)\}/g, '$1');
+  for (const c0 of LADDER) {
+    const c = JSON.parse(house(JSON.stringify(c0)));
     const got = new Set();
     const shown = new Set([...(c.learnCard?.example?.code ? detectSpells(c.learnCard.example.code, c.learnCard.example.lang) : []), ...c.spells.teach]);
     for (const r of c.reference) {

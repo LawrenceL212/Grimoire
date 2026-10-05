@@ -743,6 +743,11 @@ branch, the import script and log as an in-world artefact, the kept S6 cards and
 T21 on imported data, schema-driven views (PC-4 read side) so the office and
 `bridge.js` work from his columns. Files: `views.js`, `office.js`, new
 `arc/{s4,s5,import}.js`. *Milestone M1 reachable.*
+*Built 2026-10-05 (branch game-product-arc):* `arc/{s4,s5,s6,sheet,scripts}.js`. The colleagues'
+scripts run once, when their ticket arrives, through his tables, and join his log as their entries
+(before the Reset mark); S5's branch is a card variant fixed on arrival; O6-O8 stay where they were
+in the ladder and run on his company read-only (the JS/PHP write side stays with M-F); T21's clash is
+Priya's morning booking (a script, not a hidden setup).
 
 **M-D · The site preview (S7). Size M-L.** `KINDS.site`, `host-site.html`,
 prelude, the project-files editor (HTML first), the preview window, DOM text

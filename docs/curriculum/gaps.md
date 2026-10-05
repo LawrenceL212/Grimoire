@@ -146,10 +146,10 @@ for `btree_gist` (already listed as platform work PC-2).
 
 ## 5. Wrong order
 
-| Id | Problem | Fix | Priority |
-|---|---|---|---|
+| Id | Problem | Fix | Priority | Status |
+|---|---|---|---|---|
 | W1 | S1 (first typed SQL) comes before O4 (reading errors) | Move O4's lesson onto the S1 practice pad, or play O3/O4 on the pad before S1 | should |
-| W2 | After building **his** rooms (Library 12) he plays T01-T21 on a ready-made world where the Library seats 6 and people and bookings already exist | Build milestone M-B; until then, one line on T01 saying "this is a practice copy of the office" | must |
+| W2 | After building **his** rooms (Library 12) he plays T01-T21 on a ready-made world where the Library seats 6 and people and bookings already exist | Build milestone M-B; until then, one line on T01 saying "this is a practice copy of the office" | must | **Done (M-B, M-C, 2026-10-05):** every card after S2 runs on his tables; people and bookings arrive through Priya's and Tom's visible scripts |
 | W3 | S10 straight after O6/O7 | M-J1 | must |
 | W4 | S9 straight after O8 | M-P1 | must |
 | W5 | JOIN after linked tables (S4-S6) and after T14's typed-in ids | M-S1 | must |

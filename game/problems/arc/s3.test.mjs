@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { resolveCard, templatesOf, tablesIn, insertSql, probeRefused, validateCard, PAD_TABLES } from '../card.js';
 import { typeClass, resolveRoles, ROOM_ROLES } from '../../world/catalogue.js';
 import { arcShadowRooms } from '../../world/named.js';
-import { LADDER, cardById, checkLadder, TUTORIAL } from '../ladder.js';
+import { LADDER, cardById, checkLadder, TUTORIAL, RETIRED } from '../ladder.js';
 import { SPELLS } from '../../play/spells.js';
 
 const S3 = ['O3', 'O4', 'O5', 'T01', 'T02', 'T03', 'T04', 'G1', 'T08', 'T10', 'T11'];
@@ -18,7 +18,7 @@ test('S3 runs on his company: O3 to T11 (with G1, the Garden Room he types in) a
   const ids = LADDER.map((c) => c.id);
   assert.deepEqual(ids.slice(ids.indexOf('O3'), ids.indexOf('T11') + 1), S3);
   for (const id of S3) assert.ok(cardById(id).world.arc, id);
-  assert.ok(!cardById('T13').world.arc, 'cards that need bookings wait for M-C (seeded until then)');
+  assert.ok(cardById('T13').world.arc, 'since M-C the cards that need bookings run on his company too');
   assert.deepEqual(checkLadder(), []);
   const g1 = cardById('G1');
   assert.equal(g1.newConcept, 0); assert.deepEqual(g1.spells.recall, ['insert']); assert.equal(g1.evidence, true);
@@ -51,7 +51,7 @@ test('the ladder catches a card on his world that needs a table or a room he has
   assert.ok(checkLadder(early, TUTORIAL).some((b) => /needs the Garden Room in his rooms table/.test(b)));
   const padPeople = LADDER.map((c) => (c.id === 'T02' ? { ...c, workedExample: { lang: 'sql', code: 'SELECT * FROM people;', note: 'x' } } : c));
   assert.ok(checkLadder(padPeople, TUTORIAL).some((b) => /T02: runs SQL on the practice pad that reads people/.test(b)));
-  assert.ok(validateCard({ ...cardById('T13'), says: 'How many does {roomName:Boardroom} seat, please?' }).some((b) => /templates/.test(b)));
+  assert.ok(validateCard({ ...RETIRED.T06, says: 'How many does {roomName:Boardroom} seat, please?' }).some((b) => /templates/.test(b)));
   assert.deepEqual(tablesIn("CREATE TABLE shifts (id int); INSERT INTO shifts VALUES (1); SELECT * FROM rooms r JOIN people p ON true -- FROM bookings"), { used: ['rooms', 'people'], made: ['shifts'] });
 });
 

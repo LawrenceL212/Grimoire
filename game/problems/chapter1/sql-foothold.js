@@ -1,11 +1,13 @@
 // The SQL foothold T01-T17 (learning design, section 8, #6-#17), each climbing the learn loop: understand
 // (Learn card and a live demo), watch (L0), change one token (L1), change one line (L2), then a blank editor.
-import { PRIYA, SAM, ALL_STAGES } from './people.js';
+import { PRIYA, SAM } from './people.js';
 
 // Since the product arc's M-B, T01-T04 and T08-T11 run in S3, on HIS company (world: { arc: true }): his rooms
 // table and the rows he typed. The names that are his to choose come in as templates ({rooms.name} is his column
 // for the room's name, {roomName:Boardroom} the Boardroom as he spelt it; card.js resolveCard). Examples on other
 // data run on Sequel's practice pad (fruit and books); a read-only example about his rooms is marked on: 'company'.
+// Since M-C, T13-T17 run there too, on the bookings his colleagues' scripts put through HIS tables (S5, S6): a
+// person is {person:Sam Fletcher} (his id for Sam) and a booking {booking:sam-fri-board} (arc/sheet.js, by content).
 const ARC = { stage: [], arc: true };
 const COLS = 'id, {rooms.name}, {rooms.capacity}';
 const ROOMS_BUT = (name) => `SELECT ${COLS} FROM rooms WHERE {rooms.name} <> '{roomName:${name}}' ORDER BY id`;
@@ -247,8 +249,8 @@ export const T13 = {
   id: 'T13', serve: 14, position: '#14', title: 'Friday by mistake', act: 1,
   from: SAM, says: "I booked the Boardroom for Friday by mistake. Can you cancel it? My afternoon one's fine.",
   kind: 'bug', cause: 'messy real-world input', grading: 'one-off',
-  concept: 'delete', newConcept: 1, teaches: ['delete'], uses: ['where', 'investigate'], needs: ['T03', 'T04'], revisits: ['T03', 'T04'],
-  languages: ['sql'], world: { stage: ['boardroom10', 'garden'] }, showTimetable: true,
+  concept: 'delete', newConcept: 1, teaches: ['delete'], uses: ['where', 'investigate'], needs: ['T03', 'T04', 'S6'], revisits: ['T03', 'T04'],
+  languages: ['sql'], world: ARC, showTimetable: true,
   learnCard: {
     title: 'Removing a row',
     lines: [
@@ -257,19 +259,19 @@ export const T13 = {
       'Then remove only that row, by its id.',
       'Two dashes, --, start a comment: the database ignores the rest of the line.',
     ],
-    example: { lang: 'sql', code: '-- the finding query first: it changes nothing\nSELECT * FROM bookings WHERE person_id = 3;', note: "Jo's bookings: read an id off the answer." },
+    example: { lang: 'sql', code: '-- the finding query first: it changes nothing\nSELECT * FROM bookings WHERE person_id = {person:Jo Bell};', on: 'company', note: "Jo's bookings, read only: read an id off the answer." },
   },
-  workedExample: { lang: 'sql', code: 'DELETE FROM bookings WHERE id = 22;', note: "A sibling: one of Jo's bookings removed by its id (then the office is put back)." },
+  workedExample: { lang: 'sql', code: "DELETE FROM fruit WHERE id = 3;\nSELECT * FROM fruit;", note: 'A sibling on the practice pad: one row removed by its id, the others untouched.' },
   hints: ["First find Sam's bookings, then remove only one.", 'Deleting rows by id.', 'delete'],
   spells: { teach: ['delete'], recall: [] },
   steps: [{ objective: "Cancel only Sam's wrong booking.", level: 'L2', lang: 'sql', starter: "-- find Sam's Friday bookings first, then remove only the wrong one\nDELETE FROM bookings",
     checks: [
-      { kind: 'world', name: "Sam's Friday Boardroom booking is gone", sql: 'SELECT count(*) FROM bookings WHERE id = 11', expect: { equals: 0 } },
-      { kind: 'world', name: "Sam's afternoon booking is still there", sql: 'SELECT count(*) FROM bookings WHERE id = 12', expect: { equals: 1 } },
-      { kind: 'unchanged', name: 'every other booking is as it was', sql: 'SELECT * FROM bookings WHERE id <> 11 ORDER BY id' },
+      { kind: 'world', name: "Sam's Friday Boardroom booking is gone", sql: 'SELECT count(*) FROM bookings WHERE id = {booking:sam-fri-board}', expect: { equals: 0 } },
+      { kind: 'world', name: "Sam's afternoon booking is still there", sql: 'SELECT count(*) FROM bookings WHERE id = {booking:sam-fri-studio}', expect: { equals: 1 } },
+      { kind: 'unchanged', name: 'every other booking is as it was', sql: 'SELECT * FROM bookings WHERE id <> {booking:sam-fri-board} ORDER BY id' },
     ] }],
-  cheats: [{ name: "every booking of Sam's", lang: 'sql', code: 'DELETE FROM bookings WHERE person_id = 2;' }],
-  reference: [{ step: 0, lang: 'sql', code: 'DELETE FROM bookings WHERE id = 11;' }],
+  cheats: [{ name: "every booking of Sam's", lang: 'sql', code: 'DELETE FROM bookings WHERE person_id = {person:Sam Fletcher};' }],
+  reference: [{ step: 0, lang: 'sql', code: 'DELETE FROM bookings WHERE id = {booking:sam-fri-board};' }],
   recap: ['You looked first, then removed one row by its id.', 'WHERE id = picked exactly one booking.'],
   pattern: 'Find by key', evidence: true, timeMinutes: 2,
 };
@@ -278,20 +280,20 @@ export const T14 = {
   id: 'T14', serve: 15, position: '#15', title: 'Too many in the Garden Room', act: 1,
   from: SAM, says: "Which of my bookings are in the Garden Room? I think I've got too many.",
   kind: 'question', cause: 'report or question', grading: 'query',
-  concept: 'and', newConcept: 1, teaches: ['and'], uses: ['where', 'compare', 'id-link'], needs: ['T03', 'T10'], revisits: ['T03', 'T10', 'O2'],
-  languages: ['sql'], world: { stage: ALL_STAGES },
+  concept: 'and', newConcept: 1, teaches: ['and'], uses: ['where', 'compare', 'id-link'], needs: ['T03', 'T10', 'S6'], revisits: ['T03', 'T10', 'O2'],
+  languages: ['sql'], world: ARC,
   learnCard: {
     title: 'Both must hold',
-    lines: ['AND joins two conditions: a row stays only if both are true.', 'Sam is person 2; the Garden Room is room 4 (typed-in ids for now: later, JOIN finds them by name).', 'OR keeps a row if either is true (it is in the Grimoire).'],
-    example: { lang: 'sql', code: 'SELECT * FROM bookings WHERE room_id = 1 AND person_id = 4;', note: "Omar's Boardroom bookings only." },
+    lines: ['AND joins two conditions: a row stays only if both are true.', 'In your tables Sam is person {person:Sam Fletcher} and the Garden Room is room {room:Garden Room} (typed-in ids for now: later, JOIN finds them by name).', 'OR keeps a row if either is true (it is in the Grimoire).'],
+    example: { lang: 'sql', code: 'SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND person_id = {person:Omar Haddad};', on: 'company', note: "Omar's Boardroom bookings only (read only: nothing changes)." },
   },
-  workedExample: { lang: 'sql', code: 'SELECT name FROM rooms WHERE capacity >= 5 AND capacity <= 8;', note: 'A sibling: rooms between five and eight seats.' },
+  workedExample: { lang: 'sql', code: 'SELECT name FROM fruit WHERE price >= 0.30 AND price <= 1;', note: 'A sibling on the practice pad: fruit between 30p and a pound.' },
   hints: ['Two things must both be true.', 'Combining conditions.', 'and'],
   spells: { teach: ['and'], recall: [] },
   steps: [{ objective: "List Sam's Garden Room bookings.", level: 'L2', lang: 'sql', starter: 'SELECT * FROM bookings',
-    checks: [{ kind: 'rows', name: "Sam's bookings in the Garden Room", truth: 'SELECT * FROM bookings WHERE person_id = 2 AND room_id = 4', columns: ['id'] }] }],
-  cheats: [{ name: "all of Sam's bookings", lang: 'sql', code: 'SELECT * FROM bookings WHERE person_id = 2;' }],
-  reference: [{ step: 0, lang: 'sql', code: 'SELECT * FROM bookings WHERE person_id = 2 AND room_id = 4;' }],
+    checks: [{ kind: 'rows', name: "Sam's bookings in the Garden Room", truth: 'SELECT * FROM bookings WHERE person_id = {person:Sam Fletcher} AND room_id = {room:Garden Room}', columns: ['id'] }] }],
+  cheats: [{ name: "all of Sam's bookings", lang: 'sql', code: 'SELECT * FROM bookings WHERE person_id = {person:Sam Fletcher};' }],
+  reference: [{ step: 0, lang: 'sql', code: 'SELECT * FROM bookings WHERE person_id = {person:Sam Fletcher} AND room_id = {room:Garden Room};' }],
   recap: ['Two conditions, and both had to hold.', "Sam's AND the Garden Room's: only the rows that are both."],
   evidence: true, timeMinutes: 2,
 };
@@ -302,7 +304,7 @@ export const T16 = {
   from: SAM, says: "What's on in the Boardroom this Friday? I'm trying to fit a client in.",
   kind: 'question', cause: 'report or question', grading: 'query',
   concept: 'time-range', newConcept: 1, teaches: ['time-range'], uses: ['and', 'compare', 'where'], needs: ['T14'], revisits: ['T14', 'T10'],
-  languages: ['sql'], world: { stage: ALL_STAGES },
+  languages: ['sql'], world: ARC,
   learnCard: {
     title: 'A day of bookings',
     lines: [
@@ -311,15 +313,15 @@ export const T16 = {
       "So Tuesday is start_at >= '2026-01-06 00:00+00' AND start_at < '2026-01-07 00:00+00'.",
       "Whose midnight? +00 is UTC, which is London time in January (the office clock). From late March to late October London is an hour ahead, so a London day starts at 23:00 UTC: decide which time zone a 'day' means before you write it.",
     ],
-    example: { lang: 'sql', code: "SELECT * FROM bookings WHERE start_at >= '2026-01-06 00:00+00' AND start_at < '2026-01-07 00:00+00';", note: "Tuesday's bookings." },
+    example: { lang: 'sql', code: "SELECT * FROM bookings WHERE start_at >= '2026-01-06 00:00+00' AND start_at < '2026-01-07 00:00+00';", on: 'company', note: "Tuesday's bookings (read only: nothing changes)." },
   },
-  workedExample: { lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 2 AND start_at >= '2026-01-05 00:00+00' AND start_at < '2026-01-06 00:00+00';", note: "A sibling: Monday's bookings in the Studio." },
+  workedExample: { lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = {room:Studio} AND start_at >= '2026-01-05 00:00+00' AND start_at < '2026-01-06 00:00+00';", on: 'company', note: "A sibling, read only: Monday's bookings in your Studio." },
   hints: ['Friday starts at midnight and ends at the next midnight.', 'Filtering by time.', 'time-range'],
   spells: { teach: ['time-range'], recall: [] },
-  steps: [{ objective: "List Friday's Boardroom bookings.", level: 'L2', lang: 'sql', starter: 'SELECT * FROM bookings WHERE room_id = 1',
-    checks: [{ kind: 'rows', name: "Friday's Boardroom bookings, and nothing from Saturday", truth: `SELECT * FROM bookings WHERE room_id = 1 AND ${FRI}`, columns: ['id'] }] }],
-  cheats: [{ name: 'up to and including midnight on Saturday', lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 1 AND start_at >= '2026-01-09 00:00+00' AND start_at <= '2026-01-10 00:00+00';" }],
-  reference: [{ step: 0, lang: 'sql', code: `SELECT * FROM bookings WHERE room_id = 1 AND ${FRI};` }],
+  steps: [{ objective: "List Friday's Boardroom bookings.", level: 'L2', lang: 'sql', starter: 'SELECT * FROM bookings WHERE room_id = {room:Boardroom}',
+    checks: [{ kind: 'rows', name: "Friday's Boardroom bookings, and nothing from Saturday", truth: `SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND ${FRI}`, columns: ['id'] }] }],
+  cheats: [{ name: 'up to and including midnight on Saturday', lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND start_at >= '2026-01-09 00:00+00' AND start_at <= '2026-01-10 00:00+00';" }],
+  reference: [{ step: 0, lang: 'sql', code: `SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND ${FRI};` }],
   recap: ["You used 'from midnight up to, but not including, the next midnight' for a day.", "That shape fits every 'which day' question; which midnight (UTC or London) you decide each time."],
   evidence: true, timeMinutes: 3,
 };
@@ -329,15 +331,15 @@ export const T17 = {
   from: SAM, says: "When's the next booking in the Boardroom after nine on Monday? I need to know how long I've got.",
   kind: 'question', cause: 'report or question', grading: 'query',
   concept: 'limit', newConcept: 1, teaches: ['limit'], lookupOnly: true, uses: ['order-by', 'time-range', 'look-up', 'and'], needs: ['T08', 'T16', 'O5'], revisits: ['T08', 'T16', 'O5'],
-  languages: ['sql'], world: { stage: ALL_STAGES },
+  languages: ['sql'], world: ARC,
   learnCard: null, // learn by look-up: no Learn card (the Grimoire's search is the teacher here)
-  workedExample: { lang: 'sql', code: 'SELECT name, capacity FROM rooms ORDER BY capacity LIMIT 1;', note: 'A sibling: the smallest room.' },
+  workedExample: { lang: 'sql', code: 'SELECT name, price FROM fruit ORDER BY price LIMIT 1;', note: 'A sibling on the practice pad: the cheapest fruit, and only that one.' },
   hints: ["Sort by time. Is there a Grimoire word for 'only the first'?", 'Limiting results.', 'limit'],
   spells: { teach: ['limit'], recall: ['and', 'compare', 'order-by', 'select-all', 'time-range', 'where'] },
   steps: [{ objective: 'Find the next Boardroom booking after 9:00 on Monday.', level: 'L3', lang: 'sql', starter: '',
-    checks: [{ kind: 'rows', name: 'one row: the next Boardroom booking', truth: "SELECT * FROM bookings WHERE room_id = 1 AND start_at >= '2026-01-05 09:00+00' ORDER BY start_at LIMIT 1", columns: ['id'] }] }],
-  cheats: [{ name: 'the lowest id instead of the earliest time', lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 1 AND start_at >= '2026-01-05 09:00+00' ORDER BY id LIMIT 1;" }],
-  reference: [{ step: 0, lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = 1 AND start_at >= '2026-01-05 09:00+00' ORDER BY start_at LIMIT 1;" }],
+    checks: [{ kind: 'rows', name: 'one row: the next Boardroom booking', truth: "SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND start_at >= '2026-01-05 09:00+00' ORDER BY start_at LIMIT 1", columns: ['id'] }] }],
+  cheats: [{ name: 'the lowest id instead of the earliest time', lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND start_at >= '2026-01-05 09:00+00' ORDER BY id LIMIT 1;" }],
+  reference: [{ step: 0, lang: 'sql', code: "SELECT * FROM bookings WHERE room_id = {room:Boardroom} AND start_at >= '2026-01-05 09:00+00' ORDER BY start_at LIMIT 1;" }],
   recap: ["You found a tool you hadn't been shown. That's how you'll learn most things at work.", 'Sort, then take the first: ORDER BY start_at LIMIT 1.'],
   pattern: 'Sort and take the top', evidence: true, timeMinutes: 3,
 };

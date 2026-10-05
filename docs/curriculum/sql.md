@@ -5,9 +5,12 @@ Your SQL runs on real PostgreSQL in the browser (PGlite). Status key and
 
 ## Built: what the game teaches today (in play order)
 
-S0-S2 run on **your own** company database (empty at the start). The cards
-after S2 (O3 to T21) still run on a ready-made "named" world with people and
-bookings, until milestone M-B moves them onto yours (see gaps.md W2).
+Every card runs on **your own** company database (empty at the start): S0-S2
+build the rooms, S3 asks about them (M-B), S4-S6 build people and bookings and
+fill them through colleagues' scripts you can read (M-C: Priya's paper
+bookings, Tom's import of Sam's spreadsheet), and the cards after S6 (T13 to
+T21) run on that data, written in your own column names and ids. No card
+starts from a ready-made world any more (gaps.md W2 is done).
 
 | # | Concept | Plain meaning | Taught at | Checked by | Comes back | Status |
 |---|---|---|---|---|---|---|
@@ -27,6 +30,9 @@ bookings, until milestone M-B moves them onto yours (see gaps.md W2).
 | 14 | ORDER BY, ASC/DESC | Sort the answer; the table itself is not changed | T08 "Biggest first" | rows, sorted | T17, T18 | Built |
 | 15 | Comparing: > >= < <= <> | "At least", "more than" and so on in a WHERE | T10 "A team of seven" | rows (cheat: `> 7` misses a 7-seater) | T11, T18 | Built |
 | 16 | Investigate before changing | Run a read-only SELECT first; reply with evidence | T11 "The Garden Room won't take us" | rows + unchanged + reply, closed-book explain step | T13, T21 | Built |
+| 16a | Timestamps (TIMESTAMPTZ) | Store a moment, not words: it compares, sorts and subtracts as a time (as text, '10:00' sorts before '9:00') | S4 "People and bookings" (blank editor; `people` is a recall of CREATE TABLE) | schema + probe: two bookings 9-10 and 10-11 both start before 10:30, each lasts one hour (cheats: TEXT, DATE, links not named room_id/person_id) | S5, S6, T16, T17, T19 | Built (TIMESTAMP without a zone passes and is recorded for P12) |
+| 16b | Foreign key (REFERENCES, ALTER TABLE ... ADD FOREIGN KEY) | A link column may only point at a row that exists; added to a table with rows, every row is checked first | S5 "There is no room 7" (Priya's script brings a booking for room 7) | world (the key in the catalogue, no booking without a room, the others unchanged) + probe: room 999 refused (23503), a brand-new room accepted (cheat: CHECK room_id BETWEEN 1 AND 4) | S6 (the import's log) | Built; if his S4 table already had REFERENCES, S5 is the reply variant ("what does this error mean?") |
+| 16c | Checking someone else's import | Query the result, read their code and its log | S6 "Sam's spreadsheet" (Tom's script, visible) | rows on both worlds + reply (the skipped Atrium line) | T13-T21 run on this data | Built |
 | 17 | DELETE ... WHERE id | Remove only the row you found | T13 "Friday by mistake" | world + unchanged (cheat: all of Sam's bookings) | T21 | Built |
 | 18 | AND (OR in the Library) | A row stays only if both conditions hold | T14 "Too many in the Garden Room" | rows | T16, T17, T19 | Built |
 | 19 | A day as a time range | Timestamps like `'2026-01-09 00:00+00'`; a day is from midnight up to, not including, the next; you decide whose midnight (UTC equals London only in winter) | T16 "This Friday in the Boardroom" | rows (cheat: `<=` next midnight) | T17, T19 | Built (gaps.md I4 fixed) |

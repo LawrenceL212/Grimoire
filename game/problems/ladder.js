@@ -2,10 +2,11 @@
 // from an EMPTY company: the first-day tutorial (part 1, on Priya's paper notebook), S0 (O1, O2 on the notebook),
 // S1 (his rooms table) and S2 (his three rooms), the tutorial's part 2 on his rooms; then S3 (milestone M-B): the
 // on-ramp O3-O5 and the SQL foothold T01-T04, G1 (the Garden Room, which he types in), T08, T10 and T11, all on
-// HIS rooms table (templated by his column and row names, card.js resolveCard). After them the cards that need
-// people and bookings (T13-T17, O6-O8, T18, T19, T21) still start from the named seeded world (world/named.js)
-// until milestone M-C has him build those tables (S4-S6). T06 (insert) is retired: its idea moved to S2, its
-// Garden Room to G1.
+// HIS rooms table (templated by his column and row names, card.js resolveCard). Then milestone M-C: S4 (his people
+// and bookings tables), S5 (Priya's paper bookings through his tables, one for a room 7 that does not exist: the
+// foreign key), S6 (Tom imports Sam's spreadsheet through his tables), and every card after them (T13-T17, O6-O8,
+// T18, T19, T21) on that data, templated by his names and ids. No card after S2 starts from a seeded world. T06
+// (insert) is retired: its idea moved to S2, its Garden Room to G1.
 //
 //   TUTORIAL, LADDER (cards in order), cardById(id), indexOf(id), RETIRED (cards no longer served, by id)
 //   checkLadder(ladder = LADDER, tutorial = TUTORIAL) -> [problems]   pure: every card is valid; no card uses a
@@ -13,8 +14,9 @@
 //       each preview of the tutorial is taught later by a card; the double-booking ticket is not first; and, for
 //       his company (world.arc): every table a schema or probe check reads was created by that card or an earlier
 //       one; no SQL that must run on his world (a truth, a check, a reference, an example marked on: 'company')
-//       reads a table no earlier card had him create; every room a template names ({room:Boardroom}) was put in
-//       by an earlier card; examples and steps on Sequel's practice pad read only the pad's tables (or ones they
+//       reads a table no earlier card had him create; every room, person or booking a template names
+//       ({room:Boardroom}, {person:Sam Fletcher}, {booking:sam-fri-board}) was put in by an earlier card (or by
+//       this card's own arrival script); every card after S2 runs on his world; examples and steps on Sequel's practice pad read only the pad's tables (or ones they
 //       make themselves); the tutorial's part 2 reads only what exists when it opens
 //   heldConcept(card, solvedIds) -> bool   the card's new idea was already learnt on a retired card (an old life)
 //   DAILY_CAP: at most 5 new concepts per calendar day (the pace rule, section 5)
@@ -26,12 +28,15 @@ import { O1, O2 } from './arc/s0.js';
 import { S1 } from './arc/s1.js';
 import { S2 } from './arc/s2.js';
 import { G1 } from './arc/s3.js';
-import { validateCard, templatesOf, tablesIn, PAD_TABLES } from './card.js';
+import { S4 } from './arc/s4.js';
+import { S5 } from './arc/s5.js';
+import { S6 } from './arc/s6.js';
+import { validateCard, templatesOf, tablesIn, PAD_TABLES, withVariant } from './card.js';
 
 export { TUTORIAL, PART2_START };
 export const DAILY_CAP = 5;
 // the serve number is the ticket's place in this order (shown as TICKET #n)
-export const LADDER = Object.freeze([O1, O2, S1, S2, O3, O4, O5, T01, T02, T03, T04, G1, T08, T10, T11, T13, T14, T16, T17, O6, O7, O8, T18, T19, T21]
+export const LADDER = Object.freeze([O1, O2, S1, S2, O3, O4, O5, T01, T02, T03, T04, G1, T08, T10, T11, S4, S5, S6, T13, T14, T16, T17, O6, O7, O8, T18, T19, T21]
   .map((c, i) => Object.freeze({ ...c, serve: i + 1, position: `#${i + 1}` })));
 export const RETIRED = Object.freeze({ T06 });
 export const cardById = (id) => LADDER.find((c) => c.id === id) || null;
@@ -63,6 +68,8 @@ export function checkLadder(ladder = LADDER, tutorial = TUTORIAL) {
   const seen = new Set();
   const made = new Set();
   const rows = new Set(); // rooms (by Priya's name) some card had him put in
+  const people = new Set(), bookings = new Set(); // people (by name) and bookings (sheet.js keys) his colleagues' scripts put in
+  let pastS2 = false;
   let serve = 0;
   for (const c of ladder) {
     bad.push(...validateCard(c));
@@ -83,8 +90,18 @@ export function checkLadder(ladder = LADDER, tutorial = TUTORIAL) {
       for (const k of tpl.cols) if (!made.has(k.split('.')[0])) bad.push(`${c.id}: names his column {${k}} before he has made that table`);
       // a card may name a room it has him add (G1 "added twice" names the Garden Room it puts in)
       for (const r of tpl.rows) if (!rows.has(r) && !(c.adds?.rooms || []).includes(r)) bad.push(`${c.id}: needs the ${r} in his rooms table, which no earlier card had him put in`);
-    }
+      for (const v of [c, ...(c.variants || []).map((x) => withVariant(c, x.id))]) {
+        const t = templatesOf(v);
+        for (const p of t.people) if (!people.has(p) && !(v.adds?.people || []).includes(p)) bad.push(`${c.id}: needs ${p} in his people table, which no earlier card put in`);
+        for (const b of t.bookings) if (!bookings.has(b) && !(v.adds?.bookings || []).includes(b)) bad.push(`${c.id}: needs the booking ${b}, which no earlier card put in`);
+      }
+    } else if (pastS2) bad.push(`${c.id}: comes after S2 but starts from a seeded world (every card after S3 runs on the tables he built)`);
     for (const r of c.adds?.rooms || []) rows.add(r);
+    // what a card with variants adds for sure is what every variant adds
+    const adds = (k) => (c.variants?.length ? [c, ...c.variants.map((x) => withVariant(c, x.id))].map((v) => v.adds?.[k] || []).reduce((a, b) => a.filter((x) => b.includes(x))) : c.adds?.[k] || []);
+    for (const p of adds('people')) people.add(p);
+    for (const b of adds('bookings')) bookings.add(b);
+    if (c.id === 'S2') pastS2 = true;
     seen.add(c.id);
     if (tutorial?.part2After === c.id) {
       for (const s of tutorial.steps.filter((x) => x.part === 2)) {
