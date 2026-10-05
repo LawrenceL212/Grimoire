@@ -33,3 +33,19 @@ export async function runSolution(world, lang, code) {
     return { ok: false, error: String(e?.message ?? e) };
   }
 }
+
+/* The product arc (milestone M-C): JavaScript and PHP READ his company and change nothing in it. They see it as
+   objects under the house names (views.js toObjects; PHP through $pdo on a SQLite practice copy built from them);
+   whatever the code does to that copy is reported (changedCopy) but never written back, because the write side of
+   his own columns arrives with the PHP request harness (milestone M-F). Same answer shape as runSolution. */
+export async function runReadOnly(world, lang, code) {
+  try {
+    const objects = await toObjects(world);
+    const res = lang === 'js' ? await runJs(code, objects) : lang === 'php' ? await (await getPhpRunner()).run(code, objects) : null;
+    if (!res) return { ok: false, error: `There is no runtime for ${lang}.` };
+    const key = (o) => JSON.stringify(['rooms', 'people', 'bookings'].map((t) => (o?.[t] || []).map((r) => Object.keys(r).filter((k) => r[k] != null).sort().map((k) => [k, String(r[k])]))));
+    return { ...res, changedCopy: !!(res.ok && res.world && key(res.world) !== key(objects)) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message ?? e) };
+  }
+}

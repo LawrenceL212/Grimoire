@@ -7,7 +7,8 @@
 //   stripSql(code)            the code without comments and string contents (for shape tests only)
 //   isChange(code)            the code can change the database (DDL, DML, setval): worth keeping
 //   isDdl(code)               it changes the shape (CREATE / ALTER / DROP / TRUNCATE / COMMENT ON)
-//   append(log, sql, meta)    a new log with one more entry { sql, ddl, card, atMs } (a run that changed nothing is not kept)
+//   append(log, sql, meta)    a new log with one more entry { sql, ddl, card, atMs, by? } (a run that changed nothing is
+//                             not kept; by: the colleague whose visible script it was, e.g. 'Priya', 'Tom'; none = his own)
 //   upTo(log, n)              the first n entries (Reset: back to how the database was when a ticket arrived)
 //   ddlOf(log)                the entries that changed the shape: the DDL log (a shadow world is built from these)
 //   cleanLog(raw)             a stored log, checked entry by entry (anything odd is dropped, never trusted)
@@ -30,12 +31,13 @@ const DML = /\b(insert\s+into|update\s+\S+\s+set|delete\s+from|merge\s+into|gran
 export const isDdl = (code) => DDL.test(stripSql(code));
 export const isChange = (code) => { const s = stripSql(code); return DDL.test(s) || DML.test(s); };
 
-export function append(log, sql, { card = null, atMs = null } = {}) {
+export function append(log, sql, { card = null, atMs = null, by = null } = {}) {
   const list = Array.isArray(log) ? log : [];
   const text = String(sql ?? '');
   if (!text.trim() || !isChange(text) || text.length > LOG_LIMITS.chars || list.length >= LOG_LIMITS.entries) return list;
-  return [...list, { sql: text, ddl: isDdl(text), card: typeof card === 'string' ? card : null, atMs: Number.isFinite(atMs) ? atMs : null }];
+  return [...list, { sql: text, ddl: isDdl(text), card: typeof card === 'string' ? card : null, atMs: Number.isFinite(atMs) ? atMs : null, ...byOf(by) }];
 }
+const byOf = (by) => (typeof by === 'string' && /^[A-Za-z][A-Za-z ]{0,19}$/.test(by) ? { by } : {});
 export const upTo = (log, n) => (Array.isArray(log) ? log.slice(0, Math.max(0, Math.min(log.length, Number.isInteger(n) ? n : log.length))) : []);
 export const ddlOf = (log) => (Array.isArray(log) ? log.filter((e) => e.ddl) : []);
 
@@ -44,7 +46,7 @@ export function cleanLog(raw) {
   const out = [];
   for (const e of raw.slice(0, LOG_LIMITS.entries)) {
     if (!e || typeof e !== 'object' || typeof e.sql !== 'string' || !e.sql.trim() || e.sql.length > LOG_LIMITS.chars || !isChange(e.sql)) continue;
-    out.push({ sql: e.sql, ddl: isDdl(e.sql), card: typeof e.card === 'string' ? e.card : null, atMs: Number.isFinite(e.atMs) ? e.atMs : null });
+    out.push({ sql: e.sql, ddl: isDdl(e.sql), card: typeof e.card === 'string' ? e.card : null, atMs: Number.isFinite(e.atMs) ? e.atMs : null, ...byOf(e.by) });
   }
   return out;
 }

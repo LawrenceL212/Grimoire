@@ -9,6 +9,9 @@
 //   resolveRoles(table, roles)          { map: { role: column }, missing: [role] }   roles: { role: { cls: [...], prefer: RegExp } }
 //   quoteIdent(name)                    "name" (safe in SQL)
 //   ROOM_ROLES                          how a room's name and seats are found in his rooms table
+//   PERSON_ROLES, BOOKING_ROLES         the same for people (a name; a role only if he made one) and bookings (the
+//                                       house names room_id, person_id, start_at, end_at, found by name only)
+//   schemaChoices(cat)                  the decisions in his schema the director will read later (product arc 4.3)
 // With a database:
 //   readCatalogue(world) -> { tables: { [name]: { name, columns: [{ name, type, cls, nullable, hasDefault, identity }], pk: [col], constraints: [{ name, type, def }] } } }
 //                          identity: 'ALWAYS' | 'BY DEFAULT' for an identity column, else null
@@ -29,9 +32,18 @@ export const ROOM_ROLES = Object.freeze({
   name: { cls: ['text'], prefer: /^(name|room_?name|title|label)$/i },
   capacity: { cls: ['integer', 'number'], prefer: /^(capacity|seats|size|places|people|max)/i },
 });
+// a role marked exact is found by its name only (the house convention fixes it: never "the first text column");
+// optional: a table without it still passes (the role reads as empty)
 export const PERSON_ROLES = Object.freeze({
-  name: { cls: ['text'], prefer: /^(name|full_?name)$/i },
-  role: { cls: ['text'], prefer: /^role$/i },
+  name: { cls: ['text'], prefer: /^(name|full_?name|person_?name)$/i },
+  role: { cls: ['text'], prefer: /^role$/i, exact: true, optional: true },
+});
+// bookings (milestone M-C): the house convention names every column a card needs, so each is found by its name
+export const BOOKING_ROLES = Object.freeze({
+  room_id: { cls: ['integer'], prefer: /^room_id$/i, exact: true },
+  person_id: { cls: ['integer'], prefer: /^person_id$/i, exact: true },
+  start_at: { cls: ['timestamptz', 'timestamp'], prefer: /^start_at$/i, exact: true },
+  end_at: { cls: ['timestamptz', 'timestamp'], prefer: /^end_at$/i, exact: true },
 });
 
 /* Each role takes, in turn: a column with a preferred name and the right type class; else the first column of the
@@ -44,7 +56,8 @@ export function resolveRoles(table, roles) {
   const taken = new Set();
   for (const [role, r] of Object.entries(roles)) {
     const open = free.filter((c) => !taken.has(c.name));
-    const col = open.find((c) => r.prefer?.test(c.name) && r.cls.includes(c.cls))
+    const col = r.exact ? open.find((c) => r.prefer.test(c.name))
+      : open.find((c) => r.prefer?.test(c.name) && r.cls.includes(c.cls))
       || open.find((c) => r.cls.includes(c.cls))
       || open.find((c) => r.prefer?.test(c.name));
     if (col) { map[role] = col.name; taken.add(col.name); } else missing.push(role);
@@ -77,4 +90,18 @@ export async function readCatalogue(world) {
     if (k.type === 'p') t.pk = colsOf;
   }
   return { tables };
+}
+
+/* Pure: what he decided in his schema (recorded at each arc solve, for later problems: TIMESTAMP without a zone
+   triggers P12, no CHECK on the times P4, no link rule S5's branch). Nothing here is graded. */
+export function schemaChoices(cat) {
+  const b = cat?.tables?.bookings, out = {};
+  if (!b) return out;
+  const col = (n) => b.columns.find((c) => c.name === n);
+  out.timesType = col('start_at')?.cls ?? null;
+  const fk = (c, ref) => b.constraints.some((k) => k.type === 'f' && k.ref === ref && k.cols.includes(c));
+  out.roomLink = fk('room_id', 'rooms');
+  out.personLink = fk('person_id', 'people');
+  out.timesCheck = b.constraints.some((k) => k.type === 'c' && /end_at/.test(k.def) && /start_at/.test(k.def));
+  return out;
 }

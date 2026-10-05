@@ -54,14 +54,27 @@ export function freshLife(nowMs = Date.now()) {
 /* The product arc's part of the life: his company's name, and the log of every run that changed his database (the
    save of his world: replayed into an empty PostgreSQL on load, world/ddl-log.js). marks[cardId] is how long the
    log was when that ticket first opened (Reset goes back to it). A life saved before the arc has none: it keeps
-   its spells, credit and home, and its company is rebuilt by the arc from empty (product arc, Q5). */
-export const newArc = () => ({ company: null, log: [], marks: {} });
+   its spells, credit and home, and its company is rebuilt by the arc from empty (product arc, Q5).
+   Milestone M-C adds: scripts[cardId], what a colleague's script did when that ticket arrived (shown to him: its text
+   and a plain verdict per line; what went in is in the log, as that colleague's entry); variants[cardId], the
+   variant of a card chosen when it first arrived (S5's branch); choices, the decisions in his schema the director
+   will read later (catalogue.js schemaChoices). A save without them loads as before. */
+export const newArc = () => ({ company: null, log: [], marks: {}, scripts: {}, variants: {}, choices: {} });
+const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+function cleanScript(x) {
+  if (!isObj(x)) return null;
+  const lines = Array.isArray(x.lines) ? x.lines.slice(0, 60).filter(isObj).map((l) => ({ label: str(l.label, 120), verdict: str(l.verdict, 400), ok: l.ok === true })) : [];
+  return { title: str(x.title, 120), by: str(x.by, 20), when: str(x.when, 40), intro: str(x.intro, 600), text: str(x.text, 20000), lines, ...(x.error ? { error: str(x.error, 300) } : {}) };
+}
 export function cleanArc(raw) {
   const arc = newArc();
   if (!isObj(raw)) return arc;
   if (typeof raw.company === 'string' && raw.company.trim()) arc.company = raw.company.trim().slice(0, 40);
   arc.log = cleanLog(raw.log);
   if (isObj(raw.marks)) for (const [id, n] of Object.entries(raw.marks)) if (Number.isInteger(n) && n >= 0) arc.marks[id] = Math.min(n, arc.log.length);
+  if (isObj(raw.scripts)) for (const [id, x] of Object.entries(raw.scripts)) { const c = cleanScript(x); if (c) arc.scripts[id] = c; }
+  if (isObj(raw.variants)) for (const [id, v] of Object.entries(raw.variants)) if (typeof v === 'string' && /^[a-z-]{1,20}$/.test(v)) arc.variants[id] = v;
+  if (isObj(raw.choices)) for (const [k, v] of Object.entries(raw.choices)) if (/^[a-zA-Z]{1,20}$/.test(k) && (typeof v === 'boolean' || (typeof v === 'string' && v.length <= 20) || v === null)) arc.choices[k] = v;
   return arc;
 }
 

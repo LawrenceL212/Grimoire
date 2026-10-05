@@ -8,7 +8,7 @@ import { isChange, isDdl, append, upTo, ddlOf, cleanLog, stripSql, LOG_LIMITS } 
 import { typeClass, resolveRoles, ROOM_ROLES } from '../../world/catalogue.js';
 import { insertSql, fillSql, judgeProbeRows, validateCard } from '../card.js';
 import { NOTEBOOK_ROOMS, noteRowKey, noteValue, sortedRows } from './notebook.js';
-import { LADDER, cardById, checkLadder, heldConcept, TUTORIAL } from '../ladder.js';
+import { LADDER, cardById, checkLadder, heldConcept, TUTORIAL, RETIRED } from '../ladder.js';
 import { cleanLife, freshLife, nextCardId } from '../../play/progress.js';
 import { S1 } from './s1.js';
 import { S2 } from './s2.js';
@@ -98,7 +98,7 @@ test('the arc opens the ladder: S0 (O1, O2 on the notebook), S1, S2, then the on
   const early = LADDER.filter((c) => c.id !== 'S1').map((c, i) => ({ ...c, serve: i + 1, needs: c.needs.filter((n) => n !== 'S1'), uses: c.uses.filter((u) => u !== 'create-table') }));
   assert.ok(checkLadder(early, TUTORIAL).some((b) => /S2: checks the table rooms, which no card before it/.test(b)));
   assert.ok(validateCard({ ...cardById('S2'), acceptance: [] }).some((b) => /acceptance/.test(b)));
-  assert.ok(validateCard({ ...cardById('T13'), steps: [{ ...cardById('T13').steps[0], checks: [{ kind: 'schema', table: 'rooms', roles: 'room' }] }] }).some((b) => /belong to product-arc cards/.test(b)));
+  assert.ok(validateCard({ ...RETIRED.T06, steps: [{ ...RETIRED.T06.steps[0], checks: [{ kind: 'schema', table: 'rooms', roles: 'room' }] }] }).some((b) => /belong to product-arc cards/.test(b)));
 });
 
 test('saves: a life from before the arc keeps its spells, credit and home; its company starts empty and is rebuilt by the arc', () => {
@@ -112,12 +112,12 @@ test('saves: a life from before the arc keeps its spells, credit and home; its c
   assert.deepEqual(life.solves.map((s) => s.card), ['O1', 'O2', 'O3', 'T06']);
   assert.equal(life.solves.reduce((n, s) => n + s.xp, 0), 10);
   assert.deepEqual(life.spells, old.spells);
-  assert.deepEqual(life.arc, { company: null, log: [], marks: {} });
+  assert.deepEqual(life.arc, { company: null, log: [], marks: {}, scripts: {}, variants: {}, choices: {} });
   assert.equal(nextCardId(LADDER, life), 'S1'); // his world is rebuilt: the arc serves the stages he has not done
   const solved = new Set(life.solves.map((s) => s.card));
   assert.ok(heldConcept(cardById('S2'), solved)); // insert was learnt on T06: S2 comes as recall, not teaching
   assert.ok(!heldConcept(cardById('S1'), solved));
   const kept = cleanLife({ ...old, arc: { company: '  Harbour Desk Ltd ', log: [{ sql: 'CREATE TABLE rooms (id int);' }, { sql: 'SELECT 1' }], marks: { S1: 0, S2: 9, bad: -1 } } }, NOW);
-  assert.deepEqual(kept.arc, { company: 'Harbour Desk Ltd', log: [{ sql: 'CREATE TABLE rooms (id int);', ddl: true, card: null, atMs: null }], marks: { S1: 0, S2: 1 } });
-  assert.deepEqual(freshLife(NOW).arc, { company: null, log: [], marks: {} });
+  assert.deepEqual(kept.arc, { company: 'Harbour Desk Ltd', log: [{ sql: 'CREATE TABLE rooms (id int);', ddl: true, card: null, atMs: null }], marks: { S1: 0, S2: 1 }, scripts: {}, variants: {}, choices: {} });
+  assert.deepEqual(freshLife(NOW).arc, { company: null, log: [], marks: {}, scripts: {}, variants: {}, choices: {} });
 });

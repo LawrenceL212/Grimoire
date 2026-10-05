@@ -1,7 +1,7 @@
 /* How JavaScript and PHP see the PostgreSQL world, and how their changes get
    back. Both languages get the same three tables. Timestamps cross the boundary
    as ISO-8601 UTC text so neither side depends on a time zone. */
-import { readCatalogue, resolveRoles, quoteIdent, ROOM_ROLES, PERSON_ROLES } from './catalogue.js';
+import { readCatalogue, resolveRoles, quoteIdent, ROOM_ROLES, PERSON_ROLES, BOOKING_ROLES } from './catalogue.js';
 export const TABLES = {
   rooms: { id: 'INTEGER PRIMARY KEY', name: 'TEXT', capacity: 'INTEGER' },
   people: { id: 'INTEGER PRIMARY KEY', name: 'TEXT', role: 'TEXT' },
@@ -47,34 +47,30 @@ export function sanitizeWorld(objects) {
   return { world };
 }
 
-const ISO = (c) => `to_char(${c} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ${c}`;
-const SELECTS = {
-  rooms: 'SELECT id, name, capacity FROM rooms ORDER BY id',
-  people: 'SELECT id, name, role FROM people ORDER BY id',
-  bookings: `SELECT id, room_id, person_id, ${ISO('start_at')}, ${ISO('end_at')} FROM bookings ORDER BY id`,
-};
+// a moment as ISO-8601 UTC text, whether his column keeps the zone (TIMESTAMPTZ) or not (TIMESTAMP is read as UTC,
+// the session's zone, which is how every script and probe of the game writes it)
+const ISO = (expr, as) => `to_char(${expr} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ${as}`;
 const ORDER = ['rooms', 'people', 'bookings']; // parents before children
 
-/* The world as objects. The seeded worlds have exactly SCHEMA's columns. The product arc's world is the learner's
-   own: a table may not exist yet (no rows), and his columns are found by role (catalogue.js): the room's name is
-   his text column, its seats his whole-number column, whatever he called them. A missing column reads as null. */
+/* The world as objects, always under the house names (rooms: id, name, capacity; people: id, name, role; bookings:
+   id, room_id, person_id, start_at, end_at), so the office, bridge.js, JavaScript and PHP read any world the same
+   way. The seeded worlds have exactly SCHEMA's columns. The product arc's world is the learner's own (PC-4, the
+   read side): a table may not exist yet (no rows), and his columns are found by role (catalogue.js): the room's
+   name is his text column and its seats his whole-number column, whatever he called them; a person's role only if
+   he made one; a booking's columns by the house names. A missing column reads as null. */
 const STANDARD = { rooms: ['id', 'name', 'capacity'], people: ['id', 'name', 'role'], bookings: ['id', 'room_id', 'person_id', 'start_at', 'end_at'] };
-const ROLES_OF = { rooms: ROOM_ROLES, people: PERSON_ROLES };
-function selectFor(t, table) {
-  const have = new Set(table.columns.map((c) => c.name));
-  if (STANDARD[t].every((c) => have.has(c))) return SELECTS[t];
-  if (!have.has('id')) return null;
+const ROLES_OF = { rooms: ROOM_ROLES, people: PERSON_ROLES, bookings: BOOKING_ROLES };
+const TIMES = new Set(['timestamptz', 'timestamp']);
+export function selectFor(t, table) {
+  if (!table.columns.some((c) => c.name === 'id')) return null;
   const cls = Object.fromEntries(table.columns.map((c) => [c.name, c.cls]));
+  const { map } = resolveRoles(table, ROLES_OF[t]);
   const parts = ['id'];
-  if (ROLES_OF[t]) {
-    const { map } = resolveRoles(table, ROLES_OF[t]);
-    for (const role of Object.keys(ROLES_OF[t])) parts.push(map[role] ? `${quoteIdent(map[role])} AS ${role}` : `NULL AS ${role}`);
-  } else {
-    for (const c of STANDARD[t].slice(1)) {
-      if (!have.has(c)) parts.push(`NULL AS ${c}`);
-      else if (cls[c] === 'timestamptz' || cls[c] === 'timestamp') parts.push(ISO(c));
-      else parts.push(c);
-    }
+  for (const role of STANDARD[t].slice(1)) {
+    const col = map[role];
+    if (!col) parts.push(`NULL AS ${role}`);
+    else if (TIMES.has(cls[col])) parts.push(ISO(quoteIdent(col), role));
+    else parts.push(col === role ? role : `${quoteIdent(col)} AS ${role}`);
   }
   return `SELECT ${parts.join(', ')} FROM ${t} ORDER BY id`;
 }

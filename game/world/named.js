@@ -127,3 +127,27 @@ export function arcShadowRooms(real = []) {
   for (const x of ARC_SHADOW_EXTRA) if (!rows.some((r) => key(r.name) === key(x.name))) rows.push({ id: ++next, ...x });
   return rows;
 }
+
+/* Milestone M-C: the shadow of HIS people and bookings. His people keep their ids and names (a card asks about Sam
+   by name, and his id resolves the same on both worlds); the named shadow's two extra members (Ravi, Mia) get new
+   ids. The shadow week (SHADOW_BASE and SHADOW_GARDEN above: the traps T16, T17 and T19's cheats fall into) is put
+   in by NAME: each booking's room and person are looked up among the shadow rooms and people, so it points at his
+   ids. A booking whose room or person the shadow does not have is left out. */
+export function arcShadowPeople(real = []) {
+  const named = namedRows({ shadow: true, stage: ['garden'] }).people;
+  const rows = real.map((p) => ({ id: p.id, name: p.name, role: named.find((n) => key(n.name) === key(p.name))?.role ?? 'customer' }));
+  let next = Math.max(0, ...real.map((p) => Number(p.id) || 0));
+  for (const n of named) if (!rows.some((r) => key(r.name) === key(n.name))) rows.push({ id: ++next, name: n.name, role: n.role });
+  return rows;
+}
+export function arcShadowBookings(rooms = [], people = []) {
+  const w = namedRows({ shadow: true, stage: ['garden'] });
+  const nameOf = (list, id) => list.find((x) => x.id === id)?.name;
+  const idOf = (list, name) => list.find((x) => key(x.name) === key(name))?.id;
+  const out = [];
+  for (const b of w.bookings) {
+    const room_id = idOf(rooms, nameOf(w.rooms, b.room_id)), person_id = idOf(people, nameOf(w.people, b.person_id));
+    if (room_id != null && person_id != null) out.push({ id: b.id, room_id, person_id, start_at: b.start_at, end_at: b.end_at });
+  }
+  return out;
+}
