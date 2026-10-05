@@ -8,7 +8,8 @@
 //                  { doc, version }, push gets { expectVersion: version } and may reject with err.conflict = true
 //                  (someone wrote in between): the engine then pulls again, merges again and retries, up to MAX_CONFLICTS
 //                  times in one cycle. A backend that returns a plain doc and ignores the second argument works as before.
-//     readLocal()  -> { life, spells } | null            writeLocal({ life, spells })      (see local.js)
+//     readLocal()  -> { life, spells } | null            writeLocal({ life, spells }, { slot }?)      (see local.js; slot
+//                  'aside' when this device's company database was set aside by a diverging one, otherwise none)
 //   returns { start(), notifyChange(), flush(), syncNow(), onStatus(fn), onNotice(fn), notices(), status(), hasBackend, stop() }
 //   writeLocal may return false (the local write failed): the cycle then ends in 'error', never 'synced'.
 //   writeLocal may return 'held' (the page that owns the save is open and would overwrite it: session.js): the local write is
@@ -96,7 +97,8 @@ export function createSync({
     if (merged) {
       if (!local || !same(merged, local)) {
         const back = fromDoc(merged, { now: now() });
-        const w = back.ok ? writeLocal(back.state) : false;
+        // when this device's company database lost to a diverging one (merge.js mergeArc), its game goes to the ASIDE slot
+        const w = back.ok ? (m.aside === 'a' ? writeLocal(back.state, { slot: 'aside' }) : writeLocal(back.state)) : false;
         if (w === 'held') held = true;
         else if (w === false) throw new Error('the merged save could not be stored on this device');
       }

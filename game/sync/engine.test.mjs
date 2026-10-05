@@ -111,7 +111,7 @@ test('debounce: a burst of changes is one push after 5 s; flush pushes at once',
   const A = phone(a, cloud, clk);
   await A.sync.start();
   const base = cloud.pushes;
-  for (let i = 0; i < 5; i++) { a.solve(card(['T06', 'T08', 'T10', 'T11', 'T13'][i]), { at: T0 + (i + 2) * H }); A.box.state = a.state(); A.sync.notifyChange(); await clk.advance(1000); }
+  for (let i = 0; i < 5; i++) { a.solve(card(['G1', 'T08', 'T10', 'T11', 'T13'][i]), { at: T0 + (i + 2) * H }); A.box.state = a.state(); A.sync.notifyChange(); await clk.advance(1000); }
   assert.equal(cloud.pushes, base);                          // 5 s of quiet has not passed since the last change
   await clk.advance(4001);
   assert.equal(cloud.pushes, base + 1);

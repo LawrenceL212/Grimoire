@@ -19,7 +19,7 @@ const xp = (S) => JSON.parse(S.getItem(LIFE)).solves.reduce((n, s) => n + s.xp, 
 test('CRITICAL 2: Replace keeps the previous save as a backup, and restoreBackup brings it back (and can be undone)', () => {
   const S = store(); save(S, played('T02', 'T03', 'T04'));
   const before = S.getItem(LIFE);
-  const file = exportOf(played('T06'));
+  const file = exportOf(played('G1'));
   const r = applyImport(file, { mode: 'replace', confirmed: true, readLocal: localAdapter(S, { now: () => NOW }).readLocal, writeLocal: localAdapter(S, { now: () => NOW }).writeLocal, now: () => NOW });
   assert.ok(r.ok && r.changed);
   assert.equal(xp(S), 10);
@@ -113,7 +113,7 @@ test('SLOTS: the manual slot survives any number of engine writes after a Replac
   save(S, played('T02', 'T03', 'T04'));
   const original = S.getItem(LIFE);
   // a (wrong) Replace by the player: the manual slot keeps the original
-  const r = applyImport(exportOf(played('T06')), { mode: 'replace', confirmed: true, readLocal: ad.readLocal, writeLocal: ad.writeLocal, now: clockNow });
+  const r = applyImport(exportOf(played('G1')), { mode: 'replace', confirmed: true, readLocal: ad.readLocal, writeLocal: ad.writeLocal, now: clockNow });
   assert.ok(r.ok);
   assert.equal(S.getItem(LIFE_BACKUP), original);
   // three engine writes, each bringing something new from the cloud

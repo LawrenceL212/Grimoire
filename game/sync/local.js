@@ -4,18 +4,21 @@
 //   localAdapter(storage?, { now? }) -> { readLocal() -> { life, spells } | null, writeLocal({ life, spells }, { slot? }) -> boolean }
 //   readLocal returns null when there is no readable save; it never throws. writeLocal never throws either.
 //
-//   BACKUPS: TWO slots, each ONE previous generation with its time.
+//   BACKUPS: THREE slots, each ONE previous generation with its time.
 //     MANUAL  'grimoire.life.siso.v1.backup' + 'grimoire.spells.v1.backup' + 'grimoire.life.siso.v1.backup.at'
 //             written by what the player chose to do: an import (Merge or Replace), New game, Erase, setting a game aside.
 //             The sync engine NEVER touches it, so a wrong Replace can still be undone after any number of syncs.
 //     AUTO    'grimoire.life.siso.v1.autobackup' + 'grimoire.spells.v1.autobackup' + 'grimoire.life.siso.v1.autobackup.at'
 //             written by every other content-changing writeLocal (the engine's merges): a safety net for the sync itself.
+//     ASIDE   'grimoire.life.siso.v1.asidebackup' + ... '.asidebackup.at'
+//             written only when a sync set THIS device's company database aside for a diverging one from another device
+//             (merge.js mergeArc): later syncs do not overwrite it, so that world can still be restored.
 //   Before writeLocal changes what is stored, the live raw strings are copied to the slot, also when the old save is
 //   unreadable (a broken save is never overwritten without being kept). If the copy cannot be stored, the write does NOT
 //   happen and returns false.
 //   backupNow(storage, { slot = 'manual', now? }) -> boolean   copy the live life/spells raw strings into a slot now (for New
 //       game and Erase, before they clear anything); false when there is nothing live or the copy failed
-//   backupSlots(storage?) -> { manual: { at } | null, auto: { at } | null }       backupInfo(storage?) -> manual's, else auto's, else null
+//   backupSlots(storage?) -> { manual: { at } | null, auto: { at } | null, aside: { at } | null }       backupInfo(storage?) -> manual's, else auto's, else null
 //   restoreBackup({ storage?, slot = 'manual', now? }) -> { ok, error? }   puts that slot back live; what was live becomes that
 //       slot's backup, so a restore can itself be undone.
 // NOTE for the play page: it keeps its life in memory and saves it whole, so after a sync writes local while the page is
@@ -28,6 +31,7 @@ export const SPELLS_KEY = 'grimoire.spells.v1';
 export const SLOTS = Object.freeze({
   manual: Object.freeze({ life: `${LIFE_KEY}.backup`, spells: `${SPELLS_KEY}.backup`, at: `${LIFE_KEY}.backup.at` }),
   auto: Object.freeze({ life: `${LIFE_KEY}.autobackup`, spells: `${SPELLS_KEY}.autobackup`, at: `${LIFE_KEY}.autobackup.at` }),
+  aside: Object.freeze({ life: `${LIFE_KEY}.asidebackup`, spells: `${SPELLS_KEY}.asidebackup`, at: `${LIFE_KEY}.asidebackup.at` }),
 });
 export const LIFE_BACKUP = SLOTS.manual.life, SPELLS_BACKUP = SLOTS.manual.spells, BACKUP_AT = SLOTS.manual.at;
 
@@ -41,7 +45,7 @@ function slotInfo(S, slot) {
   const at = Number(get(S, k.at));
   return { at: Number.isFinite(at) && at > 0 ? at : null };
 }
-export const backupSlots = (storage = localStore()) => ({ manual: slotInfo(storage, 'manual'), auto: slotInfo(storage, 'auto') });
+export const backupSlots = (storage = localStore()) => ({ manual: slotInfo(storage, 'manual'), auto: slotInfo(storage, 'auto'), aside: slotInfo(storage, 'aside') });
 export const backupInfo = (storage = localStore()) => { const s = backupSlots(storage); return s.manual || s.auto; };
 
 // copy the live raw strings into a slot (throws when the storage refuses: callers decide what that means)

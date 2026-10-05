@@ -61,6 +61,7 @@ export function freshLife(nowMs = Date.now()) {
    will read later (catalogue.js schemaChoices). A save without them loads as before. */
 export const newArc = () => ({ company: null, log: [], marks: {}, scripts: {}, variants: {}, choices: {} });
 const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+const idKey = (k) => typeof k === 'string' && k.length > 0 && k.length <= 40 && !['__proto__', 'constructor', 'prototype'].includes(k);
 function cleanScript(x) {
   if (!isObj(x)) return null;
   const lines = Array.isArray(x.lines) ? x.lines.slice(0, 60).filter(isObj).map((l) => ({ label: str(l.label, 120), verdict: str(l.verdict, 400), ok: l.ok === true })) : [];
@@ -71,9 +72,10 @@ export function cleanArc(raw) {
   if (!isObj(raw)) return arc;
   if (typeof raw.company === 'string' && raw.company.trim()) arc.company = raw.company.trim().slice(0, 40);
   arc.log = cleanLog(raw.log);
-  if (isObj(raw.marks)) for (const [id, n] of Object.entries(raw.marks)) if (Number.isInteger(n) && n >= 0) arc.marks[id] = Math.min(n, arc.log.length);
-  if (isObj(raw.scripts)) for (const [id, x] of Object.entries(raw.scripts)) { const c = cleanScript(x); if (c) arc.scripts[id] = c; }
-  if (isObj(raw.variants)) for (const [id, v] of Object.entries(raw.variants)) if (typeof v === 'string' && /^[a-z-]{1,20}$/.test(v)) arc.variants[id] = v;
+  // card ids only as keys: a stored '__proto__' (JSON.parse makes it an own key) must never reach an assignment
+  if (isObj(raw.marks)) for (const [id, n] of Object.entries(raw.marks)) if (idKey(id) && Number.isInteger(n) && n >= 0) arc.marks[id] = Math.min(n, arc.log.length);
+  if (isObj(raw.scripts)) for (const [id, x] of Object.entries(raw.scripts)) { const c = idKey(id) && cleanScript(x); if (c) arc.scripts[id] = c; }
+  if (isObj(raw.variants)) for (const [id, v] of Object.entries(raw.variants)) if (idKey(id) && typeof v === 'string' && /^[a-z-]{1,20}$/.test(v)) arc.variants[id] = v;
   if (isObj(raw.choices)) for (const [k, v] of Object.entries(raw.choices)) if (/^[a-zA-Z]{1,20}$/.test(k) && (typeof v === 'boolean' || (typeof v === 'string' && v.length <= 20) || v === null)) arc.choices[k] = v;
   return arc;
 }

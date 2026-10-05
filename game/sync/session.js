@@ -51,9 +51,9 @@ export function createSession({ fb, storage = localStore(), local = localAdapter
   // the engine writes local only through here (local.js keeps the pre-merge copy). Once the play page holds its life in
   // memory a write would be overwritten by its next save, so it is HELD: the merge is still pushed, the player is told
   // to reload, and the engine does not count it as a failure.
-  const writeLocal = (state) => {
+  const writeLocal = (state, opts) => {
     if (live) { if (!toasted) { toasted = true; onToast(RELOAD); } return 'held'; }
-    return local.writeLocal(state);
+    return local.writeLocal(state, opts);
   };
   function attach(account) {
     if (eng) eng.stop();

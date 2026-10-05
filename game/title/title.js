@@ -139,13 +139,14 @@ const sumText = describeSummary;
 let restoreSlot = 'manual';
 const slotLabel = (slot, info) => {
   const when = info.at ? ` (${new Date(info.at).toLocaleString()})` : '';
+  if (slot === 'aside') return `Restore the game whose company database was set aside by a sync${when}`;
   return slot === 'manual' ? `Restore my save from before the last import or New game${when}` : `Restore the copy from before the last sync${when}`;
 };
 function showRestore() {
   const slots = backupSlots(store);
-  $('restore-row').hidden = !(slots.manual || slots.auto);
+  $('restore-row').hidden = !(slots.manual || slots.auto || slots.aside);
   $('restore-confirm').hidden = true;
-  for (const [slot, id] of [['manual', 'restore-save'], ['auto', 'restore-auto']]) {
+  for (const [slot, id] of [['manual', 'restore-save'], ['auto', 'restore-auto'], ['aside', 'restore-aside']]) {
     const b = $(id);
     b.hidden = !slots[slot];
     if (slots[slot]) b.textContent = slotLabel(slot, slots[slot]);
@@ -154,7 +155,7 @@ function showRestore() {
 function askRestore(slot) {
   restoreSlot = slot;
   showSignedWarnings();
-  $('restore-save').hidden = true; $('restore-auto').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus();
+  $('restore-save').hidden = true; $('restore-auto').hidden = true; $('restore-aside').hidden = true; $('restore-confirm').hidden = false; $('restore-cancel').focus();
 }
 $('import-file').addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
@@ -187,6 +188,7 @@ $('import-cancel').addEventListener('click', () => importState('Kept what is on 
 $('import-replace-yes').addEventListener('click', () => doImport('replace'));
 $('restore-save').addEventListener('click', () => askRestore('manual'));
 $('restore-auto').addEventListener('click', () => askRestore('auto'));
+$('restore-aside').addEventListener('click', () => askRestore('aside'));
 $('restore-cancel').addEventListener('click', () => { showRestore(); importState('Kept what is on this device.'); });
 $('restore-yes').addEventListener('click', () => {
   const r = restoreBackup({ storage: store, slot: restoreSlot });

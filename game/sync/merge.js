@@ -45,6 +45,10 @@
 //             lost; a later merge in a different grouping can then give a different balance (always between 0 and earned minus
 //             the worth owned, so never minted). Everything else, and the balance whenever the floor is not engaged, is
 //             order-independent (fuzzed in harden.test.mjs).
+//  arc        his company's database, kept as its change log (life.arc): never spliced. The longer log wins (so a log that
+//             extends the other always wins), ties by canonical text; equal logs are joined field by field; diverging logs
+//             (neither a prefix of the other) keep one and report NOTICE_WORLD_ASIDE, and `aside` says whose ('a' | 'b') was
+//             set aside so the caller can keep that device's game in a backup slot first. See mergeArc below.
 //  updatedAt  the later of the two (a stamp only; it decides nothing).
 //  A card marked "worked" (help recorded on the CARD) can still have its first solve unaided and paid when that solve was
 //  made before the help was taken, on another device: the credit belongs to the solve and the help to the card, exactly
@@ -59,7 +63,7 @@
 //       colliding timestamps (a 0.3% corner in the fuzz, unreachable by real play, whose clock never repeats a card's time).
 //   (c) spell ink is backed by existence facts (see doc.js), so a save that really did solve the tickets cannot be told from
 //       one that merely lists them: the gate stops spells with no solve behind them, not a forged solve.
-//  Notices: mergeDetailed() returns { doc, notices[] }; mergeSaves() returns just the doc.
+//  Notices: mergeDetailed() returns { doc, notices[], aside }; mergeSaves() returns just the doc.
 import { cleanLife, CREDIT } from '../play/progress.js';
 import { earnedOf, priceOf } from '../play/home-rules.js';
 import { cleanSpellRecord } from '../play/spells.js';
@@ -158,14 +162,50 @@ function pickHome(sides) {
   return best;
 }
 
-export const NOTICE_SPENT = 'Your fix on another device had earned money earlier; your purchases were kept.';
+// ---- the product arc: his company (game/play/progress.js life.arc). The log IS his database (world/ddl-log.js), so two
+// logs are never spliced: a world is replayed in order, and an interleaving of two devices' changes is a database neither
+// of them ever had. A TOTAL ORDER on logs picks one: the longer log, then the canonical text. A log that extends the other
+// (the other is a prefix) is always the longer, so a device that is simply behind loses nothing. Two logs that DIVERGE
+// (neither a prefix of the other) cannot both be kept: the order picks one and a notice says so; the device whose world
+// lost keeps it in a backup slot before the merge is written (engine.js: the 'aside' slot; an import: the manual slot).
+// marks, scripts, variants, choices and company follow the winning log. Arcs whose logs are EQUAL are joined field by
+// field (company: a name over none, then the larger text; marks: the earliest (smallest) per card; scripts, variants,
+// choices: per key the larger canonical text), each a semilattice, so the merge stays commutative, associative and
+// idempotent. Nothing here touches credit: XP, money and ink come from the solves alone (doc.js), never from a log.
+const logKey = (log) => canon(log);
+const logCmp = (x, y) => x.length - y.length || (logKey(x) < logKey(y) ? -1 : logKey(x) > logKey(y) ? 1 : 0);
+const isPrefix = (p, l) => p.length <= l.length && p.every((e, i) => canon(e) === canon(l[i]));
+const maxText = (x, y) => (canon(x) >= canon(y) ? x : y);
+function joinMap(x, y, pick) {
+  const out = {};
+  for (const k of [...new Set([...Object.keys(x), ...Object.keys(y)])].sort()) out[k] = structuredClone(!(k in x) ? y[k] : !(k in y) ? x[k] : pick(x[k], y[k]));
+  return out;
+}
+function joinArcs(x, y) {
+  const company = x.company === null ? y.company : y.company === null ? x.company : (x.company >= y.company ? x.company : y.company);
+  return {
+    company, log: structuredClone(x.log),
+    marks: joinMap(x.marks, y.marks, Math.min), scripts: joinMap(x.scripts, y.scripts, maxText),
+    variants: joinMap(x.variants, y.variants, maxText), choices: joinMap(x.choices, y.choices, maxText),
+  };
+}
+// -> { arc, aside: null | 'a' | 'b' }   aside: whose world was set aside (only when the logs diverge)
+export function mergeArc(x, y) {
+  const c = logCmp(x.log, y.log);
+  if (c === 0) return { arc: joinArcs(x, y), aside: null };
+  const [win, lose, side] = c > 0 ? [x, y, 'b'] : [y, x, 'a'];
+  return { arc: structuredClone(win), aside: isPrefix(lose.log, win.log) ? null : side };
+}
+
+export const NOTICE_WORLD_ASIDE = 'Your company\'s database had different changes on two devices. This save keeps one of them; the other device\'s changes were set aside, and a copy of that game is kept as a backup you can restore in Settings.';
+export const NOTICE_SPENT ='Your fix on another device had earned money earlier; your purchases were kept.';
 export const NOTICE_SET_ASIDE = 'A purchase made on your other device was set aside, and its money returned.';
 
 export function mergeDetailed(a, b, { now } = {}) {
   const ra = a == null ? null : checkDoc(a, { now }), rb = b == null ? null : checkDoc(b, { now });
   const A = ra?.ok ? ra.doc : null, B = rb?.ok ? rb.doc : null;
   const notices = [...(ra?.ok ? ra.notices : []), ...(rb?.ok ? rb.notices : [])];
-  if (!A || !B) return { doc: structuredClone(A || B || null), notices: [...new Set(notices)] };
+  if (!A || !B) return { doc: structuredClone(A || B || null), notices: [...new Set(notices)], aside: null };
   const la = A.siso.life, lb = B.siso.life;
 
   const days = {};
@@ -186,9 +226,12 @@ export function mergeDetailed(a, b, { now } = {}) {
   const slackOf = (l) => { const e = earnedOf(l.solves), w = worthOf(l.home.items); return e >= w ? l.home.balance - e : -w; };
   const slack = Math.max(...winners.map((s) => slackOf(s.life)));
   life.home = { ...structuredClone(winners[0].life.home), balance: Math.max(0, slack + earned) };
+  const world = mergeArc(la.arc, lb.arc);
+  life.arc = world.arc;
+  if (world.aside) notices.push(NOTICE_WORLD_ASIDE);
 
   const r = checkDoc({ schema: 1, updatedAt: Math.max(A.updatedAt, B.updatedAt), siso: { life, spells: mergeSpells(A.siso.spells, B.siso.spells) } }, { now });
-  if (!r.ok) return { doc: structuredClone(A), notices: [...new Set(notices)] }; // cannot happen for valid inputs; never return something unchecked
+  if (!r.ok) return { doc: structuredClone(A), notices: [...new Set(notices)], aside: null }; // cannot happen for valid inputs; never return something unchecked
   if (worthOf(r.doc.siso.life.home.items) > earnedOf(r.doc.siso.life.solves)) notices.push(NOTICE_SPENT);
   const kept = boughtIds(r.doc.siso.life.home);
   for (const l of [la, lb]) {
@@ -196,7 +239,7 @@ export function mergeDetailed(a, b, { now } = {}) {
     const lost = boughtIds(l.home).some((id) => { const k = mine.indexOf(id); if (k < 0) return true; mine.splice(k, 1); return false; });
     if (lost) { notices.push(NOTICE_SET_ASIDE); break; }
   }
-  return { doc: r.doc, notices: [...new Set([...notices, ...r.notices])] };
+  return { doc: r.doc, notices: [...new Set([...notices, ...r.notices])], aside: world.aside };
 }
 
 export const mergeSaves = (a, b, opts) => mergeDetailed(a, b, opts).doc;

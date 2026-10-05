@@ -2,7 +2,10 @@
 //
 //   { schema: 1, updatedAt: <ms>, siso: { life, spells } }      EXACTLY these three top-level keys (the Firestore
 //                                                               rules of step 2 will match them)
-//   life    the life record of game/play/progress.js (tutorial, cards, solves, days, home...), WITHOUT its spells
+//   life    the life record of game/play/progress.js (tutorial, cards, solves, days, home, arc...), WITHOUT its spells.
+//           life.arc is the product arc: his company's name and the change log that rebuilds his database (cleanArc); it
+//           lives INSIDE siso.life, so the rules' three keys still hold. A doc saved before the arc has none and loads with
+//           an empty one. A log is never credit: it is capped (LOG_CHARS) and nothing derived reads it.
 //   spells  the spell records of game/play/spells.js, keyed by spell id
 //
 // Nothing here re-states a rule. Every part goes through the EXISTING validators: cleanLife (which uses cleanHome and
@@ -28,7 +31,7 @@
 //   toDoc(localState, { now?, updatedAt? }) -> doc | null     localState = { life, spells? }; null when unusable
 //   fromDoc(raw, { now? }) -> { ok, doc, state: { life, spells } } | { ok: false, error }   state is what the game keeps
 //   canon(v)                                   stable JSON text (sorted keys), for comparing documents
-import { cleanLife } from '../play/progress.js';
+import { cleanLife, cleanArc } from '../play/progress.js';
 import { cleanSpellRecord, isSpell } from '../play/spells.js';
 import { cleanHome, earnedOf, priceOf, EARNINGS } from '../play/home-rules.js';
 import { LADDER, DAILY_CAP } from '../problems/ladder.js';
@@ -36,6 +39,7 @@ import { LADDER, DAILY_CAP } from '../problems/ladder.js';
 export const SCHEMA = 1;
 export const MAX_BYTES = 500_000;
 export const MAX_EXTRA = 3; // re-solves and practice solves kept per card, beyond its one real solve
+export const LOG_CHARS = 300_000; // his company's change log (life.arc.log) at most this much SQL text, so the save still travels
 export const SKEW_MS = 36 * 3600 * 1000; // a device clock may run this far ahead of ours before a time is "the future"
 
 const isObj = (o) => o && typeof o === 'object' && !Array.isArray(o);
@@ -60,6 +64,12 @@ export function canon(v) {
   if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
   if (isObj(v)) return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}`;
   return JSON.stringify(v) ?? 'null';
+}
+// how many entries of a log fit in LOG_CHARS of SQL, from the start
+export function fitLog(log) {
+  let chars = 0, keep = 0;
+  for (const e of Array.isArray(log) ? log : []) { chars += typeof e?.sql === 'string' ? e.sql.length : 0; if (chars > LOG_CHARS) break; keep++; }
+  return keep;
 }
 const size = (v) => { try { return JSON.stringify(v).length; } catch { return Infinity; } };
 
@@ -128,6 +138,14 @@ export function checkDoc(raw, { now = Date.now() } = {}) {
   // nowMs 0: the validator must not move the record's clock to "now", or two copies of one save would never be equal
   const life = cleanLife(pre, 0);
   delete life.spells;
+  // his company (life.arc, validated by cleanArc and world/ddl-log.js cleanLog): a log over LOG_CHARS keeps its longest
+  // prefix that fits (a prefix replays to a database he really had; a cut in the middle would not). The log earns nothing:
+  // XP, money and ink below come from the solves alone.
+  const keep = fitLog(life.arc.log);
+  if (keep < life.arc.log.length) {
+    life.arc = cleanArc({ ...life.arc, log: life.arc.log.slice(0, keep) });
+    notices.push(`Your company's change log was too long to keep whole: its first ${keep} changes were kept.`);
+  }
   // the home: purchases up to what the solves could have earned, the balance up to what they did earn
   const evidenceCards = new Set(life.solves.filter((s) => !s.practice && CARD.get(s.card)?.evidence).map((s) => s.card));
   const home = cleanHome(rawHome, evidenceCards.size * EARNINGS.unaidedEvidenceSolve);
@@ -159,7 +177,10 @@ export function checkDoc(raw, { now = Date.now() } = {}) {
 
 export function toDoc(state, { now, updatedAt } = {}) {
   if (!isObj(state) || !isObj(state.life)) return null;
-  const r = checkDoc({ schema: SCHEMA, updatedAt: updatedAt ?? state.life.highMs, siso: { life: state.life, spells: state.spells ?? state.life.spells ?? {} } }, { now });
+  // this device's own save: an over-long log is cut to its fitting prefix BEFORE the size gate, so it still travels
+  let life = state.life;
+  if (isObj(life.arc) && Array.isArray(life.arc.log) && fitLog(life.arc.log) < life.arc.log.length) life = { ...life, arc: { ...life.arc, log: life.arc.log.slice(0, fitLog(life.arc.log)) } };
+  const r = checkDoc({ schema: SCHEMA, updatedAt: updatedAt ?? life.highMs, siso: { life, spells: state.spells ?? state.life.spells ?? {} } }, { now });
   return r.ok ? r.doc : null;
 }
 

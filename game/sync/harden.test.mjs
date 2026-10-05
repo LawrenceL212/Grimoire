@@ -23,7 +23,7 @@ test('CRITICAL 1: a forged save cannot mint credit (fake ids, a huge balance, un
   L.home.balance = 99999999;
   L.home.items.push({ uid: 'i77', id: 'sofa', tone: null, x: null, z: null, rot: 0 }); L.home.seq = 77;
   L.cards.fake = { hint: 0 };
-  L.days['2026-10-01'] = ['T02', 'T03', 'T04', 'T06', 'T08', 'T10', 'T11', 'fake'];
+  L.days['2026-10-01'] = ['T02', 'T03', 'T04', 'G1', 'T08', 'T10', 'T11', 'fake'];
   base.siso.spells = { limit: { langs: ['sql'], written: true, lastMs: T0 + H, stability: 3000, assisted: false, forms: { sql: { written: true, lastMs: T0 + H, stability: 3000 } } },
     where: { langs: ['sql'], written: true, lastMs: T0 + H, stability: 30, assisted: false, forms: {} } };
   const r = checkDoc(base, { now: NOW });
@@ -73,7 +73,7 @@ test('MINOR: a purchase on the losing device is set aside and the notice says it
   const a = device(), b = device();
   for (const id of ['T02', 'T03', 'T04']) { a.solve(C(id), { at: T0 + H }); }
   a.buy('laptop'); a.buy('desk-lamp');
-  b.solve(C('T06'), { at: T0 + 2 * H }); b.buy('plant-small');
+  b.solve(C('G1'), { at: T0 + 2 * H }); b.buy('plant-small');
   const r = mergeDetailed(a.doc(), b.doc(), { now: NOW });
   assert.ok(r.notices.includes(NOTICE_SET_ASIDE));
   assert.ok(!r.doc.siso.life.home.items.some((i) => i.id === 'plant-small' && !i.starter));
@@ -84,7 +84,7 @@ test('MINOR: a purchase on the losing device is set aside and the notice says it
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
 function randomDevice(r, k) {
   const d = device(T0 + Math.floor(r() * 5) * H);
-  const ids = ['T02', 'T03', 'T04', 'T06', 'T08', 'T10', 'T11'];
+  const ids = ['T02', 'T03', 'T04', 'G1', 'T08', 'T10', 'T11'];
   const n = Math.floor(r() * 5);
   for (let i = 0; i < n; i++) {
     const id = ids[Math.floor(r() * ids.length)];

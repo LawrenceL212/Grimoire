@@ -22,14 +22,16 @@ async function play(page) {
       life = r.life;
       for (const s of r.spells) store.recordCast(s.id, { lang: 'sql', unaided: s.unaided, outcome: s.outcome, nowMs: at });
     }
-    life = P.noteHelp(life, 'T06', { hint: 2 });
+    life = P.noteHelp(life, 'G1', { hint: 2 });
+    // the product arc: his company and its change log travel with the save (game/play/progress.js life.arc)
+    life.arc = P.cleanArc({ company: 'Acme Rooms', log: [{ sql: 'CREATE TABLE rooms (id serial PRIMARY KEY, name text)', card: 'S2', atMs: at }, { sql: "INSERT INTO rooms (name) VALUES ('Garden Room')", card: 'G1', atMs: at + 1 }], marks: { G1: 1 }, variants: { S5: 'split' } });
     const spells = {};
     for (const { spell } of store.all()) { const st = store.getSpellState(spell.id); if (st.introduced) spells[spell.id] = { langs: st.langs, written: st.written, demo: st.demo, lastMs: st.lastMs, stability: st.stability, assisted: st.assisted, forms: st.forms }; }
     localStorage.setItem(key, JSON.stringify({ ...life, spells }));
   }, LIFE);
 }
 const snapshot = (page) => page.evaluate((k) => JSON.stringify(Object.fromEntries(Object.keys(localStorage).sort().map((x) => [x, localStorage.getItem(x)])) ), LIFE);
-const progress = (page) => page.evaluate((k) => { const l = JSON.parse(localStorage.getItem(k) || 'null'); return l && { solves: l.solves.map((s) => `${s.card}:${s.xp}:${s.gbp}`), xp: l.solves.reduce((n, s) => n + s.xp, 0), balance: l.home.balance, spells: Object.entries(l.spells).filter(([, r]) => r.written).map(([id]) => id).sort(), card4: l.cards.T06?.hint }; }, LIFE);
+const progress = (page) => page.evaluate((k) => { const l = JSON.parse(localStorage.getItem(k) || 'null'); return l && { solves: l.solves.map((s) => `${s.card}:${s.xp}:${s.gbp}`), xp: l.solves.reduce((n, s) => n + s.xp, 0), balance: l.home.balance, spells: Object.entries(l.spells).filter(([, r]) => r.written).map(([id]) => id).sort(), card4: l.cards.G1?.hint, arc: l.arc && `${l.arc.company}:${l.arc.log.length}:${JSON.stringify(l.arc.marks)}:${JSON.stringify(l.arc.variants)}` }; }, LIFE);
 const openSettings = async (page) => { await page.click('#open-settings'); await page.waitForSelector('#settings[open]'); };
 const pick = (page, name, text) => page.setInputFiles('#import-file', { name, mimeType: 'application/json', buffer: Buffer.from(text) });
 
@@ -39,7 +41,7 @@ const pick = (page, name, text) => page.setInputFiles('#import-file', { name, mi
   await play(page);
   await page.reload(); await ready(page);
   const before = await progress(page);
-  t.check('a played save exists (3 solves, 30 XP, 3 spells written, hint 2 on a card)', before.solves.length === 3 && before.xp === 30 && before.balance === 120 && before.spells.length === 3 && before.card4 === 2, JSON.stringify(before));
+  t.check('a played save exists (3 solves, 30 XP, 3 spells written, hint 2 on a card, his company with its change log)', before.solves.length === 3 && before.xp === 30 && before.balance === 120 && before.spells.length === 3 && before.card4 === 2 && before.arc === 'Acme Rooms:2:{"G1":1}:{"S5":"split"}', JSON.stringify(before));
 
   // ---- export
   await openSettings(page);
