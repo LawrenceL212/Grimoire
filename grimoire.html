@@ -167,6 +167,31 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .rowitem .rn{font-family:var(--serif);font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rowitem .rs{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.1em;margin-top:3px}
 
+/* chronicle pulse: streak ring + study heatmap */
+.pulse{display:flex;align-items:center;gap:16px}
+.ring{position:relative;width:92px;height:92px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .rv{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .rv b{display:block;font-family:var(--serif);font-size:28px;color:var(--gold);line-height:1;font-weight:600}
+.ring .rv span{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--faint)}
+.pstats{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.heat{width:100%;height:auto;display:block;margin-top:16px}
+.heatkey{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:6px}
+.heatkey i{width:9px;height:9px;border-radius:2px;display:block}
+/* review deck */
+#reviewDeck:empty{display:none}
+.deck{position:relative;margin-bottom:18px}
+.deck .under{position:absolute;left:10px;right:10px;top:7px;bottom:-7px;border:1px solid var(--trim);border-radius:4px;background:var(--surface)}
+.deck .under.u2{left:20px;right:20px;top:14px;bottom:-14px;opacity:.6}
+.rvhead{display:flex;align-items:center;gap:12px}
+.rvcount{width:40px;height:40px;border-radius:50%;border:1px solid var(--trim2);display:grid;place-items:center;font-family:var(--serif);font-size:18px;color:var(--gold);background:rgba(196,154,60,.08);flex:none}
+.rvtitle{font-family:var(--serif);font-size:19px;margin:14px 0 4px;line-height:1.25}
+.rvdesc{color:var(--dim);font-size:13.5px;line-height:1.55;margin-top:10px;padding-top:10px;border-top:1px solid var(--trim)}
+.rvdots{display:flex;gap:4px;margin-top:12px}
+.rvdots i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.07)}
+.rvdots i.on{background:var(--gold)}
+.rvbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+
 /* nav */
 nav{
   position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;
@@ -257,6 +282,7 @@ nav button.on:before{content:"";position:absolute;top:0;left:22%;right:22%;heigh
       <div class="label" id="libCount"></div>
     </div>
   </div>
+  <div id="reviewDeck"></div>
   <div class="filters" id="filters"></div>
   <div class="grid" id="tomeGrid"></div>
 </section>
@@ -1211,6 +1237,7 @@ function renderFilters(){
   }).join("");
 }
 function renderLibrary(){
+  renderReview();
   renderFilters();
   var list = TOMES.filter(function(t){ return S.filter === "All" || t.cat === S.filter; });
   var t = totals();
@@ -1434,6 +1461,135 @@ function renderCaster(){
   });
 }
 
+/* ---- STUDY PULSE (heatmap + streak ring) ---- */
+function addDays(key, n){
+  var d = new Date(key + "T00:00:00"); d.setDate(d.getDate() + n); return dayKey(d);
+}
+function minutesByDay(){
+  var m = {};
+  S.sessions.forEach(function(s){ var k = dayKey(s.at); m[k] = (m[k] || 0) + (s.duration || 0); });
+  return m;
+}
+function streaks(byDay){
+  var days = Object.keys(byDay).sort(), best = 0, run = 0, prev = null;
+  days.forEach(function(k){
+    run = (prev && daysBetween(prev, k) === 1) ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = k;
+  });
+  var today = dayKey(new Date());
+  var cur = 0, k = byDay[today] ? today : addDays(today, -1);
+  while (byDay[k]){ cur++; k = addDays(k, -1); }
+  return { cur:cur, best:best };
+}
+var HEAT_FILL = ["rgba(255,255,255,0.05)","rgba(196,154,60,0.28)","rgba(196,154,60,0.5)","rgba(196,154,60,0.75)","#E0B655"];
+function heatLevel(m){ return !m ? 0 : m < 30 ? 1 : m < 60 ? 2 : m < 120 ? 3 : 4; }
+function pulseHTML(){
+  var byDay = minutesByDay(), st = streaks(byDay), today = dayKey(new Date());
+  var WEEKS = 17, CELL = 15, GAP = 3, TOP = 14;
+  // grid starts on the Monday WEEKS-1 weeks before this week's Monday
+  var dow = (new Date(today + "T00:00:00").getDay() + 6) % 7;
+  var start = addDays(today, -dow - 7 * (WEEKS - 1));
+  var cells = "", months = "", lastMonth = -1, week = 0;
+  for (var w = 0; w < WEEKS; w++){
+    var colStart = addDays(start, w * 7);
+    var mo = new Date(colStart + "T00:00:00").getMonth();
+    if (mo !== lastMonth && w < WEEKS - 1){
+      months += '<text x="' + (w * (CELL + GAP)) + '" y="9" fill="#6B5A45" font-size="9" font-family="JetBrains Mono,monospace">' +
+        new Date(colStart + "T00:00:00").toLocaleDateString(undefined, {month:"short"}).toUpperCase() + "</text>";
+      lastMonth = mo;
+    }
+    for (var d = 0; d < 7; d++){
+      var k = addDays(colStart, d);
+      if (k > today) continue;
+      var mins = byDay[k] || 0;
+      if (daysBetween(k, today) < 7) week += mins;
+      cells += '<rect x="' + (w * (CELL + GAP)) + '" y="' + (TOP + d * (CELL + GAP)) + '" width="' + CELL + '" height="' + CELL +
+        '" rx="2.5" fill="' + HEAT_FILL[heatLevel(mins)] + '"' + (k === today ? ' stroke="#C49A3C" stroke-width="1"' : "") +
+        '><title>' + k + " · " + fmtMins(mins) + "</title></rect>";
+    }
+  }
+  var W = WEEKS * (CELL + GAP) - GAP, H = TOP + 7 * (CELL + GAP) - GAP;
+  var R = 40, C = 2 * Math.PI * R, goal = Math.max(7, st.best), frac = Math.min(1, st.cur / goal);
+  return '<div class="card elev">' +
+    '<div class="pulse">' +
+      '<div class="ring"><svg viewBox="0 0 92 92">' +
+        '<circle cx="46" cy="46" r="' + R + '" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>' +
+        '<circle cx="46" cy="46" r="' + R + '" fill="none" stroke="url(#ringGrad)" stroke-width="7" stroke-linecap="round" stroke-dasharray="' +
+          (C * frac).toFixed(1) + " " + C.toFixed(1) + '"/>' +
+        '<defs><linearGradient id="ringGrad"><stop offset="0" stop-color="#8B6F3E"/><stop offset="1" stop-color="#E0B655"/></linearGradient></defs>' +
+      '</svg><div class="rv"><div><b>' + st.cur + '</b><span>STREAK</span></div></div></div>' +
+      '<div class="pstats">' +
+        '<div class="stat"><div class="v">' + st.best + '</div><div class="k">Best</div></div>' +
+        '<div class="stat"><div class="v">' + fmtMins(week) + '</div><div class="k">7 days</div></div>' +
+      "</div>" +
+    "</div>" +
+    '<svg class="heat" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Study minutes per day, last ' + WEEKS + ' weeks">' + months + cells + "</svg>" +
+    '<div class="heatkey"><span class="label" style="margin-right:4px">Less</span>' +
+      HEAT_FILL.map(function(f){ return '<i style="background:' + f + '"></i>'; }).join("") +
+      '<span class="label" style="margin-left:4px">More</span></div>' +
+  "</div>";
+}
+
+/* ---- REVIEW QUEUE ----
+   Every completed spell comes back for review on a widening schedule.
+   Schedule lives on the profile (profile.reviews), keyed "tomeId:spellNo". */
+var REVIEW_GAPS = [1, 3, 7, 14, 30, 60, 120];
+var reviewOpen = false;
+function reviewItems(){
+  var today = dayKey(new Date()), seen = {}, due = [];
+  var rv = (S.profile && S.profile.reviews) || {};
+  S.sessions.slice().reverse().forEach(function(s){
+    (s.completed || []).forEach(function(n){
+      var key = s.tome + ":" + n, tm = TOME_BY_ID[s.tome];
+      if (seen[key] || !tm || !tm.spellList[n-1]) return;
+      seen[key] = 1;
+      var r = rv[key] || { step:0, due:addDays(dayKey(s.at), REVIEW_GAPS[0]) };
+      if (r.due <= today) due.push({ key:key, tome:tm, sp:tm.spellList[n-1], step:r.step, due:r.due });
+    });
+  });
+  return due.sort(function(a,b){ return a.due < b.due ? -1 : a.due > b.due ? 1 : 0; });
+}
+function renderReview(){
+  var box = $("reviewDeck"); if (!box) return;
+  var due = reviewItems();
+  if (!due.length){ box.innerHTML = ""; return; }
+  var it = due[0];
+  var dots = REVIEW_GAPS.map(function(g, i){ return '<i class="' + (i < it.step ? "on" : "") + '"></i>'; }).join("");
+  box.innerHTML = '<div class="deck">' +
+    (due.length > 2 ? '<div class="under u2"></div>' : "") + (due.length > 1 ? '<div class="under"></div>' : "") +
+    '<div class="card elev">' +
+      '<div class="rvhead"><div class="rvcount">' + due.length + '</div>' +
+        '<div style="flex:1;min-width:0"><div class="label">Due for review</div>' +
+        '<div class="label" style="color:var(--bronze);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(it.tome.name) + " &middot; spell " + it.sp.n + "</div></div></div>" +
+      '<div class="rvtitle">' + esc(it.sp.title) + "</div>" +
+      (reviewOpen
+        ? '<div class="rvdesc">' + esc(it.sp.desc) + "</div>" +
+          '<div class="rvbtns"><button class="btn ghost sm" data-rv="shaky" data-k="' + it.key + '">Shaky</button>' +
+          '<button class="btn sm" data-rv="ok" data-k="' + it.key + '">Got it</button></div>'
+        : '<div class="hint">Recall what it covers, then check.</div>' +
+          '<div class="rvbtns" style="grid-template-columns:1fr"><button class="btn ghost sm" data-rv="show">Reveal</button></div>') +
+      '<div class="rvdots">' + dots + "</div>" +
+    "</div></div>";
+}
+function answerReview(key, ok){
+  var it = reviewItems().filter(function(x){ return x.key === key; })[0];
+  if (!it) return;
+  var today = dayKey(new Date());
+  var step = ok ? Math.min(it.step + 1, REVIEW_GAPS.length - 1) : 0;
+  var next = { step:step, due:addDays(today, ok ? REVIEW_GAPS[step] : 1), at:Date.now() };
+  S.profile = S.profile || {};
+  S.profile.reviews = S.profile.reviews || {};
+  S.profile.reviews[key] = next;
+  reviewOpen = false;
+  renderReview();
+  toast(ok ? "&#10022; Back in " + REVIEW_GAPS[step] + " days" : "Back tomorrow");
+  Store.saveProfile(S.user.uid, { reviews:S.profile.reviews }).catch(function(e){
+    console.error("Failed to save review:", e);
+    toast("Could not save the review.", 3500);
+  });
+}
+
 /* ---- CHRONICLE ---- */
 function entryHTML(s){
   var tm = TOME_BY_ID[s.tome];
@@ -1462,7 +1618,7 @@ function renderChronicle(){
   S.sessions.forEach(function(s){ (groups[dayKey(s.at)] = groups[dayKey(s.at)] || []).push(s); });
   var keys = Object.keys(groups).sort().reverse();
   var today = dayKey(new Date());
-  var h = keys.map(function(k){
+  var h = pulseHTML() + keys.map(function(k){
     var d = groups[k];
     var mins = d.reduce(function(a,s){ return a + s.duration; },0);
     var xp = d.reduce(function(a,s){ return a + s.xp; },0);
@@ -1674,6 +1830,11 @@ function wire(){
   $("tomeGrid").addEventListener("click", function(e){
     var b = e.target.closest(".tome"); if (!b) return;
     openTome(b.dataset.t);
+  });
+  $("reviewDeck").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-rv]"); if (!b) return;
+    if (b.dataset.rv === "show"){ reviewOpen = true; renderReview(); return; }
+    answerReview(b.dataset.k, b.dataset.rv === "ok");
   });
   $("sheetBack").onclick = closeSheet;
   $("cTome").addEventListener("change", function(){ S.cast.tome = this.value; });
